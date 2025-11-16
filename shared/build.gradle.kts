@@ -20,6 +20,9 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
+
+            // Export Koin so it's accessible from Swift
+            export(libs.koin.core)
         }
     }
 

@@ -14,3 +14,8 @@ actual fun initializeKoin(additionalModules: List<Module>) {
     // Android initialization happens in the Application class
     // See: composeApp/src/androidMain/kotlin/.../ListenUpApp.kt
 }
+
+/**
+ * Android emulator uses 10.0.2.2 to connect to host's localhost.
+ */
+actual fun getBaseUrl(): String = "http://10.0.2.2:8080"

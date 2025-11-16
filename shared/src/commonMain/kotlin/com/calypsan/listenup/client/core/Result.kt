@@ -130,7 +130,7 @@ inline fun <T> Result<T>.recover(recovery: (Exception) -> T): Result<T> = when (
 @OptIn(ExperimentalContracts::class)
 suspend inline fun <T> suspendRunCatching(crossinline block: suspend () -> T): Result<T> {
     contract {
-        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+        callsInPlace(block, InvocationKind.AT_MOST_ONCE)
     }
     return try {
         Success(block())
@@ -145,7 +145,7 @@ suspend inline fun <T> suspendRunCatching(crossinline block: suspend () -> T): R
 @OptIn(ExperimentalContracts::class)
 inline fun <T> runCatching(block: () -> T): Result<T> {
     contract {
-        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+        callsInPlace(block, InvocationKind.AT_MOST_ONCE)
     }
     return try {
         Success(block())

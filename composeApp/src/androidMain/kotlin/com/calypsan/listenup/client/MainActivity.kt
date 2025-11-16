@@ -101,7 +101,7 @@ fun InstanceContent(instance: Instance) {
                 style = MaterialTheme.typography.headlineMedium
             )
 
-            Divider()
+            HorizontalDivider()
 
             InfoRow(label = "Instance ID", value = instance.id.value)
 

@@ -16,12 +16,17 @@ import org.koin.dsl.module
  */
 val networkModule = module {
     single {
-        // Using 10.0.2.2 for Android emulator (maps to host's localhost)
-        // For physical device, you'd need to use your computer's LAN IP
-        // TODO: Make baseUrl configurable via build config or environment
-        ListenUpApi(baseUrl = "http://10.0.2.2:8080")
+        ListenUpApi(baseUrl = getBaseUrl())
     }
 }
+
+/**
+ * Platform-specific base URL for the API.
+ * - Android emulator: 10.0.2.2 (maps to host's localhost)
+ * - iOS simulator: localhost/127.0.0.1
+ * - Physical devices: Use your computer's LAN IP
+ */
+expect fun getBaseUrl(): String
 
 /**
  * Repository layer dependencies.
