@@ -10,6 +10,7 @@ import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
+import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
@@ -97,6 +98,14 @@ val useCaseModule = module {
 }
 
 /**
+ * Presentation layer dependencies.
+ * Provides ViewModels for UI screens.
+ */
+val presentationModule = module {
+    factory { ServerConnectViewModel(settingsRepository = get()) }
+}
+
+/**
  * All shared modules that should be loaded in both Android and iOS.
  */
 val sharedModules = listOf(
@@ -105,7 +114,8 @@ val sharedModules = listOf(
     dataModule,
     networkModule,
     repositoryModule,
-    useCaseModule
+    useCaseModule,
+    presentationModule
 )
 
 /**

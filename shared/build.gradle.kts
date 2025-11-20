@@ -55,10 +55,12 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.collections.immutable)
 
             api(libs.koin.core)
             implementation(libs.kotlin.logging)
 
+            implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
         }

@@ -13,8 +13,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
+import com.calypsan.listenup.client.navigation.ListenUpNavigation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,16 +41,20 @@ class MainActivity : ComponentActivity() {
 
 /**
  * Root composable for the ListenUp app.
+ *
+ * Wraps the entire app in Material 3 Expressive theme with:
+ * - Dynamic color support (Android 12+)
+ * - Display P3 HDR color space
+ * - Google Sans Flex typography
+ * - Expressive shapes (20-28dp corners)
+ *
+ * Navigation is auth-driven and automatically adjusts based on
+ * authentication state from SettingsRepository.
  */
 @Composable
 fun ListenUpApp() {
-    MaterialTheme {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            InstanceScreen()
-        }
+    ListenUpTheme {
+        ListenUpNavigation()
     }
 }
 
