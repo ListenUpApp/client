@@ -1,0 +1,146 @@
+package com.calypsan.listenup.client.data.remote
+
+import com.calypsan.listenup.client.core.AccessToken
+import com.calypsan.listenup.client.core.RefreshToken
+import com.calypsan.listenup.client.data.repository.AuthState
+import com.calypsan.listenup.client.data.repository.SettingsRepository
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.providers.BearerTokens
+import io.ktor.client.plugins.auth.providers.bearer
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.Json
+
+/**
+ * Factory for creating authenticated HTTP clients with automatic token refresh.
+ *
+ * Provides a single cached client instance that:
+ * - Automatically adds Bearer auth headers
+ * - Refreshes expired tokens on 401 responses
+ * - Updates SettingsRepository with new tokens
+ * - Handles concurrent refresh requests safely
+ *
+ * The client is lazy-initialized and cached for the lifetime of the factory.
+ * Call [close] to release resources when no longer needed.
+ */
+class ApiClientFactory(
+    private val settingsRepository: SettingsRepository,
+    private val authApi: AuthApi
+) {
+    private val mutex = Mutex()
+    private var cachedClient: HttpClient? = null
+
+    /**
+     * Get or create the authenticated HTTP client.
+     *
+     * Client is cached after first creation. All requests through this client
+     * will automatically include Bearer tokens and handle token refresh.
+     *
+     * @return Configured HttpClient with auth plugin
+     */
+    suspend fun getClient(): HttpClient = mutex.withLock {
+        cachedClient ?: createClient().also { cachedClient = it }
+    }
+
+    private suspend fun createClient(): HttpClient {
+        val serverUrl = settingsRepository.getServerUrl()
+            ?: throw IllegalStateException("Server URL not configured")
+
+        return HttpClient {
+            install(ContentNegotiation) {
+                json(Json {
+                    prettyPrint = false
+                    isLenient = false
+                    ignoreUnknownKeys = true
+                })
+            }
+
+            install(Auth) {
+                bearer {
+                    // Load initial tokens from storage
+                    loadTokens {
+                        val access = settingsRepository.getAccessToken()?.value
+                        val refresh = settingsRepository.getRefreshToken()?.value
+
+                        if (access != null && refresh != null) {
+                            BearerTokens(
+                                accessToken = access,
+                                refreshToken = refresh
+                            )
+                        } else {
+                            null
+                        }
+                    }
+
+                    // Refresh tokens when receiving 401 Unauthorized
+                    refreshTokens {
+                        val currentRefreshToken = settingsRepository.getRefreshToken()
+                            ?: throw IllegalStateException("No refresh token available")
+
+                        try {
+                            val response = authApi.refresh(currentRefreshToken)
+
+                            // Save new tokens to storage
+                            settingsRepository.saveAuthTokens(
+                                access = AccessToken(response.accessToken),
+                                refresh = RefreshToken(response.refreshToken),
+                                sessionId = response.sessionId,
+                                userId = response.userId
+                            )
+
+                            BearerTokens(
+                                accessToken = response.accessToken,
+                                refreshToken = response.refreshToken
+                            )
+                        } catch (e: Exception) {
+                            // Refresh failed - clear auth state and force re-login
+                            settingsRepository.clearAuthTokens()
+                            null
+                        }
+                    }
+
+                    // Control when to send bearer token
+                    sendWithoutRequest { request ->
+                        // Send auth header for all requests except auth endpoints
+                        // (auth endpoints handle their own credentials in request body)
+                        val urlString = request.url.toString()
+                        !urlString.contains("/api/auth/")
+                    }
+                }
+            }
+
+            defaultRequest {
+                url(serverUrl.value)
+                contentType(ContentType.Application.Json)
+            }
+        }
+    }
+
+    /**
+     * Invalidate the cached client and create a new one.
+     * Useful when server URL changes or manual client reset is needed.
+     */
+    suspend fun invalidate() {
+        mutex.withLock {
+            cachedClient?.close()
+            cachedClient = null
+        }
+    }
+
+    /**
+     * Close the cached client and release resources.
+     * Call this when the factory is no longer needed.
+     */
+    suspend fun close() {
+        mutex.withLock {
+            cachedClient?.close()
+            cachedClient = null
+        }
+    }
+}

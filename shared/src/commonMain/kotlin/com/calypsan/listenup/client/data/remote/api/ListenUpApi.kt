@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
+import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Instance
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -21,23 +22,31 @@ private val logger = KotlinLogging.logger {}
 /**
  * HTTP client for the ListenUp audiobook server API.
  *
- * This class handles all network communication with the server,
- * including request configuration, response deserialization, and error handling.
+ * Handles both public and authenticated API endpoints:
+ * - Public endpoints (like getInstance) use a simple unauthenticated client
+ * - Authenticated endpoints use ApiClientFactory for automatic token refresh
+ *
+ * This separation ensures clean architecture - public endpoints don't carry
+ * unnecessary auth overhead, while authenticated endpoints get automatic
+ * token management.
  *
  * Uses Ktor 3 for modern, multiplatform HTTP client functionality.
  */
-class ListenUpApi(private val baseUrl: String) {
+class ListenUpApi(
+    private val baseUrl: String,
+    private val apiClientFactory: ApiClientFactory? = null
+) {
     /**
-     * Configured HTTP client with JSON serialization, logging, and timeouts.
+     * Simple HTTP client for public endpoints (no authentication).
+     * Used for endpoints like getInstance that don't require credentials.
      */
-    private val client = HttpClient {
+    private val publicClient = HttpClient {
         // JSON content negotiation for request/response serialization
         install(ContentNegotiation) {
             json(Json {
-                prettyPrint = true
-                isLenient = true
+                prettyPrint = false
+                isLenient = false
                 ignoreUnknownKeys = true
-                encodeDefaults = true
             })
         }
 
@@ -65,14 +74,27 @@ class ListenUpApi(private val baseUrl: String) {
     }
 
     /**
+     * Get authenticated HTTP client from factory.
+     * Used for endpoints that require Bearer token authentication.
+     *
+     * @throws IllegalStateException if factory not provided
+     */
+    private suspend fun getAuthenticatedClient(): HttpClient {
+        return apiClientFactory?.getClient()
+            ?: throw IllegalStateException("ApiClientFactory required for authenticated endpoints")
+    }
+
+    /**
      * Fetch the server instance information.
+     *
+     * This is a public endpoint - no authentication required.
      *
      * @return Result containing the Instance on success, or an error on failure
      */
     suspend fun getInstance(): Result<Instance> = suspendRunCatching {
         logger.debug { "Fetching instance information from $baseUrl/api/v1/instance" }
 
-        val response: ApiResponse<Instance> = client.get("/api/v1/instance").body()
+        val response: ApiResponse<Instance> = publicClient.get("/api/v1/instance").body()
 
         logger.debug { "Received response: success=${response.success}" }
 
@@ -87,6 +109,6 @@ class ListenUpApi(private val baseUrl: String) {
      * Clean up resources when the API client is no longer needed.
      */
     fun close() {
-        client.close()
+        publicClient.close()
     }
 }
