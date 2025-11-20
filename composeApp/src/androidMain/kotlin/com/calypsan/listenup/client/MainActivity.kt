@@ -4,22 +4,229 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.domain.model.Instance
+import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
 
+/**
+ * Main activity for the ListenUp app.
+ *
+ * Uses edge-to-edge display and Material 3 theming.
+ */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         setContent {
-            App()
+            ListenUpApp()
         }
     }
 }
 
-@Preview
+/**
+ * Root composable for the ListenUp app.
+ */
 @Composable
-fun AppAndroidPreview() {
-    App()
+fun ListenUpApp() {
+    MaterialTheme {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            InstanceScreen()
+        }
+    }
+}
+
+/**
+ * Screen that displays server instance information.
+ */
+@Composable
+fun InstanceScreen(
+    viewModel: InstanceViewModel = koinViewModel()
+) {
+    val state by viewModel.state.collectAsState()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            state.isLoading -> {
+                CircularProgressIndicator()
+            }
+
+            state.error != null -> {
+                ErrorContent(
+                    error = state.error!!,
+                    onRetry = { viewModel.loadInstance() }
+                )
+            }
+
+            state.instance != null -> {
+                InstanceContent(instance = state.instance!!)
+            }
+        }
+    }
+}
+
+@Composable
+fun InstanceContent(instance: Instance) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "ListenUp Server",
+                style = MaterialTheme.typography.headlineMedium
+            )
+
+            HorizontalDivider()
+
+            InfoRow(label = "Instance ID", value = instance.id.value)
+
+            InfoRow(
+                label = "Status",
+                value = if (instance.isReady) "Ready" else "Needs Setup"
+            )
+
+            InfoRow(
+                label = "Has Root User",
+                value = if (instance.hasRootUser) "Yes" else "No"
+            )
+
+            if (instance.needsSetup) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Text(
+                        text = "⚠️ Server needs initial setup",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
+@Composable
+fun ErrorContent(error: String, onRetry: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Error",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+
+            Button(onClick = onRetry) {
+                Text("Retry")
+            }
+        }
+    }
+}
+
+/**
+ * UI state for the instance screen.
+ */
+data class InstanceUiState(
+    val isLoading: Boolean = true,
+    val instance: Instance? = null,
+    val error: String? = null
+)
+
+/**
+ * ViewModel for managing instance data and state.
+ *
+ * Follows modern Android architecture with StateFlow for reactive UI updates.
+ */
+class InstanceViewModel(
+    private val getInstanceUseCase: GetInstanceUseCase
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(InstanceUiState())
+    val state: StateFlow<InstanceUiState> = _state.asStateFlow()
+
+    init {
+        loadInstance()
+    }
+
+    fun loadInstance() {
+        viewModelScope.launch {
+            _state.value = InstanceUiState(isLoading = true)
+
+            when (val result = getInstanceUseCase()) {
+                is Result.Success -> {
+                    _state.value = InstanceUiState(
+                        isLoading = false,
+                        instance = result.data
+                    )
+                }
+
+                is Result.Failure -> {
+                    _state.value = InstanceUiState(
+                        isLoading = false,
+                        error = result.message
+                    )
+                }
+            }
+        }
+    }
 }
