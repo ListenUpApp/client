@@ -50,10 +50,12 @@ fun ListenUpNavigation(
     // Observe auth state changes
     val authState by settingsRepository.authState.collectAsState()
 
-    // Route to appropriate navigation graph based on auth state
+    // Route to appropriate screen based on auth state
     when (authState) {
-        is AuthState.Loading -> LoadingScreen()
-        is AuthState.Unauthenticated -> UnauthenticatedNavigation(settingsRepository)
+        AuthState.NeedsServerUrl -> ServerSetupNavigation()
+        AuthState.CheckingServer -> LoadingScreen("Checking server...")
+        AuthState.NeedsSetup -> SetupNavigation()
+        AuthState.NeedsLogin -> LoginNavigation()
         is AuthState.Authenticated -> AuthenticatedNavigation(settingsRepository)
     }
 }
@@ -63,7 +65,7 @@ fun ListenUpNavigation(
  * Displayed briefly on app start while checking for stored credentials.
  */
 @Composable
-private fun LoadingScreen() {
+private fun LoadingScreen(message: String = "Loading...") {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -73,21 +75,12 @@ private fun LoadingScreen() {
 }
 
 /**
- * Navigation graph for unauthenticated users.
- *
- * Flow:
- * 1. ServerSetup - User enters and verifies server URL
- * 2. Login - User enters credentials (TODO: not implemented yet)
- *
- * When login succeeds, SettingsRepository updates auth state,
- * triggering automatic switch to AuthenticatedNavigation.
+ * Server setup navigation - shown when no server URL is configured.
+ * After successful verification, AuthState changes trigger automatic navigation.
  */
 @Composable
-private fun UnauthenticatedNavigation(
-    settingsRepository: SettingsRepository
-) {
+private fun ServerSetupNavigation() {
     val backStack = remember { mutableStateListOf<Any>(ServerSetup) }
-    val scope = rememberCoroutineScope()
 
     NavDisplay(
         backStack = backStack,
@@ -95,22 +88,46 @@ private fun UnauthenticatedNavigation(
             entry<ServerSetup> {
                 ServerSetupScreen(
                     onServerVerified = {
-                        // Navigate to login after successful verification
-                        // ViewModel saves server URL to SettingsRepository
-                        backStack.add(Login)
+                        // URL is saved, AuthState will change automatically
+                        // No manual navigation needed
                     }
                 )
             }
+        }
+    )
+}
 
+/**
+ * Setup navigation - shown when server needs initial root user.
+ * After successful setup, AuthState.Authenticated triggers automatic navigation.
+ */
+@Composable
+private fun SetupNavigation() {
+    val backStack = remember { mutableStateListOf<Any>(Setup) }
+
+    NavDisplay(
+        backStack = backStack,
+        entryProvider = entryProvider {
+            entry<Setup> {
+                com.calypsan.listenup.client.features.auth.SetupScreen()
+            }
+        }
+    )
+}
+
+/**
+ * Login navigation - shown when server is configured but user needs to authenticate.
+ * After successful login, AuthState.Authenticated triggers automatic navigation.
+ */
+@Composable
+private fun LoginNavigation() {
+    val backStack = remember { mutableStateListOf<Any>(Login) }
+
+    NavDisplay(
+        backStack = backStack,
+        entryProvider = entryProvider {
             entry<Login> {
-                // TODO: Implement LoginScreen
-                // For now, show placeholder
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Login Screen - Not Implemented Yet")
-                }
+                com.calypsan.listenup.client.features.auth.LoginScreen()
             }
         }
     )

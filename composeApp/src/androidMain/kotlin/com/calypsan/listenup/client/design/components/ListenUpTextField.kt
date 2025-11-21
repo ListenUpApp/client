@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
@@ -28,8 +29,10 @@ import com.calypsan.listenup.client.design.theme.ListenUpTheme
  * @param label Floating label text
  * @param modifier Optional modifier
  * @param placeholder Hint text shown when empty
+ * @param enabled Whether the field is enabled for input
  * @param isError Whether to show error styling
  * @param supportingText Helper or error text below field
+ * @param visualTransformation Visual transformation applied to text (e.g., password masking)
  * @param keyboardOptions Keyboard type and IME action configuration
  * @param keyboardActions Keyboard action handlers
  */
@@ -40,8 +43,10 @@ fun ListenUpTextField(
     label: String,
     modifier: Modifier = Modifier,
     placeholder: String? = null,
+    enabled: Boolean = true,
     isError: Boolean = false,
     supportingText: String? = null,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
@@ -50,8 +55,10 @@ fun ListenUpTextField(
         onValueChange = onValueChange,
         label = { Text(label) },
         placeholder = placeholder?.let { { Text(it) } },
+        enabled = enabled,
         isError = isError,
         supportingText = supportingText?.let { { Text(it) } },
+        visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
         singleLine = true,

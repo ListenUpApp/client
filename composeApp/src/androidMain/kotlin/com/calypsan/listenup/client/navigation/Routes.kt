@@ -10,15 +10,22 @@ import kotlinx.serialization.Serializable
  */
 
 /**
- * Server setup screen - first step in unauthenticated flow.
+ * Server setup screen - initial flow when no server URL configured.
  * User enters and verifies their ListenUp server URL.
  */
 @Serializable
 object ServerSetup
 
 /**
- * Login screen - second step in unauthenticated flow.
- * User enters credentials after server is verified.
+ * Setup screen - root user creation when server has no users.
+ * User creates the first admin account.
+ */
+@Serializable
+object Setup
+
+/**
+ * Login screen - authentication when server is configured.
+ * User enters credentials to access their account.
  */
 @Serializable
 object Login

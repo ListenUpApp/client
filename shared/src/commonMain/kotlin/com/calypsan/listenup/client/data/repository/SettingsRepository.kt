@@ -2,8 +2,10 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
+import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.core.ServerUrl
+import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,9 +22,10 @@ import kotlinx.coroutines.flow.asStateFlow
  * All sensitive data is stored via SecureStorage (encrypted at rest).
  */
 class SettingsRepository(
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage,
+    private val instanceRepository: InstanceRepository
 ) {
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
+    private val _authState = MutableStateFlow<AuthState>(AuthState.NeedsServerUrl)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     companion object {
@@ -37,10 +40,12 @@ class SettingsRepository(
 
     /**
      * Set the server URL for API requests.
-     * This is persisted across app restarts.
+     * This is persisted across app restarts and triggers auth state re-derivation.
      */
     suspend fun setServerUrl(url: ServerUrl) {
         secureStorage.save(KEY_SERVER_URL, url.value)
+        // Re-derive state after URL change
+        _authState.value = deriveAuthState()
     }
 
     /**
@@ -121,7 +126,10 @@ class SettingsRepository(
     /**
      * Clear authentication tokens (soft logout).
      * Keeps server URL and cached data intact.
-     * Updates auth state to Unauthenticated.
+     * Triggers state re-derivation (will check server status to determine next screen).
+     *
+     * TODO: Add playback resilience - check if audio is playing before clearing.
+     * If playing, show banner instead of redirecting to login.
      */
     suspend fun clearAuthTokens() {
         secureStorage.delete(KEY_ACCESS_TOKEN)
@@ -129,16 +137,17 @@ class SettingsRepository(
         secureStorage.delete(KEY_SESSION_ID)
         secureStorage.delete(KEY_USER_ID)
 
-        _authState.value = AuthState.Unauthenticated
+        // Re-derive state: will check server status since we still have URL
+        _authState.value = deriveAuthState()
     }
 
     /**
      * Clear all settings including server URL (complete reset).
-     * Updates auth state to Unauthenticated.
+     * Updates auth state to NeedsServerUrl.
      */
     suspend fun clearAll() {
         secureStorage.clear()
-        _authState.value = AuthState.Unauthenticated
+        _authState.value = AuthState.NeedsServerUrl
     }
 
     // State queries
@@ -156,17 +165,77 @@ class SettingsRepository(
 
     /**
      * Initialize authentication state on app startup.
-     * Call this once during app initialization to restore auth state from storage.
+     * Call this once during app initialization to derive auth state from stored data.
+     *
+     * State derivation logic:
+     * ```
+     * No URL               → NeedsServerUrl
+     * URL + Token          → Authenticated (optimistic, skip network check)
+     * URL + No Token       → CheckingServer → check instance.setupRequired
+     *   ├─ setup_required=true  → NeedsSetup
+     *   ├─ setup_required=false → NeedsLogin
+     *   └─ Network failure      → clear URL → NeedsServerUrl
+     * ```
      */
     suspend fun initializeAuthState() {
-        val hasTokens = getAccessToken() != null
+        _authState.value = deriveAuthState()
+    }
+
+    /**
+     * Derives the current authentication state based on stored data and server status.
+     * Internal method called by initializeAuthState() and after state-changing operations.
+     */
+    private suspend fun deriveAuthState(): AuthState {
+        val serverUrl = getServerUrl()
+
+        // No URL configured
+        if (serverUrl == null) {
+            return AuthState.NeedsServerUrl
+        }
+
+        // URL + Token = Authenticated (optimistic)
+        val hasToken = getAccessToken() != null
         val userId = getUserId()
         val sessionId = getSessionId()
 
-        _authState.value = if (hasTokens && userId != null && sessionId != null) {
-            AuthState.Authenticated(userId, sessionId)
-        } else {
-            AuthState.Unauthenticated
+        if (hasToken && userId != null && sessionId != null) {
+            return AuthState.Authenticated(userId, sessionId)
         }
+
+        // URL but no token → check server status
+        return checkServerStatus()
+    }
+
+    /**
+     * Checks the server's instance status to determine if setup is required.
+     * Returns NeedsSetup if server has no root user, NeedsLogin otherwise.
+     * On network failure, clears the URL and returns NeedsServerUrl.
+     */
+    private suspend fun checkServerStatus(): AuthState {
+        // Emit checking state
+        _authState.value = AuthState.CheckingServer
+
+        return when (val result = instanceRepository.getInstance(forceRefresh = true)) {
+            is Result.Success -> {
+                if (result.data.setupRequired) {
+                    AuthState.NeedsSetup
+                } else {
+                    AuthState.NeedsLogin
+                }
+            }
+            is Result.Failure -> {
+                // Server unreachable → clear URL and restart flow
+                clearServerUrl()
+                AuthState.NeedsServerUrl
+            }
+        }
+    }
+
+    /**
+     * Clears the stored server URL.
+     * Used when server becomes unreachable to force user to re-validate connection.
+     */
+    private suspend fun clearServerUrl() {
+        secureStorage.delete(KEY_SERVER_URL)
     }
 }

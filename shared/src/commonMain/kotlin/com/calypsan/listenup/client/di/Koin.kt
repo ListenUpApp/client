@@ -30,10 +30,10 @@ expect val platformStorageModule: Module
 val dataModule = module {
     // Settings repository - single source of truth for app configuration
     single {
-        SettingsRepository(secureStorage = get()).apply {
-            // Initialize with default server URL if not set
-            // This will be updated when user connects to a server
-        }
+        SettingsRepository(
+            secureStorage = get(),
+            instanceRepository = get()
+        )
     }
 }
 
@@ -83,7 +83,16 @@ expect fun getBaseUrl(): String
  * Binds repository interfaces to their implementations.
  */
 val repositoryModule = module {
-    singleOf(::InstanceRepositoryImpl) bind InstanceRepository::class
+    // InstanceRepository needs unauthenticated API to avoid circular dependency
+    // (SettingsRepository -> InstanceRepository -> ListenUpApi -> ApiClientFactory -> SettingsRepository)
+    single<InstanceRepository> {
+        InstanceRepositoryImpl(
+            api = ListenUpApi(
+                baseUrl = getBaseUrl(),
+                apiClientFactory = null // Public endpoints don't need authentication
+            )
+        )
+    }
 
     // DAOs from database
     single { get<ListenUpDatabase>().userDao() }
@@ -103,6 +112,18 @@ val useCaseModule = module {
  */
 val presentationModule = module {
     factory { ServerConnectViewModel(settingsRepository = get()) }
+    factory {
+        com.calypsan.listenup.client.presentation.auth.SetupViewModel(
+            authApi = get(),
+            settingsRepository = get()
+        )
+    }
+    factory {
+        com.calypsan.listenup.client.presentation.auth.LoginViewModel(
+            authApi = get(),
+            settingsRepository = get()
+        )
+    }
 }
 
 /**
