@@ -6,7 +6,6 @@ import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.ResponseException
 import io.ktor.utils.io.errors.IOException
 import kotlinx.serialization.SerializationException
-import java.net.UnknownHostException
 
 /**
  * Maps exceptions to AppError types.
