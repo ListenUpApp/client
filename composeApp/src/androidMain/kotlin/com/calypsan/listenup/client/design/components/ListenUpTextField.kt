@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,13 +18,10 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
 
 /**
- * Material 3 Expressive text field with ListenUp theming.
+ * Material 3 text field using the theme's expressive shape system.
  *
- * Features:
- * - Outlined style with 20.dp corner radius (medium shape)
- * - Automatic error state styling
- * - Supporting text for hints/errors
- * - Flexible keyboard configuration
+ * Uses [MaterialTheme.shapes.medium] for consistent corner radius across the app.
+ * Inherits dynamic color support from the theme.
  *
  * @param value Current text value
  * @param onValueChange Callback when text changes
@@ -57,6 +55,7 @@ fun ListenUpTextField(
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
         singleLine = true,
+        shape = MaterialTheme.shapes.medium,
         modifier = modifier.fillMaxWidth()
     )
 }

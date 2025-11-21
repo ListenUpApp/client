@@ -6,8 +6,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
@@ -29,16 +34,40 @@ private val ExpressiveShapes = Shapes(
 )
 
 /**
- * ListenUp Material 3 Expressive theme.
+ * Composition local for accessing the current theme's dark mode state.
+ * Use this instead of isSystemInDarkTheme() to respect the app's actual theme,
+ * not just the system setting.
+ *
+ * Usage: val isDark = LocalDarkTheme.current
+ */
+val LocalDarkTheme = staticCompositionLocalOf { false }
+
+/**
+ * Dark color scheme fallback using ListenUp orange seed.
+ * Used on Android < 12 where dynamic color is unavailable.
+ * Surface containers are tinted with the primary orange to create depth.
+ */
+private val DarkColorScheme = darkColorScheme(
+    primary = ListenUpOrange,
+    // Tinted dark surface containers derived from orange seed
+    surface = Color(0xFF1A1210),
+    surfaceContainer = Color(0xFF251D1A),
+    surfaceContainerLow = Color(0xFF1F1714),
+    surfaceContainerHigh = Color(0xFF302723),
+    surfaceContainerHighest = Color(0xFF3B322D)
+)
+
+/**
+ * ListenUp Material 3 theme with true Material You support.
  *
  * Features:
  * - Dynamic color on Android 12+ (adapts to user's wallpaper)
+ * - Respects system dark/light mode setting
  * - Fallback to ListenUpOrange seed color on older devices
  * - Display P3 wide color gamut support for HDR displays
- * - Google Sans Flex variable font typography
  * - Expressive shapes with larger corner radii (20-28dp)
  *
- * @param darkTheme Whether to use dark theme. Currently only light theme implemented.
+ * @param darkTheme Whether to use dark theme. Defaults to system setting.
  * @param dynamicColor Whether to use dynamic color from system (Android 12+).
  *                     Defaults to true. Set to false to always use ListenUpOrange seed.
  * @param content The composable content to theme.
@@ -49,19 +78,28 @@ fun ListenUpTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
+
     val colorScheme = when {
-        // Dynamic color takes precedence on Android 12+
+        // Dynamic color on Android 12+ - respects wallpaper and system theme
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            dynamicLightColorScheme(LocalContext.current)
+            if (darkTheme) {
+                dynamicDarkColorScheme(context)
+            } else {
+                dynamicLightColorScheme(context)
+            }
         }
-        // Fallback to our seed color with Display P3 support
+        // Fallback for older devices
+        darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = ListenUpTypography,
-        shapes = ExpressiveShapes,
-        content = content
-    )
+    CompositionLocalProvider(LocalDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = ListenUpTypography,
+            shapes = ExpressiveShapes,
+            content = content
+        )
+    }
 }
