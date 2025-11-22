@@ -35,4 +35,14 @@ object KoinHelper : KoinComponent {
         val useCase: GetInstanceUseCase by inject()
         return useCase
     }
+
+    fun getServerConnectViewModel(): com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel by inject()
+        return viewModel
+    }
+
+    fun getSettingsRepository(): com.calypsan.listenup.client.data.repository.SettingsRepository {
+        val repository: com.calypsan.listenup.client.data.repository.SettingsRepository by inject()
+        return repository
+    }
 }

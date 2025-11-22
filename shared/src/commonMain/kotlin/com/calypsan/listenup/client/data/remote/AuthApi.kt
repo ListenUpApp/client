@@ -1,8 +1,12 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.AccessToken
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.RefreshToken
+import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.ServerUrl
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -43,16 +47,73 @@ class AuthApi(private val serverUrl: ServerUrl) {
     }
 
     /**
+     * Create the root/admin user during initial server setup.
+     *
+     * This endpoint is only available when the server has no users configured.
+     * Once a root user exists, this endpoint will return an error.
+     *
+     * @param email User's email address (will be username)
+     * @param password User's password (min 8 characters)
+     * @param firstName User's first name
+     * @param lastName User's last name
+     * @return AuthResponse with tokens and user info on success
+     * @throws Exception on network errors or validation failures
+     */
+    suspend fun setup(email: String, password: String, firstName: String, lastName: String): AuthResponse {
+        val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/setup") {
+            setBody(SetupRequest(email, password, firstName, lastName))
+        }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exception
+        }
+    }
+
+    /**
      * Login with email and password.
      *
      * @return AuthResponse with tokens and user info on success
      * @throws Exception on network errors or invalid credentials
      */
     suspend fun login(email: String, password: String): AuthResponse {
-        return client.post("/api/auth/login") {
-            setBody(LoginRequest(email, password))
+        val deviceInfo = DeviceInfo(
+            deviceType = "mobile",
+            platform = getPlatform(),
+            platformVersion = getPlatformVersion(),
+            clientName = "ListenUp Mobile",
+            clientVersion = "1.0.0",
+            clientBuild = "1",
+            deviceModel = getDeviceModel()
+        )
+
+        val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/login") {
+            setBody(LoginRequest(email, password, deviceInfo))
         }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exception
+        }
     }
+
+    /**
+     * Get the current platform name.
+     * Expected to be implemented via expect/actual pattern.
+     */
+    private fun getPlatform(): String = "Android" // TODO: Use expect/actual
+
+    /**
+     * Get the current platform version.
+     * Expected to be implemented via expect/actual pattern.
+     */
+    private fun getPlatformVersion(): String = "Unknown" // TODO: Use expect/actual
+
+    /**
+     * Get the device model.
+     * Expected to be implemented via expect/actual pattern.
+     */
+    private fun getDeviceModel(): String = "Unknown" // TODO: Use expect/actual
 
     /**
      * Refresh access token using refresh token.
@@ -64,9 +125,14 @@ class AuthApi(private val serverUrl: ServerUrl) {
      * @throws Exception on network errors or invalid/expired refresh token
      */
     suspend fun refresh(refreshToken: RefreshToken): AuthResponse {
-        return client.post("/api/auth/refresh") {
+        val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/refresh") {
             setBody(RefreshRequest(refreshToken.value))
         }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exception
+        }
     }
 
     /**
@@ -93,14 +159,38 @@ class AuthApi(private val serverUrl: ServerUrl) {
 // Request DTOs
 
 @Serializable
+private data class SetupRequest(
+    @SerialName("email") val email: String,
+    @SerialName("password") val password: String,
+    @SerialName("first_name") val firstName: String,
+    @SerialName("last_name") val lastName: String
+)
+
+@Serializable
 private data class LoginRequest(
     @SerialName("email") val email: String,
-    @SerialName("password") val password: String
+    @SerialName("password") val password: String,
+    @SerialName("device_info") val deviceInfo: DeviceInfo
+)
+
+@Serializable
+private data class DeviceInfo(
+    @SerialName("device_type") val deviceType: String,
+    @SerialName("platform") val platform: String,
+    @SerialName("platform_version") val platformVersion: String,
+    @SerialName("client_name") val clientName: String,
+    @SerialName("client_version") val clientVersion: String,
+    @SerialName("client_build") val clientBuild: String = "",
+    @SerialName("device_name") val deviceName: String = "",
+    @SerialName("device_model") val deviceModel: String = "",
+    @SerialName("browser_name") val browserName: String = "",
+    @SerialName("browser_version") val browserVersion: String = ""
 )
 
 @Serializable
 private data class RefreshRequest(
-    @SerialName("refresh_token") val refreshToken: String
+    @SerialName("refresh_token") val refreshToken: String,
+    @SerialName("device_info") val deviceInfo: DeviceInfo? = null
 )
 
 @Serializable
@@ -119,8 +209,29 @@ data class AuthResponse(
     @SerialName("access_token") val accessToken: String,
     @SerialName("refresh_token") val refreshToken: String,
     @SerialName("session_id") val sessionId: String,
-    @SerialName("user_id") val userId: String,
+    @SerialName("token_type") val tokenType: String,
+    @SerialName("expires_in") val expiresIn: Int,
+    @SerialName("user") val user: AuthUser
+) {
+    // Convenience accessors for common user fields
+    val userId: String get() = user.id
+    val email: String get() = user.email
+    val displayName: String get() = user.displayName
+    val isRoot: Boolean get() = user.isRoot
+}
+
+/**
+ * User information included in authentication responses.
+ */
+@Serializable
+data class AuthUser(
+    @SerialName("id") val id: String,
     @SerialName("email") val email: String,
     @SerialName("display_name") val displayName: String,
-    @SerialName("is_root") val isRoot: Boolean
+    @SerialName("first_name") val firstName: String,
+    @SerialName("last_name") val lastName: String,
+    @SerialName("is_root") val isRoot: Boolean,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String,
+    @SerialName("last_login_at") val lastLoginAt: String
 )

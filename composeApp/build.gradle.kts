@@ -24,6 +24,16 @@ kotlin {
             implementation(libs.koin.android)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
+
+            // Navigation 3 - RC01 (stable API, will bump to 1.0.0 when published to Maven)
+            implementation("androidx.navigation3:navigation3-runtime:1.0.0-rc01")
+            implementation("androidx.navigation3:navigation3-ui:1.0.0-rc01")
+            implementation("androidx.navigation3:navigation3-ui-android:1.0.0-rc01")
+
+            // Material 3 Adaptive - for all screen sizes (phones, tablets, desktops, XR, Auto)
+            implementation(libs.androidx.material3.adaptive)
+            implementation(libs.androidx.material3.adaptive.layout)
+            implementation(libs.androidx.material3.adaptive.navigation)
         }
         commonMain.dependencies {
             implementation(compose.runtime)

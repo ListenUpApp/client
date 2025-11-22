@@ -29,14 +29,29 @@ value class InstanceId(val value: String) {
  *
  * Each server installation is an "instance" with its own configuration,
  * users, and content library.
+ *
+ * Timestamp fields use kotlin.time.Instant (Kotlin stdlib) which has native
+ * kotlinx.serialization support for ISO-8601 format (e.g., "2024-11-20T14:30:45.123Z").
  */
 @Serializable
 data class Instance(
     @SerialName("id")
     val id: InstanceId,
 
-    @SerialName("has_root_user")
-    val hasRootUser: Boolean,
+    @SerialName("name")
+    val name: String,
+
+    @SerialName("version")
+    val version: String,
+
+    @SerialName("local_url")
+    val localUrl: String? = null,
+
+    @SerialName("remote_url")
+    val remoteUrl: String? = null,
+
+    @SerialName("setup_required")
+    val setupRequired: Boolean,
 
     @SerialName("created_at")
     val createdAt: Instant,
@@ -51,11 +66,18 @@ data class Instance(
      * creating the initial admin/root user before it can be used.
      */
     val needsSetup: Boolean
-        get() = !hasRootUser
+        get() = setupRequired
 
     /**
      * True if the instance is ready for use (has root user configured).
      */
     val isReady: Boolean
-        get() = hasRootUser
+        get() = !setupRequired
+
+    /**
+     * Compatibility property for has_root_user field.
+     * Returns true if a root user has been configured.
+     */
+    val hasRootUser: Boolean
+        get() = !setupRequired
 }

@@ -45,24 +45,47 @@ internal class AndroidSecureStorage(private val context: Context) : SecureStorag
             "AndroidKeyStore"
         )
 
-        val spec = KeyGenParameterSpec.Builder(
-            keyAlias,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-        )
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setKeySize(256)
-            .setUserAuthenticationRequired(false)
-            // Use StrongBox if available for enhanced security
-            .apply {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    setIsStrongBoxBacked(true)
-                }
-            }
-            .build()
+        // Try StrongBox first (enhanced hardware security), fall back to regular if unavailable
+        val useStrongBox = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P
 
-        keyGenerator.init(spec)
-        return keyGenerator.generateKey()
+        return try {
+            val spec = KeyGenParameterSpec.Builder(
+                keyAlias,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+                .setUserAuthenticationRequired(false)
+                .apply {
+                    if (useStrongBox) {
+                        setIsStrongBoxBacked(true)
+                    }
+                }
+                .build()
+
+            keyGenerator.init(spec)
+            keyGenerator.generateKey()
+        } catch (e: Exception) {
+            // StrongBox not available or other error - retry without StrongBox
+            if (useStrongBox) {
+                val spec = KeyGenParameterSpec.Builder(
+                    keyAlias,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                )
+                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .setKeySize(256)
+                    .setUserAuthenticationRequired(false)
+                    .build()
+
+                keyGenerator.init(spec)
+                keyGenerator.generateKey()
+            } else {
+                // Not a StrongBox issue, rethrow original exception
+                throw e
+            }
+        }
     }
 
     private fun encrypt(plaintext: String): String {
