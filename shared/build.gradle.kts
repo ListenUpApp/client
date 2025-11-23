@@ -98,8 +98,12 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
-// Wire KSP for Room
+// Wire KSP for Room - platform-specific targets required
 dependencies {
-    // Valid for KMP Room setup
-    add("kspCommonMainMetadata", libs.androidx.room.compiler)
+    // Android target
+    add("kspAndroid", libs.androidx.room.compiler)
+
+    // iOS targets
+    add("kspIosArm64", libs.androidx.room.compiler)
+    add("kspIosSimulatorArm64", libs.androidx.room.compiler)
 }

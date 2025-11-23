@@ -24,13 +24,15 @@ import kotlinx.coroutines.flow.asStateFlow
  * Responsibilities:
  * - Pull changes from server (delta sync)
  * - Merge into local database (detect conflicts)
+ * - Download cover images for books
  * - Push local changes to server (future)
  * - Expose sync state to UI
  *
  * Sync strategy (v1 - pull only):
  * 1. Fetch all books from server via paginated API
  * 2. Upsert into Room database (conflict detection on serverVersion)
- * 3. Update last sync timestamp
+ * 3. Download cover images for new/updated books
+ * 4. Update last sync timestamp
  *
  * Conflict resolution:
  * - Simple last-write-wins by timestamp
@@ -40,11 +42,13 @@ import kotlinx.coroutines.flow.asStateFlow
  * @property syncApi HTTP client for sync endpoints
  * @property bookDao Room DAO for book operations
  * @property syncDao Room DAO for sync metadata
+ * @property imageDownloader Downloads and caches book cover images
  */
 class SyncManager(
     private val syncApi: SyncApi,
     private val bookDao: BookDao,
-    private val syncDao: SyncDao
+    private val syncDao: SyncDao,
+    private val imageDownloader: ImageDownloader
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -109,6 +113,9 @@ class SyncManager(
      * Detects conflicts by comparing timestamps - uses functional approach
      * with clear separation of concerns.
      *
+     * After syncing book metadata, downloads cover images for all books.
+     * Cover download failures are non-fatal and don't block the sync.
+     *
      * @throws Exception if network request fails
      */
     private suspend fun pullChanges() {
@@ -134,8 +141,23 @@ class SyncManager(
 
                 val preserved = serverBooks.size - booksToUpsert.size - conflicts.size
                 logger.debug {
-                    "Sync complete: ${booksToUpsert.size} upserted, " +
+                    "Book sync complete: ${booksToUpsert.size} upserted, " +
                     "${conflicts.size} conflicts marked, $preserved local changes preserved"
+                }
+
+                // Download cover images for all books (non-fatal)
+                val allBookIds = serverBooks.map { it.id }
+                logger.debug { "Starting cover download for ${allBookIds.size} books" }
+
+                when (val coverResult = imageDownloader.downloadCovers(allBookIds)) {
+                    is Result.Success -> {
+                        logger.info { "Downloaded ${coverResult.data} covers successfully" }
+                    }
+                    is Result.Failure -> {
+                        logger.warn(coverResult.exception) {
+                            "Cover download failed, continuing sync: ${coverResult.exception.message}"
+                        }
+                    }
                 }
             }
             is Result.Failure -> {

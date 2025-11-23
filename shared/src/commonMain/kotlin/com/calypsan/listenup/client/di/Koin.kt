@@ -5,15 +5,18 @@ import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApi
+import com.calypsan.listenup.client.data.remote.ImageApi
 import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
 import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.sync.ImageDownloader
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
+import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
@@ -129,6 +132,12 @@ val presentationModule = module {
             settingsRepository = get()
         )
     }
+    factory {
+        LibraryViewModel(
+            bookRepository = get(),
+            syncManager = get()
+        )
+    }
 }
 
 /**
@@ -143,12 +152,26 @@ val syncModule = module {
         SyncApi(clientFactory = get())
     }
 
+    // Image API for downloading cover images
+    single {
+        ImageApi(clientFactory = get())
+    }
+
+    // Image downloader for batch cover downloads during sync
+    single {
+        ImageDownloader(
+            imageApi = get(),
+            imageStorage = get()
+        )
+    }
+
     // SyncManager orchestrates sync operations
     single {
         SyncManager(
             syncApi = get(),
             bookDao = get(),
-            syncDao = get()
+            syncDao = get(),
+            imageDownloader = get()
         )
     }
 
@@ -156,7 +179,8 @@ val syncModule = module {
     single {
         BookRepository(
             bookDao = get(),
-            syncManager = get()
+            syncManager = get(),
+            imageStorage = get()
         )
     }
 }

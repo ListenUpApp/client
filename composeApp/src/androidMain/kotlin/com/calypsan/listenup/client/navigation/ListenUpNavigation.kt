@@ -20,6 +20,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.data.repository.AuthState
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
+import com.calypsan.listenup.client.features.library.LibraryScreen
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -151,14 +152,12 @@ private fun AuthenticatedNavigation(
         backStack = backStack,
         entryProvider = entryProvider {
             entry<Library> {
-                // TODO: Implement LibraryScreen
-                // For now, show placeholder
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Library Screen - Not Implemented Yet")
-                }
+                LibraryScreen(
+                    onBookClick = { bookId ->
+                        // TODO: Navigate to book detail screen
+                        // For now, this is a no-op until book detail is implemented
+                    }
+                )
             }
         }
     )

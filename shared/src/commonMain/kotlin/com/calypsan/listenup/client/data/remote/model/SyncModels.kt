@@ -47,7 +47,7 @@ data class LibraryCounts(
 @Serializable
 data class SyncBooksResponse(
     @SerialName("next_cursor")
-    val nextCursor: String?,         // Base64-encoded cursor, null if no more pages
+    val nextCursor: String? = null,  // Base64-encoded cursor, null if no more pages
 
     @SerialName("books")
     val books: List<BookResponse>,   // Array of book objects

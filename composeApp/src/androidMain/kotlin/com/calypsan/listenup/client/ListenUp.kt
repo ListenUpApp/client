@@ -1,6 +1,10 @@
 package com.calypsan.listenup.client
 
 import android.app.Application
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import com.calypsan.listenup.client.core.ImageLoaderFactory
 import com.calypsan.listenup.client.di.sharedModules
 import com.calypsan.listenup.client.workers.SyncWorker
 import org.koin.android.ext.koin.androidContext
@@ -21,9 +25,9 @@ val androidModule = module {
 /**
  * ListenUp Application class.
  *
- * Initializes dependency injection and other app-wide concerns.
+ * Initializes dependency injection, Coil image loading, and other app-wide concerns.
  */
-class ListenUp : Application() {
+class ListenUp : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
 
@@ -42,5 +46,18 @@ class ListenUp : Application() {
         // Schedule periodic background sync
         // TODO: Only schedule after user authentication
         SyncWorker.schedule(this)
+    }
+
+    /**
+     * Create singleton ImageLoader for Coil.
+     *
+     * Called once by Coil to initialize the app-wide ImageLoader.
+     * Configured to load book covers from local file storage.
+     */
+    override fun newImageLoader(context: PlatformContext): ImageLoader {
+        return ImageLoaderFactory.create(
+            context = this,
+            debug = false // TODO: Enable in debug builds when BuildConfig is available
+        )
     }
 }

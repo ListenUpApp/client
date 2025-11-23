@@ -68,4 +68,20 @@ class SyncModelsTest {
         assertEquals("abc123", response.nextCursor)
         assertEquals(true, response.hasMore)
     }
+
+    @Test
+    fun syncBooksResponse_deserializesFromJsonWithMissingCursor() {
+        // Server uses omitempty on next_cursor, so it won't be present when empty
+        val jsonString = """
+        {
+            "books": [],
+            "has_more": false
+        }
+        """.trimIndent()
+
+        val response = json.decodeFromString<SyncBooksResponse>(jsonString)
+
+        assertEquals(null, response.nextCursor)
+        assertEquals(false, response.hasMore)
+    }
 }
