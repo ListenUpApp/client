@@ -34,6 +34,9 @@ kotlin {
             implementation(libs.androidx.material3.adaptive)
             implementation(libs.androidx.material3.adaptive.layout)
             implementation(libs.androidx.material3.adaptive.navigation)
+
+            // WorkManager for background sync
+            implementation(libs.androidx.work.runtime.ktx)
         }
         commonMain.dependencies {
             implementation(compose.runtime)

@@ -4,12 +4,14 @@ import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
+import androidx.room.TypeConverters
 
 /**
  * Room database for the ListenUp client application.
  *
  * Currently stores:
  * - User data (single user model)
+ * - Book data (audiobooks with sync support)
  *
  * Schema is exported to shared/schemas/ for migration tracking.
  *
@@ -19,13 +21,21 @@ import androidx.room.RoomDatabaseConstructor
 @Database(
     entities = [
         UserEntity::class,
+        BookEntity::class,
+        SyncMetadataEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
+)
+@TypeConverters(
+    Converters::class,
+    ValueClassConverters::class
 )
 @ConstructedBy(ListenUpDatabaseConstructor::class)
 abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
+    abstract fun bookDao(): BookDao
+    abstract fun syncDao(): SyncDao
 }
 
 /**

@@ -5,9 +5,12 @@ import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApi
+import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
+import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
@@ -94,8 +97,10 @@ val repositoryModule = module {
         )
     }
 
-    // DAOs from database
+    // Provide DAOs from database
     single { get<ListenUpDatabase>().userDao() }
+    single { get<ListenUpDatabase>().bookDao() }
+    single { get<ListenUpDatabase>().syncDao() }
 }
 
 /**
@@ -127,6 +132,36 @@ val presentationModule = module {
 }
 
 /**
+ * Sync infrastructure module.
+ *
+ * Provides SyncManager, SyncApi, and related sync components.
+ */
+val syncModule = module {
+    // Sync API uses ApiClientFactory to get authenticated HttpClient at call time
+    // This avoids runBlocking during DI initialization (structured concurrency)
+    single {
+        SyncApi(clientFactory = get())
+    }
+
+    // SyncManager orchestrates sync operations
+    single {
+        SyncManager(
+            syncApi = get(),
+            bookDao = get(),
+            syncDao = get()
+        )
+    }
+
+    // BookRepository for UI data access
+    single {
+        BookRepository(
+            bookDao = get(),
+            syncManager = get()
+        )
+    }
+}
+
+/**
  * All shared modules that should be loaded in both Android and iOS.
  */
 val sharedModules = listOf(
@@ -136,7 +171,8 @@ val sharedModules = listOf(
     networkModule,
     repositoryModule,
     useCaseModule,
-    presentationModule
+    presentationModule,
+    syncModule
 )
 
 /**

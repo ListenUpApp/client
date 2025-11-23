@@ -1,0 +1,224 @@
+package com.calypsan.listenup.client.data.sync
+
+import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.local.db.BookEntity
+import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.SyncDao
+import com.calypsan.listenup.client.data.local.db.SyncState
+import com.calypsan.listenup.client.data.local.db.Syncable
+import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.local.db.setLastSyncTime
+import com.calypsan.listenup.client.data.remote.SyncApi
+import com.calypsan.listenup.client.data.remote.model.toEntity
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * Orchestrates synchronization between local Room database and server.
+ *
+ * Responsibilities:
+ * - Pull changes from server (delta sync)
+ * - Merge into local database (detect conflicts)
+ * - Push local changes to server (future)
+ * - Expose sync state to UI
+ *
+ * Sync strategy (v1 - pull only):
+ * 1. Fetch all books from server via paginated API
+ * 2. Upsert into Room database (conflict detection on serverVersion)
+ * 3. Update last sync timestamp
+ *
+ * Conflict resolution:
+ * - Simple last-write-wins by timestamp
+ * - Mark conflicts for user review (future)
+ * - Don't block sync on conflicts
+ *
+ * @property syncApi HTTP client for sync endpoints
+ * @property bookDao Room DAO for book operations
+ * @property syncDao Room DAO for sync metadata
+ */
+class SyncManager(
+    private val syncApi: SyncApi,
+    private val bookDao: BookDao,
+    private val syncDao: SyncDao
+) {
+    private val logger = KotlinLogging.logger {}
+
+    private val _syncState = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
+
+    /**
+     * Current synchronization status.
+     *
+     * Exposed as StateFlow for reactive UI updates. Transitions:
+     * - Idle -> Syncing (when sync() called)
+     * - Syncing -> Success (on successful completion)
+     * - Syncing -> Error (on failure)
+     * - Success/Error -> Idle (ready for next sync)
+     */
+    val syncState: StateFlow<SyncStatus> = _syncState.asStateFlow()
+
+    /**
+     * Perform full synchronization with server.
+     *
+     * For v1, this is a simple pull-only sync:
+     * 1. Fetch all books from server
+     * 2. Upsert into local database
+     * 3. Update last sync timestamp
+     *
+     * Future versions will add:
+     * - Delta sync (only fetch changes since last sync)
+     * - Push local changes to server
+     * - Conflict resolution UI
+     *
+     * @return Result indicating success or failure
+     */
+    @OptIn(ExperimentalTime::class)
+    suspend fun sync(): Result<Unit> {
+        logger.debug { "Starting sync operation" }
+        _syncState.value = SyncStatus.Syncing
+
+        return try {
+            // Step 1: Pull changes from server
+            pullChanges()
+
+            // Step 2: Push local changes (TODO: implement in future version)
+            // pushChanges()
+
+            // Step 3: Update last sync time
+            val now = Timestamp.now()
+            syncDao.setLastSyncTime(now)
+
+            logger.debug { "Sync completed successfully" }
+            _syncState.value = SyncStatus.Success(timestamp = now)
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            logger.error(e) { "Sync failed" }
+            _syncState.value = SyncStatus.Error(exception = e)
+            Result.Failure(exception = e, message = "Sync failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Pull changes from server and merge into local database.
+     *
+     * Fetches all books via paginated API and upserts into Room.
+     * Detects conflicts by comparing timestamps - uses functional approach
+     * with clear separation of concerns.
+     *
+     * @throws Exception if network request fails
+     */
+    private suspend fun pullChanges() {
+        logger.debug { "Pulling changes from server" }
+
+        when (val result = syncApi.getAllBooks(limit = 100)) {
+            is Result.Success -> {
+                val serverBooks = result.data.map { it.toEntity() }
+                logger.debug { "Fetched ${serverBooks.size} books from server" }
+
+                // Detect and mark conflicts (server newer than local changes)
+                val conflicts = detectConflicts(serverBooks)
+                conflicts.forEach { (bookId, serverVersion) ->
+                    bookDao.markConflict(bookId, serverVersion)
+                    logger.warn { "Conflict detected for book $bookId - server version is newer" }
+                }
+
+                // Filter out books with local changes that are newer than server
+                val booksToUpsert = serverBooks.filterNot { shouldPreserveLocalChanges(it) }
+
+                // Upsert filtered books
+                bookDao.upsertAll(booksToUpsert)
+
+                val preserved = serverBooks.size - booksToUpsert.size - conflicts.size
+                logger.debug {
+                    "Sync complete: ${booksToUpsert.size} upserted, " +
+                    "${conflicts.size} conflicts marked, $preserved local changes preserved"
+                }
+            }
+            is Result.Failure -> {
+                throw result.exception
+            }
+        }
+    }
+
+    /**
+     * Detect conflicts where server has newer version than local unsynced changes.
+     *
+     * Functional approach: map + filter + takeIf creates declarative pipeline.
+     *
+     * @param serverBooks Books fetched from server
+     * @return List of (BookId, Timestamp) pairs for books with conflicts
+     */
+    private suspend fun detectConflicts(serverBooks: List<BookEntity>): List<Pair<BookId, Timestamp>> {
+        return serverBooks.mapNotNull { serverBook ->
+            bookDao.getById(serverBook.id)
+                ?.takeIf { it.syncState == SyncState.NOT_SYNCED }
+                ?.takeIf { serverBook.updatedAt > it.lastModified }
+                ?.let { serverBook.id to serverBook.updatedAt }
+        }
+    }
+
+    /**
+     * Check if local changes should be preserved (local is newer than server).
+     *
+     * Functional approach: chained scope functions make intent clear.
+     *
+     * @param serverBook Book from server
+     * @return true if local version should be kept, false if server should overwrite
+     */
+    private suspend fun shouldPreserveLocalChanges(serverBook: BookEntity): Boolean {
+        return bookDao.getById(serverBook.id)
+            ?.takeIf { it.syncState == SyncState.NOT_SYNCED }
+            ?.let { it.lastModified >= serverBook.updatedAt }
+            ?: false
+    }
+
+    /**
+     * Queue an entity for synchronization with server.
+     *
+     * Marks entity as NOT_SYNCED so it will be included in next
+     * push operation.
+     *
+     * @param entity The entity to queue (currently only BookEntity supported)
+     */
+    suspend fun queueUpdate(entity: Syncable) {
+        // TODO: Implement push sync in future version
+        // For now, just log
+        logger.debug { "Queued update for entity: ${entity}" }
+    }
+}
+
+/**
+ * Synchronization status.
+ *
+ * Sealed interface for type-safe state management. UI can observe
+ * this via StateFlow to show sync progress, errors, etc.
+ */
+sealed interface SyncStatus {
+    /**
+     * Idle state - no sync in progress.
+     */
+    data object Idle : SyncStatus
+
+    /**
+     * Sync operation in progress.
+     */
+    data object Syncing : SyncStatus
+
+    /**
+     * Sync completed successfully.
+     *
+     * @property timestamp Type-safe timestamp of completion
+     */
+    data class Success(val timestamp: Timestamp) : SyncStatus
+
+    /**
+     * Sync failed with error.
+     *
+     * @property exception The exception that caused failure
+     */
+    data class Error(val exception: Exception) : SyncStatus
+}
