@@ -135,4 +135,15 @@ interface BookDao {
      */
     @Query("DELETE FROM books")
     suspend fun deleteAll()
+
+    /**
+     * Touch a book's updatedAt timestamp to trigger Flow re-emission.
+     *
+     * Used after cover downloads to force UI updates when cover files
+     * appear on disk (even though database content hasn't changed).
+     *
+     * @param id Type-safe book ID to touch
+     */
+    @Query("UPDATE books SET updatedAt = :timestamp WHERE id = :id")
+    suspend fun touchUpdatedAt(id: BookId, timestamp: Timestamp)
 }

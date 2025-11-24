@@ -81,7 +81,7 @@ private fun LoadingScreen(message: String = "Loading...") {
  */
 @Composable
 private fun ServerSetupNavigation() {
-    val backStack = remember { mutableStateListOf<Any>(ServerSetup) }
+    val backStack = remember { mutableStateListOf<Route>(ServerSetup) }
 
     NavDisplay(
         backStack = backStack,
@@ -104,7 +104,7 @@ private fun ServerSetupNavigation() {
  */
 @Composable
 private fun SetupNavigation() {
-    val backStack = remember { mutableStateListOf<Any>(Setup) }
+    val backStack = remember { mutableStateListOf<Route>(Setup) }
 
     NavDisplay(
         backStack = backStack,
@@ -122,7 +122,7 @@ private fun SetupNavigation() {
  */
 @Composable
 private fun LoginNavigation() {
-    val backStack = remember { mutableStateListOf<Any>(Login) }
+    val backStack = remember { mutableStateListOf<Route>(Login) }
 
     NavDisplay(
         backStack = backStack,
@@ -146,7 +146,7 @@ private fun LoginNavigation() {
 private fun AuthenticatedNavigation(
     settingsRepository: SettingsRepository
 ) {
-    val backStack = remember { mutableStateListOf<Any>(Library) }
+    val backStack = remember { mutableStateListOf<Route>(Library) }
 
     NavDisplay(
         backStack = backStack,

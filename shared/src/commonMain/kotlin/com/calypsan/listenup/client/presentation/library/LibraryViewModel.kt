@@ -2,7 +2,10 @@ package com.calypsan.listenup.client.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.data.local.db.SyncDao
+import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.repository.BookRepository
+import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncStatus
 import com.calypsan.listenup.client.domain.model.Book
@@ -15,18 +18,24 @@ import kotlinx.coroutines.launch
  * ViewModel for the Library screen.
  *
  * Manages book list data and sync state for UI consumption.
- * Follows modern Android architecture with StateFlow for reactive UI updates.
+ * Implements intelligent auto-sync: triggers initial sync automatically
+ * if user is authenticated but has never synced before.
  *
- * Data flows:
- * - books: Reactive list from Room database via BookRepository
- * - syncState: Current sync status from SyncManager
+ * This self-healing approach works for all entry points:
+ * - First time after registration
+ * - First time after login
+ * - App restart with valid session
  *
  * @property bookRepository Repository for book data operations
  * @property syncManager Manager for sync operations
+ * @property settingsRepository For checking authentication state
+ * @property syncDao For checking if initial sync has occurred
  */
 class LibraryViewModel(
     private val bookRepository: BookRepository,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val settingsRepository: SettingsRepository,
+    private val syncDao: SyncDao
 ) : ViewModel() {
 
     /**
@@ -53,9 +62,44 @@ class LibraryViewModel(
      */
     val syncState: StateFlow<SyncStatus> = syncManager.syncState
 
+    private var hasPerformedInitialSync = false
+
     init {
-        // Trigger initial sync when ViewModel is created
-        refreshBooks()
+        // Auto-sync is deferred to onScreenVisible() to avoid syncing
+        // when ViewModel is created but screen isn't actually shown yet
+        println("LibraryViewModel: Initialized (auto-sync deferred until screen visible)")
+    }
+
+    /**
+     * Called when the Library screen becomes visible.
+     *
+     * Performs intelligent auto-sync on first visibility:
+     * - Triggers initial sync if authenticated but never synced
+     * - Handles all entry points: registration, login, app restart
+     * - Only runs once per ViewModel instance
+     */
+    fun onScreenVisible() {
+        if (hasPerformedInitialSync) {
+            return
+        }
+        hasPerformedInitialSync = true
+
+        println("LibraryViewModel: Screen became visible, checking if initial sync needed...")
+        viewModelScope.launch {
+            val isAuthenticated = settingsRepository.getAccessToken() != null
+            val lastSyncTime = syncDao.getLastSyncTime()
+
+            println("LibraryViewModel: isAuthenticated=$isAuthenticated, lastSyncTime=$lastSyncTime")
+
+            if (isAuthenticated && lastSyncTime == null) {
+                println("LibraryViewModel: User authenticated but never synced, triggering initial sync...")
+                refreshBooks()
+            } else if (!isAuthenticated) {
+                println("LibraryViewModel: User not authenticated, skipping sync")
+            } else {
+                println("LibraryViewModel: Already synced (last sync: $lastSyncTime), skipping auto-sync")
+            }
+        }
     }
 
     /**

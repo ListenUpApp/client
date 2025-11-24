@@ -11,8 +11,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
@@ -21,14 +24,25 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Main activity for the ListenUp app.
  *
- * Uses edge-to-edge display and Material 3 theming.
+ * Manages SSE connection lifecycle:
+ * - Connects SSE when app comes to foreground (if authenticated)
+ * - Disconnects SSE when app goes to background (saves battery)
+ * - Auto-reconnects on app resume
+ *
+ * This ensures real-time updates when actively using the app
+ * while preserving battery life in the background.
  */
 class MainActivity : ComponentActivity() {
+
+    private val sseManager: SSEManager by inject()
+    private val settingsRepository: SettingsRepository by inject()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -36,6 +50,29 @@ class MainActivity : ComponentActivity() {
         setContent {
             ListenUpApp()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        // Connect SSE when app comes to foreground (if authenticated)
+        lifecycleScope.launch {
+            val isAuthenticated = settingsRepository.getAccessToken() != null
+            if (isAuthenticated) {
+                println("MainActivity: App resumed and user authenticated, connecting SSE...")
+                sseManager.connect()
+            } else {
+                println("MainActivity: App resumed but user not authenticated, skipping SSE")
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        // Disconnect SSE when app goes to background to save battery
+        println("MainActivity: App paused, disconnecting SSE to save battery...")
+        sseManager.disconnect()
     }
 }
 

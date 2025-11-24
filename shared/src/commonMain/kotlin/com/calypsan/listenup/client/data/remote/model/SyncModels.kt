@@ -143,8 +143,8 @@ data class SSEEvent(
     val type: String,                // Event type (e.g., "book.created", "heartbeat")
 
     @SerialName("data")
-    val data: String                 // JSON string of event-specific data
-                                      // Will be parsed based on event type
+    val data: kotlinx.serialization.json.JsonElement  // Event-specific data as JSON object
+                                                       // Deserialized based on event type
 )
 
 /**

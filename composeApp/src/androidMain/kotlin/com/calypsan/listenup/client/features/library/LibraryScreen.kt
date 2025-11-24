@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +61,11 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = koinViewModel(),
     onBookClick: (String) -> Unit = {}
 ) {
+    // Trigger intelligent auto-sync when screen becomes visible (only once)
+    LaunchedEffect(Unit) {
+        viewModel.onScreenVisible()
+    }
+
     val books by viewModel.books.collectAsStateWithLifecycle()
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
 

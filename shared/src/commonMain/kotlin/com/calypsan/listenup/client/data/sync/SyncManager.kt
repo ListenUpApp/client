@@ -14,9 +14,13 @@ import com.calypsan.listenup.client.data.remote.model.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Orchestrates synchronization between local Room database and server.
@@ -26,6 +30,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * - Merge into local database (detect conflicts)
  * - Download cover images for books
  * - Push local changes to server (future)
+ * - Handle real-time SSE events for live updates
  * - Expose sync state to UI
  *
  * Sync strategy (v1 - pull only):
@@ -33,6 +38,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * 2. Upsert into Room database (conflict detection on serverVersion)
  * 3. Download cover images for new/updated books
  * 4. Update last sync timestamp
+ * 5. Listen for SSE events and apply updates in real-time
  *
  * Conflict resolution:
  * - Simple last-write-wins by timestamp
@@ -43,16 +49,30 @@ import kotlinx.coroutines.flow.asStateFlow
  * @property bookDao Room DAO for book operations
  * @property syncDao Room DAO for sync metadata
  * @property imageDownloader Downloads and caches book cover images
+ * @property sseManager Handles real-time Server-Sent Events
  */
 class SyncManager(
     private val syncApi: SyncApi,
     private val bookDao: BookDao,
     private val syncDao: SyncDao,
-    private val imageDownloader: ImageDownloader
+    private val imageDownloader: ImageDownloader,
+    private val sseManager: SSEManager
 ) {
     private val logger = KotlinLogging.logger {}
 
+    // Scope for SSE event handling
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     private val _syncState = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
+
+    init {
+        // Start collecting SSE events (connection will be established after first sync)
+        scope.launch {
+            sseManager.eventFlow.collect { event ->
+                handleSSEEvent(event)
+            }
+        }
+    }
 
     /**
      * Current synchronization status.
@@ -95,6 +115,9 @@ class SyncManager(
             // Step 3: Update last sync time
             val now = Timestamp.now()
             syncDao.setLastSyncTime(now)
+
+            // Step 4: Connect to SSE stream for real-time updates (if not already connected)
+            sseManager.connect()
 
             logger.debug { "Sync completed successfully" }
             _syncState.value = SyncStatus.Success(timestamp = now)
@@ -151,7 +174,19 @@ class SyncManager(
 
                 when (val coverResult = imageDownloader.downloadCovers(allBookIds)) {
                     is Result.Success -> {
-                        logger.info { "Downloaded ${coverResult.data} covers successfully" }
+                        val downloadedBookIds = coverResult.data
+                        logger.info { "Downloaded ${downloadedBookIds.size} covers successfully" }
+
+                        // Touch database to trigger Flow re-emission so UI picks up new covers
+                        val now = Timestamp.now()
+                        downloadedBookIds.forEach { bookId ->
+                            try {
+                                bookDao.touchUpdatedAt(bookId, now)
+                            } catch (e: Exception) {
+                                logger.warn(e) { "Failed to touch updatedAt for book ${bookId.value}" }
+                            }
+                        }
+                        logger.debug { "Touched ${downloadedBookIds.size} books to trigger UI refresh" }
                     }
                     is Result.Failure -> {
                         logger.warn(coverResult.exception) {
@@ -210,6 +245,108 @@ class SyncManager(
         // TODO: Implement push sync in future version
         // For now, just log
         logger.debug { "Queued update for entity: ${entity}" }
+    }
+
+    /**
+     * Handle incoming SSE events for real-time updates.
+     *
+     * Processes server-sent events and applies changes to local database:
+     * - BookCreated/BookUpdated: Upsert book into database
+     * - BookDeleted: Remove book from database
+     * - ScanStarted/ScanCompleted: Log events (future: trigger UI notifications)
+     *
+     * All database operations use the same upsert logic as sync() to maintain
+     * consistency and handle conflicts uniformly.
+     */
+    private suspend fun handleSSEEvent(event: SSEEventType) {
+        try {
+            when (event) {
+                is SSEEventType.BookCreated -> {
+                    logger.debug { "SSE: Book created - ${event.book.title}" }
+                    val entity = event.book.toEntity()
+                    bookDao.upsert(entity)
+
+                    // Download cover image in background (non-blocking)
+                    scope.launch {
+                        try {
+                            logger.info { "SSE: Attempting to download cover for book ${event.book.id}" }
+                            val result = imageDownloader.downloadCover(BookId(event.book.id))
+                            when (result) {
+                                is Result.Success -> {
+                                    val wasDownloaded = result.data
+                                    logger.info { "SSE: Cover download completed for ${event.book.id}, downloaded=$wasDownloaded" }
+
+                                    // Touch database to trigger Flow re-emission so UI picks up new cover
+                                    if (wasDownloaded) {
+                                        try {
+                                            bookDao.touchUpdatedAt(BookId(event.book.id), Timestamp.now())
+                                            logger.debug { "SSE: Touched book ${event.book.id} to trigger UI refresh" }
+                                        } catch (e: Exception) {
+                                            logger.warn(e) { "SSE: Failed to touch updatedAt for book ${event.book.id}" }
+                                        }
+                                    }
+                                }
+                                is Result.Failure -> {
+                                    logger.warn(result.exception) { "SSE: Cover download failed for ${event.book.id}" }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            logger.warn(e) { "SSE: Exception downloading cover for book ${event.book.id}" }
+                        }
+                    }
+                }
+
+                is SSEEventType.BookUpdated -> {
+                    logger.debug { "SSE: Book updated - ${event.book.title}" }
+                    val entity = event.book.toEntity()
+                    bookDao.upsert(entity)
+
+                    // Download updated cover image if changed
+                    scope.launch {
+                        try {
+                            val result = imageDownloader.downloadCover(BookId(event.book.id))
+                            if (result is Result.Success && result.data) {
+                                // Touch database to trigger UI refresh if cover was downloaded
+                                try {
+                                    bookDao.touchUpdatedAt(BookId(event.book.id), Timestamp.now())
+                                    logger.debug { "SSE: Touched book ${event.book.id} after cover update" }
+                                } catch (e: Exception) {
+                                    logger.warn(e) { "SSE: Failed to touch updatedAt for book ${event.book.id}" }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            logger.warn(e) { "Failed to download cover for book ${event.book.id}" }
+                        }
+                    }
+                }
+
+                is SSEEventType.BookDeleted -> {
+                    logger.debug { "SSE: Book deleted - ${event.bookId}" }
+                    bookDao.deleteById(BookId(event.bookId))
+                }
+
+                is SSEEventType.ScanStarted -> {
+                    logger.debug { "SSE: Library scan started - ${event.libraryId}" }
+                    // Future: Show notification to user that scan is in progress
+                }
+
+                is SSEEventType.ScanCompleted -> {
+                    logger.info {
+                        "SSE: Library scan completed - " +
+                            "Added: ${event.booksAdded}, " +
+                            "Updated: ${event.booksUpdated}, " +
+                            "Removed: ${event.booksRemoved}"
+                    }
+                    // Future: Show notification with scan results
+                }
+
+                is SSEEventType.Heartbeat -> {
+                    // Heartbeat keeps connection alive, no action needed
+                }
+            }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to handle SSE event: $event" }
+        }
     }
 }
 

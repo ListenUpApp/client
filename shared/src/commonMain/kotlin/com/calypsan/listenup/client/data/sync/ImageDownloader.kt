@@ -68,19 +68,19 @@ class ImageDownloader(
      * Download covers for multiple books in batch.
      *
      * Continues on individual failures - one failed download doesn't stop the batch.
-     * Returns count of successfully downloaded covers.
+     * Returns list of book IDs that had covers successfully downloaded.
      *
      * @param bookIds List of book identifiers to download covers for
-     * @return Result containing count of successfully downloaded covers
+     * @return Result containing list of BookIds that were successfully downloaded
      */
-    suspend fun downloadCovers(bookIds: List<BookId>): Result<Int> {
-        var successCount = 0
+    suspend fun downloadCovers(bookIds: List<BookId>): Result<List<BookId>> {
+        val successfulDownloads = mutableListOf<BookId>()
 
         bookIds.forEach { bookId ->
             when (val result = downloadCover(bookId)) {
                 is Result.Success -> {
                     if (result.data) {
-                        successCount++
+                        successfulDownloads.add(bookId)
                     }
                 }
                 is Result.Failure -> {
@@ -92,7 +92,7 @@ class ImageDownloader(
             }
         }
 
-        logger.info { "Downloaded $successCount covers out of ${bookIds.size} books" }
-        return Result.Success(successCount)
+        logger.info { "Downloaded ${successfulDownloads.size} covers out of ${bookIds.size} books" }
+        return Result.Success(successfulDownloads)
     }
 }

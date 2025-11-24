@@ -12,6 +12,7 @@ import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.ImageDownloader
+import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
@@ -135,7 +136,9 @@ val presentationModule = module {
     factory {
         LibraryViewModel(
             bookRepository = get(),
-            syncManager = get()
+            syncManager = get(),
+            settingsRepository = get(),
+            syncDao = get()
         )
     }
 }
@@ -165,13 +168,26 @@ val syncModule = module {
         )
     }
 
+    // SSE Manager for real-time updates
+    // Uses application-scoped coroutine for long-lived SSE connection
+    single<SSEManager> {
+        SSEManager(
+            clientFactory = get(),
+            settingsRepository = get(),
+            scope = kotlinx.coroutines.CoroutineScope(
+                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default
+            )
+        )
+    }
+
     // SyncManager orchestrates sync operations
     single {
         SyncManager(
             syncApi = get(),
             bookDao = get(),
             syncDao = get(),
-            imageDownloader = get()
+            imageDownloader = get(),
+            sseManager = get()
         )
     }
 

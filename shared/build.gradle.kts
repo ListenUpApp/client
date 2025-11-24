@@ -100,6 +100,9 @@ room {
 
 // Wire KSP for Room - platform-specific targets required
 dependencies {
+    // Common metadata (required for Room KMP expect/actual generation)
+    add("kspCommonMainMetadata", libs.androidx.room.compiler)
+
     // Android target
     add("kspAndroid", libs.androidx.room.compiler)
 
