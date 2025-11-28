@@ -1,10 +1,11 @@
 package com.calypsan.listenup.client.data.local.db
 
+import kotlinx.datetime.Instant
 import kotlin.jvm.JvmInline
-import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
+import com.calypsan.listenup.client.core.currentEpochMilliseconds
 
 /**
  * Type-safe wrapper for Book IDs.
@@ -32,6 +33,17 @@ value class BookId(val value: String) {
          */
         fun fromString(value: String): BookId = BookId(value)
     }
+}
+
+/**
+ * Type-safe wrapper for Chapter IDs.
+ */
+@JvmInline
+value class ChapterId(val value: String) {
+    init {
+        require(value.isNotBlank()) { "Chapter ID cannot be blank" }
+    }
+    override fun toString(): String = value
 }
 
 /**
@@ -63,11 +75,17 @@ value class Timestamp(val epochMillis: Long) : Comparable<Timestamp> {
 
     override fun toString(): String = epochMillis.toString()
 
+    /**
+     * Convert to ISO 8601 date time string.
+     * e.g. "2023-11-22T14:30:45.123Z"
+     */
+    fun toIsoString(): String = Instant.fromEpochMilliseconds(epochMillis).toString()
+
     companion object {
         /**
          * Get current system time as Timestamp.
          */
-        fun now(): Timestamp = Timestamp(Clock.System.now().toEpochMilliseconds())
+        fun now(): Timestamp = Timestamp(currentEpochMilliseconds())
 
         /**
          * Create Timestamp from epoch milliseconds.

@@ -105,6 +105,10 @@ val repositoryModule = module {
     single { get<ListenUpDatabase>().userDao() }
     single { get<ListenUpDatabase>().bookDao() }
     single { get<ListenUpDatabase>().syncDao() }
+    single { get<ListenUpDatabase>().chapterDao() }
+    single { get<ListenUpDatabase>().seriesDao() }
+    single { get<ListenUpDatabase>().contributorDao() }
+    single { get<ListenUpDatabase>().bookContributorDao() }
 }
 
 /**
@@ -139,6 +143,11 @@ val presentationModule = module {
             syncManager = get(),
             settingsRepository = get(),
             syncDao = get()
+        )
+    }
+    factory {
+        com.calypsan.listenup.client.presentation.book_detail.BookDetailViewModel(
+            bookRepository = get()
         )
     }
 }
@@ -185,6 +194,10 @@ val syncModule = module {
         SyncManager(
             syncApi = get(),
             bookDao = get(),
+            seriesDao = get(),
+            contributorDao = get(),
+            chapterDao = get(),
+            bookContributorDao = get(),
             syncDao = get(),
             imageDownloader = get(),
             sseManager = get()
@@ -195,6 +208,8 @@ val syncModule = module {
     single {
         BookRepository(
             bookDao = get(),
+            chapterDao = get(),
+            bookContributorDao = get(),
             syncManager = get(),
             imageStorage = get()
         )

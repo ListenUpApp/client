@@ -4,19 +4,23 @@ import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.ContributorDao
+import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Syncable
 import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,6 +58,10 @@ import kotlinx.coroutines.launch
 class SyncManager(
     private val syncApi: SyncApi,
     private val bookDao: BookDao,
+    private val seriesDao: SeriesDao,
+    private val contributorDao: ContributorDao,
+    private val chapterDao: com.calypsan.listenup.client.data.local.db.ChapterDao,
+    private val bookContributorDao: com.calypsan.listenup.client.data.local.db.BookContributorDao,
     private val syncDao: SyncDao,
     private val imageDownloader: ImageDownloader,
     private val sseManager: SSEManager
@@ -106,7 +114,7 @@ class SyncManager(
         _syncState.value = SyncStatus.Syncing
 
         return try {
-            // Step 1: Pull changes from server
+            // Step 1: Pull changes from server (Parallelized)
             pullChanges()
 
             // Step 2: Push local changes (TODO: implement in future version)
@@ -132,71 +140,187 @@ class SyncManager(
     /**
      * Pull changes from server and merge into local database.
      *
-     * Fetches all books via paginated API and upserts into Room.
-     * Detects conflicts by comparing timestamps - uses functional approach
-     * with clear separation of concerns.
+     * Performs smart sync:
+     * - If last sync time exists, performs delta sync (fetching only changes)
+     * - If no last sync time, performs full sync
+     * - Detects conflicts by comparing timestamps
+     * - Handles deletions propagated from server
      *
-     * After syncing book metadata, downloads cover images for all books.
-     * Cover download failures are non-fatal and don't block the sync.
+     * Runs syncs for Books, Series, and Contributors in parallel for performance.
      *
      * @throws Exception if network request fails
      */
-    private suspend fun pullChanges() {
+    private suspend fun pullChanges() = kotlinx.coroutines.coroutineScope {
         logger.debug { "Pulling changes from server" }
 
-        when (val result = syncApi.getAllBooks(limit = 100)) {
-            is Result.Success -> {
-                val serverBooks = result.data.map { it.toEntity() }
-                logger.debug { "Fetched ${serverBooks.size} books from server" }
+        // Get last sync time for delta sync
+        val lastSyncTime = syncDao.getLastSyncTime()
+        // Format as ISO 8601 string if exists
+        val updatedAfter = lastSyncTime?.toIsoString()
 
-                // Detect and mark conflicts (server newer than local changes)
-                val conflicts = detectConflicts(serverBooks)
-                conflicts.forEach { (bookId, serverVersion) ->
-                    bookDao.markConflict(bookId, serverVersion)
-                    logger.warn { "Conflict detected for book $bookId - server version is newer" }
-                }
+        logger.debug { "Sync strategy: ${if (updatedAfter != null) "Delta (since $updatedAfter)" else "Full"}" }
 
-                // Filter out books with local changes that are newer than server
-                val booksToUpsert = serverBooks.filterNot { shouldPreserveLocalChanges(it) }
+        // Run independent sync operations in parallel
+        val jobs = listOf(
+            async { pullBooks(updatedAfter) },
+            async { pullSeries(updatedAfter) },
+            async { pullContributors(updatedAfter) }
+        )
+        
+        // Wait for all to complete or throw first exception
+        jobs.forEach { it.await() }
+    }
 
-                // Upsert filtered books
-                bookDao.upsertAll(booksToUpsert)
+    private suspend fun pullBooks(updatedAfter: String?) {
+        var cursor: String? = null
+        var hasMore = true
+        val limit = 100
 
-                val preserved = serverBooks.size - booksToUpsert.size - conflicts.size
-                logger.debug {
-                    "Book sync complete: ${booksToUpsert.size} upserted, " +
-                    "${conflicts.size} conflicts marked, $preserved local changes preserved"
-                }
+        while (hasMore) {
+            when (val result = syncApi.getBooks(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
+                is Result.Success -> {
+                    val response = result.data
+                    cursor = response.nextCursor
+                    hasMore = response.hasMore
 
-                // Download cover images for all books (non-fatal)
-                val allBookIds = serverBooks.map { it.id }
-                logger.debug { "Starting cover download for ${allBookIds.size} books" }
+                    val serverBooks = response.books.map { it.toEntity() }
+                    val deletedBookIds = response.deletedBookIds
 
-                when (val coverResult = imageDownloader.downloadCovers(allBookIds)) {
-                    is Result.Success -> {
-                        val downloadedBookIds = coverResult.data
-                        logger.info { "Downloaded ${downloadedBookIds.size} covers successfully" }
+                    logger.debug { "Fetched page of ${serverBooks.size} updated books and ${deletedBookIds.size} deletions" }
 
-                        // Touch database to trigger Flow re-emission so UI picks up new covers
-                        val now = Timestamp.now()
-                        downloadedBookIds.forEach { bookId ->
-                            try {
-                                bookDao.touchUpdatedAt(bookId, now)
-                            } catch (e: Exception) {
-                                logger.warn(e) { "Failed to touch updatedAt for book ${bookId.value}" }
+                    // Handle deletions
+                    if (deletedBookIds.isNotEmpty()) {
+                        deletedBookIds.forEach { bookId ->
+                            bookDao.deleteById(BookId(bookId))
+                        }
+                        logger.info { "Removed ${deletedBookIds.size} books deleted on server" }
+                    }
+
+                    if (serverBooks.isNotEmpty()) {
+                        // Detect and mark conflicts (server newer than local changes)
+                        val conflicts = detectConflicts(serverBooks)
+                        conflicts.forEach { (bookId, serverVersion) ->
+                            bookDao.markConflict(bookId, serverVersion)
+                            logger.warn { "Conflict detected for book $bookId - server version is newer" }
+                        }
+
+                        // Filter out books with local changes that are newer than server
+                        val booksToUpsert = serverBooks.filterNot { shouldPreserveLocalChanges(it) }
+
+                        // Upsert filtered books
+                        if (booksToUpsert.isNotEmpty()) {
+                            bookDao.upsertAll(booksToUpsert)
+
+                            // Sync chapters for upserted books
+                            val chaptersToUpsert = response.books
+                                .filter { bookResponse -> booksToUpsert.any { it.id.value == bookResponse.id } }
+                                .flatMap { bookResponse ->
+                                    bookResponse.chapters.mapIndexed { index, chapter ->
+                                        chapter.toEntity(BookId(bookResponse.id), index)
+                                    }
+                                }
+
+                                                    if (chaptersToUpsert.isNotEmpty()) {
+
+                                                        chapterDao.upsertAll(chaptersToUpsert)
+
+                                                    }
+
+                                                    
+
+                                                    // Sync contributors for upserted books
+
+                                                    val contributorsToUpsert = response.books
+
+                                                        .filter { bookResponse -> booksToUpsert.any { it.id.value == bookResponse.id } }
+
+                                                        .flatMap { bookResponse ->
+
+                                                            bookResponse.contributors.flatMap { contributorResponse ->
+
+                                                                contributorResponse.roles.map { role ->
+
+                                                                    contributorResponse.toEntity(BookId(bookResponse.id), role)
+
+                                                                }
+
+                                                            }
+
+                                                        }
+
+                                                        
+
+                                                    if (contributorsToUpsert.isNotEmpty()) {
+
+                                                        bookContributorDao.insertAll(contributorsToUpsert)
+
+                                                    }
+
+                                                }
+
+                            
+
+                                                // Download cover images for updated books (background/parallel)
+
+                            
+                        val updatedBookIds = serverBooks.map { it.id }
+                        if (updatedBookIds.isNotEmpty()) {
+                            // We fire and forget cover downloads to not block the sync loop too much,
+                            // or we can await if we want strict consistency. 
+                            // Given covers are secondary, we'll let ImageDownloader handle concurrency.
+                            scope.launch {
+                                imageDownloader.downloadCovers(updatedBookIds)
                             }
                         }
-                        logger.debug { "Touched ${downloadedBookIds.size} books to trigger UI refresh" }
-                    }
-                    is Result.Failure -> {
-                        logger.warn(coverResult.exception) {
-                            "Cover download failed, continuing sync: ${coverResult.exception.message}"
-                        }
                     }
                 }
+                is Result.Failure -> throw result.exception
             }
-            is Result.Failure -> {
-                throw result.exception
+        }
+    }
+
+    private suspend fun pullSeries(updatedAfter: String?) {
+        var cursor: String? = null
+        var hasMore = true
+        val limit = 100
+
+        while (hasMore) {
+            when (val result = syncApi.getSeries(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
+                is Result.Success -> {
+                    val response = result.data
+                    cursor = response.nextCursor
+                    hasMore = response.hasMore
+                    
+                    val serverSeries = response.series.map { it.toEntity() }
+                    
+                    if (serverSeries.isNotEmpty()) {
+                        seriesDao.upsertAll(serverSeries)
+                    }
+                }
+                is Result.Failure -> throw result.exception
+            }
+        }
+    }
+
+    private suspend fun pullContributors(updatedAfter: String?) {
+        var cursor: String? = null
+        var hasMore = true
+        val limit = 100
+
+        while (hasMore) {
+            when (val result = syncApi.getContributors(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
+                is Result.Success -> {
+                    val response = result.data
+                    cursor = response.nextCursor
+                    hasMore = response.hasMore
+                    
+                    val serverContributors = response.contributors.map { it.toEntity() }
+                    
+                    if (serverContributors.isNotEmpty()) {
+                        contributorDao.upsertAll(serverContributors)
+                    }
+                }
+                is Result.Failure -> throw result.exception
             }
         }
     }

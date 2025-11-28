@@ -30,12 +30,14 @@ fun BookResponse.toEntity(): BookEntity {
     return BookEntity(
         id = BookId(id),
         title = title,
-        // TODO: Derive author from contributors array when implemented
-        // For now, using hardcoded "author" field added to BookResponse
-        author = author ?: "Unknown Author",
         coverUrl = coverImage?.path,
         totalDuration = totalDuration,
-
+        description = description,
+        genres = genres?.joinToString(", "),
+        seriesId = seriesId,
+        seriesName = seriesName,
+        sequence = sequence,
+        publishYear = publishYear?.toIntOrNull(),
         // Sync fields - newly synced book is clean
         syncState = SyncState.SYNCED,
         lastModified = updatedAt.toTimestamp(),
@@ -44,6 +46,29 @@ fun BookResponse.toEntity(): BookEntity {
         // Timestamps from server
         createdAt = createdAt.toTimestamp(),
         updatedAt = updatedAt.toTimestamp()
+    )
+}
+
+fun ChapterResponse.toEntity(bookId: BookId, index: Int): com.calypsan.listenup.client.data.local.db.ChapterEntity {
+    val now = com.calypsan.listenup.client.data.local.db.Timestamp.now()
+    return com.calypsan.listenup.client.data.local.db.ChapterEntity(
+        // ID is composite of bookId and index since server doesn't provide stable chapter IDs yet
+        id = com.calypsan.listenup.client.data.local.db.ChapterId("${bookId.value}_$index"),
+        bookId = bookId,
+        title = title,
+        duration = endTime - startTime,
+        startTime = startTime,
+        syncState = SyncState.SYNCED,
+        lastModified = now,
+        serverVersion = now // Chapters don't have individual timestamps yet, assume synced with book
+    )
+}
+
+fun BookContributorResponse.toEntity(bookId: BookId, role: String): com.calypsan.listenup.client.data.local.db.BookContributorCrossRef {
+    return com.calypsan.listenup.client.data.local.db.BookContributorCrossRef(
+        bookId = bookId,
+        contributorId = contributorId,
+        role = role
     )
 }
 

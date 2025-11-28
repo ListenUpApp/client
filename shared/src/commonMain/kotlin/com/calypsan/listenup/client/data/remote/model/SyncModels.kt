@@ -52,6 +52,9 @@ data class SyncBooksResponse(
     @SerialName("books")
     val books: List<BookResponse>,   // Array of book objects
 
+    @SerialName("deleted_book_ids")
+    val deletedBookIds: List<String> = emptyList(), // IDs of books deleted since requested timestamp
+
     @SerialName("has_more")
     val hasMore: Boolean             // True if more pages available
 )
@@ -88,10 +91,23 @@ data class BookResponse(
     @SerialName("subtitle")
     val subtitle: String? = null,
 
-    // Denormalized author for quick display
-    // TODO: Replace with contributors array in future version
-    @SerialName("author")
-    val author: String? = null,      // Will be derived from contributors[0].name, nullable as backend may not send it
+    @SerialName("description")
+    val description: String? = null,
+
+    @SerialName("publisher")
+    val publisher: String? = null,
+
+    @SerialName("publish_year")
+    val publishYear: String? = null, // Server sends this as a string
+
+    @SerialName("language")
+    val language: String? = null,
+
+    @SerialName("genres")
+    val genres: List<String>? = null, // List of strings
+
+    @SerialName("contributors")
+    val contributors: List<BookContributorResponse> = emptyList(),
 
     @SerialName("cover_image")
     val coverImage: ImageFileInfoResponse? = null,
@@ -99,10 +115,54 @@ data class BookResponse(
     @SerialName("total_duration")
     val totalDuration: Long,         // Milliseconds
 
-    // Future fields (ignored for now via ignoreUnknownKeys)
-    // - isbn, description, publisher, publish_year, language, asin
-    // - genres, tags, contributors, series_id, sequence
-    // - audio_files, chapters, total_size, explicit, abridged
+    @SerialName("series_id")
+    val seriesId: String? = null,
+
+    @SerialName("series_name")
+    val seriesName: String? = null, // Denormalized series name
+
+    @SerialName("sequence")
+    val sequence: String? = null, // Series sequence (e.g., "1", "1.5")
+
+    @SerialName("chapters")
+    val chapters: List<ChapterResponse> = emptyList(),
+
+    @SerialName("audio_files")
+    val audioFiles: List<AudioFileResponse> = emptyList()
+)
+
+@Serializable
+data class BookContributorResponse(
+    @SerialName("contributor_id")
+    val contributorId: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("roles")
+    val roles: List<String>
+)
+
+@Serializable
+data class ChapterResponse(
+    @SerialName("title")
+    val title: String,
+    @SerialName("start_time")
+    val startTime: Long,
+    @SerialName("end_time")
+    val endTime: Long
+)
+
+@Serializable
+data class AudioFileResponse(
+    @SerialName("id")
+    val id: String,
+    @SerialName("filename")
+    val filename: String,
+    @SerialName("duration")
+    val duration: Long,
+    @SerialName("size")
+    val size: Long,
+    @SerialName("mime_type")
+    val mimeType: String? = null
 )
 
 /**
@@ -127,6 +187,60 @@ data class ImageFileInfoResponse(
 
     @SerialName("mod_time")
     val modTime: Long                // Unix timestamp in milliseconds
+)
+
+@Serializable
+data class SyncSeriesResponse(
+    @SerialName("next_cursor")
+    val nextCursor: String? = null,
+
+    @SerialName("series")
+    val series: List<SeriesResponse>,
+
+    @SerialName("has_more")
+    val hasMore: Boolean
+)
+
+@Serializable
+data class SeriesResponse(
+    @SerialName("id")
+    val id: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("description")
+    val description: String? = null,
+    @SerialName("created_at")
+    val createdAt: String,
+    @SerialName("updated_at")
+    val updatedAt: String
+)
+
+@Serializable
+data class SyncContributorsResponse(
+    @SerialName("next_cursor")
+    val nextCursor: String? = null,
+
+    @SerialName("contributors")
+    val contributors: List<ContributorResponse>,
+
+    @SerialName("has_more")
+    val hasMore: Boolean
+)
+
+@Serializable
+data class ContributorResponse(
+    @SerialName("id")
+    val id: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("description")
+    val description: String? = null,
+    @SerialName("image_path")
+    val imagePath: String? = null,
+    @SerialName("created_at")
+    val createdAt: String,
+    @SerialName("updated_at")
+    val updatedAt: String
 )
 
 /**

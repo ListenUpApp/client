@@ -41,3 +41,11 @@ data object Login : Route
  */
 @Serializable
 data object Library : Route
+
+/**
+ * Book detail screen - displays full book info and chapters.
+ *
+ * @property bookId The unique ID of the book to display.
+ */
+@Serializable
+data class BookDetail(val bookId: String) : Route

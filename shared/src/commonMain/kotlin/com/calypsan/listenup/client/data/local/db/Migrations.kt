@@ -51,3 +51,36 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         """.trimIndent())
     }
 }
+
+/**
+ * Migration from version 2 to version 3.
+ *
+ * Changes:
+ * - Add chapters table
+ */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS chapters (
+                id TEXT PRIMARY KEY NOT NULL,
+                bookId TEXT NOT NULL,
+                title TEXT NOT NULL,
+                duration INTEGER NOT NULL,
+                startTime INTEGER NOT NULL,
+                syncState INTEGER NOT NULL,
+                lastModified INTEGER NOT NULL,
+                serverVersion INTEGER
+            )
+        """.trimIndent())
+
+        connection.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_chapters_bookId
+            ON chapters(bookId)
+        """.trimIndent())
+        
+        connection.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_chapters_syncState
+            ON chapters(syncState)
+        """.trimIndent())
+    }
+}

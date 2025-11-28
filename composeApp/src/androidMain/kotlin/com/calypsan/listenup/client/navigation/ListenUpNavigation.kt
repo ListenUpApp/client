@@ -1,5 +1,10 @@
 package com.calypsan.listenup.client.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -150,12 +155,25 @@ private fun AuthenticatedNavigation(
 
     NavDisplay(
         backStack = backStack,
+        transitionSpec = {
+            slideInHorizontally { it } togetherWith slideOutHorizontally { -it }
+        },
+        popTransitionSpec = {
+            slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
+        },
         entryProvider = entryProvider {
             entry<Library> {
                 LibraryScreen(
                     onBookClick = { bookId ->
-                        // TODO: Navigate to book detail screen
-                        // For now, this is a no-op until book detail is implemented
+                        backStack.add(BookDetail(bookId))
+                    }
+                )
+            }
+            entry<BookDetail> { args ->
+                com.calypsan.listenup.client.features.book_detail.BookDetailScreen(
+                    bookId = args.bookId,
+                    onBackClick = {
+                        backStack.removeLast()
                     }
                 )
             }

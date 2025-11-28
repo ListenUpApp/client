@@ -84,7 +84,7 @@ fun BookCard(
 
             // Author
             Text(
-                text = book.author,
+                text = book.authorNames,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

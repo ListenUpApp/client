@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.local.db
 
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.Contributor
 
 /**
  * Extension function to convert BookEntity to domain Book model.
@@ -10,13 +11,16 @@ import com.calypsan.listenup.client.domain.model.Book
  * locally, provides the absolute file path for Coil to load. Otherwise,
  * returns null for coverPath.
  *
- * Note: narrator field is not in BookEntity yet, so defaults to null.
- * This can be added when the server provides narrator information.
- *
  * @param imageStorage Storage for resolving local cover paths
+ * @param authors List of author contributors
+ * @param narrators List of narrator contributors
  * @return Domain Book model for UI consumption
  */
-fun BookEntity.toDomain(imageStorage: ImageStorage): Book {
+fun BookEntity.toDomain(
+    imageStorage: ImageStorage,
+    authors: List<Contributor> = emptyList(),
+    narrators: List<Contributor> = emptyList()
+): Book {
     val coverPath = if (imageStorage.exists(id)) {
         imageStorage.getCoverPath(id)
     } else {
@@ -26,11 +30,17 @@ fun BookEntity.toDomain(imageStorage: ImageStorage): Book {
     return Book(
         id = id,
         title = title,
-        author = author,
-        narrator = null, // TODO: Add narrator field to BookEntity when available
+        authors = authors,
+        narrators = narrators,
         duration = totalDuration,
         coverPath = coverPath,
         addedAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        description = description,
+        genres = genres,
+        seriesName = seriesName,
+        seriesSequence = sequence,
+        publishYear = publishYear,
+        rating = null
     )
 }

@@ -53,9 +53,14 @@ data class BookEntity(
 
     // Core book metadata
     val title: String,
-    val author: String,              // Denormalized primary author for quick display
     val coverUrl: String?,           // URL to cover image (local or remote)
     val totalDuration: Long,         // Total audiobook duration in milliseconds
+    val description: String? = null,
+    val genres: String? = null,      // Comma-separated genres
+    val seriesId: String? = null,
+    val seriesName: String? = null,  // Denormalized series name
+    val sequence: String? = null,    // Series sequence (e.g., "1", "1.5")
+    val publishYear: Int? = null,
 
     // Sync fields (implements Syncable)
     override val syncState: SyncState,
@@ -63,6 +68,73 @@ data class BookEntity(
     override val serverVersion: Timestamp?,
 
     // Timestamps matching server Syncable pattern
+    val createdAt: Timestamp,
+    val updatedAt: Timestamp
+) : Syncable
+
+/**
+ * Local database entity for book chapters.
+ */
+@Entity(
+    tableName = "chapters",
+    indices = [
+        Index(value = ["bookId"]),
+        Index(value = ["syncState"])
+    ]
+)
+data class ChapterEntity(
+    @PrimaryKey val id: ChapterId,
+    val bookId: BookId,
+
+    val title: String,
+    val duration: Long, // Milliseconds
+    val startTime: Long, // Milliseconds from start of book
+
+    // Sync fields
+    override val syncState: SyncState,
+    override val lastModified: Timestamp,
+    override val serverVersion: Timestamp?
+) : Syncable
+
+/**
+ * Local database entity for series.
+ */
+@Entity(
+    tableName = "series",
+    indices = [Index(value = ["syncState"])]
+)
+data class SeriesEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val description: String?,
+
+    // Sync fields
+    override val syncState: SyncState,
+    override val lastModified: Timestamp,
+    override val serverVersion: Timestamp?,
+
+    val createdAt: Timestamp,
+    val updatedAt: Timestamp
+) : Syncable
+
+/**
+ * Local database entity for contributors (authors, narrators, etc.).
+ */
+@Entity(
+    tableName = "contributors",
+    indices = [Index(value = ["syncState"])]
+)
+data class ContributorEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val description: String?,
+    val imagePath: String?,
+
+    // Sync fields
+    override val syncState: SyncState,
+    override val lastModified: Timestamp,
+    override val serverVersion: Timestamp?,
+
     val createdAt: Timestamp,
     val updatedAt: Timestamp
 ) : Syncable
