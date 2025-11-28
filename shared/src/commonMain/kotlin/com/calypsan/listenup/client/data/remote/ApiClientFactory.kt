@@ -147,7 +147,8 @@ class ApiClientFactory(
                         // Send auth header for all requests except auth endpoints
                         // (auth endpoints handle their own credentials in request body)
                         val urlString = request.url.toString()
-                        !urlString.contains("/api/auth/")
+                        // Match /api/v1/auth/ paths (login, refresh, logout, etc.)
+                        !urlString.contains("/auth/")
                     }
                 }
             }

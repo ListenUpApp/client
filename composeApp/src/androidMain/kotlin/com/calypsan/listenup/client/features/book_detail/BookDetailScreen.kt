@@ -134,7 +134,7 @@ fun BookDetailContent(state: BookDetailUiState) {
                     elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp),
                     modifier = Modifier
                         .width(200.dp)
-                        .aspectRatio(1f / 1.5f)
+                        .aspectRatio(1f)
                 ) {
                     AsyncImage(
                         model = state.book?.coverPath,
@@ -422,14 +422,6 @@ fun ChapterListItem(chapter: ChapterUiModel) {
                 text = chapter.duration,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        IconButton(onClick = { /* Play Chapter */ }) {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = "Play Chapter",
-                tint = MaterialTheme.colorScheme.primary
             )
         }
     }

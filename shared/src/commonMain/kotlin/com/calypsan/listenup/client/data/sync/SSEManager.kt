@@ -7,6 +7,7 @@ import com.calypsan.listenup.client.data.remote.model.SSEEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.utils.io.ByteReadChannel
@@ -20,6 +21,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Manages Server-Sent Events (SSE) connection for real-time library updates.
@@ -91,18 +94,18 @@ class SSEManager(
                     // Check if server URL is configured before attempting connection
                     val serverUrl = settingsRepository.getServerUrl()
                     if (serverUrl == null) {
-                        println("SSEManager: Server URL not configured, skipping SSE connection")
+                        logger.debug { "Server URL not configured, skipping SSE connection" }
                         break // Don't reconnect if not configured
                     }
 
-                    println("SSEManager: Connecting to SSE stream...")
+                    logger.info { "Connecting to SSE stream..." }
                     streamEvents()
 
                     // If we get here, connection ended gracefully
-                    println("SSEManager: Connection ended gracefully")
+                    logger.debug { "Connection ended gracefully" }
                     break
                 } catch (e: Exception) {
-                    println("SSEManager: Connection error: ${e.message}")
+                    logger.warn(e) { "Connection error" }
                     isConnected = false
 
                     if (!isActive) {
@@ -110,7 +113,7 @@ class SSEManager(
                     }
 
                     // Exponential backoff
-                    println("SSEManager: Reconnecting in ${reconnectDelay}ms...")
+                    logger.debug { "Reconnecting in ${reconnectDelay}ms..." }
                     delay(reconnectDelay)
                     reconnectDelay = (reconnectDelay * RECONNECT_BACKOFF_MULTIPLIER)
                         .toLong()
@@ -124,7 +127,7 @@ class SSEManager(
      * Disconnects from SSE stream and stops emitting events.
      */
     fun disconnect() {
-        println("SSEManager: Disconnecting...")
+        logger.debug { "Disconnecting..." }
         connectionJob?.cancel()
         connectionJob = null
         isConnected = false
@@ -135,32 +138,32 @@ class SSEManager(
      * Throws exception on connection failure (caught by connect() for reconnection).
      */
     private suspend fun streamEvents() {
-        println("SSEManager: [1/6] Getting server URL...")
+        logger.trace { "Getting server URL..." }
         val serverUrl = settingsRepository.getServerUrl()
             ?: throw IllegalStateException("Server URL not configured")
-        println("SSEManager: [2/6] Server URL: $serverUrl")
+        logger.trace { "Server URL: $serverUrl" }
 
-        println("SSEManager: [3/6] Getting streaming HTTP client (no timeouts)...")
+        logger.trace { "Getting streaming HTTP client (no timeouts)..." }
         val httpClient = clientFactory.getStreamingClient()
-        println("SSEManager: [4/6] Streaming HTTP client ready")
+        logger.trace { "Streaming HTTP client ready" }
 
         val url = "$serverUrl$SSE_ENDPOINT"
-        println("SSEManager: [5/6] Opening streaming connection to: $url")
+        logger.debug { "Opening streaming connection to: $url" }
 
         // Use prepareGet + execute for streaming responses that never complete
         httpClient.prepareGet(url).execute { response ->
-            println("SSEManager: [6/6] Got HTTP response: ${response.status}")
-            println("SSEManager: Response Content-Type: ${response.headers["Content-Type"]}")
+            logger.debug { "Got HTTP response: ${response.status}" }
+            logger.trace { "Response Content-Type: ${response.headers["Content-Type"]}" }
 
             val channel = response.bodyAsChannel()
-            println("SSEManager: Got body channel, starting to read events...")
+            logger.trace { "Got body channel, starting to read events..." }
 
             try {
                 isConnected = true
                 parseSSEStream(channel)
-                println("SSEManager: Stream reading ended gracefully")
+                logger.debug { "Stream reading ended gracefully" }
             } finally {
-                println("SSEManager: Cleaning up channel...")
+                logger.trace { "Cleaning up channel..." }
                 channel.cancel(null)
             }
         }
@@ -220,14 +223,14 @@ class SSEManager(
      */
     private suspend fun processEvent(eventJson: String) {
         try {
-            println("SSEManager: Processing event: $eventJson")
+            logger.trace { "Processing event: $eventJson" }
 
             // Parse the SSE event envelope
             val sseEvent = try {
                 json.decodeFromString<SSEEvent>(eventJson)
             } catch (e: Exception) {
                 // Skip non-standard events (like initial "connected" message)
-                println("SSEManager: Skipping non-standard event: ${e.message}")
+                logger.trace { "Skipping non-standard event: ${e.message}" }
                 return
             }
 
@@ -267,14 +270,14 @@ class SSEManager(
                 }
 
                 else -> {
-                    println("SSEManager: Unknown event type: ${sseEvent.type}")
+                    logger.debug { "Unknown event type: ${sseEvent.type}" }
                     return
                 }
             }
 
             _eventFlow.emit(eventType)
         } catch (e: Exception) {
-            println("SSEManager: Failed to parse event: ${e.message}")
+            logger.warn(e) { "Failed to parse event" }
         }
     }
 }

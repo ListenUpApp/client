@@ -9,10 +9,13 @@ import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncStatus
 import com.calypsan.listenup.client.domain.model.Book
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * ViewModel for the Library screen.
@@ -67,7 +70,7 @@ class LibraryViewModel(
     init {
         // Auto-sync is deferred to onScreenVisible() to avoid syncing
         // when ViewModel is created but screen isn't actually shown yet
-        println("LibraryViewModel: Initialized (auto-sync deferred until screen visible)")
+        logger.debug { "Initialized (auto-sync deferred until screen visible)" }
     }
 
     /**
@@ -84,20 +87,20 @@ class LibraryViewModel(
         }
         hasPerformedInitialSync = true
 
-        println("LibraryViewModel: Screen became visible, checking if initial sync needed...")
+        logger.debug { "Screen became visible, checking if initial sync needed..." }
         viewModelScope.launch {
             val isAuthenticated = settingsRepository.getAccessToken() != null
             val lastSyncTime = syncDao.getLastSyncTime()
 
-            println("LibraryViewModel: isAuthenticated=$isAuthenticated, lastSyncTime=$lastSyncTime")
+            logger.debug { "isAuthenticated=$isAuthenticated, lastSyncTime=$lastSyncTime" }
 
             if (isAuthenticated && lastSyncTime == null) {
-                println("LibraryViewModel: User authenticated but never synced, triggering initial sync...")
+                logger.info { "User authenticated but never synced, triggering initial sync..." }
                 refreshBooks()
             } else if (!isAuthenticated) {
-                println("LibraryViewModel: User not authenticated, skipping sync")
+                logger.debug { "User not authenticated, skipping sync" }
             } else {
-                println("LibraryViewModel: Already synced (last sync: $lastSyncTime), skipping auto-sync")
+                logger.debug { "Already synced (last sync: $lastSyncTime), skipping auto-sync" }
             }
         }
     }
