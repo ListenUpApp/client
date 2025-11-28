@@ -1,5 +1,10 @@
 package com.calypsan.listenup.client.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -20,6 +25,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.data.repository.AuthState
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
+import com.calypsan.listenup.client.features.library.LibraryScreen
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -80,7 +86,7 @@ private fun LoadingScreen(message: String = "Loading...") {
  */
 @Composable
 private fun ServerSetupNavigation() {
-    val backStack = remember { mutableStateListOf<Any>(ServerSetup) }
+    val backStack = remember { mutableStateListOf<Route>(ServerSetup) }
 
     NavDisplay(
         backStack = backStack,
@@ -103,7 +109,7 @@ private fun ServerSetupNavigation() {
  */
 @Composable
 private fun SetupNavigation() {
-    val backStack = remember { mutableStateListOf<Any>(Setup) }
+    val backStack = remember { mutableStateListOf<Route>(Setup) }
 
     NavDisplay(
         backStack = backStack,
@@ -121,7 +127,7 @@ private fun SetupNavigation() {
  */
 @Composable
 private fun LoginNavigation() {
-    val backStack = remember { mutableStateListOf<Any>(Login) }
+    val backStack = remember { mutableStateListOf<Route>(Login) }
 
     NavDisplay(
         backStack = backStack,
@@ -145,20 +151,31 @@ private fun LoginNavigation() {
 private fun AuthenticatedNavigation(
     settingsRepository: SettingsRepository
 ) {
-    val backStack = remember { mutableStateListOf<Any>(Library) }
+    val backStack = remember { mutableStateListOf<Route>(Library) }
 
     NavDisplay(
         backStack = backStack,
+        transitionSpec = {
+            slideInHorizontally { it } togetherWith slideOutHorizontally { -it }
+        },
+        popTransitionSpec = {
+            slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
+        },
         entryProvider = entryProvider {
             entry<Library> {
-                // TODO: Implement LibraryScreen
-                // For now, show placeholder
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Library Screen - Not Implemented Yet")
-                }
+                LibraryScreen(
+                    onBookClick = { bookId ->
+                        backStack.add(BookDetail(bookId))
+                    }
+                )
+            }
+            entry<BookDetail> { args ->
+                com.calypsan.listenup.client.features.book_detail.BookDetailScreen(
+                    bookId = args.bookId,
+                    onBackClick = {
+                        backStack.removeLast()
+                    }
+                )
             }
         }
     )

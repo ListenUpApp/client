@@ -2,9 +2,11 @@ package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
+import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.data.repository.AuthState
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
@@ -37,15 +39,42 @@ class ApiClientFactory(
     private var cachedClient: HttpClient? = null
 
     /**
-     * Get or create the authenticated HTTP client.
+     * Get or create the authenticated HTTP client for regular API calls.
      *
      * Client is cached after first creation. All requests through this client
      * will automatically include Bearer tokens and handle token refresh.
      *
-     * @return Configured HttpClient with auth plugin
+     * Includes timeouts suitable for request/response API calls (30s).
+     *
+     * @return Configured HttpClient with auth plugin and timeouts
      */
     suspend fun getClient(): HttpClient = mutex.withLock {
         cachedClient ?: createClient().also { cachedClient = it }
+    }
+
+    /**
+     * Create a streaming HTTP client for long-lived connections (SSE, WebSocket).
+     *
+     * Similar to getClient() but WITHOUT timeouts, suitable for streaming responses
+     * that may stay open indefinitely.
+     *
+     * Platform-specific implementations configure engine-level timeouts to infinity:
+     * - Android: OkHttp connect/read/write timeouts = 0 (infinite)
+     * - iOS: URLSession timeouts = infinity
+     *
+     * NOT cached - creates a new client each time.
+     *
+     * @return Configured HttpClient with auth but no timeouts
+     */
+    suspend fun getStreamingClient(): HttpClient {
+        val serverUrl = settingsRepository.getServerUrl()
+            ?: throw IllegalStateException("Server URL not configured")
+
+        return createStreamingHttpClient(
+            serverUrl = serverUrl,
+            settingsRepository = settingsRepository,
+            authApi = authApi
+        )
     }
 
     private suspend fun createClient(): HttpClient {
@@ -59,6 +88,14 @@ class ApiClientFactory(
                     isLenient = false
                     ignoreUnknownKeys = true
                 })
+            }
+
+            // Install HttpTimeout plugin to allow per-request timeout configuration
+            // Default timeouts for regular API calls (SSE uses separate client)
+            install(HttpTimeout) {
+                requestTimeoutMillis = 30_000
+                connectTimeoutMillis = 10_000
+                socketTimeoutMillis = 30_000
             }
 
             install(Auth) {
@@ -110,7 +147,8 @@ class ApiClientFactory(
                         // Send auth header for all requests except auth endpoints
                         // (auth endpoints handle their own credentials in request body)
                         val urlString = request.url.toString()
-                        !urlString.contains("/api/auth/")
+                        // Match /api/v1/auth/ paths (login, refresh, logout, etc.)
+                        !urlString.contains("/auth/")
                     }
                 }
             }
@@ -144,3 +182,20 @@ class ApiClientFactory(
         }
     }
 }
+
+/**
+ * Platform-specific streaming HTTP client factory.
+ *
+ * Creates an HttpClient configured for long-lived SSE/WebSocket connections
+ * with infinite timeouts at the engine level.
+ *
+ * @param serverUrl Base server URL
+ * @param settingsRepository For loading auth tokens
+ * @param authApi For refreshing tokens
+ * @return HttpClient with streaming configuration and infinite timeouts
+ */
+internal expect suspend fun createStreamingHttpClient(
+    serverUrl: ServerUrl,
+    settingsRepository: SettingsRepository,
+    authApi: AuthApi
+): HttpClient

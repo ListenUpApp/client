@@ -17,6 +17,8 @@ import kotlinx.coroutines.launch
  * Handles validation and submission of user credentials.
  * On success, stores auth tokens which triggers AuthState.Authenticated,
  * causing automatic navigation to the Library screen.
+ *
+ * Note: Initial sync is handled by LibraryViewModel's intelligent auto-sync.
  */
 class LoginViewModel(
     private val authApi: AuthApi,
@@ -65,6 +67,7 @@ class LoginViewModel(
                 )
 
                 // Store tokens - this triggers AuthState.Authenticated
+                // LibraryViewModel will detect authenticated state and trigger initial sync
                 settingsRepository.saveAuthTokens(
                     access = AccessToken(response.accessToken),
                     refresh = RefreshToken(response.refreshToken),

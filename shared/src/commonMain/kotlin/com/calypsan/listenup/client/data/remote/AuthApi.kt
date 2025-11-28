@@ -141,9 +141,9 @@ class AuthApi(private val serverUrl: ServerUrl) {
      * Server invalidates both access and refresh tokens.
      * Always succeeds even if tokens are already invalid.
      */
-    suspend fun logout(accessToken: AccessToken) {
-        client.post("/api/auth/logout") {
-            setBody(LogoutRequest(accessToken.value))
+    suspend fun logout(sessionId: String) {
+        client.post("/api/v1/auth/logout") {
+            setBody(LogoutRequest(sessionId))
         }
     }
 
@@ -195,7 +195,7 @@ private data class RefreshRequest(
 
 @Serializable
 private data class LogoutRequest(
-    @SerialName("access_token") val accessToken: String
+    @SerialName("session_id") val sessionId: String
 )
 
 // Response DTOs

@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.domain.model
 
+import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -33,6 +34,7 @@ value class InstanceId(val value: String) {
  * Timestamp fields use kotlin.time.Instant (Kotlin stdlib) which has native
  * kotlinx.serialization support for ISO-8601 format (e.g., "2024-11-20T14:30:45.123Z").
  */
+@OptIn(ExperimentalTime::class)
 @Serializable
 data class Instance(
     @SerialName("id")

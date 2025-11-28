@@ -3,26 +3,91 @@ package com.calypsan.listenup.client.data.local.db
 import androidx.room.TypeConverter
 
 /**
- * Room type converters for complex types.
+ * Room type converters for value classes.
  *
- * Currently empty as we're using primitive types (Long for timestamps).
- * If we need to store kotlinx.datetime.Instant directly in the future,
- * we would add converters here.
- *
- * Example for future reference:
- * ```kotlin
- * @TypeConverter
- * fun fromTimestamp(value: Long?): Instant? {
- *     return value?.let { Instant.fromEpochMilliseconds(it) }
- * }
- *
- * @TypeConverter
- * fun toTimestamp(instant: Instant?): Long? {
- *     return instant?.toEpochMilliseconds()
- * }
- * ```
+ * Converts inline value classes (BookId, Timestamp) to/from their underlying
+ * primitive types for database storage. These converters enable type-safe
+ * value classes with zero runtime overhead while maintaining Room compatibility.
  */
-class DateTimeConverters {
-    // No converters needed currently - using Long for timestamps
-    // This class exists for future extensibility and as documentation
+class ValueClassConverters {
+
+    /**
+     * Convert BookId value class to String for database storage.
+     */
+    @TypeConverter
+    fun fromBookId(value: BookId): String {
+        return value.value
+    }
+
+    /**
+     * Convert String from database to BookId value class.
+     */
+    @TypeConverter
+    fun toBookId(value: String): BookId {
+        return BookId(value)
+    }
+
+    /**
+     * Convert Timestamp value class to Long for database storage.
+     */
+    @TypeConverter
+    fun fromTimestamp(value: Timestamp): Long {
+        return value.epochMillis
+    }
+
+    /**
+     * Convert Long from database to Timestamp value class.
+     */
+    @TypeConverter
+    fun toTimestamp(value: Long): Timestamp {
+        return Timestamp(value)
+    }
+
+    /**
+     * Convert nullable Timestamp value class to nullable Long for database storage.
+     */
+    @TypeConverter
+    fun fromNullableTimestamp(value: Timestamp?): Long? {
+        return value?.epochMillis
+    }
+
+    /**
+     * Convert nullable Long from database to nullable Timestamp value class.
+     */
+    @TypeConverter
+    fun toNullableTimestamp(value: Long?): Timestamp? {
+        return value?.let { Timestamp(it) }
+    }
+}
+
+/**
+ * Room type converters for custom types used in database entities.
+ *
+ * Room cannot persist enum classes directly, so we convert them to
+ * their integer ordinal values for storage and back to enum instances
+ * when reading from the database.
+ */
+class Converters {
+
+    /**
+     * Converts [SyncState] enum to integer ordinal for database storage.
+     *
+     * @param value The SyncState enum value to convert
+     * @return Integer ordinal (0-3) representing the sync state
+     */
+    @TypeConverter
+    fun fromSyncState(value: SyncState): Int {
+        return value.ordinal
+    }
+
+    /**
+     * Converts integer ordinal from database to [SyncState] enum.
+     *
+     * @param value Integer ordinal (0-3) from database
+     * @return Corresponding SyncState enum value
+     */
+    @TypeConverter
+    fun toSyncState(value: Int): SyncState {
+        return SyncState.entries[value]
+    }
 }

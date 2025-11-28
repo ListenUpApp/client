@@ -6,19 +6,22 @@ android-targetSdk = "36"
 androidx-activity = "1.12.0"
 androidx-lifecycle = "2.9.6"
 androidx-material3-adaptive = "1.2.0"
+androidx-material-icons = "1.7.8"
 composeMultiplatform = "1.10.0-beta02"
-kotlin = "2.3.0-RC"
+kotlin = "2.2.21"
 ksp = "2.3.2"
-mokkery = "2.10.2"
-ktor = "3.3.2"
+mokkery = "3.0.0"
+ktor = "3.3.3"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.9.0"
 kotlinx-datetime = "0.7.1"
 kotlinx-collections-immutable = "0.4.0"
-koin = "4.1.1"
+koin = "4.2.0-alpha3"
 kotlin-logging = "7.0.13"
 room = "2.8.4"
 room-sqlite = "2.6.2"
+androidx-work = "2.11.0"
+coil = "3.3.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -30,6 +33,9 @@ androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle
 androidx-material3-adaptive = { module = "androidx.compose.material3.adaptive:adaptive", version.ref = "androidx-material3-adaptive" }
 androidx-material3-adaptive-layout = { module = "androidx.compose.material3.adaptive:adaptive-layout", version.ref = "androidx-material3-adaptive" }
 androidx-material3-adaptive-navigation = { module = "androidx.compose.material3.adaptive:adaptive-navigation", version.ref = "androidx-material3-adaptive" }
+
+# Material Icons
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "androidx-material-icons" }
 
 # Ktor
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
@@ -63,6 +69,13 @@ mokkery-runtime = { group = "dev.mokkery", name = "mokkery-runtime", version.ref
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "room-sqlite" }
+
+# WorkManager
+androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "androidx-work" }
+
+# Coil (Image Loading)
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

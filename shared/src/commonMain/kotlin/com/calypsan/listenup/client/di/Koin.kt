@@ -5,12 +5,19 @@ import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApi
+import com.calypsan.listenup.client.data.remote.ImageApi
+import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
+import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.sync.ImageDownloader
+import com.calypsan.listenup.client.data.sync.SSEManager
+import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
+import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
@@ -94,8 +101,14 @@ val repositoryModule = module {
         )
     }
 
-    // DAOs from database
+    // Provide DAOs from database
     single { get<ListenUpDatabase>().userDao() }
+    single { get<ListenUpDatabase>().bookDao() }
+    single { get<ListenUpDatabase>().syncDao() }
+    single { get<ListenUpDatabase>().chapterDao() }
+    single { get<ListenUpDatabase>().seriesDao() }
+    single { get<ListenUpDatabase>().contributorDao() }
+    single { get<ListenUpDatabase>().bookContributorDao() }
 }
 
 /**
@@ -124,6 +137,83 @@ val presentationModule = module {
             settingsRepository = get()
         )
     }
+    factory {
+        LibraryViewModel(
+            bookRepository = get(),
+            syncManager = get(),
+            settingsRepository = get(),
+            syncDao = get()
+        )
+    }
+    factory {
+        com.calypsan.listenup.client.presentation.book_detail.BookDetailViewModel(
+            bookRepository = get()
+        )
+    }
+}
+
+/**
+ * Sync infrastructure module.
+ *
+ * Provides SyncManager, SyncApi, and related sync components.
+ */
+val syncModule = module {
+    // Sync API uses ApiClientFactory to get authenticated HttpClient at call time
+    // This avoids runBlocking during DI initialization (structured concurrency)
+    single {
+        SyncApi(clientFactory = get())
+    }
+
+    // Image API for downloading cover images
+    single {
+        ImageApi(clientFactory = get())
+    }
+
+    // Image downloader for batch cover downloads during sync
+    single {
+        ImageDownloader(
+            imageApi = get(),
+            imageStorage = get()
+        )
+    }
+
+    // SSE Manager for real-time updates
+    // Uses application-scoped coroutine for long-lived SSE connection
+    single<SSEManager> {
+        SSEManager(
+            clientFactory = get(),
+            settingsRepository = get(),
+            scope = kotlinx.coroutines.CoroutineScope(
+                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default
+            )
+        )
+    }
+
+    // SyncManager orchestrates sync operations
+    single {
+        SyncManager(
+            syncApi = get(),
+            bookDao = get(),
+            seriesDao = get(),
+            contributorDao = get(),
+            chapterDao = get(),
+            bookContributorDao = get(),
+            syncDao = get(),
+            imageDownloader = get(),
+            sseManager = get()
+        )
+    }
+
+    // BookRepository for UI data access
+    single {
+        BookRepository(
+            bookDao = get(),
+            chapterDao = get(),
+            bookContributorDao = get(),
+            syncManager = get(),
+            imageStorage = get()
+        )
+    }
 }
 
 /**
@@ -136,7 +226,8 @@ val sharedModules = listOf(
     networkModule,
     repositoryModule,
     useCaseModule,
-    presentationModule
+    presentationModule,
+    syncModule
 )
 
 /**

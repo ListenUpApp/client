@@ -126,7 +126,16 @@ class SettingsRepository(
     /**
      * Clear authentication tokens (soft logout).
      * Keeps server URL and cached data intact.
-     * Triggers state re-derivation (will check server status to determine next screen).
+     * Sets state directly to NeedsLogin without making network calls.
+     *
+     * This is called when:
+     * - User explicitly logs out
+     * - Token refresh fails (401 from server)
+     *
+     * We go directly to NeedsLogin (not CheckingServer) because:
+     * 1. We know the server was reachable (we just got a 401)
+     * 2. Making another HTTP call during auth failure can cause issues
+     * 3. Server setup status rarely changes during a session
      *
      * TODO: Add playback resilience - check if audio is playing before clearing.
      * If playing, show banner instead of redirecting to login.
@@ -137,8 +146,9 @@ class SettingsRepository(
         secureStorage.delete(KEY_SESSION_ID)
         secureStorage.delete(KEY_USER_ID)
 
-        // Re-derive state: will check server status since we still have URL
-        _authState.value = deriveAuthState()
+        // Go directly to NeedsLogin - don't make HTTP calls during auth failure
+        // The server was reachable (we got a 401), so setup isn't required
+        _authState.value = AuthState.NeedsLogin
     }
 
     /**

@@ -34,6 +34,16 @@ kotlin {
             implementation(libs.androidx.material3.adaptive)
             implementation(libs.androidx.material3.adaptive.layout)
             implementation(libs.androidx.material3.adaptive.navigation)
+
+            // WorkManager for background sync
+            implementation(libs.androidx.work.runtime.ktx)
+
+            // Coil for image loading
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
+
+            // Material Icons Extended
+            implementation(libs.androidx.material.icons.extended)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
