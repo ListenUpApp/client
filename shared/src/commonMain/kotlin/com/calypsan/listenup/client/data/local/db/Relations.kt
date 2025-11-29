@@ -75,3 +75,25 @@ data class BookWithContributors(
     )
     val contributorRoles: List<BookContributorCrossRef>
 )
+
+/**
+ * Data class for series with aggregated book count.
+ *
+ * Used by queries that join series with books to count related books.
+ * Room can directly map query results with COUNT(*) to this class.
+ */
+data class SeriesWithBookCount(
+    @Embedded val series: SeriesEntity,
+    val bookCount: Int
+)
+
+/**
+ * Data class for contributor with aggregated book count.
+ *
+ * Used by queries that join contributors with book_contributors
+ * to count how many books a contributor is associated with.
+ */
+data class ContributorWithBookCount(
+    @Embedded val contributor: ContributorEntity,
+    val bookCount: Int
+)

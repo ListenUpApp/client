@@ -27,6 +27,19 @@ interface SeriesDao {
 
     @Query("DELETE FROM series WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    /**
+     * Observe all series with their book counts.
+     * Returns series ordered by name with the count of books in each series.
+     */
+    @Query("""
+        SELECT s.*, COUNT(b.id) as bookCount
+        FROM series s
+        LEFT JOIN books b ON s.id = b.seriesId
+        GROUP BY s.id
+        ORDER BY s.name ASC
+    """)
+    fun observeAllWithBookCount(): Flow<List<SeriesWithBookCount>>
 }
 
 @Dao
@@ -51,4 +64,21 @@ interface ContributorDao {
 
     @Query("DELETE FROM contributors WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    /**
+     * Observe contributors filtered by role with their book counts.
+     * Returns contributors who have the specified role on at least one book,
+     * ordered by name with the count of books they're associated with.
+     *
+     * @param role The role to filter by (e.g., "author", "narrator")
+     */
+    @Query("""
+        SELECT c.*, COUNT(bc.bookId) as bookCount
+        FROM contributors c
+        INNER JOIN book_contributors bc ON c.id = bc.contributorId
+        WHERE bc.role = :role
+        GROUP BY c.id
+        ORDER BY c.name ASC
+    """)
+    fun observeByRoleWithCount(role: String): Flow<List<ContributorWithBookCount>>
 }

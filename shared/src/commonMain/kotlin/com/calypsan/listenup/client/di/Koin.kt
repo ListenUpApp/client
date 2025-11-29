@@ -140,6 +140,8 @@ val presentationModule = module {
     factory {
         LibraryViewModel(
             bookRepository = get(),
+            seriesDao = get(),
+            contributorDao = get(),
             syncManager = get(),
             settingsRepository = get(),
             syncDao = get()
@@ -200,7 +202,8 @@ val syncModule = module {
             bookContributorDao = get(),
             syncDao = get(),
             imageDownloader = get(),
-            sseManager = get()
+            sseManager = get(),
+            settingsRepository = get()
         )
     }
 

@@ -25,7 +25,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.data.repository.AuthState
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
-import com.calypsan.listenup.client.features.library.LibraryScreen
+import com.calypsan.listenup.client.features.shell.AppShell
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -142,7 +142,7 @@ private fun LoginNavigation() {
 /**
  * Navigation graph for authenticated users.
  *
- * Entry point: Library screen (audiobook collection)
+ * Entry point: AppShell (contains bottom nav with Home, Library, Discover)
  *
  * When user logs out, SettingsRepository clears auth tokens,
  * triggering automatic switch to UnauthenticatedNavigation.
@@ -151,7 +151,8 @@ private fun LoginNavigation() {
 private fun AuthenticatedNavigation(
     settingsRepository: SettingsRepository
 ) {
-    val backStack = remember { mutableStateListOf<Route>(Library) }
+    val scope = rememberCoroutineScope()
+    val backStack = remember { mutableStateListOf<Route>(Shell) }
 
     NavDisplay(
         backStack = backStack,
@@ -162,10 +163,15 @@ private fun AuthenticatedNavigation(
             slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
         },
         entryProvider = entryProvider {
-            entry<Library> {
-                LibraryScreen(
+            entry<Shell> {
+                AppShell(
                     onBookClick = { bookId ->
                         backStack.add(BookDetail(bookId))
+                    },
+                    onSignOut = {
+                        scope.launch {
+                            settingsRepository.clearAuthTokens()
+                        }
                     }
                 )
             }

@@ -36,11 +36,13 @@ data object Setup : Route
 data object Login : Route
 
 /**
- * Library screen - main authenticated screen.
- * Shows user's audiobook collection.
+ * App shell - main authenticated container.
+ *
+ * Contains the bottom navigation bar with Home, Library, and Discover tabs.
+ * Tab switching is handled internally within the shell.
  */
 @Serializable
-data object Library : Route
+data object Shell : Route
 
 /**
  * Book detail screen - displays full book info and chapters.
