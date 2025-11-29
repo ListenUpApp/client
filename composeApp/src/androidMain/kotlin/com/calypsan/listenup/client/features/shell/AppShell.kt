@@ -32,12 +32,18 @@ import org.koin.compose.koinInject
  * - Reserved slot for future Now Playing bar
  * - Bottom navigation bar
  *
+ * @param currentDestination Current bottom nav tab (state lifted to survive navigation)
+ * @param onDestinationChange Callback when bottom nav tab changes
  * @param onBookClick Callback when a book is clicked (navigates to detail)
+ * @param onSeriesClick Callback when a series is clicked (navigates to detail)
  * @param onSignOut Callback when sign out is triggered
  */
 @Composable
 fun AppShell(
+    currentDestination: ShellDestination,
+    onDestinationChange: (ShellDestination) -> Unit,
     onBookClick: (String) -> Unit,
+    onSeriesClick: (String) -> Unit,
     onSignOut: () -> Unit
 ) {
     // Inject dependencies
@@ -50,7 +56,6 @@ fun AppShell(
     val user by userDao.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
 
     // Local UI state
-    var currentDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
     var isSearchExpanded by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var isAvatarMenuExpanded by remember { mutableStateOf(false) }
@@ -89,7 +94,7 @@ fun AppShell(
 
                 AppNavigationBar(
                     currentDestination = currentDestination,
-                    onDestinationSelected = { currentDestination = it }
+                    onDestinationSelected = onDestinationChange
                 )
             }
         }
@@ -102,7 +107,7 @@ fun AppShell(
             ShellDestination.Library -> {
                 LibraryScreen(
                     onBookClick = onBookClick,
-                    onSeriesClick = { /* TODO: Series detail */ },
+                    onSeriesClick = onSeriesClick,
                     onAuthorClick = { /* TODO: Author detail */ },
                     onNarratorClick = { /* TODO: Narrator detail */ },
                     modifier = Modifier.padding(padding)

@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
 import com.calypsan.listenup.client.data.local.db.SeriesDao
-import com.calypsan.listenup.client.data.local.db.SeriesWithBookCount
+import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.repository.BookRepository
@@ -70,11 +70,12 @@ class LibraryViewModel(
         )
 
     /**
-     * Observable list of series with book counts.
+     * Observable list of series with their books.
      *
-     * Each series includes the count of books in that series.
+     * Each series includes the full list of books for animated cover stacks.
+     * Books within each series are ordered by seriesSequence then title.
      */
-    val series: StateFlow<List<SeriesWithBookCount>> = seriesDao.observeAllWithBookCount()
+    val series: StateFlow<List<SeriesWithBooks>> = seriesDao.observeAllWithBooks()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),

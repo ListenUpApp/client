@@ -152,6 +152,12 @@ val presentationModule = module {
             bookRepository = get()
         )
     }
+    factory {
+        com.calypsan.listenup.client.presentation.series_detail.SeriesDetailViewModel(
+            seriesDao = get(),
+            bookRepository = get()
+        )
+    }
 }
 
 /**

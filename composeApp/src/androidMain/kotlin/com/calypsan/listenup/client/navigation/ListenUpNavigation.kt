@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.calypsan.listenup.client.features.shell.ShellDestination
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.entryProvider
@@ -154,6 +155,9 @@ private fun AuthenticatedNavigation(
     val scope = rememberCoroutineScope()
     val backStack = remember { mutableStateListOf<Route>(Shell) }
 
+    // Track shell tab state here so it survives navigation to detail screens
+    var currentShellDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
+
     NavDisplay(
         backStack = backStack,
         transitionSpec = {
@@ -165,8 +169,13 @@ private fun AuthenticatedNavigation(
         entryProvider = entryProvider {
             entry<Shell> {
                 AppShell(
+                    currentDestination = currentShellDestination,
+                    onDestinationChange = { currentShellDestination = it },
                     onBookClick = { bookId ->
                         backStack.add(BookDetail(bookId))
+                    },
+                    onSeriesClick = { seriesId ->
+                        backStack.add(SeriesDetail(seriesId))
                     },
                     onSignOut = {
                         scope.launch {
@@ -180,6 +189,17 @@ private fun AuthenticatedNavigation(
                     bookId = args.bookId,
                     onBackClick = {
                         backStack.removeLast()
+                    }
+                )
+            }
+            entry<SeriesDetail> { args ->
+                com.calypsan.listenup.client.features.series_detail.SeriesDetailScreen(
+                    seriesId = args.seriesId,
+                    onBackClick = {
+                        backStack.removeLast()
+                    },
+                    onBookClick = { bookId ->
+                        backStack.add(BookDetail(bookId))
                     }
                 )
             }

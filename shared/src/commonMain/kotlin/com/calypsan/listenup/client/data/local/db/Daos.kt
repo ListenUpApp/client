@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.local.db
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -40,6 +41,29 @@ interface SeriesDao {
         ORDER BY s.name ASC
     """)
     fun observeAllWithBookCount(): Flow<List<SeriesWithBookCount>>
+
+    /**
+     * Observe all series with their books.
+     * Uses Room Relations to batch-load all books for each series.
+     * Books are ordered by series sequence then title within each series.
+     */
+    @Transaction
+    @Query("SELECT * FROM series ORDER BY name ASC")
+    fun observeAllWithBooks(): Flow<List<SeriesWithBooks>>
+
+    /**
+     * Get a single series by ID with all its books.
+     */
+    @Transaction
+    @Query("SELECT * FROM series WHERE id = :id")
+    suspend fun getByIdWithBooks(id: String): SeriesWithBooks?
+
+    /**
+     * Observe a single series by ID with all its books.
+     */
+    @Transaction
+    @Query("SELECT * FROM series WHERE id = :id")
+    fun observeByIdWithBooks(id: String): Flow<SeriesWithBooks?>
 }
 
 @Dao

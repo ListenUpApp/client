@@ -51,3 +51,11 @@ data object Shell : Route
  */
 @Serializable
 data class BookDetail(val bookId: String) : Route
+
+/**
+ * Series detail screen - displays series info and its books.
+ *
+ * @property seriesId The unique ID of the series to display.
+ */
+@Serializable
+data class SeriesDetail(val seriesId: String) : Route

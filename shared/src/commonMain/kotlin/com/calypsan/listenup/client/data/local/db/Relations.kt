@@ -97,3 +97,19 @@ data class ContributorWithBookCount(
     @Embedded val contributor: ContributorEntity,
     val bookCount: Int
 )
+
+/**
+ * Relation POJO for loading a series with all its books in a single query.
+ *
+ * Uses Room's @Relation to batch-load all books for each series,
+ * avoiding N+1 query problems when displaying series with cover stacks.
+ */
+data class SeriesWithBooks(
+    @Embedded val series: SeriesEntity,
+
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "seriesId"
+    )
+    val books: List<BookEntity>
+)

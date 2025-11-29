@@ -175,4 +175,30 @@ interface BookDao {
      */
     @Query("UPDATE books SET updatedAt = :timestamp WHERE id = :id")
     suspend fun touchUpdatedAt(id: BookId, timestamp: Timestamp)
+
+    /**
+     * Observe all books belonging to a specific series.
+     *
+     * Returns books ordered by series sequence (position in series) if available,
+     * then by title as fallback. Used for series detail screens and animated
+     * cover stacks.
+     *
+     * @param seriesId The series ID to filter by
+     * @return Flow emitting list of books in the series
+     */
+    @Query("SELECT * FROM books WHERE seriesId = :seriesId ORDER BY sequence ASC, title ASC")
+    fun observeBySeriesId(seriesId: String): Flow<List<BookEntity>>
+
+    /**
+     * Observe all books with their contributors filtered by series.
+     *
+     * Uses Room Relations to efficiently load books and their contributors
+     * in a single batched query for a specific series.
+     *
+     * @param seriesId The series ID to filter by
+     * @return Flow emitting list of books with their contributors
+     */
+    @Transaction
+    @Query("SELECT * FROM books WHERE seriesId = :seriesId ORDER BY sequence ASC, title ASC")
+    fun observeBySeriesIdWithContributors(seriesId: String): Flow<List<BookWithContributors>>
 }
