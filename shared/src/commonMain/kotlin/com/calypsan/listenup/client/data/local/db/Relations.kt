@@ -1,8 +1,11 @@
 package com.calypsan.listenup.client.data.local.db
 
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
+import androidx.room.Junction
+import androidx.room.Relation
 
 /**
  * Cross-reference entity for the many-to-many relationship between Books and Contributors.
@@ -40,4 +43,35 @@ data class BookContributorCrossRef(
     val bookId: BookId,
     val contributorId: String,
     val role: String // "author", "narrator", etc.
+)
+
+/**
+ * Relation POJO for loading a book with all its contributors in a single query.
+ *
+ * This eliminates the N+1 query problem by using Room's @Relation annotation
+ * to batch-load all contributors for all books in a single additional query.
+ *
+ * Contributors are loaded with their roles via the junction table, allowing
+ * filtering by role (author, narrator, etc.) in the repository layer.
+ */
+data class BookWithContributors(
+    @Embedded val book: BookEntity,
+
+    @Relation(
+        entity = ContributorEntity::class,
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = BookContributorCrossRef::class,
+            parentColumn = "bookId",
+            entityColumn = "contributorId"
+        )
+    )
+    val contributors: List<ContributorEntity>,
+
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "bookId"
+    )
+    val contributorRoles: List<BookContributorCrossRef>
 )

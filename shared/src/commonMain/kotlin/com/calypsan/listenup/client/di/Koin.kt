@@ -209,7 +209,6 @@ val syncModule = module {
         BookRepository(
             bookDao = get(),
             chapterDao = get(),
-            bookContributorDao = get(),
             syncManager = get(),
             imageStorage = get()
         )

@@ -197,6 +197,9 @@ data class SyncSeriesResponse(
     @SerialName("series")
     val series: List<SeriesResponse>,
 
+    @SerialName("deleted_series_ids")
+    val deletedSeriesIds: List<String> = emptyList(),
+
     @SerialName("has_more")
     val hasMore: Boolean
 )
@@ -222,6 +225,9 @@ data class SyncContributorsResponse(
 
     @SerialName("contributors")
     val contributors: List<ContributorResponse>,
+
+    @SerialName("deleted_contributor_ids")
+    val deletedContributorIds: List<String> = emptyList(),
 
     @SerialName("has_more")
     val hasMore: Boolean

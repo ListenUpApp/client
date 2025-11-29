@@ -368,6 +368,7 @@ class SyncManager(
         var hasMore = true
         val limit = 100
         var pageCount = 0
+        var totalDeleted = 0
 
         while (hasMore) {
             _syncState.value = SyncStatus.Progress(
@@ -385,6 +386,18 @@ class SyncManager(
                     pageCount++
 
                     val serverSeries = response.series.map { it.toEntity() }
+                    val deletedSeriesIds = response.deletedSeriesIds
+
+                    logger.debug { "Fetched page $pageCount: ${serverSeries.size} series, ${deletedSeriesIds.size} deletions" }
+
+                    // Handle deletions
+                    if (deletedSeriesIds.isNotEmpty()) {
+                        deletedSeriesIds.forEach { seriesId ->
+                            seriesDao.deleteById(seriesId)
+                        }
+                        totalDeleted += deletedSeriesIds.size
+                        logger.info { "Removed ${deletedSeriesIds.size} series deleted on server" }
+                    }
 
                     if (serverSeries.isNotEmpty()) {
                         seriesDao.upsertAll(serverSeries)
@@ -394,7 +407,7 @@ class SyncManager(
             }
         }
 
-        logger.info { "Series sync complete: $pageCount pages processed" }
+        logger.info { "Series sync complete: $pageCount pages processed, $totalDeleted deleted" }
     }
 
     private suspend fun pullContributors(updatedAfter: String?) {
@@ -402,6 +415,7 @@ class SyncManager(
         var hasMore = true
         val limit = 100
         var pageCount = 0
+        var totalDeleted = 0
 
         while (hasMore) {
             _syncState.value = SyncStatus.Progress(
@@ -419,6 +433,18 @@ class SyncManager(
                     pageCount++
 
                     val serverContributors = response.contributors.map { it.toEntity() }
+                    val deletedContributorIds = response.deletedContributorIds
+
+                    logger.debug { "Fetched page $pageCount: ${serverContributors.size} contributors, ${deletedContributorIds.size} deletions" }
+
+                    // Handle deletions
+                    if (deletedContributorIds.isNotEmpty()) {
+                        deletedContributorIds.forEach { contributorId ->
+                            contributorDao.deleteById(contributorId)
+                        }
+                        totalDeleted += deletedContributorIds.size
+                        logger.info { "Removed ${deletedContributorIds.size} contributors deleted on server" }
+                    }
 
                     if (serverContributors.isNotEmpty()) {
                         contributorDao.upsertAll(serverContributors)
@@ -428,7 +454,7 @@ class SyncManager(
             }
         }
 
-        logger.info { "Contributors sync complete: $pageCount pages processed" }
+        logger.info { "Contributors sync complete: $pageCount pages processed, $totalDeleted deleted" }
     }
 
     /**

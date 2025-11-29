@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.BookWithContributors
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
 import com.calypsan.listenup.client.data.local.db.ChapterId
@@ -31,6 +32,9 @@ import kotlinx.coroutines.flow.map
  * Transforms data layer (BookEntity) to domain layer (Book) for UI consumption.
  * Uses ImageStorage to resolve local cover file paths.
  *
+ * Uses Room Relations to efficiently batch-load books with their contributors,
+ * avoiding N+1 query problems when loading book lists.
+ *
  * @property bookDao Room DAO for book operations
  * @property chapterDao Room DAO for chapter operations
  * @property syncManager Sync orchestrator for server communication
@@ -39,7 +43,6 @@ import kotlinx.coroutines.flow.map
 class BookRepository(
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
-    private val bookContributorDao: com.calypsan.listenup.client.data.local.db.BookContributorDao,
     private val syncManager: SyncManager,
     private val imageStorage: ImageStorage
 ) {
@@ -52,6 +55,9 @@ class BookRepository(
      * whenever any book changes. UI can collect this to display
      * book library with real-time updates.
      *
+     * Uses Room Relations to efficiently batch-load books with their
+     * contributors, avoiding N+1 query problems.
+     *
      * Transforms BookEntity to domain Book model with local cover paths.
      *
      * Offline-first: Returns local data immediately, even if
@@ -60,15 +66,9 @@ class BookRepository(
      * @return Flow emitting list of domain Book models
      */
     fun observeBooks(): Flow<List<Book>> {
-        return bookDao.observeAll().map { entities ->
-            entities.map { entity ->
-                // TODO: Optimize this N+1 query with a proper Room Relation POJO
-                val authors = bookContributorDao.getContributorsForBookByRole(entity.id, "author")
-                    .map { Contributor(it.id, it.name) }
-                val narrators = bookContributorDao.getContributorsForBookByRole(entity.id, "narrator")
-                    .map { Contributor(it.id, it.name) }
-                    
-                entity.toDomain(imageStorage, authors, narrators) 
+        return bookDao.observeAllWithContributors().map { booksWithContributors ->
+            booksWithContributors.map { bookWithContributors ->
+                bookWithContributors.toDomain(imageStorage)
             }
         }
     }
@@ -91,20 +91,16 @@ class BookRepository(
     /**
      * Get a single book by ID.
      *
+     * Uses Room Relations to efficiently load the book with its contributors
+     * in a single batched query.
+     *
      * @param id The book ID
      * @return Domain Book model or null if not found
      */
     suspend fun getBook(id: String): Book? {
         val bookId = BookId(id)
-        val bookEntity = bookDao.getById(bookId) ?: return null
-        
-        val authors = bookContributorDao.getContributorsForBookByRole(bookId, "author")
-            .map { Contributor(it.id, it.name) }
-            
-        val narrators = bookContributorDao.getContributorsForBookByRole(bookId, "narrator")
-            .map { Contributor(it.id, it.name) }
-
-        return bookEntity.toDomain(imageStorage, authors, narrators)
+        val bookWithContributors = bookDao.getByIdWithContributors(bookId) ?: return null
+        return bookWithContributors.toDomain(imageStorage)
     }
 
     /**
@@ -152,6 +148,28 @@ class BookRepository(
             duration = duration,
             startTime = startTime
         )
+    }
+
+    /**
+     * Convert BookWithContributors to domain Book model.
+     *
+     * Filters contributors by role using the cross-reference data,
+     * avoiding additional database queries.
+     */
+    private fun BookWithContributors.toDomain(imageStorage: ImageStorage): Book {
+        // Build a map of contributorId -> role for this book
+        val rolesByContributorId = contributorRoles.associate { it.contributorId to it.role }
+
+        // Filter contributors by role
+        val authors = contributors
+            .filter { rolesByContributorId[it.id] == "author" }
+            .map { Contributor(it.id, it.name) }
+
+        val narrators = contributors
+            .filter { rolesByContributorId[it.id] == "narrator" }
+            .map { Contributor(it.id, it.name) }
+
+        return book.toDomain(imageStorage, authors, narrators)
     }
 
     private fun BookEntity.toDomain(

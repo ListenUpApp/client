@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.local.db
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -57,6 +58,34 @@ interface BookDao {
      */
     @Query("SELECT * FROM books ORDER BY title ASC")
     fun observeAll(): Flow<List<BookEntity>>
+
+    /**
+     * Observe all books with their contributors as a reactive Flow.
+     *
+     * Uses Room Relations to efficiently load books and their contributors
+     * in a single batched query, avoiding N+1 query problems.
+     *
+     * The @Transaction annotation ensures that the book and its related
+     * contributors are loaded atomically.
+     *
+     * @return Flow emitting list of books with their contributors
+     */
+    @Transaction
+    @Query("SELECT * FROM books ORDER BY title ASC")
+    fun observeAllWithContributors(): Flow<List<BookWithContributors>>
+
+    /**
+     * Get a single book by ID with its contributors.
+     *
+     * Uses Room Relations to efficiently load the book and its contributors
+     * in a single batched query.
+     *
+     * @param id The type-safe book ID
+     * @return The book with contributors or null if not found
+     */
+    @Transaction
+    @Query("SELECT * FROM books WHERE id = :id LIMIT 1")
+    suspend fun getByIdWithContributors(id: BookId): BookWithContributors?
 
     /**
      * Get all books with pending local changes that need to be synced.

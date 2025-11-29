@@ -18,12 +18,15 @@ interface SeriesDao {
 
     @Upsert
     suspend fun upsertAll(series: List<SeriesEntity>)
-    
+
     @Query("UPDATE series SET syncState = ${SyncState.SYNCED_ORDINAL}, serverVersion = :version WHERE id = :id")
     suspend fun markSynced(id: String, version: Timestamp)
 
     @Query("UPDATE series SET syncState = ${SyncState.CONFLICT_ORDINAL}, serverVersion = :serverVersion WHERE id = :id")
     suspend fun markConflict(id: String, serverVersion: Timestamp)
+
+    @Query("DELETE FROM series WHERE id = :id")
+    suspend fun deleteById(id: String)
 }
 
 @Dao
@@ -39,10 +42,13 @@ interface ContributorDao {
 
     @Upsert
     suspend fun upsertAll(contributors: List<ContributorEntity>)
-    
+
     @Query("UPDATE contributors SET syncState = ${SyncState.SYNCED_ORDINAL}, serverVersion = :version WHERE id = :id")
     suspend fun markSynced(id: String, version: Timestamp)
 
     @Query("UPDATE contributors SET syncState = ${SyncState.CONFLICT_ORDINAL}, serverVersion = :serverVersion WHERE id = :id")
     suspend fun markConflict(id: String, serverVersion: Timestamp)
+
+    @Query("DELETE FROM contributors WHERE id = :id")
+    suspend fun deleteById(id: String)
 }
