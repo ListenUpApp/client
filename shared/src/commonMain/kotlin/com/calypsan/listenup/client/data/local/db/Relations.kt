@@ -113,3 +113,13 @@ data class SeriesWithBooks(
     )
     val books: List<BookEntity>
 )
+
+/**
+ * Data class for a contributor role with book count.
+ *
+ * Used by queries that count books per role for a specific contributor.
+ */
+data class RoleWithBookCount(
+    val role: String,
+    val bookCount: Int
+)

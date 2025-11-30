@@ -105,4 +105,42 @@ interface ContributorDao {
         ORDER BY c.name ASC
     """)
     fun observeByRoleWithCount(role: String): Flow<List<ContributorWithBookCount>>
+
+    /**
+     * Observe a single contributor by ID.
+     *
+     * @param id The contributor's unique ID
+     * @return Flow emitting the contributor or null if not found
+     */
+    @Query("SELECT * FROM contributors WHERE id = :id")
+    fun observeById(id: String): Flow<ContributorEntity?>
+
+    /**
+     * Get all distinct roles a contributor has across their books.
+     *
+     * @param contributorId The contributor's unique ID
+     * @return List of role strings (e.g., ["author", "narrator"])
+     */
+    @Query("""
+        SELECT DISTINCT bc.role
+        FROM book_contributors bc
+        WHERE bc.contributorId = :contributorId
+        ORDER BY bc.role ASC
+    """)
+    suspend fun getRolesForContributor(contributorId: String): List<String>
+
+    /**
+     * Observe all roles a contributor has with book counts per role.
+     *
+     * @param contributorId The contributor's unique ID
+     * @return Flow of role to book count pairs
+     */
+    @Query("""
+        SELECT bc.role, COUNT(bc.bookId) as bookCount
+        FROM book_contributors bc
+        WHERE bc.contributorId = :contributorId
+        GROUP BY bc.role
+        ORDER BY bc.role ASC
+    """)
+    fun observeRolesWithCountForContributor(contributorId: String): Flow<List<RoleWithBookCount>>
 }

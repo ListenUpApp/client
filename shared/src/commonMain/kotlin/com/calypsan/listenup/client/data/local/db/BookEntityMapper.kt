@@ -38,6 +38,7 @@ fun BookEntity.toDomain(
         updatedAt = updatedAt,
         description = description,
         genres = genres,
+        seriesId = seriesId,
         seriesName = seriesName,
         seriesSequence = sequence,
         publishYear = publishYear,

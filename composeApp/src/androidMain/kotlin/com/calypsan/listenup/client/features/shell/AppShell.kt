@@ -36,6 +36,7 @@ import org.koin.compose.koinInject
  * @param onDestinationChange Callback when bottom nav tab changes
  * @param onBookClick Callback when a book is clicked (navigates to detail)
  * @param onSeriesClick Callback when a series is clicked (navigates to detail)
+ * @param onContributorClick Callback when a contributor is clicked (author or narrator)
  * @param onSignOut Callback when sign out is triggered
  */
 @Composable
@@ -44,6 +45,7 @@ fun AppShell(
     onDestinationChange: (ShellDestination) -> Unit,
     onBookClick: (String) -> Unit,
     onSeriesClick: (String) -> Unit,
+    onContributorClick: (String) -> Unit,
     onSignOut: () -> Unit
 ) {
     // Inject dependencies
@@ -108,8 +110,8 @@ fun AppShell(
                 LibraryScreen(
                     onBookClick = onBookClick,
                     onSeriesClick = onSeriesClick,
-                    onAuthorClick = { /* TODO: Author detail */ },
-                    onNarratorClick = { /* TODO: Narrator detail */ },
+                    onAuthorClick = onContributorClick,
+                    onNarratorClick = onContributorClick,
                     modifier = Modifier.padding(padding)
                 )
             }

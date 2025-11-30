@@ -16,6 +16,7 @@ import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SSEManager
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
@@ -112,7 +113,7 @@ fun InstanceScreen(
     ) {
         when {
             state.isLoading -> {
-                CircularProgressIndicator()
+                ListenUpLoadingIndicator()
             }
 
             state.error != null -> {

@@ -158,6 +158,20 @@ val presentationModule = module {
             bookRepository = get()
         )
     }
+    factory {
+        com.calypsan.listenup.client.presentation.contributor_detail.ContributorDetailViewModel(
+            contributorDao = get(),
+            bookDao = get(),
+            imageStorage = get()
+        )
+    }
+    factory {
+        com.calypsan.listenup.client.presentation.contributor_detail.ContributorBooksViewModel(
+            contributorDao = get(),
+            bookDao = get(),
+            imageStorage = get()
+        )
+    }
 }
 
 /**
