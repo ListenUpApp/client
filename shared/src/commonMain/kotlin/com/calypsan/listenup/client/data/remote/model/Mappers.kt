@@ -6,6 +6,8 @@ import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /**
  * Extension functions for mapping DTOs from server to local database entities.
@@ -38,6 +40,8 @@ fun BookResponse.toEntity(): BookEntity {
         seriesName = seriesName,
         sequence = sequence,
         publishYear = publishYear?.toIntOrNull(),
+        // Audio files serialized as JSON for runtime parsing during playback
+        audioFilesJson = audioFiles.takeIf { it.isNotEmpty() }?.let { Json.encodeToString(it) },
         // Sync fields - newly synced book is clean
         syncState = SyncState.SYNCED,
         lastModified = updatedAt.toTimestamp(),

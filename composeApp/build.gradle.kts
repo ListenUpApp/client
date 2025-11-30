@@ -25,6 +25,11 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
 
+            // Kotlin libraries for playback
+            implementation(libs.kotlin.logging)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
+
             // Navigation 3 - RC01 (stable API, will bump to 1.0.0 when published to Maven)
             implementation("androidx.navigation3:navigation3-runtime:1.0.0-rc01")
             implementation("androidx.navigation3:navigation3-ui:1.0.0-rc01")
@@ -44,6 +49,12 @@ kotlin {
 
             // Material Icons Extended
             implementation(libs.androidx.material.icons.extended)
+
+            // Media3 for audio playback
+            implementation(libs.media3.exoplayer)
+            implementation(libs.media3.session)
+            implementation(libs.media3.ui)
+            implementation(libs.media3.datasource.okhttp)
         }
         commonMain.dependencies {
             implementation(compose.runtime)

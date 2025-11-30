@@ -109,6 +109,8 @@ val repositoryModule = module {
     single { get<ListenUpDatabase>().seriesDao() }
     single { get<ListenUpDatabase>().contributorDao() }
     single { get<ListenUpDatabase>().bookContributorDao() }
+    single { get<ListenUpDatabase>().playbackPositionDao() }
+    single { get<ListenUpDatabase>().pendingListeningEventDao() }
 }
 
 /**

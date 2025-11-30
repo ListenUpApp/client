@@ -157,12 +157,12 @@ data class AudioFileResponse(
     val id: String,
     @SerialName("filename")
     val filename: String,
+    @SerialName("format")
+    val format: String,
     @SerialName("duration")
     val duration: Long,
     @SerialName("size")
-    val size: Long,
-    @SerialName("mime_type")
-    val mimeType: String? = null
+    val size: Long
 )
 
 /**

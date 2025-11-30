@@ -6,6 +6,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,7 +16,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncStatus
@@ -57,6 +60,16 @@ fun AppShell(
     val syncManager: SyncManager = koinInject()
     val userDao: UserDao = koinInject()
     val settingsRepository: SettingsRepository = koinInject()
+    val syncDao: SyncDao = koinInject()
+
+    // Trigger sync on shell entry (not just when Library is visible)
+    LaunchedEffect(Unit) {
+        val isAuthenticated = settingsRepository.getAccessToken() != null
+        val lastSyncTime = syncDao.getLastSyncTime()
+        if (isAuthenticated && lastSyncTime == null) {
+            syncManager.sync()
+        }
+    }
 
     // Collect reactive state
     val syncState by syncManager.syncState.collectAsStateWithLifecycle()

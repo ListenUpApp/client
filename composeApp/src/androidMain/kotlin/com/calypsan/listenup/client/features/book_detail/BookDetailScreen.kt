@@ -67,6 +67,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun BookDetailScreen(
     bookId: String,
     onBackClick: () -> Unit,
+    onPlayClick: (bookId: String) -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     viewModel: BookDetailViewModel = koinViewModel()
@@ -118,6 +119,7 @@ fun BookDetailScreen(
             } else {
                 BookDetailContent(
                     state = state,
+                    onPlayClick = { onPlayClick(bookId) },
                     onSeriesClick = onSeriesClick,
                     onContributorClick = onContributorClick
                 )
@@ -129,6 +131,7 @@ fun BookDetailScreen(
 @Composable
 fun BookDetailContent(
     state: BookDetailUiState,
+    onPlayClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit
 ) {
@@ -250,7 +253,7 @@ fun BookDetailContent(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Button(
-                    onClick = { /* TODO: Stream */ },
+                    onClick = onPlayClick,
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp), // Expressive: Taller buttons

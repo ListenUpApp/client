@@ -1,12 +1,22 @@
 package com.calypsan.listenup.client
 
 import android.app.Application
+import android.content.Context
+import android.provider.Settings
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import com.calypsan.listenup.client.core.ImageLoaderFactory
 import com.calypsan.listenup.client.di.sharedModules
+import com.calypsan.listenup.client.playback.AudioTokenProvider
+import com.calypsan.listenup.client.playback.PlaybackErrorHandler
+import com.calypsan.listenup.client.playback.PlaybackManager
+import com.calypsan.listenup.client.playback.PlayerViewModel
+import com.calypsan.listenup.client.playback.ProgressTracker
 import com.calypsan.listenup.client.workers.SyncWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.module.dsl.viewModelOf
@@ -20,6 +30,69 @@ import org.koin.dsl.module
  */
 val androidModule = module {
     viewModelOf(::InstanceViewModel)
+}
+
+/**
+ * Playback module for audio streaming.
+ * Contains Media3 integration and playback state management.
+ */
+val playbackModule = module {
+    // Device ID for listening events (stable across app reinstalls on Android 8+)
+    single {
+        val context: Context = get()
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            ?: "unknown-device"
+    }
+
+    // Application-scoped coroutine for progress tracking
+    single(createdAtStart = false) {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    }
+
+    // Audio token provider for authenticated streaming
+    single {
+        AudioTokenProvider(
+            settingsRepository = get(),
+            authApi = get(),
+            scope = get()
+        )
+    }
+
+    // Progress tracker for position persistence and event recording
+    single {
+        ProgressTracker(
+            positionDao = get(),
+            eventDao = get(),
+            deviceId = get(),
+            scope = get()
+        )
+    }
+
+    // Playback error handler
+    single {
+        PlaybackErrorHandler(
+            progressTracker = get(),
+            tokenProvider = get()
+        )
+    }
+
+    // Playback manager - orchestrates playback startup
+    single {
+        PlaybackManager(
+            settingsRepository = get(),
+            bookDao = get(),
+            progressTracker = get(),
+            tokenProvider = get()
+        )
+    }
+
+    // Player ViewModel - connects UI to MediaController
+    factory {
+        PlayerViewModel(
+            context = get(),
+            playbackManager = get()
+        )
+    }
 }
 
 /**
@@ -40,7 +113,7 @@ class ListenUp : Application(), SingletonImageLoader.Factory {
             androidContext(this@ListenUp)
 
             // Load all shared and Android-specific modules
-            modules(sharedModules + androidModule)
+            modules(sharedModules + androidModule + playbackModule)
         }
 
         // Schedule periodic background sync

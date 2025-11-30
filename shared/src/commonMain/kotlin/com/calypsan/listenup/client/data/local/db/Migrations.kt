@@ -84,3 +84,60 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         """.trimIndent())
     }
 }
+
+/**
+ * Migration from version 5 to version 6.
+ *
+ * Changes:
+ * - Add audioFilesJson column to books table for playback
+ * - Add playback_positions table for local position persistence
+ * - Add pending_listening_events table for event queue
+ * - Clear sync checkpoint to force full re-sync (populates audioFilesJson)
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(connection: SQLiteConnection) {
+        // Add audioFilesJson column to books table
+        connection.execSQL("""
+            ALTER TABLE books ADD COLUMN audioFilesJson TEXT DEFAULT NULL
+        """.trimIndent())
+
+        // Create playback_positions table for local position persistence
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS playback_positions (
+                bookId TEXT PRIMARY KEY NOT NULL,
+                positionMs INTEGER NOT NULL,
+                playbackSpeed REAL NOT NULL,
+                updatedAt INTEGER NOT NULL,
+                syncedAt INTEGER
+            )
+        """.trimIndent())
+
+        // Create pending_listening_events table for event queue
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS pending_listening_events (
+                id TEXT PRIMARY KEY NOT NULL,
+                bookId TEXT NOT NULL,
+                startPositionMs INTEGER NOT NULL,
+                endPositionMs INTEGER NOT NULL,
+                startedAt INTEGER NOT NULL,
+                endedAt INTEGER NOT NULL,
+                playbackSpeed REAL NOT NULL,
+                deviceId TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                lastAttemptAt INTEGER
+            )
+        """.trimIndent())
+
+        // Create index on bookId for pending events
+        connection.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_pending_listening_events_bookId
+            ON pending_listening_events(bookId)
+        """.trimIndent())
+
+        // Clear sync checkpoint to force full re-sync on next launch.
+        // This ensures existing books get audioFilesJson populated.
+        connection.execSQL("""
+            DELETE FROM sync_metadata WHERE key = 'last_sync_books'
+        """.trimIndent())
+    }
+}

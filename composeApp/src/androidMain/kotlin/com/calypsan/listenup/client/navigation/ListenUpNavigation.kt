@@ -196,11 +196,22 @@ private fun AuthenticatedNavigation(
                     onBackClick = {
                         backStack.removeLast()
                     },
+                    onPlayClick = { bookId ->
+                        backStack.add(Player(bookId))
+                    },
                     onSeriesClick = { seriesId ->
                         backStack.add(SeriesDetail(seriesId))
                     },
                     onContributorClick = { contributorId ->
                         backStack.add(ContributorDetail(contributorId))
+                    }
+                )
+            }
+            entry<Player> { args ->
+                com.calypsan.listenup.client.features.player.SimplePlayerScreen(
+                    bookId = args.bookId,
+                    onBackClick = {
+                        backStack.removeLast()
                     }
                 )
             }
