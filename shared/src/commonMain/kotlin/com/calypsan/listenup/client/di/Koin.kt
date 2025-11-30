@@ -128,13 +128,15 @@ val presentationModule = module {
     factory {
         com.calypsan.listenup.client.presentation.auth.SetupViewModel(
             authApi = get(),
-            settingsRepository = get()
+            settingsRepository = get(),
+            userDao = get()
         )
     }
     factory {
         com.calypsan.listenup.client.presentation.auth.LoginViewModel(
             authApi = get(),
-            settingsRepository = get()
+            settingsRepository = get(),
+            userDao = get()
         )
     }
     factory {

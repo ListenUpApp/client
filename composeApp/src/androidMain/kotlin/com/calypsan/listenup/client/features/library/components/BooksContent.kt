@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -20,15 +21,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.sync.SyncStatus
+import com.calypsan.listenup.client.design.components.AlphabetIndex
+import com.calypsan.listenup.client.design.components.AlphabetScrollbar
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.features.library.BookCard
+import kotlinx.coroutines.launch
 
 /**
  * Content for the Books tab in the Library screen.
@@ -81,7 +89,7 @@ fun BooksContent(
 }
 
 /**
- * Grid of book cards with responsive columns.
+ * Grid of book cards with responsive columns and alphabet scrollbar.
  */
 @Composable
 private fun BookGrid(
@@ -89,23 +97,53 @@ private fun BookGrid(
     onBookClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 120.dp),
-        contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = modifier.fillMaxSize()
-    ) {
-        items(
-            items = books,
-            key = { it.id.value }
-        ) { book ->
-            BookCard(
-                book = book,
-                onClick = { onBookClick(book.id.value) },
-                modifier = Modifier.animateItem()
-            )
+    val gridState = rememberLazyGridState()
+    val scope = rememberCoroutineScope()
+
+    // Build alphabet index from book titles
+    val alphabetIndex = remember(books) {
+        AlphabetIndex.build(books) { it.title }
+    }
+
+    // Track if grid is scrolling
+    val isScrolling by remember {
+        derivedStateOf { gridState.isScrollInProgress }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyVerticalGrid(
+            state = gridState,
+            columns = GridCells.Adaptive(minSize = 120.dp),
+            contentPadding = PaddingValues(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(
+                items = books,
+                key = { it.id.value }
+            ) { book ->
+                BookCard(
+                    book = book,
+                    onClick = { onBookClick(book.id.value) },
+                    modifier = Modifier.animateItem()
+                )
+            }
         }
+
+        // Alphabet scrollbar overlays on the right edge
+        AlphabetScrollbar(
+            alphabetIndex = alphabetIndex,
+            onLetterSelected = { index ->
+                scope.launch {
+                    gridState.animateScrollToItem(index)
+                }
+            },
+            isScrolling = isScrolling,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 4.dp)
+        )
     }
 }
 

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Person
@@ -23,14 +24,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
+import com.calypsan.listenup.client.design.components.AlphabetIndex
+import com.calypsan.listenup.client.design.components.AlphabetScrollbar
 import com.calypsan.listenup.client.design.components.avatarColorForUser
 import com.calypsan.listenup.client.design.components.getInitials
+import kotlinx.coroutines.launch
 
 /**
  * Content for the Authors tab in the Library screen.
@@ -51,7 +59,19 @@ fun AuthorsContent(
         if (authors.isEmpty()) {
             AuthorsEmptyState()
         } else {
+            val listState = rememberLazyListState()
+            val scope = rememberCoroutineScope()
+
+            val alphabetIndex = remember(authors) {
+                AlphabetIndex.build(authors) { it.contributor.name }
+            }
+
+            val isScrolling by remember {
+                derivedStateOf { listState.isScrollInProgress }
+            }
+
             LazyColumn(
+                state = listState,
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize()
@@ -66,6 +86,19 @@ fun AuthorsContent(
                     )
                 }
             }
+
+            AlphabetScrollbar(
+                alphabetIndex = alphabetIndex,
+                onLetterSelected = { index ->
+                    scope.launch {
+                        listState.animateScrollToItem(index)
+                    }
+                },
+                isScrolling = isScrolling,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 4.dp)
+            )
         }
     }
 }
