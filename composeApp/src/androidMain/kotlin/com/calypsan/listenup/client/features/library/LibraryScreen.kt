@@ -39,6 +39,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * @param onSeriesClick Callback when a series is clicked
  * @param onAuthorClick Callback when an author is clicked
  * @param onNarratorClick Callback when a narrator is clicked
+ * @param topBarCollapseFraction Fraction of top bar collapse (0 = expanded, 1 = collapsed)
  * @param modifier Modifier from parent (includes scaffold padding)
  * @param viewModel The LibraryViewModel (injected via Koin)
  */
@@ -49,6 +50,7 @@ fun LibraryScreen(
     onSeriesClick: (String) -> Unit,
     onAuthorClick: (String) -> Unit,
     onNarratorClick: (String) -> Unit,
+    topBarCollapseFraction: Float = 0f,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = koinViewModel()
 ) {
@@ -69,14 +71,15 @@ fun LibraryScreen(
     val scope = rememberCoroutineScope()
 
     Column(modifier = modifier.fillMaxSize()) {
-        // Tab row
+        // Tab row - collapses icons when top bar collapses
         LibraryTabRow(
             selectedTabIndex = pagerState.currentPage,
             onTabSelected = { index ->
                 scope.launch {
                     pagerState.animateScrollToPage(index)
                 }
-            }
+            },
+            collapseFraction = topBarCollapseFraction
         )
 
         // Pull-to-refresh wraps entire pager (syncs all data)

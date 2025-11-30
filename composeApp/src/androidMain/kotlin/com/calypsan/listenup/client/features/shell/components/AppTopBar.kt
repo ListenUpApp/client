@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -54,6 +55,7 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
  * @param onAvatarMenuExpandedChange Callback when avatar menu expand state changes
  * @param onSettingsClick Callback when settings is clicked
  * @param onSignOutClick Callback when sign out is clicked
+ * @param scrollBehavior Scroll behavior for collapsing on scroll
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +70,8 @@ fun AppTopBar(
     isAvatarMenuExpanded: Boolean,
     onAvatarMenuExpandedChange: (Boolean) -> Unit,
     onSettingsClick: () -> Unit,
-    onSignOutClick: () -> Unit
+    onSignOutClick: () -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
     // Guard against null destination during recomposition transitions
     val safeDestination = currentDestination ?: ShellDestination.Home
@@ -126,7 +129,8 @@ fun AppTopBar(
                 onSignOutClick = onSignOutClick,
                 modifier = Modifier.padding(end = 8.dp)
             )
-        }
+        },
+        scrollBehavior = scrollBehavior
     )
 }
 

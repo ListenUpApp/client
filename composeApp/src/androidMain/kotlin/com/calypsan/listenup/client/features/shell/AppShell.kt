@@ -2,14 +2,18 @@ package com.calypsan.listenup.client.features.shell
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.repository.SettingsRepository
@@ -39,6 +43,7 @@ import org.koin.compose.koinInject
  * @param onContributorClick Callback when a contributor is clicked (author or narrator)
  * @param onSignOut Callback when sign out is triggered
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppShell(
     currentDestination: ShellDestination,
@@ -70,7 +75,24 @@ fun AppShell(
         }
     }
 
+    // Scroll behavior for collapsing top bar
+    // enterAlwaysScrollBehavior: hides on scroll down, shows immediately on scroll up
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
+    // Derive collapse fraction for child components (0 = expanded, 1 = fully collapsed)
+    val topBarCollapseFraction by remember {
+        derivedStateOf {
+            val limit = scrollBehavior.state.heightOffsetLimit
+            if (limit != 0f) {
+                scrollBehavior.state.heightOffset / limit
+            } else {
+                0f
+            }
+        }
+    }
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             AppTopBar(
                 currentDestination = currentDestination,
@@ -83,7 +105,8 @@ fun AppShell(
                 isAvatarMenuExpanded = isAvatarMenuExpanded,
                 onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
                 onSettingsClick = { /* TODO: Navigate to settings */ },
-                onSignOutClick = handleSignOut
+                onSignOutClick = handleSignOut,
+                scrollBehavior = scrollBehavior
             )
         },
         bottomBar = {
@@ -112,6 +135,7 @@ fun AppShell(
                     onSeriesClick = onSeriesClick,
                     onAuthorClick = onContributorClick,
                     onNarratorClick = onContributorClick,
+                    topBarCollapseFraction = topBarCollapseFraction,
                     modifier = Modifier.padding(padding)
                 )
             }
