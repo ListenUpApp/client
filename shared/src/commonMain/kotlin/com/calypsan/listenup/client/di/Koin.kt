@@ -128,18 +128,22 @@ val presentationModule = module {
     factory {
         com.calypsan.listenup.client.presentation.auth.SetupViewModel(
             authApi = get(),
-            settingsRepository = get()
+            settingsRepository = get(),
+            userDao = get()
         )
     }
     factory {
         com.calypsan.listenup.client.presentation.auth.LoginViewModel(
             authApi = get(),
-            settingsRepository = get()
+            settingsRepository = get(),
+            userDao = get()
         )
     }
     factory {
         LibraryViewModel(
             bookRepository = get(),
+            seriesDao = get(),
+            contributorDao = get(),
             syncManager = get(),
             settingsRepository = get(),
             syncDao = get()
@@ -148,6 +152,26 @@ val presentationModule = module {
     factory {
         com.calypsan.listenup.client.presentation.book_detail.BookDetailViewModel(
             bookRepository = get()
+        )
+    }
+    factory {
+        com.calypsan.listenup.client.presentation.series_detail.SeriesDetailViewModel(
+            seriesDao = get(),
+            bookRepository = get()
+        )
+    }
+    factory {
+        com.calypsan.listenup.client.presentation.contributor_detail.ContributorDetailViewModel(
+            contributorDao = get(),
+            bookDao = get(),
+            imageStorage = get()
+        )
+    }
+    factory {
+        com.calypsan.listenup.client.presentation.contributor_detail.ContributorBooksViewModel(
+            contributorDao = get(),
+            bookDao = get(),
+            imageStorage = get()
         )
     }
 }
@@ -200,7 +224,8 @@ val syncModule = module {
             bookContributorDao = get(),
             syncDao = get(),
             imageDownloader = get(),
-            sseManager = get()
+            sseManager = get(),
+            settingsRepository = get()
         )
     }
 

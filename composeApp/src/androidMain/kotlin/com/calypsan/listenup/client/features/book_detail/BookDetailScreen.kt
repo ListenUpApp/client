@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.features.book_detail
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,7 +26,6 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -55,6 +55,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.presentation.book_detail.BookDetailUiState
 import com.calypsan.listenup.client.presentation.book_detail.BookDetailViewModel
 import com.calypsan.listenup.client.presentation.book_detail.ChapterUiModel
@@ -65,6 +67,8 @@ import org.koin.compose.viewmodel.koinViewModel
 fun BookDetailScreen(
     bookId: String,
     onBackClick: () -> Unit,
+    onSeriesClick: (seriesId: String) -> Unit,
+    onContributorClick: (contributorId: String) -> Unit,
     viewModel: BookDetailViewModel = koinViewModel()
 ) {
     LaunchedEffect(bookId) {
@@ -76,7 +80,13 @@ fun BookDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("About") },
+                title = {
+                    Text(
+                        text = state.book?.title ?: "",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
@@ -98,7 +108,7 @@ fun BookDetailScreen(
                 .padding(paddingValues)
         ) {
             if (state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (state.error != null) {
                 Text(
                     text = state.error ?: "Unknown error",
@@ -106,14 +116,22 @@ fun BookDetailScreen(
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else {
-                BookDetailContent(state = state)
+                BookDetailContent(
+                    state = state,
+                    onSeriesClick = onSeriesClick,
+                    onContributorClick = onContributorClick
+                )
             }
         }
     }
 }
 
 @Composable
-fun BookDetailContent(state: BookDetailUiState) {
+fun BookDetailContent(
+    state: BookDetailUiState,
+    onSeriesClick: (seriesId: String) -> Unit,
+    onContributorClick: (contributorId: String) -> Unit
+) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
 
@@ -269,18 +287,39 @@ fun BookDetailContent(state: BookDetailUiState) {
                     .padding(horizontal = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                state.book?.authorNames?.takeIf { it.isNotBlank() }?.let { author ->
-                    MetadataRow("Author", author)
+                // Authors (clickable)
+                state.book?.authors?.takeIf { it.isNotEmpty() }?.let { authors ->
+                    ContributorMetadataRow(
+                        label = if (authors.size == 1) "Author" else "Authors",
+                        contributors = authors,
+                        onContributorClick = onContributorClick
+                    )
                 }
-                state.series?.let {
-                    MetadataRow("Series", it)
+
+                // Series (clickable) - uses seriesId from book
+                state.book?.seriesId?.let { seriesId ->
+                    ClickableMetadataRow(
+                        label = "Series",
+                        value = state.series ?: state.book?.seriesName ?: "",
+                        onClick = { onSeriesClick(seriesId) }
+                    )
                 }
-                state.narrators.takeIf { it.isNotBlank() }?.let { narrators ->
-                    MetadataRow("Narrators", narrators)
+
+                // Narrators (clickable)
+                state.book?.narrators?.takeIf { it.isNotEmpty() }?.let { narrators ->
+                    ContributorMetadataRow(
+                        label = if (narrators.size == 1) "Narrator" else "Narrators",
+                        contributors = narrators,
+                        onContributorClick = onContributorClick
+                    )
                 }
+
+                // Genres (not clickable)
                 state.genres.takeIf { it.isNotBlank() }?.let { genres ->
                     MetadataRow("Genres", genres)
                 }
+
+                // Year (not clickable)
                 state.year?.takeIf { it > 0 }?.let { year ->
                     MetadataRow("Year", year.toString())
                 }
@@ -383,6 +422,80 @@ fun MetadataRow(label: String, value: String) {
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+/**
+ * Clickable metadata row for simple text values like series.
+ */
+@Composable
+fun ClickableMetadataRow(
+    label: String,
+    value: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.width(100.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.clickable(onClick = onClick)
+        )
+    }
+}
+
+/**
+ * Metadata row for contributors with individually clickable names.
+ * Shows comma-separated list where each name is clickable.
+ */
+@Composable
+fun ContributorMetadataRow(
+    label: String,
+    contributors: List<Contributor>,
+    onContributorClick: (contributorId: String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.width(100.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        // Flow layout would be better, but for now use inline text with clickable spans
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(0.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            contributors.forEachIndexed { index, contributor ->
+                Text(
+                    text = contributor.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clickable { onContributorClick(contributor.id) }
+                )
+                if (index < contributors.size - 1) {
+                    Text(
+                        text = ", ",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
     }
 }
 

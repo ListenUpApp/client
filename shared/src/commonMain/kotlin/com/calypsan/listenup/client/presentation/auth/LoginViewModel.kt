@@ -4,12 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
+import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.remote.AuthApi
+import com.calypsan.listenup.client.data.remote.AuthUser
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.time.ExperimentalTime
+import kotlinx.datetime.Instant
 
 /**
  * ViewModel for the login screen.
@@ -22,7 +27,8 @@ import kotlinx.coroutines.launch
  */
 class LoginViewModel(
     private val authApi: AuthApi,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val userDao: UserDao
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginUiState())
@@ -75,6 +81,9 @@ class LoginViewModel(
                     userId = response.userId
                 )
 
+                // Save user data to local database for avatar display
+                userDao.upsert(response.user.toEntity())
+
                 _state.value = LoginUiState(status = LoginStatus.Success)
             } catch (e: Exception) {
                 _state.value = LoginUiState(
@@ -117,4 +126,19 @@ private fun Exception.toLoginErrorType(): LoginErrorType {
 
         else -> LoginErrorType.ServerError
     }
+}
+
+/**
+ * Convert AuthUser from API response to UserEntity for local storage.
+ */
+@OptIn(ExperimentalTime::class)
+private fun AuthUser.toEntity(): UserEntity {
+    return UserEntity(
+        id = id,
+        email = email,
+        displayName = displayName,
+        isRoot = isRoot,
+        createdAt = Instant.parse(createdAt).toEpochMilliseconds(),
+        updatedAt = Instant.parse(updatedAt).toEpochMilliseconds()
+    )
 }

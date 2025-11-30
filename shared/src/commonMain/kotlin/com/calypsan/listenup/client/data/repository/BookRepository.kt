@@ -155,18 +155,26 @@ class BookRepository(
      *
      * Filters contributors by role using the cross-reference data,
      * avoiding additional database queries.
+     *
+     * Handles contributors with multiple roles (e.g., same person as author AND narrator)
+     * by filtering the cross-ref list by role, then looking up the contributor entity.
      */
     private fun BookWithContributors.toDomain(imageStorage: ImageStorage): Book {
-        // Build a map of contributorId -> role for this book
-        val rolesByContributorId = contributorRoles.associate { it.contributorId to it.role }
+        // Create a lookup map for contributor entities
+        val contributorsById = contributors.associateBy { it.id }
 
-        // Filter contributors by role
-        val authors = contributors
-            .filter { rolesByContributorId[it.id] == "author" }
+        // Get authors: find all cross-refs with role "author", then look up the contributor
+        val authors = contributorRoles
+            .filter { it.role == "author" }
+            .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
+            .distinctBy { it.id }
             .map { Contributor(it.id, it.name) }
 
-        val narrators = contributors
-            .filter { rolesByContributorId[it.id] == "narrator" }
+        // Get narrators: find all cross-refs with role "narrator", then look up the contributor
+        val narrators = contributorRoles
+            .filter { it.role == "narrator" }
+            .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
+            .distinctBy { it.id }
             .map { Contributor(it.id, it.name) }
 
         return book.toDomain(imageStorage, authors, narrators)
@@ -190,6 +198,7 @@ class BookRepository(
             updatedAt = this.updatedAt,
             description = this.description,
             genres = this.genres,
+            seriesId = this.seriesId,
             seriesName = this.seriesName,
             seriesSequence = this.sequence,
             publishYear = this.publishYear,

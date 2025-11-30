@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.ContributorDao
@@ -15,6 +16,8 @@ import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.utils.io.errors.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +75,8 @@ class SyncManager(
     private val bookContributorDao: com.calypsan.listenup.client.data.local.db.BookContributorDao,
     private val syncDao: SyncDao,
     private val imageDownloader: ImageDownloader,
-    private val sseManager: SSEManager
+    private val sseManager: SSEManager,
+    private val settingsRepository: SettingsRepository
 ) {
     // Scope for SSE event handling and background tasks
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -147,6 +151,13 @@ class SyncManager(
         } catch (e: Exception) {
             logger.error(e) { "Sync failed after retries" }
             _syncState.value = SyncStatus.Error(exception = e)
+
+            // Check if this is a connection error indicating server is unreachable
+            if (isServerUnreachableError(e)) {
+                logger.warn { "Server appears unreachable, redirecting to server setup" }
+                settingsRepository.handleServerUnreachable()
+            }
+
             Result.Failure(exception = e, message = "Sync failed: ${e.message}")
         }
     }
@@ -576,6 +587,56 @@ class SyncManager(
         } catch (e: Exception) {
             logger.warn(e) { "Failed to download cover for book $bookId" }
         }
+    }
+
+    /**
+     * Check if an exception indicates the server is unreachable.
+     *
+     * This detects connection errors that suggest the server is not running
+     * or the URL is incorrect, such as:
+     * - Connection refused (ECONNREFUSED)
+     * - Connection timeout
+     * - Host unreachable
+     *
+     * @param e The exception to check
+     * @return true if the error indicates server is unreachable
+     */
+    private fun isServerUnreachableError(e: Exception): Boolean {
+        // Check the exception and its cause chain for connection errors
+        var current: Throwable? = e
+        while (current != null) {
+            when {
+                // Ktor connect timeout
+                current is ConnectTimeoutException -> return true
+
+                // General IO error - check message for connection refused
+                current is IOException -> {
+                    val message = current.message?.lowercase() ?: ""
+                    if (message.contains("econnrefused") ||
+                        message.contains("connection refused") ||
+                        message.contains("failed to connect") ||
+                        message.contains("no route to host") ||
+                        message.contains("host unreachable") ||
+                        message.contains("network is unreachable")
+                    ) {
+                        return true
+                    }
+                }
+
+                // Java ConnectException (Android/JVM) - check class name since we're in common code
+                current::class.simpleName == "ConnectException" -> {
+                    val message = current.message?.lowercase() ?: ""
+                    if (message.contains("econnrefused") ||
+                        message.contains("connection refused") ||
+                        message.contains("failed to connect")
+                    ) {
+                        return true
+                    }
+                }
+            }
+            current = current.cause
+        }
+        return false
     }
 }
 

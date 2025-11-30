@@ -1,0 +1,196 @@
+package com.calypsan.listenup.client.features.library.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
+import com.calypsan.listenup.client.design.components.AlphabetIndex
+import com.calypsan.listenup.client.design.components.AlphabetScrollbar
+import com.calypsan.listenup.client.design.components.avatarColorForUser
+import com.calypsan.listenup.client.design.components.getInitials
+import kotlinx.coroutines.launch
+
+/**
+ * Content for the Authors tab in the Library screen.
+ *
+ * Displays a list of authors with their book counts.
+ *
+ * @param authors List of authors with book counts
+ * @param onAuthorClick Callback when an author is clicked
+ * @param modifier Optional modifier
+ */
+@Composable
+fun AuthorsContent(
+    authors: List<ContributorWithBookCount>,
+    onAuthorClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.fillMaxSize()) {
+        if (authors.isEmpty()) {
+            AuthorsEmptyState()
+        } else {
+            val listState = rememberLazyListState()
+            val scope = rememberCoroutineScope()
+
+            val alphabetIndex = remember(authors) {
+                AlphabetIndex.build(authors) { it.contributor.name }
+            }
+
+            val isScrolling by remember {
+                derivedStateOf { listState.isScrollInProgress }
+            }
+
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(
+                    items = authors,
+                    key = { it.contributor.id }
+                ) { authorWithCount ->
+                    ContributorCard(
+                        contributorWithCount = authorWithCount,
+                        onClick = { onAuthorClick(authorWithCount.contributor.id) }
+                    )
+                }
+            }
+
+            AlphabetScrollbar(
+                alphabetIndex = alphabetIndex,
+                onLetterSelected = { index ->
+                    scope.launch {
+                        listState.animateScrollToItem(index)
+                    }
+                },
+                isScrolling = isScrolling,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 4.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Card displaying a contributor (author/narrator) with their book count.
+ */
+@Composable
+internal fun ContributorCard(
+    contributorWithCount: ContributorWithBookCount,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar with initials
+            Surface(
+                shape = CircleShape,
+                color = avatarColorForUser(contributorWithCount.contributor.id),
+                modifier = Modifier.size(48.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = getInitials(contributorWithCount.contributor.name),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Contributor info
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = contributorWithCount.contributor.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "${contributorWithCount.bookCount} ${if (contributorWithCount.bookCount == 1) "book" else "books"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Empty state when no authors in library.
+ */
+@Composable
+private fun AuthorsEmptyState() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Person,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+            Text(
+                text = "No authors yet",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Authors will appear here when you have audiobooks",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}

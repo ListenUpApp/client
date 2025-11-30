@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.local.db
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -27,6 +28,42 @@ interface SeriesDao {
 
     @Query("DELETE FROM series WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    /**
+     * Observe all series with their book counts.
+     * Returns series ordered by name with the count of books in each series.
+     */
+    @Query("""
+        SELECT s.*, COUNT(b.id) as bookCount
+        FROM series s
+        LEFT JOIN books b ON s.id = b.seriesId
+        GROUP BY s.id
+        ORDER BY s.name ASC
+    """)
+    fun observeAllWithBookCount(): Flow<List<SeriesWithBookCount>>
+
+    /**
+     * Observe all series with their books.
+     * Uses Room Relations to batch-load all books for each series.
+     * Books are ordered by series sequence then title within each series.
+     */
+    @Transaction
+    @Query("SELECT * FROM series ORDER BY name ASC")
+    fun observeAllWithBooks(): Flow<List<SeriesWithBooks>>
+
+    /**
+     * Get a single series by ID with all its books.
+     */
+    @Transaction
+    @Query("SELECT * FROM series WHERE id = :id")
+    suspend fun getByIdWithBooks(id: String): SeriesWithBooks?
+
+    /**
+     * Observe a single series by ID with all its books.
+     */
+    @Transaction
+    @Query("SELECT * FROM series WHERE id = :id")
+    fun observeByIdWithBooks(id: String): Flow<SeriesWithBooks?>
 }
 
 @Dao
@@ -51,4 +88,59 @@ interface ContributorDao {
 
     @Query("DELETE FROM contributors WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    /**
+     * Observe contributors filtered by role with their book counts.
+     * Returns contributors who have the specified role on at least one book,
+     * ordered by name with the count of books they're associated with.
+     *
+     * @param role The role to filter by (e.g., "author", "narrator")
+     */
+    @Query("""
+        SELECT c.*, COUNT(bc.bookId) as bookCount
+        FROM contributors c
+        INNER JOIN book_contributors bc ON c.id = bc.contributorId
+        WHERE bc.role = :role
+        GROUP BY c.id
+        ORDER BY c.name ASC
+    """)
+    fun observeByRoleWithCount(role: String): Flow<List<ContributorWithBookCount>>
+
+    /**
+     * Observe a single contributor by ID.
+     *
+     * @param id The contributor's unique ID
+     * @return Flow emitting the contributor or null if not found
+     */
+    @Query("SELECT * FROM contributors WHERE id = :id")
+    fun observeById(id: String): Flow<ContributorEntity?>
+
+    /**
+     * Get all distinct roles a contributor has across their books.
+     *
+     * @param contributorId The contributor's unique ID
+     * @return List of role strings (e.g., ["author", "narrator"])
+     */
+    @Query("""
+        SELECT DISTINCT bc.role
+        FROM book_contributors bc
+        WHERE bc.contributorId = :contributorId
+        ORDER BY bc.role ASC
+    """)
+    suspend fun getRolesForContributor(contributorId: String): List<String>
+
+    /**
+     * Observe all roles a contributor has with book counts per role.
+     *
+     * @param contributorId The contributor's unique ID
+     * @return Flow of role to book count pairs
+     */
+    @Query("""
+        SELECT bc.role, COUNT(bc.bookId) as bookCount
+        FROM book_contributors bc
+        WHERE bc.contributorId = :contributorId
+        GROUP BY bc.role
+        ORDER BY bc.role ASC
+    """)
+    fun observeRolesWithCountForContributor(contributorId: String): Flow<List<RoleWithBookCount>>
 }

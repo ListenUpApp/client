@@ -36,11 +36,13 @@ data object Setup : Route
 data object Login : Route
 
 /**
- * Library screen - main authenticated screen.
- * Shows user's audiobook collection.
+ * App shell - main authenticated container.
+ *
+ * Contains the bottom navigation bar with Home, Library, and Discover tabs.
+ * Tab switching is handled internally within the shell.
  */
 @Serializable
-data object Library : Route
+data object Shell : Route
 
 /**
  * Book detail screen - displays full book info and chapters.
@@ -49,3 +51,34 @@ data object Library : Route
  */
 @Serializable
 data class BookDetail(val bookId: String) : Route
+
+/**
+ * Series detail screen - displays series info and its books.
+ *
+ * @property seriesId The unique ID of the series to display.
+ */
+@Serializable
+data class SeriesDetail(val seriesId: String) : Route
+
+/**
+ * Contributor detail screen - displays contributor info and books by role.
+ *
+ * A contributor is a person who may have multiple roles (author, narrator, etc.)
+ * across different books. This screen shows all their work grouped by role.
+ *
+ * @property contributorId The unique ID of the contributor to display.
+ */
+@Serializable
+data class ContributorDetail(val contributorId: String) : Route
+
+/**
+ * Contributor books screen - displays all books for a contributor in a specific role.
+ *
+ * Shows books grouped by series with standalone books at the bottom.
+ * Accessed via "View All" from the contributor detail screen.
+ *
+ * @property contributorId The contributor's unique ID.
+ * @property role The role to filter by (e.g., "author", "narrator").
+ */
+@Serializable
+data class ContributorBooks(val contributorId: String, val role: String) : Route

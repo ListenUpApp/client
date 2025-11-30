@@ -242,6 +242,20 @@ class SettingsRepository(
     }
 
     /**
+     * Handle server unreachable error (e.g., connection refused).
+     *
+     * Called when network operations fail with connection errors,
+     * indicating the server is not running or URL is incorrect.
+     *
+     * This clears the stored server URL and transitions to NeedsServerUrl
+     * state, allowing the user to re-enter/verify the server URL.
+     */
+    suspend fun handleServerUnreachable() {
+        clearServerUrl()
+        _authState.value = AuthState.NeedsServerUrl
+    }
+
+    /**
      * Clears the stored server URL.
      * Used when server becomes unreachable to force user to re-validate connection.
      */

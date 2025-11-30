@@ -23,6 +23,7 @@ data class Book(
     val updatedAt: Timestamp,
     val description: String? = null,
     val genres: String? = null, // Comma-separated string
+    val seriesId: String? = null,
     val seriesName: String? = null,
     val seriesSequence: String? = null, // e.g., "1", "1.5"
     val publishYear: Int? = null,

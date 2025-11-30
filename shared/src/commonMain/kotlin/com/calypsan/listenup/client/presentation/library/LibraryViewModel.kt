@@ -2,6 +2,10 @@ package com.calypsan.listenup.client.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.data.local.db.ContributorDao
+import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
+import com.calypsan.listenup.client.data.local.db.SeriesDao
+import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.repository.BookRepository
@@ -24,18 +28,28 @@ private val logger = KotlinLogging.logger {}
  * Implements intelligent auto-sync: triggers initial sync automatically
  * if user is authenticated but has never synced before.
  *
+ * Exposes reactive data for all four library tabs:
+ * - Books: Full audiobook list
+ * - Series: Series with book counts
+ * - Authors: Contributors with role "author" and book counts
+ * - Narrators: Contributors with role "narrator" and book counts
+ *
  * This self-healing approach works for all entry points:
  * - First time after registration
  * - First time after login
  * - App restart with valid session
  *
  * @property bookRepository Repository for book data operations
+ * @property seriesDao DAO for series data with book counts
+ * @property contributorDao DAO for contributor data with book counts
  * @property syncManager Manager for sync operations
  * @property settingsRepository For checking authentication state
  * @property syncDao For checking if initial sync has occurred
  */
 class LibraryViewModel(
     private val bookRepository: BookRepository,
+    private val seriesDao: SeriesDao,
+    private val contributorDao: ContributorDao,
     private val syncManager: SyncManager,
     private val settingsRepository: SettingsRepository,
     private val syncDao: SyncDao
@@ -49,6 +63,43 @@ class LibraryViewModel(
      * to handle configuration changes without restarting collection.
      */
     val books: StateFlow<List<Book>> = bookRepository.observeBooks()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    /**
+     * Observable list of series with their books.
+     *
+     * Each series includes the full list of books for animated cover stacks.
+     * Books within each series are ordered by seriesSequence then title.
+     */
+    val series: StateFlow<List<SeriesWithBooks>> = seriesDao.observeAllWithBooks()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    /**
+     * Observable list of authors with book counts.
+     *
+     * Only includes contributors who have the "author" role on at least one book.
+     */
+    val authors: StateFlow<List<ContributorWithBookCount>> = contributorDao.observeByRoleWithCount("author")
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    /**
+     * Observable list of narrators with book counts.
+     *
+     * Only includes contributors who have the "narrator" role on at least one book.
+     */
+    val narrators: StateFlow<List<ContributorWithBookCount>> = contributorDao.observeByRoleWithCount("narrator")
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
