@@ -10,6 +10,7 @@ import com.calypsan.listenup.client.core.ImageLoaderFactory
 import com.calypsan.listenup.client.di.sharedModules
 import com.calypsan.listenup.client.playback.AudioTokenProvider
 import com.calypsan.listenup.client.playback.PlaybackErrorHandler
+import com.calypsan.listenup.client.playback.NowPlayingViewModel
 import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.playback.ProgressTracker
@@ -91,6 +92,15 @@ val playbackModule = module {
         PlayerViewModel(
             context = get(),
             playbackManager = get()
+        )
+    }
+
+    // Now Playing ViewModel - app-wide mini player and full screen state
+    factory {
+        NowPlayingViewModel(
+            context = get(),
+            playbackManager = get(),
+            bookRepository = get()
         )
     }
 }

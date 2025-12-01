@@ -83,13 +83,3 @@ data class ContributorDetail(val contributorId: String) : Route
 @Serializable
 data class ContributorBooks(val contributorId: String, val role: String) : Route
 
-/**
- * Player screen - audio playback for a book.
- *
- * Full-screen player with controls for play/pause, seek, skip, and speed.
- * Accessed via "Stream Now" button on book detail screen.
- *
- * @property bookId The unique ID of the book to play.
- */
-@Serializable
-data class Player(val bookId: String) : Route

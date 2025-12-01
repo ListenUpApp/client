@@ -55,6 +55,12 @@ kotlin {
             implementation(libs.media3.session)
             implementation(libs.media3.ui)
             implementation(libs.media3.datasource.okhttp)
+
+            // Palette for dynamic color extraction from cover art
+            implementation("androidx.palette:palette-ktx:1.0.0")
+
+            // Material 3 Expressive (pinned alpha for LinearWavyProgressIndicator)
+            implementation(libs.compose.material3.expressive)
         }
         commonMain.dependencies {
             implementation(compose.runtime)

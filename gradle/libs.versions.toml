@@ -6,6 +6,7 @@ android-targetSdk = "36"
 androidx-activity = "1.12.0"
 androidx-lifecycle = "2.9.6"
 androidx-material3-adaptive = "1.2.0"
+compose-material3-expressive = "1.10.0-alpha05"
 androidx-material-icons = "1.7.8"
 composeMultiplatform = "1.10.0-beta02"
 kotlin = "2.2.21"
@@ -34,6 +35,9 @@ androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle
 androidx-material3-adaptive = { module = "androidx.compose.material3.adaptive:adaptive", version.ref = "androidx-material3-adaptive" }
 androidx-material3-adaptive-layout = { module = "androidx.compose.material3.adaptive:adaptive-layout", version.ref = "androidx-material3-adaptive" }
 androidx-material3-adaptive-navigation = { module = "androidx.compose.material3.adaptive:adaptive-navigation", version.ref = "androidx-material3-adaptive" }
+
+# Material 3 Expressive (pinned alpha for wavy progress indicators)
+compose-material3-expressive = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3-expressive" }
 
 # Material Icons
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "androidx-material-icons" }

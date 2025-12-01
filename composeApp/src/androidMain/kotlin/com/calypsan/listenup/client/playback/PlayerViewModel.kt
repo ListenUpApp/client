@@ -237,6 +237,9 @@ class PlayerViewModel(
             isPlaying = controller.isPlaying,
             isBuffering = controller.playbackState == Player.STATE_BUFFERING
         )
+
+        // Publish position to PlaybackManager for NowPlayingViewModel
+        playbackManager.updatePosition(bookPosition)
     }
 
     private inner class PlayerListener : Player.Listener {
@@ -266,6 +269,7 @@ class PlayerViewModel(
 
         override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
             _state.value = _state.value.copy(playbackSpeed = playbackParameters.speed)
+            playbackManager.updateSpeed(playbackParameters.speed)
         }
     }
 

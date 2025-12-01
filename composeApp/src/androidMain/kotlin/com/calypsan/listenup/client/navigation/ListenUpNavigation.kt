@@ -3,6 +3,8 @@ package com.calypsan.listenup.client.navigation
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -12,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import androidx.navigation3.runtime.entryProvider
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
@@ -19,6 +22,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.data.repository.AuthState
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
+import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
 import com.calypsan.listenup.client.features.shell.AppShell
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -137,6 +141,10 @@ private fun LoginNavigation() {
  * - Root screen (Shell): onBack doesn't pop, allowing system back-to-home animation
  * - Detail screens: Slide animations for in-app navigation
  *
+ * NowPlayingHost is overlaid on top of all navigation, providing:
+ * - Floating mini player above bottom nav
+ * - Full screen player that expands from mini player
+ *
  * When user logs out, SettingsRepository clears auth tokens,
  * triggering automatic switch to UnauthenticatedNavigation.
  */
@@ -150,7 +158,9 @@ private fun AuthenticatedNavigation(
     // Track shell tab state here so it survives navigation to detail screens
     var currentShellDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
 
-    NavDisplay(
+    // Wrap navigation with NowPlayingHost for persistent mini player
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavDisplay(
         backStack = backStack,
         // Only handle back if we're not at root - let system handle back-to-home
         onBack = {
@@ -196,22 +206,11 @@ private fun AuthenticatedNavigation(
                     onBackClick = {
                         backStack.removeLast()
                     },
-                    onPlayClick = { bookId ->
-                        backStack.add(Player(bookId))
-                    },
                     onSeriesClick = { seriesId ->
                         backStack.add(SeriesDetail(seriesId))
                     },
                     onContributorClick = { contributorId ->
                         backStack.add(ContributorDetail(contributorId))
-                    }
-                )
-            }
-            entry<Player> { args ->
-                com.calypsan.listenup.client.features.player.SimplePlayerScreen(
-                    bookId = args.bookId,
-                    onBackClick = {
-                        backStack.removeLast()
                     }
                 )
             }
@@ -254,4 +253,8 @@ private fun AuthenticatedNavigation(
             }
         }
     )
+
+        // Now Playing overlay - persistent across all navigation
+        NowPlayingHost()
+    }
 }

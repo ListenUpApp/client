@@ -57,6 +57,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.presentation.book_detail.BookDetailUiState
 import com.calypsan.listenup.client.presentation.book_detail.BookDetailViewModel
 import com.calypsan.listenup.client.presentation.book_detail.ChapterUiModel
@@ -67,10 +69,10 @@ import org.koin.compose.viewmodel.koinViewModel
 fun BookDetailScreen(
     bookId: String,
     onBackClick: () -> Unit,
-    onPlayClick: (bookId: String) -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
-    viewModel: BookDetailViewModel = koinViewModel()
+    viewModel: BookDetailViewModel = koinViewModel(),
+    playerViewModel: PlayerViewModel = koinViewModel()
 ) {
     LaunchedEffect(bookId) {
         viewModel.loadBook(bookId)
@@ -119,7 +121,7 @@ fun BookDetailScreen(
             } else {
                 BookDetailContent(
                     state = state,
-                    onPlayClick = { onPlayClick(bookId) },
+                    onPlayClick = { playerViewModel.playBook(BookId(bookId)) },
                     onSeriesClick = onSeriesClick,
                     onContributorClick = onContributorClick
                 )

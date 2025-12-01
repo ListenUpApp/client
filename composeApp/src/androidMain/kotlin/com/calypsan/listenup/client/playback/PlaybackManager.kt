@@ -20,7 +20,8 @@ private val logger = KotlinLogging.logger {}
  * - Parse audio files from BookEntity
  * - Build PlaybackTimeline for position translation
  * - Prepare authentication for streaming
- * - Track current playback state
+ * - Track current playback state (position, playing status)
+ * - Provide central control interface for playback
  */
 class PlaybackManager(
     private val settingsRepository: SettingsRepository,
@@ -36,6 +37,15 @@ class PlaybackManager(
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
+
+    private val _currentPositionMs = MutableStateFlow(0L)
+    val currentPositionMs: StateFlow<Long> = _currentPositionMs.asStateFlow()
+
+    private val _totalDurationMs = MutableStateFlow(0L)
+    val totalDurationMs: StateFlow<Long> = _totalDurationMs.asStateFlow()
+
+    private val _playbackSpeed = MutableStateFlow(1.0f)
+    val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -94,6 +104,7 @@ class PlaybackManager(
         val timeline = PlaybackTimeline.build(bookId, audioFiles, serverUrl)
         _currentTimeline.value = timeline
         _currentBookId.value = bookId
+        _totalDurationMs.value = timeline.totalDurationMs
 
         logger.info { "Built timeline: ${timeline.files.size} files, ${timeline.totalDurationMs}ms total" }
 
@@ -121,6 +132,22 @@ class PlaybackManager(
     }
 
     /**
+     * Update current position.
+     * Called by PlayerViewModel during position update loop.
+     */
+    fun updatePosition(positionMs: Long) {
+        _currentPositionMs.value = positionMs
+    }
+
+    /**
+     * Update playback speed.
+     * Called by PlayerViewModel when speed changes.
+     */
+    fun updateSpeed(speed: Float) {
+        _playbackSpeed.value = speed
+    }
+
+    /**
      * Clear current playback state.
      * Called when playback stops.
      */
@@ -128,6 +155,9 @@ class PlaybackManager(
         _currentBookId.value = null
         _currentTimeline.value = null
         _isPlaying.value = false
+        _currentPositionMs.value = 0L
+        _totalDurationMs.value = 0L
+        _playbackSpeed.value = 1.0f
     }
 
     /**
