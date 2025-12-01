@@ -14,12 +14,14 @@ import com.calypsan.listenup.client.playback.NowPlayingViewModel
 import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.playback.ProgressTracker
+import com.calypsan.listenup.client.playback.SleepTimerManager
 import com.calypsan.listenup.client.workers.SyncWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
@@ -87,8 +89,13 @@ val playbackModule = module {
         )
     }
 
+    // Sleep timer manager - handles sleep timer state and countdown
+    single {
+        SleepTimerManager(scope = get())
+    }
+
     // Player ViewModel - connects UI to MediaController
-    factory {
+    viewModel {
         PlayerViewModel(
             context = get(),
             playbackManager = get()
@@ -96,11 +103,12 @@ val playbackModule = module {
     }
 
     // Now Playing ViewModel - app-wide mini player and full screen state
-    factory {
+    viewModel {
         NowPlayingViewModel(
             context = get(),
             playbackManager = get(),
-            bookRepository = get()
+            bookRepository = get(),
+            sleepTimerManager = get()
         )
     }
 }

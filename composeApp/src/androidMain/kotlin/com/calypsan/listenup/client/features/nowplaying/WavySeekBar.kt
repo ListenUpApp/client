@@ -35,9 +35,14 @@ import kotlin.math.roundToInt
  * Combines LinearWavyProgressIndicator with drag gesture handling
  * and a thumb indicator for seeking.
  *
+ * The wave animation reflects playback state:
+ * - When playing: wave builds from flat at start to full amplitude at playhead
+ * - When paused: completely flat/still
+ *
  * @param progress Current progress value (0f to 1f)
  * @param onSeek Called when user finishes seeking with new progress value
  * @param modifier Modifier for the composable
+ * @param isPlaying Whether audio is currently playing (animates wave when true)
  * @param enabled Whether seeking is enabled
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -46,6 +51,7 @@ fun WavySeekBar(
     progress: Float,
     onSeek: (Float) -> Unit,
     modifier: Modifier = Modifier,
+    isPlaying: Boolean = false,
     enabled: Boolean = true
 ) {
     val density = LocalDensity.current
@@ -106,7 +112,9 @@ fun WavySeekBar(
             },
         contentAlignment = Alignment.CenterStart
     ) {
-        // Wavy progress indicator track with gentle wave animation
+        // Wavy progress indicator track
+        // Wave amplitude builds from flat (0) at the start to full (1) at the playhead,
+        // then drops to flat for the unfilled track portion
         LinearWavyProgressIndicator(
             progress = { displayProgress },
             modifier = Modifier
@@ -115,9 +123,9 @@ fun WavySeekBar(
                 .align(Alignment.Center),
             color = MaterialTheme.colorScheme.primary,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            amplitude = { 1f },
+            amplitude = { if (isPlaying) 1f else 0f },
             wavelength = 24.dp,
-            waveSpeed = 15.dp // Gentle wave animation
+            waveSpeed = 15.dp
         )
 
         // Thumb indicator

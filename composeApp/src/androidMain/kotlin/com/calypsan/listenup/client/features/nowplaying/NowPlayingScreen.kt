@@ -79,6 +79,8 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.calypsan.listenup.client.playback.NowPlayingState
+import com.calypsan.listenup.client.playback.SleepTimerMode
+import com.calypsan.listenup.client.playback.SleepTimerState
 import kotlin.time.Duration
 
 /**
@@ -92,6 +94,7 @@ import kotlin.time.Duration
 @Composable
 fun NowPlayingScreen(
     state: NowPlayingState,
+    sleepTimerState: SleepTimerState,
     onCollapse: () -> Unit,
     onPlayPause: () -> Unit,
     onSeek: (Float) -> Unit,
@@ -236,6 +239,7 @@ fun NowPlayingScreen(
                 progress = state.chapterProgress,
                 currentTime = state.chapterPosition,
                 totalTime = state.chapterDuration,
+                isPlaying = state.isPlaying,
                 onSeek = onSeek
             )
 
@@ -256,6 +260,7 @@ fun NowPlayingScreen(
             // Secondary controls
             SecondaryControls(
                 playbackSpeed = state.playbackSpeed,
+                sleepTimerState = sleepTimerState,
                 onSpeedChange = onSpeedChange,
                 onChaptersClick = onChaptersClick,
                 onSleepTimerClick = onSleepTimerClick
@@ -423,6 +428,7 @@ private fun ChapterSeekBar(
     progress: Float,
     currentTime: Duration,
     totalTime: Duration,
+    isPlaying: Boolean,
     onSeek: (Float) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -430,7 +436,8 @@ private fun ChapterSeekBar(
         WavySeekBar(
             progress = progress,
             onSeek = onSeek,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isPlaying = isPlaying
         )
 
         Row(
@@ -590,6 +597,7 @@ private fun MainControls(
 @Composable
 private fun SecondaryControls(
     playbackSpeed: Float,
+    sleepTimerState: SleepTimerState,
     onSpeedChange: (Float) -> Unit,
     onChaptersClick: () -> Unit,
     onSleepTimerClick: () -> Unit
@@ -645,18 +653,55 @@ private fun SecondaryControls(
             )
         }
 
-        TextButton(onClick = onSleepTimerClick) {
-            Icon(
-                Icons.Default.Bedtime,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = "Sleep",
-                style = MaterialTheme.typography.labelLarge
-            )
+        SleepTimerButton(
+            timerState = sleepTimerState,
+            onClick = onSleepTimerClick
+        )
+    }
+}
+
+/**
+ * Sleep button that shows active timer state.
+ */
+@Composable
+private fun SleepTimerButton(
+    timerState: SleepTimerState,
+    onClick: () -> Unit
+) {
+    val isActive = timerState is SleepTimerState.Active
+    val isFading = timerState is SleepTimerState.FadingOut
+
+    val buttonText = when (timerState) {
+        is SleepTimerState.Inactive -> "Sleep"
+        is SleepTimerState.Active -> when (timerState.mode) {
+            is SleepTimerMode.Duration -> timerState.formatRemaining()
+            is SleepTimerMode.EndOfChapter -> "End of ch."
         }
+        is SleepTimerState.FadingOut -> "..."
+    }
+
+    val contentColor = when {
+        isActive -> MaterialTheme.colorScheme.primary
+        isFading -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    TextButton(
+        onClick = onClick,
+        enabled = !isFading
+    ) {
+        Icon(
+            Icons.Default.Bedtime,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = contentColor
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = buttonText,
+            style = MaterialTheme.typography.labelLarge,
+            color = contentColor
+        )
     }
 }
 

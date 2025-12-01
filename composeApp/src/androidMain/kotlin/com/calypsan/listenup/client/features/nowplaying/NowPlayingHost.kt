@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
+import com.calypsan.listenup.client.playback.SleepTimerState
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -37,6 +38,7 @@ fun NowPlayingHost(
     viewModel: NowPlayingViewModel = koinViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val sleepTimerState by viewModel.sleepTimerState.collectAsState()
 
     Box(modifier = modifier.fillMaxSize()) {
         // Full screen (slides up when expanded)
@@ -59,6 +61,7 @@ fun NowPlayingHost(
         ) {
             NowPlayingScreen(
                 state = state,
+                sleepTimerState = sleepTimerState,
                 onCollapse = viewModel::collapse,
                 onPlayPause = viewModel::playPause,
                 onSeek = viewModel::seekWithinChapter,
@@ -68,7 +71,7 @@ fun NowPlayingHost(
                 onNextChapter = viewModel::nextChapter,
                 onSpeedChange = viewModel::setSpeed,
                 onChaptersClick = viewModel::showChapterPicker,
-                onSleepTimerClick = { /* TODO: Phase 2C */ }
+                onSleepTimerClick = viewModel::showSleepTimer
             )
         }
 
@@ -100,7 +103,17 @@ fun NowPlayingHost(
             )
         }
 
+        // Sleep timer sheet
+        if (state.showSleepTimer) {
+            SleepTimerSheet(
+                currentState = sleepTimerState,
+                onSetTimer = viewModel::setSleepTimer,
+                onCancelTimer = viewModel::cancelSleepTimer,
+                onExtendTimer = viewModel::extendSleepTimer,
+                onDismiss = viewModel::hideSleepTimer
+            )
+        }
+
         // TODO: Speed picker sheet (Phase 2D)
-        // TODO: Sleep timer sheet (Phase 2C)
     }
 }

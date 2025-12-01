@@ -15,6 +15,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import android.util.Log
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,19 +35,28 @@ private const val TAG = "NowPlayingVM"
 class NowPlayingViewModel(
     private val context: Context,
     private val playbackManager: PlaybackManager,
-    private val bookRepository: BookRepository
+    private val bookRepository: BookRepository,
+    private val sleepTimerManager: SleepTimerManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(NowPlayingState())
     val state: StateFlow<NowPlayingState> = _state.asStateFlow()
 
+    val sleepTimerState: StateFlow<SleepTimerState> = sleepTimerManager.state
+
     private var chapters: List<Chapter> = emptyList()
+    private var lastNotifiedChapterIndex: Int = -1
 
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
 
+    companion object {
+        private const val FADE_DURATION_MS = 3000L
+    }
+
     init {
         observePlayback()
+        observeSleepTimer()
     }
 
     private fun observePlayback() {
@@ -91,6 +101,52 @@ class NowPlayingViewModel(
                 _state.update { it.copy(bookDurationMs = durationMs) }
             }
         }
+    }
+
+    private fun observeSleepTimer() {
+        // Handle sleep timer events (fade out and pause)
+        viewModelScope.launch {
+            sleepTimerManager.sleepEvent.collect {
+                fadeOutAndPause()
+            }
+        }
+    }
+
+    /**
+     * Gradually reduce volume to zero, then pause.
+     * Called when sleep timer fires.
+     */
+    private suspend fun fadeOutAndPause() {
+        val controller = mediaController
+        if (controller == null) {
+            logger.warn { "Cannot fade out: no MediaController" }
+            sleepTimerManager.onFadeCompleted()
+            return
+        }
+
+        logger.info { "Starting volume fade out" }
+
+        val steps = 30
+        val stepDelay = FADE_DURATION_MS / steps
+        val volumeStep = 1f / steps
+
+        var currentVolume = 1f
+
+        repeat(steps) {
+            currentVolume = (currentVolume - volumeStep).coerceAtLeast(0f)
+            controller.volume = currentVolume
+            delay(stepDelay)
+        }
+
+        // Pause playback
+        controller.pause()
+
+        // Brief delay then restore volume for next play
+        delay(100)
+        controller.volume = 1f
+
+        logger.info { "Fade complete, playback paused" }
+        sleepTimerManager.onFadeCompleted()
     }
 
     private suspend fun loadBookInfo(bookId: BookId) {
@@ -165,6 +221,12 @@ class NowPlayingViewModel(
         val positionDeltaMs = kotlin.math.abs(bookPositionMs - currentState.bookPositionMs)
         val chapterChanged = chapterIndex != currentState.chapterIndex
 
+        // Notify sleep timer manager of chapter changes (for end-of-chapter mode)
+        if (chapterIndex != lastNotifiedChapterIndex) {
+            lastNotifiedChapterIndex = chapterIndex
+            sleepTimerManager.onChapterChanged(chapterIndex)
+        }
+
         // Skip update if change is too small (time-based, not percentage-based)
         if (!chapterChanged && positionDeltaMs < 200) {
             return
@@ -236,6 +298,29 @@ class NowPlayingViewModel(
 
     fun hideSpeedPicker() {
         _state.update { it.copy(showSpeedPicker = false) }
+    }
+
+    fun showSleepTimer() {
+        _state.update { it.copy(showSleepTimer = true) }
+    }
+
+    fun hideSleepTimer() {
+        _state.update { it.copy(showSleepTimer = false) }
+    }
+
+    // Sleep Timer Actions
+
+    fun setSleepTimer(mode: SleepTimerMode) {
+        sleepTimerManager.setTimer(mode)
+        hideSleepTimer()
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerManager.cancelTimer()
+    }
+
+    fun extendSleepTimer(minutes: Int) {
+        sleepTimerManager.extendTimer(minutes)
     }
 
     // Playback Actions
