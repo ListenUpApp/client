@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
@@ -24,6 +25,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
+private const val TAG = "PlayerVM"
 
 /**
  * ViewModel for playback UI.
@@ -93,7 +95,9 @@ class PlayerViewModel(
                 controller.addListener(PlayerListener())
 
                 // Build media items from timeline
-                val mediaItems = prepareResult.timeline.files.map { file ->
+                Log.d(TAG, "Building ${prepareResult.timeline.files.size} media items")
+                val mediaItems = prepareResult.timeline.files.mapIndexed { index, file ->
+                    Log.d(TAG, "  MediaItem[$index]: id=${file.audioFileId}, duration=${file.durationMs}ms, url=${file.streamingUrl.takeLast(30)}")
                     MediaItem.Builder()
                         .setMediaId(file.audioFileId)
                         .setUri(file.streamingUrl)
@@ -108,11 +112,26 @@ class PlayerViewModel(
 
                 // Set items with initial resume position
                 val startPosition = prepareResult.timeline.resolve(prepareResult.resumePositionMs)
+                Log.d(TAG, "Starting playback: resumePos=${prepareResult.resumePositionMs}ms -> mediaItem=${startPosition.mediaItemIndex}, posInFile=${startPosition.positionInFileMs}ms")
+
+                // Validate start position before passing to ExoPlayer
+                if (startPosition.mediaItemIndex < 0 || startPosition.mediaItemIndex >= mediaItems.size) {
+                    Log.e(TAG, "⚠️ INVALID startPosition.mediaItemIndex: ${startPosition.mediaItemIndex}, mediaItems.size=${mediaItems.size}")
+                    _state.value = _state.value.copy(isLoading = false, error = "Invalid start position")
+                    return@addListener
+                }
+                if (startPosition.positionInFileMs < 0) {
+                    Log.e(TAG, "⚠️ INVALID startPosition.positionInFileMs: ${startPosition.positionInFileMs}")
+                    _state.value = _state.value.copy(isLoading = false, error = "Invalid start position")
+                    return@addListener
+                }
 
                 // setMediaItems with startIndex and startPosition to seek atomically
                 controller.setMediaItems(mediaItems, startPosition.mediaItemIndex, startPosition.positionInFileMs)
                 controller.playbackParameters = PlaybackParameters(prepareResult.resumeSpeed)
+                Log.d(TAG, "Calling controller.prepare()...")
                 controller.prepare()
+                Log.d(TAG, "Calling controller.play()...")
                 controller.play()
 
                 playbackManager.setPlaying(true)
@@ -123,6 +142,7 @@ class PlayerViewModel(
                 )
 
                 startPositionUpdates()
+                Log.d(TAG, "Playback started successfully for: ${prepareResult.bookTitle}")
 
                 logger.info { "Playback started for: ${prepareResult.bookTitle}" }
 
@@ -158,6 +178,9 @@ class PlayerViewModel(
         val position = timeline.resolve(bookPositionMs)
         controller.seekTo(position.mediaItemIndex, position.positionInFileMs)
         _state.value = _state.value.copy(currentPositionMs = bookPositionMs)
+
+        // Notify PlaybackManager so NowPlayingViewModel updates immediately (even when paused)
+        playbackManager.updatePosition(bookPositionMs)
     }
 
     /**
@@ -213,7 +236,7 @@ class PlayerViewModel(
         positionUpdateJob = viewModelScope.launch {
             while (isActive) {
                 updatePosition()
-                delay(250) // Update 4 times per second for smooth UI
+                delay(250) // Update 4 times per second for smooth progress
             }
         }
     }
@@ -227,15 +250,42 @@ class PlayerViewModel(
         val controller = mediaController ?: return
         val timeline = currentTimeline ?: return
 
+        val mediaItemIndex = controller.currentMediaItemIndex
+        val positionInFile = controller.currentPosition
+        val playbackState = controller.playbackState
+        val isPlaying = controller.isPlaying
+        val isBuffering = playbackState == Player.STATE_BUFFERING
+
+        // Validate ExoPlayer values before using them (silent validation, only log errors)
+        if (mediaItemIndex < 0 || mediaItemIndex >= timeline.files.size || positionInFile < 0) {
+            Log.e(TAG, "⚠️ INVALID position: mediaItem=$mediaItemIndex/${timeline.files.size}, posInFile=$positionInFile")
+            return
+        }
+
         val bookPosition = timeline.toBookPosition(
-            mediaItemIndex = controller.currentMediaItemIndex,
-            positionInFileMs = controller.currentPosition
+            mediaItemIndex = mediaItemIndex,
+            positionInFileMs = positionInFile
         )
 
-        _state.value = _state.value.copy(
+        // Validate calculated book position
+        if (bookPosition < 0 || bookPosition > timeline.totalDurationMs + 1000) {
+            Log.e(TAG, "⚠️ INVALID bookPosition: $bookPosition (duration=${timeline.totalDurationMs})")
+            return
+        }
+
+        // Debounce: only update state if position changed significantly (>100ms) or playback state changed
+        val currentState = _state.value
+        val positionDelta = kotlin.math.abs(bookPosition - currentState.currentPositionMs)
+        val stateChanged = isPlaying != currentState.isPlaying || isBuffering != currentState.isBuffering
+
+        if (!stateChanged && positionDelta < 100) {
+            return // Skip very minor position updates to reduce recomposition
+        }
+
+        _state.value = currentState.copy(
             currentPositionMs = bookPosition,
-            isPlaying = controller.isPlaying,
-            isBuffering = controller.playbackState == Player.STATE_BUFFERING
+            isPlaying = isPlaying,
+            isBuffering = isBuffering
         )
 
         // Publish position to PlaybackManager for NowPlayingViewModel

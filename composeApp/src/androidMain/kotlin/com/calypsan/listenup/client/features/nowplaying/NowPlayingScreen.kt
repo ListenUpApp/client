@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.features.nowplaying
 
 import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.automirrored.filled.List
@@ -33,23 +36,26 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
@@ -93,7 +99,7 @@ fun NowPlayingScreen(
     onSkipForward: () -> Unit,
     onPreviousChapter: () -> Unit,
     onNextChapter: () -> Unit,
-    onSpeedClick: () -> Unit,
+    onSpeedChange: (Float) -> Unit,
     onChaptersClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -107,8 +113,28 @@ fun NowPlayingScreen(
     val density = LocalDensity.current
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
     val dismissThreshold = screenHeightPx * 0.33f
+    val glowWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
 
     val dragOffset = remember { Animatable(0f) }
+
+    // Simulate radial glow with stacked vertical gradients (radialGradient crashes emulator GPU)
+    // This creates a softer, centered glow effect without using radialGradient
+    val glowBrush = remember(dominantColor) {
+        if (dominantColor != Color.Transparent) {
+            Brush.verticalGradient(
+                colorStops = arrayOf(
+                    0.0f to Color.Transparent,
+                    0.15f to dominantColor.copy(alpha = 0.3f),
+                    0.35f to dominantColor.copy(alpha = 0.6f),
+                    0.5f to dominantColor.copy(alpha = 0.6f),
+                    0.65f to dominantColor.copy(alpha = 0.3f),
+                    0.85f to dominantColor.copy(alpha = 0.1f),
+                    1.0f to Color.Transparent
+                )
+            )
+        } else null
+    }
+    val glowAlpha = 1f
 
     Surface(
         modifier = modifier
@@ -153,29 +179,19 @@ fun NowPlayingScreen(
         color = MaterialTheme.colorScheme.surface
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Large colored glow behind cover - rendered at screen level to avoid clipping
-            if (dominantColor != Color.Transparent) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(500.dp)
-                        .align(Alignment.TopCenter)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    dominantColor.copy(alpha = 0.6f),
-                                    dominantColor.copy(alpha = 0.3f),
-                                    dominantColor.copy(alpha = 0.1f),
-                                    Color.Transparent
-                                ),
-                                center = androidx.compose.ui.geometry.Offset(
-                                    Float.POSITIVE_INFINITY / 2, // Will be centered
-                                    350f
-                                ),
-                                radius = 800f
-                            )
-                        )
-                )
+            // Large colored glow behind cover - positioned to center on cover art
+            if (glowAlpha > 0f) {
+                glowBrush?.let { brush ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(550.dp)
+                            .offset(y = 80.dp)  // Push down to align with cover art
+                            .align(Alignment.TopCenter)
+                            .graphicsLayer { alpha = glowAlpha }
+                            .background(brush = brush)
+                    )
+                }
             }
 
             Column(
@@ -240,7 +256,7 @@ fun NowPlayingScreen(
             // Secondary controls
             SecondaryControls(
                 playbackSpeed = state.playbackSpeed,
-                onSpeedClick = onSpeedClick,
+                onSpeedChange = onSpeedChange,
                 onChaptersClick = onChaptersClick,
                 onSleepTimerClick = onSleepTimerClick
             )
@@ -289,6 +305,9 @@ private fun CoverArt(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Track if color has been extracted for this URL to prevent repeated extraction
+    var colorExtracted by remember(coverUrl) { mutableStateOf(false) }
+
     // Cover art with shadow
     Surface(
         modifier = Modifier
@@ -307,18 +326,21 @@ private fun CoverArt(
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
             success = { state ->
-                // Extract color when image loads successfully
-                scope.launch(Dispatchers.IO) {
-                    try {
-                        val bitmap = state.result.image.toBitmap()
-                        val color = extractDominantColor(bitmap)
-                        if (color != null) {
-                            withContext(Dispatchers.Main) {
-                                onColorExtracted(color)
+                // Only extract color once per image load to prevent continuous recomposition
+                if (!colorExtracted) {
+                    colorExtracted = true
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val bitmap = state.result.image.toBitmap()
+                            val color = extractDominantColor(bitmap)
+                            if (color != null) {
+                                withContext(Dispatchers.Main) {
+                                    onColorExtracted(color)
+                                }
                             }
+                        } catch (e: Exception) {
+                            // Color extraction failed
                         }
-                    } catch (e: Exception) {
-                        // Color extraction failed
                     }
                 }
                 SubcomposeAsyncImageContent()
@@ -390,6 +412,12 @@ private fun TitleSection(
     }
 }
 
+/**
+ * Chapter seek bar using M3 Expressive wavy progress indicator.
+ *
+ * Uses WavySeekBar for a more expressive, audiobook-appropriate UI
+ * that clearly indicates this is a progress bar with seek capability.
+ */
 @Composable
 private fun ChapterSeekBar(
     progress: Float,
@@ -397,30 +425,12 @@ private fun ChapterSeekBar(
     totalTime: Duration,
     onSeek: (Float) -> Unit
 ) {
-    // Track user dragging separately from playback progress
-    var isDragging by remember { mutableStateOf(false) }
-    var dragProgress by remember { mutableStateOf(0f) }
-    val displayProgress = if (isDragging) dragProgress else progress
-
     Column(modifier = Modifier.fillMaxWidth()) {
-        Slider(
-            value = displayProgress,
-            onValueChange = { newValue ->
-                isDragging = true
-                dragProgress = newValue
-            },
-            onValueChangeFinished = {
-                if (isDragging) {
-                    onSeek(dragProgress)
-                    isDragging = false
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
+        // M3 Expressive wavy seek bar
+        WavySeekBar(
+            progress = progress,
+            onSeek = onSeek,
+            modifier = Modifier.fillMaxWidth()
         )
 
         Row(
@@ -580,19 +590,46 @@ private fun MainControls(
 @Composable
 private fun SecondaryControls(
     playbackSpeed: Float,
-    onSpeedClick: () -> Unit,
+    onSpeedChange: (Float) -> Unit,
     onChaptersClick: () -> Unit,
     onSleepTimerClick: () -> Unit
 ) {
+    val speedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
+    var showSpeedMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        TextButton(onClick = onSpeedClick) {
-            Text(
-                text = "${playbackSpeed}x",
-                style = MaterialTheme.typography.labelLarge
-            )
+        Box {
+            TextButton(onClick = { showSpeedMenu = true }) {
+                Text(
+                    text = "${playbackSpeed}x",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+            DropdownMenu(
+                expanded = showSpeedMenu,
+                onDismissRequest = { showSpeedMenu = false }
+            ) {
+                speedOptions.forEach { speed ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "${speed}x",
+                                fontWeight = if (speed == playbackSpeed) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        onClick = {
+                            onSpeedChange(speed)
+                            showSpeedMenu = false
+                        },
+                        leadingIcon = if (speed == playbackSpeed) {
+                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                        } else null
+                    )
+                }
+            }
         }
 
         TextButton(onClick = onChaptersClick) {
