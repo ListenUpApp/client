@@ -1,10 +1,12 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.calypsan.listenup.client.data.local.db
 
-import kotlinx.datetime.Instant
 import kotlin.jvm.JvmInline
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 
 /**
@@ -55,7 +57,6 @@ value class ChapterId(val value: String) {
  *
  * @property epochMillis Unix epoch milliseconds
  */
-@OptIn(ExperimentalTime::class)
 @JvmInline
 value class Timestamp(val epochMillis: Long) : Comparable<Timestamp> {
     override fun compareTo(other: Timestamp): Int =

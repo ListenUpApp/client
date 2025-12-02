@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.calypsan.listenup.client.data.remote.model
 
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
@@ -5,9 +7,8 @@ import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import kotlin.time.ExperimentalTime
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
-@OptIn(ExperimentalTime::class)
 fun SeriesResponse.toEntity(): SeriesEntity {
     val now = Timestamp.now()
     val serverUpdatedAt = try {
@@ -33,7 +34,6 @@ fun SeriesResponse.toEntity(): SeriesEntity {
     )
 }
 
-@OptIn(ExperimentalTime::class)
 fun ContributorResponse.toEntity(): ContributorEntity {
     val now = Timestamp.now()
     val serverUpdatedAt = try {

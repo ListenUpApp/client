@@ -53,6 +53,7 @@ data class BookEntity(
 
     // Core book metadata
     val title: String,
+    val subtitle: String? = null,    // Book subtitle
     val coverUrl: String?,           // URL to cover image (local or remote)
     val totalDuration: Long,         // Total audiobook duration in milliseconds
     val description: String? = null,
@@ -61,6 +62,9 @@ data class BookEntity(
     val seriesName: String? = null,  // Denormalized series name
     val sequence: String? = null,    // Series sequence (e.g., "1", "1.5")
     val publishYear: Int? = null,
+
+    // Audio files as JSON (parsed at runtime for playback)
+    val audioFilesJson: String? = null,
 
     // Sync fields (implements Syncable)
     override val syncState: SyncState,
@@ -152,4 +156,51 @@ data class ContributorEntity(
 data class SyncMetadataEntity(
     @PrimaryKey val key: String,
     val value: String
+)
+
+/**
+ * Local playback position persistence.
+ *
+ * Stores the user's current position in each book for instant resume.
+ * This is local-first - saves immediately on every pause/seek, syncs to server eventually.
+ *
+ * Position is sacred: never lose the user's place.
+ */
+@Entity(tableName = "playback_positions")
+data class PlaybackPositionEntity(
+    @PrimaryKey val bookId: BookId,
+
+    val positionMs: Long,           // Current position in book (book-relative)
+    val playbackSpeed: Float,       // Last used speed for this book
+
+    val updatedAt: Long,            // Local timestamp (epoch ms)
+    val syncedAt: Long? = null      // When last synced to server (null if not synced)
+)
+
+/**
+ * Pending listening event for eventual sync to server.
+ *
+ * Events are append-only facts: "User listened to book X from position A to B".
+ * Queued locally, synced when network is available. Fire-and-forget with retries.
+ *
+ * Only created for meaningful sessions (≥10 seconds of listening).
+ */
+@Entity(
+    tableName = "pending_listening_events",
+    indices = [Index(value = ["bookId"])]
+)
+data class PendingListeningEventEntity(
+    @PrimaryKey val id: String,     // Client-generated UUID
+    val bookId: BookId,
+
+    val startPositionMs: Long,      // Book-relative start position
+    val endPositionMs: Long,        // Book-relative end position
+    val startedAt: Long,            // Epoch ms when playback started
+    val endedAt: Long,              // Epoch ms when playback ended
+
+    val playbackSpeed: Float,
+    val deviceId: String,
+
+    val attempts: Int = 0,          // Retry count
+    val lastAttemptAt: Long? = null // For exponential backoff
 )

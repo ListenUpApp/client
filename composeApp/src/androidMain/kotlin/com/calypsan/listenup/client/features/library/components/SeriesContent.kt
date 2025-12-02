@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.design.components.AlphabetIndex
 import com.calypsan.listenup.client.design.components.AlphabetScrollbar
+import com.calypsan.listenup.client.features.nowplaying.MiniPlayerReservedHeight
 import kotlinx.coroutines.launch
 
 /**
@@ -64,7 +65,12 @@ fun SeriesContent(
 
             LazyColumn(
                 state = listState,
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 16.dp,
+                    bottom = 16.dp + MiniPlayerReservedHeight
+                ),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -89,7 +95,7 @@ fun SeriesContent(
                 isScrolling = isScrolling,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(end = 4.dp)
+                    .padding(end = 4.dp, bottom = MiniPlayerReservedHeight)
             )
         }
     }

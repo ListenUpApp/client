@@ -36,6 +36,7 @@ import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.features.library.BookCard
+import com.calypsan.listenup.client.features.nowplaying.MiniPlayerReservedHeight
 import kotlinx.coroutines.launch
 
 /**
@@ -114,7 +115,12 @@ private fun BookGrid(
         LazyVerticalGrid(
             state = gridState,
             columns = GridCells.Adaptive(minSize = 120.dp),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 16.dp,
+                bottom = 16.dp + MiniPlayerReservedHeight
+            ),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxSize()
@@ -132,6 +138,7 @@ private fun BookGrid(
         }
 
         // Alphabet scrollbar overlays on the right edge
+        // Bottom padding accounts for mini player
         AlphabetScrollbar(
             alphabetIndex = alphabetIndex,
             onLetterSelected = { index ->
@@ -142,7 +149,7 @@ private fun BookGrid(
             isScrolling = isScrolling,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 4.dp)
+                .padding(end = 4.dp, bottom = MiniPlayerReservedHeight)
         )
     }
 }

@@ -15,8 +15,10 @@ import com.calypsan.listenup.client.data.local.db.Timestamp
 data class Book(
     val id: BookId,
     val title: String,
+    val subtitle: String? = null,
     val authors: List<Contributor>,
     val narrators: List<Contributor>,
+    val allContributors: List<Contributor> = emptyList(), // All contributors with all their roles
     val duration: Long, // Milliseconds
     val coverPath: String?, // Local file path or null if no cover
     val addedAt: Timestamp,
@@ -78,7 +80,8 @@ data class Book(
 
 data class Contributor(
     val id: String,
-    val name: String
+    val name: String,
+    val roles: List<String> = emptyList()
 )
 
 /**

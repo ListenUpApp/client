@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
@@ -28,14 +29,13 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -45,6 +45,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,11 +57,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.model.BookDownloadStatus
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.download.DownloadManager
+import com.calypsan.listenup.client.download.DownloadResult
+import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.presentation.book_detail.BookDetailUiState
 import com.calypsan.listenup.client.presentation.book_detail.BookDetailViewModel
 import com.calypsan.listenup.client.presentation.book_detail.ChapterUiModel
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,13 +79,22 @@ fun BookDetailScreen(
     onBackClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
-    viewModel: BookDetailViewModel = koinViewModel()
+    viewModel: BookDetailViewModel = koinViewModel(),
+    playerViewModel: PlayerViewModel = koinViewModel()
 ) {
+    val downloadManager: DownloadManager = koinInject()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = LocalSnackbarHostState.current
+
     LaunchedEffect(bookId) {
         viewModel.loadBook(bookId)
     }
 
     val state by viewModel.state.collectAsState()
+    val downloadStatus by downloadManager.observeBookStatus(BookId(bookId))
+        .collectAsState(initial = BookDownloadStatus.notDownloaded(bookId))
+
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -118,17 +137,65 @@ fun BookDetailScreen(
             } else {
                 BookDetailContent(
                     state = state,
+                    downloadStatus = downloadStatus,
+                    onPlayClick = { playerViewModel.playBook(BookId(bookId)) },
+                    onDownloadClick = {
+                        scope.launch {
+                            when (val result = downloadManager.downloadBook(BookId(bookId))) {
+                                is DownloadResult.Success -> { /* Download started */ }
+                                is DownloadResult.AlreadyDownloaded -> { /* Nothing to do */ }
+                                is DownloadResult.InsufficientStorage -> {
+                                    val requiredMb = result.requiredBytes / 1_000_000
+                                    val availableMb = result.availableBytes / 1_000_000
+                                    snackbarHostState.showSnackbar(
+                                        "Not enough storage. Need ${requiredMb}MB, have ${availableMb}MB available."
+                                    )
+                                }
+                                is DownloadResult.Error -> {
+                                    snackbarHostState.showSnackbar(
+                                        "Download failed: ${result.message}"
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    onCancelClick = {
+                        scope.launch {
+                            downloadManager.cancelDownload(BookId(bookId))
+                        }
+                    },
+                    onDeleteClick = { showDeleteDialog = true },
                     onSeriesClick = onSeriesClick,
                     onContributorClick = onContributorClick
                 )
             }
         }
     }
+
+    // Delete download dialog
+    if (showDeleteDialog) {
+        DeleteDownloadDialog(
+            bookTitle = state.book?.title ?: "",
+            downloadSize = downloadStatus.downloadedBytes,
+            onConfirm = {
+                scope.launch {
+                    downloadManager.deleteDownload(BookId(bookId))
+                }
+                showDeleteDialog = false
+            },
+            onDismiss = { showDeleteDialog = false }
+        )
+    }
 }
 
 @Composable
 fun BookDetailContent(
     state: BookDetailUiState,
+    downloadStatus: BookDownloadStatus,
+    onPlayClick: () -> Unit,
+    onDownloadClick: () -> Unit,
+    onCancelClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit
 ) {
@@ -164,14 +231,14 @@ fun BookDetailContent(
             }
         }
 
-        // Title & Series
+        // Title, Subtitle & Series
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = state.book?.title ?: "",
@@ -179,8 +246,18 @@ fun BookDetailContent(
                     fontWeight = FontWeight.Bold,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
-                
+
+                state.subtitle?.let { subtitle ->
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+
                 state.series?.let {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodyLarge,
@@ -215,7 +292,9 @@ fun BookDetailContent(
                     }
                 }
 
-                if (state.rating != null && state.rating > 0 && state.year != null && state.year > 0) {
+                val rating = state.rating
+                val year = state.year
+                if (rating != null && rating > 0 && year != null && year > 0) {
                     Spacer(modifier = Modifier.width(24.dp))
                 }
 
@@ -226,7 +305,7 @@ fun BookDetailContent(
                     fontWeight = FontWeight.Medium
                 )
 
-                if (state.year != null && state.year > 0) {
+                if (year != null && year > 0) {
                     Spacer(modifier = Modifier.width(24.dp))
                 }
 
@@ -250,7 +329,7 @@ fun BookDetailContent(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Button(
-                    onClick = { /* TODO: Stream */ },
+                    onClick = onPlayClick,
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp), // Expressive: Taller buttons
@@ -262,20 +341,15 @@ fun BookDetailContent(
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Stream Now", style = MaterialTheme.typography.titleMedium)
+                    Text("Play Now", style = MaterialTheme.typography.titleMedium)
                 }
 
-                FilledIconButton(
-                    onClick = { /* TODO: Download */ },
-                    modifier = Modifier.size(56.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Icon(Icons.Default.Download, contentDescription = "Download")
-                }
+                DownloadButton(
+                    status = downloadStatus,
+                    onDownloadClick = onDownloadClick,
+                    onCancelClick = onCancelClick,
+                    onDeleteClick = onDeleteClick
+                )
             }
         }
 
@@ -312,6 +386,30 @@ fun BookDetailContent(
                         contributors = narrators,
                         onContributorClick = onContributorClick
                     )
+                }
+
+                // Other contributor roles (forward, translator, editor, etc.)
+                state.book?.allContributors?.let { contributors ->
+                    // Get all unique roles except author and narrator
+                    val otherRoles = contributors
+                        .flatMap { it.roles }
+                        .filter { it !in listOf("author", "narrator") }
+                        .distinct()
+
+                    otherRoles.forEach { role ->
+                        // Get contributors with this role
+                        val contributorsWithRole = contributors
+                            .filter { role in it.roles }
+                            .map { Contributor(it.id, it.name) }
+
+                        if (contributorsWithRole.isNotEmpty()) {
+                            ContributorMetadataRow(
+                                label = formatRoleLabel(role, contributorsWithRole.size),
+                                contributors = contributorsWithRole,
+                                onContributorClick = onContributorClick
+                            )
+                        }
+                    }
                 }
 
                 // Genres (not clickable)
@@ -418,6 +516,7 @@ fun MetadataRow(label: String, value: String) {
         )
         Text(
             text = value,
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Medium
@@ -449,7 +548,9 @@ fun ClickableMetadataRow(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Medium,
-            modifier = Modifier.clickable(onClick = onClick)
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onClick)
         )
     }
 }
@@ -458,6 +559,7 @@ fun ClickableMetadataRow(
  * Metadata row for contributors with individually clickable names.
  * Shows comma-separated list where each name is clickable.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ContributorMetadataRow(
     label: String,
@@ -474,26 +576,19 @@ fun ContributorMetadataRow(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        // Flow layout would be better, but for now use inline text with clickable spans
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(0.dp),
-            modifier = Modifier.weight(1f)
+        // FlowRow wraps contributors to next line when they overflow
+        FlowRow(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.Start
         ) {
             contributors.forEachIndexed { index, contributor ->
                 Text(
-                    text = contributor.name,
+                    text = contributor.name + if (index < contributors.size - 1) ", " else "",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.clickable { onContributorClick(contributor.id) }
                 )
-                if (index < contributors.size - 1) {
-                    Text(
-                        text = ", ",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
             }
         }
     }
@@ -536,6 +631,28 @@ fun ChapterListItem(chapter: ChapterUiModel) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/**
+ * Format a role name into a display label.
+ * Maps common role names to user-friendly labels and handles pluralization.
+ */
+fun formatRoleLabel(role: String, count: Int): String {
+    return when (role.lowercase()) {
+        "forward", "foreword" -> if (count == 1) "Foreword By" else "Forewords By"
+        "translator" -> if (count == 1) "Translated By" else "Translators"
+        "editor" -> if (count == 1) "Editor" else "Editors"
+        "illustrator" -> if (count == 1) "Illustrator" else "Illustrators"
+        "introduction" -> if (count == 1) "Introduction By" else "Introductions By"
+        "afterword" -> if (count == 1) "Afterword By" else "Afterwords By"
+        "contributor" -> if (count == 1) "Contributor" else "Contributors"
+        "preface" -> if (count == 1) "Preface By" else "Prefaces By"
+        else -> {
+            // Capitalize and pluralize unknown roles
+            val capitalized = role.replaceFirstChar { it.uppercase() }
+            if (count == 1) capitalized else "${capitalized}s"
         }
     }
 }

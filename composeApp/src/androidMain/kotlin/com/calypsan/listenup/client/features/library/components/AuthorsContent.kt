@@ -37,6 +37,7 @@ import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
 import com.calypsan.listenup.client.design.components.AlphabetIndex
 import com.calypsan.listenup.client.design.components.AlphabetScrollbar
 import com.calypsan.listenup.client.design.components.avatarColorForUser
+import com.calypsan.listenup.client.features.nowplaying.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.design.components.getInitials
 import kotlinx.coroutines.launch
 
@@ -72,7 +73,12 @@ fun AuthorsContent(
 
             LazyColumn(
                 state = listState,
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 16.dp,
+                    bottom = 16.dp + MiniPlayerReservedHeight
+                ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -97,7 +103,7 @@ fun AuthorsContent(
                 isScrolling = isScrolling,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(end = 4.dp)
+                    .padding(end = 4.dp, bottom = MiniPlayerReservedHeight)
             )
         }
     }

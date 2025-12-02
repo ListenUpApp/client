@@ -3,7 +3,13 @@ package com.calypsan.listenup.client.navigation
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -12,13 +18,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import androidx.navigation3.runtime.entryProvider
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
+import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.data.repository.AuthState
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
+import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
 import com.calypsan.listenup.client.features.shell.AppShell
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -137,6 +148,10 @@ private fun LoginNavigation() {
  * - Root screen (Shell): onBack doesn't pop, allowing system back-to-home animation
  * - Detail screens: Slide animations for in-app navigation
  *
+ * NowPlayingHost is overlaid on top of all navigation, providing:
+ * - Floating mini player above bottom nav
+ * - Full screen player that expands from mini player
+ *
  * When user logs out, SettingsRepository clears auth tokens,
  * triggering automatic switch to UnauthenticatedNavigation.
  */
@@ -150,7 +165,13 @@ private fun AuthenticatedNavigation(
     // Track shell tab state here so it survives navigation to detail screens
     var currentShellDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
 
-    NavDisplay(
+    // App-wide snackbar state - provided to all screens via CompositionLocal
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Wrap navigation with NowPlayingHost for persistent mini player
+    CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
+        Box(modifier = Modifier.fillMaxSize()) {
+        NavDisplay(
         backStack = backStack,
         // Only handle back if we're not at root - let system handle back-to-home
         onBack = {
@@ -243,4 +264,31 @@ private fun AuthenticatedNavigation(
             }
         }
     )
+
+            // Now Playing overlay - persistent across all navigation
+            // Position adjusts based on whether bottom nav is visible (Shell vs detail screens)
+            // Also animates up when snackbar is visible
+            NowPlayingHost(
+                hasBottomNav = backStack.lastOrNull() == Shell,
+                snackbarHostState = snackbarHostState,
+                onNavigateToBook = { bookId ->
+                    backStack.add(BookDetail(bookId))
+                },
+                onNavigateToSeries = { seriesId ->
+                    backStack.add(SeriesDetail(seriesId))
+                },
+                onNavigateToContributor = { contributorId ->
+                    backStack.add(ContributorDetail(contributorId))
+                }
+            )
+
+            // App-wide snackbar - positioned at bottom, mini player animates up when visible
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp)
+            )
+        }
+    }
 }

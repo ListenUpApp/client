@@ -177,19 +177,32 @@ class BookRepository(
             .distinctBy { it.id }
             .map { Contributor(it.id, it.name) }
 
-        return book.toDomain(imageStorage, authors, narrators)
+        // Get all contributors with all their roles grouped
+        val rolesByContributorId = contributorRoles.groupBy({ it.contributorId }, { it.role })
+        val allContributors = contributors.map { entity ->
+            Contributor(
+                id = entity.id,
+                name = entity.name,
+                roles = rolesByContributorId[entity.id] ?: emptyList()
+            )
+        }
+
+        return book.toDomain(imageStorage, authors, narrators, allContributors)
     }
 
     private fun BookEntity.toDomain(
         imageStorage: ImageStorage,
         authors: List<Contributor>,
-        narrators: List<Contributor>
+        narrators: List<Contributor>,
+        allContributors: List<Contributor>
     ): Book {
         return Book(
             id = this.id,
             title = this.title,
+            subtitle = this.subtitle,
             authors = authors,
             narrators = narrators,
+            allContributors = allContributors,
             duration = this.totalDuration,
             coverPath = this.coverUrl?.let {
                 if (imageStorage.exists(this.id)) imageStorage.getCoverPath(this.id) else null

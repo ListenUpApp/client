@@ -30,6 +30,7 @@ fun BookEntity.toDomain(
     return Book(
         id = id,
         title = title,
+        subtitle = subtitle,
         authors = authors,
         narrators = narrators,
         duration = totalDuration,

@@ -1,4 +1,3 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -17,7 +16,7 @@ kotlin {
     
     sourceSets {
         androidMain.dependencies {
-            implementation(compose.preview)
+            implementation(libs.compose.ui.tooling.preview)
             implementation(libs.androidx.activity.compose)
 
             // Koin for Android
@@ -25,10 +24,15 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
 
-            // Navigation 3 - RC01 (stable API, will bump to 1.0.0 when published to Maven)
-            implementation("androidx.navigation3:navigation3-runtime:1.0.0-rc01")
-            implementation("androidx.navigation3:navigation3-ui:1.0.0-rc01")
-            implementation("androidx.navigation3:navigation3-ui-android:1.0.0-rc01")
+            // Kotlin libraries for playback
+            implementation(libs.kotlin.logging)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
+
+            // Navigation 3 (new declarative navigation API)
+            implementation(libs.androidx.navigation3.runtime)
+            implementation(libs.androidx.navigation3.ui)
+            implementation(libs.androidx.navigation3.ui.android)
 
             // Material 3 Adaptive - for all screen sizes (phones, tablets, desktops, XR, Auto)
             implementation(libs.androidx.material3.adaptive)
@@ -44,14 +48,23 @@ kotlin {
 
             // Material Icons Extended
             implementation(libs.androidx.material.icons.extended)
+
+            // Media3 for audio playback
+            implementation(libs.media3.exoplayer)
+            implementation(libs.media3.session)
+            implementation(libs.media3.ui)
+            implementation(libs.media3.datasource.okhttp)
+
+            // Palette for dynamic color extraction from cover art
+            implementation(libs.androidx.palette.ktx)
         }
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.ui)
-            implementation(compose.components.resources)
-            implementation(compose.components.uiToolingPreview)
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.ui)
+            implementation(libs.compose.components.resources)
+            implementation(libs.compose.ui.tooling.preview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(projects.shared)
@@ -90,6 +103,6 @@ android {
 }
 
 dependencies {
-    debugImplementation(compose.uiTooling)
+    debugImplementation(libs.compose.ui.tooling)
 }
 

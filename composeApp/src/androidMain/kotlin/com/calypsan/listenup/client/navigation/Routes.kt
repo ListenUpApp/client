@@ -82,3 +82,4 @@ data class ContributorDetail(val contributorId: String) : Route
  */
 @Serializable
 data class ContributorBooks(val contributorId: String, val role: String) : Route
+
