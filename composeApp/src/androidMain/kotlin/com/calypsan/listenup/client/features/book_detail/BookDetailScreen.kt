@@ -231,14 +231,14 @@ fun BookDetailContent(
             }
         }
 
-        // Title & Series
+        // Title, Subtitle & Series
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = state.book?.title ?: "",
@@ -246,8 +246,18 @@ fun BookDetailContent(
                     fontWeight = FontWeight.Bold,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
-                
+
+                state.subtitle?.let { subtitle ->
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+
                 state.series?.let {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodyLarge,
@@ -282,7 +292,9 @@ fun BookDetailContent(
                     }
                 }
 
-                if (state.rating != null && state.rating > 0 && state.year != null && state.year > 0) {
+                val rating = state.rating
+                val year = state.year
+                if (rating != null && rating > 0 && year != null && year > 0) {
                     Spacer(modifier = Modifier.width(24.dp))
                 }
 
@@ -293,7 +305,7 @@ fun BookDetailContent(
                     fontWeight = FontWeight.Medium
                 )
 
-                if (state.year != null && state.year > 0) {
+                if (year != null && year > 0) {
                     Spacer(modifier = Modifier.width(24.dp))
                 }
 
@@ -374,6 +386,30 @@ fun BookDetailContent(
                         contributors = narrators,
                         onContributorClick = onContributorClick
                     )
+                }
+
+                // Other contributor roles (forward, translator, editor, etc.)
+                state.book?.allContributors?.let { contributors ->
+                    // Get all unique roles except author and narrator
+                    val otherRoles = contributors
+                        .flatMap { it.roles }
+                        .filter { it !in listOf("author", "narrator") }
+                        .distinct()
+
+                    otherRoles.forEach { role ->
+                        // Get contributors with this role
+                        val contributorsWithRole = contributors
+                            .filter { role in it.roles }
+                            .map { Contributor(it.id, it.name) }
+
+                        if (contributorsWithRole.isNotEmpty()) {
+                            ContributorMetadataRow(
+                                label = formatRoleLabel(role, contributorsWithRole.size),
+                                contributors = contributorsWithRole,
+                                onContributorClick = onContributorClick
+                            )
+                        }
+                    }
                 }
 
                 // Genres (not clickable)
@@ -595,6 +631,28 @@ fun ChapterListItem(chapter: ChapterUiModel) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/**
+ * Format a role name into a display label.
+ * Maps common role names to user-friendly labels and handles pluralization.
+ */
+fun formatRoleLabel(role: String, count: Int): String {
+    return when (role.lowercase()) {
+        "forward", "foreword" -> if (count == 1) "Foreword By" else "Forewords By"
+        "translator" -> if (count == 1) "Translated By" else "Translators"
+        "editor" -> if (count == 1) "Editor" else "Editors"
+        "illustrator" -> if (count == 1) "Illustrator" else "Illustrators"
+        "introduction" -> if (count == 1) "Introduction By" else "Introductions By"
+        "afterword" -> if (count == 1) "Afterword By" else "Afterwords By"
+        "contributor" -> if (count == 1) "Contributor" else "Contributors"
+        "preface" -> if (count == 1) "Preface By" else "Prefaces By"
+        else -> {
+            // Capitalize and pluralize unknown roles
+            val capitalized = role.replaceFirstChar { it.uppercase() }
+            if (count == 1) capitalized else "${capitalized}s"
         }
     }
 }

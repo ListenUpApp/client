@@ -32,7 +32,7 @@ import androidx.room.TypeConverters
         PendingListeningEventEntity::class,
         DownloadEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

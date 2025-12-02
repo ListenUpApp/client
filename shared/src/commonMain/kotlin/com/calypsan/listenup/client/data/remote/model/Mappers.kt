@@ -32,6 +32,7 @@ fun BookResponse.toEntity(): BookEntity {
     return BookEntity(
         id = BookId(id),
         title = title,
+        subtitle = subtitle,
         coverUrl = coverImage?.path,
         totalDuration = totalDuration,
         description = description,

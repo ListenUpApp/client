@@ -53,6 +53,7 @@ data class BookEntity(
 
     // Core book metadata
     val title: String,
+    val subtitle: String? = null,    // Book subtitle
     val coverUrl: String?,           // URL to cover image (local or remote)
     val totalDuration: Long,         // Total audiobook duration in milliseconds
     val description: String? = null,

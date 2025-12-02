@@ -173,3 +173,17 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         """.trimIndent())
     }
 }
+
+/**
+ * Migration from version 7 to version 8.
+ *
+ * Changes:
+ * - Add subtitle column to books table
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("""
+            ALTER TABLE books ADD COLUMN subtitle TEXT DEFAULT NULL
+        """.trimIndent())
+    }
+}
