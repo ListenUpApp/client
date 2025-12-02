@@ -24,13 +24,19 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -39,6 +45,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -105,6 +112,12 @@ fun NowPlayingScreen(
     onSpeedChange: (Float) -> Unit,
     onChaptersClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
+    onGoToBook: () -> Unit,
+    onGoToSeries: (String) -> Unit,
+    onGoToContributor: (String) -> Unit,
+    onShowAuthorPicker: () -> Unit,
+    onShowNarratorPicker: () -> Unit,
+    onCloseBook: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Extract dominant color from cover
@@ -204,8 +217,17 @@ fun NowPlayingScreen(
                     .navigationBarsPadding()
                     .padding(horizontal = 24.dp)
             ) {
-                // Top bar with collapse handle
-                NowPlayingTopBar(onCollapse = onCollapse)
+                // Top bar with collapse handle and menu
+                NowPlayingTopBar(
+                    state = state,
+                    onCollapse = onCollapse,
+                    onGoToBook = onGoToBook,
+                    onGoToSeries = onGoToSeries,
+                    onGoToContributor = onGoToContributor,
+                    onShowAuthorPicker = onShowAuthorPicker,
+                    onShowNarratorPicker = onShowNarratorPicker,
+                    onCloseBook = onCloseBook
+                )
 
                 Spacer(Modifier.height(16.dp))
 
@@ -273,7 +295,18 @@ fun NowPlayingScreen(
 }
 
 @Composable
-private fun NowPlayingTopBar(onCollapse: () -> Unit) {
+private fun NowPlayingTopBar(
+    state: NowPlayingState,
+    onCollapse: () -> Unit,
+    onGoToBook: () -> Unit,
+    onGoToSeries: (String) -> Unit,
+    onGoToContributor: (String) -> Unit,
+    onShowAuthorPicker: () -> Unit,
+    onShowNarratorPicker: () -> Unit,
+    onCloseBook: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -298,6 +331,101 @@ private fun NowPlayingTopBar(onCollapse: () -> Unit) {
                 Icons.Default.KeyboardArrowDown,
                 contentDescription = "Collapse"
             )
+        }
+
+        // Overflow menu
+        Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = "More options"
+                )
+            }
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                // Go to Book
+                DropdownMenuItem(
+                    text = { Text("Go to Book") },
+                    onClick = {
+                        showMenu = false
+                        onGoToBook()
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Default.Book, contentDescription = null)
+                    }
+                )
+
+                // Go to Series (if available)
+                if (state.hasSeries) {
+                    DropdownMenuItem(
+                        text = { Text("Go to Series") },
+                        onClick = {
+                            showMenu = false
+                            state.seriesId?.let { onGoToSeries(it) }
+                        },
+                        leadingIcon = {
+                            Icon(Icons.AutoMirrored.Filled.LibraryBooks, contentDescription = null)
+                        }
+                    )
+                }
+
+                // Go to Author(s)
+                if (state.authors.isNotEmpty()) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(if (state.hasMultipleAuthors) "Go to Author..." else "Go to Author")
+                        },
+                        onClick = {
+                            showMenu = false
+                            if (state.hasMultipleAuthors) {
+                                onShowAuthorPicker()
+                            } else {
+                                state.authors.firstOrNull()?.let { onGoToContributor(it.id) }
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Person, contentDescription = null)
+                        }
+                    )
+                }
+
+                // Go to Narrator(s)
+                if (state.narrators.isNotEmpty()) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(if (state.hasMultipleNarrators) "Go to Narrator..." else "Go to Narrator")
+                        },
+                        onClick = {
+                            showMenu = false
+                            if (state.hasMultipleNarrators) {
+                                onShowNarratorPicker()
+                            } else {
+                                state.narrators.firstOrNull()?.let { onGoToContributor(it.id) }
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.RecordVoiceOver, contentDescription = null)
+                        }
+                    )
+                }
+
+                HorizontalDivider()
+
+                // Close Book
+                DropdownMenuItem(
+                    text = { Text("Close Book") },
+                    onClick = {
+                        showMenu = false
+                        onCloseBook()
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Default.Close, contentDescription = null)
+                    }
+                )
+            }
         }
     }
 }

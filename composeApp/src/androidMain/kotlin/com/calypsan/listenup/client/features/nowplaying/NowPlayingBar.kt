@@ -38,6 +38,13 @@ import coil3.compose.AsyncImage
 import com.calypsan.listenup.client.playback.NowPlayingState
 
 /**
+ * Height reserved for the mini player in shell content.
+ * Includes the bar height (80dp) + bottom padding (8dp) + breathing room (8dp).
+ * Content on shell screens should add this as bottom padding to avoid overlap.
+ */
+val MiniPlayerReservedHeight = 96.dp
+
+/**
  * Floating mini player that appears above bottom navigation.
  *
  * M3 Expressive styling:

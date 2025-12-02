@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -423,6 +425,7 @@ fun MetadataRow(label: String, value: String) {
         )
         Text(
             text = value,
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Medium
@@ -454,7 +457,9 @@ fun ClickableMetadataRow(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Medium,
-            modifier = Modifier.clickable(onClick = onClick)
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onClick)
         )
     }
 }
@@ -463,6 +468,7 @@ fun ClickableMetadataRow(
  * Metadata row for contributors with individually clickable names.
  * Shows comma-separated list where each name is clickable.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ContributorMetadataRow(
     label: String,
@@ -479,26 +485,19 @@ fun ContributorMetadataRow(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        // Flow layout would be better, but for now use inline text with clickable spans
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(0.dp),
-            modifier = Modifier.weight(1f)
+        // FlowRow wraps contributors to next line when they overflow
+        FlowRow(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.Start
         ) {
             contributors.forEachIndexed { index, contributor ->
                 Text(
-                    text = contributor.name,
+                    text = contributor.name + if (index < contributors.size - 1) ", " else "",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.clickable { onContributorClick(contributor.id) }
                 )
-                if (index < contributors.size - 1) {
-                    Text(
-                        text = ", ",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
             }
         }
     }

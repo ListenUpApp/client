@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.features.nowplaying
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.features.shell.components.NavigationBarHeight
+import com.calypsan.listenup.client.playback.ContributorPickerType
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
 import com.calypsan.listenup.client.playback.SleepTimerState
 import org.koin.compose.viewmodel.koinViewModel
@@ -34,6 +37,10 @@ import org.koin.compose.viewmodel.koinViewModel
  */
 @Composable
 fun NowPlayingHost(
+    hasBottomNav: Boolean,
+    onNavigateToBook: (String) -> Unit,
+    onNavigateToSeries: (String) -> Unit,
+    onNavigateToContributor: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: NowPlayingViewModel = koinViewModel()
 ) {
@@ -47,7 +54,7 @@ fun NowPlayingHost(
             enter = slideInVertically(
                 initialOffsetY = { it },
                 animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    dampingRatio = Spring.DampingRatioLowBouncy,
                     stiffness = Spring.StiffnessLow
                 )
             ) + fadeIn(),
@@ -71,16 +78,43 @@ fun NowPlayingHost(
                 onNextChapter = viewModel::nextChapter,
                 onSpeedChange = viewModel::setSpeed,
                 onChaptersClick = viewModel::showChapterPicker,
-                onSleepTimerClick = viewModel::showSleepTimer
+                onSleepTimerClick = viewModel::showSleepTimer,
+                onGoToBook = {
+                    viewModel.collapse()
+                    onNavigateToBook(state.bookId)
+                },
+                onGoToSeries = { seriesId ->
+                    viewModel.collapse()
+                    onNavigateToSeries(seriesId)
+                },
+                onGoToContributor = { contributorId ->
+                    viewModel.collapse()
+                    onNavigateToContributor(contributorId)
+                },
+                onShowAuthorPicker = { viewModel.showContributorPicker(ContributorPickerType.AUTHORS) },
+                onShowNarratorPicker = { viewModel.showContributorPicker(ContributorPickerType.NARRATORS) },
+                onCloseBook = viewModel::closeBook
             )
         }
 
-        // Mini player (visible when collapsed, positioned above bottom nav)
-        // NavigationBar is 80dp + system navigation bar insets
+        // Mini player (visible when collapsed, positioned above bottom nav when present)
+        // Animates smoothly when navigating between shell and detail screens
         val navBarInsets = WindowInsets.navigationBars
         val density = LocalDensity.current
         val systemNavBarHeight = with(density) { navBarInsets.getBottom(density).toDp() }
-        val bottomPadding = 80.dp + systemNavBarHeight  // NavigationBar (80dp) + system nav
+        val targetBottomPadding = if (hasBottomNav) {
+            NavigationBarHeight + systemNavBarHeight
+        } else {
+            systemNavBarHeight + 8.dp  // Small margin from edge when no nav bar
+        }
+        val bottomPadding by animateDpAsState(
+            targetValue = targetBottomPadding,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "miniPlayerPosition"
+        )
 
         NowPlayingBar(
             state = state,
@@ -111,6 +145,24 @@ fun NowPlayingHost(
                 onCancelTimer = viewModel::cancelSleepTimer,
                 onExtendTimer = viewModel::extendSleepTimer,
                 onDismiss = viewModel::hideSleepTimer
+            )
+        }
+
+        // Contributor picker sheet (for multiple authors/narrators)
+        state.showContributorPicker?.let { pickerType ->
+            val contributors = when (pickerType) {
+                ContributorPickerType.AUTHORS -> state.authors
+                ContributorPickerType.NARRATORS -> state.narrators
+            }
+            ContributorPickerSheet(
+                type = pickerType,
+                contributors = contributors,
+                onContributorSelected = { contributorId ->
+                    viewModel.hideContributorPicker()
+                    viewModel.collapse()
+                    onNavigateToContributor(contributorId)
+                },
+                onDismiss = viewModel::hideContributorPicker
             )
         }
 

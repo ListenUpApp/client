@@ -59,7 +59,7 @@ fun UserAvatar(
                 Text(
                     text = user?.let { getInitials(it.displayName) } ?: "?",
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = Color.White
                 )
             }
         }

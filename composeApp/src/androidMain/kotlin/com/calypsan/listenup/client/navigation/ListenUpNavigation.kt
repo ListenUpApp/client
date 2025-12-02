@@ -255,6 +255,18 @@ private fun AuthenticatedNavigation(
     )
 
         // Now Playing overlay - persistent across all navigation
-        NowPlayingHost()
+        // Position adjusts based on whether bottom nav is visible (Shell vs detail screens)
+        NowPlayingHost(
+            hasBottomNav = backStack.lastOrNull() == Shell,
+            onNavigateToBook = { bookId ->
+                backStack.add(BookDetail(bookId))
+            },
+            onNavigateToSeries = { seriesId ->
+                backStack.add(SeriesDetail(seriesId))
+            },
+            onNavigateToContributor = { contributorId ->
+                backStack.add(ContributorDetail(contributorId))
+            }
+        )
     }
 }

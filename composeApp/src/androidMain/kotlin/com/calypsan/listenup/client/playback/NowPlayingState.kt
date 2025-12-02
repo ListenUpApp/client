@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.playback
 
+import com.calypsan.listenup.client.domain.model.Contributor
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -18,6 +19,14 @@ data class NowPlayingState(
     val title: String = "",
     val author: String = "",
     val coverUrl: String? = null,
+
+    // Contributors (for navigation menu)
+    val authors: List<Contributor> = emptyList(),
+    val narrators: List<Contributor> = emptyList(),
+
+    // Series info (for navigation menu)
+    val seriesId: String? = null,
+    val seriesName: String? = null,
 
     // Chapter info
     val chapterTitle: String? = null,
@@ -43,7 +52,8 @@ data class NowPlayingState(
     val isExpanded: Boolean = false,
     val showChapterPicker: Boolean = false,
     val showSpeedPicker: Boolean = false,
-    val showSleepTimer: Boolean = false
+    val showSleepTimer: Boolean = false,
+    val showContributorPicker: ContributorPickerType? = null
 ) {
     val chapterPosition: Duration get() = chapterPositionMs.milliseconds
     val chapterDuration: Duration get() = chapterDurationMs.milliseconds
@@ -51,4 +61,16 @@ data class NowPlayingState(
     val chapterLabel: String get() = if (totalChapters > 0) {
         "Chapter ${chapterIndex + 1} of $totalChapters"
     } else ""
+
+    val hasSeries: Boolean get() = seriesId != null
+    val hasMultipleAuthors: Boolean get() = authors.size > 1
+    val hasMultipleNarrators: Boolean get() = narrators.size > 1
+}
+
+/**
+ * Type of contributor picker to show.
+ */
+enum class ContributorPickerType {
+    AUTHORS,
+    NARRATORS
 }

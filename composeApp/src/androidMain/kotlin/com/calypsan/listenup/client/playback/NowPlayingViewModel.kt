@@ -181,6 +181,10 @@ class NowPlayingViewModel(
                 title = book.title,
                 author = book.authorNames,
                 coverUrl = book.coverPath,
+                authors = book.authors,
+                narrators = book.narrators,
+                seriesId = book.seriesId,
+                seriesName = book.seriesName,
                 bookDurationMs = book.duration,
                 totalChapters = chapters.size
             )
@@ -321,6 +325,28 @@ class NowPlayingViewModel(
 
     fun extendSleepTimer(minutes: Int) {
         sleepTimerManager.extendTimer(minutes)
+    }
+
+    // Contributor Picker Actions
+
+    fun showContributorPicker(type: ContributorPickerType) {
+        _state.update { it.copy(showContributorPicker = type) }
+    }
+
+    fun hideContributorPicker() {
+        _state.update { it.copy(showContributorPicker = null) }
+    }
+
+    // Book Actions
+
+    /**
+     * Close the book entirely - stops playback and clears state.
+     */
+    fun closeBook() {
+        mediaController?.stop()
+        playbackManager.clearPlayback()
+        sleepTimerManager.cancelTimer()
+        collapse()
     }
 
     // Playback Actions
