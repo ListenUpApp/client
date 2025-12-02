@@ -6,10 +6,13 @@ import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
+import com.calypsan.listenup.client.download.DownloadManager
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
@@ -24,12 +27,15 @@ private const val TAG = "PlaybackManager"
  * - Prepare authentication for streaming
  * - Track current playback state (position, playing status)
  * - Provide central control interface for playback
+ * - Trigger background downloads for offline availability
  */
 class PlaybackManager(
     private val settingsRepository: SettingsRepository,
     private val bookDao: BookDao,
     private val progressTracker: ProgressTracker,
-    private val tokenProvider: AudioTokenProvider
+    private val tokenProvider: AudioTokenProvider,
+    private val downloadManager: DownloadManager,
+    private val scope: CoroutineScope
 ) {
     private val _currentBookId = MutableStateFlow<BookId?>(null)
     val currentBookId: StateFlow<BookId?> = _currentBookId.asStateFlow()
@@ -118,8 +124,13 @@ class PlaybackManager(
         }
         Log.d(TAG, "=== Total calculated duration: ${totalDuration}ms (${totalDuration / 1000}s / ${totalDuration / 60000}min) ===")
 
-        // 5. Build PlaybackTimeline
-        val timeline = PlaybackTimeline.build(bookId, audioFiles, serverUrl)
+        // 5. Build PlaybackTimeline with local path resolution
+        val timeline = PlaybackTimeline.buildWithLocalPaths(
+            bookId = bookId,
+            audioFiles = audioFiles,
+            baseUrl = serverUrl,
+            resolveLocalPath = { audioFileId -> downloadManager.getLocalPath(audioFileId) }
+        )
         _currentTimeline.value = timeline
         _currentBookId.value = bookId
         _totalDurationMs.value = timeline.totalDurationMs
@@ -151,6 +162,18 @@ class PlaybackManager(
         }
 
         logger.info { "Resume position: ${resumePositionMs}ms, speed: ${resumeSpeed}x" }
+
+        // 7. Trigger background download if not fully downloaded
+        // Skip if user explicitly deleted - they chose to stream only
+        // Result ignored intentionally - this is best-effort caching, user can still stream
+        if (!timeline.isFullyDownloaded && !downloadManager.wasExplicitlyDeleted(bookId)) {
+            logger.info { "Book not fully downloaded, triggering background download" }
+            scope.launch {
+                downloadManager.downloadBook(bookId) // Result logged in DownloadManager
+            }
+        } else if (!timeline.isFullyDownloaded) {
+            logger.info { "Book was explicitly deleted, streaming only (no auto-download)" }
+        }
 
         return PrepareResult(
             timeline = timeline,

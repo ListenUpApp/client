@@ -159,6 +159,17 @@ interface BookDao {
     suspend fun deleteById(id: BookId)
 
     /**
+     * Delete multiple books by their IDs in a single transaction.
+     *
+     * More efficient than calling deleteById in a loop when handling
+     * batch deletions from sync operations.
+     *
+     * @param ids List of book IDs to delete
+     */
+    @Query("DELETE FROM books WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<BookId>)
+
+    /**
      * Delete all books.
      * Used for testing and full re-sync scenarios.
      */

@@ -29,8 +29,21 @@ data class PlaybackTimeline(
         val durationMs: Long,
         val size: Long,
         val streamingUrl: String,
+        val localPath: String?,        // Local file path if downloaded, null otherwise
         val mediaItemIndex: Int        // Index in ExoPlayer playlist
-    )
+    ) {
+        /**
+         * URI for playback - prefers local file over streaming.
+         */
+        val playbackUri: String
+            get() = localPath?.let { "file://$it" } ?: streamingUrl
+
+        /**
+         * True if this file has been downloaded locally.
+         */
+        val isDownloaded: Boolean
+            get() = localPath != null
+    }
 
     /**
      * Convert book-relative position to ExoPlayer coordinates.
@@ -88,6 +101,12 @@ data class PlaybackTimeline(
         return getFileAt(position.mediaItemIndex)
     }
 
+    /**
+     * True if all files are downloaded for offline playback.
+     */
+    val isFullyDownloaded: Boolean
+        get() = files.all { it.isDownloaded }
+
     companion object {
         /**
          * Build a PlaybackTimeline from audio files and a base streaming URL.
@@ -112,6 +131,47 @@ data class PlaybackTimeline(
                     durationMs = file.duration,
                     size = file.size,
                     streamingUrl = "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}",
+                    localPath = null,
+                    mediaItemIndex = index
+                )
+                cumulativeOffset += file.duration
+                segment
+            }
+
+            return PlaybackTimeline(
+                bookId = bookId,
+                totalDurationMs = cumulativeOffset,
+                files = segments
+            )
+        }
+
+        /**
+         * Build timeline with local path resolution for offline playback.
+         *
+         * @param bookId The book being played
+         * @param audioFiles List of audio files from server
+         * @param baseUrl Server base URL for building streaming URLs
+         * @param resolveLocalPath Function to resolve local file paths for downloaded files
+         * @return Constructed timeline with local paths where available
+         */
+        suspend fun buildWithLocalPaths(
+            bookId: BookId,
+            audioFiles: List<AudioFileResponse>,
+            baseUrl: String,
+            resolveLocalPath: suspend (String) -> String?
+        ): PlaybackTimeline {
+            var cumulativeOffset = 0L
+            val segments = audioFiles.mapIndexed { index, file ->
+                val localPath = resolveLocalPath(file.id)
+                val segment = FileSegment(
+                    audioFileId = file.id,
+                    filename = file.filename,
+                    format = file.format,
+                    startOffsetMs = cumulativeOffset,
+                    durationMs = file.duration,
+                    size = file.size,
+                    streamingUrl = "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}",
+                    localPath = localPath,
                     mediaItemIndex = index
                 )
                 cumulativeOffset += file.duration

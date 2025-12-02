@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.PendingListeningEventDao
 import com.calypsan.listenup.client.data.local.db.PendingListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -25,6 +26,7 @@ private val logger = KotlinLogging.logger {}
 class ProgressTracker(
     private val positionDao: PlaybackPositionDao,
     private val eventDao: PendingListeningEventDao,
+    private val downloadDao: DownloadDao,
     private val deviceId: String,
     private val scope: CoroutineScope
 ) {
@@ -142,8 +144,8 @@ class ProgressTracker(
     fun onBookFinished(bookId: BookId) {
         scope.launch {
             logger.info { "Book finished: ${bookId.value}" }
-            // For now, just save the final position
-            // TODO: Could mark progress as 100% or send a completion event
+
+            // Record completion event
             currentSession?.let { session ->
                 if (session.bookId == bookId) {
                     val event = PendingListeningEventEntity(
@@ -160,6 +162,12 @@ class ProgressTracker(
                 }
             }
             currentSession = null
+
+            // Clear any DELETED download records so future playback will auto-download again
+            // This means that the next time a user wants to listen to the same book. We assume
+            // They want the default behavior again (stream + download)
+            downloadDao.deleteForBook(bookId.value)
+            logger.debug { "Cleared download records for finished book: ${bookId.value}" }
         }
     }
 

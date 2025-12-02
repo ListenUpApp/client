@@ -111,6 +111,7 @@ val repositoryModule = module {
     single { get<ListenUpDatabase>().bookContributorDao() }
     single { get<ListenUpDatabase>().playbackPositionDao() }
     single { get<ListenUpDatabase>().pendingListeningEventDao() }
+    single { get<ListenUpDatabase>().downloadDao() }
 }
 
 /**
@@ -184,6 +185,15 @@ val presentationModule = module {
  * Provides SyncManager, SyncApi, and related sync components.
  */
 val syncModule = module {
+    // Application-scoped CoroutineScope for long-lived background operations.
+    // Used by SSEManager and SyncManager for tasks that span the app's lifetime.
+    // SupervisorJob ensures child failures don't cancel siblings.
+    single<kotlinx.coroutines.CoroutineScope>(qualifier = org.koin.core.qualifier.named("appScope")) {
+        kotlinx.coroutines.CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default
+        )
+    }
+
     // Sync API uses ApiClientFactory to get authenticated HttpClient at call time
     // This avoids runBlocking during DI initialization (structured concurrency)
     single {
@@ -204,14 +214,11 @@ val syncModule = module {
     }
 
     // SSE Manager for real-time updates
-    // Uses application-scoped coroutine for long-lived SSE connection
     single<SSEManager> {
         SSEManager(
             clientFactory = get(),
             settingsRepository = get(),
-            scope = kotlinx.coroutines.CoroutineScope(
-                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default
-            )
+            scope = get(qualifier = org.koin.core.qualifier.named("appScope"))
         )
     }
 
@@ -227,7 +234,8 @@ val syncModule = module {
             syncDao = get(),
             imageDownloader = get(),
             sseManager = get(),
-            settingsRepository = get()
+            settingsRepository = get(),
+            scope = get(qualifier = org.koin.core.qualifier.named("appScope"))
         )
     }
 

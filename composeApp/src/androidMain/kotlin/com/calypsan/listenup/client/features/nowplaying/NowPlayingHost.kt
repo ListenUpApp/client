@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -27,6 +28,9 @@ import com.calypsan.listenup.client.playback.NowPlayingViewModel
 import com.calypsan.listenup.client.playback.SleepTimerState
 import org.koin.compose.viewmodel.koinViewModel
 
+/** Height of a standard snackbar for padding calculations */
+private val SnackbarHeight = 48.dp
+
 /**
  * Container that manages both NowPlayingBar and NowPlayingScreen.
  *
@@ -38,6 +42,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun NowPlayingHost(
     hasBottomNav: Boolean,
+    snackbarHostState: SnackbarHostState?,
     onNavigateToBook: (String) -> Unit,
     onNavigateToSeries: (String) -> Unit,
     onNavigateToContributor: (String) -> Unit,
@@ -46,6 +51,7 @@ fun NowPlayingHost(
 ) {
     val state by viewModel.state.collectAsState()
     val sleepTimerState by viewModel.sleepTimerState.collectAsState()
+    val isSnackbarVisible = snackbarHostState?.currentSnackbarData != null
 
     Box(modifier = modifier.fillMaxSize()) {
         // Full screen (slides up when expanded)
@@ -99,13 +105,15 @@ fun NowPlayingHost(
 
         // Mini player (visible when collapsed, positioned above bottom nav when present)
         // Animates smoothly when navigating between shell and detail screens
+        // Also animates up when snackbar is visible
         val navBarInsets = WindowInsets.navigationBars
         val density = LocalDensity.current
         val systemNavBarHeight = with(density) { navBarInsets.getBottom(density).toDp() }
+        val snackbarPadding = if (isSnackbarVisible) SnackbarHeight + 8.dp else 0.dp
         val targetBottomPadding = if (hasBottomNav) {
-            NavigationBarHeight + systemNavBarHeight
+            NavigationBarHeight + systemNavBarHeight + snackbarPadding
         } else {
-            systemNavBarHeight + 8.dp  // Small margin from edge when no nav bar
+            systemNavBarHeight + 8.dp + snackbarPadding  // Small margin from edge when no nav bar
         }
         val bottomPadding by animateDpAsState(
             targetValue = targetBottomPadding,

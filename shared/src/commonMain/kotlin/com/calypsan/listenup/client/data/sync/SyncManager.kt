@@ -20,8 +20,6 @@ import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.utils.io.errors.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -76,10 +74,18 @@ class SyncManager(
     private val syncDao: SyncDao,
     private val imageDownloader: ImageDownloader,
     private val sseManager: SSEManager,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    /**
+     * Application-scoped CoroutineScope for background tasks.
+     *
+     * This scope is intentionally long-lived (app lifetime) because SyncManager is a singleton
+     * that handles SSE events and background image downloads throughout the app's lifecycle.
+     * The scope should use SupervisorJob to prevent child failures from cancelling siblings.
+     *
+     * Injected from Koin for testability and consistency with SSEManager.
+     */
+    private val scope: CoroutineScope
 ) {
-    // Scope for SSE event handling and background tasks
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val _syncState = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
 
@@ -273,11 +279,9 @@ class SyncManager(
 
                     logger.debug { "Fetched page $pageCount: ${serverBooks.size} books, ${deletedBookIds.size} deletions" }
 
-                    // Handle deletions
+                    // Handle deletions (batch operation for efficiency)
                     if (deletedBookIds.isNotEmpty()) {
-                        deletedBookIds.forEach { bookId ->
-                            bookDao.deleteById(BookId(bookId))
-                        }
+                        bookDao.deleteByIds(deletedBookIds.map { BookId(it) })
                         logger.info { "Removed ${deletedBookIds.size} books deleted on server" }
                     }
 
@@ -401,11 +405,9 @@ class SyncManager(
 
                     logger.debug { "Fetched page $pageCount: ${serverSeries.size} series, ${deletedSeriesIds.size} deletions" }
 
-                    // Handle deletions
+                    // Handle deletions (batch operation for efficiency)
                     if (deletedSeriesIds.isNotEmpty()) {
-                        deletedSeriesIds.forEach { seriesId ->
-                            seriesDao.deleteById(seriesId)
-                        }
+                        seriesDao.deleteByIds(deletedSeriesIds)
                         totalDeleted += deletedSeriesIds.size
                         logger.info { "Removed ${deletedSeriesIds.size} series deleted on server" }
                     }
@@ -448,11 +450,9 @@ class SyncManager(
 
                     logger.debug { "Fetched page $pageCount: ${serverContributors.size} contributors, ${deletedContributorIds.size} deletions" }
 
-                    // Handle deletions
+                    // Handle deletions (batch operation for efficiency)
                     if (deletedContributorIds.isNotEmpty()) {
-                        deletedContributorIds.forEach { contributorId ->
-                            contributorDao.deleteById(contributorId)
-                        }
+                        contributorDao.deleteByIds(deletedContributorIds)
                         totalDeleted += deletedContributorIds.size
                         logger.info { "Removed ${deletedContributorIds.size} contributors deleted on server" }
                     }

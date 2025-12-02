@@ -16,11 +16,18 @@ import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.playback.ProgressTracker
 import com.calypsan.listenup.client.playback.SleepTimerManager
 import com.calypsan.listenup.client.workers.SyncWorker
+import com.calypsan.listenup.client.download.DownloadFileManager
+import com.calypsan.listenup.client.download.DownloadManager
+import com.calypsan.listenup.client.download.DownloadWorkerFactory
+import androidx.work.Configuration
+import androidx.work.WorkManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.context.startKoin
@@ -66,6 +73,7 @@ val playbackModule = module {
         ProgressTracker(
             positionDao = get(),
             eventDao = get(),
+            downloadDao = get(),
             deviceId = get(),
             scope = get()
         )
@@ -85,7 +93,9 @@ val playbackModule = module {
             settingsRepository = get(),
             bookDao = get(),
             progressTracker = get(),
-            tokenProvider = get()
+            tokenProvider = get(),
+            downloadManager = get(),
+            scope = get()
         )
     }
 
@@ -114,11 +124,32 @@ val playbackModule = module {
 }
 
 /**
+ * Download module for offline audiobook downloads.
+ * Contains download management and file storage components.
+ */
+val downloadModule = module {
+    // Download file manager - handles local file operations
+    single { DownloadFileManager(androidContext()) }
+
+    // Download manager - coordinates download queue and state
+    single {
+        DownloadManager(
+            downloadDao = get(),
+            bookDao = get(),
+            settingsRepository = get(),
+            workManager = WorkManager.getInstance(androidContext()),
+            fileManager = get(),
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        )
+    }
+}
+
+/**
  * ListenUp Application class.
  *
  * Initializes dependency injection, Coil image loading, and other app-wide concerns.
  */
-class ListenUp : Application(), SingletonImageLoader.Factory {
+class ListenUp : Application(), SingletonImageLoader.Factory, KoinComponent {
     override fun onCreate() {
         super.onCreate()
 
@@ -131,8 +162,22 @@ class ListenUp : Application(), SingletonImageLoader.Factory {
             androidContext(this@ListenUp)
 
             // Load all shared and Android-specific modules
-            modules(sharedModules + androidModule + playbackModule)
+            modules(sharedModules + androidModule + playbackModule + downloadModule)
         }
+
+        // Configure WorkManager with custom factory for dependency injection
+        val workerFactory = DownloadWorkerFactory(
+            downloadDao = get(),
+            fileManager = get(),
+            tokenProvider = get(),
+            settingsRepository = get()
+        )
+
+        val workManagerConfig = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+
+        WorkManager.initialize(this, workManagerConfig)
 
         // Schedule periodic background sync
         // TODO: Only schedule after user authentication

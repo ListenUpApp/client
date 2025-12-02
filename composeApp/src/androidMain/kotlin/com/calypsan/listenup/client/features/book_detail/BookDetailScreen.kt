@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
@@ -30,14 +29,13 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -47,6 +45,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,13 +57,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
-import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.model.BookDownloadStatus
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
+import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.download.DownloadManager
+import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.presentation.book_detail.BookDetailUiState
 import com.calypsan.listenup.client.presentation.book_detail.BookDetailViewModel
 import com.calypsan.listenup.client.presentation.book_detail.ChapterUiModel
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,11 +82,19 @@ fun BookDetailScreen(
     viewModel: BookDetailViewModel = koinViewModel(),
     playerViewModel: PlayerViewModel = koinViewModel()
 ) {
+    val downloadManager: DownloadManager = koinInject()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = LocalSnackbarHostState.current
+
     LaunchedEffect(bookId) {
         viewModel.loadBook(bookId)
     }
 
     val state by viewModel.state.collectAsState()
+    val downloadStatus by downloadManager.observeBookStatus(BookId(bookId))
+        .collectAsState(initial = BookDownloadStatus.notDownloaded(bookId))
+
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -123,19 +137,65 @@ fun BookDetailScreen(
             } else {
                 BookDetailContent(
                     state = state,
+                    downloadStatus = downloadStatus,
                     onPlayClick = { playerViewModel.playBook(BookId(bookId)) },
+                    onDownloadClick = {
+                        scope.launch {
+                            when (val result = downloadManager.downloadBook(BookId(bookId))) {
+                                is DownloadResult.Success -> { /* Download started */ }
+                                is DownloadResult.AlreadyDownloaded -> { /* Nothing to do */ }
+                                is DownloadResult.InsufficientStorage -> {
+                                    val requiredMb = result.requiredBytes / 1_000_000
+                                    val availableMb = result.availableBytes / 1_000_000
+                                    snackbarHostState.showSnackbar(
+                                        "Not enough storage. Need ${requiredMb}MB, have ${availableMb}MB available."
+                                    )
+                                }
+                                is DownloadResult.Error -> {
+                                    snackbarHostState.showSnackbar(
+                                        "Download failed: ${result.message}"
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    onCancelClick = {
+                        scope.launch {
+                            downloadManager.cancelDownload(BookId(bookId))
+                        }
+                    },
+                    onDeleteClick = { showDeleteDialog = true },
                     onSeriesClick = onSeriesClick,
                     onContributorClick = onContributorClick
                 )
             }
         }
     }
+
+    // Delete download dialog
+    if (showDeleteDialog) {
+        DeleteDownloadDialog(
+            bookTitle = state.book?.title ?: "",
+            downloadSize = downloadStatus.downloadedBytes,
+            onConfirm = {
+                scope.launch {
+                    downloadManager.deleteDownload(BookId(bookId))
+                }
+                showDeleteDialog = false
+            },
+            onDismiss = { showDeleteDialog = false }
+        )
+    }
 }
 
 @Composable
 fun BookDetailContent(
     state: BookDetailUiState,
+    downloadStatus: BookDownloadStatus,
     onPlayClick: () -> Unit,
+    onDownloadClick: () -> Unit,
+    onCancelClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit
 ) {
@@ -269,20 +329,15 @@ fun BookDetailContent(
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Stream Now", style = MaterialTheme.typography.titleMedium)
+                    Text("Play Now", style = MaterialTheme.typography.titleMedium)
                 }
 
-                FilledIconButton(
-                    onClick = { /* TODO: Download */ },
-                    modifier = Modifier.size(56.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Icon(Icons.Default.Download, contentDescription = "Download")
-                }
+                DownloadButton(
+                    status = downloadStatus,
+                    onDownloadClick = onDownloadClick,
+                    onCancelClick = onCancelClick,
+                    onDeleteClick = onDeleteClick
+                )
             }
         }
 

@@ -90,4 +90,24 @@ class Converters {
     fun toSyncState(value: Int): SyncState {
         return SyncState.entries[value]
     }
+
+    @TypeConverter
+    fun fromDownloadState(state: DownloadState): Int = state.ordinal
+
+    @TypeConverter
+    fun toDownloadState(ordinal: Int): DownloadState = DownloadState.entries[ordinal]
+}
+
+/**
+ * Download state for tracking individual audio file downloads.
+ *
+ * Ordinals: QUEUED=0, DOWNLOADING=1, PAUSED=2, COMPLETED=3, FAILED=4, DELETED=5
+ */
+enum class DownloadState {
+    QUEUED,      // Waiting to start
+    DOWNLOADING, // In progress
+    PAUSED,      // User paused or interrupted
+    COMPLETED,   // Successfully downloaded
+    FAILED,      // Error occurred
+    DELETED      // User explicitly deleted - files removed, don't auto-download
 }

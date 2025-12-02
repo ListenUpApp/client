@@ -30,6 +30,17 @@ interface SeriesDao {
     suspend fun deleteById(id: String)
 
     /**
+     * Delete multiple series by their IDs in a single transaction.
+     *
+     * More efficient than calling deleteById in a loop when handling
+     * batch deletions from sync operations.
+     *
+     * @param ids List of series IDs to delete
+     */
+    @Query("DELETE FROM series WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
+
+    /**
      * Observe all series with their book counts.
      * Returns series ordered by name with the count of books in each series.
      */
@@ -88,6 +99,17 @@ interface ContributorDao {
 
     @Query("DELETE FROM contributors WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    /**
+     * Delete multiple contributors by their IDs in a single transaction.
+     *
+     * More efficient than calling deleteById in a loop when handling
+     * batch deletions from sync operations.
+     *
+     * @param ids List of contributor IDs to delete
+     */
+    @Query("DELETE FROM contributors WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
 
     /**
      * Observe contributors filtered by role with their book counts.

@@ -6,9 +6,11 @@ android-targetSdk = "36"
 androidx-activity = "1.12.0"
 androidx-lifecycle = "2.9.6"
 androidx-material3-adaptive = "1.2.0"
-compose-material3-expressive = "1.10.0-alpha05"
+androidx-navigation3 = "1.0.0"
+androidx-palette = "1.0.0"
 androidx-material-icons = "1.7.8"
-composeMultiplatform = "1.10.0-beta02"
+composeMultiplatform = "1.10.0-rc01"
+compose-material3 = "1.10.0-alpha05"
 kotlin = "2.2.21"
 ksp = "2.3.2"
 mokkery = "3.0.0"
@@ -17,6 +19,7 @@ kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.9.0"
 kotlinx-datetime = "0.7.1"
 kotlinx-collections-immutable = "0.4.0"
+kotlinx-io = "0.8.2"
 koin = "4.2.0-alpha3"
 kotlin-logging = "7.0.13"
 room = "2.8.4"
@@ -36,11 +39,25 @@ androidx-material3-adaptive = { module = "androidx.compose.material3.adaptive:ad
 androidx-material3-adaptive-layout = { module = "androidx.compose.material3.adaptive:adaptive-layout", version.ref = "androidx-material3-adaptive" }
 androidx-material3-adaptive-navigation = { module = "androidx.compose.material3.adaptive:adaptive-navigation", version.ref = "androidx-material3-adaptive" }
 
-# Material 3 Expressive (pinned alpha for wavy progress indicators)
-compose-material3-expressive = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3-expressive" }
+# JetBrains Compose Multiplatform
+compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
+compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
+compose-ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "composeMultiplatform" }
+compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
+compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
 
 # Material Icons
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "androidx-material-icons" }
+
+# Navigation 3 (new declarative navigation API)
+androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "androidx-navigation3" }
+androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "androidx-navigation3" }
+androidx-navigation3-ui-android = { module = "androidx.navigation3:navigation3-ui-android", version.ref = "androidx-navigation3" }
+
+# Palette (dynamic color extraction from images)
+androidx-palette-ktx = { module = "androidx.palette:palette-ktx", version.ref = "androidx-palette" }
 
 # Ktor
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
@@ -57,6 +74,7 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "kotlinx-collections-immutable" }
+kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
 
 # Koin
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }

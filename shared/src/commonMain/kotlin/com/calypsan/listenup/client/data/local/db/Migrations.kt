@@ -141,3 +141,35 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         """.trimIndent())
     }
 }
+
+/**
+ * Migration from version 6 to version 7.
+ *
+ * Changes:
+ * - Add downloads table for tracking downloaded audio files
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("""
+            CREATE TABLE IF NOT EXISTS downloads (
+                audioFileId TEXT PRIMARY KEY NOT NULL,
+                bookId TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                fileIndex INTEGER NOT NULL,
+                state INTEGER NOT NULL,
+                localPath TEXT,
+                totalBytes INTEGER NOT NULL,
+                downloadedBytes INTEGER NOT NULL,
+                queuedAt INTEGER NOT NULL,
+                startedAt INTEGER,
+                completedAt INTEGER,
+                errorMessage TEXT,
+                retryCount INTEGER NOT NULL DEFAULT 0
+            )
+        """.trimIndent())
+
+        connection.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_downloads_bookId ON downloads (bookId)
+        """.trimIndent())
+    }
+}
