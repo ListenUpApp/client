@@ -8,17 +8,20 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import com.calypsan.listenup.client.core.ImageLoaderFactory
 import com.calypsan.listenup.client.di.sharedModules
+import com.calypsan.listenup.client.download.DownloadFileManager
+import com.calypsan.listenup.client.download.DownloadManager
+import com.calypsan.listenup.client.download.DownloadService
+import com.calypsan.listenup.client.download.DownloadWorkerFactory
+import com.calypsan.listenup.client.playback.AndroidAudioTokenProvider
 import com.calypsan.listenup.client.playback.AudioTokenProvider
-import com.calypsan.listenup.client.playback.PlaybackErrorHandler
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
+import com.calypsan.listenup.client.playback.PlaybackErrorHandler
 import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.playback.ProgressTracker
 import com.calypsan.listenup.client.playback.SleepTimerManager
-import com.calypsan.listenup.client.workers.SyncWorker
-import com.calypsan.listenup.client.download.DownloadFileManager
-import com.calypsan.listenup.client.download.DownloadManager
-import com.calypsan.listenup.client.download.DownloadWorkerFactory
+import com.calypsan.listenup.client.sync.AndroidBackgroundSyncScheduler
+import com.calypsan.listenup.client.sync.BackgroundSyncScheduler
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +43,9 @@ import org.koin.dsl.module
  */
 val androidModule = module {
     viewModelOf(::InstanceViewModel)
+
+    // Background sync scheduler
+    single<BackgroundSyncScheduler> { AndroidBackgroundSyncScheduler(androidContext()) }
 }
 
 /**
@@ -60,13 +66,17 @@ val playbackModule = module {
     }
 
     // Audio token provider for authenticated streaming
-    single {
-        AudioTokenProvider(
+    // Bind to interface for shared code, but use concrete Android implementation
+    single<AudioTokenProvider> {
+        AndroidAudioTokenProvider(
             settingsRepository = get(),
             authApi = get(),
             scope = get()
         )
     }
+
+    // Also expose the concrete type for Android-specific features (interceptor)
+    single { get<AudioTokenProvider>() as AndroidAudioTokenProvider }
 
     // Progress tracker for position persistence and event recording
     single {
@@ -79,11 +89,11 @@ val playbackModule = module {
         )
     }
 
-    // Playback error handler
+    // Playback error handler (needs concrete Android type for onUnauthorized())
     single {
         PlaybackErrorHandler(
             progressTracker = get(),
-            tokenProvider = get()
+            tokenProvider = get<AndroidAudioTokenProvider>()
         )
     }
 
@@ -94,7 +104,7 @@ val playbackModule = module {
             bookDao = get(),
             progressTracker = get(),
             tokenProvider = get(),
-            downloadManager = get(),
+            downloadService = get(),
             scope = get()
         )
     }
@@ -132,7 +142,8 @@ val downloadModule = module {
     single { DownloadFileManager(androidContext()) }
 
     // Download manager - coordinates download queue and state
-    single {
+    // Bound to DownloadService interface for shared code (PlaybackManager)
+    single<DownloadService> {
         DownloadManager(
             downloadDao = get(),
             bookDao = get(),
@@ -142,6 +153,9 @@ val downloadModule = module {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         )
     }
+
+    // Also expose the concrete type for Android-specific features
+    single { get<DownloadService>() as DownloadManager }
 }
 
 /**
@@ -169,7 +183,7 @@ class ListenUp : Application(), SingletonImageLoader.Factory, KoinComponent {
         val workerFactory = DownloadWorkerFactory(
             downloadDao = get(),
             fileManager = get(),
-            tokenProvider = get(),
+            tokenProvider = get<AndroidAudioTokenProvider>(),
             settingsRepository = get()
         )
 
@@ -181,7 +195,7 @@ class ListenUp : Application(), SingletonImageLoader.Factory, KoinComponent {
 
         // Schedule periodic background sync
         // TODO: Only schedule after user authentication
-        SyncWorker.schedule(this)
+        get<BackgroundSyncScheduler>().schedule()
     }
 
     /**

@@ -61,7 +61,7 @@ class PlaybackService : MediaSessionService() {
     private val playbackManager: PlaybackManager by inject()
     private val progressTracker: ProgressTracker by inject()
     private val errorHandler: PlaybackErrorHandler by inject()
-    private val tokenProvider: AudioTokenProvider by inject()
+    private val tokenProvider: AndroidAudioTokenProvider by inject()
 
     // Current book ID is read from PlaybackManager (single source of truth)
     private val currentBookId: BookId?

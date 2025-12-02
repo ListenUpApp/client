@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.data.local.db.BookId
@@ -6,10 +8,12 @@ import com.calypsan.listenup.client.data.local.db.PendingListeningEventDao
 import com.calypsan.listenup.client.data.local.db.PendingListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
+import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.util.UUID
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 private val logger = KotlinLogging.logger {}
 
@@ -50,7 +54,7 @@ class ProgressTracker(
         currentSession = ListeningSession(
             bookId = bookId,
             startPositionMs = positionMs,
-            startedAt = System.currentTimeMillis(),
+            startedAt = Clock.System.now().toEpochMilliseconds(),
             playbackSpeed = speed
         )
         logger.debug { "Playback started: book=${bookId.value}, position=$positionMs" }
@@ -73,12 +77,12 @@ class ProgressTracker(
                     // Only record if listened for at least 10 seconds
                     if (durationMs >= 10_000) {
                         val event = PendingListeningEventEntity(
-                            id = UUID.randomUUID().toString(),
+                            id = NanoId.generate("evt"),
                             bookId = bookId,
                             startPositionMs = session.startPositionMs,
                             endPositionMs = positionMs,
                             startedAt = session.startedAt,
-                            endedAt = System.currentTimeMillis(),
+                            endedAt = Clock.System.now().toEpochMilliseconds(),
                             playbackSpeed = session.playbackSpeed,
                             deviceId = deviceId
                         )
@@ -114,7 +118,7 @@ class ProgressTracker(
                 bookId = bookId,
                 positionMs = positionMs,
                 playbackSpeed = speed,
-                updatedAt = System.currentTimeMillis(),
+                updatedAt = Clock.System.now().toEpochMilliseconds(),
                 syncedAt = null
             )
         )
@@ -149,12 +153,12 @@ class ProgressTracker(
             currentSession?.let { session ->
                 if (session.bookId == bookId) {
                     val event = PendingListeningEventEntity(
-                        id = UUID.randomUUID().toString(),
+                        id = NanoId.generate("evt"),
                         bookId = bookId,
                         startPositionMs = session.startPositionMs,
                         endPositionMs = Long.MAX_VALUE, // Indicates completion
                         startedAt = session.startedAt,
-                        endedAt = System.currentTimeMillis(),
+                        endedAt = Clock.System.now().toEpochMilliseconds(),
                         playbackSpeed = session.playbackSpeed,
                         deviceId = deviceId
                     )

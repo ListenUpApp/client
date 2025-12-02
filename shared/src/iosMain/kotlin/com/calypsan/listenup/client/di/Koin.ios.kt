@@ -16,7 +16,8 @@ import org.koin.core.module.Module
  */
 actual fun initializeKoin(additionalModules: List<Module>) {
     startKoin {
-        modules(sharedModules + additionalModules)
+        // Include shared modules, iOS playback module, and any app-specific modules
+        modules(sharedModules + iosPlaybackModule + additionalModules)
     }
 }
 

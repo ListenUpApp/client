@@ -21,7 +21,7 @@ private val logger = KotlinLogging.logger {}
  */
 class PlaybackErrorHandler(
     private val progressTracker: ProgressTracker,
-    private val tokenProvider: AudioTokenProvider
+    private val tokenProvider: AndroidAudioTokenProvider
 ) {
     /**
      * Classifies errors into actionable categories.

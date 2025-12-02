@@ -112,9 +112,9 @@ fun NowPlayingBar(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (state.chapterTitle != null) {
+                        state.chapterTitle?.let { chapter ->
                             Text(
-                                text = state.chapterTitle,
+                                text = chapter,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,

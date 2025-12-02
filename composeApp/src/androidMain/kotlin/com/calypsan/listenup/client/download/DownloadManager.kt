@@ -24,16 +24,6 @@ import kotlinx.serialization.json.Json
 private val logger = KotlinLogging.logger {}
 
 /**
- * Result of a download operation.
- */
-sealed interface DownloadResult {
-    data object Success : DownloadResult
-    data object AlreadyDownloaded : DownloadResult
-    data class InsufficientStorage(val requiredBytes: Long, val availableBytes: Long) : DownloadResult
-    data class Error(val message: String) : DownloadResult
-}
-
-/**
  * Manages audiobook downloads.
  *
  * Responsibilities:
@@ -41,6 +31,8 @@ sealed interface DownloadResult {
  * - Track download state per book
  * - Resolve local paths for offline playback
  * - Calculate storage usage
+ *
+ * Implements [DownloadService] for use by shared code (PlaybackManager).
  */
 class DownloadManager(
     private val downloadDao: DownloadDao,
@@ -49,7 +41,7 @@ class DownloadManager(
     private val workManager: WorkManager,
     private val fileManager: DownloadFileManager,
     private val scope: CoroutineScope
-) {
+) : DownloadService {
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
@@ -117,7 +109,7 @@ class DownloadManager(
      *
      * @return DownloadResult indicating success, failure reason, or if already downloaded
      */
-    suspend fun downloadBook(bookId: BookId): DownloadResult {
+    override suspend fun downloadBook(bookId: BookId): DownloadResult {
         // Check if already downloading or downloaded
         val existing = downloadDao.getForBook(bookId.value)
         if (existing.isNotEmpty() && existing.all { it.state == DownloadState.COMPLETED }) {
@@ -256,7 +248,7 @@ class DownloadManager(
      * Check if a book was explicitly deleted by user.
      * Used to determine if we should auto-download on playback.
      */
-    suspend fun wasExplicitlyDeleted(bookId: BookId): Boolean {
+    override suspend fun wasExplicitlyDeleted(bookId: BookId): Boolean {
         return downloadDao.hasDeletedRecords(bookId.value)
     }
 
@@ -265,7 +257,7 @@ class DownloadManager(
      * Returns null if not downloaded or file missing.
      * If file was deleted externally, cleans up database entry.
      */
-    suspend fun getLocalPath(audioFileId: String): String? {
+    override suspend fun getLocalPath(audioFileId: String): String? {
         val path = downloadDao.getLocalPath(audioFileId) ?: return null
 
         // Verify file still exists

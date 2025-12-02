@@ -13,8 +13,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import okhttp3.Interceptor
-import okhttp3.Response
+import kotlin.concurrent.Volatile
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
@@ -22,20 +21,18 @@ import kotlin.time.ExperimentalTime
 private val logger = KotlinLogging.logger {}
 
 /**
- * Thread-safe token provider for OkHttp interceptors.
+ * iOS implementation of AudioTokenProvider.
  *
  * Design:
  * - Token is cached in a volatile field (non-blocking reads)
  * - Refresh happens proactively on a schedule AND reactively on 401
  * - Uses the existing auth infrastructure for actual refresh
  *
- * This solves the problem of needing authentication in OkHttp interceptors
- * (which are synchronous) without blocking on coroutine operations.
- *
- * Implements [com.calypsan.listenup.client.playback.AudioTokenProvider] interface
- * for use by shared code (PlaybackManager).
+ * iOS-specific notes:
+ * - URLSession delegates handle auth headers separately
+ * - This class provides the token; iOS networking code reads it
  */
-class AndroidAudioTokenProvider(
+class IosAudioTokenProvider(
     private val settingsRepository: SettingsRepository,
     private val authApi: AuthApi,
     private val scope: CoroutineScope
@@ -71,7 +68,7 @@ class AndroidAudioTokenProvider(
     }
 
     /**
-     * Non-blocking read for interceptor.
+     * Non-blocking read for networking code.
      * Returns null if no token available.
      */
     override fun getToken(): String? = cachedToken
@@ -84,7 +81,7 @@ class AndroidAudioTokenProvider(
     }
 
     /**
-     * Called by interceptor on 401 response.
+     * Called on 401 response from network layer.
      * Triggers async refresh, returns immediately.
      */
     fun onUnauthorized() {
@@ -142,62 +139,5 @@ class AndroidAudioTokenProvider(
                 logger.error(e) { "Error during token refresh" }
             }
         }
-    }
-
-    /**
-     * Creates an OkHttp interceptor that adds Bearer token to requests.
-     *
-     * The interceptor:
-     * - Adds Authorization header if token is available
-     * - On 401 response, triggers refresh and retries once
-     */
-    fun createInterceptor(): Interceptor = AuthInterceptor(this)
-}
-
-/**
- * OkHttp interceptor that adds Bearer token to all requests.
- * Handles 401 responses by triggering token refresh and retrying.
- */
-private class AuthInterceptor(
-    private val tokenProvider: AndroidAudioTokenProvider
-) : Interceptor {
-
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val token = tokenProvider.getToken()
-
-        val request = if (token != null) {
-            chain.request().newBuilder()
-                .addHeader("Authorization", "Bearer $token")
-                .build()
-        } else {
-            chain.request()
-        }
-
-        val response = chain.proceed(request)
-
-        // Trigger refresh on 401, retry once
-        if (response.code == 401 && token != null) {
-            logger.debug { "Got 401, triggering token refresh" }
-            tokenProvider.onUnauthorized()
-            response.close()
-
-            // Wait briefly for refresh, then retry
-            Thread.sleep(500)
-
-            val newToken = tokenProvider.getToken()
-            if (newToken != null && newToken != token) {
-                logger.debug { "Retrying with new token" }
-                val retryRequest = chain.request().newBuilder()
-                    .addHeader("Authorization", "Bearer $newToken")
-                    .build()
-                return chain.proceed(retryRequest)
-            }
-        }
-
-        return response
-    }
-
-    companion object {
-        private val logger = KotlinLogging.logger {}
     }
 }

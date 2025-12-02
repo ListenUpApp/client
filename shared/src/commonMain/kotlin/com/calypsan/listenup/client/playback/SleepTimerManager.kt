@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.calypsan.listenup.client.playback
 
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -12,6 +14,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 private val logger = KotlinLogging.logger {}
 
@@ -121,7 +125,7 @@ class SleepTimerManager(
 
     private fun startDurationTimer(minutes: Int) {
         val totalMs = minutes * 60_000L
-        val startedAt = System.currentTimeMillis()
+        val startedAt = Clock.System.now().toEpochMilliseconds()
 
         _state.value = SleepTimerState.Active(
             mode = SleepTimerMode.Duration(minutes),
@@ -139,7 +143,7 @@ class SleepTimerManager(
                 val current = _state.value
                 if (current !is SleepTimerState.Active) break
 
-                val elapsed = System.currentTimeMillis() - current.startedAt
+                val elapsed = Clock.System.now().toEpochMilliseconds() - current.startedAt
                 val remaining = (current.totalMs - elapsed).coerceAtLeast(0)
 
                 _state.value = current.copy(remainingMs = remaining)
@@ -158,7 +162,7 @@ class SleepTimerManager(
             mode = SleepTimerMode.EndOfChapter,
             remainingMs = 0,
             totalMs = 0,
-            startedAt = System.currentTimeMillis()
+            startedAt = Clock.System.now().toEpochMilliseconds()
         )
         logger.debug { "Started end-of-chapter timer, waiting for chapter change" }
     }

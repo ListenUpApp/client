@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.calypsan.listenup.client.presentation.auth
 
 import androidx.lifecycle.ViewModel
@@ -14,7 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /**
  * ViewModel for the login screen.
