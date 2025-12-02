@@ -14,6 +14,7 @@ import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.download.DownloadWorkerFactory
 import com.calypsan.listenup.client.playback.AndroidAudioTokenProvider
 import com.calypsan.listenup.client.playback.AudioTokenProvider
+import com.calypsan.listenup.client.playback.MediaControllerHolder
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
 import com.calypsan.listenup.client.playback.PlaybackErrorHandler
 import com.calypsan.listenup.client.playback.PlaybackManager
@@ -84,6 +85,7 @@ val playbackModule = module {
             positionDao = get(),
             eventDao = get(),
             downloadDao = get(),
+            syncApi = get(),
             deviceId = get(),
             scope = get()
         )
@@ -114,11 +116,18 @@ val playbackModule = module {
         SleepTimerManager(scope = get())
     }
 
+    // Shared MediaController holder - single connection for all ViewModels
+    // Eliminates duplicate controller connections and state drift
+    single {
+        MediaControllerHolder(context = get())
+    }
+
     // Player ViewModel - connects UI to MediaController
     viewModel {
         PlayerViewModel(
             context = get(),
-            playbackManager = get()
+            playbackManager = get(),
+            mediaControllerHolder = get()
         )
     }
 
@@ -128,7 +137,8 @@ val playbackModule = module {
             context = get(),
             playbackManager = get(),
             bookRepository = get(),
-            sleepTimerManager = get()
+            sleepTimerManager = get(),
+            mediaControllerHolder = get()
         )
     }
 }

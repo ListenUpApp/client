@@ -1,18 +1,13 @@
 package com.calypsan.listenup.client.playback
 
-import android.content.ComponentName
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.PlaybackParameters
-import androidx.media3.common.Player
 import androidx.media3.session.MediaController
-import androidx.media3.session.SessionToken
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.domain.model.Chapter
-import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.MoreExecutors
 import android.util.Log
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
@@ -30,13 +25,14 @@ private const val TAG = "NowPlayingVM"
  *
  * Observes PlaybackManager state and transforms it into UI state.
  * Handles chapter-level position calculations.
- * Connects independently to MediaController for playback control.
+ * Uses shared MediaControllerHolder for playback control.
  */
 class NowPlayingViewModel(
     private val context: Context,
     private val playbackManager: PlaybackManager,
     private val bookRepository: BookRepository,
-    private val sleepTimerManager: SleepTimerManager
+    private val sleepTimerManager: SleepTimerManager,
+    private val mediaControllerHolder: MediaControllerHolder
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(NowPlayingState())
@@ -47,14 +43,16 @@ class NowPlayingViewModel(
     private var chapters: List<Chapter> = emptyList()
     private var lastNotifiedChapterIndex: Int = -1
 
-    private var controllerFuture: ListenableFuture<MediaController>? = null
-    private var mediaController: MediaController? = null
-
     companion object {
         private const val FADE_DURATION_MS = 3000L
     }
 
+    private val mediaController: MediaController?
+        get() = mediaControllerHolder.controller
+
     init {
+        // Acquire reference to shared controller
+        mediaControllerHolder.acquire()
         observePlayback()
         observeSleepTimer()
     }
@@ -65,11 +63,9 @@ class NowPlayingViewModel(
             playbackManager.currentBookId.collect { bookId ->
                 if (bookId != null) {
                     loadBookInfo(bookId)
-                    connectToMediaController()
                 } else {
                     _state.update { it.copy(isVisible = false, isExpanded = false) }
                     chapters = emptyList()
-                    disconnectMediaController()
                 }
             }
         }
@@ -251,31 +247,6 @@ class NowPlayingViewModel(
 
     private fun findChapterAtPosition(positionMs: Long): Chapter? {
         return chapters.lastOrNull { it.startTime <= positionMs }
-    }
-
-    private fun connectToMediaController() {
-        if (mediaController != null) return
-
-        val sessionToken = SessionToken(
-            context,
-            ComponentName(context, PlaybackService::class.java)
-        )
-
-        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-        controllerFuture?.addListener({
-            try {
-                mediaController = controllerFuture?.get()
-                logger.debug { "NowPlayingViewModel connected to MediaController" }
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to connect to MediaController" }
-            }
-        }, MoreExecutors.directExecutor())
-    }
-
-    private fun disconnectMediaController() {
-        mediaController = null
-        controllerFuture?.let { MediaController.releaseFuture(it) }
-        controllerFuture = null
     }
 
     // UI Actions
@@ -542,6 +513,7 @@ class NowPlayingViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        disconnectMediaController()
+        // Release our reference to the shared controller
+        mediaControllerHolder.release()
     }
 }

@@ -62,6 +62,7 @@ class PlaybackService : MediaSessionService() {
     private val progressTracker: ProgressTracker by inject()
     private val errorHandler: PlaybackErrorHandler by inject()
     private val tokenProvider: AndroidAudioTokenProvider by inject()
+    private val sleepTimerManager: SleepTimerManager by inject()
 
     // Current book ID is read from PlaybackManager (single source of truth)
     private val currentBookId: BookId?
@@ -279,8 +280,13 @@ class PlaybackService : MediaSessionService() {
                     )
                 }
 
-                // Start idle timer on pause
-                startIdleTimer(IDLE_TIMEOUT_SHORT, "paused")
+                // Context-aware idle timer based on why playback stopped
+                val isSleepTimerPause = sleepTimerManager.state.value is SleepTimerState.FadingOut
+                if (isSleepTimerPause) {
+                    startIdleTimer(IDLE_TIMEOUT_SLEEP, "sleep_timer")
+                } else {
+                    startIdleTimer(IDLE_TIMEOUT_SHORT, "paused")
+                }
             }
         }
 

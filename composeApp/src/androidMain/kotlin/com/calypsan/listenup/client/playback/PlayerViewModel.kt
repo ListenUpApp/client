@@ -1,6 +1,5 @@
 package com.calypsan.listenup.client.playback
 
-import android.content.ComponentName
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -10,11 +9,8 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
-import androidx.media3.session.SessionToken
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
-import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.MoreExecutors
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -31,24 +27,32 @@ private const val TAG = "PlayerVM"
  * ViewModel for playback UI.
  *
  * Responsibilities:
- * - Connects to MediaController (from PlaybackService)
+ * - Uses shared MediaControllerHolder for player connection
  * - Exposes playback state as flows for Compose
  * - Handles position updates using book-relative timeline
  * - Provides control actions
  */
 class PlayerViewModel(
     private val context: Context,
-    private val playbackManager: PlaybackManager
+    private val playbackManager: PlaybackManager,
+    private val mediaControllerHolder: MediaControllerHolder
 ) : ViewModel() {
 
-    private var controllerFuture: ListenableFuture<MediaController>? = null
-    private var mediaController: MediaController? = null
     private var positionUpdateJob: Job? = null
+    private var playerListener: Player.Listener? = null
 
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
     private var currentTimeline: PlaybackTimeline? = null
+
+    init {
+        // Acquire reference to shared controller
+        mediaControllerHolder.acquire()
+    }
+
+    private val mediaController: MediaController?
+        get() = mediaControllerHolder.controller
 
     /**
      * Start playback of a book.
@@ -82,17 +86,16 @@ class PlayerViewModel(
     }
 
     private fun connectAndPlay(prepareResult: PlaybackManager.PrepareResult) {
-        val sessionToken = SessionToken(
-            context,
-            ComponentName(context, PlaybackService::class.java)
-        )
-
-        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
-        controllerFuture?.addListener({
+        // Use shared controller - wait for it to be available
+        mediaControllerHolder.withController { controller ->
             try {
-                val controller = controllerFuture?.get() ?: return@addListener
-                mediaController = controller
-                controller.addListener(PlayerListener())
+                // Remove old listener if any
+                playerListener?.let { controller.removeListener(it) }
+
+                // Add our listener
+                val listener = PlayerListener()
+                playerListener = listener
+                controller.addListener(listener)
 
                 // Build media items from timeline
                 Log.d(TAG, "Building ${prepareResult.timeline.files.size} media items")
@@ -118,12 +121,12 @@ class PlayerViewModel(
                 if (startPosition.mediaItemIndex < 0 || startPosition.mediaItemIndex >= mediaItems.size) {
                     Log.e(TAG, "⚠️ INVALID startPosition.mediaItemIndex: ${startPosition.mediaItemIndex}, mediaItems.size=${mediaItems.size}")
                     _state.value = _state.value.copy(isLoading = false, error = "Invalid start position")
-                    return@addListener
+                    return@withController
                 }
                 if (startPosition.positionInFileMs < 0) {
                     Log.e(TAG, "⚠️ INVALID startPosition.positionInFileMs: ${startPosition.positionInFileMs}")
                     _state.value = _state.value.copy(isLoading = false, error = "Invalid start position")
-                    return@addListener
+                    return@withController
                 }
 
                 // setMediaItems with startIndex and startPosition to seek atomically
@@ -147,13 +150,13 @@ class PlayerViewModel(
                 logger.info { "Playback started for: ${prepareResult.bookTitle}" }
 
             } catch (e: Exception) {
-                logger.error(e) { "Failed to connect to MediaController" }
+                logger.error(e) { "Failed to start playback" }
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = "Failed to start playback"
                 )
             }
-        }, MoreExecutors.directExecutor())
+        }
     }
 
     /**
@@ -326,8 +329,15 @@ class PlayerViewModel(
     override fun onCleared() {
         super.onCleared()
         positionUpdateJob?.cancel()
-        mediaController?.release()
-        controllerFuture?.let { MediaController.releaseFuture(it) }
+
+        // Remove our listener from the shared controller
+        playerListener?.let { listener ->
+            mediaController?.removeListener(listener)
+        }
+        playerListener = null
+
+        // Release our reference to the shared controller
+        mediaControllerHolder.release()
     }
 }
 

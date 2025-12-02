@@ -13,6 +13,11 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import kotlinx.serialization.Serializable
 
 /**
  * API client for sync endpoints.
@@ -194,4 +199,60 @@ class SyncApi(
             allItems
         }
     }
+
+    /**
+     * Submit listening events to the server.
+     *
+     * Events are batched and sent together. Server acknowledges each
+     * successfully processed event ID in the response.
+     *
+     * Endpoint: POST /api/v1/listening/events
+     * Auth: Required
+     *
+     * @param events List of listening events to submit
+     * @return Result containing acknowledged event IDs
+     */
+    suspend fun submitListeningEvents(events: List<ListeningEventRequest>): Result<ListeningEventsResponse> {
+        return suspendRunCatching {
+            val client = clientFactory.getClient()
+            val response: ApiResponse<ListeningEventsResponse> =
+                client.post("/api/v1/listening/events") {
+                    contentType(ContentType.Application.Json)
+                    setBody(ListeningEventsRequest(events = events))
+                }.body()
+            response.toResult().getOrThrow()
+        }
+    }
 }
+
+/**
+ * Request body for submitting listening events.
+ */
+@Serializable
+data class ListeningEventsRequest(
+    val events: List<ListeningEventRequest>
+)
+
+/**
+ * Single listening event to submit.
+ */
+@Serializable
+data class ListeningEventRequest(
+    val id: String,
+    val book_id: String,
+    val start_position_ms: Long,
+    val end_position_ms: Long,
+    val started_at: Long,
+    val ended_at: Long,
+    val playback_speed: Float,
+    val device_id: String
+)
+
+/**
+ * Response from listening events submission.
+ */
+@Serializable
+data class ListeningEventsResponse(
+    val acknowledged: List<String> = emptyList(),
+    val failed: List<String> = emptyList()
+)

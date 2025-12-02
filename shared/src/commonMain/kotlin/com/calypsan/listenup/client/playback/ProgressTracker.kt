@@ -2,12 +2,15 @@
 
 package com.calypsan.listenup.client.playback
 
+import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.PendingListeningEventDao
 import com.calypsan.listenup.client.data.local.db.PendingListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
+import com.calypsan.listenup.client.data.remote.ListeningEventRequest
+import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +19,8 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 private val logger = KotlinLogging.logger {}
+
+private const val MAX_SYNC_BATCH_SIZE = 50
 
 /**
  * Coordinates position persistence and event recording.
@@ -31,6 +36,7 @@ class ProgressTracker(
     private val positionDao: PlaybackPositionDao,
     private val eventDao: PendingListeningEventDao,
     private val downloadDao: DownloadDao,
+    private val syncApi: SyncApi,
     private val deviceId: String,
     private val scope: CoroutineScope
 ) {
@@ -89,8 +95,8 @@ class ProgressTracker(
                         eventDao.insert(event)
                         logger.debug { "Listening event queued: ${event.id}, duration=${durationMs}ms" }
 
-                        // TODO: Fire-and-forget sync attempt
-                        // trySyncEvents()
+                        // Fire-and-forget sync attempt
+                        trySyncEvents()
                     }
                 }
             }
@@ -188,4 +194,47 @@ class ProgressTracker(
      * Returns 1.0 if no active session.
      */
     fun getCurrentSpeed(): Float = currentSession?.playbackSpeed ?: 1.0f
+
+    /**
+     * Fire-and-forget sync of pending listening events.
+     * Called after recording new events; failures are silent (events stay queued).
+     */
+    private fun trySyncEvents() {
+        scope.launch {
+            try {
+                val pending = eventDao.getPending(MAX_SYNC_BATCH_SIZE)
+                if (pending.isEmpty()) return@launch
+
+                val requests = pending.map { event ->
+                    ListeningEventRequest(
+                        id = event.id,
+                        book_id = event.bookId.value,
+                        start_position_ms = event.startPositionMs,
+                        end_position_ms = event.endPositionMs,
+                        started_at = event.startedAt,
+                        ended_at = event.endedAt,
+                        playback_speed = event.playbackSpeed,
+                        device_id = event.deviceId
+                    )
+                }
+
+                when (val result = syncApi.submitListeningEvents(requests)) {
+                    is Result.Success -> {
+                        // Delete acknowledged events
+                        result.data.acknowledged.forEach { id ->
+                            eventDao.deleteById(id)
+                        }
+                        logger.debug { "Synced ${result.data.acknowledged.size} events" }
+                    }
+                    is Result.Failure -> {
+                        // Silent failure - events stay queued for next attempt
+                        logger.debug { "Event sync failed: ${result.exception.message}" }
+                    }
+                }
+            } catch (e: Exception) {
+                // Network errors, auth errors, etc. - events stay queued
+                logger.debug { "Event sync error: ${e.message}" }
+            }
+        }
+    }
 }
