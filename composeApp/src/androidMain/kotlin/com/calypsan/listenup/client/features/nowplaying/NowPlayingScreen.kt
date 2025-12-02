@@ -28,7 +28,6 @@ import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -109,7 +108,7 @@ fun NowPlayingScreen(
     onSkipForward: () -> Unit,
     onPreviousChapter: () -> Unit,
     onNextChapter: () -> Unit,
-    onSpeedChange: (Float) -> Unit,
+    onSpeedClick: () -> Unit,
     onChaptersClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     onGoToBook: () -> Unit,
@@ -283,7 +282,7 @@ fun NowPlayingScreen(
             SecondaryControls(
                 playbackSpeed = state.playbackSpeed,
                 sleepTimerState = sleepTimerState,
-                onSpeedChange = onSpeedChange,
+                onSpeedClick = onSpeedClick,
                 onChaptersClick = onChaptersClick,
                 onSleepTimerClick = onSleepTimerClick
             )
@@ -726,48 +725,23 @@ private fun MainControls(
 private fun SecondaryControls(
     playbackSpeed: Float,
     sleepTimerState: SleepTimerState,
-    onSpeedChange: (Float) -> Unit,
+    onSpeedClick: () -> Unit,
     onChaptersClick: () -> Unit,
     onSleepTimerClick: () -> Unit
 ) {
-    val speedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
-    var showSpeedMenu by remember { mutableStateOf(false) }
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        Box {
-            TextButton(onClick = { showSpeedMenu = true }) {
-                Text(
-                    text = "${playbackSpeed}x",
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
-            DropdownMenu(
-                expanded = showSpeedMenu,
-                onDismissRequest = { showSpeedMenu = false }
-            ) {
-                speedOptions.forEach { speed ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = "${speed}x",
-                                fontWeight = if (speed == playbackSpeed) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        onClick = {
-                            onSpeedChange(speed)
-                            showSpeedMenu = false
-                        },
-                        leadingIcon = if (speed == playbackSpeed) {
-                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                        } else null
-                    )
-                }
-            }
+        // Speed button - opens speed picker sheet
+        TextButton(onClick = onSpeedClick) {
+            Text(
+                text = PlaybackSpeedPresets.format(playbackSpeed),
+                style = MaterialTheme.typography.labelLarge
+            )
         }
 
+        // Chapters button
         TextButton(onClick = onChaptersClick) {
             Icon(
                 Icons.AutoMirrored.Filled.List,
@@ -781,6 +755,7 @@ private fun SecondaryControls(
             )
         }
 
+        // Sleep timer button
         SleepTimerButton(
             timerState = sleepTimerState,
             onClick = onSleepTimerClick

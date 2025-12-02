@@ -76,7 +76,7 @@ fun NowPlayingHost(
                 onSkipForward = { viewModel.skipForward() },
                 onPreviousChapter = viewModel::previousChapter,
                 onNextChapter = viewModel::nextChapter,
-                onSpeedChange = viewModel::setSpeed,
+                onSpeedClick = viewModel::showSpeedPicker,
                 onChaptersClick = viewModel::showChapterPicker,
                 onSleepTimerClick = viewModel::showSleepTimer,
                 onGoToBook = {
@@ -166,6 +166,13 @@ fun NowPlayingHost(
             )
         }
 
-        // TODO: Speed picker sheet (Phase 2D)
+        // Speed picker sheet
+        if (state.showSpeedPicker) {
+            PlaybackSpeedSheet(
+                currentSpeed = state.playbackSpeed,
+                onSpeedChange = viewModel::setSpeed,
+                onDismiss = viewModel::hideSpeedPicker
+            )
+        }
     }
 }
