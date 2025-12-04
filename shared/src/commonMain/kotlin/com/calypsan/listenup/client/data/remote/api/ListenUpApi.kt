@@ -6,6 +6,7 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
+import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.domain.model.Instance
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.*
@@ -99,6 +100,31 @@ class ListenUpApi(
         logger.debug { "Received response: success=${response.success}" }
 
         // Convert API response to Result and extract data
+        when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exception
+        }
+    }
+
+    /**
+     * Fetch books the user is currently listening to.
+     *
+     * This is an authenticated endpoint - requires valid access token.
+     * Returns playback progress for books sorted by last played time.
+     *
+     * @param limit Maximum number of books to return (default 10)
+     * @return Result containing list of PlaybackProgressResponse on success
+     */
+    suspend fun getContinueListening(limit: Int = 10): Result<List<PlaybackProgressResponse>> = suspendRunCatching {
+        logger.debug { "Fetching continue listening from $baseUrl/api/v1/listening/continue" }
+
+        val client = getAuthenticatedClient()
+        val response: ApiResponse<List<PlaybackProgressResponse>> = client.get("/api/v1/listening/continue") {
+            parameter("limit", limit)
+        }.body()
+
+        logger.debug { "Received continue listening response: success=${response.success}" }
+
         when (val result = response.toResult()) {
             is Success -> result.data
             is Failure -> throw result.exception

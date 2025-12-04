@@ -140,7 +140,11 @@ fun AppShell(
         // Content based on current destination
         when (currentDestination) {
             ShellDestination.Home -> {
-                HomeScreen(modifier = Modifier.padding(padding))
+                HomeScreen(
+                    onBookClick = onBookClick,
+                    onNavigateToLibrary = { onDestinationChange(ShellDestination.Library) },
+                    modifier = Modifier.padding(padding)
+                )
             }
             ShellDestination.Library -> {
                 LibraryScreen(

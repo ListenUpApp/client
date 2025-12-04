@@ -1,63 +1,80 @@
 package com.calypsan.listenup.client.features.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.calypsan.listenup.client.features.home.components.ContinueListeningRow
+import com.calypsan.listenup.client.features.home.components.EmptyContinueListening
+import com.calypsan.listenup.client.features.home.components.HomeHeader
+import com.calypsan.listenup.client.presentation.home.HomeViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Home screen - personal landing page.
+ * Home screen - personalized landing page.
  *
- * Future features:
- * - Continue listening section
- * - Up next queue
- * - User's lenses/lists
- * - Listening stats
+ * Features:
+ * - Time-aware greeting (Good morning/afternoon/evening/night)
+ * - Continue Listening section with in-progress audiobooks
+ * - Pull-to-refresh to reload data
+ * - Empty state with link to browse library
+ *
+ * @param onBookClick Callback when a book is clicked
+ * @param onNavigateToLibrary Callback to navigate to the library
+ * @param modifier Modifier from parent
+ * @param viewModel HomeViewModel injected via Koin
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier
+    onBookClick: (String) -> Unit,
+    onNavigateToLibrary: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: HomeViewModel = koinViewModel()
 ) {
-    Box(
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    PullToRefreshBox(
+        isRefreshing = state.isLoading,
+        onRefresh = { viewModel.refresh() },
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow),
-        contentAlignment = Alignment.Center
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
         ) {
-            Icon(
-                imageVector = Icons.Filled.Home,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-            )
-            Text(
-                text = "Home",
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Text(
-                text = "Continue listening, up next, and listening stats",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 48.dp)
-            )
+            // Greeting header
+            HomeHeader(greeting = state.greeting)
+
+            // Continue Listening section or empty state
+            if (state.hasContinueListening) {
+                ContinueListeningRow(
+                    books = state.continueListening,
+                    onBookClick = onBookClick
+                )
+            } else if (!state.isLoading) {
+                EmptyContinueListening(
+                    onBrowseLibrary = onNavigateToLibrary
+                )
+            }
+
+            // Bottom spacing
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

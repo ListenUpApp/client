@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.features.library
+package com.calypsan.listenup.client.features.home.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -9,9 +9,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material3.Icon
@@ -32,23 +32,26 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.design.components.BookProgressBar
+import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import java.io.File
 
 /**
- * Floating book card with editorial design.
+ * Card for a book in the Continue Listening section.
  *
- * Design philosophy: Cover art is the hero. No container boxing.
- * A soft glow radiates from behind, creating depth without harsh shadows.
- * Press interaction uses scale animation for tactile feedback.
+ * Features:
+ * - Floating cover art with shadow
+ * - Progress bar showing listening progress
+ * - Time remaining indicator
+ * - Press-to-scale animation
  *
- * @param book The book to display
+ * @param book The continue listening book to display
  * @param onClick Callback when card is clicked
- * @param modifier Optional modifier for the card
+ * @param modifier Optional modifier
  */
 @Composable
-fun BookCard(
-    book: Book,
+fun ContinueListeningCard(
+    book: ContinueListeningBook,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -61,6 +64,7 @@ fun BookCard(
 
     Column(
         modifier = modifier
+            .width(140.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -71,22 +75,29 @@ fun BookCard(
                 onClick = onClick
             )
     ) {
-        // Cover with glow
-        CoverWithGlow(
+        // Cover with shadow
+        CoverWithShadow(
             coverPath = book.coverPath,
             contentDescription = book.title,
             modifier = Modifier
-                .fillMaxWidth()
                 .aspectRatio(1f)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Progress bar
+        BookProgressBar(
+            progress = book.progress,
+            modifier = Modifier.padding(horizontal = 2.dp)
         )
 
         Spacer(modifier = Modifier.height(6.dp))
 
         // Metadata
-        Column(modifier = Modifier.padding(horizontal = 4.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 2.dp)) {
             Text(
                 text = book.title,
-                style = MaterialTheme.typography.titleMedium.copy(
+                style = MaterialTheme.typography.titleSmall.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.2).sp
                 ),
@@ -103,10 +114,12 @@ fun BookCard(
                 overflow = TextOverflow.Ellipsis
             )
 
+            Spacer(modifier = Modifier.height(2.dp))
+
             Text(
-                text = book.formatDuration(),
+                text = book.timeRemainingFormatted,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
             )
         }
     }
@@ -114,11 +127,9 @@ fun BookCard(
 
 /**
  * Cover art with shadow for depth.
- *
- * Uses standard elevation shadow to lift the cover off the surface.
  */
 @Composable
-private fun CoverWithGlow(
+private fun CoverWithShadow(
     coverPath: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier
@@ -162,7 +173,7 @@ private fun CoverWithGlow(
                     imageVector = Icons.Default.Book,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(32.dp)
+                    modifier = Modifier.padding(24.dp)
                 )
             }
         }

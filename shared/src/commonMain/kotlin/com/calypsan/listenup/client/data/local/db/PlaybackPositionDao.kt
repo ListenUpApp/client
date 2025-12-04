@@ -73,4 +73,14 @@ interface PlaybackPositionDao {
      */
     @Query("DELETE FROM playback_positions")
     suspend fun deleteAll()
+
+    /**
+     * Get recently played books for "Continue Listening" section.
+     * Returns positions ordered by most recently updated, limited to specified count.
+     *
+     * @param limit Maximum number of positions to return
+     * @return List of positions ordered by updatedAt descending
+     */
+    @Query("SELECT * FROM playback_positions ORDER BY updatedAt DESC LIMIT :limit")
+    suspend fun getRecentPositions(limit: Int): List<PlaybackPositionEntity>
 }

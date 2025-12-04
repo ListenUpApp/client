@@ -9,6 +9,7 @@ import com.calypsan.listenup.client.data.remote.ImageApi
 import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
 import com.calypsan.listenup.client.data.repository.BookRepository
+import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.ImageDownloader
@@ -177,6 +178,11 @@ val presentationModule = module {
             imageStorage = get()
         )
     }
+    factory {
+        com.calypsan.listenup.client.presentation.home.HomeViewModel(
+            homeRepository = get()
+        )
+    }
 }
 
 /**
@@ -246,6 +252,15 @@ val syncModule = module {
             chapterDao = get(),
             syncManager = get(),
             imageStorage = get()
+        )
+    }
+
+    // HomeRepository for Home screen data (local-first)
+    single {
+        HomeRepository(
+            bookRepository = get(),
+            playbackPositionDao = get(),
+            userDao = get()
         )
     }
 }
