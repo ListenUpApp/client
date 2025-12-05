@@ -18,6 +18,13 @@ interface BookContributorDao {
     @Query("DELETE FROM book_contributors WHERE bookId = :bookId")
     suspend fun deleteContributorsForBook(bookId: BookId)
 
+    /**
+     * Delete all contributor relationships for multiple books in a single operation.
+     * Used by sync to batch-delete before re-inserting updated relationships.
+     */
+    @Query("DELETE FROM book_contributors WHERE bookId IN (:bookIds)")
+    suspend fun deleteContributorsForBooks(bookIds: List<BookId>)
+
     @RewriteQueriesToDropUnusedColumns
     @Transaction
     @Query("""

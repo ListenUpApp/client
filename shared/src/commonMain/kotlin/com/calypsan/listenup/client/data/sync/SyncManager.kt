@@ -41,6 +41,7 @@ private val logger = KotlinLogging.logger {}
  * - Pull changes from server (delta sync)
  * - Merge into local database (detect conflicts)
  * - Download cover images for books
+ * - Rebuild FTS tables for offline search
  * - Push local changes to server (future)
  * - Handle real-time SSE events for live updates
  * - Expose sync state to UI with progress reporting
@@ -50,7 +51,8 @@ private val logger = KotlinLogging.logger {}
  * 2. Upsert into Room database (conflict detection on serverVersion)
  * 3. Download cover images for new/updated books
  * 4. Update last sync timestamp
- * 5. Listen for SSE events and apply updates in real-time
+ * 5. Rebuild FTS tables for offline search
+ * 6. Listen for SSE events and apply updates in real-time
  *
  * Reliability features:
  * - Retry with exponential backoff on transient failures
@@ -63,6 +65,7 @@ private val logger = KotlinLogging.logger {}
  * @property syncDao Room DAO for sync metadata
  * @property imageDownloader Downloads and caches book cover images
  * @property sseManager Handles real-time Server-Sent Events
+ * @property ftsPopulator Populates FTS5 tables for offline search
  */
 class SyncManager(
     private val syncApi: SyncApi,
@@ -75,6 +78,7 @@ class SyncManager(
     private val imageDownloader: ImageDownloader,
     private val sseManager: SSEManager,
     private val settingsRepository: SettingsRepository,
+    private val ftsPopulator: FtsPopulator,
     /**
      * Application-scoped CoroutineScope for background tasks.
      *
@@ -144,7 +148,15 @@ class SyncManager(
             val now = Timestamp.now()
             syncDao.setLastSyncTime(now)
 
-            // Step 4: Connect to SSE stream for real-time updates (if not already connected)
+            // Step 4: Rebuild FTS tables for offline search
+            try {
+                ftsPopulator.rebuildAll()
+            } catch (e: Exception) {
+                // FTS rebuild failure is non-fatal - offline search may be stale but app works
+                logger.warn(e) { "FTS rebuild failed, offline search may be incomplete" }
+            }
+
+            // Step 5: Connect to SSE stream for real-time updates (if not already connected)
             sseManager.connect()
 
             logger.info { "Sync completed successfully" }
@@ -324,7 +336,6 @@ class SyncManager(
         val chaptersToUpsert = response.books
             .filter { bookResponse -> booksToUpsert.any { it.id.value == bookResponse.id } }
             .flatMap { bookResponse ->
-                logger.debug { "Book ${bookResponse.id} has ${bookResponse.chapters.size} chapters from server" }
                 bookResponse.chapters.mapIndexed { index, chapter ->
                     chapter.toEntity(BookId(bookResponse.id), index)
                 }

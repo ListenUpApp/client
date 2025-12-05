@@ -15,6 +15,8 @@ import androidx.room.TypeConverters
  * - v1: Initial schema with UserEntity only
  * - v2: Added BookEntity and SyncMetadataEntity for sync support
  * - v3: Added ChapterEntity
+ * - v8: Added subtitle column to books table
+ * - v9: Added FTS5 tables for full-text search (books_fts, contributors_fts, series_fts)
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -32,7 +34,7 @@ import androidx.room.TypeConverters
         PendingListeningEventEntity::class,
         DownloadEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -48,6 +50,7 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun playbackPositionDao(): PlaybackPositionDao
     abstract fun pendingListeningEventDao(): PendingListeningEventDao
     abstract fun downloadDao(): DownloadDao
+    abstract fun searchDao(): SearchDao
 }
 
 /**

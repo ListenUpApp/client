@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.model.BookDownloadStatus
+import com.calypsan.listenup.client.design.components.GenreChipRow
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.domain.model.Contributor
@@ -186,6 +187,7 @@ fun BookDetailScreen(
             onDismiss = { showDeleteDialog = false }
         )
     }
+
 }
 
 @Composable
@@ -264,6 +266,19 @@ fun BookDetailContent(
                         color = MaterialTheme.colorScheme.secondary
                     )
                 }
+            }
+        }
+
+        // Genre Chips
+        if (state.genresList.isNotEmpty()) {
+            item {
+                GenreChipRow(
+                    genres = state.genresList,
+                    onGenreClick = null, // TODO: Navigate to genre browse
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                )
             }
         }
 
@@ -412,11 +427,6 @@ fun BookDetailContent(
                     }
                 }
 
-                // Genres (not clickable)
-                state.genres.takeIf { it.isNotBlank() }?.let { genres ->
-                    MetadataRow("Genres", genres)
-                }
-
                 // Year (not clickable)
                 state.year?.takeIf { it > 0 }?.let { year ->
                     MetadataRow("Year", year.toString())
@@ -446,6 +456,16 @@ fun BookDetailContent(
                         Text(if (isDescriptionExpanded) "Read less" else "Read more")
                     }
                 }
+            }
+        }
+
+        // Tags Section (read-only display)
+        if (state.tags.isNotEmpty()) {
+            item {
+                TagsSection(
+                    tags = state.tags,
+                    isLoading = state.isLoadingTags
+                )
             }
         }
 

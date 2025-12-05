@@ -1,6 +1,8 @@
 package com.calypsan.listenup.client.features.shell
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -25,10 +27,15 @@ import com.calypsan.listenup.client.data.sync.SyncStatus
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
+import com.calypsan.listenup.client.features.search.SearchResultsOverlay
 import com.calypsan.listenup.client.features.shell.components.AppNavigationBar
 import com.calypsan.listenup.client.features.shell.components.AppTopBar
+import com.calypsan.listenup.client.presentation.search.SearchNavAction
+import com.calypsan.listenup.client.presentation.search.SearchUiEvent
+import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Main app shell providing persistent navigation frame.
@@ -61,6 +68,7 @@ fun AppShell(
     val userDao: UserDao = koinInject()
     val settingsRepository: SettingsRepository = koinInject()
     val syncDao: SyncDao = koinInject()
+    val searchViewModel: SearchViewModel = koinViewModel()
 
     // Trigger sync on shell entry (not just when Library is visible)
     LaunchedEffect(Unit) {
@@ -74,10 +82,29 @@ fun AppShell(
     // Collect reactive state
     val syncState by syncManager.syncState.collectAsStateWithLifecycle()
     val user by userDao.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
+    val searchState by searchViewModel.state.collectAsStateWithLifecycle()
+    val searchNavAction by searchViewModel.navActions.collectAsStateWithLifecycle()
+
+    // Handle search navigation
+    LaunchedEffect(searchNavAction) {
+        when (val action = searchNavAction) {
+            is SearchNavAction.NavigateToBook -> {
+                onBookClick(action.bookId)
+                searchViewModel.clearNavAction()
+            }
+            is SearchNavAction.NavigateToContributor -> {
+                onContributorClick(action.contributorId)
+                searchViewModel.clearNavAction()
+            }
+            is SearchNavAction.NavigateToSeries -> {
+                onSeriesClick(action.seriesId)
+                searchViewModel.clearNavAction()
+            }
+            null -> {}
+        }
+    }
 
     // Local UI state
-    var isSearchExpanded by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
     var isAvatarMenuExpanded by remember { mutableStateOf(false) }
 
     // Sign out handler
@@ -111,10 +138,18 @@ fun AppShell(
                 currentDestination = currentDestination,
                 syncState = syncState,
                 user = user,
-                isSearchExpanded = isSearchExpanded,
-                searchQuery = searchQuery,
-                onSearchExpandedChange = { isSearchExpanded = it },
-                onSearchQueryChange = { searchQuery = it },
+                isSearchExpanded = searchState.isExpanded,
+                searchQuery = searchState.query,
+                onSearchExpandedChange = { expanded ->
+                    if (expanded) {
+                        searchViewModel.onEvent(SearchUiEvent.ExpandSearch)
+                    } else {
+                        searchViewModel.onEvent(SearchUiEvent.CollapseSearch)
+                    }
+                },
+                onSearchQueryChange = { query ->
+                    searchViewModel.onEvent(SearchUiEvent.QueryChanged(query))
+                },
                 isAvatarMenuExpanded = isAvatarMenuExpanded,
                 onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
                 onSettingsClick = { /* TODO: Navigate to settings */ },
@@ -137,28 +172,44 @@ fun AppShell(
             }
         }
     ) { padding ->
-        // Content based on current destination
-        when (currentDestination) {
-            ShellDestination.Home -> {
-                HomeScreen(
-                    onBookClick = onBookClick,
-                    onNavigateToLibrary = { onDestinationChange(ShellDestination.Library) },
-                    modifier = Modifier.padding(padding)
-                )
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Content based on current destination
+            when (currentDestination) {
+                ShellDestination.Home -> {
+                    HomeScreen(
+                        onBookClick = onBookClick,
+                        onNavigateToLibrary = { onDestinationChange(ShellDestination.Library) },
+                        modifier = Modifier.padding(padding)
+                    )
+                }
+                ShellDestination.Library -> {
+                    LibraryScreen(
+                        onBookClick = onBookClick,
+                        onSeriesClick = onSeriesClick,
+                        onAuthorClick = onContributorClick,
+                        onNarratorClick = onContributorClick,
+                        topBarCollapseFraction = topBarCollapseFraction,
+                        modifier = Modifier.padding(padding)
+                    )
+                }
+                ShellDestination.Discover -> {
+                    DiscoverScreen(modifier = Modifier.padding(padding))
+                }
             }
-            ShellDestination.Library -> {
-                LibraryScreen(
-                    onBookClick = onBookClick,
-                    onSeriesClick = onSeriesClick,
-                    onAuthorClick = onContributorClick,
-                    onNarratorClick = onContributorClick,
-                    topBarCollapseFraction = topBarCollapseFraction,
-                    modifier = Modifier.padding(padding)
-                )
-            }
-            ShellDestination.Discover -> {
-                DiscoverScreen(modifier = Modifier.padding(padding))
-            }
+
+            // Search results overlay (floats above content when search is active)
+            SearchResultsOverlay(
+                state = searchState,
+                onResultClick = { hit ->
+                    searchViewModel.onEvent(SearchUiEvent.ResultClicked(hit))
+                },
+                onTypeFilterToggle = { type ->
+                    searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            )
         }
     }
 }

@@ -187,3 +187,53 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         """.trimIndent())
     }
 }
+
+/**
+ * Migration from version 8 to version 9.
+ *
+ * Changes:
+ * - Add FTS5 virtual tables for full-text search
+ * - books_fts, contributors_fts, series_fts
+ *
+ * Note: Using FTS5 for better ranking (bm25) and modern features.
+ * Tables are standalone (not external content) for simpler sync.
+ * Porter tokenizer enables stemming (e.g., "running" matches "run").
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(connection: SQLiteConnection) {
+        // Create books FTS5 table
+        connection.execSQL("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS books_fts USING fts5(
+                bookId,
+                title,
+                subtitle,
+                description,
+                author,
+                narrator,
+                seriesName,
+                genres,
+                tokenize='porter'
+            )
+        """.trimIndent())
+
+        // Create contributors FTS5 table
+        connection.execSQL("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS contributors_fts USING fts5(
+                contributorId,
+                name,
+                description,
+                tokenize='porter'
+            )
+        """.trimIndent())
+
+        // Create series FTS5 table
+        connection.execSQL("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS series_fts USING fts5(
+                seriesId,
+                name,
+                description,
+                tokenize='porter'
+            )
+        """.trimIndent())
+    }
+}

@@ -2,18 +2,22 @@ package com.calypsan.listenup.client.presentation.book_detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.data.remote.TagApi
 import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.Tag
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
  * ViewModel for the Book Detail screen.
  */
 class BookDetailViewModel(
-    private val bookRepository: BookRepository
+    private val bookRepository: BookRepository,
+    private val tagApi: TagApi
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BookDetailUiState())
@@ -43,6 +47,13 @@ class BookDetailViewModel(
                     }
                 }
 
+                // Parse comma-separated genres into list for chip display
+                val genresList = book.genres
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotBlank() }
+                    ?: emptyList()
+
                 _state.value = BookDetailUiState(
                     isLoading = false,
                     book = book,
@@ -51,15 +62,104 @@ class BookDetailViewModel(
                     description = book.description ?: "",
                     narrators = book.narratorNames,
                     genres = book.genres ?: "",
+                    genresList = genresList,
                     year = book.publishYear,
                     rating = book.rating,
                     chapters = chapters
                 )
+
+                // Load tags for this book (non-blocking, optional feature)
+                loadTags(bookId)
             } else {
                 _state.value = BookDetailUiState(
                     isLoading = false,
                     error = "Book not found"
                 )
+            }
+        }
+    }
+
+    /**
+     * Load tags for the current book.
+     * Tags are optional - failures don't affect the main screen.
+     */
+    private fun loadTags(bookId: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoadingTags = true) }
+            try {
+                val bookTags = tagApi.getBookTags(bookId)
+                val allTags = tagApi.getUserTags()
+                _state.update {
+                    it.copy(
+                        tags = bookTags,
+                        allUserTags = allTags,
+                        isLoadingTags = false
+                    )
+                }
+            } catch (e: Exception) {
+                // Tags are optional - don't fail the whole screen
+                _state.update { it.copy(isLoadingTags = false) }
+            }
+        }
+    }
+
+    /**
+     * Show the tag picker sheet.
+     */
+    fun showTagPicker() {
+        _state.update { it.copy(showTagPicker = true) }
+    }
+
+    /**
+     * Hide the tag picker sheet.
+     */
+    fun hideTagPicker() {
+        _state.update { it.copy(showTagPicker = false) }
+    }
+
+    /**
+     * Add a tag to the current book.
+     */
+    fun addTag(tagId: String) {
+        val bookId = _state.value.book?.id?.value ?: return
+        viewModelScope.launch {
+            try {
+                tagApi.addTagToBook(bookId, tagId)
+                loadTags(bookId) // Refresh
+            } catch (e: Exception) {
+                // TODO: Show error to user
+            }
+        }
+    }
+
+    /**
+     * Remove a tag from the current book.
+     */
+    fun removeTag(tagId: String) {
+        val bookId = _state.value.book?.id?.value ?: return
+        viewModelScope.launch {
+            try {
+                tagApi.removeTagFromBook(bookId, tagId)
+                loadTags(bookId) // Refresh
+            } catch (e: Exception) {
+                // TODO: Show error to user
+            }
+        }
+    }
+
+    /**
+     * Create a new tag and add it to the current book.
+     */
+    fun createAndAddTag(name: String) {
+        val bookId = _state.value.book?.id?.value ?: return
+        viewModelScope.launch {
+            try {
+                val newTag = tagApi.createTag(name)
+                tagApi.addTagToBook(bookId, newTag.id)
+                loadTags(bookId) // Refresh
+                hideTagPicker()
+            } catch (e: Exception) {
+                // TODO: Show error to user
             }
         }
     }
@@ -76,9 +176,16 @@ data class BookDetailUiState(
     val description: String = "",
     val narrators: String = "",
     val genres: String = "",
+    val genresList: List<String> = emptyList(),
     val year: Int? = null,
     val rating: Double? = null,
-    val chapters: List<ChapterUiModel> = emptyList()
+    val chapters: List<ChapterUiModel> = emptyList(),
+
+    // Tags
+    val tags: List<Tag> = emptyList(),
+    val allUserTags: List<Tag> = emptyList(),
+    val isLoadingTags: Boolean = false,
+    val showTagPicker: Boolean = false
 )
 
 data class ChapterUiModel(

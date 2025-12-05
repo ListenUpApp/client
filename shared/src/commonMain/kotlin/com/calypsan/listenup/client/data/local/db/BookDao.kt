@@ -49,6 +49,15 @@ interface BookDao {
     suspend fun getById(id: BookId): BookEntity?
 
     /**
+     * Get all books synchronously.
+     * Used by FtsPopulator to populate FTS tables during sync.
+     *
+     * @return List of all books
+     */
+    @Query("SELECT * FROM books")
+    suspend fun getAll(): List<BookEntity>
+
+    /**
      * Observe all books as a reactive Flow.
      * Emits new list whenever any book changes.
      *
