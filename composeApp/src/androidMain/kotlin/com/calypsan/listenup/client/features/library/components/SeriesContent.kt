@@ -8,9 +8,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material3.Icon
@@ -52,7 +53,7 @@ fun SeriesContent(
         if (series.isEmpty()) {
             SeriesEmptyState()
         } else {
-            val listState = rememberLazyListState()
+            val gridState = rememberLazyGridState()
             val scope = rememberCoroutineScope()
 
             val alphabetIndex = remember(series) {
@@ -60,17 +61,19 @@ fun SeriesContent(
             }
 
             val isScrolling by remember {
-                derivedStateOf { listState.isScrollInProgress }
+                derivedStateOf { gridState.isScrollInProgress }
             }
 
-            LazyColumn(
-                state = listState,
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Adaptive(minSize = 200.dp),
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
                     top = 16.dp,
                     bottom = 16.dp + MiniPlayerReservedHeight
                 ),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -89,7 +92,7 @@ fun SeriesContent(
                 alphabetIndex = alphabetIndex,
                 onLetterSelected = { index ->
                     scope.launch {
-                        listState.animateScrollToItem(index)
+                        gridState.animateScrollToItem(index)
                     }
                 },
                 isScrolling = isScrolling,

@@ -1,8 +1,14 @@
 package com.calypsan.listenup.client.features.book_detail
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
@@ -12,7 +18,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -101,6 +109,79 @@ fun DownloadButton(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Expanded download button with text label for wider layouts.
+ */
+@Composable
+fun DownloadButtonExpanded(
+    status: BookDownloadStatus,
+    onDownloadClick: () -> Unit,
+    onCancelClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val progressPercent = (status.progress * 100).toInt()
+
+    OutlinedButton(
+        onClick = when (status.state) {
+            BookDownloadState.NOT_DOWNLOADED -> onDownloadClick
+            BookDownloadState.QUEUED, BookDownloadState.DOWNLOADING -> onCancelClick
+            BookDownloadState.COMPLETED -> onDeleteClick
+            BookDownloadState.PARTIAL, BookDownloadState.FAILED -> onDownloadClick
+        },
+        modifier = modifier
+            .fillMaxWidth()
+            .height(52.dp),
+        shape = RoundedCornerShape(26.dp)
+    ) {
+        when (status.state) {
+            BookDownloadState.NOT_DOWNLOADED -> {
+                Icon(Icons.Outlined.Download, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Download")
+            }
+
+            BookDownloadState.QUEUED -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Queued...")
+            }
+
+            BookDownloadState.DOWNLOADING -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        progress = { status.progress },
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("${progressPercent}%")
+                }
+            }
+
+            BookDownloadState.COMPLETED -> {
+                Icon(Icons.Outlined.Delete, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Downloaded")
+            }
+
+            BookDownloadState.PARTIAL,
+            BookDownloadState.FAILED -> {
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Retry", color = MaterialTheme.colorScheme.error)
             }
         }
     }

@@ -177,33 +177,37 @@ class SettingsRepository(
      * Initialize authentication state on app startup.
      * Call this once during app initialization to derive auth state from stored data.
      *
-     * State derivation logic:
+     * State derivation logic (offline-first):
      * ```
      * No URL               → NeedsServerUrl
-     * URL + Token          → Authenticated (optimistic, skip network check)
-     * URL + No Token       → CheckingServer → check instance.setupRequired
-     *   ├─ setup_required=true  → NeedsSetup
-     *   ├─ setup_required=false → NeedsLogin
-     *   └─ Network failure      → clear URL → NeedsServerUrl
+     * URL + Token          → Authenticated (trust local tokens)
+     * URL + No Token       → NeedsLogin (don't check network on startup)
      * ```
+     *
+     * We deliberately skip network checks on startup. If tokens are invalid,
+     * they'll fail when used and trigger re-auth via 401 handling.
+     * This ensures the app works offline with cached data.
      */
     suspend fun initializeAuthState() {
         _authState.value = deriveAuthState()
     }
 
     /**
-     * Derives the current authentication state based on stored data and server status.
-     * Internal method called by initializeAuthState() and after state-changing operations.
+     * Derives the current authentication state based on stored data.
+     *
+     * Offline-first: We never make network calls during state derivation.
+     * If tokens exist, we trust them. If they're invalid, API calls will
+     * fail with 401 and trigger re-auth at that point.
      */
     private suspend fun deriveAuthState(): AuthState {
         val serverUrl = getServerUrl()
 
-        // No URL configured
+        // No URL configured → need server setup
         if (serverUrl == null) {
             return AuthState.NeedsServerUrl
         }
 
-        // URL + Token = Authenticated (optimistic)
+        // URL + Token = Authenticated (trust local state)
         val hasToken = getAccessToken() != null
         val userId = getUserId()
         val sessionId = getSessionId()
@@ -212,54 +216,66 @@ class SettingsRepository(
             return AuthState.Authenticated(userId, sessionId)
         }
 
-        // URL but no token → check server status
-        return checkServerStatus()
+        // URL + Token but missing userId/sessionId → still trust it
+        // This handles edge cases where session data wasn't fully persisted
+        if (hasToken) {
+            // Use placeholder values - will be refreshed on first successful API call
+            return AuthState.Authenticated(
+                userId = userId ?: "pending",
+                sessionId = sessionId ?: "pending"
+            )
+        }
+
+        // URL but no token → user needs to log in
+        // Don't check server status - that's a network call
+        return AuthState.NeedsLogin
     }
 
     /**
      * Checks the server's instance status to determine if setup is required.
      * Returns NeedsSetup if server has no root user, NeedsLogin otherwise.
-     * On network failure, clears the URL and returns NeedsServerUrl.
+     *
+     * Note: This is only called explicitly (e.g., from login screen), never on startup.
+     * On network failure, we stay in NeedsLogin - the server URL is never cleared
+     * automatically. Users must explicitly change servers via settings.
      */
-    private suspend fun checkServerStatus(): AuthState {
-        // Emit checking state
+    suspend fun checkServerStatus(): AuthState {
         _authState.value = AuthState.CheckingServer
 
         return when (val result = instanceRepository.getInstance(forceRefresh = true)) {
             is Result.Success -> {
-                if (result.data.setupRequired) {
+                val newState = if (result.data.setupRequired) {
                     AuthState.NeedsSetup
                 } else {
                     AuthState.NeedsLogin
                 }
+                _authState.value = newState
+                newState
             }
             is Result.Failure -> {
-                // Server unreachable → clear URL and restart flow
-                clearServerUrl()
-                AuthState.NeedsServerUrl
+                // Server unreachable - stay in NeedsLogin, don't clear URL
+                // User can retry or check their connection
+                _authState.value = AuthState.NeedsLogin
+                AuthState.NeedsLogin
             }
         }
     }
 
     /**
-     * Handle server unreachable error (e.g., connection refused).
+     * Explicitly disconnect from the current server.
      *
-     * Called when network operations fail with connection errors,
-     * indicating the server is not running or URL is incorrect.
+     * This clears the server URL and all auth data, returning to the
+     * initial server setup screen. Only call this when the user
+     * explicitly wants to change servers (e.g., from a "Change Server" button).
      *
-     * This clears the stored server URL and transitions to NeedsServerUrl
-     * state, allowing the user to re-enter/verify the server URL.
+     * For network errors, do NOT call this - let the user retry or work offline.
      */
-    suspend fun handleServerUnreachable() {
-        clearServerUrl()
-        _authState.value = AuthState.NeedsServerUrl
-    }
-
-    /**
-     * Clears the stored server URL.
-     * Used when server becomes unreachable to force user to re-validate connection.
-     */
-    private suspend fun clearServerUrl() {
+    suspend fun disconnectFromServer() {
         secureStorage.delete(KEY_SERVER_URL)
+        secureStorage.delete(KEY_ACCESS_TOKEN)
+        secureStorage.delete(KEY_REFRESH_TOKEN)
+        secureStorage.delete(KEY_SESSION_ID)
+        secureStorage.delete(KEY_USER_ID)
+        _authState.value = AuthState.NeedsServerUrl
     }
 }

@@ -170,10 +170,10 @@ class SyncManager(
             logger.error(e) { "Sync failed after retries" }
             _syncState.value = SyncStatus.Error(exception = e)
 
-            // Check if this is a connection error indicating server is unreachable
+            // Offline-first: Don't redirect to server setup on network errors.
+            // The user can continue using cached data. Sync will retry later.
             if (isServerUnreachableError(e)) {
-                logger.warn { "Server appears unreachable, redirecting to server setup" }
-                settingsRepository.handleServerUnreachable()
+                logger.warn { "Server unreachable - continuing with local data" }
             }
 
             Result.Failure(exception = e, message = "Sync failed: ${e.message}")

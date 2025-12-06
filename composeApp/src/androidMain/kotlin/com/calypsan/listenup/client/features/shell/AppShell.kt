@@ -2,11 +2,14 @@ package com.calypsan.listenup.client.features.shell
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -29,6 +32,8 @@ import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
 import com.calypsan.listenup.client.features.search.SearchResultsOverlay
 import com.calypsan.listenup.client.features.shell.components.AppNavigationBar
+import com.calypsan.listenup.client.features.shell.components.AppNavigationDrawer
+import com.calypsan.listenup.client.features.shell.components.AppNavigationRail
 import com.calypsan.listenup.client.features.shell.components.AppTopBar
 import com.calypsan.listenup.client.presentation.search.SearchNavAction
 import com.calypsan.listenup.client.presentation.search.SearchUiEvent
@@ -131,47 +136,48 @@ fun AppShell(
         }
     }
 
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            AppTopBar(
-                currentDestination = currentDestination,
-                syncState = syncState,
-                user = user,
-                isSearchExpanded = searchState.isExpanded,
-                searchQuery = searchState.query,
-                onSearchExpandedChange = { expanded ->
-                    if (expanded) {
-                        searchViewModel.onEvent(SearchUiEvent.ExpandSearch)
-                    } else {
-                        searchViewModel.onEvent(SearchUiEvent.CollapseSearch)
-                    }
-                },
-                onSearchQueryChange = { query ->
-                    searchViewModel.onEvent(SearchUiEvent.QueryChanged(query))
-                },
-                isAvatarMenuExpanded = isAvatarMenuExpanded,
-                onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
-                onSettingsClick = { /* TODO: Navigate to settings */ },
-                onSignOutClick = handleSignOut,
-                scrollBehavior = scrollBehavior
-            )
-        },
-        bottomBar = {
-            Column {
-                // TODO: NowPlayingBar will be inserted here
-                // It floats above the navigation bar when audio is playing
-                // Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                //     NowPlayingBar(...)
-                // }
+    // Get window size class for adaptive layout
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
 
-                AppNavigationBar(
-                    currentDestination = currentDestination,
-                    onDestinationSelected = onDestinationChange
-                )
-            }
-        }
-    ) { padding ->
+    // Determine layout based on width breakpoints
+    // Use 1000dp for expanded threshold to keep foldables (Pixel Fold ~930dp) on rail
+    val expandedThreshold = 1000
+    val isExpanded = windowSizeClass.isWidthAtLeastBreakpoint(expandedThreshold)
+    val isMedium = !isExpanded && windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
+    val isCompact = !isExpanded && !isMedium
+
+    // Determine if avatar should show in top bar (only on compact screens)
+    val showAvatarInTopBar = isCompact
+
+    // Common top bar configuration
+    val topBar: @Composable () -> Unit = {
+        AppTopBar(
+            currentDestination = currentDestination,
+            syncState = syncState,
+            user = user,
+            isSearchExpanded = searchState.isExpanded,
+            searchQuery = searchState.query,
+            onSearchExpandedChange = { expanded ->
+                if (expanded) {
+                    searchViewModel.onEvent(SearchUiEvent.ExpandSearch)
+                } else {
+                    searchViewModel.onEvent(SearchUiEvent.CollapseSearch)
+                }
+            },
+            onSearchQueryChange = { query ->
+                searchViewModel.onEvent(SearchUiEvent.QueryChanged(query))
+            },
+            isAvatarMenuExpanded = isAvatarMenuExpanded,
+            onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
+            onSettingsClick = { /* TODO: Navigate to settings */ },
+            onSignOutClick = handleSignOut,
+            scrollBehavior = scrollBehavior,
+            showAvatar = showAvatarInTopBar
+        )
+    }
+
+    // Common content configuration
+    val shellContent: @Composable (androidx.compose.foundation.layout.PaddingValues) -> Unit = { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             // Content based on current destination
             when (currentDestination) {
@@ -210,6 +216,68 @@ fun AppShell(
                     .fillMaxSize()
                     .padding(padding)
             )
+        }
+    }
+
+    // Adaptive layout based on window width
+    when {
+        isCompact -> {
+            // Phone layout: Bottom navigation
+            Scaffold(
+                modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+                topBar = topBar,
+                bottomBar = {
+                    Column {
+                        // TODO: NowPlayingBar will be inserted here
+                        AppNavigationBar(
+                            currentDestination = currentDestination,
+                            onDestinationSelected = onDestinationChange
+                        )
+                    }
+                },
+                content = shellContent
+            )
+        }
+
+        isMedium -> {
+            // Tablet portrait layout: Navigation rail on left
+            Row(modifier = Modifier.fillMaxSize()) {
+                AppNavigationRail(
+                    currentDestination = currentDestination,
+                    onDestinationSelected = onDestinationChange,
+                    user = user,
+                    isAvatarMenuExpanded = isAvatarMenuExpanded,
+                    onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
+                    onSettingsClick = { /* TODO: Navigate to settings */ },
+                    onSignOutClick = handleSignOut
+                )
+                Scaffold(
+                    modifier = Modifier
+                        .weight(1f)
+                        .nestedScroll(scrollBehavior.nestedScrollConnection),
+                    topBar = topBar,
+                    content = shellContent
+                )
+            }
+        }
+
+        else -> {
+            // Expanded layout (tablets landscape, desktop): Permanent navigation drawer
+            AppNavigationDrawer(
+                currentDestination = currentDestination,
+                onDestinationSelected = onDestinationChange,
+                user = user,
+                isAvatarMenuExpanded = isAvatarMenuExpanded,
+                onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
+                onSettingsClick = { /* TODO: Navigate to settings */ },
+                onSignOutClick = handleSignOut
+            ) {
+                Scaffold(
+                    modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+                    topBar = topBar,
+                    content = shellContent
+                )
+            }
         }
     }
 }
