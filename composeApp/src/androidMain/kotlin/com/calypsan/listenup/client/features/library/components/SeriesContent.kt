@@ -20,8 +20,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -29,7 +31,10 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.design.components.AlphabetIndex
 import com.calypsan.listenup.client.design.components.AlphabetScrollbar
+import com.calypsan.listenup.client.design.components.SortSplitButton
 import com.calypsan.listenup.client.features.nowplaying.MiniPlayerReservedHeight
+import com.calypsan.listenup.client.presentation.library.SortCategory
+import com.calypsan.listenup.client.presentation.library.SortState
 import kotlinx.coroutines.launch
 
 /**
@@ -40,12 +45,18 @@ import kotlinx.coroutines.launch
  * in the series, with the series name and book count below.
  *
  * @param series List of series with their books
+ * @param sortState Current sort state (category + direction)
+ * @param onCategorySelected Called when user selects a new category
+ * @param onDirectionToggle Called when user toggles sort direction
  * @param onSeriesClick Callback when a series is clicked (passes series ID)
  * @param modifier Optional modifier
  */
 @Composable
 fun SeriesContent(
     series: List<SeriesWithBooks>,
+    sortState: SortState,
+    onCategorySelected: (SortCategory) -> Unit,
+    onDirectionToggle: () -> Unit,
     onSeriesClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -56,12 +67,32 @@ fun SeriesContent(
             val gridState = rememberLazyGridState()
             val scope = rememberCoroutineScope()
 
-            val alphabetIndex = remember(series) {
-                AlphabetIndex.build(series) { it.series.name }
+            // Build alphabet index for name-based sort
+            val alphabetIndex = remember(series, sortState) {
+                if (sortState.category == SortCategory.NAME) {
+                    AlphabetIndex.build(series) { it.series.name }
+                } else {
+                    null
+                }
             }
 
             val isScrolling by remember {
                 derivedStateOf { gridState.isScrollInProgress }
+            }
+
+            // Track scroll direction for button visibility
+            var previousScrollOffset by remember { mutableIntStateOf(0) }
+            val showSortButton by remember {
+                derivedStateOf {
+                    val firstVisible = gridState.firstVisibleItemIndex
+                    val currentOffset = gridState.firstVisibleItemScrollOffset
+
+                    val isAtTop = firstVisible == 0 && currentOffset < 50
+                    val isScrollingUp = currentOffset < previousScrollOffset
+
+                    previousScrollOffset = currentOffset
+                    isAtTop || isScrollingUp || !gridState.isScrollInProgress
+                }
             }
 
             LazyVerticalGrid(
@@ -70,7 +101,7 @@ fun SeriesContent(
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
-                    top = 16.dp,
+                    top = 48.dp,
                     bottom = 16.dp + MiniPlayerReservedHeight
                 ),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -88,18 +119,33 @@ fun SeriesContent(
                 }
             }
 
-            AlphabetScrollbar(
-                alphabetIndex = alphabetIndex,
-                onLetterSelected = { index ->
-                    scope.launch {
-                        gridState.animateScrollToItem(index)
-                    }
-                },
-                isScrolling = isScrolling,
+            // Sort split button
+            SortSplitButton(
+                state = sortState,
+                categories = SortCategory.seriesCategories,
+                onCategorySelected = onCategorySelected,
+                onDirectionToggle = onDirectionToggle,
+                visible = showSortButton,
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 4.dp, bottom = MiniPlayerReservedHeight)
+                    .align(Alignment.TopStart)
+                    .padding(start = 16.dp, top = 8.dp)
             )
+
+            // Alphabet scrollbar (only for name sort)
+            if (alphabetIndex != null) {
+                AlphabetScrollbar(
+                    alphabetIndex = alphabetIndex,
+                    onLetterSelected = { index ->
+                        scope.launch {
+                            gridState.animateScrollToItem(index)
+                        }
+                    },
+                    isScrolling = isScrolling,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 4.dp, bottom = MiniPlayerReservedHeight)
+                )
+            }
         }
     }
 }

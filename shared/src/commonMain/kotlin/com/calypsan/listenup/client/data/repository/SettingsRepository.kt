@@ -34,6 +34,12 @@ class SettingsRepository(
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_SESSION_ID = "session_id"
         private const val KEY_USER_ID = "user_id"
+
+        // Library sort preferences (per-tab)
+        private const val KEY_SORT_BOOKS = "sort_books"
+        private const val KEY_SORT_SERIES = "sort_series"
+        private const val KEY_SORT_AUTHORS = "sort_authors"
+        private const val KEY_SORT_NARRATORS = "sort_narrators"
     }
 
     // Server configuration
@@ -277,5 +283,60 @@ class SettingsRepository(
         secureStorage.delete(KEY_SESSION_ID)
         secureStorage.delete(KEY_USER_ID)
         _authState.value = AuthState.NeedsServerUrl
+    }
+
+    // Library sort preferences
+    // Stored as "category:direction" (e.g., "title:ascending")
+
+    /**
+     * Get the sort state for the Books tab.
+     * @return Persistence key (category:direction), or null if not set
+     */
+    suspend fun getBooksSortState(): String? = secureStorage.read(KEY_SORT_BOOKS)
+
+    /**
+     * Set the sort state for the Books tab.
+     */
+    suspend fun setBooksSortState(persistenceKey: String) {
+        secureStorage.save(KEY_SORT_BOOKS, persistenceKey)
+    }
+
+    /**
+     * Get the sort state for the Series tab.
+     * @return Persistence key (category:direction), or null if not set
+     */
+    suspend fun getSeriesSortState(): String? = secureStorage.read(KEY_SORT_SERIES)
+
+    /**
+     * Set the sort state for the Series tab.
+     */
+    suspend fun setSeriesSortState(persistenceKey: String) {
+        secureStorage.save(KEY_SORT_SERIES, persistenceKey)
+    }
+
+    /**
+     * Get the sort state for the Authors tab.
+     * @return Persistence key (category:direction), or null if not set
+     */
+    suspend fun getAuthorsSortState(): String? = secureStorage.read(KEY_SORT_AUTHORS)
+
+    /**
+     * Set the sort state for the Authors tab.
+     */
+    suspend fun setAuthorsSortState(persistenceKey: String) {
+        secureStorage.save(KEY_SORT_AUTHORS, persistenceKey)
+    }
+
+    /**
+     * Get the sort state for the Narrators tab.
+     * @return Persistence key (category:direction), or null if not set
+     */
+    suspend fun getNarratorsSortState(): String? = secureStorage.read(KEY_SORT_NARRATORS)
+
+    /**
+     * Set the sort state for the Narrators tab.
+     */
+    suspend fun setNarratorsSortState(persistenceKey: String) {
+        secureStorage.save(KEY_SORT_NARRATORS, persistenceKey)
     }
 }

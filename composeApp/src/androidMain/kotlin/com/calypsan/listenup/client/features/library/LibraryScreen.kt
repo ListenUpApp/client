@@ -31,6 +31,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * - Swipeable content via HorizontalPager
  * - Pull-to-refresh for manual sync (applies to all tabs)
  * - Intelligent auto-sync on first visibility
+ * - Split button sort controls (category + direction)
  *
  * This screen is designed to work within the AppShell scaffold,
  * so it does not include its own Scaffold or TopAppBar.
@@ -66,6 +67,12 @@ fun LibraryScreen(
     val narrators by viewModel.narrators.collectAsStateWithLifecycle()
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
 
+    // Collect sort state for each tab
+    val booksSortState by viewModel.booksSortState.collectAsStateWithLifecycle()
+    val seriesSortState by viewModel.seriesSortState.collectAsStateWithLifecycle()
+    val authorsSortState by viewModel.authorsSortState.collectAsStateWithLifecycle()
+    val narratorsSortState by viewModel.narratorsSortState.collectAsStateWithLifecycle()
+
     // Pager state for tab switching
     val pagerState = rememberPagerState(pageCount = { LibraryTab.entries.size })
     val scope = rememberCoroutineScope()
@@ -97,19 +104,47 @@ fun LibraryScreen(
                     LibraryTab.Books -> BooksContent(
                         books = books,
                         syncState = syncState,
+                        sortState = booksSortState,
+                        onCategorySelected = { category ->
+                            viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
+                        },
+                        onDirectionToggle = {
+                            viewModel.onEvent(LibraryUiEvent.BooksDirectionToggled)
+                        },
                         onBookClick = onBookClick,
                         onRetry = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) }
                     )
                     LibraryTab.Series -> SeriesContent(
                         series = series,
+                        sortState = seriesSortState,
+                        onCategorySelected = { category ->
+                            viewModel.onEvent(LibraryUiEvent.SeriesCategoryChanged(category))
+                        },
+                        onDirectionToggle = {
+                            viewModel.onEvent(LibraryUiEvent.SeriesDirectionToggled)
+                        },
                         onSeriesClick = onSeriesClick
                     )
                     LibraryTab.Authors -> AuthorsContent(
                         authors = authors,
+                        sortState = authorsSortState,
+                        onCategorySelected = { category ->
+                            viewModel.onEvent(LibraryUiEvent.AuthorsCategoryChanged(category))
+                        },
+                        onDirectionToggle = {
+                            viewModel.onEvent(LibraryUiEvent.AuthorsDirectionToggled)
+                        },
                         onAuthorClick = onAuthorClick
                     )
                     LibraryTab.Narrators -> NarratorsContent(
                         narrators = narrators,
+                        sortState = narratorsSortState,
+                        onCategorySelected = { category ->
+                            viewModel.onEvent(LibraryUiEvent.NarratorsCategoryChanged(category))
+                        },
+                        onDirectionToggle = {
+                            viewModel.onEvent(LibraryUiEvent.NarratorsDirectionToggled)
+                        },
                         onNarratorClick = onNarratorClick
                     )
                 }

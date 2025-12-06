@@ -14,8 +14,11 @@ import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncStatus
 import com.calypsan.listenup.client.domain.model.Book
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -24,27 +27,13 @@ private val logger = KotlinLogging.logger {}
 /**
  * ViewModel for the Library screen.
  *
- * Manages book list data and sync state for UI consumption.
+ * Manages book list data, sort state, and sync state for UI consumption.
  * Implements intelligent auto-sync: triggers initial sync automatically
  * if user is authenticated but has never synced before.
  *
- * Exposes reactive data for all four library tabs:
- * - Books: Full audiobook list
- * - Series: Series with book counts
- * - Authors: Contributors with role "author" and book counts
- * - Narrators: Contributors with role "narrator" and book counts
- *
- * This self-healing approach works for all entry points:
- * - First time after registration
- * - First time after login
- * - App restart with valid session
- *
- * @property bookRepository Repository for book data operations
- * @property seriesDao DAO for series data with book counts
- * @property contributorDao DAO for contributor data with book counts
- * @property syncManager Manager for sync operations
- * @property settingsRepository For checking authentication state
- * @property syncDao For checking if initial sync has occurred
+ * Sort state is separated into category + direction, allowing users to:
+ * - Toggle direction with a single tap
+ * - Change category via dropdown menu
  */
 class LibraryViewModel(
     private val bookRepository: BookRepository,
@@ -55,87 +44,107 @@ class LibraryViewModel(
     private val syncDao: SyncDao
 ) : ViewModel() {
 
-    /**
-     * Observable list of books.
-     *
-     * Automatically updates when Room database changes (after sync, etc.).
-     * WhileSubscribed(5000) keeps Flow active for 5 seconds after last collector
-     * to handle configuration changes without restarting collection.
-     */
-    val books: StateFlow<List<Book>> = bookRepository.observeBooks()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    // Sort state for each tab (category + direction)
+    private val _booksSortState = MutableStateFlow(SortState.booksDefault)
+    val booksSortState: StateFlow<SortState> = _booksSortState.asStateFlow()
+
+    private val _seriesSortState = MutableStateFlow(SortState.seriesDefault)
+    val seriesSortState: StateFlow<SortState> = _seriesSortState.asStateFlow()
+
+    private val _authorsSortState = MutableStateFlow(SortState.contributorDefault)
+    val authorsSortState: StateFlow<SortState> = _authorsSortState.asStateFlow()
+
+    private val _narratorsSortState = MutableStateFlow(SortState.contributorDefault)
+    val narratorsSortState: StateFlow<SortState> = _narratorsSortState.asStateFlow()
 
     /**
-     * Observable list of series with their books.
-     *
-     * Each series includes the full list of books for animated cover stacks.
-     * Books within each series are ordered by seriesSequence then title.
+     * Observable list of books, sorted by current sort state.
      */
-    val series: StateFlow<List<SeriesWithBooks>> = seriesDao.observeAllWithBooks()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    val books: StateFlow<List<Book>> = combine(
+        bookRepository.observeBooks(),
+        _booksSortState
+    ) { books, sortState ->
+        sortBooks(books, sortState)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     /**
-     * Observable list of authors with book counts.
-     *
-     * Only includes contributors who have the "author" role on at least one book.
+     * Observable list of series with their books, sorted by current sort state.
      */
-    val authors: StateFlow<List<ContributorWithBookCount>> = contributorDao.observeByRoleWithCount("author")
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    val series: StateFlow<List<SeriesWithBooks>> = combine(
+        seriesDao.observeAllWithBooks(),
+        _seriesSortState
+    ) { series, sortState ->
+        sortSeries(series, sortState)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     /**
-     * Observable list of narrators with book counts.
-     *
-     * Only includes contributors who have the "narrator" role on at least one book.
+     * Observable list of authors with book counts, sorted by current sort state.
      */
-    val narrators: StateFlow<List<ContributorWithBookCount>> = contributorDao.observeByRoleWithCount("narrator")
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    val authors: StateFlow<List<ContributorWithBookCount>> = combine(
+        contributorDao.observeByRoleWithCount("author"),
+        _authorsSortState
+    ) { authors, sortState ->
+        sortContributors(authors, sortState)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    /**
+     * Observable list of narrators with book counts, sorted by current sort state.
+     */
+    val narrators: StateFlow<List<ContributorWithBookCount>> = combine(
+        contributorDao.observeByRoleWithCount("narrator"),
+        _narratorsSortState
+    ) { narrators, sortState ->
+        sortContributors(narrators, sortState)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     /**
      * Observable sync status.
-     *
-     * UI can observe this to show:
-     * - Loading indicators (Syncing state)
-     * - Error messages (Error state)
-     * - Success confirmations (Success state)
      */
     val syncState: StateFlow<SyncStatus> = syncManager.syncState
 
     private var hasPerformedInitialSync = false
 
     init {
-        // Auto-sync is deferred to onScreenVisible() to avoid syncing
-        // when ViewModel is created but screen isn't actually shown yet
+        // Load persisted sort states
+        viewModelScope.launch {
+            settingsRepository.getBooksSortState()?.let { key ->
+                SortState.fromPersistenceKey(key)?.let { _booksSortState.value = it }
+            }
+            settingsRepository.getSeriesSortState()?.let { key ->
+                SortState.fromPersistenceKey(key)?.let { _seriesSortState.value = it }
+            }
+            settingsRepository.getAuthorsSortState()?.let { key ->
+                SortState.fromPersistenceKey(key)?.let { _authorsSortState.value = it }
+            }
+            settingsRepository.getNarratorsSortState()?.let { key ->
+                SortState.fromPersistenceKey(key)?.let { _narratorsSortState.value = it }
+            }
+        }
+
         logger.debug { "Initialized (auto-sync deferred until screen visible)" }
     }
 
     /**
      * Called when the Library screen becomes visible.
-     *
-     * Performs intelligent auto-sync on first visibility:
-     * - Triggers initial sync if authenticated but never synced
-     * - Handles all entry points: registration, login, app restart
-     * - Only runs once per ViewModel instance
      */
     fun onScreenVisible() {
-        if (hasPerformedInitialSync) {
-            return
-        }
+        if (hasPerformedInitialSync) return
         hasPerformedInitialSync = true
 
         logger.debug { "Screen became visible, checking if initial sync needed..." }
@@ -143,64 +152,230 @@ class LibraryViewModel(
             val isAuthenticated = settingsRepository.getAccessToken() != null
             val lastSyncTime = syncDao.getLastSyncTime()
 
-            logger.debug { "isAuthenticated=$isAuthenticated, lastSyncTime=$lastSyncTime" }
-
             if (isAuthenticated && lastSyncTime == null) {
                 logger.info { "User authenticated but never synced, triggering initial sync..." }
                 refreshBooks()
-            } else if (!isAuthenticated) {
-                logger.debug { "User not authenticated, skipping sync" }
-            } else {
-                logger.debug { "Already synced (last sync: $lastSyncTime), skipping auto-sync" }
             }
         }
     }
 
     /**
      * Handle UI events from the Library screen.
-     *
-     * Processes user actions and updates state accordingly.
-     *
-     * @param event The UI event to handle
      */
     fun onEvent(event: LibraryUiEvent) {
         when (event) {
             is LibraryUiEvent.RefreshRequested -> refreshBooks()
-            is LibraryUiEvent.BookClicked -> {
-                // TODO: Navigate to book detail screen
-                // For now, this is a no-op until navigation is wired up
-            }
+            is LibraryUiEvent.BookClicked -> { /* Navigation handled by parent */ }
+
+            // Books tab sort events
+            is LibraryUiEvent.BooksCategoryChanged -> updateBooksSortState(
+                _booksSortState.value.withCategory(event.category)
+            )
+            is LibraryUiEvent.BooksDirectionToggled -> updateBooksSortState(
+                _booksSortState.value.toggleDirection()
+            )
+
+            // Series tab sort events
+            is LibraryUiEvent.SeriesCategoryChanged -> updateSeriesSortState(
+                _seriesSortState.value.withCategory(event.category)
+            )
+            is LibraryUiEvent.SeriesDirectionToggled -> updateSeriesSortState(
+                _seriesSortState.value.toggleDirection()
+            )
+
+            // Authors tab sort events
+            is LibraryUiEvent.AuthorsCategoryChanged -> updateAuthorsSortState(
+                _authorsSortState.value.withCategory(event.category)
+            )
+            is LibraryUiEvent.AuthorsDirectionToggled -> updateAuthorsSortState(
+                _authorsSortState.value.toggleDirection()
+            )
+
+            // Narrators tab sort events
+            is LibraryUiEvent.NarratorsCategoryChanged -> updateNarratorsSortState(
+                _narratorsSortState.value.withCategory(event.category)
+            )
+            is LibraryUiEvent.NarratorsDirectionToggled -> updateNarratorsSortState(
+                _narratorsSortState.value.toggleDirection()
+            )
         }
     }
 
-    /**
-     * Trigger a refresh/sync of books from the server.
-     *
-     * Launches sync in background. UI will update automatically
-     * via books StateFlow when sync completes.
-     */
     private fun refreshBooks() {
         viewModelScope.launch {
             bookRepository.refreshBooks()
+        }
+    }
+
+    // Sort state update methods (persist and update state)
+
+    private fun updateBooksSortState(state: SortState) {
+        _booksSortState.value = state
+        viewModelScope.launch {
+            settingsRepository.setBooksSortState(state.persistenceKey)
+        }
+    }
+
+    private fun updateSeriesSortState(state: SortState) {
+        _seriesSortState.value = state
+        viewModelScope.launch {
+            settingsRepository.setSeriesSortState(state.persistenceKey)
+        }
+    }
+
+    private fun updateAuthorsSortState(state: SortState) {
+        _authorsSortState.value = state
+        viewModelScope.launch {
+            settingsRepository.setAuthorsSortState(state.persistenceKey)
+        }
+    }
+
+    private fun updateNarratorsSortState(state: SortState) {
+        _narratorsSortState.value = state
+        viewModelScope.launch {
+            settingsRepository.setNarratorsSortState(state.persistenceKey)
+        }
+    }
+
+    // Sorting helper functions
+
+    private fun sortBooks(books: List<Book>, state: SortState): List<Book> {
+        val isAsc = state.direction == SortDirection.ASCENDING
+
+        return when (state.category) {
+            SortCategory.TITLE -> if (isAsc) {
+                books.sortedBy { it.title.lowercase() }
+            } else {
+                books.sortedByDescending { it.title.lowercase() }
+            }
+
+            SortCategory.AUTHOR -> if (isAsc) {
+                books.sortedWith(
+                    compareBy<Book> { it.authorNames.lowercase() }
+                        .thenBy { it.title.lowercase() }
+                )
+            } else {
+                books.sortedWith(
+                    compareByDescending<Book> { it.authorNames.lowercase() }
+                        .thenBy { it.title.lowercase() }
+                )
+            }
+
+            SortCategory.DURATION -> if (isAsc) {
+                books.sortedBy { it.duration }
+            } else {
+                books.sortedByDescending { it.duration }
+            }
+
+            SortCategory.YEAR -> if (isAsc) {
+                books.sortedWith(
+                    compareBy<Book> { it.publishYear ?: Int.MAX_VALUE }
+                        .thenBy { it.title.lowercase() }
+                )
+            } else {
+                books.sortedWith(
+                    compareByDescending<Book> { it.publishYear ?: 0 }
+                        .thenBy { it.title.lowercase() }
+                )
+            }
+
+            SortCategory.ADDED -> if (isAsc) {
+                books.sortedBy { it.addedAt.epochMillis }
+            } else {
+                books.sortedByDescending { it.addedAt.epochMillis }
+            }
+
+            SortCategory.SERIES -> if (isAsc) {
+                books.sortedWith(
+                    compareBy<Book> { it.seriesName?.lowercase() ?: "\uFFFF" }
+                        .thenBy { it.seriesSequence?.toFloatOrNull() ?: Float.MAX_VALUE }
+                        .thenBy { it.title.lowercase() }
+                )
+            } else {
+                books.sortedWith(
+                    compareByDescending<Book> { it.seriesName?.lowercase() ?: "" }
+                        .thenByDescending { it.seriesSequence?.toFloatOrNull() ?: 0f }
+                        .thenBy { it.title.lowercase() }
+                )
+            }
+
+            // Not applicable for books
+            SortCategory.NAME, SortCategory.BOOK_COUNT -> books
+        }
+    }
+
+    private fun sortSeries(series: List<SeriesWithBooks>, state: SortState): List<SeriesWithBooks> {
+        val isAsc = state.direction == SortDirection.ASCENDING
+
+        return when (state.category) {
+            SortCategory.NAME -> if (isAsc) {
+                series.sortedBy { it.series.name.lowercase() }
+            } else {
+                series.sortedByDescending { it.series.name.lowercase() }
+            }
+
+            SortCategory.BOOK_COUNT -> if (isAsc) {
+                series.sortedBy { it.books.size }
+            } else {
+                series.sortedByDescending { it.books.size }
+            }
+
+            SortCategory.ADDED -> if (isAsc) {
+                series.sortedBy { it.series.createdAt.epochMillis }
+            } else {
+                series.sortedByDescending { it.series.createdAt.epochMillis }
+            }
+
+            // Default to name sort for unsupported categories
+            else -> series.sortedBy { it.series.name.lowercase() }
+        }
+    }
+
+    private fun sortContributors(
+        contributors: List<ContributorWithBookCount>,
+        state: SortState
+    ): List<ContributorWithBookCount> {
+        val isAsc = state.direction == SortDirection.ASCENDING
+
+        return when (state.category) {
+            SortCategory.NAME -> if (isAsc) {
+                contributors.sortedBy { it.contributor.name.lowercase() }
+            } else {
+                contributors.sortedByDescending { it.contributor.name.lowercase() }
+            }
+
+            SortCategory.BOOK_COUNT -> if (isAsc) {
+                contributors.sortedBy { it.bookCount }
+            } else {
+                contributors.sortedByDescending { it.bookCount }
+            }
+
+            // Default to name sort for unsupported categories
+            else -> contributors.sortedBy { it.contributor.name.lowercase() }
         }
     }
 }
 
 /**
  * Events that can be triggered from the Library UI.
- *
- * Sealed interface for type-safe event handling.
  */
 sealed interface LibraryUiEvent {
-    /**
-     * User requested a refresh (e.g., pull-to-refresh).
-     */
     data object RefreshRequested : LibraryUiEvent
-
-    /**
-     * User clicked on a book in the library.
-     *
-     * @property bookId ID of the clicked book
-     */
     data class BookClicked(val bookId: String) : LibraryUiEvent
+
+    // Books tab
+    data class BooksCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data object BooksDirectionToggled : LibraryUiEvent
+
+    // Series tab
+    data class SeriesCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data object SeriesDirectionToggled : LibraryUiEvent
+
+    // Authors tab
+    data class AuthorsCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data object AuthorsDirectionToggled : LibraryUiEvent
+
+    // Narrators tab
+    data class NarratorsCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data object NarratorsDirectionToggled : LibraryUiEvent
 }
