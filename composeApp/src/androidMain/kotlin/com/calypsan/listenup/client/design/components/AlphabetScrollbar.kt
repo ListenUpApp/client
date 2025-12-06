@@ -25,7 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -35,13 +35,15 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 /**
  * Data class representing the alphabet index for a list of items.
@@ -75,9 +77,16 @@ data class AlphabetIndex(
 /**
  * Google Contacts-style alphabet scrollbar.
  *
+ * Design philosophy: Measure, don't calculate.
+ * Instead of mathematically computing letter positions from column height,
+ * we track the actual rendered position of each letter. This ensures
+ * accuracy regardless of header state, animations, or layout changes.
+ *
+ * Features:
  * - Floats over content with no background when idle
  * - Shows background and popup when touched
  * - Haptic feedback on letter changes
+ * - Robust position tracking that works during layout animations
  */
 @Composable
 fun AlphabetScrollbar(
@@ -90,12 +99,15 @@ fun AlphabetScrollbar(
 
     val view = LocalView.current
 
+    // Track the actual center Y position of each letter (measured, not calculated)
+    // Key: letter index, Value: center Y relative to the Column
+    val letterCenterYs = remember { mutableStateMapOf<Int, Float>() }
+
     var isInteracting by remember { mutableStateOf(false) }
     var selectedLetter by remember { mutableStateOf<Char?>(null) }
     var selectedLetterIndex by remember { mutableStateOf<Int?>(null) }
     var lastHapticLetter by remember { mutableStateOf<Char?>(null) }
     var isVisible by remember { mutableStateOf(false) }
-    var columnHeight by remember { mutableIntStateOf(0) }
     var selectedLetterY by remember { mutableStateOf(0f) }
 
     LaunchedEffect(isScrolling, isInteracting) {
@@ -133,18 +145,34 @@ fun AlphabetScrollbar(
         label = "slide"
     )
 
-    data class LetterPosition(val letter: Char, val index: Int, val centerY: Float)
+    /**
+     * Find the letter closest to the given touch Y coordinate.
+     * Uses actual measured positions, not calculated ones.
+     */
+    fun findLetterAtY(touchY: Float): Triple<Char, Int, Float>? {
+        if (letterCenterYs.isEmpty()) return null
 
-    fun letterAtPosition(y: Float): LetterPosition? {
-        if (columnHeight <= 0 || alphabetIndex.letters.isEmpty()) return null
-        val letterHeight = columnHeight.toFloat() / alphabetIndex.letters.size
-        val index = (y / letterHeight).toInt().coerceIn(0, alphabetIndex.letters.size - 1)
-        val letterCenterY = (index + 0.5f) * letterHeight
-        return LetterPosition(alphabetIndex.letters[index], index, letterCenterY)
+        var bestIndex = 0
+        var bestDistance = Float.MAX_VALUE
+
+        letterCenterYs.forEach { (index, centerY) ->
+            val distance = abs(touchY - centerY)
+            if (distance < bestDistance) {
+                bestDistance = distance
+                bestIndex = index
+            }
+        }
+
+        if (bestIndex >= alphabetIndex.letters.size) return null
+
+        val letter = alphabetIndex.letters[bestIndex]
+        val centerY = letterCenterYs[bestIndex] ?: return null
+
+        return Triple(letter, bestIndex, centerY)
     }
 
     fun selectLetter(y: Float, isInitialTouch: Boolean = false) {
-        letterAtPosition(y)?.let { (letter, index, centerY) ->
+        findLetterAtY(y)?.let { (letter, index, centerY) ->
             if (letter != selectedLetter) {
                 selectedLetter = letter
                 selectedLetterIndex = index
@@ -198,7 +226,8 @@ fun AlphabetScrollbar(
             }
         }
 
-        // The scrollbar - always has background for visibility over content
+        // The scrollbar column
+        // CenterEnd keeps it vertically centered regardless of header state
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -209,7 +238,6 @@ fun AlphabetScrollbar(
                     else
                         MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.95f)
                 )
-                .onSizeChanged { columnHeight = it.height }
                 .pointerInput(alphabetIndex) {
                     detectTapGestures(
                         onPress = { offset ->
@@ -246,17 +274,27 @@ fun AlphabetScrollbar(
                         }
                     )
                 }
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
             alphabetIndex.letters.forEachIndexed { index, letter ->
-                AnimatedLetterItem(
-                    letter = letter,
-                    index = index,
-                    selectedIndex = selectedLetterIndex,
-                    isSelected = letter == selectedLetter
-                )
+                // Each letter reports its actual position when laid out
+                Box(
+                    modifier = Modifier.onGloballyPositioned { coordinates ->
+                        // Calculate center Y relative to the parent Column
+                        val posInParent = coordinates.positionInParent()
+                        val centerY = posInParent.y + coordinates.size.height / 2f
+                        letterCenterYs[index] = centerY
+                    }
+                ) {
+                    AnimatedLetterItem(
+                        letter = letter,
+                        index = index,
+                        selectedIndex = selectedLetterIndex,
+                        isSelected = letter == selectedLetter
+                    )
+                }
             }
         }
     }
@@ -276,7 +314,7 @@ private fun AnimatedLetterItem(
     val targetScale = when {
         selectedIndex == null -> 1f
         index == selectedIndex -> 1.3f
-        kotlin.math.abs(index - selectedIndex) == 1 -> 1.1f
+        abs(index - selectedIndex) == 1 -> 1.1f
         else -> 1f
     }
 
@@ -291,8 +329,8 @@ private fun AnimatedLetterItem(
 
     Text(
         text = letter.toString(),
-        fontSize = 16.sp,
-        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+        fontSize = 11.sp,
+        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
         color = if (isSelected)
             MaterialTheme.colorScheme.primary
         else

@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.remote
 
+import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -43,7 +44,7 @@ class SearchApi(
         offset: Int = 0
     ): SearchResponse {
         val client = clientFactory.getClient()
-        return client.get("/api/v1/search") {
+        val response: ApiResponse<SearchResponse> = client.get("/api/v1/search") {
             parameter("q", query)
             types?.let { parameter("types", it) }
             genres?.let { parameter("genres", it) }
@@ -54,6 +55,8 @@ class SearchApi(
             parameter("offset", offset)
             parameter("facets", "true")
         }.body()
+
+        return response.data ?: throw Exception(response.error ?: "Search failed")
     }
 }
 
