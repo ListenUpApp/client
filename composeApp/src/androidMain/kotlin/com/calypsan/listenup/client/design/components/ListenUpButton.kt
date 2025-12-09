@@ -46,27 +46,28 @@ fun ListenUpButton(
         onClick = onClick,
         enabled = enabled && !isLoading,
         shape = CircleShape,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(56.dp),
     ) {
         AnimatedContent(
             targetState = isLoading,
             transitionSpec = {
                 fadeIn() togetherWith fadeOut() using SizeTransform(clip = false)
             },
-            label = "ButtonContent"
+            label = "ButtonContent",
         ) { loading ->
             if (loading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
                     strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = MaterialTheme.colorScheme.onPrimary,
                 )
             } else {
                 Text(
                     text = text,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
                 )
             }
         }
@@ -79,11 +80,11 @@ private fun PreviewListenUpButtonNormal() {
     ListenUpTheme {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ListenUpButton(
                 text = "Connect to Server",
-                onClick = {}
+                onClick = {},
             )
         }
     }
@@ -95,12 +96,12 @@ private fun PreviewListenUpButtonDisabled() {
     ListenUpTheme {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ListenUpButton(
                 text = "Connect to Server",
                 onClick = {},
-                enabled = false
+                enabled = false,
             )
         }
     }
@@ -112,12 +113,12 @@ private fun PreviewListenUpButtonLoading() {
     ListenUpTheme {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ListenUpButton(
                 text = "Connect to Server",
                 onClick = {},
-                isLoading = true
+                isLoading = true,
             )
         }
     }
@@ -129,23 +130,23 @@ private fun PreviewListenUpButtonStates() {
     ListenUpTheme {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ListenUpButton(
                 text = "Normal",
-                onClick = {}
+                onClick = {},
             )
 
             ListenUpButton(
                 text = "Disabled",
                 onClick = {},
-                enabled = false
+                enabled = false,
             )
 
             ListenUpButton(
                 text = "Loading",
                 onClick = {},
-                isLoading = true
+                isLoading = true,
             )
         }
     }

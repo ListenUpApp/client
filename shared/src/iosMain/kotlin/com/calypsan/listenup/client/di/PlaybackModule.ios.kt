@@ -28,76 +28,78 @@ import org.koin.dsl.module
  * - ProgressTracker for position persistence
  * - SleepTimerManager for sleep timer functionality
  */
-val iosPlaybackModule: Module = module {
-    // Playback-scoped coroutine scope
-    single(qualifier = named("playbackScope")) {
-        CoroutineScope(SupervisorJob() + Dispatchers.IO)
+val iosPlaybackModule: Module =
+    module {
+        // Playback-scoped coroutine scope
+        single(qualifier = named("playbackScope")) {
+            CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        }
+
+        // Device ID for listening events
+        // iOS uses identifierForVendor which persists across app reinstalls
+        // but changes when all apps from vendor are deleted
+        single(qualifier = named("deviceId")) {
+            platform.UIKit.UIDevice.currentDevice.identifierForVendor
+                ?.UUIDString ?: "unknown-device"
+        }
+
+        // File manager for downloads
+        single { DownloadFileManager() }
+
+        // Audio token provider
+        single<AudioTokenProvider> {
+            IosAudioTokenProvider(
+                settingsRepository = get(),
+                authApi = get(),
+                scope = get(qualifier = named("playbackScope")),
+            )
+        }
+
+        // Also expose concrete type for iOS-specific features
+        single { get<AudioTokenProvider>() as IosAudioTokenProvider }
+
+        // Download service
+        single<DownloadService> {
+            IosDownloadService(
+                downloadDao = get(),
+                bookDao = get(),
+                settingsRepository = get(),
+                tokenProvider = get(),
+                fileManager = get(),
+                scope = get(qualifier = named("playbackScope")),
+            )
+        }
+
+        // Progress tracker
+        single {
+            ProgressTracker(
+                positionDao = get(),
+                eventDao = get(),
+                downloadDao = get(),
+                deviceId = get(qualifier = named("deviceId")),
+                scope = get(qualifier = named("playbackScope")),
+            )
+        }
+
+        // Sleep timer manager
+        single {
+            SleepTimerManager(
+                scope = get(qualifier = named("playbackScope")),
+            )
+        }
+
+        // Playback manager
+        single {
+            PlaybackManager(
+                settingsRepository = get(),
+                bookDao = get(),
+                progressTracker = get(),
+                tokenProvider = get(),
+                downloadService = get(),
+                scope = get(qualifier = named("playbackScope")),
+            )
+        }
+
+        // Background sync scheduler
+        single<BackgroundSyncScheduler> { IosBackgroundSyncScheduler() }
     }
-
-    // Device ID for listening events
-    // iOS uses identifierForVendor which persists across app reinstalls
-    // but changes when all apps from vendor are deleted
-    single(qualifier = named("deviceId")) {
-        platform.UIKit.UIDevice.currentDevice.identifierForVendor?.UUIDString ?: "unknown-device"
-    }
-
-    // File manager for downloads
-    single { DownloadFileManager() }
-
-    // Audio token provider
-    single<AudioTokenProvider> {
-        IosAudioTokenProvider(
-            settingsRepository = get(),
-            authApi = get(),
-            scope = get(qualifier = named("playbackScope"))
-        )
-    }
-
-    // Also expose concrete type for iOS-specific features
-    single { get<AudioTokenProvider>() as IosAudioTokenProvider }
-
-    // Download service
-    single<DownloadService> {
-        IosDownloadService(
-            downloadDao = get(),
-            bookDao = get(),
-            settingsRepository = get(),
-            tokenProvider = get(),
-            fileManager = get(),
-            scope = get(qualifier = named("playbackScope"))
-        )
-    }
-
-    // Progress tracker
-    single {
-        ProgressTracker(
-            positionDao = get(),
-            eventDao = get(),
-            downloadDao = get(),
-            deviceId = get(qualifier = named("deviceId")),
-            scope = get(qualifier = named("playbackScope"))
-        )
-    }
-
-    // Sleep timer manager
-    single {
-        SleepTimerManager(
-            scope = get(qualifier = named("playbackScope"))
-        )
-    }
-
-    // Playback manager
-    single {
-        PlaybackManager(
-            settingsRepository = get(),
-            bookDao = get(),
-            progressTracker = get(),
-            tokenProvider = get(),
-            downloadService = get(),
-            scope = get(qualifier = named("playbackScope"))
-        )
-    }
-
-    // Background sync scheduler
-    single<BackgroundSyncScheduler> { IosBackgroundSyncScheduler() }
-}

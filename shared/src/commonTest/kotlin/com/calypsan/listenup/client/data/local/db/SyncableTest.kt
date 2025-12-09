@@ -2,11 +2,9 @@ package com.calypsan.listenup.client.data.local.db
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class SyncableTest {
-
     @Test
     fun syncState_hasExpectedValues() {
         // Verify all sync states exist

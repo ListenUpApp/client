@@ -31,7 +31,8 @@ data class SearchUiState(
     val results: SearchResult? = null,
     val error: String? = null,
     val isExpanded: Boolean = false,
-    val selectedTypes: Set<SearchHitType> = emptySet() // Empty = all types
+    // Empty = all types
+    val selectedTypes: Set<SearchHitType> = emptySet(),
 ) {
     val hasResults: Boolean
         get() = results != null && results.hits.isNotEmpty()
@@ -71,21 +72,40 @@ data class SearchUiState(
  * Search events from UI.
  */
 sealed interface SearchUiEvent {
-    data class QueryChanged(val query: String) : SearchUiEvent
+    data class QueryChanged(
+        val query: String,
+    ) : SearchUiEvent
+
     data object ExpandSearch : SearchUiEvent
+
     data object CollapseSearch : SearchUiEvent
+
     data object ClearQuery : SearchUiEvent
-    data class ToggleTypeFilter(val type: SearchHitType) : SearchUiEvent
-    data class ResultClicked(val hit: SearchHit) : SearchUiEvent
+
+    data class ToggleTypeFilter(
+        val type: SearchHitType,
+    ) : SearchUiEvent
+
+    data class ResultClicked(
+        val hit: SearchHit,
+    ) : SearchUiEvent
 }
 
 /**
  * Navigation actions from search.
  */
 sealed interface SearchNavAction {
-    data class NavigateToBook(val bookId: String) : SearchNavAction
-    data class NavigateToContributor(val contributorId: String) : SearchNavAction
-    data class NavigateToSeries(val seriesId: String) : SearchNavAction
+    data class NavigateToBook(
+        val bookId: String,
+    ) : SearchNavAction
+
+    data class NavigateToContributor(
+        val contributorId: String,
+    ) : SearchNavAction
+
+    data class NavigateToSeries(
+        val seriesId: String,
+    ) : SearchNavAction
 }
 
 /**
@@ -101,9 +121,8 @@ sealed interface SearchNavAction {
  */
 @OptIn(FlowPreview::class)
 class SearchViewModel(
-    private val searchRepository: SearchRepository
+    private val searchRepository: SearchRepository,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
 
@@ -127,8 +146,7 @@ class SearchViewModel(
                 } else {
                     performSearch(query)
                 }
-            }
-            .launchIn(viewModelScope)
+            }.launchIn(viewModelScope)
     }
 
     /**
@@ -151,7 +169,7 @@ class SearchViewModel(
                         isExpanded = false,
                         query = "",
                         results = null,
-                        error = null
+                        error = null,
                     )
                 }
                 queryFlow.value = ""
@@ -164,11 +182,12 @@ class SearchViewModel(
 
             is SearchUiEvent.ToggleTypeFilter -> {
                 _state.update { current ->
-                    val newTypes = if (event.type in current.selectedTypes) {
-                        current.selectedTypes - event.type
-                    } else {
-                        current.selectedTypes + event.type
-                    }
+                    val newTypes =
+                        if (event.type in current.selectedTypes) {
+                            current.selectedTypes - event.type
+                        } else {
+                            current.selectedTypes + event.type
+                        }
                     current.copy(selectedTypes = newTypes)
                 }
                 // Re-search with new filters
@@ -192,42 +211,48 @@ class SearchViewModel(
 
     private fun performSearch(query: String) {
         searchJob?.cancel()
-        searchJob = viewModelScope.launch {
-            _state.update { it.copy(isSearching = true, error = null) }
+        searchJob =
+            viewModelScope.launch {
+                _state.update { it.copy(isSearching = true, error = null) }
 
-            try {
-                val types = _state.value.selectedTypes.takeIf { it.isNotEmpty() }?.toList()
-                val result = searchRepository.search(
-                    query = query,
-                    types = types,
-                    limit = 30
-                )
+                try {
+                    val types =
+                        _state.value.selectedTypes
+                            .takeIf { it.isNotEmpty() }
+                            ?.toList()
+                    val result =
+                        searchRepository.search(
+                            query = query,
+                            types = types,
+                            limit = 30,
+                        )
 
-                _state.update {
-                    it.copy(
-                        results = result,
-                        isSearching = false
-                    )
-                }
-                logger.debug { "Search completed: ${result.total} results for '$query'" }
-            } catch (e: Exception) {
-                logger.error(e) { "Search failed for '$query'" }
-                _state.update {
-                    it.copy(
-                        error = "Search failed: ${e.message}",
-                        isSearching = false
-                    )
+                    _state.update {
+                        it.copy(
+                            results = result,
+                            isSearching = false,
+                        )
+                    }
+                    logger.debug { "Search completed: ${result.total} results for '$query'" }
+                } catch (e: Exception) {
+                    logger.error(e) { "Search failed for '$query'" }
+                    _state.update {
+                        it.copy(
+                            error = "Search failed: ${e.message}",
+                            isSearching = false,
+                        )
+                    }
                 }
             }
-        }
     }
 
     private fun handleResultClick(hit: SearchHit) {
-        val action = when (hit.type) {
-            SearchHitType.BOOK -> SearchNavAction.NavigateToBook(hit.id)
-            SearchHitType.CONTRIBUTOR -> SearchNavAction.NavigateToContributor(hit.id)
-            SearchHitType.SERIES -> SearchNavAction.NavigateToSeries(hit.id)
-        }
+        val action =
+            when (hit.type) {
+                SearchHitType.BOOK -> SearchNavAction.NavigateToBook(hit.id)
+                SearchHitType.CONTRIBUTOR -> SearchNavAction.NavigateToContributor(hit.id)
+                SearchHitType.SERIES -> SearchNavAction.NavigateToSeries(hit.id)
+            }
         _navActions.value = action
 
         // Collapse search after navigation

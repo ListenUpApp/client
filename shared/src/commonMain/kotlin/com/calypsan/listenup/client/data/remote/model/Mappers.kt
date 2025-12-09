@@ -4,12 +4,12 @@ import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
-import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
-/**
+/*
  * Extension functions for mapping DTOs from server to local database entities.
  *
  * Converts raw types from JSON (String IDs, String timestamps) into
@@ -28,8 +28,8 @@ import kotlinx.serialization.json.Json
  * @receiver BookResponse from API
  * @return BookEntity ready for Room insertion
  */
-fun BookResponse.toEntity(): BookEntity {
-    return BookEntity(
+fun BookResponse.toEntity(): BookEntity =
+    BookEntity(
         id = BookId(id),
         title = title,
         subtitle = subtitle,
@@ -47,35 +47,42 @@ fun BookResponse.toEntity(): BookEntity {
         syncState = SyncState.SYNCED,
         lastModified = updatedAt.toTimestamp(),
         serverVersion = updatedAt.toTimestamp(),
-
         // Timestamps from server
         createdAt = createdAt.toTimestamp(),
-        updatedAt = updatedAt.toTimestamp()
+        updatedAt = updatedAt.toTimestamp(),
     )
-}
 
-fun ChapterResponse.toEntity(bookId: BookId, index: Int): com.calypsan.listenup.client.data.local.db.ChapterEntity {
-    val now = com.calypsan.listenup.client.data.local.db.Timestamp.now()
+fun ChapterResponse.toEntity(
+    bookId: BookId,
+    index: Int,
+): com.calypsan.listenup.client.data.local.db.ChapterEntity {
+    val now =
+        com.calypsan.listenup.client.data.local.db.Timestamp
+            .now()
     return com.calypsan.listenup.client.data.local.db.ChapterEntity(
         // ID is composite of bookId and index since server doesn't provide stable chapter IDs yet
-        id = com.calypsan.listenup.client.data.local.db.ChapterId("${bookId.value}_$index"),
+        id =
+            com.calypsan.listenup.client.data.local.db
+                .ChapterId("${bookId.value}_$index"),
         bookId = bookId,
         title = title,
         duration = endTime - startTime,
         startTime = startTime,
         syncState = SyncState.SYNCED,
         lastModified = now,
-        serverVersion = now // Chapters don't have individual timestamps yet, assume synced with book
+        serverVersion = now, // Chapters don't have individual timestamps yet, assume synced with book
     )
 }
 
-fun BookContributorResponse.toEntity(bookId: BookId, role: String): com.calypsan.listenup.client.data.local.db.BookContributorCrossRef {
-    return com.calypsan.listenup.client.data.local.db.BookContributorCrossRef(
+fun BookContributorResponse.toEntity(
+    bookId: BookId,
+    role: String,
+): com.calypsan.listenup.client.data.local.db.BookContributorCrossRef =
+    com.calypsan.listenup.client.data.local.db.BookContributorCrossRef(
         bookId = bookId,
         contributorId = contributorId,
-        role = role
+        role = role,
     )
-}
 
 /**
  * Parse ISO 8601 timestamp string to type-safe Timestamp.
@@ -88,24 +95,23 @@ fun BookContributorResponse.toEntity(bookId: BookId, role: String): com.calypsan
  * @throws IllegalArgumentException if timestamp format is invalid, with details about the parsing failure
  */
 @OptIn(ExperimentalTime::class)
-fun String.toTimestamp(): Timestamp {
-    return try {
+fun String.toTimestamp(): Timestamp =
+    try {
         Timestamp(Instant.parse(this).toEpochMilliseconds())
     } catch (e: IllegalArgumentException) {
         // Provide context for debugging - which timestamp failed and why
         throw IllegalArgumentException(
             "Failed to parse timestamp '$this'. Expected ISO 8601 format (e.g., '2025-11-22T14:30:45Z'). " +
-            "Original error: ${e.message}",
-            e
+                "Original error: ${e.message}",
+            e,
         )
     } catch (e: Exception) {
         // Catch any other parsing errors
         throw IllegalArgumentException(
             "Unexpected error parsing timestamp '$this': ${e.message}",
-            e
+            e,
         )
     }
-}
 
 /**
  * Convert type-safe Timestamp to ISO 8601 string for API requests.
@@ -116,6 +122,4 @@ fun String.toTimestamp(): Timestamp {
  * @return ISO 8601 timestamp string (e.g., "2025-11-22T14:30:45Z")
  */
 @OptIn(ExperimentalTime::class)
-fun Timestamp.toIso8601(): String {
-    return Instant.fromEpochMilliseconds(this.epochMillis).toString()
-}
+fun Timestamp.toIso8601(): String = Instant.fromEpochMilliseconds(this.epochMillis).toString()

@@ -30,12 +30,9 @@ import kotlinx.coroutines.launch
  * @param onEach Callback invoked for each state emission (runs on Main thread)
  * @return Job that can be cancelled to stop collection
  */
-fun <T> StateFlow<T>.collect(
-    onEach: (T) -> Unit
-): Job {
-    return CoroutineScope(Dispatchers.Main).launch {
+fun <T> StateFlow<T>.collect(onEach: (T) -> Unit): Job =
+    CoroutineScope(Dispatchers.Main).launch {
         collect { value ->
             onEach(value)
         }
     }
-}

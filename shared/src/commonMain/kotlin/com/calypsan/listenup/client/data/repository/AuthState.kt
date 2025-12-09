@@ -65,6 +65,6 @@ sealed interface AuthState {
      */
     data class Authenticated(
         val userId: String,
-        val sessionId: String
+        val sessionId: String,
     ) : AuthState
 }

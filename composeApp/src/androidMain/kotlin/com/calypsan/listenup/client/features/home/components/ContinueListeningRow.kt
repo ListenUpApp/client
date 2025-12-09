@@ -30,17 +30,18 @@ import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 fun ContinueListeningRow(
     books: List<ContinueListeningBook>,
     onBookClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
         // Section header
         Text(
             text = "Continue Listening",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold
-            ),
+            style =
+                MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                ),
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -48,15 +49,15 @@ fun ContinueListeningRow(
         // Horizontally scrolling book cards
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(
                 items = books,
-                key = { it.bookId }
+                key = { it.bookId },
             ) { book ->
                 ContinueListeningCard(
                     book = book,
-                    onClick = { onBookClick(book.bookId) }
+                    onClick = { onBookClick(book.bookId) },
                 )
             }
         }

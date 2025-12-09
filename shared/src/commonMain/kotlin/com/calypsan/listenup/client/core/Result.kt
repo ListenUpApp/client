@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.core
 
+import kotlinx.coroutines.CancellationException
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -12,14 +13,16 @@ sealed interface Result<out T> {
     /**
      * Represents a successful result containing data
      */
-    data class Success<T>(val data: T) : Result<T>
+    data class Success<T>(
+        val data: T,
+    ) : Result<T>
 
     /**
      * Represents a failed result containing an exception
      */
     data class Failure(
         val exception: Exception,
-        val message: String = exception.message ?: "Unknown error"
+        val message: String = exception.message ?: "Unknown error",
     ) : Result<Nothing>
 }
 
@@ -54,50 +57,56 @@ fun <T> Result<T>.isFailure(): Boolean {
 /**
  * Returns the data if Success, or null if Failure
  */
-fun <T> Result<T>.getOrNull(): T? = when (this) {
-    is Success -> data
-    is Failure -> null
-}
+fun <T> Result<T>.getOrNull(): T? =
+    when (this) {
+        is Success -> data
+        is Failure -> null
+    }
 
 /**
  * Returns the data if Success, or a default value if Failure
  */
-inline fun <T> Result<T>.getOrDefault(defaultValue: () -> T): T = when (this) {
-    is Success -> data
-    is Failure -> defaultValue()
-}
+inline fun <T> Result<T>.getOrDefault(defaultValue: () -> T): T =
+    when (this) {
+        is Success -> data
+        is Failure -> defaultValue()
+    }
 
 /**
  * Returns the data if Success, or throws the exception if Failure
  */
-fun <T> Result<T>.getOrThrow(): T = when (this) {
-    is Success -> data
-    is Failure -> throw exception
-}
+fun <T> Result<T>.getOrThrow(): T =
+    when (this) {
+        is Success -> data
+        is Failure -> throw exception
+    }
 
 /**
  * Transform the success value
  */
-inline fun <T, R> Result<T>.map(transform: (T) -> R): Result<R> = when (this) {
-    is Success -> Success(transform(data))
-    is Failure -> this
-}
+inline fun <T, R> Result<T>.map(transform: (T) -> R): Result<R> =
+    when (this) {
+        is Success -> Success(transform(data))
+        is Failure -> this
+    }
 
 /**
  * Transform the success value with a suspending function
  */
-suspend inline fun <T, R> Result<T>.mapSuspend(crossinline transform: suspend (T) -> R): Result<R> = when (this) {
-    is Success -> Success(transform(data))
-    is Failure -> this
-}
+suspend inline fun <T, R> Result<T>.mapSuspend(crossinline transform: suspend (T) -> R): Result<R> =
+    when (this) {
+        is Success -> Success(transform(data))
+        is Failure -> this
+    }
 
 /**
  * Flat map for chaining Results (railway-oriented programming)
  */
-inline fun <T, R> Result<T>.flatMap(transform: (T) -> Result<R>): Result<R> = when (this) {
-    is Success -> transform(data)
-    is Failure -> this
-}
+inline fun <T, R> Result<T>.flatMap(transform: (T) -> Result<R>): Result<R> =
+    when (this) {
+        is Success -> transform(data)
+        is Failure -> this
+    }
 
 /**
  * Execute a side effect on success and return the original Result
@@ -118,14 +127,17 @@ inline fun <T> Result<T>.onFailure(action: (Exception) -> Unit): Result<T> {
 /**
  * Recover from failure by providing a fallback value
  */
-inline fun <T> Result<T>.recover(recovery: (Exception) -> T): Result<T> = when (this) {
-    is Success -> this
-    is Failure -> Success(recovery(exception))
-}
+inline fun <T> Result<T>.recover(recovery: (Exception) -> T): Result<T> =
+    when (this) {
+        is Success -> this
+        is Failure -> Success(recovery(exception))
+    }
 
 /**
  * Catch exceptions in a suspend block and wrap in Result.
  * Uses Kotlin contracts for better flow analysis.
+ *
+ * IMPORTANT: Re-throws CancellationException to preserve coroutine cancellation.
  */
 @OptIn(ExperimentalContracts::class)
 suspend inline fun <T> suspendRunCatching(crossinline block: suspend () -> T): Result<T> {
@@ -134,6 +146,8 @@ suspend inline fun <T> suspendRunCatching(crossinline block: suspend () -> T): R
     }
     return try {
         Success(block())
+    } catch (e: CancellationException) {
+        throw e // Preserve coroutine cancellation
     } catch (e: Exception) {
         Failure(e)
     }

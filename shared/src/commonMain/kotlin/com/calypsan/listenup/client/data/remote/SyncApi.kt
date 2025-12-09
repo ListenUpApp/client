@@ -9,7 +9,6 @@ import com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
 import com.calypsan.listenup.client.data.remote.model.SyncContributorsResponse
 import com.calypsan.listenup.client.data.remote.model.SyncManifestResponse
 import com.calypsan.listenup.client.data.remote.model.SyncSeriesResponse
-import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -33,9 +32,8 @@ import kotlinx.serialization.Serializable
  * @property clientFactory Factory for creating authenticated HttpClient
  */
 class SyncApi(
-    private val clientFactory: ApiClientFactory
+    private val clientFactory: ApiClientFactory,
 ) {
-
     /**
      * Fetch sync manifest with library overview.
      *
@@ -47,14 +45,13 @@ class SyncApi(
      *
      * @return Result containing SyncManifestResponse or error
      */
-    suspend fun getManifest(): Result<SyncManifestResponse> {
-        return suspendRunCatching {
+    suspend fun getManifest(): Result<SyncManifestResponse> =
+        suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<SyncManifestResponse> =
                 client.get("/api/v1/sync/manifest").body()
             response.toResult().getOrThrow()
         }
-    }
 
     /**
      * Fetch paginated books for syncing.
@@ -73,19 +70,19 @@ class SyncApi(
     suspend fun getBooks(
         limit: Int = 100,
         cursor: String? = null,
-        updatedAfter: String? = null
-    ): Result<SyncBooksResponse> {
-        return suspendRunCatching {
+        updatedAfter: String? = null,
+    ): Result<SyncBooksResponse> =
+        suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<SyncBooksResponse> =
-                client.get("/api/v1/sync/books") {
-                    parameter("limit", limit)
-                    cursor?.let { parameter("cursor", it) }
-                    updatedAfter?.let { parameter("updated_after", it) }
-                }.body()
+                client
+                    .get("/api/v1/sync/books") {
+                        parameter("limit", limit)
+                        cursor?.let { parameter("cursor", it) }
+                        updatedAfter?.let { parameter("updated_after", it) }
+                    }.body()
             response.toResult().getOrThrow()
         }
-    }
 
     /**
      * Fetch all books/changes across all pages.
@@ -97,8 +94,11 @@ class SyncApi(
      * @param updatedAfter ISO 8601 timestamp for delta sync (optional)
      * @return Result containing combined SyncBooksResponse with all changes
      */
-    suspend fun getAllBooks(limit: Int = 100, updatedAfter: String? = null): Result<SyncBooksResponse> {
-        return suspendRunCatching {
+    suspend fun getAllBooks(
+        limit: Int = 100,
+        updatedAfter: String? = null,
+    ): Result<SyncBooksResponse> =
+        suspendRunCatching {
             val allBooks = mutableListOf<BookResponse>()
             val allDeletedIds = mutableListOf<String>()
             var cursor: String? = null
@@ -110,17 +110,19 @@ class SyncApi(
                         allDeletedIds.addAll(result.data.deletedBookIds)
                         cursor = result.data.nextCursor
                     }
-                    is Result.Failure -> throw result.exception
+
+                    is Result.Failure -> {
+                        throw result.exception
+                    }
                 }
             } while (cursor != null)
 
             SyncBooksResponse(
                 books = allBooks,
                 deletedBookIds = allDeletedIds,
-                hasMore = false
+                hasMore = false,
             )
         }
-    }
 
     /**
      * Fetch paginated series for syncing.
@@ -128,22 +130,25 @@ class SyncApi(
     suspend fun getSeries(
         limit: Int = 100,
         cursor: String? = null,
-        updatedAfter: String? = null
-    ): Result<SyncSeriesResponse> {
-        return suspendRunCatching {
+        updatedAfter: String? = null,
+    ): Result<SyncSeriesResponse> =
+        suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<SyncSeriesResponse> =
-                client.get("/api/v1/sync/series") {
-                    parameter("limit", limit)
-                    cursor?.let { parameter("cursor", it) }
-                    updatedAfter?.let { parameter("updated_after", it) }
-                }.body()
+                client
+                    .get("/api/v1/sync/series") {
+                        parameter("limit", limit)
+                        cursor?.let { parameter("cursor", it) }
+                        updatedAfter?.let { parameter("updated_after", it) }
+                    }.body()
             response.toResult().getOrThrow()
         }
-    }
 
-    suspend fun getAllSeries(limit: Int = 100, updatedAfter: String? = null): Result<List<com.calypsan.listenup.client.data.remote.model.SeriesResponse>> {
-        return suspendRunCatching {
+    suspend fun getAllSeries(
+        limit: Int = 100,
+        updatedAfter: String? = null,
+    ): Result<List<com.calypsan.listenup.client.data.remote.model.SeriesResponse>> =
+        suspendRunCatching {
             val allItems = mutableListOf<com.calypsan.listenup.client.data.remote.model.SeriesResponse>()
             var cursor: String? = null
 
@@ -153,13 +158,15 @@ class SyncApi(
                         allItems.addAll(result.data.series)
                         cursor = result.data.nextCursor
                     }
-                    is Result.Failure -> throw result.exception
+
+                    is Result.Failure -> {
+                        throw result.exception
+                    }
                 }
             } while (cursor != null)
 
             allItems
         }
-    }
 
     /**
      * Fetch paginated contributors for syncing.
@@ -167,22 +174,25 @@ class SyncApi(
     suspend fun getContributors(
         limit: Int = 100,
         cursor: String? = null,
-        updatedAfter: String? = null
-    ): Result<SyncContributorsResponse> {
-        return suspendRunCatching {
+        updatedAfter: String? = null,
+    ): Result<SyncContributorsResponse> =
+        suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<SyncContributorsResponse> =
-                client.get("/api/v1/sync/contributors") {
-                    parameter("limit", limit)
-                    cursor?.let { parameter("cursor", it) }
-                    updatedAfter?.let { parameter("updated_after", it) }
-                }.body()
+                client
+                    .get("/api/v1/sync/contributors") {
+                        parameter("limit", limit)
+                        cursor?.let { parameter("cursor", it) }
+                        updatedAfter?.let { parameter("updated_after", it) }
+                    }.body()
             response.toResult().getOrThrow()
         }
-    }
 
-    suspend fun getAllContributors(limit: Int = 100, updatedAfter: String? = null): Result<List<com.calypsan.listenup.client.data.remote.model.ContributorResponse>> {
-        return suspendRunCatching {
+    suspend fun getAllContributors(
+        limit: Int = 100,
+        updatedAfter: String? = null,
+    ): Result<List<com.calypsan.listenup.client.data.remote.model.ContributorResponse>> =
+        suspendRunCatching {
             val allItems = mutableListOf<com.calypsan.listenup.client.data.remote.model.ContributorResponse>()
             var cursor: String? = null
 
@@ -192,13 +202,15 @@ class SyncApi(
                         allItems.addAll(result.data.contributors)
                         cursor = result.data.nextCursor
                     }
-                    is Result.Failure -> throw result.exception
+
+                    is Result.Failure -> {
+                        throw result.exception
+                    }
                 }
             } while (cursor != null)
 
             allItems
         }
-    }
 
     /**
      * Submit listening events to the server.
@@ -212,17 +224,17 @@ class SyncApi(
      * @param events List of listening events to submit
      * @return Result containing acknowledged event IDs
      */
-    suspend fun submitListeningEvents(events: List<ListeningEventRequest>): Result<ListeningEventsResponse> {
-        return suspendRunCatching {
+    suspend fun submitListeningEvents(events: List<ListeningEventRequest>): Result<ListeningEventsResponse> =
+        suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<ListeningEventsResponse> =
-                client.post("/api/v1/listening/events") {
-                    contentType(ContentType.Application.Json)
-                    setBody(ListeningEventsRequest(events = events))
-                }.body()
+                client
+                    .post("/api/v1/listening/events") {
+                        contentType(ContentType.Application.Json)
+                        setBody(ListeningEventsRequest(events = events))
+                    }.body()
             response.toResult().getOrThrow()
         }
-    }
 }
 
 /**
@@ -230,7 +242,7 @@ class SyncApi(
  */
 @Serializable
 data class ListeningEventsRequest(
-    val events: List<ListeningEventRequest>
+    val events: List<ListeningEventRequest>,
 )
 
 /**
@@ -245,7 +257,7 @@ data class ListeningEventRequest(
     val started_at: Long,
     val ended_at: Long,
     val playback_speed: Float,
-    val device_id: String
+    val device_id: String,
 )
 
 /**
@@ -254,5 +266,5 @@ data class ListeningEventRequest(
 @Serializable
 data class ListeningEventsResponse(
     val acknowledged: List<String> = emptyList(),
-    val failed: List<String> = emptyList()
+    val failed: List<String> = emptyList(),
 )

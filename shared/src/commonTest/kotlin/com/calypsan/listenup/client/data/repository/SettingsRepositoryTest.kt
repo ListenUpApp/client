@@ -29,9 +29,8 @@ import kotlin.time.Instant
  */
 @OptIn(ExperimentalTime::class)
 class SettingsRepositoryTest {
-
-    private fun createTestInstance(setupRequired: Boolean): Instance {
-        return Instance(
+    private fun createTestInstance(setupRequired: Boolean): Instance =
+        Instance(
             id = InstanceId("test-instance"),
             name = "Test Instance",
             version = "1.0.0",
@@ -39,375 +38,399 @@ class SettingsRepositoryTest {
             remoteUrl = null,
             setupRequired = setupRequired,
             createdAt = Instant.DISTANT_PAST,
-            updatedAt = Instant.DISTANT_PAST
+            updatedAt = Instant.DISTANT_PAST,
         )
-    }
 
     private fun createMockStorage(): SecureStorage = mock<SecureStorage>()
+
     private fun createMockInstanceRepository(): InstanceRepository = mock<InstanceRepository>()
 
     @Test
-    fun `initial auth state is NeedsServerUrl`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
+    fun `initial auth state is NeedsServerUrl`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
 
-        // Then - initial state before initializeAuthState is called
-        assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
-    }
-
-    @Test
-    fun `setServerUrl stores URL in secure storage`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        val url = ServerUrl("https://api.example.com")
-        everySuspend { storage.save("server_url", "https://api.example.com") } returns Unit
-        // Mock deriveAuthState calls
-        everySuspend { storage.read("server_url") } returns "https://api.example.com"
-        everySuspend { storage.read("access_token") } returns "token"
-        everySuspend { storage.read("user_id") } returns "user001"
-        everySuspend { storage.read("session_id") } returns "session789"
-
-        // When
-        repository.setServerUrl(url)
-
-        // Then
-        verifySuspend { storage.save("server_url", "https://api.example.com") }
-    }
+            // Then - initial state before initializeAuthState is called
+            assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
+        }
 
     @Test
-    fun `getServerUrl returns stored URL`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("server_url") } returns "https://api.example.com"
+    fun `setServerUrl stores URL in secure storage`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            val url = ServerUrl("https://api.example.com")
+            everySuspend { storage.save("server_url", "https://api.example.com") } returns Unit
+            // Mock deriveAuthState calls
+            everySuspend { storage.read("server_url") } returns "https://api.example.com"
+            everySuspend { storage.read("access_token") } returns "token"
+            everySuspend { storage.read("user_id") } returns "user001"
+            everySuspend { storage.read("session_id") } returns "session789"
 
-        // When
-        val result = repository.getServerUrl()
+            // When
+            repository.setServerUrl(url)
 
-        // Then
-        assertEquals(ServerUrl("https://api.example.com"), result)
-    }
-
-    @Test
-    fun `getServerUrl returns null when not configured`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("server_url") } returns null
-
-        // When
-        val result = repository.getServerUrl()
-
-        // Then
-        assertNull(result)
-    }
+            // Then
+            verifySuspend { storage.save("server_url", "https://api.example.com") }
+        }
 
     @Test
-    fun `saveAuthTokens stores all tokens and updates state to Authenticated`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.save(any(), any()) } returns Unit
+    fun `getServerUrl returns stored URL`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("server_url") } returns "https://api.example.com"
 
-        // When
-        repository.saveAuthTokens(
-            AccessToken("access123"),
-            RefreshToken("refresh456"),
-            "session789",
-            "user001"
-        )
+            // When
+            val result = repository.getServerUrl()
 
-        // Then
-        verifySuspend { storage.save("access_token", "access123") }
-        verifySuspend { storage.save("refresh_token", "refresh456") }
-        verifySuspend { storage.save("session_id", "session789") }
-        verifySuspend { storage.save("user_id", "user001") }
-
-        val state = repository.authState.value
-        assertIs<AuthState.Authenticated>(state)
-        assertEquals("user001", state.userId)
-        assertEquals("session789", state.sessionId)
-    }
+            // Then
+            assertEquals(ServerUrl("https://api.example.com"), result)
+        }
 
     @Test
-    fun `getAccessToken returns stored token`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("access_token") } returns "access123"
+    fun `getServerUrl returns null when not configured`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("server_url") } returns null
 
-        // When
-        val result = repository.getAccessToken()
+            // When
+            val result = repository.getServerUrl()
 
-        // Then
-        assertEquals(AccessToken("access123"), result)
-    }
-
-    @Test
-    fun `getRefreshToken returns stored token`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("refresh_token") } returns "refresh456"
-
-        // When
-        val result = repository.getRefreshToken()
-
-        // Then
-        assertEquals(RefreshToken("refresh456"), result)
-    }
+            // Then
+            assertNull(result)
+        }
 
     @Test
-    fun `getSessionId returns stored session ID`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("session_id") } returns "session789"
+    fun `saveAuthTokens stores all tokens and updates state to Authenticated`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.save(any(), any()) } returns Unit
 
-        // When
-        val result = repository.getSessionId()
+            // When
+            repository.saveAuthTokens(
+                AccessToken("access123"),
+                RefreshToken("refresh456"),
+                "session789",
+                "user001",
+            )
 
-        // Then
-        assertEquals("session789", result)
-    }
+            // Then
+            verifySuspend { storage.save("access_token", "access123") }
+            verifySuspend { storage.save("refresh_token", "refresh456") }
+            verifySuspend { storage.save("session_id", "session789") }
+            verifySuspend { storage.save("user_id", "user001") }
 
-    @Test
-    fun `getUserId returns stored user ID`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("user_id") } returns "user001"
-
-        // When
-        val result = repository.getUserId()
-
-        // Then
-        assertEquals("user001", result)
-    }
-
-    @Test
-    fun `updateAccessToken updates only access token`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.save("access_token", "newAccess") } returns Unit
-
-        // When
-        repository.updateAccessToken(AccessToken("newAccess"))
-
-        // Then
-        verifySuspend { storage.save("access_token", "newAccess") }
-    }
+            val state = repository.authState.value
+            assertIs<AuthState.Authenticated>(state)
+            assertEquals("user001", state.userId)
+            assertEquals("session789", state.sessionId)
+        }
 
     @Test
-    fun `clearAuthTokens removes all auth data and updates state to NeedsLogin`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.delete(any()) } returns Unit
+    fun `getAccessToken returns stored token`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("access_token") } returns "access123"
 
-        // When
-        repository.clearAuthTokens()
+            // When
+            val result = repository.getAccessToken()
 
-        // Then
-        verifySuspend { storage.delete("access_token") }
-        verifySuspend { storage.delete("refresh_token") }
-        verifySuspend { storage.delete("session_id") }
-        verifySuspend { storage.delete("user_id") }
-
-        assertIs<AuthState.NeedsLogin>(repository.authState.value)
-    }
+            // Then
+            assertEquals(AccessToken("access123"), result)
+        }
 
     @Test
-    fun `clearAll removes all data and updates state to NeedsServerUrl`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.clear() } returns Unit
+    fun `getRefreshToken returns stored token`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("refresh_token") } returns "refresh456"
 
-        // When
-        repository.clearAll()
+            // When
+            val result = repository.getRefreshToken()
 
-        // Then
-        verifySuspend { storage.clear() }
-        assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
-    }
-
-    @Test
-    fun `isAuthenticated returns true when access token exists`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("access_token") } returns "access123"
-
-        // When
-        val result = repository.isAuthenticated()
-
-        // Then
-        assertTrue(result)
-    }
+            // Then
+            assertEquals(RefreshToken("refresh456"), result)
+        }
 
     @Test
-    fun `isAuthenticated returns false when access token missing`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("access_token") } returns null
+    fun `getSessionId returns stored session ID`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("session_id") } returns "session789"
 
-        // When
-        val result = repository.isAuthenticated()
+            // When
+            val result = repository.getSessionId()
 
-        // Then
-        assertFalse(result)
-    }
-
-    @Test
-    fun `hasServerConfigured returns true when URL configured`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("server_url") } returns "https://api.example.com"
-
-        // When
-        val result = repository.hasServerConfigured()
-
-        // Then
-        assertTrue(result)
-    }
+            // Then
+            assertEquals("session789", result)
+        }
 
     @Test
-    fun `hasServerConfigured returns false when URL not configured`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("server_url") } returns null
+    fun `getUserId returns stored user ID`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("user_id") } returns "user001"
 
-        // When
-        val result = repository.hasServerConfigured()
+            // When
+            val result = repository.getUserId()
 
-        // Then
-        assertFalse(result)
-    }
-
-    @Test
-    fun `initializeAuthState sets NeedsServerUrl when no URL configured`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("server_url") } returns null
-
-        // When
-        repository.initializeAuthState()
-
-        // Then
-        assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
-    }
+            // Then
+            assertEquals("user001", result)
+        }
 
     @Test
-    fun `initializeAuthState sets Authenticated when tokens and IDs present`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("server_url") } returns "https://api.example.com"
-        everySuspend { storage.read("access_token") } returns "access123"
-        everySuspend { storage.read("user_id") } returns "user001"
-        everySuspend { storage.read("session_id") } returns "session789"
+    fun `updateAccessToken updates only access token`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.save("access_token", "newAccess") } returns Unit
 
-        // When
-        repository.initializeAuthState()
+            // When
+            repository.updateAccessToken(AccessToken("newAccess"))
 
-        // Then
-        val state = repository.authState.value
-        assertIs<AuthState.Authenticated>(state)
-        assertEquals("user001", state.userId)
-        assertEquals("session789", state.sessionId)
-    }
+            // Then
+            verifySuspend { storage.save("access_token", "newAccess") }
+        }
 
     @Test
-    fun `initializeAuthState checks server when URL present but no tokens`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("server_url") } returns "https://api.example.com"
-        everySuspend { storage.read("access_token") } returns null
-        everySuspend { storage.read("user_id") } returns null
-        everySuspend { storage.read("session_id") } returns null
-        // Server returns setup not required
-        everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns Result.Success(
-            createTestInstance(setupRequired = false)
-        )
+    fun `clearAuthTokens removes all auth data and updates state to NeedsLogin`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.delete(any()) } returns Unit
 
-        // When
-        repository.initializeAuthState()
+            // When
+            repository.clearAuthTokens()
 
-        // Then
-        assertIs<AuthState.NeedsLogin>(repository.authState.value)
-    }
+            // Then
+            verifySuspend { storage.delete("access_token") }
+            verifySuspend { storage.delete("refresh_token") }
+            verifySuspend { storage.delete("session_id") }
+            verifySuspend { storage.delete("user_id") }
 
-    @Test
-    fun `initializeAuthState sets NeedsSetup when server requires setup`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("server_url") } returns "https://api.example.com"
-        everySuspend { storage.read("access_token") } returns null
-        everySuspend { storage.read("user_id") } returns null
-        everySuspend { storage.read("session_id") } returns null
-        // Server returns setup required
-        everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns Result.Success(
-            createTestInstance(setupRequired = true)
-        )
-
-        // When
-        repository.initializeAuthState()
-
-        // Then
-        assertIs<AuthState.NeedsSetup>(repository.authState.value)
-    }
+            assertIs<AuthState.NeedsLogin>(repository.authState.value)
+        }
 
     @Test
-    fun `initializeAuthState clears URL and sets NeedsServerUrl on network failure`() = runTest {
-        // Given
-        val storage = createMockStorage()
-        val instanceRepository = createMockInstanceRepository()
-        val repository = SettingsRepository(storage, instanceRepository)
-        everySuspend { storage.read("server_url") } returns "https://api.example.com"
-        everySuspend { storage.read("access_token") } returns null
-        everySuspend { storage.read("user_id") } returns null
-        everySuspend { storage.read("session_id") } returns null
-        everySuspend { storage.delete("server_url") } returns Unit
-        // Server unreachable
-        everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns Result.Failure(
-            Exception("Network error")
-        )
+    fun `clearAll removes all data and updates state to NeedsServerUrl`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.clear() } returns Unit
 
-        // When
-        repository.initializeAuthState()
+            // When
+            repository.clearAll()
 
-        // Then
-        verifySuspend { storage.delete("server_url") }
-        assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
-    }
+            // Then
+            verifySuspend { storage.clear() }
+            assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
+        }
+
+    @Test
+    fun `isAuthenticated returns true when access token exists`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("access_token") } returns "access123"
+
+            // When
+            val result = repository.isAuthenticated()
+
+            // Then
+            assertTrue(result)
+        }
+
+    @Test
+    fun `isAuthenticated returns false when access token missing`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("access_token") } returns null
+
+            // When
+            val result = repository.isAuthenticated()
+
+            // Then
+            assertFalse(result)
+        }
+
+    @Test
+    fun `hasServerConfigured returns true when URL configured`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("server_url") } returns "https://api.example.com"
+
+            // When
+            val result = repository.hasServerConfigured()
+
+            // Then
+            assertTrue(result)
+        }
+
+    @Test
+    fun `hasServerConfigured returns false when URL not configured`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("server_url") } returns null
+
+            // When
+            val result = repository.hasServerConfigured()
+
+            // Then
+            assertFalse(result)
+        }
+
+    @Test
+    fun `initializeAuthState sets NeedsServerUrl when no URL configured`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("server_url") } returns null
+
+            // When
+            repository.initializeAuthState()
+
+            // Then
+            assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
+        }
+
+    @Test
+    fun `initializeAuthState sets Authenticated when tokens and IDs present`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("server_url") } returns "https://api.example.com"
+            everySuspend { storage.read("access_token") } returns "access123"
+            everySuspend { storage.read("user_id") } returns "user001"
+            everySuspend { storage.read("session_id") } returns "session789"
+
+            // When
+            repository.initializeAuthState()
+
+            // Then
+            val state = repository.authState.value
+            assertIs<AuthState.Authenticated>(state)
+            assertEquals("user001", state.userId)
+            assertEquals("session789", state.sessionId)
+        }
+
+    @Test
+    fun `initializeAuthState checks server when URL present but no tokens`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("server_url") } returns "https://api.example.com"
+            everySuspend { storage.read("access_token") } returns null
+            everySuspend { storage.read("user_id") } returns null
+            everySuspend { storage.read("session_id") } returns null
+            // Server returns setup not required
+            everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
+                Result.Success(
+                    createTestInstance(setupRequired = false),
+                )
+
+            // When
+            repository.initializeAuthState()
+
+            // Then
+            assertIs<AuthState.NeedsLogin>(repository.authState.value)
+        }
+
+    @Test
+    fun `initializeAuthState sets NeedsSetup when server requires setup`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("server_url") } returns "https://api.example.com"
+            everySuspend { storage.read("access_token") } returns null
+            everySuspend { storage.read("user_id") } returns null
+            everySuspend { storage.read("session_id") } returns null
+            // Server returns setup required
+            everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
+                Result.Success(
+                    createTestInstance(setupRequired = true),
+                )
+
+            // When
+            repository.initializeAuthState()
+
+            // Then
+            assertIs<AuthState.NeedsSetup>(repository.authState.value)
+        }
+
+    @Test
+    fun `initializeAuthState clears URL and sets NeedsServerUrl on network failure`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("server_url") } returns "https://api.example.com"
+            everySuspend { storage.read("access_token") } returns null
+            everySuspend { storage.read("user_id") } returns null
+            everySuspend { storage.read("session_id") } returns null
+            everySuspend { storage.delete("server_url") } returns Unit
+            // Server unreachable
+            everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
+                Result.Failure(
+                    Exception("Network error"),
+                )
+
+            // When
+            repository.initializeAuthState()
+
+            // Then
+            verifySuspend { storage.delete("server_url") }
+            assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
+        }
 }

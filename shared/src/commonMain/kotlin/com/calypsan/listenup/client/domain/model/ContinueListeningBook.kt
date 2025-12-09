@@ -13,10 +13,12 @@ data class ContinueListeningBook(
     val title: String,
     val authorNames: String,
     val coverPath: String?,
-    val progress: Float,            // 0.0 - 1.0
+    // 0.0 - 1.0
+    val progress: Float,
     val currentPositionMs: Long,
     val totalDurationMs: Long,
-    val lastPlayedAt: String        // ISO 8601 timestamp
+    // ISO 8601 timestamp
+    val lastPlayedAt: String,
 ) {
     /**
      * Time remaining in milliseconds.

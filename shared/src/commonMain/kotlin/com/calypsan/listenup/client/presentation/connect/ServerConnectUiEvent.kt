@@ -25,7 +25,9 @@ sealed interface ServerConnectUiEvent {
      *
      * @property newUrl The new URL value from text field
      */
-    data class UrlChanged(val newUrl: String) : ServerConnectUiEvent
+    data class UrlChanged(
+        val newUrl: String,
+    ) : ServerConnectUiEvent
 
     /**
      * User clicked the Connect button.

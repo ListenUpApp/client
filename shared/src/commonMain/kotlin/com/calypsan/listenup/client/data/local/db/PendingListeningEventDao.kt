@@ -13,7 +13,6 @@ import androidx.room.Query
  */
 @Dao
 interface PendingListeningEventDao {
-
     /**
      * Queue a new listening event for sync.
      *
@@ -66,7 +65,10 @@ interface PendingListeningEventDao {
      * @param now Current timestamp for backoff calculation
      */
     @Query("UPDATE pending_listening_events SET attempts = attempts + 1, lastAttemptAt = :now WHERE id = :id")
-    suspend fun markAttempt(id: String, now: Long)
+    suspend fun markAttempt(
+        id: String,
+        now: Long,
+    )
 
     /**
      * Get count of pending events.

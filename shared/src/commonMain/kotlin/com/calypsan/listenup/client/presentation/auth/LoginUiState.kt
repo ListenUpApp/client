@@ -32,7 +32,9 @@ sealed interface LoginStatus {
     /**
      * Login failed with an error.
      */
-    data class Error(val type: LoginErrorType) : LoginStatus
+    data class Error(
+        val type: LoginErrorType,
+    ) : LoginStatus
 }
 
 /**
@@ -49,18 +51,24 @@ sealed interface LoginErrorType {
      * Network connection error (can't reach server).
      * @property detail Additional context about the connection failure
      */
-    data class NetworkError(val detail: String? = null) : LoginErrorType
+    data class NetworkError(
+        val detail: String? = null,
+    ) : LoginErrorType
 
     /**
      * Server returned an error (500, etc).
      * @property detail Additional context about the server error
      */
-    data class ServerError(val detail: String? = null) : LoginErrorType
+    data class ServerError(
+        val detail: String? = null,
+    ) : LoginErrorType
 
     /**
      * Client-side validation error on a specific field.
      */
-    data class ValidationError(val field: LoginField) : LoginErrorType
+    data class ValidationError(
+        val field: LoginField,
+    ) : LoginErrorType
 }
 
 /**
@@ -68,5 +76,5 @@ sealed interface LoginErrorType {
  */
 enum class LoginField {
     EMAIL,
-    PASSWORD
+    PASSWORD,
 }

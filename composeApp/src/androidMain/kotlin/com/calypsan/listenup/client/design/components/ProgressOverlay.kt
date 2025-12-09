@@ -31,30 +31,33 @@ import androidx.compose.ui.unit.dp
 fun ProgressOverlay(
     progress: Float,
     timeRemaining: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f))
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f))
+                .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // Progress bar with percentage inside
         Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(18.dp)
-                .clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(18.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)),
         ) {
             // Filled portion
             Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(progress.coerceIn(0f, 1f))
-                    .background(MaterialTheme.colorScheme.primary)
+                modifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(progress.coerceIn(0f, 1f))
+                        .background(MaterialTheme.colorScheme.primary),
             )
             // Percentage text centered
             Text(
@@ -62,7 +65,7 @@ fun ProgressOverlay(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onPrimary,
                 fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier.align(Alignment.Center),
             )
         }
 
@@ -73,7 +76,7 @@ fun ProgressOverlay(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 1
+                maxLines = 1,
             )
         }
     }

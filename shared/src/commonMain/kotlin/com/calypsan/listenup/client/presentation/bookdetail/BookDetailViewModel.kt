@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.presentation.book_detail
+package com.calypsan.listenup.client.presentation.bookdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,11 +8,14 @@ import com.calypsan.listenup.client.data.remote.TagApi
 import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Tag
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * ViewModel for the Book Detail screen.
@@ -20,9 +23,8 @@ import kotlinx.coroutines.launch
 class BookDetailViewModel(
     private val bookRepository: BookRepository,
     private val tagApi: TagApi,
-    private val playbackPositionDao: PlaybackPositionDao
+    private val playbackPositionDao: PlaybackPositionDao,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(BookDetailUiState())
     val state: StateFlow<BookDetailUiState> = _state.asStateFlow()
 
@@ -30,68 +32,79 @@ class BookDetailViewModel(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             val book = bookRepository.getBook(bookId)
-            
+
             if (book != null) {
-                val chapters = bookRepository.getChapters(bookId).map { domainChapter ->
-                    ChapterUiModel(
-                        id = domainChapter.id,
-                        title = domainChapter.title,
-                        duration = domainChapter.formatDuration(),
-                        imageUrl = null // Placeholder
-                    )
-                }
+                val chapters =
+                    bookRepository.getChapters(bookId).map { domainChapter ->
+                        ChapterUiModel(
+                            id = domainChapter.id,
+                            title = domainChapter.title,
+                            duration = domainChapter.formatDuration(),
+                            imageUrl = null, // Placeholder
+                        )
+                    }
 
                 // Filter out subtitles that are just series name + book number
-                val displaySubtitle = book.subtitle?.let { subtitle ->
-                    if (isSubtitleRedundant(subtitle, book.seriesName, book.seriesSequence)) {
-                        null
-                    } else {
-                        subtitle
+                val displaySubtitle =
+                    book.subtitle?.let { subtitle ->
+                        if (isSubtitleRedundant(subtitle, book.seriesName, book.seriesSequence)) {
+                            null
+                        } else {
+                            subtitle
+                        }
                     }
-                }
 
                 // Parse comma-separated genres into list for chip display
-                val genresList = book.genres
-                    ?.split(",")
-                    ?.map { it.trim() }
-                    ?.filter { it.isNotBlank() }
-                    ?: emptyList()
+                val genresList =
+                    book.genres
+                        ?.split(",")
+                        ?.map { it.trim() }
+                        ?.filter { it.isNotBlank() }
+                        ?: emptyList()
 
                 // Load progress for this book
                 val position = playbackPositionDao.get(BookId(bookId))
-                val progress = if (position != null && book.duration > 0) {
-                    (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
-                } else null
+                val progress =
+                    if (position != null && book.duration > 0) {
+                        (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
+                    } else {
+                        null
+                    }
 
                 // Calculate time remaining if there's progress
-                val timeRemaining = if (progress != null && progress > 0f && progress < 0.99f) {
-                    val remainingMs = book.duration - (position?.positionMs ?: 0L)
-                    formatTimeRemaining(remainingMs)
-                } else null
+                val timeRemaining =
+                    if (progress != null && progress > 0f && progress < 0.99f) {
+                        val remainingMs = book.duration - (position?.positionMs ?: 0L)
+                        formatTimeRemaining(remainingMs)
+                    } else {
+                        null
+                    }
 
-                _state.value = BookDetailUiState(
-                    isLoading = false,
-                    book = book,
-                    subtitle = displaySubtitle,
-                    series = book.fullSeriesTitle,
-                    description = book.description ?: "",
-                    narrators = book.narratorNames,
-                    genres = book.genres ?: "",
-                    genresList = genresList,
-                    year = book.publishYear,
-                    rating = book.rating,
-                    chapters = chapters,
-                    progress = if (progress != null && progress > 0f && progress < 0.99f) progress else null,
-                    timeRemainingFormatted = timeRemaining
-                )
+                _state.value =
+                    BookDetailUiState(
+                        isLoading = false,
+                        book = book,
+                        subtitle = displaySubtitle,
+                        series = book.fullSeriesTitle,
+                        description = book.description ?: "",
+                        narrators = book.narratorNames,
+                        genres = book.genres ?: "",
+                        genresList = genresList,
+                        year = book.publishYear,
+                        rating = book.rating,
+                        chapters = chapters,
+                        progress = if (progress != null && progress > 0f && progress < 0.99f) progress else null,
+                        timeRemainingFormatted = timeRemaining,
+                    )
 
                 // Load tags for this book (non-blocking, optional feature)
                 loadTags(bookId)
             } else {
-                _state.value = BookDetailUiState(
-                    isLoading = false,
-                    error = "Book not found"
-                )
+                _state.value =
+                    BookDetailUiState(
+                        isLoading = false,
+                        error = "Book not found",
+                    )
             }
         }
     }
@@ -110,11 +123,12 @@ class BookDetailViewModel(
                     it.copy(
                         tags = bookTags,
                         allUserTags = allTags,
-                        isLoadingTags = false
+                        isLoadingTags = false,
                     )
                 }
             } catch (e: Exception) {
                 // Tags are optional - don't fail the whole screen
+                logger.warn(e) { "Failed to load tags" }
                 _state.update { it.copy(isLoadingTags = false) }
             }
         }
@@ -138,13 +152,16 @@ class BookDetailViewModel(
      * Add a tag to the current book.
      */
     fun addTag(tagId: String) {
-        val bookId = _state.value.book?.id?.value ?: return
+        val bookId =
+            _state.value.book
+                ?.id
+                ?.value ?: return
         viewModelScope.launch {
             try {
                 tagApi.addTagToBook(bookId, tagId)
                 loadTags(bookId) // Refresh
             } catch (e: Exception) {
-                // TODO: Show error to user
+                logger.error(e) { "Failed to add tag $tagId to book $bookId" }
             }
         }
     }
@@ -153,13 +170,16 @@ class BookDetailViewModel(
      * Remove a tag from the current book.
      */
     fun removeTag(tagId: String) {
-        val bookId = _state.value.book?.id?.value ?: return
+        val bookId =
+            _state.value.book
+                ?.id
+                ?.value ?: return
         viewModelScope.launch {
             try {
                 tagApi.removeTagFromBook(bookId, tagId)
                 loadTags(bookId) // Refresh
             } catch (e: Exception) {
-                // TODO: Show error to user
+                logger.error(e) { "Failed to remove tag $tagId from book $bookId" }
             }
         }
     }
@@ -168,7 +188,10 @@ class BookDetailViewModel(
      * Create a new tag and add it to the current book.
      */
     fun createAndAddTag(name: String) {
-        val bookId = _state.value.book?.id?.value ?: return
+        val bookId =
+            _state.value.book
+                ?.id
+                ?.value ?: return
         viewModelScope.launch {
             try {
                 val newTag = tagApi.createTag(name)
@@ -176,7 +199,7 @@ class BookDetailViewModel(
                 loadTags(bookId) // Refresh
                 hideTagPicker()
             } catch (e: Exception) {
-                // TODO: Show error to user
+                logger.error(e) { "Failed to create and add tag '$name' to book $bookId" }
             }
         }
     }
@@ -186,7 +209,6 @@ data class BookDetailUiState(
     val isLoading: Boolean = true,
     val book: Book? = null,
     val error: String? = null,
-
     // Extended metadata for UI prototype (now in DB)
     val subtitle: String? = null,
     val series: String? = null,
@@ -197,36 +219,23 @@ data class BookDetailUiState(
     val year: Int? = null,
     val rating: Double? = null,
     val chapters: List<ChapterUiModel> = emptyList(),
-
     // Progress (for overlay display)
     val progress: Float? = null,
     val timeRemainingFormatted: String? = null,
-
     // Tags
     val tags: List<Tag> = emptyList(),
     val allUserTags: List<Tag> = emptyList(),
     val isLoadingTags: Boolean = false,
-    val showTagPicker: Boolean = false
+    val showTagPicker: Boolean = false,
 )
 
 data class ChapterUiModel(
     val id: String,
     val title: String,
     val duration: String,
-    val imageUrl: String?
+    val imageUrl: String?,
 )
 
-/**
- * Checks if a subtitle is redundant because it's just the series name and book number.
- *
- * Examples of redundant subtitles:
- * - "The Stormlight Archive, Book 1"
- * - "Mistborn #3"
- * - "Book 2 of The Wheel of Time"
- *
- * The heuristic removes the series name and common book number patterns,
- * then checks if there's any meaningful content left.
- */
 /**
  * Format milliseconds as human-readable time remaining.
  * E.g., "2h 15m left" or "45m left"
@@ -243,10 +252,21 @@ private fun formatTimeRemaining(ms: Long): String {
     }
 }
 
+/**
+ * Checks if a subtitle is redundant because it's just the series name and book number.
+ *
+ * Examples of redundant subtitles:
+ * - "The Stormlight Archive, Book 1"
+ * - "Mistborn #3"
+ * - "Book 2 of The Wheel of Time"
+ *
+ * The heuristic removes the series name and common book number patterns,
+ * then checks if there's any meaningful content left.
+ */
 private fun isSubtitleRedundant(
     subtitle: String,
     seriesName: String?,
-    seriesSequence: String?
+    seriesSequence: String?,
 ): Boolean {
     // If no series info, subtitle is not redundant
     if (seriesName.isNullOrBlank()) return false
@@ -261,28 +281,33 @@ private fun isSubtitleRedundant(
     var remaining = normalizedSubtitle.replace(normalizedSeriesName, "")
 
     // Remove common book number patterns
-    val bookNumberPatterns = listOf(
-        // "Book 1", "Book One", "Book I"
-        Regex("""book\s*[#]?\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|i{1,3}|iv|v|vi{0,3}|ix|x)""", RegexOption.IGNORE_CASE),
-        // "#1", "# 1"
-        Regex("""#\s*\d+"""),
-        // "Part 1", "Part One"
-        Regex("""part\s*[#]?\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten)""", RegexOption.IGNORE_CASE),
-        // "Volume 1", "Vol. 1", "Vol 1"
-        Regex("""vol(ume|\.?)?\s*[#]?\s*\d+""", RegexOption.IGNORE_CASE),
-        // Just a number (if sequence matches)
-        seriesSequence?.let { Regex("""\b${Regex.escape(it)}\b""") }
-    ).filterNotNull()
+    val bookNumberPatterns =
+        listOf(
+            // "Book 1", "Book One", "Book I"
+            Regex(
+                """book\s*[#]?\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|i{1,3}|iv|v|vi{0,3}|ix|x)""",
+                RegexOption.IGNORE_CASE,
+            ),
+            // "#1", "# 1"
+            Regex("""#\s*\d+"""),
+            // "Part 1", "Part One"
+            Regex("""part\s*[#]?\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten)""", RegexOption.IGNORE_CASE),
+            // "Volume 1", "Vol. 1", "Vol 1"
+            Regex("""vol(ume|\.?)?\s*[#]?\s*\d+""", RegexOption.IGNORE_CASE),
+            // Just a number (if sequence matches)
+            seriesSequence?.let { Regex("""\b${Regex.escape(it)}\b""") },
+        ).filterNotNull()
 
     for (pattern in bookNumberPatterns) {
         remaining = remaining.replace(pattern, "")
     }
 
     // Remove common separators and punctuation
-    remaining = remaining
-        .replace(Regex("""[,.:;|\-–—/\\()\[\]{}]"""), " ")
-        .replace(Regex("""\s+"""), " ")
-        .trim()
+    remaining =
+        remaining
+            .replace(Regex("""[,.:;|\-–—/\\()\[\]{}]"""), " ")
+            .replace(Regex("""\s+"""), " ")
+            .trim()
 
     // If very little meaningful content remains (less than 3 chars), it's redundant
     return remaining.length < 3

@@ -18,22 +18,22 @@ import androidx.compose.ui.graphics.vector.ImageVector
  */
 enum class LibraryTab(
     val title: String,
-    val icon: ImageVector
+    val icon: ImageVector,
 ) {
     Books(
         title = "Books",
-        icon = Icons.AutoMirrored.Outlined.MenuBook
+        icon = Icons.AutoMirrored.Outlined.MenuBook,
     ),
     Series(
         title = "Series",
-        icon = Icons.Outlined.AutoStories
+        icon = Icons.Outlined.AutoStories,
     ),
     Authors(
         title = "Authors",
-        icon = Icons.Outlined.Person
+        icon = Icons.Outlined.Person,
     ),
     Narrators(
         title = "Narrators",
-        icon = Icons.Outlined.RecordVoiceOver
-    )
+        icon = Icons.Outlined.RecordVoiceOver,
+    ),
 }

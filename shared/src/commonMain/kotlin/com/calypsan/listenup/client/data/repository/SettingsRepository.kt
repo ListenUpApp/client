@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class SettingsRepository(
     private val secureStorage: SecureStorage,
-    private val instanceRepository: InstanceRepository
+    private val instanceRepository: InstanceRepository,
 ) {
     private val _authState = MutableStateFlow<AuthState>(AuthState.NeedsServerUrl)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
@@ -70,9 +70,7 @@ class SettingsRepository(
      * Get the configured server URL.
      * @return ServerUrl if configured, null otherwise
      */
-    suspend fun getServerUrl(): ServerUrl? {
-        return secureStorage.read(KEY_SERVER_URL)?.let { ServerUrl(it) }
-    }
+    suspend fun getServerUrl(): ServerUrl? = secureStorage.read(KEY_SERVER_URL)?.let { ServerUrl(it) }
 
     // Authentication state management
 
@@ -89,7 +87,7 @@ class SettingsRepository(
         access: AccessToken,
         refresh: RefreshToken,
         sessionId: String,
-        userId: String
+        userId: String,
     ) {
         secureStorage.save(KEY_ACCESS_TOKEN, access.value)
         secureStorage.save(KEY_REFRESH_TOKEN, refresh.value)
@@ -103,33 +101,25 @@ class SettingsRepository(
      * Get the current access token.
      * @return AccessToken if authenticated, null otherwise
      */
-    suspend fun getAccessToken(): AccessToken? {
-        return secureStorage.read(KEY_ACCESS_TOKEN)?.let { AccessToken(it) }
-    }
+    suspend fun getAccessToken(): AccessToken? = secureStorage.read(KEY_ACCESS_TOKEN)?.let { AccessToken(it) }
 
     /**
      * Get the current refresh token.
      * @return RefreshToken if authenticated, null otherwise
      */
-    suspend fun getRefreshToken(): RefreshToken? {
-        return secureStorage.read(KEY_REFRESH_TOKEN)?.let { RefreshToken(it) }
-    }
+    suspend fun getRefreshToken(): RefreshToken? = secureStorage.read(KEY_REFRESH_TOKEN)?.let { RefreshToken(it) }
 
     /**
      * Get the current session ID.
      * @return Session ID if authenticated, null otherwise
      */
-    suspend fun getSessionId(): String? {
-        return secureStorage.read(KEY_SESSION_ID)
-    }
+    suspend fun getSessionId(): String? = secureStorage.read(KEY_SESSION_ID)
 
     /**
      * Get the current user ID.
      * @return User ID if authenticated, null otherwise
      */
-    suspend fun getUserId(): String? {
-        return secureStorage.read(KEY_USER_ID)
-    }
+    suspend fun getUserId(): String? = secureStorage.read(KEY_USER_ID)
 
     /**
      * Update only the access token (used during automatic token refresh).
@@ -240,7 +230,7 @@ class SettingsRepository(
             // Use placeholder values - will be refreshed on first successful API call
             return AuthState.Authenticated(
                 userId = userId ?: "pending",
-                sessionId = sessionId ?: "pending"
+                sessionId = sessionId ?: "pending",
             )
         }
 
@@ -262,14 +252,16 @@ class SettingsRepository(
 
         return when (val result = instanceRepository.getInstance(forceRefresh = true)) {
             is Result.Success -> {
-                val newState = if (result.data.setupRequired) {
-                    AuthState.NeedsSetup
-                } else {
-                    AuthState.NeedsLogin
-                }
+                val newState =
+                    if (result.data.setupRequired) {
+                        AuthState.NeedsSetup
+                    } else {
+                        AuthState.NeedsLogin
+                    }
                 _authState.value = newState
                 newState
             }
+
             is Result.Failure -> {
                 // Server unreachable - stay in NeedsLogin, don't clear URL
                 // User can retry or check their connection
@@ -358,9 +350,8 @@ class SettingsRepository(
      * Get whether to ignore leading articles (A, An, The) when sorting by title.
      * @return true to ignore articles (default), false for literal sort
      */
-    suspend fun getIgnoreTitleArticles(): Boolean {
-        return secureStorage.read(KEY_IGNORE_TITLE_ARTICLES)?.toBooleanStrictOrNull() ?: true
-    }
+    suspend fun getIgnoreTitleArticles(): Boolean =
+        secureStorage.read(KEY_IGNORE_TITLE_ARTICLES)?.toBooleanStrictOrNull() ?: true
 
     /**
      * Set whether to ignore leading articles when sorting by title.

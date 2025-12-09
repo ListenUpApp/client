@@ -1,0 +1,22 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_size = 4
+indent_style = space
+insert_final_newline = true
+max_line_length = 120
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+# Only disable function-naming for Composable functions (PascalCase is Compose convention)
+ktlint_function_naming_ignore_when_annotated_with = Composable
+# Allow wildcard imports for iOS platform interop (convention in KMP)
+ij_kotlin_packages_to_use_import_on_demand = platform.**,kotlinx.cinterop.**
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{yml,yaml}]
+indent_size = 2

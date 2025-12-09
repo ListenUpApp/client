@@ -44,9 +44,8 @@ class LibraryViewModel(
     private val syncManager: SyncManager,
     private val settingsRepository: SettingsRepository,
     private val syncDao: SyncDao,
-    private val playbackPositionDao: PlaybackPositionDao
+    private val playbackPositionDao: PlaybackPositionDao,
 ) : ViewModel() {
-
     // Sort state for each tab (category + direction)
     private val _booksSortState = MutableStateFlow(SortState.booksDefault)
     val booksSortState: StateFlow<SortState> = _booksSortState.asStateFlow()
@@ -67,59 +66,63 @@ class LibraryViewModel(
     /**
      * Observable list of books, sorted by current sort state.
      */
-    val books: StateFlow<List<Book>> = combine(
-        bookRepository.observeBooks(),
-        _booksSortState,
-        _ignoreTitleArticles
-    ) { books, sortState, ignoreArticles ->
-        sortBooks(books, sortState, ignoreArticles)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
+    val books: StateFlow<List<Book>> =
+        combine(
+            bookRepository.observeBooks(),
+            _booksSortState,
+            _ignoreTitleArticles,
+        ) { books, sortState, ignoreArticles ->
+            sortBooks(books, sortState, ignoreArticles)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList(),
+        )
 
     /**
      * Observable list of series with their books, sorted by current sort state.
      */
-    val series: StateFlow<List<SeriesWithBooks>> = combine(
-        seriesDao.observeAllWithBooks(),
-        _seriesSortState
-    ) { series, sortState ->
-        sortSeries(series, sortState)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
+    val series: StateFlow<List<SeriesWithBooks>> =
+        combine(
+            seriesDao.observeAllWithBooks(),
+            _seriesSortState,
+        ) { series, sortState ->
+            sortSeries(series, sortState)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList(),
+        )
 
     /**
      * Observable list of authors with book counts, sorted by current sort state.
      */
-    val authors: StateFlow<List<ContributorWithBookCount>> = combine(
-        contributorDao.observeByRoleWithCount("author"),
-        _authorsSortState
-    ) { authors, sortState ->
-        sortContributors(authors, sortState)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
+    val authors: StateFlow<List<ContributorWithBookCount>> =
+        combine(
+            contributorDao.observeByRoleWithCount("author"),
+            _authorsSortState,
+        ) { authors, sortState ->
+            sortContributors(authors, sortState)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList(),
+        )
 
     /**
      * Observable list of narrators with book counts, sorted by current sort state.
      */
-    val narrators: StateFlow<List<ContributorWithBookCount>> = combine(
-        contributorDao.observeByRoleWithCount("narrator"),
-        _narratorsSortState
-    ) { narrators, sortState ->
-        sortContributors(narrators, sortState)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
+    val narrators: StateFlow<List<ContributorWithBookCount>> =
+        combine(
+            contributorDao.observeByRoleWithCount("narrator"),
+            _narratorsSortState,
+        ) { narrators, sortState ->
+            sortContributors(narrators, sortState)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList(),
+        )
 
     /**
      * Observable sync status.
@@ -131,32 +134,34 @@ class LibraryViewModel(
      * Maps bookId -> progress (0.0 to 1.0).
      * Used for showing progress indicators on book cards.
      */
-    val bookProgress: StateFlow<Map<String, Float>> = combine(
-        playbackPositionDao.observeAll(),
-        books
-    ) { positions, booksList ->
-        // Create a map of book durations for progress calculation
-        val bookDurations = booksList.associate { it.id.value to it.duration }
+    val bookProgress: StateFlow<Map<String, Float>> =
+        combine(
+            playbackPositionDao.observeAll(),
+            books,
+        ) { positions, booksList ->
+            // Create a map of book durations for progress calculation
+            val bookDurations = booksList.associate { it.id.value to it.duration }
 
-        // Convert positions to progress percentages
-        positions.mapNotNull { position ->
-            val bookId = position.bookId.value
-            val duration = bookDurations[bookId] ?: return@mapNotNull null
-            if (duration <= 0) return@mapNotNull null
+            // Convert positions to progress percentages
+            positions
+                .mapNotNull { position ->
+                    val bookId = position.bookId.value
+                    val duration = bookDurations[bookId] ?: return@mapNotNull null
+                    if (duration <= 0) return@mapNotNull null
 
-            val progress = (position.positionMs.toFloat() / duration).coerceIn(0f, 1f)
-            // Only include books with meaningful progress (> 0% and < 99%)
-            if (progress > 0f && progress < 0.99f) {
-                bookId to progress
-            } else {
-                null
-            }
-        }.toMap()
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyMap()
-    )
+                    val progress = (position.positionMs.toFloat() / duration).coerceIn(0f, 1f)
+                    // Only include books with meaningful progress (> 0% and < 99%)
+                    if (progress > 0f && progress < 0.99f) {
+                        bookId to progress
+                    } else {
+                        null
+                    }
+                }.toMap()
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyMap(),
+        )
 
     private var hasPerformedInitialSync = false
 
@@ -206,43 +211,68 @@ class LibraryViewModel(
      */
     fun onEvent(event: LibraryUiEvent) {
         when (event) {
-            is LibraryUiEvent.RefreshRequested -> refreshBooks()
+            is LibraryUiEvent.RefreshRequested -> {
+                refreshBooks()
+            }
+
             is LibraryUiEvent.BookClicked -> { /* Navigation handled by parent */ }
 
             // Books tab sort events
-            is LibraryUiEvent.BooksCategoryChanged -> updateBooksSortState(
-                _booksSortState.value.withCategory(event.category)
-            )
-            is LibraryUiEvent.BooksDirectionToggled -> updateBooksSortState(
-                _booksSortState.value.toggleDirection()
-            )
+            is LibraryUiEvent.BooksCategoryChanged -> {
+                updateBooksSortState(
+                    _booksSortState.value.withCategory(event.category),
+                )
+            }
+
+            is LibraryUiEvent.BooksDirectionToggled -> {
+                updateBooksSortState(
+                    _booksSortState.value.toggleDirection(),
+                )
+            }
 
             // Series tab sort events
-            is LibraryUiEvent.SeriesCategoryChanged -> updateSeriesSortState(
-                _seriesSortState.value.withCategory(event.category)
-            )
-            is LibraryUiEvent.SeriesDirectionToggled -> updateSeriesSortState(
-                _seriesSortState.value.toggleDirection()
-            )
+            is LibraryUiEvent.SeriesCategoryChanged -> {
+                updateSeriesSortState(
+                    _seriesSortState.value.withCategory(event.category),
+                )
+            }
+
+            is LibraryUiEvent.SeriesDirectionToggled -> {
+                updateSeriesSortState(
+                    _seriesSortState.value.toggleDirection(),
+                )
+            }
 
             // Authors tab sort events
-            is LibraryUiEvent.AuthorsCategoryChanged -> updateAuthorsSortState(
-                _authorsSortState.value.withCategory(event.category)
-            )
-            is LibraryUiEvent.AuthorsDirectionToggled -> updateAuthorsSortState(
-                _authorsSortState.value.toggleDirection()
-            )
+            is LibraryUiEvent.AuthorsCategoryChanged -> {
+                updateAuthorsSortState(
+                    _authorsSortState.value.withCategory(event.category),
+                )
+            }
+
+            is LibraryUiEvent.AuthorsDirectionToggled -> {
+                updateAuthorsSortState(
+                    _authorsSortState.value.toggleDirection(),
+                )
+            }
 
             // Narrators tab sort events
-            is LibraryUiEvent.NarratorsCategoryChanged -> updateNarratorsSortState(
-                _narratorsSortState.value.withCategory(event.category)
-            )
-            is LibraryUiEvent.NarratorsDirectionToggled -> updateNarratorsSortState(
-                _narratorsSortState.value.toggleDirection()
-            )
+            is LibraryUiEvent.NarratorsCategoryChanged -> {
+                updateNarratorsSortState(
+                    _narratorsSortState.value.withCategory(event.category),
+                )
+            }
+
+            is LibraryUiEvent.NarratorsDirectionToggled -> {
+                updateNarratorsSortState(
+                    _narratorsSortState.value.toggleDirection(),
+                )
+            }
 
             // Title sort article handling
-            is LibraryUiEvent.ToggleIgnoreTitleArticles -> toggleIgnoreTitleArticles()
+            is LibraryUiEvent.ToggleIgnoreTitleArticles -> {
+                toggleIgnoreTitleArticles()
+            }
         }
     }
 
@@ -292,119 +322,154 @@ class LibraryViewModel(
 
     // Sorting helper functions
 
-    private fun sortBooks(books: List<Book>, state: SortState, ignoreArticles: Boolean): List<Book> {
+    private fun sortBooks(
+        books: List<Book>,
+        state: SortState,
+        ignoreArticles: Boolean,
+    ): List<Book> {
         val isAsc = state.direction == SortDirection.ASCENDING
 
         return when (state.category) {
-            SortCategory.TITLE -> if (isAsc) {
-                books.sortedBy { it.title.sortableTitle(ignoreArticles) }
-            } else {
-                books.sortedByDescending { it.title.sortableTitle(ignoreArticles) }
+            SortCategory.TITLE -> {
+                if (isAsc) {
+                    books.sortedBy { it.title.sortableTitle(ignoreArticles) }
+                } else {
+                    books.sortedByDescending { it.title.sortableTitle(ignoreArticles) }
+                }
             }
 
-            SortCategory.AUTHOR -> if (isAsc) {
-                books.sortedWith(
-                    compareBy<Book> { it.authorNames.lowercase() }
-                        .thenBy { it.title.lowercase() }
-                )
-            } else {
-                books.sortedWith(
-                    compareByDescending<Book> { it.authorNames.lowercase() }
-                        .thenBy { it.title.lowercase() }
-                )
+            SortCategory.AUTHOR -> {
+                if (isAsc) {
+                    books.sortedWith(
+                        compareBy<Book> { it.authorNames.lowercase() }
+                            .thenBy { it.title.lowercase() },
+                    )
+                } else {
+                    books.sortedWith(
+                        compareByDescending<Book> { it.authorNames.lowercase() }
+                            .thenBy { it.title.lowercase() },
+                    )
+                }
             }
 
-            SortCategory.DURATION -> if (isAsc) {
-                books.sortedBy { it.duration }
-            } else {
-                books.sortedByDescending { it.duration }
+            SortCategory.DURATION -> {
+                if (isAsc) {
+                    books.sortedBy { it.duration }
+                } else {
+                    books.sortedByDescending { it.duration }
+                }
             }
 
-            SortCategory.YEAR -> if (isAsc) {
-                books.sortedWith(
-                    compareBy<Book> { it.publishYear ?: Int.MAX_VALUE }
-                        .thenBy { it.title.lowercase() }
-                )
-            } else {
-                books.sortedWith(
-                    compareByDescending<Book> { it.publishYear ?: 0 }
-                        .thenBy { it.title.lowercase() }
-                )
+            SortCategory.YEAR -> {
+                if (isAsc) {
+                    books.sortedWith(
+                        compareBy<Book> { it.publishYear ?: Int.MAX_VALUE }
+                            .thenBy { it.title.lowercase() },
+                    )
+                } else {
+                    books.sortedWith(
+                        compareByDescending<Book> { it.publishYear ?: 0 }
+                            .thenBy { it.title.lowercase() },
+                    )
+                }
             }
 
-            SortCategory.ADDED -> if (isAsc) {
-                books.sortedBy { it.addedAt.epochMillis }
-            } else {
-                books.sortedByDescending { it.addedAt.epochMillis }
+            SortCategory.ADDED -> {
+                if (isAsc) {
+                    books.sortedBy { it.addedAt.epochMillis }
+                } else {
+                    books.sortedByDescending { it.addedAt.epochMillis }
+                }
             }
 
-            SortCategory.SERIES -> if (isAsc) {
-                books.sortedWith(
-                    compareBy<Book> { it.seriesName?.lowercase() ?: "\uFFFF" }
-                        .thenBy { it.seriesSequence?.toFloatOrNull() ?: Float.MAX_VALUE }
-                        .thenBy { it.title.lowercase() }
-                )
-            } else {
-                books.sortedWith(
-                    compareByDescending<Book> { it.seriesName?.lowercase() ?: "" }
-                        .thenByDescending { it.seriesSequence?.toFloatOrNull() ?: 0f }
-                        .thenBy { it.title.lowercase() }
-                )
+            SortCategory.SERIES -> {
+                if (isAsc) {
+                    books.sortedWith(
+                        compareBy<Book> { it.seriesName?.lowercase() ?: "\uFFFF" }
+                            .thenBy { it.seriesSequence?.toFloatOrNull() ?: Float.MAX_VALUE }
+                            .thenBy { it.title.lowercase() },
+                    )
+                } else {
+                    books.sortedWith(
+                        compareByDescending<Book> { it.seriesName?.lowercase() ?: "" }
+                            .thenByDescending { it.seriesSequence?.toFloatOrNull() ?: 0f }
+                            .thenBy { it.title.lowercase() },
+                    )
+                }
             }
 
             // Not applicable for books
-            SortCategory.NAME, SortCategory.BOOK_COUNT -> books
+            SortCategory.NAME, SortCategory.BOOK_COUNT -> {
+                books
+            }
         }
     }
 
-    private fun sortSeries(series: List<SeriesWithBooks>, state: SortState): List<SeriesWithBooks> {
+    private fun sortSeries(
+        series: List<SeriesWithBooks>,
+        state: SortState,
+    ): List<SeriesWithBooks> {
         val isAsc = state.direction == SortDirection.ASCENDING
 
         return when (state.category) {
-            SortCategory.NAME -> if (isAsc) {
-                series.sortedBy { it.series.name.lowercase() }
-            } else {
-                series.sortedByDescending { it.series.name.lowercase() }
+            SortCategory.NAME -> {
+                if (isAsc) {
+                    series.sortedBy { it.series.name.lowercase() }
+                } else {
+                    series.sortedByDescending { it.series.name.lowercase() }
+                }
             }
 
-            SortCategory.BOOK_COUNT -> if (isAsc) {
-                series.sortedBy { it.books.size }
-            } else {
-                series.sortedByDescending { it.books.size }
+            SortCategory.BOOK_COUNT -> {
+                if (isAsc) {
+                    series.sortedBy { it.books.size }
+                } else {
+                    series.sortedByDescending { it.books.size }
+                }
             }
 
-            SortCategory.ADDED -> if (isAsc) {
-                series.sortedBy { it.series.createdAt.epochMillis }
-            } else {
-                series.sortedByDescending { it.series.createdAt.epochMillis }
+            SortCategory.ADDED -> {
+                if (isAsc) {
+                    series.sortedBy { it.series.createdAt.epochMillis }
+                } else {
+                    series.sortedByDescending { it.series.createdAt.epochMillis }
+                }
             }
 
             // Default to name sort for unsupported categories
-            else -> series.sortedBy { it.series.name.lowercase() }
+            else -> {
+                series.sortedBy { it.series.name.lowercase() }
+            }
         }
     }
 
     private fun sortContributors(
         contributors: List<ContributorWithBookCount>,
-        state: SortState
+        state: SortState,
     ): List<ContributorWithBookCount> {
         val isAsc = state.direction == SortDirection.ASCENDING
 
         return when (state.category) {
-            SortCategory.NAME -> if (isAsc) {
-                contributors.sortedBy { it.contributor.name.lowercase() }
-            } else {
-                contributors.sortedByDescending { it.contributor.name.lowercase() }
+            SortCategory.NAME -> {
+                if (isAsc) {
+                    contributors.sortedBy { it.contributor.name.lowercase() }
+                } else {
+                    contributors.sortedByDescending { it.contributor.name.lowercase() }
+                }
             }
 
-            SortCategory.BOOK_COUNT -> if (isAsc) {
-                contributors.sortedBy { it.bookCount }
-            } else {
-                contributors.sortedByDescending { it.bookCount }
+            SortCategory.BOOK_COUNT -> {
+                if (isAsc) {
+                    contributors.sortedBy { it.bookCount }
+                } else {
+                    contributors.sortedByDescending { it.bookCount }
+                }
             }
 
             // Default to name sort for unsupported categories
-            else -> contributors.sortedBy { it.contributor.name.lowercase() }
+            else -> {
+                contributors.sortedBy { it.contributor.name.lowercase() }
+            }
         }
     }
 }
@@ -414,22 +479,38 @@ class LibraryViewModel(
  */
 sealed interface LibraryUiEvent {
     data object RefreshRequested : LibraryUiEvent
-    data class BookClicked(val bookId: String) : LibraryUiEvent
+
+    data class BookClicked(
+        val bookId: String,
+    ) : LibraryUiEvent
 
     // Books tab
-    data class BooksCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data class BooksCategoryChanged(
+        val category: SortCategory,
+    ) : LibraryUiEvent
+
     data object BooksDirectionToggled : LibraryUiEvent
+
     data object ToggleIgnoreTitleArticles : LibraryUiEvent
 
     // Series tab
-    data class SeriesCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data class SeriesCategoryChanged(
+        val category: SortCategory,
+    ) : LibraryUiEvent
+
     data object SeriesDirectionToggled : LibraryUiEvent
 
     // Authors tab
-    data class AuthorsCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data class AuthorsCategoryChanged(
+        val category: SortCategory,
+    ) : LibraryUiEvent
+
     data object AuthorsDirectionToggled : LibraryUiEvent
 
     // Narrators tab
-    data class NarratorsCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data class NarratorsCategoryChanged(
+        val category: SortCategory,
+    ) : LibraryUiEvent
+
     data object NarratorsDirectionToggled : LibraryUiEvent
 }

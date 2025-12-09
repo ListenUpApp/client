@@ -13,7 +13,6 @@ package com.calypsan.listenup.client.core.error
  * retry capability, debug info).
  */
 sealed interface ServerConnectError : AppError {
-
     /**
      * User entered an invalid URL format.
      *
@@ -26,13 +25,16 @@ sealed interface ServerConnectError : AppError {
      *
      * @property reason Validation failure category for error code
      */
-    data class InvalidUrl(val reason: String) : ServerConnectError {
-        override val message = when (reason) {
-            "blank" -> "Please enter a server URL"
-            "localhost_physical" -> "Localhost URLs only work on emulator. Use your computer's IP address."
-            "malformed" -> "Invalid URL format"
-            else -> "Invalid URL: $reason"
-        }
+    data class InvalidUrl(
+        val reason: String,
+    ) : ServerConnectError {
+        override val message =
+            when (reason) {
+                "blank" -> "Please enter a server URL"
+                "localhost_physical" -> "Localhost URLs only work on emulator. Use your computer's IP address."
+                "malformed" -> "Invalid URL format"
+                else -> "Invalid URL: $reason"
+            }
         override val code = "INVALID_URL_${reason.uppercase()}"
         override val isRetryable = false
         override val debugInfo = null
@@ -49,7 +51,7 @@ sealed interface ServerConnectError : AppError {
      * @property debugInfo Technical details about what went wrong
      */
     data class NotListenUpServer(
-        override val debugInfo: String? = null
+        override val debugInfo: String? = null,
     ) : ServerConnectError {
         override val message = "This doesn't appear to be a ListenUp server."
         override val code = "NOT_LISTENUP_SERVER"
@@ -67,7 +69,7 @@ sealed interface ServerConnectError : AppError {
      * @property debugInfo Technical details about connection failure
      */
     data class ServerNotReachable(
-        override val debugInfo: String? = null
+        override val debugInfo: String? = null,
     ) : ServerConnectError {
         override val message = "Cannot reach server. Check that it's running and the URL is correct."
         override val code = "SERVER_NOT_REACHABLE"
@@ -84,7 +86,7 @@ sealed interface ServerConnectError : AppError {
      * @property cause The underlying AppError (network, server, etc.)
      */
     data class VerificationFailed(
-        val cause: AppError
+        val cause: AppError,
     ) : ServerConnectError {
         override val message = cause.message
         override val code = "VERIFICATION_${cause.code}"

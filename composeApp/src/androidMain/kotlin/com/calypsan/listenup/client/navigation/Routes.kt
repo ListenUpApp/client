@@ -50,7 +50,9 @@ data object Shell : Route
  * @property bookId The unique ID of the book to display.
  */
 @Serializable
-data class BookDetail(val bookId: String) : Route
+data class BookDetail(
+    val bookId: String,
+) : Route
 
 /**
  * Series detail screen - displays series info and its books.
@@ -58,7 +60,9 @@ data class BookDetail(val bookId: String) : Route
  * @property seriesId The unique ID of the series to display.
  */
 @Serializable
-data class SeriesDetail(val seriesId: String) : Route
+data class SeriesDetail(
+    val seriesId: String,
+) : Route
 
 /**
  * Contributor detail screen - displays contributor info and books by role.
@@ -69,7 +73,9 @@ data class SeriesDetail(val seriesId: String) : Route
  * @property contributorId The unique ID of the contributor to display.
  */
 @Serializable
-data class ContributorDetail(val contributorId: String) : Route
+data class ContributorDetail(
+    val contributorId: String,
+) : Route
 
 /**
  * Contributor books screen - displays all books for a contributor in a specific role.
@@ -81,5 +87,7 @@ data class ContributorDetail(val contributorId: String) : Route
  * @property role The role to filter by (e.g., "author", "narrator").
  */
 @Serializable
-data class ContributorBooks(val contributorId: String, val role: String) : Route
-
+data class ContributorBooks(
+    val contributorId: String,
+    val role: String,
+) : Route

@@ -56,10 +56,13 @@ import kotlin.math.abs
  */
 data class AlphabetIndex(
     val letters: List<Char>,
-    val letterToIndex: Map<Char, Int>
+    val letterToIndex: Map<Char, Int>,
 ) {
     companion object {
-        fun <T> build(items: List<T>, keySelector: (T) -> String): AlphabetIndex {
+        fun <T> build(
+            items: List<T>,
+            keySelector: (T) -> String,
+        ): AlphabetIndex {
             val letterToIndex = mutableMapOf<Char, Int>()
 
             items.forEachIndexed { index, item ->
@@ -73,8 +76,9 @@ data class AlphabetIndex(
             }
 
             // Sort: non-letters (#) first, then alphabetically
-            val letters = letterToIndex.keys
-                .sortedWith(compareBy({ it.isLetter() }, { it }))
+            val letters =
+                letterToIndex.keys
+                    .sortedWith(compareBy({ it.isLetter() }, { it }))
 
             return AlphabetIndex(letters, letterToIndex)
         }
@@ -113,7 +117,10 @@ private object AdaptiveScrollbarConfig {
  * Calculates the weight for a letter based on its distance from the selected letter.
  * Weights determine how much vertical space each letter gets.
  */
-private fun calculateWeight(index: Int, selectedIndex: Int?): Float {
+private fun calculateWeight(
+    index: Int,
+    selectedIndex: Int?,
+): Float {
     if (selectedIndex == null) return AdaptiveScrollbarConfig.WEIGHT_AT_REST
 
     return when (abs(index - selectedIndex)) {
@@ -143,7 +150,7 @@ fun AlphabetScrollbar(
     alphabetIndex: AlphabetIndex,
     onLetterSelected: (itemIndex: Int) -> Unit,
     isScrolling: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     if (alphabetIndex.letters.isEmpty()) return
 
@@ -175,9 +182,10 @@ fun AlphabetScrollbar(
     // Calculate available height for letters (excluding padding)
     val availableHeightPx by remember(containerHeightPx) {
         derivedStateOf {
-            val paddingPx = with(density) {
-                (AdaptiveScrollbarConfig.VERTICAL_PADDING * 2).toPx()
-            }
+            val paddingPx =
+                with(density) {
+                    (AdaptiveScrollbarConfig.VERTICAL_PADDING * 2).toPx()
+                }
             (containerHeightPx - paddingPx).coerceAtLeast(0f)
         }
     }
@@ -185,36 +193,40 @@ fun AlphabetScrollbar(
     // Calculate total weight for normalization
     val totalWeight by remember(selectedLetterIndex, alphabetIndex.letters.size) {
         derivedStateOf {
-            alphabetIndex.letters.indices.sumOf { index ->
-                calculateWeight(index, selectedLetterIndex).toDouble()
-            }.toFloat()
+            alphabetIndex.letters.indices
+                .sumOf { index ->
+                    calculateWeight(index, selectedLetterIndex).toDouble()
+                }.toFloat()
         }
     }
 
     // Confident bounce spring - perceptible but not performative
-    val expressiveSpring = spring<Float>(
-        dampingRatio = Spring.DampingRatioMediumBouncy,
-        stiffness = Spring.StiffnessMediumLow
-    )
+    val expressiveSpring =
+        spring<Float>(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        )
 
     val alpha by animateFloatAsState(
-        targetValue = when {
-            isInteracting -> 1f
-            isVisible -> 0.9f
-            else -> 0f
-        },
+        targetValue =
+            when {
+                isInteracting -> 1f
+                isVisible -> 0.9f
+                else -> 0f
+            },
         animationSpec = expressiveSpring,
-        label = "alpha"
+        label = "alpha",
     )
 
     // Slide in/out from right edge with confident bounce
     val slideOffset by animateDpAsState(
         targetValue = if (isVisible || isInteracting) 0.dp else 48.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "slide"
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+        label = "slide",
     )
 
     /**
@@ -243,7 +255,10 @@ fun AlphabetScrollbar(
         return Triple(letter, bestIndex, centerY)
     }
 
-    fun selectLetter(y: Float, isInitialTouch: Boolean = false) {
+    fun selectLetter(
+        y: Float,
+        isInitialTouch: Boolean = false,
+    ) {
         findLetterAtY(y)?.let { (letter, index, centerY) ->
             if (letter != selectedLetter) {
                 selectedLetter = letter
@@ -263,40 +278,41 @@ fun AlphabetScrollbar(
     }
 
     Box(
-        modifier = modifier
-            .fillMaxHeight()
-            .offset(x = slideOffset)
-            .alpha(alpha)
-            .onSizeChanged { size ->
-                containerHeightPx = size.height.toFloat()
-            }
+        modifier =
+            modifier
+                .fillMaxHeight()
+                .offset(x = slideOffset)
+                .alpha(alpha)
+                .onSizeChanged { size ->
+                    containerHeightPx = size.height.toFloat()
+                },
     ) {
         // Popup indicator - positioned at the selected letter's Y
         AnimatedVisibility(
             visible = isInteracting && selectedLetter != null,
             enter = fadeIn(tween(100)),
             exit = fadeOut(tween(150)),
-            modifier = Modifier.align(Alignment.TopEnd)
+            modifier = Modifier.align(Alignment.TopEnd),
         ) {
             selectedLetter?.let { letter ->
                 Box(
-                    modifier = Modifier
-                        .offset {
-                            IntOffset(
-                                x = -72.dp.roundToPx(),
-                                y = (selectedLetterY - 24.dp.toPx()).toInt()
-                            )
-                        }
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .offset {
+                                IntOffset(
+                                    x = -72.dp.roundToPx(),
+                                    y = (selectedLetterY - 24.dp.toPx()).toInt(),
+                                )
+                            }.size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = letter.toString(),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
             }
@@ -304,63 +320,63 @@ fun AlphabetScrollbar(
 
         // The scrollbar column with adaptive letter sizing
         Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    if (isInteracting)
-                        MaterialTheme.colorScheme.surfaceContainerHighest
-                    else
-                        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.95f)
-                )
-                .pointerInput(alphabetIndex) {
-                    detectTapGestures(
-                        onPress = { offset ->
-                            isInteracting = true
-                            selectLetter(offset.y, isInitialTouch = true)
-                            tryAwaitRelease()
-                            isInteracting = false
-                            selectedLetter = null
-                            selectedLetterIndex = null
-                            lastHapticLetter = null
-                        }
-                    )
-                }
-                .pointerInput(alphabetIndex) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            isInteracting = true
-                            selectLetter(offset.y, isInitialTouch = true)
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        if (isInteracting) {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.95f)
                         },
-                        onDragEnd = {
-                            isInteracting = false
-                            selectedLetter = null
-                            selectedLetterIndex = null
-                            lastHapticLetter = null
-                        },
-                        onDragCancel = {
-                            isInteracting = false
-                            selectedLetter = null
-                            selectedLetterIndex = null
-                            lastHapticLetter = null
-                        },
-                        onDrag = { change, _ ->
-                            selectLetter(change.position.y)
-                        }
-                    )
-                }
-                .padding(
-                    horizontal = AdaptiveScrollbarConfig.HORIZONTAL_PADDING,
-                    vertical = AdaptiveScrollbarConfig.VERTICAL_PADDING
-                ),
-            horizontalAlignment = Alignment.CenterHorizontally
+                    ).pointerInput(alphabetIndex) {
+                        detectTapGestures(
+                            onPress = { offset ->
+                                isInteracting = true
+                                selectLetter(offset.y, isInitialTouch = true)
+                                tryAwaitRelease()
+                                isInteracting = false
+                                selectedLetter = null
+                                selectedLetterIndex = null
+                                lastHapticLetter = null
+                            },
+                        )
+                    }.pointerInput(alphabetIndex) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                isInteracting = true
+                                selectLetter(offset.y, isInitialTouch = true)
+                            },
+                            onDragEnd = {
+                                isInteracting = false
+                                selectedLetter = null
+                                selectedLetterIndex = null
+                                lastHapticLetter = null
+                            },
+                            onDragCancel = {
+                                isInteracting = false
+                                selectedLetter = null
+                                selectedLetterIndex = null
+                                lastHapticLetter = null
+                            },
+                            onDrag = { change, _ ->
+                                selectLetter(change.position.y)
+                            },
+                        )
+                    }.padding(
+                        horizontal = AdaptiveScrollbarConfig.HORIZONTAL_PADDING,
+                        vertical = AdaptiveScrollbarConfig.VERTICAL_PADDING,
+                    ),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             alphabetIndex.letters.forEachIndexed { index, letter ->
                 val weight = calculateWeight(index, selectedLetterIndex)
-                val letterHeightPx = if (totalWeight > 0) {
-                    availableHeightPx * (weight / totalWeight)
-                } else {
-                    availableHeightPx / alphabetIndex.letters.size
-                }
+                val letterHeightPx =
+                    if (totalWeight > 0) {
+                        availableHeightPx * (weight / totalWeight)
+                    } else {
+                        availableHeightPx / alphabetIndex.letters.size
+                    }
                 val letterHeightDp = with(density) { letterHeightPx.toDp() }
 
                 AdaptiveLetterItem(
@@ -370,7 +386,7 @@ fun AlphabetScrollbar(
                     height = letterHeightDp,
                     onPositionMeasured = { centerY ->
                         letterCenterYs[index] = centerY
-                    }
+                    },
                 )
             }
         }
@@ -389,102 +405,112 @@ private fun AdaptiveLetterItem(
     index: Int,
     selectedIndex: Int?,
     height: Dp,
-    onPositionMeasured: (Float) -> Unit
+    onPositionMeasured: (Float) -> Unit,
 ) {
     val density = LocalDensity.current
 
     // Animate height changes with spring
     val animatedHeight by animateDpAsState(
         targetValue = height,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "letterHeight"
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+        label = "letterHeight",
     )
 
     // Calculate font size from slot height
-    val fontSizeSp = with(density) {
-        val heightSp = animatedHeight.toSp().value
-        (heightSp * AdaptiveScrollbarConfig.FONT_SIZE_RATIO)
-            .coerceIn(
-                AdaptiveScrollbarConfig.MIN_FONT_SIZE_SP,
-                AdaptiveScrollbarConfig.MAX_FONT_SIZE_SP
-            )
-    }
+    val fontSizeSp =
+        with(density) {
+            val heightSp = animatedHeight.toSp().value
+            (heightSp * AdaptiveScrollbarConfig.FONT_SIZE_RATIO)
+                .coerceIn(
+                    AdaptiveScrollbarConfig.MIN_FONT_SIZE_SP,
+                    AdaptiveScrollbarConfig.MAX_FONT_SIZE_SP,
+                )
+        }
 
     // Distance-based visual properties
     val distance = selectedIndex?.let { abs(index - it) }
     val isSelected = index == selectedIndex
 
     // Scale animation for selected letter
-    val targetScale = when {
-        selectedIndex == null -> 1f
-        isSelected -> AdaptiveScrollbarConfig.SCALE_SELECTED
-        else -> 1f
-    }
+    val targetScale =
+        when {
+            selectedIndex == null -> 1f
+            isSelected -> AdaptiveScrollbarConfig.SCALE_SELECTED
+            else -> 1f
+        }
 
     val scale by animateFloatAsState(
         targetValue = targetScale,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "letterScale"
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMedium,
+            ),
+        label = "letterScale",
     )
 
     // Opacity for distant letters (dimming effect)
-    val targetOpacity = when {
-        selectedIndex == null -> 1f
-        distance != null && distance <= 1 -> 1f
-        else -> AdaptiveScrollbarConfig.OPACITY_DISTANT
-    }
+    val targetOpacity =
+        when {
+            selectedIndex == null -> 1f
+            distance != null && distance <= 1 -> 1f
+            else -> AdaptiveScrollbarConfig.OPACITY_DISTANT
+        }
 
     val opacity by animateFloatAsState(
         targetValue = targetOpacity,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "letterOpacity"
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMedium,
+            ),
+        label = "letterOpacity",
     )
 
     // Font weight based on selection
-    val fontWeight = when {
-        isSelected -> FontWeight.Bold
-        distance != null && distance == 1 -> FontWeight.Medium
-        else -> FontWeight.Normal
-    }
+    val fontWeight =
+        when {
+            isSelected -> FontWeight.Bold
+            distance != null && distance == 1 -> FontWeight.Medium
+            else -> FontWeight.Normal
+        }
 
     // Color based on selection
-    val color = if (isSelected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val color =
+        if (isSelected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        }
 
     Box(
-        modifier = Modifier
-            .height(animatedHeight)
-            .onGloballyPositioned { coordinates ->
-                // Report center Y position relative to parent Column for hit detection
-                val posInParent = coordinates.positionInParent()
-                val centerY = posInParent.y + coordinates.size.height / 2f
-                onPositionMeasured(centerY)
-            },
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .height(animatedHeight)
+                .onGloballyPositioned { coordinates ->
+                    // Report center Y position relative to parent Column for hit detection
+                    val posInParent = coordinates.positionInParent()
+                    val centerY = posInParent.y + coordinates.size.height / 2f
+                    onPositionMeasured(centerY)
+                },
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = letter.toString(),
             fontSize = fontSizeSp.sp,
             fontWeight = fontWeight,
             color = color,
-            modifier = Modifier
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    alpha = opacity
-                }
+            modifier =
+                Modifier
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        alpha = opacity
+                    },
         )
     }
 }

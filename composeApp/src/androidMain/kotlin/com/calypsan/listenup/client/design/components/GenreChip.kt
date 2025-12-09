@@ -29,24 +29,24 @@ import androidx.compose.ui.unit.dp
 fun GenreChip(
     genre: String,
     onClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Text(
         text = genre,
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Medium,
         color = MaterialTheme.colorScheme.onSecondaryContainer,
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.secondaryContainer)
-            .then(
-                if (onClick != null) {
-                    Modifier.clickable(onClick = onClick)
-                } else {
-                    Modifier
-                }
-            )
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(onClick = onClick)
+                    } else {
+                        Modifier
+                    },
+                ).padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }
 
@@ -62,22 +62,22 @@ fun GenreChip(
 fun GenreChipRow(
     genres: List<String>,
     onGenreClick: ((String) -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     if (genres.isEmpty()) return
 
     Box(
         modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             genres.forEach { genre ->
                 GenreChip(
                     genre = genre,
-                    onClick = onGenreClick?.let { { it(genre) } }
+                    onClick = onGenreClick?.let { { it(genre) } },
                 )
             }
         }

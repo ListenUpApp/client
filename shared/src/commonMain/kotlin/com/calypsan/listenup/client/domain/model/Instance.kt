@@ -1,10 +1,10 @@
 package com.calypsan.listenup.client.domain.model
 
-import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 /**
  * Type-safe wrapper for Instance IDs.
@@ -17,7 +17,9 @@ import kotlin.jvm.JvmInline
  */
 @JvmInline
 @Serializable
-value class InstanceId(val value: String) {
+value class InstanceId(
+    val value: String,
+) {
     init {
         require(value.isNotBlank()) { "Instance ID cannot be blank" }
     }
@@ -39,27 +41,20 @@ value class InstanceId(val value: String) {
 data class Instance(
     @SerialName("id")
     val id: InstanceId,
-
     @SerialName("name")
     val name: String,
-
     @SerialName("version")
     val version: String,
-
     @SerialName("local_url")
     val localUrl: String? = null,
-
     @SerialName("remote_url")
     val remoteUrl: String? = null,
-
     @SerialName("setup_required")
     val setupRequired: Boolean,
-
     @SerialName("created_at")
     val createdAt: Instant,
-
     @SerialName("updated_at")
-    val updatedAt: Instant
+    val updatedAt: Instant,
 ) {
     /**
      * True if the instance needs initial setup (no root user configured yet).

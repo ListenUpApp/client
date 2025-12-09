@@ -1,6 +1,5 @@
-package com.calypsan.listenup.client.features.book_detail
+package com.calypsan.listenup.client.features.bookdetail
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,8 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
@@ -40,11 +37,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -56,11 +53,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowSizeClass
 import coil3.compose.AsyncImage
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.model.BookDownloadStatus
@@ -72,9 +69,9 @@ import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.playback.PlayerViewModel
-import com.calypsan.listenup.client.presentation.book_detail.BookDetailUiState
-import com.calypsan.listenup.client.presentation.book_detail.BookDetailViewModel
-import com.calypsan.listenup.client.presentation.book_detail.ChapterUiModel
+import com.calypsan.listenup.client.presentation.bookdetail.BookDetailUiState
+import com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel
+import com.calypsan.listenup.client.presentation.bookdetail.ChapterUiModel
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -87,7 +84,7 @@ fun BookDetailScreen(
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     viewModel: BookDetailViewModel = koinViewModel(),
-    playerViewModel: PlayerViewModel = koinViewModel()
+    playerViewModel: PlayerViewModel = koinViewModel(),
 ) {
     val downloadManager: DownloadManager = koinInject()
     val scope = rememberCoroutineScope()
@@ -98,7 +95,8 @@ fun BookDetailScreen(
     }
 
     val state by viewModel.state.collectAsState()
-    val downloadStatus by downloadManager.observeBookStatus(BookId(bookId))
+    val downloadStatus by downloadManager
+        .observeBookStatus(BookId(bookId))
         .collectAsState(initial = BookDownloadStatus.notDownloaded(bookId))
 
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -110,28 +108,30 @@ fun BookDetailScreen(
                     Text(
                         text = state.book?.title ?: "",
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
             )
-        }
+        },
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
         ) {
             if (state.isLoading) {
                 ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
@@ -139,7 +139,7 @@ fun BookDetailScreen(
                 Text(
                     text = state.error ?: "Unknown error",
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.align(Alignment.Center)
+                    modifier = Modifier.align(Alignment.Center),
                 )
             } else {
                 BookDetailContent(
@@ -150,17 +150,20 @@ fun BookDetailScreen(
                         scope.launch {
                             when (val result = downloadManager.downloadBook(BookId(bookId))) {
                                 is DownloadResult.Success -> { /* Download started */ }
+
                                 is DownloadResult.AlreadyDownloaded -> { /* Nothing to do */ }
+
                                 is DownloadResult.InsufficientStorage -> {
                                     val requiredMb = result.requiredBytes / 1_000_000
                                     val availableMb = result.availableBytes / 1_000_000
                                     snackbarHostState.showSnackbar(
-                                        "Not enough storage. Need ${requiredMb}MB, have ${availableMb}MB available."
+                                        "Not enough storage. Need ${requiredMb}MB, have ${availableMb}MB available.",
                                     )
                                 }
+
                                 is DownloadResult.Error -> {
                                     snackbarHostState.showSnackbar(
-                                        "Download failed: ${result.message}"
+                                        "Download failed: ${result.message}",
                                     )
                                 }
                             }
@@ -173,7 +176,7 @@ fun BookDetailScreen(
                     },
                     onDeleteClick = { showDeleteDialog = true },
                     onSeriesClick = onSeriesClick,
-                    onContributorClick = onContributorClick
+                    onContributorClick = onContributorClick,
                 )
             }
         }
@@ -190,10 +193,9 @@ fun BookDetailScreen(
                 }
                 showDeleteDialog = false
             },
-            onDismiss = { showDeleteDialog = false }
+            onDismiss = { showDeleteDialog = false },
         )
     }
-
 }
 
 @Composable
@@ -205,7 +207,7 @@ fun BookDetailContent(
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
-    onContributorClick: (contributorId: String) -> Unit
+    onContributorClick: (contributorId: String) -> Unit,
 ) {
     // Get window size class for adaptive layout
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
@@ -221,7 +223,7 @@ fun BookDetailContent(
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
             onSeriesClick = onSeriesClick,
-            onContributorClick = onContributorClick
+            onContributorClick = onContributorClick,
         )
     } else {
         // Single-pane layout for phones
@@ -233,7 +235,7 @@ fun BookDetailContent(
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
             onSeriesClick = onSeriesClick,
-            onContributorClick = onContributorClick
+            onContributorClick = onContributorClick,
         )
     }
 }
@@ -252,10 +254,10 @@ private fun TwoPaneBookDetail(
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
-    onContributorClick: (contributorId: String) -> Unit
+    onContributorClick: (contributorId: String) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         // Left pane - fixed anchor
         BookDetailLeftPane(
@@ -266,11 +268,12 @@ private fun TwoPaneBookDetail(
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
             genres = state.genresList,
-            modifier = Modifier
-                .width(280.dp)
-                .fillMaxHeight()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp)
+            modifier =
+                Modifier
+                    .width(280.dp)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
         )
 
         // Right pane - scrollable content
@@ -278,9 +281,10 @@ private fun TwoPaneBookDetail(
             state = state,
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
         )
     }
 }
@@ -297,27 +301,28 @@ private fun BookDetailLeftPane(
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
     genres: List<String>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Cover Image with optional progress overlay
         ElevatedCard(
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f),
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AsyncImage(
                     model = state.book?.coverPath,
                     contentDescription = state.book?.title,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
                 )
 
                 // Progress overlay (shown when book has progress)
@@ -325,7 +330,7 @@ private fun BookDetailLeftPane(
                     ProgressOverlay(
                         progress = progress,
                         timeRemaining = state.timeRemainingFormatted,
-                        modifier = Modifier.align(Alignment.BottomCenter)
+                        modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
             }
@@ -336,7 +341,7 @@ private fun BookDetailLeftPane(
             text = state.book?.title ?: "",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
 
         // Subtitle
@@ -345,14 +350,14 @@ private fun BookDetailLeftPane(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
         }
 
         // Stats Row (Rating, Duration, Year)
         Row(
             horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             state.rating?.takeIf { it > 0 }?.let { rating ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -360,12 +365,12 @@ private fun BookDetailLeftPane(
                         imageVector = Icons.Default.Star,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = rating.toString(),
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
                     )
                 }
                 Spacer(modifier = Modifier.width(16.dp))
@@ -373,14 +378,14 @@ private fun BookDetailLeftPane(
 
             Text(
                 text = formatDuration(state.book?.duration ?: 0),
-                style = MaterialTheme.typography.labelMedium
+                style = MaterialTheme.typography.labelMedium,
             )
 
             state.year?.takeIf { it > 0 }?.let { year ->
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
                     text = year.toString(),
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelMedium,
                 )
             }
         }
@@ -389,7 +394,7 @@ private fun BookDetailLeftPane(
         if (genres.isNotEmpty()) {
             GenreChipRow(
                 genres = genres,
-                onGenreClick = null
+                onGenreClick = null,
             )
         }
 
@@ -398,14 +403,16 @@ private fun BookDetailLeftPane(
         // Play Button
         Button(
             onClick = onPlayClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
             shape = RoundedCornerShape(26.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
         ) {
             Icon(Icons.Default.PlayArrow, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
@@ -417,7 +424,7 @@ private fun BookDetailLeftPane(
             status = downloadStatus,
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
-            onDeleteClick = onDeleteClick
+            onDeleteClick = onDeleteClick,
         )
     }
 }
@@ -430,7 +437,7 @@ private fun BookDetailRightPane(
     state: BookDetailUiState,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
@@ -438,7 +445,7 @@ private fun BookDetailRightPane(
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(start = 8.dp, end = 24.dp, top = 24.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Metadata
         item {
@@ -447,7 +454,7 @@ private fun BookDetailRightPane(
                     ContributorMetadataRow(
                         label = if (authors.size == 1) "Author" else "Authors",
                         contributors = authors,
-                        onContributorClick = onContributorClick
+                        onContributorClick = onContributorClick,
                     )
                 }
 
@@ -455,7 +462,7 @@ private fun BookDetailRightPane(
                     ContributorMetadataRow(
                         label = if (narrators.size == 1) "Narrator" else "Narrators",
                         contributors = narrators,
-                        onContributorClick = onContributorClick
+                        onContributorClick = onContributorClick,
                     )
                 }
 
@@ -463,27 +470,29 @@ private fun BookDetailRightPane(
                     ClickableMetadataRow(
                         label = "Series",
                         value = state.series ?: state.book?.seriesName ?: "",
-                        onClick = { onSeriesClick(seriesId) }
+                        onClick = { onSeriesClick(seriesId) },
                     )
                 }
 
                 // Other contributor roles
                 state.book?.allContributors?.let { contributors ->
-                    val otherRoles = contributors
-                        .flatMap { it.roles }
-                        .filter { it !in listOf("author", "narrator") }
-                        .distinct()
+                    val otherRoles =
+                        contributors
+                            .flatMap { it.roles }
+                            .filter { it !in listOf("author", "narrator") }
+                            .distinct()
 
                     otherRoles.forEach { role ->
-                        val contributorsWithRole = contributors
-                            .filter { role in it.roles }
-                            .map { Contributor(it.id, it.name) }
+                        val contributorsWithRole =
+                            contributors
+                                .filter { role in it.roles }
+                                .map { Contributor(it.id, it.name) }
 
                         if (contributorsWithRole.isNotEmpty()) {
                             ContributorMetadataRow(
                                 label = formatRoleLabel(role, contributorsWithRole.size),
                                 contributors = contributorsWithRole,
-                                onContributorClick = onContributorClick
+                                onContributorClick = onContributorClick,
                             )
                         }
                     }
@@ -499,7 +508,7 @@ private fun BookDetailRightPane(
                     Text(
                         text = "Description",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -507,12 +516,12 @@ private fun BookDetailRightPane(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 6,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     if (description.length > 300) {
                         TextButton(
                             onClick = { isDescriptionExpanded = !isDescriptionExpanded },
-                            contentPadding = PaddingValues(0.dp)
+                            contentPadding = PaddingValues(0.dp),
                         ) {
                             Text(if (isDescriptionExpanded) "Read less" else "Read more")
                         }
@@ -526,7 +535,7 @@ private fun BookDetailRightPane(
             item {
                 TagsSection(
                     tags = state.tags,
-                    isLoading = state.isLoadingTags
+                    isLoading = state.isLoadingTags,
                 )
             }
         }
@@ -537,12 +546,12 @@ private fun BookDetailRightPane(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "Chapters (${state.chapters.size})",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
@@ -552,7 +561,7 @@ private fun BookDetailRightPane(
 
         items(
             items = displayedChapters,
-            key = { it.id }
+            key = { it.id },
         ) { chapter ->
             ChapterListItemCompact(chapter)
         }
@@ -560,10 +569,11 @@ private fun BookDetailRightPane(
         if (state.chapters.size > 10 && !isChaptersExpanded) {
             item {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
                     TextButton(onClick = { isChaptersExpanded = true }) {
                         Text("Show all ${state.chapters.size} chapters")
@@ -580,16 +590,17 @@ private fun BookDetailRightPane(
 @Composable
 private fun ChapterListItemCompact(chapter: ChapterUiModel) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Default.PlayArrow,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(18.dp),
         )
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -599,7 +610,7 @@ private fun ChapterListItemCompact(chapter: ChapterUiModel) {
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -607,7 +618,7 @@ private fun ChapterListItemCompact(chapter: ChapterUiModel) {
         Text(
             text = chapter.duration,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -624,36 +635,38 @@ private fun SinglePaneBookDetail(
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
-    onContributorClick: (contributorId: String) -> Unit
+    onContributorClick: (contributorId: String) -> Unit,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
 
     LazyColumn(
         contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         // Cover Image Section with optional progress overlay
         item {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 ElevatedCard(
                     shape = RoundedCornerShape(16.dp),
                     elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp),
-                    modifier = Modifier
-                        .width(200.dp)
-                        .aspectRatio(1f)
+                    modifier =
+                        Modifier
+                            .width(200.dp)
+                            .aspectRatio(1f),
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         AsyncImage(
                             model = state.book?.coverPath,
                             contentDescription = state.book?.title,
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
                         )
 
                         // Progress overlay (shown when book has progress)
@@ -661,7 +674,7 @@ private fun SinglePaneBookDetail(
                             ProgressOverlay(
                                 progress = progress,
                                 timeRemaining = state.timeRemainingFormatted,
-                                modifier = Modifier.align(Alignment.BottomCenter)
+                                modifier = Modifier.align(Alignment.BottomCenter),
                             )
                         }
                     }
@@ -672,17 +685,18 @@ private fun SinglePaneBookDetail(
         // Title, Subtitle & Series
         item {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = state.book?.title ?: "",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
 
                 state.subtitle?.let { subtitle ->
@@ -690,7 +704,7 @@ private fun SinglePaneBookDetail(
                         text = subtitle,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )
                 }
 
@@ -699,7 +713,7 @@ private fun SinglePaneBookDetail(
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.secondary,
                     )
                 }
             }
@@ -711,9 +725,10 @@ private fun SinglePaneBookDetail(
                 GenreChipRow(
                     genres = state.genresList,
                     onGenreClick = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
                 )
             }
         }
@@ -723,7 +738,7 @@ private fun SinglePaneBookDetail(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 state.rating?.takeIf { it > 0 }?.let { rating ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -731,13 +746,13 @@ private fun SinglePaneBookDetail(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = rating.toString(),
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
                         )
                     }
                 }
@@ -751,7 +766,7 @@ private fun SinglePaneBookDetail(
                 Text(
                     text = formatDuration(state.book?.duration ?: 0),
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
                 )
 
                 if (year != null && year > 0) {
@@ -762,7 +777,7 @@ private fun SinglePaneBookDetail(
                     Text(
                         text = year.toString(),
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }
@@ -771,21 +786,24 @@ private fun SinglePaneBookDetail(
         // Action Buttons
         item {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Button(
                     onClick = onPlayClick,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(56.dp),
                     shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -796,7 +814,7 @@ private fun SinglePaneBookDetail(
                     status = downloadStatus,
                     onDownloadClick = onDownloadClick,
                     onCancelClick = onCancelClick,
-                    onDeleteClick = onDeleteClick
+                    onDeleteClick = onDeleteClick,
                 )
             }
         }
@@ -804,16 +822,17 @@ private fun SinglePaneBookDetail(
         // Metadata Details
         item {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 state.book?.authors?.takeIf { it.isNotEmpty() }?.let { authors ->
                     ContributorMetadataRow(
                         label = if (authors.size == 1) "Author" else "Authors",
                         contributors = authors,
-                        onContributorClick = onContributorClick
+                        onContributorClick = onContributorClick,
                     )
                 }
 
@@ -821,7 +840,7 @@ private fun SinglePaneBookDetail(
                     ClickableMetadataRow(
                         label = "Series",
                         value = state.series ?: state.book?.seriesName ?: "",
-                        onClick = { onSeriesClick(seriesId) }
+                        onClick = { onSeriesClick(seriesId) },
                     )
                 }
 
@@ -829,26 +848,28 @@ private fun SinglePaneBookDetail(
                     ContributorMetadataRow(
                         label = if (narrators.size == 1) "Narrator" else "Narrators",
                         contributors = narrators,
-                        onContributorClick = onContributorClick
+                        onContributorClick = onContributorClick,
                     )
                 }
 
                 state.book?.allContributors?.let { contributors ->
-                    val otherRoles = contributors
-                        .flatMap { it.roles }
-                        .filter { it !in listOf("author", "narrator") }
-                        .distinct()
+                    val otherRoles =
+                        contributors
+                            .flatMap { it.roles }
+                            .filter { it !in listOf("author", "narrator") }
+                            .distinct()
 
                     otherRoles.forEach { role ->
-                        val contributorsWithRole = contributors
-                            .filter { role in it.roles }
-                            .map { Contributor(it.id, it.name) }
+                        val contributorsWithRole =
+                            contributors
+                                .filter { role in it.roles }
+                                .map { Contributor(it.id, it.name) }
 
                         if (contributorsWithRole.isNotEmpty()) {
                             ContributorMetadataRow(
                                 label = formatRoleLabel(role, contributorsWithRole.size),
                                 contributors = contributorsWithRole,
-                                onContributorClick = onContributorClick
+                                onContributorClick = onContributorClick,
                             )
                         }
                     }
@@ -864,20 +885,21 @@ private fun SinglePaneBookDetail(
         state.description.takeIf { it.isNotBlank() }?.let { description ->
             item {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
                 ) {
                     Text(
                         text = description,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 4,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     TextButton(
                         onClick = { isDescriptionExpanded = !isDescriptionExpanded },
-                        contentPadding = PaddingValues(0.dp)
+                        contentPadding = PaddingValues(0.dp),
                     ) {
                         Text(if (isDescriptionExpanded) "Read less" else "Read more")
                     }
@@ -890,7 +912,7 @@ private fun SinglePaneBookDetail(
             item {
                 TagsSection(
                     tags = state.tags,
-                    isLoading = state.isLoadingTags
+                    isLoading = state.isLoadingTags,
                 )
             }
         }
@@ -902,16 +924,17 @@ private fun SinglePaneBookDetail(
         // Chapters Header
         item {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "Chapters (${state.chapters.size})",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 TextButton(onClick = { /* TODO: Filter */ }) {
                     Text("Filter")
@@ -924,7 +947,7 @@ private fun SinglePaneBookDetail(
 
         items(
             items = displayedChapters,
-            key = { it.id }
+            key = { it.id },
         ) { chapter ->
             ChapterListItem(chapter)
         }
@@ -932,13 +955,14 @@ private fun SinglePaneBookDetail(
         if (state.chapters.size > 5 && !isChaptersExpanded) {
             item {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
                     OutlinedButton(
-                        onClick = { isChaptersExpanded = true }
+                        onClick = { isChaptersExpanded = true },
                     ) {
                         Text("See More")
                     }
@@ -949,23 +973,26 @@ private fun SinglePaneBookDetail(
 }
 
 @Composable
-fun MetadataRow(label: String, value: String) {
+fun MetadataRow(
+    label: String,
+    value: String,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.Top,
     ) {
         Text(
             text = label,
             modifier = Modifier.width(100.dp),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             text = value,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
         )
     }
 }
@@ -977,26 +1004,27 @@ fun MetadataRow(label: String, value: String) {
 fun ClickableMetadataRow(
     label: String,
     value: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.Top,
     ) {
         Text(
             text = label,
             modifier = Modifier.width(100.dp),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Medium,
-            modifier = Modifier
-                .weight(1f)
-                .clickable(onClick = onClick)
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .clickable(onClick = onClick),
         )
     }
 }
@@ -1010,22 +1038,22 @@ fun ClickableMetadataRow(
 fun ContributorMetadataRow(
     label: String,
     contributors: List<Contributor>,
-    onContributorClick: (contributorId: String) -> Unit
+    onContributorClick: (contributorId: String) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.Top,
     ) {
         Text(
             text = label,
             modifier = Modifier.width(100.dp),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         // FlowRow wraps contributors to next line when they overflow
         FlowRow(
             modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.Start
+            horizontalArrangement = Arrangement.Start,
         ) {
             contributors.forEachIndexed { index, contributor ->
                 Text(
@@ -1033,7 +1061,7 @@ fun ContributorMetadataRow(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.clickable { onContributorClick(contributor.id) }
+                    modifier = Modifier.clickable { onContributorClick(contributor.id) },
                 )
             }
         }
@@ -1043,16 +1071,17 @@ fun ContributorMetadataRow(
 @Composable
 fun ChapterListItem(chapter: ChapterUiModel) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Default.PlayArrow,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(20.dp),
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -1063,7 +1092,7 @@ fun ChapterListItem(chapter: ChapterUiModel) {
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -1071,7 +1100,7 @@ fun ChapterListItem(chapter: ChapterUiModel) {
         Text(
             text = chapter.duration,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -1080,28 +1109,54 @@ fun ChapterListItem(chapter: ChapterUiModel) {
  * Format a role name into a display label.
  * Maps common role names to user-friendly labels and handles pluralization.
  */
-fun formatRoleLabel(role: String, count: Int): String {
-    return when (role.lowercase()) {
-        "forward", "foreword" -> if (count == 1) "Foreword By" else "Forewords By"
-        "translator" -> if (count == 1) "Translated By" else "Translators"
-        "editor" -> if (count == 1) "Editor" else "Editors"
-        "illustrator" -> if (count == 1) "Illustrator" else "Illustrators"
-        "introduction" -> if (count == 1) "Introduction By" else "Introductions By"
-        "afterword" -> if (count == 1) "Afterword By" else "Afterwords By"
-        "contributor" -> if (count == 1) "Contributor" else "Contributors"
-        "preface" -> if (count == 1) "Preface By" else "Prefaces By"
+fun formatRoleLabel(
+    role: String,
+    count: Int,
+): String =
+    when (role.lowercase()) {
+        "forward", "foreword" -> {
+            if (count == 1) "Foreword By" else "Forewords By"
+        }
+
+        "translator" -> {
+            if (count == 1) "Translated By" else "Translators"
+        }
+
+        "editor" -> {
+            if (count == 1) "Editor" else "Editors"
+        }
+
+        "illustrator" -> {
+            if (count == 1) "Illustrator" else "Illustrators"
+        }
+
+        "introduction" -> {
+            if (count == 1) "Introduction By" else "Introductions By"
+        }
+
+        "afterword" -> {
+            if (count == 1) "Afterword By" else "Afterwords By"
+        }
+
+        "contributor" -> {
+            if (count == 1) "Contributor" else "Contributors"
+        }
+
+        "preface" -> {
+            if (count == 1) "Preface By" else "Prefaces By"
+        }
+
         else -> {
             // Capitalize and pluralize unknown roles
             val capitalized = role.replaceFirstChar { it.uppercase() }
             if (count == 1) capitalized else "${capitalized}s"
         }
     }
-}
 
 // Helper to format duration
 fun formatDuration(durationMs: Long): String {
     val totalSeconds = durationMs / 1000
     val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
+    val minutes = totalSeconds % 3600 / 60
     return "${hours}hr ${minutes}min"
 }

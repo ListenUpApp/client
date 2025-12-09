@@ -30,9 +30,8 @@ import kotlin.time.Instant
 class LoginViewModel(
     private val authApi: AuthApi,
     private val settingsRepository: SettingsRepository,
-    private val userDao: UserDao
+    private val userDao: UserDao,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(LoginUiState())
     val state: StateFlow<LoginUiState> = _state.asStateFlow()
 
@@ -42,25 +41,32 @@ class LoginViewModel(
      * Performs client-side validation before making the network request.
      * On success, stores tokens and navigation happens automatically via AuthState.
      */
-    fun onLoginSubmit(email: String, password: String) {
+    fun onLoginSubmit(
+        email: String,
+        password: String,
+    ) {
         // Client-side validation
         val trimmedEmail = email.trim()
 
         if (!isValidEmail(trimmedEmail)) {
-            _state.value = LoginUiState(
-                status = LoginStatus.Error(
-                    LoginErrorType.ValidationError(LoginField.EMAIL)
+            _state.value =
+                LoginUiState(
+                    status =
+                        LoginStatus.Error(
+                            LoginErrorType.ValidationError(LoginField.EMAIL),
+                        ),
                 )
-            )
             return
         }
 
         if (password.isEmpty()) {
-            _state.value = LoginUiState(
-                status = LoginStatus.Error(
-                    LoginErrorType.ValidationError(LoginField.PASSWORD)
+            _state.value =
+                LoginUiState(
+                    status =
+                        LoginStatus.Error(
+                            LoginErrorType.ValidationError(LoginField.PASSWORD),
+                        ),
                 )
-            )
             return
         }
 
@@ -69,10 +75,11 @@ class LoginViewModel(
             _state.value = LoginUiState(status = LoginStatus.Loading)
 
             try {
-                val response = authApi.login(
-                    email = trimmedEmail,
-                    password = password
-                )
+                val response =
+                    authApi.login(
+                        email = trimmedEmail,
+                        password = password,
+                    )
 
                 // Store tokens - this triggers AuthState.Authenticated
                 // LibraryViewModel will detect authenticated state and trigger initial sync
@@ -80,7 +87,7 @@ class LoginViewModel(
                     access = AccessToken(response.accessToken),
                     refresh = RefreshToken(response.refreshToken),
                     sessionId = response.sessionId,
-                    userId = response.userId
+                    userId = response.userId,
                 )
 
                 // Save user data to local database for avatar display
@@ -88,9 +95,10 @@ class LoginViewModel(
 
                 _state.value = LoginUiState(status = LoginStatus.Success)
             } catch (e: Exception) {
-                _state.value = LoginUiState(
-                    status = LoginStatus.Error(e.toLoginErrorType())
-                )
+                _state.value =
+                    LoginUiState(
+                        status = LoginStatus.Error(e.toLoginErrorType()),
+                    )
             }
         }
     }
@@ -107,9 +115,7 @@ class LoginViewModel(
     /**
      * Basic email validation.
      */
-    private fun isValidEmail(email: String): Boolean {
-        return email.contains("@") && email.contains(".")
-    }
+    private fun isValidEmail(email: String): Boolean = email.contains("@") && email.contains(".")
 }
 
 /**
@@ -123,40 +129,50 @@ private fun Exception.toLoginErrorType(): LoginErrorType {
     return when {
         // Authentication errors
         msg.contains("invalid credentials") ||
-        msg.contains("unauthorized") ||
-        msg.contains("401") ->
+            msg.contains("unauthorized") ||
+            msg.contains("401") -> {
             LoginErrorType.InvalidCredentials
+        }
 
         // Connection refused - server not running or wrong port
         fullMsg.contains("connection refused") ||
-        fullMsg.contains("econnrefused") ->
+            fullMsg.contains("econnrefused") -> {
             LoginErrorType.NetworkError("Connection refused. Is the server running?")
+        }
 
         // Connection timeout
         fullMsg.contains("timeout") ||
-        fullMsg.contains("timed out") ->
+            fullMsg.contains("timed out") -> {
             LoginErrorType.NetworkError("Connection timed out. Check server address.")
+        }
 
         // Host not found
         fullMsg.contains("unable to resolve host") ||
-        fullMsg.contains("unknown host") ||
-        fullMsg.contains("no address associated") ->
+            fullMsg.contains("unknown host") ||
+            fullMsg.contains("no address associated") -> {
             LoginErrorType.NetworkError("Server not found. Check the address.")
+        }
 
         // Generic network/connection issues
         fullMsg.contains("network") ||
-        fullMsg.contains("connect") ||
-        fullMsg.contains("socket") ||
-        fullMsg.contains("ioexception") ->
+            fullMsg.contains("connect") ||
+            fullMsg.contains("socket") ||
+            fullMsg.contains("ioexception") -> {
             LoginErrorType.NetworkError(cause?.message ?: message)
+        }
 
         // HTTP errors
-        fullMsg.contains("500") || fullMsg.contains("502") ||
-        fullMsg.contains("503") || fullMsg.contains("504") ->
+        fullMsg.contains("500") ||
+            fullMsg.contains("502") ||
+            fullMsg.contains("503") ||
+            fullMsg.contains("504") -> {
             LoginErrorType.ServerError("Server error (${extractStatusCode(fullMsg)})")
+        }
 
         // Unknown - include the actual error message
-        else -> LoginErrorType.ServerError(message ?: "Unknown error")
+        else -> {
+            LoginErrorType.ServerError(message ?: "Unknown error")
+        }
     }
 }
 
@@ -172,13 +188,12 @@ private fun extractStatusCode(msg: String): String {
  * Convert AuthUser from API response to UserEntity for local storage.
  */
 @OptIn(ExperimentalTime::class)
-private fun AuthUser.toEntity(): UserEntity {
-    return UserEntity(
+private fun AuthUser.toEntity(): UserEntity =
+    UserEntity(
         id = id,
         email = email,
         displayName = displayName,
         isRoot = isRoot,
         createdAt = Instant.parse(createdAt).toEpochMilliseconds(),
-        updatedAt = Instant.parse(updatedAt).toEpochMilliseconds()
+        updatedAt = Instant.parse(updatedAt).toEpochMilliseconds(),
     )
-}

@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.features.book_detail
+package com.calypsan.listenup.client.features.bookdetail
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -44,7 +44,7 @@ fun TagPickerSheet(
     selectedTags: List<Tag>,
     onTagSelected: (Tag) -> Unit,
     onCreateTag: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
     var newTagName by remember { mutableStateOf("") }
@@ -54,30 +54,31 @@ fun TagPickerSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState
+        sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             Text(
                 text = "Add Tag",
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = 16.dp),
             )
 
             // Create new tag
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedTextField(
                     value = newTagName,
                     onValueChange = { newTagName = it },
                     placeholder = { Text("Create new tag...") },
                     singleLine = true,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 TextButton(
                     onClick = {
@@ -86,7 +87,7 @@ fun TagPickerSheet(
                             newTagName = ""
                         }
                     },
-                    enabled = newTagName.isNotBlank()
+                    enabled = newTagName.isNotBlank(),
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Text("Create")
@@ -101,20 +102,24 @@ fun TagPickerSheet(
                     text = "Your Tags",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    modifier = Modifier.padding(vertical = 8.dp),
                 )
 
                 LazyColumn {
                     items(availableTags) { tag ->
                         ListItem(
                             headlineContent = { Text(tag.name) },
-                            supportingContent = if (tag.bookCount > 0) {
-                                { Text("${tag.bookCount} book${if (tag.bookCount != 1) "s" else ""}") }
-                            } else null,
-                            modifier = Modifier.clickable {
-                                onTagSelected(tag)
-                                onDismiss()
-                            }
+                            supportingContent =
+                                if (tag.bookCount > 0) {
+                                    { Text("${tag.bookCount} book${if (tag.bookCount != 1) "s" else ""}") }
+                                } else {
+                                    null
+                                },
+                            modifier =
+                                Modifier.clickable {
+                                    onTagSelected(tag)
+                                    onDismiss()
+                                },
                         )
                     }
                 }

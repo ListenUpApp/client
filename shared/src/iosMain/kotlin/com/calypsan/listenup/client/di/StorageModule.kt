@@ -11,12 +11,13 @@ import org.koin.dsl.module
  * iOS-specific storage module.
  * Provides SecureStorage implementation using iOS Keychain Services.
  */
-actual val platformStorageModule: Module = module {
-    single<SecureStorage> {
-        IosSecureStorage()
-    }
+actual val platformStorageModule: Module =
+    module {
+        single<SecureStorage> {
+            IosSecureStorage()
+        }
 
-    single<NetworkMonitor> {
-        IosNetworkMonitor()
+        single<NetworkMonitor> {
+            IosNetworkMonitor()
+        }
     }
-}

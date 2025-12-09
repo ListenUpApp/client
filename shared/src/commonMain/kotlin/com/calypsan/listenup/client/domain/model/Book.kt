@@ -29,7 +29,7 @@ data class Book(
     val seriesName: String? = null,
     val seriesSequence: String? = null, // e.g., "1", "1.5"
     val publishYear: Int? = null,
-    val rating: Double? = null
+    val rating: Double? = null,
 ) {
     /**
      * Format duration as human-readable string.
@@ -40,10 +40,7 @@ data class Book(
         val hours = totalMinutes / 60
         val minutes = totalMinutes % 60
 
-        return when {
-            hours > 0 -> "${hours}h ${minutes}m"
-            else -> "${minutes}m"
-        }
+        return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
     }
 
     /**
@@ -56,21 +53,23 @@ data class Book(
      * Combines series name and sequence for display, e.g., "A Song of Ice and Fire #1".
      * Returns null if no series name is available.
      */
+    @Suppress("UseLet") // if/else chain is clearer here
     val fullSeriesTitle: String?
-        get() = if (seriesName != null && seriesSequence != null && seriesSequence.isNotBlank()) {
-            "$seriesName #$seriesSequence"
-        } else if (seriesName != null) {
-            seriesName
-        } else {
-            null
-        }
-        
+        get() =
+            if (seriesName != null && seriesSequence != null && seriesSequence.isNotBlank()) {
+                "$seriesName #$seriesSequence"
+            } else if (seriesName != null) {
+                seriesName
+            } else {
+                null
+            }
+
     /**
      * Helper to get comma-separated author names for display.
      */
     val authorNames: String
         get() = authors.joinToString(", ") { it.name }
-        
+
     /**
      * Helper to get comma-separated narrator names for display.
      */
@@ -81,7 +80,7 @@ data class Book(
 data class Contributor(
     val id: String,
     val name: String,
-    val roles: List<String> = emptyList()
+    val roles: List<String> = emptyList(),
 )
 
 /**
@@ -90,8 +89,10 @@ data class Contributor(
 data class Chapter(
     val id: String,
     val title: String,
-    val duration: Long, // Milliseconds
-    val startTime: Long // Milliseconds
+    // Milliseconds
+    val duration: Long,
+    // Milliseconds
+    val startTime: Long,
 ) {
     fun formatDuration(): String {
         val totalSeconds = duration / 1000

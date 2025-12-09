@@ -44,7 +44,7 @@ class BookRepository(
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
     private val syncManager: SyncManager,
-    private val imageStorage: ImageStorage
+    private val imageStorage: ImageStorage,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -65,13 +65,12 @@ class BookRepository(
      *
      * @return Flow emitting list of domain Book models
      */
-    fun observeBooks(): Flow<List<Book>> {
-        return bookDao.observeAllWithContributors().map { booksWithContributors ->
+    fun observeBooks(): Flow<List<Book>> =
+        bookDao.observeAllWithContributors().map { booksWithContributors ->
             booksWithContributors.map { bookWithContributors ->
                 bookWithContributors.toDomain(imageStorage)
             }
         }
-    }
 
     /**
      * Trigger sync to refresh books from server.
@@ -124,31 +123,31 @@ class BookRepository(
 
         // Temporary: Seed mock data into DB if empty
         // TODO: Remove this once backend syncs chapters
-        val mockChapters = List(15) { index ->
-            ChapterEntity(
-                id = ChapterId("ch-${bookId}-$index"),
-                bookId = id,
-                title = "Chapter ${index + 1}",
-                duration = 1_800_000L + (index * 60_000L), // ~30 mins varying
-                startTime = index * 1_800_000L,
-                syncState = SyncState.SYNCED,
-                lastModified = Timestamp.now(),
-                serverVersion = Timestamp.now()
-            )
-        }
+        val mockChapters =
+            List(15) { index ->
+                ChapterEntity(
+                    id = ChapterId("ch-$bookId-$index"),
+                    bookId = id,
+                    title = "Chapter ${index + 1}",
+                    duration = 1_800_000L + (index * 60_000L), // ~30 mins varying
+                    startTime = index * 1_800_000L,
+                    syncState = SyncState.SYNCED,
+                    lastModified = Timestamp.now(),
+                    serverVersion = Timestamp.now(),
+                )
+            }
         chapterDao.upsertAll(mockChapters)
 
         return mockChapters.map { it.toDomain() }
     }
-    
-    private fun ChapterEntity.toDomain(): Chapter {
-        return Chapter(
+
+    private fun ChapterEntity.toDomain(): Chapter =
+        Chapter(
             id = id.value,
             title = title,
             duration = duration,
-            startTime = startTime
+            startTime = startTime,
         )
-    }
 
     /**
      * Convert BookWithContributors to domain Book model.
@@ -164,28 +163,31 @@ class BookRepository(
         val contributorsById = contributors.associateBy { it.id }
 
         // Get authors: find all cross-refs with role "author", then look up the contributor
-        val authors = contributorRoles
-            .filter { it.role == "author" }
-            .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
-            .distinctBy { it.id }
-            .map { Contributor(it.id, it.name) }
+        val authors =
+            contributorRoles
+                .filter { it.role == "author" }
+                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
+                .distinctBy { it.id }
+                .map { Contributor(it.id, it.name) }
 
         // Get narrators: find all cross-refs with role "narrator", then look up the contributor
-        val narrators = contributorRoles
-            .filter { it.role == "narrator" }
-            .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
-            .distinctBy { it.id }
-            .map { Contributor(it.id, it.name) }
+        val narrators =
+            contributorRoles
+                .filter { it.role == "narrator" }
+                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
+                .distinctBy { it.id }
+                .map { Contributor(it.id, it.name) }
 
         // Get all contributors with all their roles grouped
         val rolesByContributorId = contributorRoles.groupBy({ it.contributorId }, { it.role })
-        val allContributors = contributors.map { entity ->
-            Contributor(
-                id = entity.id,
-                name = entity.name,
-                roles = rolesByContributorId[entity.id] ?: emptyList()
-            )
-        }
+        val allContributors =
+            contributors.map { entity ->
+                Contributor(
+                    id = entity.id,
+                    name = entity.name,
+                    roles = rolesByContributorId[entity.id] ?: emptyList(),
+                )
+            }
 
         return book.toDomain(imageStorage, authors, narrators, allContributors)
     }
@@ -194,9 +196,9 @@ class BookRepository(
         imageStorage: ImageStorage,
         authors: List<Contributor>,
         narrators: List<Contributor>,
-        allContributors: List<Contributor>
-    ): Book {
-        return Book(
+        allContributors: List<Contributor>,
+    ): Book =
+        Book(
             id = this.id,
             title = this.title,
             subtitle = this.subtitle,
@@ -213,7 +215,6 @@ class BookRepository(
             seriesName = this.seriesName,
             seriesSequence = this.sequence,
             publishYear = this.publishYear,
-            rating = null // Rating is not directly stored in BookEntity yet, default to null
+            rating = null, // Rating is not directly stored in BookEntity yet, default to null
         )
-    }
 }

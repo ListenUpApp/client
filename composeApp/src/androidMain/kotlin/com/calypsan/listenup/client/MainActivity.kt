@@ -4,9 +4,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -40,7 +55,6 @@ import org.koin.compose.viewmodel.koinViewModel
  * while preserving battery life in the background.
  */
 class MainActivity : ComponentActivity() {
-
     private val sseManager: SSEManager by inject()
     private val settingsRepository: SettingsRepository by inject()
 
@@ -100,16 +114,15 @@ fun ListenUpApp() {
  * Screen that displays server instance information.
  */
 @Composable
-fun InstanceScreen(
-    viewModel: InstanceViewModel = koinViewModel()
-) {
+fun InstanceScreen(viewModel: InstanceViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsState()
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+        contentAlignment = Alignment.Center,
     ) {
         when {
             state.isLoading -> {
@@ -119,7 +132,7 @@ fun InstanceScreen(
             state.error != null -> {
                 ErrorContent(
                     error = state.error!!,
-                    onRetry = { viewModel.loadInstance() }
+                    onRetry = { viewModel.loadInstance() },
                 )
             }
 
@@ -134,15 +147,15 @@ fun InstanceScreen(
 fun InstanceContent(instance: Instance) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
     ) {
         Column(
             modifier = Modifier.padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
                 text = "ListenUp Server",
-                style = MaterialTheme.typography.headlineMedium
+                style = MaterialTheme.typography.headlineMedium,
             )
 
             HorizontalDivider()
@@ -151,25 +164,26 @@ fun InstanceContent(instance: Instance) {
 
             InfoRow(
                 label = "Status",
-                value = if (instance.isReady) "Ready" else "Needs Setup"
+                value = if (instance.isReady) "Ready" else "Needs Setup",
             )
 
             InfoRow(
                 label = "Has Root User",
-                value = if (instance.hasRootUser) "Yes" else "No"
+                value = if (instance.hasRootUser) "Yes" else "No",
             )
 
             if (instance.needsSetup) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        ),
                 ) {
                     Text(
                         text = "⚠️ Server needs initial setup",
                         modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyLarge,
                     )
                 }
             }
@@ -178,46 +192,53 @@ fun InstanceContent(instance: Instance) {
 }
 
 @Composable
-fun InfoRow(label: String, value: String) {
+fun InfoRow(
+    label: String,
+    value: String,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
         )
     }
 }
 
 @Composable
-fun ErrorContent(error: String, onRetry: () -> Unit) {
+fun ErrorContent(
+    error: String,
+    onRetry: () -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
-        )
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+            ),
     ) {
         Column(
             modifier = Modifier.padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
                 text = "Error",
                 style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onErrorContainer
+                color = MaterialTheme.colorScheme.onErrorContainer,
             )
 
             Text(
                 text = error,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer
+                color = MaterialTheme.colorScheme.onErrorContainer,
             )
 
             Button(onClick = onRetry) {
@@ -233,7 +254,7 @@ fun ErrorContent(error: String, onRetry: () -> Unit) {
 data class InstanceUiState(
     val isLoading: Boolean = true,
     val instance: Instance? = null,
-    val error: String? = null
+    val error: String? = null,
 )
 
 /**
@@ -242,9 +263,8 @@ data class InstanceUiState(
  * Follows modern Android architecture with StateFlow for reactive UI updates.
  */
 class InstanceViewModel(
-    private val getInstanceUseCase: GetInstanceUseCase
+    private val getInstanceUseCase: GetInstanceUseCase,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(InstanceUiState())
     val state: StateFlow<InstanceUiState> = _state.asStateFlow()
 
@@ -258,17 +278,19 @@ class InstanceViewModel(
 
             when (val result = getInstanceUseCase()) {
                 is Result.Success -> {
-                    _state.value = InstanceUiState(
-                        isLoading = false,
-                        instance = result.data
-                    )
+                    _state.value =
+                        InstanceUiState(
+                            isLoading = false,
+                            instance = result.data,
+                        )
                 }
 
                 is Result.Failure -> {
-                    _state.value = InstanceUiState(
-                        isLoading = false,
-                        error = result.message
-                    )
+                    _state.value =
+                        InstanceUiState(
+                            isLoading = false,
+                            error = result.message,
+                        )
                 }
             }
         }

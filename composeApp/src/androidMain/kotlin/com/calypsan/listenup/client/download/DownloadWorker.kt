@@ -36,9 +36,8 @@ class DownloadWorker(
     private val downloadDao: DownloadDao,
     private val fileManager: DownloadFileManager,
     private val tokenProvider: AudioTokenProvider,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
 ) : CoroutineWorker(context, params) {
-
     companion object {
         const val KEY_AUDIO_FILE_ID = "audio_file_id"
         const val KEY_BOOK_ID = "book_id"
@@ -71,10 +70,11 @@ class DownloadWorker(
         } catch (e: IOException) {
             // Check if this is a storage-related error (no retry for these)
             val message = e.message?.lowercase() ?: ""
-            val isStorageError = message.contains("no space") ||
-                message.contains("enospc") ||
-                message.contains("disk full") ||
-                message.contains("storage")
+            val isStorageError =
+                message.contains("no space") ||
+                    message.contains("enospc") ||
+                    message.contains("disk full") ||
+                    message.contains("storage")
 
             if (isStorageError) {
                 logger.error { "Download failed due to insufficient storage: $audioFileId" }
@@ -90,7 +90,10 @@ class DownloadWorker(
         }
     }
 
-    private suspend fun handleRetryableError(audioFileId: String, e: Exception): Result {
+    private suspend fun handleRetryableError(
+        audioFileId: String,
+        e: Exception,
+    ): Result {
         logger.error(e) { "Download failed: $audioFileId" }
         downloadDao.updateError(audioFileId, e.message ?: "Unknown error")
 
@@ -107,36 +110,41 @@ class DownloadWorker(
         audioFileId: String,
         bookId: String,
         filename: String,
-        expectedSize: Long
+        expectedSize: Long,
     ) = withContext(Dispatchers.IO) {
         // Ensure fresh token before download
         tokenProvider.prepareForPlayback()
 
-        val token = tokenProvider.getToken()
-            ?: throw IllegalStateException("No auth token available")
+        val token =
+            tokenProvider.getToken()
+                ?: error("No auth token available")
 
-        val serverUrl = settingsRepository.getServerUrl()?.value
-            ?: throw IllegalStateException("No server URL configured")
+        val serverUrl =
+            settingsRepository.getServerUrl()?.value
+                ?: error("No server URL configured")
 
         val url = "$serverUrl/api/v1/books/$bookId/audio/$audioFileId"
 
         // Get paths from file manager and convert to java.io.File for I/O operations
         val destPath = fileManager.getDownloadPath(bookId, audioFileId, filename)
         val tempPath = fileManager.getTempPath(bookId, audioFileId, filename)
-        val destFile = File(destPath.toString())
         val tempFile = File(tempPath.toString())
 
         // Resume support: check for partial download
         val startByte = if (tempFile.exists()) tempFile.length() else 0L
 
-        val client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .build()
+        val client =
+            OkHttpClient
+                .Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .build()
 
-        val requestBuilder = Request.Builder()
-            .url(url)
-            .addHeader("Authorization", "Bearer $token")
+        val requestBuilder =
+            Request
+                .Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer $token")
 
         if (startByte > 0) {
             requestBuilder.addHeader("Range", "bytes=$startByte-")
@@ -148,15 +156,17 @@ class DownloadWorker(
                 throw IOException("Download failed: HTTP ${response.code}")
             }
 
-            val body = response.body
-                ?: throw IOException("Empty response body")
+            val body =
+                response.body
+                    ?: throw IOException("Empty response body")
 
             val contentLength = body.contentLength()
-            val totalSize = if (startByte > 0 && response.code == 206) {
-                startByte + contentLength
-            } else {
-                contentLength
-            }
+            val totalSize =
+                if (startByte > 0 && response.code == 206) {
+                    startByte + contentLength
+                } else {
+                    contentLength
+                }
 
             // Update total size in database
             if (totalSize > 0) {
@@ -183,10 +193,12 @@ class DownloadWorker(
                         val now = System.currentTimeMillis()
                         if (now - lastProgressUpdate > PROGRESS_INTERVAL_MS) {
                             downloadDao.updateProgress(audioFileId, totalBytesRead, totalSize)
-                            setProgress(workDataOf(
-                                "progress" to totalBytesRead,
-                                "total" to totalSize
-                            ))
+                            setProgress(
+                                workDataOf(
+                                    "progress" to totalBytesRead,
+                                    "total" to totalSize,
+                                ),
+                            )
                             lastProgressUpdate = now
                         }
                     }
@@ -208,7 +220,7 @@ class DownloadWorker(
             downloadDao.markCompleted(
                 audioFileId = audioFileId,
                 localPath = destPath.toString(),
-                completedAt = System.currentTimeMillis()
+                completedAt = System.currentTimeMillis(),
             )
         }
     }

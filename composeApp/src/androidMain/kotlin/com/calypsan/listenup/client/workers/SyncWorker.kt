@@ -21,9 +21,9 @@ private val logger = KotlinLogging.logger {}
  */
 class SyncWorker(
     context: Context,
-    params: WorkerParameters
-) : CoroutineWorker(context, params), KoinComponent {
-
+    params: WorkerParameters,
+) : CoroutineWorker(context, params),
+    KoinComponent {
     private val syncManager: SyncManager by inject()
 
     /**
@@ -40,6 +40,7 @@ class SyncWorker(
                 logger.info { "Background sync completed successfully" }
                 Result.success()
             }
+
             is CoreResult.Failure -> {
                 logger.error(result.exception) { "Background sync failed: ${result.message}" }
 

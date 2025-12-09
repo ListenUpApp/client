@@ -28,10 +28,16 @@ interface SeriesDao {
     suspend fun upsertAll(series: List<SeriesEntity>)
 
     @Query("UPDATE series SET syncState = ${SyncState.SYNCED_ORDINAL}, serverVersion = :version WHERE id = :id")
-    suspend fun markSynced(id: String, version: Timestamp)
+    suspend fun markSynced(
+        id: String,
+        version: Timestamp,
+    )
 
     @Query("UPDATE series SET syncState = ${SyncState.CONFLICT_ORDINAL}, serverVersion = :serverVersion WHERE id = :id")
-    suspend fun markConflict(id: String, serverVersion: Timestamp)
+    suspend fun markConflict(
+        id: String,
+        serverVersion: Timestamp,
+    )
 
     @Query("DELETE FROM series WHERE id = :id")
     suspend fun deleteById(id: String)
@@ -51,13 +57,15 @@ interface SeriesDao {
      * Observe all series with their book counts.
      * Returns series ordered by name with the count of books in each series.
      */
-    @Query("""
+    @Query(
+        """
         SELECT s.*, COUNT(b.id) as bookCount
         FROM series s
         LEFT JOIN books b ON s.id = b.seriesId
         GROUP BY s.id
         ORDER BY s.name ASC
-    """)
+    """,
+    )
     fun observeAllWithBookCount(): Flow<List<SeriesWithBookCount>>
 
     /**
@@ -106,10 +114,18 @@ interface ContributorDao {
     suspend fun upsertAll(contributors: List<ContributorEntity>)
 
     @Query("UPDATE contributors SET syncState = ${SyncState.SYNCED_ORDINAL}, serverVersion = :version WHERE id = :id")
-    suspend fun markSynced(id: String, version: Timestamp)
+    suspend fun markSynced(
+        id: String,
+        version: Timestamp,
+    )
 
-    @Query("UPDATE contributors SET syncState = ${SyncState.CONFLICT_ORDINAL}, serverVersion = :serverVersion WHERE id = :id")
-    suspend fun markConflict(id: String, serverVersion: Timestamp)
+    @Query(
+        "UPDATE contributors SET syncState = ${SyncState.CONFLICT_ORDINAL}, serverVersion = :serverVersion WHERE id = :id",
+    )
+    suspend fun markConflict(
+        id: String,
+        serverVersion: Timestamp,
+    )
 
     @Query("DELETE FROM contributors WHERE id = :id")
     suspend fun deleteById(id: String)
@@ -132,14 +148,16 @@ interface ContributorDao {
      *
      * @param role The role to filter by (e.g., "author", "narrator")
      */
-    @Query("""
+    @Query(
+        """
         SELECT c.*, COUNT(bc.bookId) as bookCount
         FROM contributors c
         INNER JOIN book_contributors bc ON c.id = bc.contributorId
         WHERE bc.role = :role
         GROUP BY c.id
         ORDER BY c.name ASC
-    """)
+    """,
+    )
     fun observeByRoleWithCount(role: String): Flow<List<ContributorWithBookCount>>
 
     /**
@@ -157,12 +175,14 @@ interface ContributorDao {
      * @param contributorId The contributor's unique ID
      * @return List of role strings (e.g., ["author", "narrator"])
      */
-    @Query("""
+    @Query(
+        """
         SELECT DISTINCT bc.role
         FROM book_contributors bc
         WHERE bc.contributorId = :contributorId
         ORDER BY bc.role ASC
-    """)
+    """,
+    )
     suspend fun getRolesForContributor(contributorId: String): List<String>
 
     /**
@@ -171,12 +191,14 @@ interface ContributorDao {
      * @param contributorId The contributor's unique ID
      * @return Flow of role to book count pairs
      */
-    @Query("""
+    @Query(
+        """
         SELECT bc.role, COUNT(bc.bookId) as bookCount
         FROM book_contributors bc
         WHERE bc.contributorId = :contributorId
         GROUP BY bc.role
         ORDER BY bc.role ASC
-    """)
+    """,
+    )
     fun observeRolesWithCountForContributor(contributorId: String): Flow<List<RoleWithBookCount>>
 }

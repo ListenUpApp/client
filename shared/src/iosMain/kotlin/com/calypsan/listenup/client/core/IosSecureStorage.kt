@@ -9,9 +9,6 @@ import platform.CoreFoundation.kCFBooleanTrue
 import platform.Foundation.*
 import platform.Security.*
 
-@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
-@Suppress("CAST_NEVER_SUCCEEDS")
-
 /**
  * iOS implementation of SecureStorage using Keychain Services.
  *
@@ -23,18 +20,24 @@ import platform.Security.*
  *
  * Ready for biometric protection upgrade (change to kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly).
  */
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+@Suppress("CAST_NEVER_SUCCEEDS")
 internal class IosSecureStorage : SecureStorage {
+    override suspend fun save(
+        key: String,
+        value: String,
+    ) = withContext(Dispatchers.Default) {
+        val data =
+            (value as NSString).dataUsingEncoding(NSUTF8StringEncoding)
+                ?: throw IllegalArgumentException("Failed to encode value to UTF-8")
 
-    override suspend fun save(key: String, value: String) = withContext(Dispatchers.Default) {
-        val data = (value as NSString).dataUsingEncoding(NSUTF8StringEncoding)
-            ?: throw IllegalArgumentException("Failed to encode value to UTF-8")
-
-        val query = mapOf(
-            kSecClass to kSecClassGenericPassword,
-            kSecAttrAccount to key,
-            kSecAttrAccessible to kSecAttrAccessibleAfterFirstUnlock,
-            kSecValueData to data
-        ) as Map<Any?, *>
+        val query =
+            mapOf(
+                kSecClass to kSecClassGenericPassword,
+                kSecAttrAccount to key,
+                kSecAttrAccessible to kSecAttrAccessibleAfterFirstUnlock,
+                kSecValueData to data,
+            ) as Map<Any?, *>
 
         // Delete existing item (if any)
         SecItemDelete(query as CFDictionaryRef)
@@ -46,61 +49,69 @@ internal class IosSecureStorage : SecureStorage {
         }
     }
 
-    override suspend fun read(key: String): String? = withContext(Dispatchers.Default) {
-        val query = mapOf(
-            kSecClass to kSecClassGenericPassword,
-            kSecAttrAccount to key,
-            kSecReturnData to kCFBooleanTrue,
-            kSecMatchLimit to kSecMatchLimitOne
-        ) as Map<Any?, *>
+    override suspend fun read(key: String): String? =
+        withContext(Dispatchers.Default) {
+            val query =
+                mapOf(
+                    kSecClass to kSecClassGenericPassword,
+                    kSecAttrAccount to key,
+                    kSecReturnData to kCFBooleanTrue,
+                    kSecMatchLimit to kSecMatchLimitOne,
+                ) as Map<Any?, *>
 
-        memScoped {
-            val result = alloc<CFTypeRefVar>()
-            val status = SecItemCopyMatching(query as CFDictionaryRef, result.ptr)
+            memScoped {
+                val result = alloc<CFTypeRefVar>()
+                val status = SecItemCopyMatching(query as CFDictionaryRef, result.ptr)
 
-            if (status == errSecSuccess) {
-                val data = CFBridgingRelease(result.value) as? NSData
-                return@withContext data?.let {
-                    NSString.create(it, NSUTF8StringEncoding) as? String
+                if (status == errSecSuccess) {
+                    val data = CFBridgingRelease(result.value) as? NSData
+                    return@withContext data?.let {
+                        NSString.create(it, NSUTF8StringEncoding) as? String
+                    }
                 }
+
+                // errSecItemNotFound is expected for non-existent keys
+                if (status == errSecItemNotFound) {
+                    return@withContext null
+                }
+
+                throw SecurityException("Failed to read from keychain: $status")
             }
+        }
 
-            // errSecItemNotFound is expected for non-existent keys
-            if (status == errSecItemNotFound) {
-                return@withContext null
+    override suspend fun delete(key: String) =
+        withContext(Dispatchers.Default) {
+            val query =
+                mapOf(
+                    kSecClass to kSecClassGenericPassword,
+                    kSecAttrAccount to key,
+                ) as Map<Any?, *>
+
+            val status = SecItemDelete(query as CFDictionaryRef)
+            // errSecItemNotFound is acceptable - key already doesn't exist
+            if (status != errSecSuccess && status != errSecItemNotFound) {
+                throw SecurityException("Failed to delete from keychain: $status")
             }
-
-            throw SecurityException("Failed to read from keychain: $status")
         }
-    }
 
-    override suspend fun delete(key: String) = withContext(Dispatchers.Default) {
-        val query = mapOf(
-            kSecClass to kSecClassGenericPassword,
-            kSecAttrAccount to key
-        ) as Map<Any?, *>
+    override suspend fun clear() =
+        withContext(Dispatchers.Default) {
+            val query =
+                mapOf(
+                    kSecClass to kSecClassGenericPassword,
+                ) as Map<Any?, *>
 
-        val status = SecItemDelete(query as CFDictionaryRef)
-        // errSecItemNotFound is acceptable - key already doesn't exist
-        if (status != errSecSuccess && status != errSecItemNotFound) {
-            throw SecurityException("Failed to delete from keychain: $status")
+            val status = SecItemDelete(query as CFDictionaryRef)
+            // errSecItemNotFound is acceptable - nothing to delete
+            if (status != errSecSuccess && status != errSecItemNotFound) {
+                throw SecurityException("Failed to clear keychain: $status")
+            }
         }
-    }
-
-    override suspend fun clear() = withContext(Dispatchers.Default) {
-        val query = mapOf(
-            kSecClass to kSecClassGenericPassword
-        ) as Map<Any?, *>
-
-        val status = SecItemDelete(query as CFDictionaryRef)
-        // errSecItemNotFound is acceptable - nothing to delete
-        if (status != errSecSuccess && status != errSecItemNotFound) {
-            throw SecurityException("Failed to clear keychain: $status")
-        }
-    }
 }
 
 /**
  * Custom exception for iOS Keychain errors.
  */
-class SecurityException(message: String) : Exception(message)
+class SecurityException(
+    message: String,
+) : Exception(message)

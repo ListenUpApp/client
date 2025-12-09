@@ -40,8 +40,8 @@ import com.calypsan.listenup.client.design.components.AlphabetIndex
 import com.calypsan.listenup.client.design.components.AlphabetScrollbar
 import com.calypsan.listenup.client.design.components.SortSplitButton
 import com.calypsan.listenup.client.design.components.avatarColorForUser
-import com.calypsan.listenup.client.features.nowplaying.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.design.components.getInitials
+import com.calypsan.listenup.client.features.nowplaying.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
 import kotlinx.coroutines.launch
@@ -65,7 +65,7 @@ fun AuthorsContent(
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
     onAuthorClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         if (authors.isEmpty()) {
@@ -75,13 +75,14 @@ fun AuthorsContent(
             val scope = rememberCoroutineScope()
 
             // Build alphabet index for name-based sort
-            val alphabetIndex = remember(authors, sortState) {
-                if (sortState.category == SortCategory.NAME) {
-                    AlphabetIndex.build(authors) { it.contributor.name }
-                } else {
-                    null
+            val alphabetIndex =
+                remember(authors, sortState) {
+                    if (sortState.category == SortCategory.NAME) {
+                        AlphabetIndex.build(authors) { it.contributor.name }
+                    } else {
+                        null
+                    }
                 }
-            }
 
             val isScrolling by remember {
                 derivedStateOf { listState.isScrollInProgress }
@@ -104,22 +105,23 @@ fun AuthorsContent(
 
             LazyColumn(
                 state = listState,
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 48.dp,
-                    bottom = 16.dp + MiniPlayerReservedHeight
-                ),
+                contentPadding =
+                    PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 48.dp,
+                        bottom = 16.dp + MiniPlayerReservedHeight,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             ) {
                 items(
                     items = authors,
-                    key = { it.contributor.id }
+                    key = { it.contributor.id },
                 ) { authorWithCount ->
                     ContributorCard(
                         contributorWithCount = authorWithCount,
-                        onClick = { onAuthorClick(authorWithCount.contributor.id) }
+                        onClick = { onAuthorClick(authorWithCount.contributor.id) },
                     )
                 }
             }
@@ -131,9 +133,10 @@ fun AuthorsContent(
                 onCategorySelected = onCategorySelected,
                 onDirectionToggle = onDirectionToggle,
                 visible = showSortButton,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 16.dp, top = 8.dp)
+                modifier =
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 16.dp, top = 8.dp),
             )
 
             // Alphabet scrollbar (only for name sort)
@@ -147,9 +150,10 @@ fun AuthorsContent(
                         }
                     },
                     isScrolling = isScrolling,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight)
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight),
                 )
             }
         }
@@ -163,30 +167,31 @@ fun AuthorsContent(
 internal fun ContributorCard(
     contributorWithCount: ContributorWithBookCount,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             // Avatar with initials
             Surface(
                 shape = CircleShape,
                 color = avatarColorForUser(contributorWithCount.contributor.id),
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(48.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = getInitials(contributorWithCount.contributor.name),
                         style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
             }
@@ -199,12 +204,13 @@ internal fun ContributorCard(
                     text = contributorWithCount.contributor.name,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
+                val bookLabel = if (contributorWithCount.bookCount == 1) "book" else "books"
                 Text(
-                    text = "${contributorWithCount.bookCount} ${if (contributorWithCount.bookCount == 1) "book" else "books"}",
+                    text = "${contributorWithCount.bookCount} $bookLabel",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -217,32 +223,33 @@ internal fun ContributorCard(
 @Composable
 private fun AuthorsEmptyState() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier.padding(32.dp),
         ) {
             Icon(
                 imageVector = Icons.Outlined.Person,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
             Text(
                 text = "No authors yet",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = "Authors will appear here when you have audiobooks",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
         }
     }

@@ -38,7 +38,7 @@ private val logger = KotlinLogging.logger {}
 class AndroidAudioTokenProvider(
     private val settingsRepository: SettingsRepository,
     private val authApi: AuthApi,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
 ) : AudioTokenProvider {
     @Volatile
     private var cachedToken: String? = null
@@ -127,7 +127,7 @@ class AndroidAudioTokenProvider(
                         access = AccessToken(response.accessToken),
                         refresh = RefreshToken(response.refreshToken),
                         sessionId = sessionId,
-                        userId = userId
+                        userId = userId,
                     )
 
                     cachedToken = response.accessToken
@@ -159,19 +159,21 @@ class AndroidAudioTokenProvider(
  * Handles 401 responses by triggering token refresh and retrying.
  */
 private class AuthInterceptor(
-    private val tokenProvider: AndroidAudioTokenProvider
+    private val tokenProvider: AndroidAudioTokenProvider,
 ) : Interceptor {
-
     override fun intercept(chain: Interceptor.Chain): Response {
         val token = tokenProvider.getToken()
 
-        val request = if (token != null) {
-            chain.request().newBuilder()
-                .addHeader("Authorization", "Bearer $token")
-                .build()
-        } else {
-            chain.request()
-        }
+        val request =
+            if (token != null) {
+                chain
+                    .request()
+                    .newBuilder()
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
+            } else {
+                chain.request()
+            }
 
         val response = chain.proceed(request)
 
@@ -187,9 +189,12 @@ private class AuthInterceptor(
             val newToken = tokenProvider.getToken()
             if (newToken != null && newToken != token) {
                 logger.debug { "Retrying with new token" }
-                val retryRequest = chain.request().newBuilder()
-                    .addHeader("Authorization", "Bearer $newToken")
-                    .build()
+                val retryRequest =
+                    chain
+                        .request()
+                        .newBuilder()
+                        .addHeader("Authorization", "Bearer $newToken")
+                        .build()
                 return chain.proceed(retryRequest)
             }
         }

@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.features.book_detail
+package com.calypsan.listenup.client.features.bookdetail
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,7 +19,7 @@ fun DeleteDownloadDialog(
     bookTitle: String,
     downloadSize: Long,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -30,8 +30,8 @@ fun DeleteDownloadDialog(
         text = {
             Text(
                 "Remove the downloaded files for \"$bookTitle\"? " +
-                "This will free up ${formatFileSize(downloadSize)}. " +
-                "You can re-download anytime by playing the book."
+                    "This will free up ${formatFileSize(downloadSize)}. " +
+                    "You can re-download anytime by playing the book.",
             )
         },
         confirmButton = {
@@ -43,18 +43,17 @@ fun DeleteDownloadDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
 /**
  * Format bytes to human-readable size.
  */
-fun formatFileSize(bytes: Long): String {
-    return when {
+fun formatFileSize(bytes: Long): String =
+    when {
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         bytes < 1024 * 1024 * 1024 -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
         else -> "${"%.2f".format(bytes / (1024.0 * 1024.0 * 1024.0))} GB"
     }
-}

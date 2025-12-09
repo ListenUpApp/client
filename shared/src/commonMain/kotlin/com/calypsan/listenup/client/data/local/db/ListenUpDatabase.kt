@@ -32,24 +32,34 @@ import androidx.room.TypeConverters
         BookContributorCrossRef::class,
         PlaybackPositionEntity::class,
         PendingListeningEventEntity::class,
-        DownloadEntity::class
+        DownloadEntity::class,
     ],
     version = 9,
-    exportSchema = true
+    exportSchema = true,
 )
 @TypeConverters(Converters::class)
 @ConstructedBy(ListenUpDatabaseConstructor::class)
 abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
+
     abstract fun bookDao(): BookDao
+
     abstract fun syncDao(): SyncDao
+
     abstract fun chapterDao(): ChapterDao
+
     abstract fun seriesDao(): SeriesDao
+
     abstract fun contributorDao(): ContributorDao
+
     abstract fun bookContributorDao(): BookContributorDao
+
     abstract fun playbackPositionDao(): PlaybackPositionDao
+
     abstract fun pendingListeningEventDao(): PendingListeningEventDao
+
     abstract fun downloadDao(): DownloadDao
+
     abstract fun searchDao(): SearchDao
 }
 

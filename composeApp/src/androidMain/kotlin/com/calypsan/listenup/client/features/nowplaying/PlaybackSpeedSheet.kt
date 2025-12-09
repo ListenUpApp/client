@@ -49,21 +49,18 @@ object PlaybackSpeedPresets {
     /**
      * Format speed for display (e.g., "1.25x", "2.0x").
      */
-    fun format(speed: Float): String {
-        return if (speed == speed.toInt().toFloat()) {
+    fun format(speed: Float): String =
+        if (speed == speed.toInt().toFloat()) {
             "${speed.toInt()}.0x"
         } else {
             val formatted = "%.2f".format(speed).trimEnd('0').trimEnd('.')
             "${formatted}x"
         }
-    }
 
     /**
      * Snap a speed value to the nearest 0.05 increment.
      */
-    fun snap(speed: Float): Float {
-        return (speed / STEP).roundToInt() * STEP
-    }
+    fun snap(speed: Float): Float = (speed / STEP).roundToInt() * STEP
 }
 
 /**
@@ -82,7 +79,7 @@ object PlaybackSpeedPresets {
 fun PlaybackSpeedSheet(
     currentSpeed: Float,
     onSpeedChange: (Float) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val view = LocalView.current
 
@@ -92,33 +89,35 @@ fun PlaybackSpeedSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .animateContentSize(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp)
+                    .animateContentSize(
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                    ),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Header
             Text(
                 text = "Playback Speed",
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(vertical = 16.dp)
+                modifier = Modifier.padding(vertical = 16.dp),
             )
 
             // Current speed - large display
             Text(
                 text = PlaybackSpeedPresets.format(sliderSpeed),
                 style = MaterialTheme.typography.displayMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
 
             Spacer(Modifier.height(24.dp))
@@ -135,7 +134,7 @@ fun PlaybackSpeedSheet(
                 },
                 onSpeedChangeFinished = {
                     onSpeedChange(sliderSpeed)
-                }
+                },
             )
 
             Spacer(Modifier.height(24.dp))
@@ -147,7 +146,7 @@ fun PlaybackSpeedSheet(
                     sliderSpeed = preset
                     onSpeedChange(preset)
                     view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                }
+                },
             )
 
             Spacer(Modifier.height(16.dp))
@@ -160,7 +159,7 @@ fun PlaybackSpeedSheet(
                         sliderSpeed = PlaybackSpeedPresets.DEFAULT_SPEED
                         onSpeedChange(PlaybackSpeedPresets.DEFAULT_SPEED)
                         view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                    }
+                    },
                 ) {
                     Text("Reset to ${PlaybackSpeedPresets.format(PlaybackSpeedPresets.DEFAULT_SPEED)}")
                 }
@@ -178,7 +177,7 @@ fun PlaybackSpeedSheet(
 private fun SpeedSlider(
     speed: Float,
     onSpeedChange: (Float) -> Unit,
-    onSpeedChangeFinished: () -> Unit
+    onSpeedChangeFinished: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Slider(
@@ -186,23 +185,23 @@ private fun SpeedSlider(
             onValueChange = onSpeedChange,
             onValueChangeFinished = onSpeedChangeFinished,
             valueRange = PlaybackSpeedPresets.MIN_SPEED..PlaybackSpeedPresets.MAX_SPEED,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
 
         // Min/max labels
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 text = "${PlaybackSpeedPresets.MIN_SPEED}x",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = "${PlaybackSpeedPresets.MAX_SPEED}x",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -215,12 +214,12 @@ private fun SpeedSlider(
 @Composable
 private fun SpeedPresetChips(
     currentSpeed: Float,
-    onSpeedSelected: (Float) -> Unit
+    onSpeedSelected: (Float) -> Unit,
 ) {
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         PlaybackSpeedPresets.presets.forEach { preset ->
             val isSelected = (currentSpeed - preset).absoluteValue < 0.01f
@@ -228,7 +227,7 @@ private fun SpeedPresetChips(
             FilterChip(
                 selected = isSelected,
                 onClick = { onSpeedSelected(preset) },
-                label = { Text(PlaybackSpeedPresets.format(preset)) }
+                label = { Text(PlaybackSpeedPresets.format(preset)) },
             )
         }
     }

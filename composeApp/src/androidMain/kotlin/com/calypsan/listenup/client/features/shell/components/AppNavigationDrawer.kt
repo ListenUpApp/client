@@ -43,7 +43,7 @@ fun AppNavigationDrawer(
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val safeDestination = currentDestination ?: ShellDestination.Home
 
@@ -51,7 +51,7 @@ fun AppNavigationDrawer(
         modifier = modifier,
         drawerContent = {
             PermanentDrawerSheet(
-                modifier = Modifier.width(240.dp)
+                modifier = Modifier.width(240.dp),
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -65,11 +65,11 @@ fun AppNavigationDrawer(
                         icon = {
                             Icon(
                                 imageVector = if (selected) destination.selectedIcon else destination.icon,
-                                contentDescription = destination.title
+                                contentDescription = destination.title,
                             )
                         },
                         label = { Text(destination.title) },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                     )
                 }
 
@@ -83,10 +83,10 @@ fun AppNavigationDrawer(
                     onExpandedChange = onAvatarMenuExpandedChange,
                     onSettingsClick = onSettingsClick,
                     onSignOutClick = onSignOutClick,
-                    modifier = Modifier.padding(start = 16.dp, bottom = 16.dp)
+                    modifier = Modifier.padding(start = 16.dp, bottom = 16.dp),
                 )
             }
         },
-        content = content
+        content = content,
     )
 }

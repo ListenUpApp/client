@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
@@ -22,41 +23,49 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * @param context Application context for accessing ConnectivityManager
  */
-class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
-
-    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE)
-        as ConnectivityManager
+@SuppressLint("MissingPermission") // Permission declared in app module manifest
+class AndroidNetworkMonitor(
+    context: Context,
+) : NetworkMonitor {
+    private val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE)
+            as ConnectivityManager
 
     private val _isOnlineFlow = MutableStateFlow(checkCurrentConnectivity())
     override val isOnlineFlow: StateFlow<Boolean> = _isOnlineFlow.asStateFlow()
 
     init {
-        val networkCallback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                _isOnlineFlow.value = true
+        val networkCallback =
+            object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    _isOnlineFlow.value = true
+                }
+
+                override fun onLost(network: Network) {
+                    // Re-check since there might be other networks available
+                    _isOnlineFlow.value = checkCurrentConnectivity()
+                }
+
+                override fun onCapabilitiesChanged(
+                    network: Network,
+                    capabilities: NetworkCapabilities,
+                ) {
+                    val hasInternet =
+                        capabilities.hasCapability(
+                            NetworkCapabilities.NET_CAPABILITY_INTERNET,
+                        ) &&
+                            capabilities.hasCapability(
+                                NetworkCapabilities.NET_CAPABILITY_VALIDATED,
+                            )
+                    _isOnlineFlow.value = hasInternet
+                }
             }
 
-            override fun onLost(network: Network) {
-                // Re-check since there might be other networks available
-                _isOnlineFlow.value = checkCurrentConnectivity()
-            }
-
-            override fun onCapabilitiesChanged(
-                network: Network,
-                capabilities: NetworkCapabilities
-            ) {
-                val hasInternet = capabilities.hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_INTERNET
-                ) && capabilities.hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
-                )
-                _isOnlineFlow.value = hasInternet
-            }
-        }
-
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
+        val request =
+            NetworkRequest
+                .Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
 
         connectivityManager.registerNetworkCallback(request, networkCallback)
     }
@@ -73,6 +82,6 @@ class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-               capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 }

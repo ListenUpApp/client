@@ -13,28 +13,21 @@ import kotlinx.serialization.Serializable
 data class PlaybackProgressResponse(
     @SerialName("user_id")
     val userId: String,
-
     @SerialName("book_id")
     val bookId: String,
-
     @SerialName("current_position_ms")
     val currentPositionMs: Long,
-
     @SerialName("progress")
-    val progress: Double,  // 0.0 - 1.0
-
+    val progress: Double, // 0.0 - 1.0
     @SerialName("is_finished")
     val isFinished: Boolean,
-
     @SerialName("started_at")
-    val startedAt: String,  // ISO 8601 timestamp
-
+    val startedAt: String, // ISO 8601 timestamp
     @SerialName("last_played_at")
-    val lastPlayedAt: String,  // ISO 8601 timestamp
-
+    val lastPlayedAt: String, // ISO 8601 timestamp
     @SerialName("total_listen_time_ms")
     val totalListenTimeMs: Long,
-
+    // ISO 8601 timestamp
     @SerialName("updated_at")
-    val updatedAt: String  // ISO 8601 timestamp
+    val updatedAt: String,
 )

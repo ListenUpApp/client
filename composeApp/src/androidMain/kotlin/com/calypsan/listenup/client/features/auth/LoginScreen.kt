@@ -61,7 +61,7 @@ import org.koin.compose.koinInject
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
-    viewModel: LoginViewModel = koinInject()
+    viewModel: LoginViewModel = koinInject(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -70,20 +70,30 @@ fun LoginScreen(
     LaunchedEffect(state.status) {
         when (val status = state.status) {
             is LoginStatus.Error -> {
-                val message = when (val type = status.type) {
-                    is LoginErrorType.InvalidCredentials ->
-                        "Invalid email or password."
-                    is LoginErrorType.NetworkError ->
-                        type.detail ?: "Network error. Check your connection."
-                    is LoginErrorType.ServerError ->
-                        type.detail ?: "Server error. Please try again."
-                    is LoginErrorType.ValidationError -> null // Handled inline
-                }
+                val message =
+                    when (val type = status.type) {
+                        is LoginErrorType.InvalidCredentials -> {
+                            "Invalid email or password."
+                        }
+
+                        is LoginErrorType.NetworkError -> {
+                            type.detail ?: "Network error. Check your connection."
+                        }
+
+                        is LoginErrorType.ServerError -> {
+                            type.detail ?: "Server error. Please try again."
+                        }
+
+                        is LoginErrorType.ValidationError -> {
+                            null
+                        } // Handled inline
+                    }
                 message?.let {
                     snackbarHostState.showSnackbar(it)
                     viewModel.clearError()
                 }
             }
+
             else -> {}
         }
     }
@@ -92,7 +102,7 @@ fun LoginScreen(
         state = state,
         onSubmit = viewModel::onLoginSubmit,
         snackbarHostState = snackbarHostState,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -104,21 +114,22 @@ private fun LoginContent(
     state: com.calypsan.listenup.client.presentation.auth.LoginUiState,
     onSubmit: (String, String) -> Unit,
     snackbarHostState: SnackbarHostState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surface,
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
@@ -127,18 +138,20 @@ private fun LoginContent(
             Spacer(modifier = Modifier.height(48.dp))
 
             ElevatedCard(
-                modifier = Modifier
-                    .widthIn(max = 480.dp)
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .widthIn(max = 480.dp)
+                        .fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                )
+                colors =
+                    CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
             ) {
                 LoginForm(
                     state = state,
                     onSubmit = onSubmit,
-                    modifier = Modifier.padding(24.dp)
+                    modifier = Modifier.padding(24.dp),
                 )
             }
 
@@ -153,16 +166,17 @@ private fun LoginContent(
 @Composable
 private fun BrandLogo(modifier: Modifier = Modifier) {
     val isDarkTheme = LocalDarkTheme.current
-    val logoRes = if (isDarkTheme) {
-        R.drawable.listenup_logo_white
-    } else {
-        R.drawable.listenup_logo_black
-    }
+    val logoRes =
+        if (isDarkTheme) {
+            R.drawable.listenup_logo_white
+        } else {
+            R.drawable.listenup_logo_black
+        }
 
     Image(
         painter = painterResource(logoRes),
         contentDescription = "ListenUp Logo",
-        modifier = modifier.size(160.dp)
+        modifier = modifier.size(160.dp),
     )
 }
 
@@ -173,7 +187,7 @@ private fun BrandLogo(modifier: Modifier = Modifier) {
 private fun LoginForm(
     state: com.calypsan.listenup.client.presentation.auth.LoginUiState,
     onSubmit: (String, String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -183,19 +197,19 @@ private fun LoginForm(
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // Title
         Text(
             text = "Sign In",
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
 
         Text(
             text = "Sign in to access your audiobook library.",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         // Email
@@ -204,23 +218,33 @@ private fun LoginForm(
             onValueChange = { email = it },
             label = "Email",
             enabled = !isLoading,
-            isError = state.status is LoginStatus.Error &&
+            isError =
+                state.status is LoginStatus.Error &&
                     (state.status as LoginStatus.Error).type is LoginErrorType.ValidationError &&
-                    ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError).field == LoginField.EMAIL,
-            supportingText = if (state.status is LoginStatus.Error &&
-                (state.status as LoginStatus.Error).type is LoginErrorType.ValidationError &&
-                ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError).field == LoginField.EMAIL
-            ) {
-                "Invalid email address"
-            } else null,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Next
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-            ),
-            modifier = Modifier.fillMaxWidth()
+                    ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError)
+                        .field == LoginField.EMAIL,
+            supportingText =
+                if (state.status is LoginStatus.Error &&
+                    (state.status as LoginStatus.Error).type is LoginErrorType.ValidationError &&
+                    ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError)
+                        .field == LoginField.EMAIL
+                ) {
+                    "Invalid email address"
+                } else {
+                    null
+                },
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) },
+                ),
+            modifier =
+                Modifier
+                    .fillMaxWidth(),
         )
 
         // Password
@@ -230,28 +254,36 @@ private fun LoginForm(
             label = "Password",
             enabled = !isLoading,
             visualTransformation = PasswordVisualTransformation(),
-            isError = state.status is LoginStatus.Error &&
+            isError =
+                state.status is LoginStatus.Error &&
                     (state.status as LoginStatus.Error).type is LoginErrorType.ValidationError &&
-                    ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError).field == LoginField.PASSWORD,
-            supportingText = if (state.status is LoginStatus.Error &&
-                (state.status as LoginStatus.Error).type is LoginErrorType.ValidationError &&
-                ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError).field == LoginField.PASSWORD
-            ) {
-                "Password is required"
-            } else null,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    focusManager.clearFocus()
-                    if (!isLoading) {
-                        onSubmit(email, password)
-                    }
-                }
-            ),
-            modifier = Modifier.fillMaxWidth()
+                    ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError).field ==
+                    LoginField.PASSWORD,
+            supportingText =
+                if (state.status is LoginStatus.Error &&
+                    (state.status as LoginStatus.Error).type is LoginErrorType.ValidationError &&
+                    ((state.status as LoginStatus.Error).type as LoginErrorType.ValidationError).field ==
+                    LoginField.PASSWORD
+                ) {
+                    "Password is required"
+                } else {
+                    null
+                },
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onDone = {
+                        focusManager.clearFocus()
+                        if (!isLoading) {
+                            onSubmit(email, password)
+                        }
+                    },
+                ),
+            modifier = Modifier.fillMaxWidth(),
         )
 
         // Submit button
@@ -262,7 +294,7 @@ private fun LoginForm(
             text = "Sign In",
             enabled = !isLoading,
             isLoading = isLoading,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }

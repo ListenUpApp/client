@@ -63,7 +63,7 @@ fun ListenUpTextField(
         keyboardActions = keyboardActions,
         singleLine = true,
         shape = MaterialTheme.shapes.medium,
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     )
 }
 
@@ -73,13 +73,13 @@ private fun PreviewListenUpTextFieldEmpty() {
     ListenUpTheme {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ListenUpTextField(
                 value = "",
                 onValueChange = {},
                 label = "Server URL",
-                placeholder = "https://example.com"
+                placeholder = "https://example.com",
             )
         }
     }
@@ -91,13 +91,13 @@ private fun PreviewListenUpTextFieldWithText() {
     ListenUpTheme {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ListenUpTextField(
                 value = "https://listenup.example.com",
                 onValueChange = {},
                 label = "Server URL",
-                supportingText = "Enter your ListenUp server address"
+                supportingText = "Enter your ListenUp server address",
             )
         }
     }
@@ -109,7 +109,7 @@ private fun PreviewListenUpTextFieldError() {
     ListenUpTheme {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ListenUpTextField(
                 value = "invalid-url",
@@ -117,10 +117,11 @@ private fun PreviewListenUpTextFieldError() {
                 label = "Server URL",
                 isError = true,
                 supportingText = "Invalid URL format. Use https://example.com",
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Done
-                )
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                        imeAction = ImeAction.Done,
+                    ),
             )
         }
     }
@@ -132,19 +133,19 @@ private fun PreviewListenUpTextFieldStates() {
     ListenUpTheme {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ListenUpTextField(
                 value = "",
                 onValueChange = {},
-                label = "Empty"
+                label = "Empty",
             )
 
             ListenUpTextField(
                 value = "https://listenup.example.com",
                 onValueChange = {},
                 label = "Filled",
-                supportingText = "Valid URL"
+                supportingText = "Valid URL",
             )
 
             ListenUpTextField(
@@ -152,7 +153,7 @@ private fun PreviewListenUpTextFieldStates() {
                 onValueChange = {},
                 label = "Error",
                 isError = true,
-                supportingText = "Invalid URL format"
+                supportingText = "Invalid URL format",
             )
         }
     }

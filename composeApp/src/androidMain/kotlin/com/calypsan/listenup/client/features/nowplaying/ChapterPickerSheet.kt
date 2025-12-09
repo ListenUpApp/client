@@ -43,7 +43,7 @@ fun ChapterPickerSheet(
     chapters: List<Chapter>,
     currentChapterIndex: Int,
     onChapterSelected: (Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -52,41 +52,44 @@ fun ChapterPickerSheet(
         dragHandle = {
             // Standard drag handle with proper spacing
             Surface(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(32.dp)
-                    .height(4.dp),
+                modifier =
+                    Modifier
+                        .padding(vertical = 12.dp)
+                        .width(32.dp)
+                        .height(4.dp),
                 shape = RoundedCornerShape(2.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
             ) {}
-        }
+        },
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
         ) {
             // Header
             Text(
                 text = "Chapters",
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
 
             HorizontalDivider()
 
             // Chapter list
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false),
             ) {
                 itemsIndexed(chapters) { index, chapter ->
                     ChapterRow(
                         chapter = chapter,
                         index = index,
                         isCurrentChapter = index == currentChapterIndex,
-                        onClick = { onChapterSelected(index) }
+                        onClick = { onChapterSelected(index) },
                     )
                 }
             }
@@ -101,46 +104,50 @@ private fun ChapterRow(
     chapter: Chapter,
     index: Int,
     isCurrentChapter: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Surface(
         onClick = onClick,
-        color = if (isCurrentChapter) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        } else {
-            Color.Transparent
-        }
+        color =
+            if (isCurrentChapter) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            } else {
+                Color.Transparent
+            },
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             // Chapter number
             Text(
                 text = "${index + 1}",
                 style = MaterialTheme.typography.labelLarge,
-                color = if (isCurrentChapter) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                modifier = Modifier.width(32.dp)
+                color =
+                    if (isCurrentChapter) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                modifier = Modifier.width(32.dp),
             )
 
             // Chapter title
             Text(
                 text = chapter.title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = if (isCurrentChapter) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
+                color =
+                    if (isCurrentChapter) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
 
             Spacer(Modifier.width(12.dp))
@@ -149,7 +156,7 @@ private fun ChapterRow(
             Text(
                 text = chapter.duration.milliseconds.formatPlaybackTime(),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             // Playing indicator
@@ -159,7 +166,7 @@ private fun ChapterRow(
                     Icons.Default.PlayArrow,
                     contentDescription = "Now playing",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }

@@ -17,11 +17,13 @@ actual class DownloadFileManager {
 
     private val downloadDir: Path
         get() {
-            val documentsUrl = fileManager.URLsForDirectory(
-                NSDocumentDirectory,
-                NSUserDomainMask
-            ).firstOrNull() as? NSURL
-                ?: throw IllegalStateException("Could not find documents directory")
+            val documentsUrl =
+                fileManager
+                    .URLsForDirectory(
+                        NSDocumentDirectory,
+                        NSUserDomainMask,
+                    ).firstOrNull() as? NSURL
+                    ?: error("Could not find documents directory")
 
             val audiobooksUrl = documentsUrl.URLByAppendingPathComponent("audiobooks")!!
             val path = Path(audiobooksUrl.path!!)
@@ -32,13 +34,17 @@ actual class DownloadFileManager {
                     audiobooksUrl,
                     withIntermediateDirectories = true,
                     attributes = null,
-                    error = null
+                    error = null,
                 )
             }
             return path
         }
 
-    actual fun getDownloadPath(bookId: String, audioFileId: String, filename: String): Path {
+    actual fun getDownloadPath(
+        bookId: String,
+        audioFileId: String,
+        filename: String,
+    ): Path {
         val bookDirPath = Path(downloadDir, bookId)
 
         // Ensure book directory exists
@@ -47,13 +53,17 @@ actual class DownloadFileManager {
                 bookDirPath.toString(),
                 withIntermediateDirectories = true,
                 attributes = null,
-                error = null
+                error = null,
             )
         }
-        return Path(bookDirPath, "${audioFileId}_${filename}")
+        return Path(bookDirPath, "${audioFileId}_$filename")
     }
 
-    actual fun getTempPath(bookId: String, audioFileId: String, filename: String): Path {
+    actual fun getTempPath(
+        bookId: String,
+        audioFileId: String,
+        filename: String,
+    ): Path {
         val destFile = getDownloadPath(bookId, audioFileId, filename)
         return Path(destFile.parent!!, "${destFile.name}.tmp")
     }
@@ -89,9 +99,7 @@ actual class DownloadFileManager {
         return totalSize
     }
 
-    actual fun fileExists(path: String): Boolean {
-        return fileManager.fileExistsAtPath(path)
-    }
+    actual fun fileExists(path: String): Boolean = fileManager.fileExistsAtPath(path)
 
     actual fun getFileSize(path: String): Long {
         if (!fileManager.fileExistsAtPath(path)) return 0L
@@ -99,19 +107,23 @@ actual class DownloadFileManager {
         return attrs?.get("NSFileSize") as? Long ?: 0L
     }
 
-    actual fun moveFile(source: Path, destination: Path): Boolean {
-        return fileManager.moveItemAtPath(
+    actual fun moveFile(
+        source: Path,
+        destination: Path,
+    ): Boolean =
+        fileManager.moveItemAtPath(
             source.toString(),
             destination.toString(),
-            error = null
+            error = null,
         )
-    }
 
     actual fun getAvailableSpace(): Long {
-        val documentsUrl = fileManager.URLsForDirectory(
-            NSDocumentDirectory,
-            NSUserDomainMask
-        ).firstOrNull() as? NSURL ?: return 0L
+        val documentsUrl =
+            fileManager
+                .URLsForDirectory(
+                    NSDocumentDirectory,
+                    NSUserDomainMask,
+                ).firstOrNull() as? NSURL ?: return 0L
 
         val attrs = fileManager.attributesOfFileSystemForPath(documentsUrl.path!!, error = null)
         return attrs?.get("NSFileSystemFreeSize") as? Long ?: 0L

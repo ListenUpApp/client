@@ -53,7 +53,7 @@ fun LibraryScreen(
     onNarratorClick: (String) -> Unit,
     topBarCollapseFraction: Float = 0f,
     modifier: Modifier = Modifier,
-    viewModel: LibraryViewModel = koinViewModel()
+    viewModel: LibraryViewModel = koinViewModel(),
 ) {
     // Trigger intelligent auto-sync when screen becomes visible (only once)
     LaunchedEffect(Unit) {
@@ -88,72 +88,83 @@ fun LibraryScreen(
                     pagerState.animateScrollToPage(index)
                 }
             },
-            collapseFraction = topBarCollapseFraction
+            collapseFraction = topBarCollapseFraction,
         )
 
         // Pull-to-refresh wraps entire pager (syncs all data)
         PullToRefreshBox(
             isRefreshing = syncState is SyncStatus.Syncing,
             onRefresh = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         ) {
             // Swipeable content
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             ) { page ->
                 when (LibraryTab.entries[page]) {
-                    LibraryTab.Books -> BooksContent(
-                        books = books,
-                        syncState = syncState,
-                        sortState = booksSortState,
-                        ignoreTitleArticles = ignoreTitleArticles,
-                        bookProgress = bookProgress,
-                        onCategorySelected = { category ->
-                            viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
-                        },
-                        onDirectionToggle = {
-                            viewModel.onEvent(LibraryUiEvent.BooksDirectionToggled)
-                        },
-                        onToggleIgnoreArticles = {
-                            viewModel.onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
-                        },
-                        onBookClick = onBookClick,
-                        onRetry = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) }
-                    )
-                    LibraryTab.Series -> SeriesContent(
-                        series = series,
-                        sortState = seriesSortState,
-                        onCategorySelected = { category ->
-                            viewModel.onEvent(LibraryUiEvent.SeriesCategoryChanged(category))
-                        },
-                        onDirectionToggle = {
-                            viewModel.onEvent(LibraryUiEvent.SeriesDirectionToggled)
-                        },
-                        onSeriesClick = onSeriesClick
-                    )
-                    LibraryTab.Authors -> AuthorsContent(
-                        authors = authors,
-                        sortState = authorsSortState,
-                        onCategorySelected = { category ->
-                            viewModel.onEvent(LibraryUiEvent.AuthorsCategoryChanged(category))
-                        },
-                        onDirectionToggle = {
-                            viewModel.onEvent(LibraryUiEvent.AuthorsDirectionToggled)
-                        },
-                        onAuthorClick = onAuthorClick
-                    )
-                    LibraryTab.Narrators -> NarratorsContent(
-                        narrators = narrators,
-                        sortState = narratorsSortState,
-                        onCategorySelected = { category ->
-                            viewModel.onEvent(LibraryUiEvent.NarratorsCategoryChanged(category))
-                        },
-                        onDirectionToggle = {
-                            viewModel.onEvent(LibraryUiEvent.NarratorsDirectionToggled)
-                        },
-                        onNarratorClick = onNarratorClick
-                    )
+                    LibraryTab.Books -> {
+                        BooksContent(
+                            books = books,
+                            syncState = syncState,
+                            sortState = booksSortState,
+                            ignoreTitleArticles = ignoreTitleArticles,
+                            bookProgress = bookProgress,
+                            onCategorySelected = { category ->
+                                viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
+                            },
+                            onDirectionToggle = {
+                                viewModel.onEvent(LibraryUiEvent.BooksDirectionToggled)
+                            },
+                            onToggleIgnoreArticles = {
+                                viewModel.onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
+                            },
+                            onBookClick = onBookClick,
+                            onRetry = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
+                        )
+                    }
+
+                    LibraryTab.Series -> {
+                        SeriesContent(
+                            series = series,
+                            sortState = seriesSortState,
+                            onCategorySelected = { category ->
+                                viewModel.onEvent(LibraryUiEvent.SeriesCategoryChanged(category))
+                            },
+                            onDirectionToggle = {
+                                viewModel.onEvent(LibraryUiEvent.SeriesDirectionToggled)
+                            },
+                            onSeriesClick = onSeriesClick,
+                        )
+                    }
+
+                    LibraryTab.Authors -> {
+                        AuthorsContent(
+                            authors = authors,
+                            sortState = authorsSortState,
+                            onCategorySelected = { category ->
+                                viewModel.onEvent(LibraryUiEvent.AuthorsCategoryChanged(category))
+                            },
+                            onDirectionToggle = {
+                                viewModel.onEvent(LibraryUiEvent.AuthorsDirectionToggled)
+                            },
+                            onAuthorClick = onAuthorClick,
+                        )
+                    }
+
+                    LibraryTab.Narrators -> {
+                        NarratorsContent(
+                            narrators = narrators,
+                            sortState = narratorsSortState,
+                            onCategorySelected = { category ->
+                                viewModel.onEvent(LibraryUiEvent.NarratorsCategoryChanged(category))
+                            },
+                            onDirectionToggle = {
+                                viewModel.onEvent(LibraryUiEvent.NarratorsDirectionToggled)
+                            },
+                            onNarratorClick = onNarratorClick,
+                        )
+                    }
                 }
             }
         }

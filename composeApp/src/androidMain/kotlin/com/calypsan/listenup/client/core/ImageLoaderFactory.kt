@@ -18,7 +18,6 @@ import okio.Path.Companion.toOkioPath
  * - Crossfade animation for smooth UX
  */
 object ImageLoaderFactory {
-
     /**
      * Create and configure an ImageLoader for the application.
      *
@@ -29,28 +28,29 @@ object ImageLoaderFactory {
      * @param debug Enable debug logging (default: false)
      * @return Configured ImageLoader instance
      */
-    fun create(context: Context, debug: Boolean = false): ImageLoader {
-        return ImageLoader.Builder(context)
+    fun create(
+        context: Context,
+        debug: Boolean = false,
+    ): ImageLoader =
+        ImageLoader
+            .Builder(context)
             .components {
                 // No special components needed - Coil handles file:// URIs natively
-            }
-            .memoryCache {
-                MemoryCache.Builder()
+            }.memoryCache {
+                MemoryCache
+                    .Builder()
                     .maxSizePercent(context, percent = 0.25) // 25% of app memory
                     .build()
-            }
-            .diskCache {
-                DiskCache.Builder()
+            }.diskCache {
+                DiskCache
+                    .Builder()
                     .directory(context.cacheDir.resolve("image_cache").toOkioPath())
                     .maxSizeBytes(50 * 1024 * 1024) // 50 MB for decoded bitmaps
                     .build()
-            }
-            .crossfade(enable = true)
+            }.crossfade(enable = true)
             .apply {
                 if (debug) {
                     logger(DebugLogger())
                 }
-            }
-            .build()
-    }
+            }.build()
 }

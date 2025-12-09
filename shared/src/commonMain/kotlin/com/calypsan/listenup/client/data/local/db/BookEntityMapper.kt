@@ -19,13 +19,14 @@ import com.calypsan.listenup.client.domain.model.Contributor
 fun BookEntity.toDomain(
     imageStorage: ImageStorage,
     authors: List<Contributor> = emptyList(),
-    narrators: List<Contributor> = emptyList()
+    narrators: List<Contributor> = emptyList(),
 ): Book {
-    val coverPath = if (imageStorage.exists(id)) {
-        imageStorage.getCoverPath(id)
-    } else {
-        null
-    }
+    val coverPath =
+        if (imageStorage.exists(id)) {
+            imageStorage.getCoverPath(id)
+        } else {
+            null
+        }
 
     return Book(
         id = id,
@@ -43,6 +44,6 @@ fun BookEntity.toDomain(
         seriesName = seriesName,
         seriesSequence = sequence,
         publishYear = publishYear,
-        rating = null
+        rating = null,
     )
 }

@@ -9,24 +9,22 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SyncManager
-import com.calypsan.listenup.client.data.sync.SyncStatus
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
@@ -38,7 +36,6 @@ import com.calypsan.listenup.client.features.shell.components.AppTopBar
 import com.calypsan.listenup.client.presentation.search.SearchNavAction
 import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
-import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -66,7 +63,7 @@ fun AppShell(
     onBookClick: (String) -> Unit,
     onSeriesClick: (String) -> Unit,
     onContributorClick: (String) -> Unit,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
 ) {
     // Inject dependencies
     val syncManager: SyncManager = koinInject()
@@ -97,28 +94,23 @@ fun AppShell(
                 onBookClick(action.bookId)
                 searchViewModel.clearNavAction()
             }
+
             is SearchNavAction.NavigateToContributor -> {
                 onContributorClick(action.contributorId)
                 searchViewModel.clearNavAction()
             }
+
             is SearchNavAction.NavigateToSeries -> {
                 onSeriesClick(action.seriesId)
                 searchViewModel.clearNavAction()
             }
+
             null -> {}
         }
     }
 
     // Local UI state
     var isAvatarMenuExpanded by remember { mutableStateOf(false) }
-
-    // Sign out handler
-    val scope = rememberCoroutineScope()
-    val handleSignOut: () -> Unit = {
-        scope.launch {
-            settingsRepository.clearAuthTokens()
-        }
-    }
 
     // Scroll behavior for collapsing top bar
     // enterAlwaysScrollBehavior: hides on scroll down, shows immediately on scroll up
@@ -170,9 +162,9 @@ fun AppShell(
             isAvatarMenuExpanded = isAvatarMenuExpanded,
             onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
             onSettingsClick = { /* TODO: Navigate to settings */ },
-            onSignOutClick = handleSignOut,
+            onSignOutClick = onSignOut,
             scrollBehavior = scrollBehavior,
-            showAvatar = showAvatarInTopBar
+            showAvatar = showAvatarInTopBar,
         )
     }
 
@@ -185,9 +177,10 @@ fun AppShell(
                     HomeScreen(
                         onBookClick = onBookClick,
                         onNavigateToLibrary = { onDestinationChange(ShellDestination.Library) },
-                        modifier = Modifier.padding(padding)
+                        modifier = Modifier.padding(padding),
                     )
                 }
+
                 ShellDestination.Library -> {
                     LibraryScreen(
                         onBookClick = onBookClick,
@@ -195,9 +188,10 @@ fun AppShell(
                         onAuthorClick = onContributorClick,
                         onNarratorClick = onContributorClick,
                         topBarCollapseFraction = topBarCollapseFraction,
-                        modifier = Modifier.padding(padding)
+                        modifier = Modifier.padding(padding),
                     )
                 }
+
                 ShellDestination.Discover -> {
                     DiscoverScreen(modifier = Modifier.padding(padding))
                 }
@@ -212,9 +206,10 @@ fun AppShell(
                 onTypeFilterToggle = { type ->
                     searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
                 },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding),
             )
         }
     }
@@ -231,11 +226,11 @@ fun AppShell(
                         // TODO: NowPlayingBar will be inserted here
                         AppNavigationBar(
                             currentDestination = currentDestination,
-                            onDestinationSelected = onDestinationChange
+                            onDestinationSelected = onDestinationChange,
                         )
                     }
                 },
-                content = shellContent
+                content = shellContent,
             )
         }
 
@@ -249,14 +244,15 @@ fun AppShell(
                     isAvatarMenuExpanded = isAvatarMenuExpanded,
                     onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
                     onSettingsClick = { /* TODO: Navigate to settings */ },
-                    onSignOutClick = handleSignOut
+                    onSignOutClick = onSignOut,
                 )
                 Scaffold(
-                    modifier = Modifier
-                        .weight(1f)
-                        .nestedScroll(scrollBehavior.nestedScrollConnection),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .nestedScroll(scrollBehavior.nestedScrollConnection),
                     topBar = topBar,
-                    content = shellContent
+                    content = shellContent,
                 )
             }
         }
@@ -270,12 +266,12 @@ fun AppShell(
                 isAvatarMenuExpanded = isAvatarMenuExpanded,
                 onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
                 onSettingsClick = { /* TODO: Navigate to settings */ },
-                onSignOutClick = handleSignOut
+                onSignOutClick = onSignOut,
             ) {
                 Scaffold(
                     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
                     topBar = topBar,
-                    content = shellContent
+                    content = shellContent,
                 )
             }
         }

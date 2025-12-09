@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.presentation.contributor_detail
+package com.calypsan.listenup.client.presentation.contributordetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -29,9 +29,8 @@ class ContributorDetailViewModel(
     private val contributorDao: ContributorDao,
     private val bookDao: BookDao,
     private val imageStorage: ImageStorage,
-    private val playbackPositionDao: PlaybackPositionDao
+    private val playbackPositionDao: PlaybackPositionDao,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(ContributorDetailUiState())
     val state: StateFlow<ContributorDetailUiState> = _state.asStateFlow()
 
@@ -47,39 +46,45 @@ class ContributorDetailViewModel(
             // Observe contributor and their roles together
             combine(
                 contributorDao.observeById(contributorId).filterNotNull(),
-                contributorDao.observeRolesWithCountForContributor(contributorId)
+                contributorDao.observeRolesWithCountForContributor(contributorId),
             ) { contributor, rolesWithCount ->
                 Pair(contributor, rolesWithCount)
             }.collect { (contributor, rolesWithCount) ->
                 // For each role, load a preview of books
-                val roleSections = rolesWithCount.map { roleWithCount ->
-                    val books = loadBooksForRole(contributorId, roleWithCount.role)
-                    RoleSection(
-                        role = roleWithCount.role,
-                        displayName = roleToDisplayName(roleWithCount.role),
-                        bookCount = roleWithCount.bookCount,
-                        previewBooks = books.take(PREVIEW_BOOK_COUNT)
-                    )
-                }
+                val roleSections =
+                    rolesWithCount.map { roleWithCount ->
+                        val books = loadBooksForRole(contributorId, roleWithCount.role)
+                        RoleSection(
+                            role = roleWithCount.role,
+                            displayName = roleToDisplayName(roleWithCount.role),
+                            bookCount = roleWithCount.bookCount,
+                            previewBooks = books.take(PREVIEW_BOOK_COUNT),
+                        )
+                    }
 
                 // Load progress for all preview books across all sections
                 val allPreviewBooks = roleSections.flatMap { it.previewBooks }
                 val bookProgress = loadProgressForBooks(allPreviewBooks)
 
-                _state.value = ContributorDetailUiState(
-                    isLoading = false,
-                    contributor = contributor,
-                    roleSections = roleSections,
-                    bookProgress = bookProgress,
-                    error = null
-                )
+                _state.value =
+                    ContributorDetailUiState(
+                        isLoading = false,
+                        contributor = contributor,
+                        roleSections = roleSections,
+                        bookProgress = bookProgress,
+                        error = null,
+                    )
             }
         }
     }
 
-    private suspend fun loadBooksForRole(contributorId: String, role: String): List<Book> {
+    private suspend fun loadBooksForRole(
+        contributorId: String,
+        role: String,
+    ): List<Book> {
         // Get the books once (not as a flow) for the preview
-        return bookDao.observeByContributorAndRole(contributorId, role)
+        return bookDao
+            .observeByContributorAndRole(contributorId, role)
             .first()
             .map { bwc -> bwc.toDomain() }
     }
@@ -88,35 +93,41 @@ class ContributorDetailViewModel(
      * Load progress for a list of books.
      * Returns a map of bookId -> progress (0.0-1.0).
      */
-    private suspend fun loadProgressForBooks(books: List<Book>): Map<String, Float> {
-        return books.mapNotNull { book ->
-            val position = playbackPositionDao.get(BookId(book.id.value))
-            if (position != null && book.duration > 0) {
-                val progress = (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
-                if (progress > 0f && progress < 0.99f) {
-                    book.id.value to progress
-                } else null
-            } else null
-        }.toMap()
-    }
+    private suspend fun loadProgressForBooks(books: List<Book>): Map<String, Float> =
+        books
+            .mapNotNull { book ->
+                val position = playbackPositionDao.get(BookId(book.id.value))
+                if (position != null && book.duration > 0) {
+                    val progress = (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
+                    if (progress > 0f && progress < 0.99f) {
+                        book.id.value to progress
+                    } else {
+                        null
+                    }
+                } else {
+                    null
+                }
+            }.toMap()
 
     private fun com.calypsan.listenup.client.data.local.db.BookWithContributors.toDomain(): Book {
         // Create a lookup map for contributor entities
         val contributorsById = contributors.associateBy { it.id }
 
         // Get authors by filtering cross-refs with role "author"
-        val authors = contributorRoles
-            .filter { it.role == "author" }
-            .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
-            .distinctBy { it.id }
-            .map { Contributor(it.id, it.name) }
+        val authors =
+            contributorRoles
+                .filter { it.role == "author" }
+                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
+                .distinctBy { it.id }
+                .map { Contributor(it.id, it.name) }
 
         // Get narrators by filtering cross-refs with role "narrator"
-        val narrators = contributorRoles
-            .filter { it.role == "narrator" }
-            .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
-            .distinctBy { it.id }
-            .map { Contributor(it.id, it.name) }
+        val narrators =
+            contributorRoles
+                .filter { it.role == "narrator" }
+                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
+                .distinctBy { it.id }
+                .map { Contributor(it.id, it.name) }
 
         return Book(
             id = book.id,
@@ -133,7 +144,7 @@ class ContributorDetailViewModel(
             seriesName = book.seriesName,
             seriesSequence = book.sequence,
             publishYear = book.publishYear,
-            rating = null
+            rating = null,
         )
     }
 
@@ -147,13 +158,14 @@ class ContributorDetailViewModel(
         /**
          * Convert a role string to a user-friendly display name.
          */
-        fun roleToDisplayName(role: String): String = when (role.lowercase()) {
-            "author" -> "Written By"
-            "narrator" -> "Narrated By"
-            "translator" -> "Translated By"
-            "editor" -> "Edited By"
-            else -> role.replaceFirstChar { it.uppercase() }
-        }
+        fun roleToDisplayName(role: String): String =
+            when (role.lowercase()) {
+                "author" -> "Written By"
+                "narrator" -> "Narrated By"
+                "translator" -> "Translated By"
+                "editor" -> "Edited By"
+                else -> role.replaceFirstChar { it.uppercase() }
+            }
     }
 }
 
@@ -165,7 +177,7 @@ data class ContributorDetailUiState(
     val contributor: ContributorEntity? = null,
     val roleSections: List<RoleSection> = emptyList(),
     val bookProgress: Map<String, Float> = emptyMap(),
-    val error: String? = null
+    val error: String? = null,
 )
 
 /**
@@ -175,7 +187,7 @@ data class RoleSection(
     val role: String,
     val displayName: String,
     val bookCount: Int,
-    val previewBooks: List<Book>
+    val previewBooks: List<Book>,
 ) {
     /** Whether to show "View All" button */
     val showViewAll: Boolean

@@ -58,7 +58,7 @@ import org.koin.compose.koinInject
 fun ServerSetupScreen(
     onServerVerified: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ServerConnectViewModel = koinInject()
+    viewModel: ServerConnectViewModel = koinInject(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -71,7 +71,7 @@ fun ServerSetupScreen(
     ServerSetupContent(
         state = state,
         onEvent = viewModel::onEvent,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -83,20 +83,21 @@ fun ServerSetupScreen(
 private fun ServerSetupContent(
     state: ServerConnectUiState,
     onEvent: (ServerConnectUiEvent) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Top spacing
             Spacer(modifier = Modifier.height(48.dp))
@@ -109,18 +110,20 @@ private fun ServerSetupContent(
 
             // Form card - constrained width for tablets
             ElevatedCard(
-                modifier = Modifier
-                    .widthIn(max = 480.dp)
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .widthIn(max = 480.dp)
+                        .fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                )
+                colors =
+                    CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
             ) {
                 FormContent(
                     state = state,
                     onEvent = onEvent,
-                    modifier = Modifier.padding(24.dp)
+                    modifier = Modifier.padding(24.dp),
                 )
             }
 
@@ -138,16 +141,17 @@ private fun ServerSetupContent(
 @Composable
 private fun BrandLogo(modifier: Modifier = Modifier) {
     val isDarkTheme = LocalDarkTheme.current
-    val logoRes = if (isDarkTheme) {
-        R.drawable.listenup_logo_white
-    } else {
-        R.drawable.listenup_logo_black
-    }
+    val logoRes =
+        if (isDarkTheme) {
+            R.drawable.listenup_logo_white
+        } else {
+            R.drawable.listenup_logo_black
+        }
 
     Image(
         painter = painterResource(logoRes),
         contentDescription = "ListenUp Logo",
-        modifier = modifier.size(160.dp)
+        modifier = modifier.size(160.dp),
     )
 }
 
@@ -159,17 +163,17 @@ private fun BrandLogo(modifier: Modifier = Modifier) {
 private fun FormContent(
     state: ServerConnectUiState,
     onEvent: (ServerConnectUiEvent) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         // Title
         Text(
             text = "Connect to Server",
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
 
         // URL input field
@@ -180,13 +184,15 @@ private fun FormContent(
             placeholder = "example.com or 10.0.2.2:8080",
             isError = state.error != null,
             supportingText = state.error?.message,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Uri,
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = { onEvent(ServerConnectUiEvent.ConnectClicked) }
-            )
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Done,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onDone = { onEvent(ServerConnectUiEvent.ConnectClicked) },
+                ),
         )
 
         // Connect button
@@ -194,7 +200,7 @@ private fun FormContent(
             text = "Connect",
             onClick = { onEvent(ServerConnectUiEvent.ConnectClicked) },
             isLoading = state.isLoading,
-            enabled = state.isConnectEnabled
+            enabled = state.isConnectEnabled,
         )
     }
 }
@@ -209,7 +215,7 @@ private fun PreviewEmpty() {
     ListenUpTheme {
         ServerSetupContent(
             state = ServerConnectUiState(),
-            onEvent = {}
+            onEvent = {},
         )
     }
 }
@@ -219,10 +225,11 @@ private fun PreviewEmpty() {
 private fun PreviewWithUrl() {
     ListenUpTheme {
         ServerSetupContent(
-            state = ServerConnectUiState(
-                serverUrl = "https://listenup.example.com"
-            ),
-            onEvent = {}
+            state =
+                ServerConnectUiState(
+                    serverUrl = "https://listenup.example.com",
+                ),
+            onEvent = {},
         )
     }
 }
@@ -232,11 +239,12 @@ private fun PreviewWithUrl() {
 private fun PreviewLoading() {
     ListenUpTheme {
         ServerSetupContent(
-            state = ServerConnectUiState(
-                serverUrl = "https://listenup.example.com",
-                isLoading = true
-            ),
-            onEvent = {}
+            state =
+                ServerConnectUiState(
+                    serverUrl = "https://listenup.example.com",
+                    isLoading = true,
+                ),
+            onEvent = {},
         )
     }
 }
@@ -246,10 +254,11 @@ private fun PreviewLoading() {
 private fun PreviewDark() {
     ListenUpTheme {
         ServerSetupContent(
-            state = ServerConnectUiState(
-                serverUrl = "https://listenup.example.com"
-            ),
-            onEvent = {}
+            state =
+                ServerConnectUiState(
+                    serverUrl = "https://listenup.example.com",
+                ),
+            onEvent = {},
         )
     }
 }

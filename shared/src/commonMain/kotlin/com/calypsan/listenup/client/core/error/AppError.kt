@@ -57,7 +57,7 @@ sealed interface AppError {
  */
 data class NetworkError(
     override val message: String = "No internet connection. Check your network.",
-    override val debugInfo: String? = null
+    override val debugInfo: String? = null,
 ) : AppError {
     override val code = "NETWORK_ERROR"
     override val isRetryable = true
@@ -71,7 +71,7 @@ data class NetworkError(
 data class ServerError(
     val statusCode: Int,
     override val message: String = "Server error. Please try again later.",
-    override val debugInfo: String? = null
+    override val debugInfo: String? = null,
 ) : AppError {
     override val code = "SERVER_ERROR_$statusCode"
     override val isRetryable = statusCode in 500..599 // Server errors are retryable
@@ -84,7 +84,7 @@ data class ServerError(
  */
 data class DataError(
     override val message: String,
-    override val debugInfo: String? = null
+    override val debugInfo: String? = null,
 ) : AppError {
     override val code = "DATA_ERROR"
     override val isRetryable = false
@@ -97,7 +97,7 @@ data class DataError(
  */
 data class AuthError(
     override val message: String = "Authentication failed. Please log in again.",
-    override val debugInfo: String? = null
+    override val debugInfo: String? = null,
 ) : AppError {
     override val code = "AUTH_ERROR"
     override val isRetryable = false
@@ -110,7 +110,7 @@ data class AuthError(
  */
 data class UnknownError(
     override val message: String = "An unexpected error occurred.",
-    override val debugInfo: String?
+    override val debugInfo: String?,
 ) : AppError {
     override val code = "UNKNOWN_ERROR"
     override val isRetryable = true

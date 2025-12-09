@@ -6,6 +6,11 @@ plugins {
     alias(libs.plugins.composeMultiplatform) apply false
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
+
+    // Quality Tools
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.spotless)
+    alias(libs.plugins.kover)
 }
 
 // Configure Java toolchain for all subprojects
@@ -19,6 +24,71 @@ allprojects {
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+}
+
+// =============================================================================
+// DETEKT - Static Analysis
+// =============================================================================
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom("$rootDir/config/detekt/detekt.yml")
+    parallel = true
+    source.setFrom(
+        "$rootDir/shared/src/commonMain/kotlin",
+        "$rootDir/shared/src/androidMain/kotlin",
+        "$rootDir/shared/src/iosMain/kotlin",
+        "$rootDir/composeApp/src/commonMain/kotlin",
+        "$rootDir/composeApp/src/androidMain/kotlin",
+    )
+}
+
+dependencies {
+    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${libs.versions.detekt.get()}")
+}
+
+// =============================================================================
+// SPOTLESS - Code Formatting
+// =============================================================================
+spotless {
+    kotlin {
+        target("**/*.kt")
+        targetExclude("**/build/**")
+        ktlint(libs.versions.ktlint.get())
+    }
+    kotlinGradle {
+        target("**/*.gradle.kts")
+        targetExclude("**/build/**")
+        ktlint(libs.versions.ktlint.get())
+    }
+}
+
+// =============================================================================
+// KOVER - Code Coverage
+// =============================================================================
+dependencies {
+    kover(project(":shared"))
+    kover(project(":composeApp"))
+}
+
+kover {
+    reports {
+        filters {
+            excludes {
+                classes(
+                    "*_Factory",
+                    "*_HiltModules*",
+                    "*BuildConfig",
+                    "*_Impl",
+                    "*_Impl\$*",
+                    "*.databinding.*",
+                    "*.di.*Module*",
+                )
+                packages(
+                    "*.generated.*",
+                )
+            }
         }
     }
 }

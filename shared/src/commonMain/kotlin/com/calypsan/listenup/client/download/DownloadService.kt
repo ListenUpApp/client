@@ -7,9 +7,17 @@ import com.calypsan.listenup.client.data.local.db.BookId
  */
 sealed interface DownloadResult {
     data object Success : DownloadResult
+
     data object AlreadyDownloaded : DownloadResult
-    data class InsufficientStorage(val requiredBytes: Long, val availableBytes: Long) : DownloadResult
-    data class Error(val message: String) : DownloadResult
+
+    data class InsufficientStorage(
+        val requiredBytes: Long,
+        val availableBytes: Long,
+    ) : DownloadResult
+
+    data class Error(
+        val message: String,
+    ) : DownloadResult
 }
 
 /**
@@ -22,7 +30,6 @@ sealed interface DownloadResult {
  * iOS: Will use URLSession background downloads
  */
 interface DownloadService {
-
     /**
      * Get local file path for an audio file if downloaded.
      * Returns null if not downloaded or file missing.

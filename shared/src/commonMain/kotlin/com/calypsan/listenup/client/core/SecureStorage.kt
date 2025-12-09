@@ -14,7 +14,10 @@ interface SecureStorage {
      * Save a key-value pair to secure storage.
      * Overwrites existing value if key already exists.
      */
-    suspend fun save(key: String, value: String)
+    suspend fun save(
+        key: String,
+        value: String,
+    )
 
     /**
      * Read a value from secure storage.

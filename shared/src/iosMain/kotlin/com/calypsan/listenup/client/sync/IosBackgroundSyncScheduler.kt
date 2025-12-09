@@ -25,7 +25,6 @@ private val logger = KotlinLogging.logger {}
  * when iOS wakes the app for background refresh.
  */
 class IosBackgroundSyncScheduler : BackgroundSyncScheduler {
-
     companion object {
         /**
          * Task identifier - must match Info.plist BGTaskSchedulerPermittedIdentifiers.
@@ -49,10 +48,11 @@ class IosBackgroundSyncScheduler : BackgroundSyncScheduler {
     override fun schedule() {
         logger.info { "Scheduling iOS background sync" }
 
-        val request = BGAppRefreshTaskRequest(identifier = TASK_IDENTIFIER).apply {
-            // Request execution no earlier than 15 minutes from now
-            earliestBeginDate = NSDate().dateByAddingTimeInterval(SYNC_INTERVAL_SECONDS)
-        }
+        val request =
+            BGAppRefreshTaskRequest(identifier = TASK_IDENTIFIER).apply {
+                // Request execution no earlier than 15 minutes from now
+                earliestBeginDate = NSDate().dateByAddingTimeInterval(SYNC_INTERVAL_SECONDS)
+            }
 
         try {
             val success = BGTaskScheduler.sharedScheduler.submitTaskRequest(request, error = null)

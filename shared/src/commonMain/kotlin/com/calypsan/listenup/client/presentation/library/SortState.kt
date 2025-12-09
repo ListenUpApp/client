@@ -5,14 +5,16 @@ package com.calypsan.listenup.client.presentation.library
  */
 enum class SortDirection {
     ASCENDING,
-    DESCENDING;
-
-    fun toggle(): SortDirection = when (this) {
-        ASCENDING -> DESCENDING
-        DESCENDING -> ASCENDING
-    }
+    DESCENDING,
+    ;
 
     val key: String get() = name.lowercase()
+
+    fun toggle(): SortDirection =
+        when (this) {
+            ASCENDING -> DESCENDING
+            DESCENDING -> ASCENDING
+        }
 
     companion object {
         fun fromKey(key: String): SortDirection? = entries.find { it.key == key }
@@ -29,26 +31,26 @@ enum class SortCategory(
     val label: String,
     val ascLabel: String,
     val descLabel: String,
-    val defaultDirection: SortDirection
+    val defaultDirection: SortDirection,
 ) {
     // Text-based sorts (alphabetical)
     TITLE(
         label = "Title",
         ascLabel = "A \u2192 Z",
         descLabel = "Z \u2192 A",
-        defaultDirection = SortDirection.ASCENDING
+        defaultDirection = SortDirection.ASCENDING,
     ),
     AUTHOR(
         label = "Author",
         ascLabel = "A \u2192 Z",
         descLabel = "Z \u2192 A",
-        defaultDirection = SortDirection.ASCENDING
+        defaultDirection = SortDirection.ASCENDING,
     ),
     NAME(
         label = "Name",
         ascLabel = "A \u2192 Z",
         descLabel = "Z \u2192 A",
-        defaultDirection = SortDirection.ASCENDING
+        defaultDirection = SortDirection.ASCENDING,
     ),
 
     // Numeric sorts
@@ -56,19 +58,19 @@ enum class SortCategory(
         label = "Duration",
         ascLabel = "Shortest",
         descLabel = "Longest",
-        defaultDirection = SortDirection.DESCENDING
+        defaultDirection = SortDirection.DESCENDING,
     ),
     YEAR(
         label = "Year",
         ascLabel = "Oldest",
         descLabel = "Newest",
-        defaultDirection = SortDirection.DESCENDING
+        defaultDirection = SortDirection.DESCENDING,
     ),
     BOOK_COUNT(
         label = "Books",
         ascLabel = "Fewest",
         descLabel = "Most",
-        defaultDirection = SortDirection.DESCENDING
+        defaultDirection = SortDirection.DESCENDING,
     ),
 
     // Date sorts
@@ -76,7 +78,7 @@ enum class SortCategory(
         label = "Added",
         ascLabel = "First",
         descLabel = "Recent",
-        defaultDirection = SortDirection.DESCENDING
+        defaultDirection = SortDirection.DESCENDING,
     ),
 
     // Special sorts
@@ -84,36 +86,49 @@ enum class SortCategory(
         label = "Series",
         ascLabel = "1 \u2192 N",
         descLabel = "N \u2192 1",
-        defaultDirection = SortDirection.ASCENDING
-    );
+        defaultDirection = SortDirection.ASCENDING,
+    ),
+    ;
 
     val key: String get() = name.lowercase()
 
     /**
      * Get the direction label for a given direction.
      */
-    fun directionLabel(direction: SortDirection): String = when (direction) {
-        SortDirection.ASCENDING -> ascLabel
-        SortDirection.DESCENDING -> descLabel
-    }
+    fun directionLabel(direction: SortDirection): String =
+        when (direction) {
+            SortDirection.ASCENDING -> ascLabel
+            SortDirection.DESCENDING -> descLabel
+        }
 
     companion object {
-        fun fromKey(key: String): SortCategory? = entries.find { it.key == key }
-
         /** Categories available for the Books tab. */
-        val booksCategories: List<SortCategory> = listOf(
-            TITLE, AUTHOR, DURATION, YEAR, ADDED, SERIES
-        )
+        val booksCategories: List<SortCategory> =
+            listOf(
+                TITLE,
+                AUTHOR,
+                DURATION,
+                YEAR,
+                ADDED,
+                SERIES,
+            )
 
         /** Categories available for the Series tab. */
-        val seriesCategories: List<SortCategory> = listOf(
-            NAME, BOOK_COUNT, ADDED
-        )
+        val seriesCategories: List<SortCategory> =
+            listOf(
+                NAME,
+                BOOK_COUNT,
+                ADDED,
+            )
 
         /** Categories available for Authors/Narrators tabs. */
-        val contributorCategories: List<SortCategory> = listOf(
-            NAME, BOOK_COUNT
-        )
+        val contributorCategories: List<SortCategory> =
+            listOf(
+                NAME,
+                BOOK_COUNT,
+            )
+
+        fun fromKey(key: String): SortCategory? = entries.find { it.key == key }
     }
 }
 
@@ -124,12 +139,17 @@ enum class SortCategory(
  */
 data class SortState(
     val category: SortCategory,
-    val direction: SortDirection
+    val direction: SortDirection,
 ) {
     /**
      * The direction label for display (e.g., "A → Z", "Longest", "Recent").
      */
     val directionLabel: String get() = category.directionLabel(direction)
+
+    /**
+     * Persistence key combining category and direction.
+     */
+    val persistenceKey: String get() = "${category.key}:${direction.key}"
 
     /**
      * Toggle the direction while keeping the same category.
@@ -139,15 +159,11 @@ data class SortState(
     /**
      * Change the category, using the new category's default direction.
      */
-    fun withCategory(newCategory: SortCategory): SortState = SortState(
-        category = newCategory,
-        direction = newCategory.defaultDirection
-    )
-
-    /**
-     * Persistence key combining category and direction.
-     */
-    val persistenceKey: String get() = "${category.key}:${direction.key}"
+    fun withCategory(newCategory: SortCategory): SortState =
+        SortState(
+            category = newCategory,
+            direction = newCategory.defaultDirection,
+        )
 
     companion object {
         /** Default sort state for Books tab. */

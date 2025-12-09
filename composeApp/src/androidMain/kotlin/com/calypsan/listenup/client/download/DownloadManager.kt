@@ -14,9 +14,7 @@ import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.data.model.BookDownloadState
 import com.calypsan.listenup.client.data.model.BookDownloadStatus
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
-import com.calypsan.listenup.client.data.repository.SettingsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
@@ -37,33 +35,35 @@ private val logger = KotlinLogging.logger {}
 class DownloadManager(
     private val downloadDao: DownloadDao,
     private val bookDao: BookDao,
-    private val settingsRepository: SettingsRepository,
     private val workManager: WorkManager,
     private val fileManager: DownloadFileManager,
-    private val scope: CoroutineScope
 ) : DownloadService {
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
      * Observe download status for a specific book.
      */
-    fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> {
-        return downloadDao.observeForBook(bookId.value)
+    fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
+        downloadDao
+            .observeForBook(bookId.value)
             .map { downloads -> aggregateStatus(bookId.value, downloads) }
-    }
 
     /**
      * Observe download status for all books (for library indicators).
      */
-    fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> {
-        return downloadDao.observeAll()
+    fun observeAllStatuses(): Flow<Map<String, BookDownloadStatus>> =
+        downloadDao
+            .observeAll()
             .map { downloads ->
-                downloads.groupBy { it.bookId }
+                downloads
+                    .groupBy { it.bookId }
                     .mapValues { (bookId, files) -> aggregateStatus(bookId, files) }
             }
-    }
 
-    private fun aggregateStatus(bookId: String, downloads: List<DownloadEntity>): BookDownloadStatus {
+    private fun aggregateStatus(
+        bookId: String,
+        downloads: List<DownloadEntity>,
+    ): BookDownloadStatus {
         if (downloads.isEmpty()) {
             return BookDownloadStatus.notDownloaded(bookId)
         }
@@ -84,14 +84,15 @@ class DownloadManager(
         val totalBytes = activeDownloads.sumOf { it.totalBytes }
         val downloadedBytes = activeDownloads.sumOf { it.downloadedBytes }
 
-        val state = when {
-            activeDownloads.all { it.state == DownloadState.COMPLETED } -> BookDownloadState.COMPLETED
-            activeDownloads.any { it.state == DownloadState.DOWNLOADING } -> BookDownloadState.DOWNLOADING
-            activeDownloads.any { it.state == DownloadState.QUEUED } -> BookDownloadState.QUEUED
-            activeDownloads.any { it.state == DownloadState.FAILED } -> BookDownloadState.FAILED
-            activeDownloads.any { it.state == DownloadState.COMPLETED } -> BookDownloadState.PARTIAL
-            else -> BookDownloadState.NOT_DOWNLOADED
-        }
+        val state =
+            when {
+                activeDownloads.all { it.state == DownloadState.COMPLETED } -> BookDownloadState.COMPLETED
+                activeDownloads.any { it.state == DownloadState.DOWNLOADING } -> BookDownloadState.DOWNLOADING
+                activeDownloads.any { it.state == DownloadState.QUEUED } -> BookDownloadState.QUEUED
+                activeDownloads.any { it.state == DownloadState.FAILED } -> BookDownloadState.FAILED
+                activeDownloads.any { it.state == DownloadState.COMPLETED } -> BookDownloadState.PARTIAL
+                else -> BookDownloadState.NOT_DOWNLOADED
+            }
 
         return BookDownloadStatus(
             bookId = bookId,
@@ -99,7 +100,7 @@ class DownloadManager(
             totalFiles = totalFiles,
             completedFiles = completedFiles,
             totalBytes = totalBytes,
-            downloadedBytes = downloadedBytes
+            downloadedBytes = downloadedBytes,
         )
     }
 
@@ -118,10 +119,11 @@ class DownloadManager(
         }
 
         // Get book entity from database
-        val bookEntity = bookDao.getById(bookId) ?: run {
-            logger.error { "Book not found: ${bookId.value}" }
-            return DownloadResult.Error("Book not found")
-        }
+        val bookEntity =
+            bookDao.getById(bookId) ?: run {
+                logger.error { "Book not found: ${bookId.value}" }
+                return DownloadResult.Error("Book not found")
+            }
 
         // Parse audio files from JSON
         val audioFilesJson = bookEntity.audioFilesJson
@@ -130,12 +132,13 @@ class DownloadManager(
             return DownloadResult.Error("No audio files available")
         }
 
-        val audioFiles: List<AudioFileResponse> = try {
-            json.decodeFromString(audioFilesJson)
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to parse audio files JSON for book ${bookId.value}" }
-            return DownloadResult.Error("Failed to parse audio files")
-        }
+        val audioFiles: List<AudioFileResponse> =
+            try {
+                json.decodeFromString(audioFilesJson)
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to parse audio files JSON for book ${bookId.value}" }
+                return DownloadResult.Error("Failed to parse audio files")
+            }
 
         if (audioFiles.isEmpty()) {
             logger.warn { "No audio files for book ${bookId.value}" }
@@ -143,10 +146,11 @@ class DownloadManager(
         }
 
         // Create download entries for files not already completed
-        val completedIds = existing
-            .filter { it.state == DownloadState.COMPLETED }
-            .map { it.audioFileId }
-            .toSet()
+        val completedIds =
+            existing
+                .filter { it.state == DownloadState.COMPLETED }
+                .map { it.audioFileId }
+                .toSet()
 
         val toDownload = audioFiles.filterNot { it.id in completedIds }
 
@@ -163,53 +167,56 @@ class DownloadManager(
             }
             return DownloadResult.InsufficientStorage(
                 requiredBytes = requiredBytes,
-                availableBytes = availableBytes
+                availableBytes = availableBytes,
             )
         }
 
         val now = System.currentTimeMillis()
-        val entities = toDownload.mapIndexed { _, file ->
-            DownloadEntity(
-                audioFileId = file.id,
-                bookId = bookId.value,
-                filename = file.filename,
-                fileIndex = audioFiles.indexOfFirst { it.id == file.id },
-                state = DownloadState.QUEUED,
-                localPath = null,
-                totalBytes = file.size,
-                downloadedBytes = 0,
-                queuedAt = now,
-                startedAt = null,
-                completedAt = null,
-                errorMessage = null,
-                retryCount = 0
-            )
-        }
+        val entities =
+            toDownload.mapIndexed { _, file ->
+                DownloadEntity(
+                    audioFileId = file.id,
+                    bookId = bookId.value,
+                    filename = file.filename,
+                    fileIndex = audioFiles.indexOfFirst { it.id == file.id },
+                    state = DownloadState.QUEUED,
+                    localPath = null,
+                    totalBytes = file.size,
+                    downloadedBytes = 0,
+                    queuedAt = now,
+                    startedAt = null,
+                    completedAt = null,
+                    errorMessage = null,
+                    retryCount = 0,
+                )
+            }
 
         downloadDao.insertAll(entities)
 
         // Queue WorkManager jobs
         toDownload.forEach { file ->
-            val workRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
-                .setInputData(workDataOf(
-                    DownloadWorker.KEY_AUDIO_FILE_ID to file.id,
-                    DownloadWorker.KEY_BOOK_ID to bookId.value,
-                    DownloadWorker.KEY_FILENAME to file.filename,
-                    DownloadWorker.KEY_FILE_SIZE to file.size
-                ))
-                .setConstraints(
-                    Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build()
-                )
-                .addTag("download_${bookId.value}")
-                .addTag("download_file_${file.id}")
-                .build()
+            val workRequest =
+                OneTimeWorkRequestBuilder<DownloadWorker>()
+                    .setInputData(
+                        workDataOf(
+                            DownloadWorker.KEY_AUDIO_FILE_ID to file.id,
+                            DownloadWorker.KEY_BOOK_ID to bookId.value,
+                            DownloadWorker.KEY_FILENAME to file.filename,
+                            DownloadWorker.KEY_FILE_SIZE to file.size,
+                        ),
+                    ).setConstraints(
+                        Constraints
+                            .Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build(),
+                    ).addTag("download_${bookId.value}")
+                    .addTag("download_file_${file.id}")
+                    .build()
 
             workManager.enqueueUniqueWork(
                 "download_${file.id}",
                 ExistingWorkPolicy.REPLACE,
-                workRequest
+                workRequest,
             )
         }
 
@@ -248,9 +255,7 @@ class DownloadManager(
      * Check if a book was explicitly deleted by user.
      * Used to determine if we should auto-download on playback.
      */
-    override suspend fun wasExplicitlyDeleted(bookId: BookId): Boolean {
-        return downloadDao.hasDeletedRecords(bookId.value)
-    }
+    override suspend fun wasExplicitlyDeleted(bookId: BookId): Boolean = downloadDao.hasDeletedRecords(bookId.value)
 
     /**
      * Get local file path for an audio file (if downloaded).

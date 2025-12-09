@@ -10,7 +10,5 @@ import platform.UIKit.UIDevice
  * all simulator types (iPhone, iPad, etc.).
  */
 actual object PlatformUtils {
-    actual fun isEmulator(): Boolean {
-        return UIDevice.currentDevice.name.contains("Simulator", ignoreCase = true)
-    }
+    actual fun isEmulator(): Boolean = UIDevice.currentDevice.name.contains("Simulator", ignoreCase = true)
 }

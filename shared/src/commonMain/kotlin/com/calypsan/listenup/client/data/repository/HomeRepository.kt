@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.Flow
 class HomeRepository(
     private val bookRepository: BookRepository,
     private val playbackPositionDao: PlaybackPositionDao,
-    private val userDao: UserDao
+    private val userDao: UserDao,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -41,40 +41,42 @@ class HomeRepository(
         val positions = playbackPositionDao.getRecentPositions(limit)
         logger.debug { "Found ${positions.size} local playback positions" }
 
-        val books = positions.mapNotNull { position ->
-            val bookIdStr = position.bookId.value
+        val books =
+            positions.mapNotNull { position ->
+                val bookIdStr = position.bookId.value
 
-            // Look up book details from local database
-            val book = bookRepository.getBook(bookIdStr)
-            if (book == null) {
-                logger.warn { "Book not found locally: $bookIdStr" }
-                return@mapNotNull null
+                // Look up book details from local database
+                val book = bookRepository.getBook(bookIdStr)
+                if (book == null) {
+                    logger.warn { "Book not found locally: $bookIdStr" }
+                    return@mapNotNull null
+                }
+
+                // Calculate progress percentage
+                val progress =
+                    if (book.duration > 0) {
+                        (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    }
+
+                // Skip if essentially complete (99%+)
+                if (progress >= 0.99f) {
+                    logger.debug { "Skipping finished book: $bookIdStr" }
+                    return@mapNotNull null
+                }
+
+                ContinueListeningBook(
+                    bookId = bookIdStr,
+                    title = book.title,
+                    authorNames = book.authorNames,
+                    coverPath = book.coverPath,
+                    progress = progress,
+                    currentPositionMs = position.positionMs,
+                    totalDurationMs = book.duration,
+                    lastPlayedAt = position.updatedAt.toString(),
+                )
             }
-
-            // Calculate progress percentage
-            val progress = if (book.duration > 0) {
-                (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
-            } else {
-                0f
-            }
-
-            // Skip if essentially complete (99%+)
-            if (progress >= 0.99f) {
-                logger.debug { "Skipping finished book: $bookIdStr" }
-                return@mapNotNull null
-            }
-
-            ContinueListeningBook(
-                bookId = bookIdStr,
-                title = book.title,
-                authorNames = book.authorNames,
-                coverPath = book.coverPath,
-                progress = progress,
-                currentPositionMs = position.positionMs,
-                totalDurationMs = book.duration,
-                lastPlayedAt = position.updatedAt.toString()
-            )
-        }
 
         logger.debug { "Returning ${books.size} continue listening books" }
         return Success(books)

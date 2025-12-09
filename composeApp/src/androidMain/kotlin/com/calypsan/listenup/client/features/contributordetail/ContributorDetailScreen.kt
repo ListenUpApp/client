@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.features.contributor_detail
+package com.calypsan.listenup.client.features.contributordetail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -44,11 +44,10 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.avatarColorForUser
 import com.calypsan.listenup.client.design.components.getInitials
-import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.features.library.BookCard
-import com.calypsan.listenup.client.presentation.contributor_detail.ContributorDetailUiState
-import com.calypsan.listenup.client.presentation.contributor_detail.ContributorDetailViewModel
-import com.calypsan.listenup.client.presentation.contributor_detail.RoleSection
+import com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailUiState
+import com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel
+import com.calypsan.listenup.client.presentation.contributordetail.RoleSection
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -74,7 +73,7 @@ fun ContributorDetailScreen(
     onBackClick: () -> Unit,
     onBookClick: (String) -> Unit,
     onViewAllClick: (contributorId: String, role: String) -> Unit,
-    viewModel: ContributorDetailViewModel = koinViewModel()
+    viewModel: ContributorDetailViewModel = koinViewModel(),
 ) {
     LaunchedEffect(contributorId) {
         viewModel.loadContributor(contributorId)
@@ -89,46 +88,50 @@ fun ContributorDetailScreen(
                     Text(
                         text = state.contributor?.name ?: "Contributor",
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
             )
-        }
+        },
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
         ) {
             when {
                 state.isLoading -> {
                     ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
                 }
+
                 state.error != null -> {
                     Text(
                         text = state.error ?: "Unknown error",
                         color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.Center)
+                        modifier = Modifier.align(Alignment.Center),
                     )
                 }
+
                 else -> {
                     ContributorDetailContent(
                         state = state,
                         bookProgress = state.bookProgress,
                         onBookClick = onBookClick,
-                        onViewAllClick = { role -> onViewAllClick(contributorId, role) }
+                        onViewAllClick = { role -> onViewAllClick(contributorId, role) },
                     )
                 }
             }
@@ -144,14 +147,14 @@ private fun ContributorDetailContent(
     state: ContributorDetailUiState,
     bookProgress: Map<String, Float>,
     onBookClick: (String) -> Unit,
-    onViewAllClick: (role: String) -> Unit
+    onViewAllClick: (role: String) -> Unit,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
 
     LazyColumn(
         contentPadding = PaddingValues(vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         // Header with avatar and name
         item {
@@ -160,20 +163,20 @@ private fun ContributorDetailContent(
                 contributorId = state.contributor?.id ?: "",
                 description = state.contributor?.description,
                 isDescriptionExpanded = isDescriptionExpanded,
-                onExpandClick = { isDescriptionExpanded = !isDescriptionExpanded }
+                onExpandClick = { isDescriptionExpanded = !isDescriptionExpanded },
             )
         }
 
         // Role sections
         items(
             items = state.roleSections,
-            key = { it.role }
+            key = { it.role },
         ) { section ->
             RoleSectionRow(
                 section = section,
                 bookProgress = bookProgress,
                 onBookClick = onBookClick,
-                onViewAllClick = { onViewAllClick(section.role) }
+                onViewAllClick = { onViewAllClick(section.role) },
             )
         }
     }
@@ -188,28 +191,30 @@ private fun ContributorHeader(
     contributorId: String,
     description: String?,
     isDescriptionExpanded: Boolean,
-    onExpandClick: () -> Unit
+    onExpandClick: () -> Unit,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
     ) {
         // Large avatar
         Box(
-            modifier = Modifier
-                .size(96.dp)
-                .background(
-                    color = avatarColorForUser(contributorId),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .size(96.dp)
+                    .background(
+                        color = avatarColorForUser(contributorId),
+                        shape = CircleShape,
+                    ),
+            contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = getInitials(name),
                 style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
 
@@ -219,7 +224,7 @@ private fun ContributorHeader(
         Text(
             text = name,
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
         )
 
         // Description (if available)
@@ -230,12 +235,12 @@ private fun ContributorHeader(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 3,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             if (desc.length > 150) {
                 TextButton(
                     onClick = onExpandClick,
-                    contentPadding = PaddingValues(0.dp)
+                    contentPadding = PaddingValues(0.dp),
                 ) {
                     Text(if (isDescriptionExpanded) "Read less" else "Read more")
                 }
@@ -252,27 +257,28 @@ private fun RoleSectionRow(
     section: RoleSection,
     bookProgress: Map<String, Float>,
     onBookClick: (String) -> Unit,
-    onViewAllClick: () -> Unit
+    onViewAllClick: () -> Unit,
 ) {
     Column {
         // Section header
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
                 Text(
                     text = section.displayName,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Text(
                     text = "${section.bookCount} ${if (section.bookCount == 1) "book" else "books"}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -283,7 +289,7 @@ private fun RoleSectionRow(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
@@ -294,17 +300,17 @@ private fun RoleSectionRow(
         // Horizontal book carousel
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(
                 items = section.previewBooks,
-                key = { it.id.value }
+                key = { it.id.value },
             ) { book ->
                 BookCard(
                     book = book,
                     onClick = { onBookClick(book.id.value) },
                     progress = bookProgress[book.id.value],
-                    modifier = Modifier.width(140.dp)
+                    modifier = Modifier.width(140.dp),
                 )
             }
         }

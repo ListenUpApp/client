@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.presentation.series_detail
+package com.calypsan.listenup.client.presentation.seriesdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,9 +21,8 @@ import kotlinx.coroutines.launch
  */
 class SeriesDetailViewModel(
     private val seriesDao: SeriesDao,
-    private val bookRepository: BookRepository
+    private val bookRepository: BookRepository,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(SeriesDetailUiState())
     val state: StateFlow<SeriesDetailUiState> = _state.asStateFlow()
 
@@ -42,25 +41,27 @@ class SeriesDetailViewModel(
             seriesDao.observeByIdWithBooks(seriesId).collectLatest { seriesWithBooks ->
                 if (seriesWithBooks != null) {
                     // Convert book entities to domain models with cover paths
-                    val books = seriesWithBooks.books
-                        .sortedBy { it.sequence?.toFloatOrNull() ?: Float.MAX_VALUE }
-                        .map { bookEntity ->
-                            bookRepository.getBook(bookEntity.id.value)
-                        }
-                        .filterNotNull()
+                    val books =
+                        seriesWithBooks.books
+                            .sortedBy { it.sequence?.toFloatOrNull() ?: Float.MAX_VALUE }
+                            .map { bookEntity ->
+                                bookRepository.getBook(bookEntity.id.value)
+                            }.filterNotNull()
 
-                    _state.value = SeriesDetailUiState(
-                        isLoading = false,
-                        seriesName = seriesWithBooks.series.name,
-                        seriesDescription = seriesWithBooks.series.description,
-                        books = books,
-                        error = null
-                    )
+                    _state.value =
+                        SeriesDetailUiState(
+                            isLoading = false,
+                            seriesName = seriesWithBooks.series.name,
+                            seriesDescription = seriesWithBooks.series.description,
+                            books = books,
+                            error = null,
+                        )
                 } else {
-                    _state.value = SeriesDetailUiState(
-                        isLoading = false,
-                        error = "Series not found"
-                    )
+                    _state.value =
+                        SeriesDetailUiState(
+                            isLoading = false,
+                            error = "Series not found",
+                        )
                 }
             }
         }
@@ -75,5 +76,5 @@ data class SeriesDetailUiState(
     val seriesName: String = "",
     val seriesDescription: String? = null,
     val books: List<Book> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
 )

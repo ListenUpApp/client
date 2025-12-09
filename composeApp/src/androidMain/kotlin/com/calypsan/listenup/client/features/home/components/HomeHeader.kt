@@ -1,8 +1,6 @@
 package com.calypsan.listenup.client.features.home.components
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,18 +22,19 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun HomeHeader(
     greeting: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 16.dp)
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 16.dp),
     ) {
         Text(
             text = greeting,
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.3).sp
-            ),
-            color = MaterialTheme.colorScheme.onSurface
+            style =
+                MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.3).sp,
+                ),
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }

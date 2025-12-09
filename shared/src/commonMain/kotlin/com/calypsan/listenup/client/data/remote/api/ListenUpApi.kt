@@ -9,13 +9,18 @@ import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.domain.model.Instance
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.plugins.logging.*
-import io.ktor.client.request.*
-import io.ktor.serialization.kotlinx.json.*
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.request.get
+import io.ktor.client.request.parameter
+import io.ktor.client.request.url
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
@@ -35,44 +40,49 @@ private val logger = KotlinLogging.logger {}
  */
 class ListenUpApi(
     private val baseUrl: String,
-    private val apiClientFactory: ApiClientFactory? = null
+    private val apiClientFactory: ApiClientFactory? = null,
 ) {
     /**
      * Simple HTTP client for public endpoints (no authentication).
      * Used for endpoints like getInstance that don't require credentials.
      */
-    private val publicClient = HttpClient {
-        // JSON content negotiation for request/response serialization
-        install(ContentNegotiation) {
-            json(Json {
-                prettyPrint = false
-                isLenient = false
-                ignoreUnknownKeys = true
-            })
-        }
-
-        // HTTP logging for debugging
-        install(Logging) {
-            logger = object : Logger {
-                override fun log(message: String) {
-                    com.calypsan.listenup.client.data.remote.api.logger.debug { message }
-                }
+    private val publicClient =
+        HttpClient {
+            // JSON content negotiation for request/response serialization
+            install(ContentNegotiation) {
+                json(
+                    Json {
+                        prettyPrint = false
+                        isLenient = false
+                        ignoreUnknownKeys = true
+                    },
+                )
             }
-            level = LogLevel.HEADERS
-        }
 
-        // Request timeout configuration
-        install(HttpTimeout) {
-            requestTimeoutMillis = 30_000
-            connectTimeoutMillis = 10_000
-            socketTimeoutMillis = 30_000
-        }
+            // HTTP logging for debugging
+            install(Logging) {
+                logger =
+                    object : Logger {
+                        override fun log(message: String) {
+                            com.calypsan.listenup.client.data.remote.api.logger
+                                .debug { message }
+                        }
+                    }
+                level = LogLevel.HEADERS
+            }
 
-        // Default request configuration
-        defaultRequest {
-            url(baseUrl)
+            // Request timeout configuration
+            install(HttpTimeout) {
+                requestTimeoutMillis = 30_000
+                connectTimeoutMillis = 10_000
+                socketTimeoutMillis = 30_000
+            }
+
+            // Default request configuration
+            defaultRequest {
+                url(baseUrl)
+            }
         }
-    }
 
     /**
      * Get authenticated HTTP client from factory.
@@ -80,10 +90,9 @@ class ListenUpApi(
      *
      * @throws IllegalStateException if factory not provided
      */
-    private suspend fun getAuthenticatedClient(): HttpClient {
-        return apiClientFactory?.getClient()
-            ?: throw IllegalStateException("ApiClientFactory required for authenticated endpoints")
-    }
+    private suspend fun getAuthenticatedClient(): HttpClient =
+        apiClientFactory?.getClient()
+            ?: error("ApiClientFactory required for authenticated endpoints")
 
     /**
      * Fetch the server instance information.
@@ -92,19 +101,20 @@ class ListenUpApi(
      *
      * @return Result containing the Instance on success, or an error on failure
      */
-    suspend fun getInstance(): Result<Instance> = suspendRunCatching {
-        logger.debug { "Fetching instance information from $baseUrl/api/v1/instance" }
+    suspend fun getInstance(): Result<Instance> =
+        suspendRunCatching {
+            logger.debug { "Fetching instance information from $baseUrl/api/v1/instance" }
 
-        val response: ApiResponse<Instance> = publicClient.get("/api/v1/instance").body()
+            val response: ApiResponse<Instance> = publicClient.get("/api/v1/instance").body()
 
-        logger.debug { "Received response: success=${response.success}" }
+            logger.debug { "Received response: success=${response.success}" }
 
-        // Convert API response to Result and extract data
-        when (val result = response.toResult()) {
-            is Success -> result.data
-            is Failure -> throw result.exception
+            // Convert API response to Result and extract data
+            when (val result = response.toResult()) {
+                is Success -> result.data
+                is Failure -> throw result.exception
+            }
         }
-    }
 
     /**
      * Fetch books the user is currently listening to.
@@ -115,21 +125,24 @@ class ListenUpApi(
      * @param limit Maximum number of books to return (default 10)
      * @return Result containing list of PlaybackProgressResponse on success
      */
-    suspend fun getContinueListening(limit: Int = 10): Result<List<PlaybackProgressResponse>> = suspendRunCatching {
-        logger.debug { "Fetching continue listening from $baseUrl/api/v1/listening/continue" }
+    suspend fun getContinueListening(limit: Int = 10): Result<List<PlaybackProgressResponse>> =
+        suspendRunCatching {
+            logger.debug { "Fetching continue listening from $baseUrl/api/v1/listening/continue" }
 
-        val client = getAuthenticatedClient()
-        val response: ApiResponse<List<PlaybackProgressResponse>> = client.get("/api/v1/listening/continue") {
-            parameter("limit", limit)
-        }.body()
+            val client = getAuthenticatedClient()
+            val response: ApiResponse<List<PlaybackProgressResponse>> =
+                client
+                    .get("/api/v1/listening/continue") {
+                        parameter("limit", limit)
+                    }.body()
 
-        logger.debug { "Received continue listening response: success=${response.success}" }
+            logger.debug { "Received continue listening response: success=${response.success}" }
 
-        when (val result = response.toResult()) {
-            is Success -> result.data
-            is Failure -> throw result.exception
+            when (val result = response.toResult()) {
+                is Success -> result.data
+                is Failure -> throw result.exception
+            }
         }
-    }
 
     /**
      * Clean up resources when the API client is no longer needed.

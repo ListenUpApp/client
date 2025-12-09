@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.features.book_detail
+package com.calypsan.listenup.client.features.bookdetail
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -43,7 +43,7 @@ fun DownloadButton(
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val containerColor = MaterialTheme.colorScheme.secondaryContainer
     val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -51,11 +51,11 @@ fun DownloadButton(
     Surface(
         modifier = modifier.size(56.dp),
         shape = MaterialTheme.shapes.medium,
-        color = containerColor
+        color = containerColor,
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         ) {
             when (status.state) {
                 BookDownloadState.NOT_DOWNLOADED -> {
@@ -63,13 +63,14 @@ fun DownloadButton(
                         Icon(
                             Icons.Outlined.Download,
                             contentDescription = "Download book",
-                            tint = contentColor
+                            tint = contentColor,
                         )
                     }
                 }
 
                 BookDownloadState.QUEUED,
-                BookDownloadState.DOWNLOADING -> {
+                BookDownloadState.DOWNLOADING,
+                -> {
                     IconButton(onClick = onCancelClick) {
                         Box(contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(
@@ -77,13 +78,13 @@ fun DownloadButton(
                                 modifier = Modifier.size(32.dp),
                                 strokeWidth = 3.dp,
                                 color = contentColor,
-                                trackColor = contentColor.copy(alpha = 0.3f)
+                                trackColor = contentColor.copy(alpha = 0.3f),
                             )
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = "Cancel download",
                                 modifier = Modifier.size(12.dp),
-                                tint = contentColor.copy(alpha = 0.6f)
+                                tint = contentColor.copy(alpha = 0.6f),
                             )
                         }
                     }
@@ -94,18 +95,19 @@ fun DownloadButton(
                         Icon(
                             Icons.Outlined.Delete,
                             contentDescription = "Delete download",
-                            tint = contentColor
+                            tint = contentColor,
                         )
                     }
                 }
 
                 BookDownloadState.PARTIAL,
-                BookDownloadState.FAILED -> {
+                BookDownloadState.FAILED,
+                -> {
                     IconButton(onClick = onDownloadClick) {
                         Icon(
                             Icons.Default.Refresh,
                             contentDescription = "Retry download",
-                            tint = MaterialTheme.colorScheme.error
+                            tint = MaterialTheme.colorScheme.error,
                         )
                     }
                 }
@@ -123,21 +125,23 @@ fun DownloadButtonExpanded(
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val progressPercent = (status.progress * 100).toInt()
 
     OutlinedButton(
-        onClick = when (status.state) {
-            BookDownloadState.NOT_DOWNLOADED -> onDownloadClick
-            BookDownloadState.QUEUED, BookDownloadState.DOWNLOADING -> onCancelClick
-            BookDownloadState.COMPLETED -> onDeleteClick
-            BookDownloadState.PARTIAL, BookDownloadState.FAILED -> onDownloadClick
-        },
-        modifier = modifier
-            .fillMaxWidth()
-            .height(52.dp),
-        shape = RoundedCornerShape(26.dp)
+        onClick =
+            when (status.state) {
+                BookDownloadState.NOT_DOWNLOADED -> onDownloadClick
+                BookDownloadState.QUEUED, BookDownloadState.DOWNLOADING -> onCancelClick
+                BookDownloadState.COMPLETED -> onDeleteClick
+                BookDownloadState.PARTIAL, BookDownloadState.FAILED -> onDownloadClick
+            },
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(52.dp),
+        shape = RoundedCornerShape(26.dp),
     ) {
         when (status.state) {
             BookDownloadState.NOT_DOWNLOADED -> {
@@ -149,7 +153,7 @@ fun DownloadButtonExpanded(
             BookDownloadState.QUEUED -> {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp
+                    strokeWidth = 2.dp,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Queued...")
@@ -160,10 +164,10 @@ fun DownloadButtonExpanded(
                     CircularProgressIndicator(
                         progress = { status.progress },
                         modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp
+                        strokeWidth = 2.dp,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("${progressPercent}%")
+                    Text("$progressPercent%")
                 }
             }
 
@@ -174,11 +178,12 @@ fun DownloadButtonExpanded(
             }
 
             BookDownloadState.PARTIAL,
-            BookDownloadState.FAILED -> {
+            BookDownloadState.FAILED,
+            -> {
                 Icon(
                     Icons.Default.Refresh,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
+                    tint = MaterialTheme.colorScheme.error,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Retry", color = MaterialTheme.colorScheme.error)

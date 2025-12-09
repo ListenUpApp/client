@@ -10,7 +10,6 @@ package com.calypsan.listenup.client.playback
  * iOS: Will integrate with URLSession authentication
  */
 interface AudioTokenProvider {
-
     /**
      * Ensure a fresh token is available before playback.
      * Call before starting audio streams.

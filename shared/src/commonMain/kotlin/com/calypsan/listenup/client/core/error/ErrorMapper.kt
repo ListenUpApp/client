@@ -27,7 +27,6 @@ import kotlinx.serialization.SerializationException
  * ```
  */
 object ErrorMapper {
-
     /**
      * Map any exception to an AppError.
      *
@@ -37,51 +36,64 @@ object ErrorMapper {
      * @param exception The exception to map
      * @return Corresponding AppError with user-friendly message
      */
-    fun map(exception: Throwable): AppError {
-        return when (exception) {
+    fun map(exception: Throwable): AppError =
+        when (exception) {
             // Ktor network connectivity issues (KMP)
             is ConnectTimeoutException,
-            is SocketTimeoutException -> NetworkError(
-                message = "Connection timed out. Check your network.",
-                debugInfo = exception.message
-            )
+            is SocketTimeoutException,
+            -> {
+                NetworkError(
+                    message = "Connection timed out. Check your network.",
+                    debugInfo = exception.message,
+                )
+            }
 
             // Ktor HTTP timeout (KMP)
-            is HttpRequestTimeoutException -> NetworkError(
-                message = "Request timed out. Please try again.",
-                debugInfo = exception.message
-            )
+            is HttpRequestTimeoutException -> {
+                NetworkError(
+                    message = "Request timed out. Please try again.",
+                    debugInfo = exception.message,
+                )
+            }
 
             // Ktor HTTP errors (KMP)
-            is ResponseException -> ServerError(
-                statusCode = exception.response.status.value,
-                message = when (exception.response.status.value) {
-                    404 -> "Resource not found."
-                    403 -> "Access denied."
-                    401 -> "Authentication required."
-                    in 500..599 -> "Server error. Please try again later."
-                    else -> "Request failed."
-                },
-                debugInfo = exception.message
-            )
+            is ResponseException -> {
+                ServerError(
+                    statusCode = exception.response.status.value,
+                    message =
+                        when (exception.response.status.value) {
+                            404 -> "Resource not found."
+                            403 -> "Access denied."
+                            401 -> "Authentication required."
+                            in 500..599 -> "Server error. Please try again later."
+                            else -> "Request failed."
+                        },
+                    debugInfo = exception.message,
+                )
+            }
 
             // Generic IO errors (KMP)
-            is IOException -> NetworkError(
-                message = "Network error. Check your connection.",
-                debugInfo = exception.message
-            )
+            is IOException -> {
+                NetworkError(
+                    message = "Network error. Check your connection.",
+                    debugInfo = exception.message,
+                )
+            }
 
             // Kotlinx serialization (KMP)
-            is SerializationException -> DataError(
-                message = "Invalid data format.",
-                debugInfo = exception.message
-            )
+            is SerializationException -> {
+                DataError(
+                    message = "Invalid data format.",
+                    debugInfo = exception.message,
+                )
+            }
 
             // Fallback for unknown exceptions
-            else -> UnknownError(
-                message = "An unexpected error occurred: ${exception.message}",
-                debugInfo = exception.stackTraceToString()
-            )
+            else -> {
+                UnknownError(
+                    message = "An unexpected error occurred: ${exception.message}",
+                    debugInfo = exception.stackTraceToString(),
+                )
+            }
         }
-    }
 }

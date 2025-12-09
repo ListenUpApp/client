@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.features.series_detail
+package com.calypsan.listenup.client.features.seriesdetail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,8 +48,8 @@ import coil3.compose.AsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.domain.model.Book
-import com.calypsan.listenup.client.presentation.series_detail.SeriesDetailUiState
-import com.calypsan.listenup.client.presentation.series_detail.SeriesDetailViewModel
+import com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailUiState
+import com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -73,7 +72,7 @@ fun SeriesDetailScreen(
     seriesId: String,
     onBackClick: () -> Unit,
     onBookClick: (String) -> Unit,
-    viewModel: SeriesDetailViewModel = koinViewModel()
+    viewModel: SeriesDetailViewModel = koinViewModel(),
 ) {
     LaunchedEffect(seriesId) {
         viewModel.loadSeries(seriesId)
@@ -88,44 +87,48 @@ fun SeriesDetailScreen(
                     Text(
                         text = state.seriesName.ifBlank { "Series" },
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
             )
-        }
+        },
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
         ) {
             when {
                 state.isLoading -> {
                     ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
                 }
+
                 state.error != null -> {
                     Text(
                         text = state.error ?: "Unknown error",
                         color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.Center)
+                        modifier = Modifier.align(Alignment.Center),
                     )
                 }
+
                 else -> {
                     SeriesDetailContent(
                         state = state,
-                        onBookClick = onBookClick
+                        onBookClick = onBookClick,
                     )
                 }
             }
@@ -139,27 +142,28 @@ fun SeriesDetailScreen(
 @Composable
 private fun SeriesDetailContent(
     state: SeriesDetailUiState,
-    onBookClick: (String) -> Unit
+    onBookClick: (String) -> Unit,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
 
     LazyColumn(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         // Description section (if available)
         state.seriesDescription?.takeIf { it.isNotBlank() }?.let { description ->
             item {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
                 ) {
                     Text(
                         text = "About",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -167,12 +171,12 @@ private fun SeriesDetailContent(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 3,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     if (description.length > 150) {
                         TextButton(
                             onClick = { isDescriptionExpanded = !isDescriptionExpanded },
-                            contentPadding = PaddingValues(0.dp)
+                            contentPadding = PaddingValues(0.dp),
                         ) {
                             Text(if (isDescriptionExpanded) "Read less" else "Read more")
                         }
@@ -187,18 +191,18 @@ private fun SeriesDetailContent(
                 text = "${state.books.size} ${if (state.books.size == 1) "Book" else "Books"}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
 
         // Books list
         items(
             items = state.books,
-            key = { it.id.value }
+            key = { it.id.value },
         ) { book ->
             SeriesBookItem(
                 book = book,
-                onClick = { onBookClick(book.id.value) }
+                onClick = { onBookClick(book.id.value) },
             )
         }
     }
@@ -219,43 +223,46 @@ private fun SeriesBookItem(
     onClick: () -> Unit,
     progress: Float? = null,
     timeRemaining: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clickable(onClick = onClick),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             // Book cover with optional progress overlay
             Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center,
             ) {
                 if (book.coverPath != null) {
                     AsyncImage(
                         model = "file://${book.coverPath}",
                         contentDescription = book.title,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(8.dp))
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(8.dp)),
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.Book,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(32.dp),
                     )
                 }
 
@@ -264,7 +271,7 @@ private fun SeriesBookItem(
                     ProgressOverlay(
                         progress = progress,
                         timeRemaining = timeRemaining,
-                        modifier = Modifier.align(Alignment.BottomCenter)
+                        modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
             }
@@ -278,7 +285,7 @@ private fun SeriesBookItem(
                     Text(
                         text = "Book $sequence",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                 }
@@ -289,7 +296,7 @@ private fun SeriesBookItem(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -300,7 +307,7 @@ private fun SeriesBookItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -309,7 +316,7 @@ private fun SeriesBookItem(
                 Text(
                     text = book.formatDuration(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

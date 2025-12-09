@@ -14,24 +14,19 @@ import androidx.room.PrimaryKey
 data class UserEntity(
     @PrimaryKey
     val id: String,
-
     val email: String,
-
     val displayName: String,
-
     val isRoot: Boolean,
-
     /**
      * Creation timestamp in Unix epoch milliseconds.
      * Use kotlinx.datetime.Instant for domain model conversion.
      */
     val createdAt: Long,
-
     /**
      * Last update timestamp in Unix epoch milliseconds.
      * Use kotlinx.datetime.Instant for domain model conversion.
      */
-    val updatedAt: Long
+    val updatedAt: Long,
 )
 
 /**
@@ -46,34 +41,30 @@ data class UserEntity(
  */
 @Entity(
     tableName = "books",
-    indices = [Index(value = ["syncState"])]
+    indices = [Index(value = ["syncState"])],
 )
 data class BookEntity(
     @PrimaryKey val id: BookId,
-
     // Core book metadata
     val title: String,
-    val subtitle: String? = null,    // Book subtitle
-    val coverUrl: String?,           // URL to cover image (local or remote)
-    val totalDuration: Long,         // Total audiobook duration in milliseconds
+    val subtitle: String? = null, // Book subtitle
+    val coverUrl: String?, // URL to cover image (local or remote)
+    val totalDuration: Long, // Total audiobook duration in milliseconds
     val description: String? = null,
-    val genres: String? = null,      // Comma-separated genres
+    val genres: String? = null, // Comma-separated genres
     val seriesId: String? = null,
-    val seriesName: String? = null,  // Denormalized series name
-    val sequence: String? = null,    // Series sequence (e.g., "1", "1.5")
+    val seriesName: String? = null, // Denormalized series name
+    val sequence: String? = null, // Series sequence (e.g., "1", "1.5")
     val publishYear: Int? = null,
-
     // Audio files as JSON (parsed at runtime for playback)
     val audioFilesJson: String? = null,
-
     // Sync fields (implements Syncable)
     override val syncState: SyncState,
     override val lastModified: Timestamp,
     override val serverVersion: Timestamp?,
-
     // Timestamps matching server Syncable pattern
     val createdAt: Timestamp,
-    val updatedAt: Timestamp
+    val updatedAt: Timestamp,
 ) : Syncable
 
 /**
@@ -83,21 +74,19 @@ data class BookEntity(
     tableName = "chapters",
     indices = [
         Index(value = ["bookId"]),
-        Index(value = ["syncState"])
-    ]
+        Index(value = ["syncState"]),
+    ],
 )
 data class ChapterEntity(
     @PrimaryKey val id: ChapterId,
     val bookId: BookId,
-
     val title: String,
     val duration: Long, // Milliseconds
     val startTime: Long, // Milliseconds from start of book
-
     // Sync fields
     override val syncState: SyncState,
     override val lastModified: Timestamp,
-    override val serverVersion: Timestamp?
+    override val serverVersion: Timestamp?,
 ) : Syncable
 
 /**
@@ -105,20 +94,18 @@ data class ChapterEntity(
  */
 @Entity(
     tableName = "series",
-    indices = [Index(value = ["syncState"])]
+    indices = [Index(value = ["syncState"])],
 )
 data class SeriesEntity(
     @PrimaryKey val id: String,
     val name: String,
     val description: String?,
-
     // Sync fields
     override val syncState: SyncState,
     override val lastModified: Timestamp,
     override val serverVersion: Timestamp?,
-
     val createdAt: Timestamp,
-    val updatedAt: Timestamp
+    val updatedAt: Timestamp,
 ) : Syncable
 
 /**
@@ -126,21 +113,19 @@ data class SeriesEntity(
  */
 @Entity(
     tableName = "contributors",
-    indices = [Index(value = ["syncState"])]
+    indices = [Index(value = ["syncState"])],
 )
 data class ContributorEntity(
     @PrimaryKey val id: String,
     val name: String,
     val description: String?,
     val imagePath: String?,
-
     // Sync fields
     override val syncState: SyncState,
     override val lastModified: Timestamp,
     override val serverVersion: Timestamp?,
-
     val createdAt: Timestamp,
-    val updatedAt: Timestamp
+    val updatedAt: Timestamp,
 ) : Syncable
 
 /**
@@ -155,7 +140,7 @@ data class ContributorEntity(
 @Entity(tableName = "sync_metadata")
 data class SyncMetadataEntity(
     @PrimaryKey val key: String,
-    val value: String
+    val value: String,
 )
 
 /**
@@ -169,12 +154,14 @@ data class SyncMetadataEntity(
 @Entity(tableName = "playback_positions")
 data class PlaybackPositionEntity(
     @PrimaryKey val bookId: BookId,
-
-    val positionMs: Long,           // Current position in book (book-relative)
-    val playbackSpeed: Float,       // Last used speed for this book
-
-    val updatedAt: Long,            // Local timestamp (epoch ms)
-    val syncedAt: Long? = null      // When last synced to server (null if not synced)
+    // Current position in book (book-relative)
+    val positionMs: Long,
+    // Last used speed for this book
+    val playbackSpeed: Float,
+    // Local timestamp (epoch ms)
+    val updatedAt: Long,
+    // When last synced to server (null if not synced)
+    val syncedAt: Long? = null,
 )
 
 /**
@@ -187,20 +174,23 @@ data class PlaybackPositionEntity(
  */
 @Entity(
     tableName = "pending_listening_events",
-    indices = [Index(value = ["bookId"])]
+    indices = [Index(value = ["bookId"])],
 )
 data class PendingListeningEventEntity(
-    @PrimaryKey val id: String,     // Client-generated UUID
+    @PrimaryKey val id: String, // Client-generated UUID
     val bookId: BookId,
-
-    val startPositionMs: Long,      // Book-relative start position
-    val endPositionMs: Long,        // Book-relative end position
-    val startedAt: Long,            // Epoch ms when playback started
-    val endedAt: Long,              // Epoch ms when playback ended
-
+    // Book-relative start position
+    val startPositionMs: Long,
+    // Book-relative end position
+    val endPositionMs: Long,
+    // Epoch ms when playback started
+    val startedAt: Long,
+    // Epoch ms when playback ended
+    val endedAt: Long,
     val playbackSpeed: Float,
     val deviceId: String,
-
-    val attempts: Int = 0,          // Retry count
-    val lastAttemptAt: Long? = null // For exponential backoff
+    // Retry count
+    val attempts: Int = 0,
+    // For exponential backoff
+    val lastAttemptAt: Long? = null,
 )

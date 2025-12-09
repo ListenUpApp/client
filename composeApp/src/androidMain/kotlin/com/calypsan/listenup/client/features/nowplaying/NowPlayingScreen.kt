@@ -2,13 +2,13 @@ package com.calypsan.listenup.client.features.nowplaying
 
 import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -51,8 +51,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,10 +58,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -78,7 +72,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.palette.graphics.Palette
-import coil3.compose.AsyncImagePainter
 import coil3.compose.SubcomposeAsyncImage
 import coil3.compose.SubcomposeAsyncImageContent
 import coil3.request.ImageRequest
@@ -87,7 +80,13 @@ import coil3.toBitmap
 import com.calypsan.listenup.client.playback.NowPlayingState
 import com.calypsan.listenup.client.playback.SleepTimerMode
 import com.calypsan.listenup.client.playback.SleepTimerState
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.time.Duration
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Full screen Now Playing view.
@@ -117,7 +116,7 @@ fun NowPlayingScreen(
     onShowAuthorPicker: () -> Unit,
     onShowNarratorPicker: () -> Unit,
     onCloseBook: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     // Extract dominant color from cover
     var dominantColor by remember { mutableStateOf(Color.Transparent) }
@@ -128,93 +127,98 @@ fun NowPlayingScreen(
     val density = LocalDensity.current
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
     val dismissThreshold = screenHeightPx * 0.33f
-    val glowWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
 
     val dragOffset = remember { Animatable(0f) }
 
     // Simulate radial glow with stacked vertical gradients (radialGradient crashes emulator GPU)
     // This creates a softer, centered glow effect without using radialGradient
-    val glowBrush = remember(dominantColor) {
-        if (dominantColor != Color.Transparent) {
-            Brush.verticalGradient(
-                colorStops = arrayOf(
-                    0.0f to Color.Transparent,
-                    0.15f to dominantColor.copy(alpha = 0.3f),
-                    0.35f to dominantColor.copy(alpha = 0.6f),
-                    0.5f to dominantColor.copy(alpha = 0.6f),
-                    0.65f to dominantColor.copy(alpha = 0.3f),
-                    0.85f to dominantColor.copy(alpha = 0.1f),
-                    1.0f to Color.Transparent
+    val glowBrush =
+        remember(dominantColor) {
+            if (dominantColor != Color.Transparent) {
+                Brush.verticalGradient(
+                    colorStops =
+                        arrayOf(
+                            0.0f to Color.Transparent,
+                            0.15f to dominantColor.copy(alpha = 0.3f),
+                            0.35f to dominantColor.copy(alpha = 0.6f),
+                            0.5f to dominantColor.copy(alpha = 0.6f),
+                            0.65f to dominantColor.copy(alpha = 0.3f),
+                            0.85f to dominantColor.copy(alpha = 0.1f),
+                            1.0f to Color.Transparent,
+                        ),
                 )
-            )
-        } else null
-    }
+            } else {
+                null
+            }
+        }
     val glowAlpha = 1f
 
     Surface(
-        modifier = modifier
-            .fillMaxSize()
-            .graphicsLayer {
-                translationY = dragOffset.value
-            }
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragEnd = {
-                        scope.launch {
-                            if (dragOffset.value > dismissThreshold) {
-                                // Animate off screen then collapse
-                                dragOffset.animateTo(
-                                    targetValue = screenHeightPx,
-                                    animationSpec = tween(200)
-                                )
-                                onCollapse()
-                            } else {
-                                // Snap back to open
-                                dragOffset.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = tween(200)
-                                )
+        modifier =
+            modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    translationY = dragOffset.value
+                }.pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragEnd = {
+                            scope.launch {
+                                if (dragOffset.value > dismissThreshold) {
+                                    // Animate off screen then collapse
+                                    dragOffset.animateTo(
+                                        targetValue = screenHeightPx,
+                                        animationSpec = tween(200),
+                                    )
+                                    onCollapse()
+                                } else {
+                                    // Snap back to open
+                                    dragOffset.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = tween(200),
+                                    )
+                                }
                             }
-                        }
-                    },
-                    onDragCancel = {
-                        scope.launch {
-                            dragOffset.animateTo(0f, tween(200))
-                        }
-                    },
-                    onVerticalDrag = { _, dragAmount ->
-                        scope.launch {
-                            // Only allow dragging down (positive values)
-                            val newOffset = (dragOffset.value + dragAmount).coerceAtLeast(0f)
-                            dragOffset.snapTo(newOffset)
-                        }
-                    }
-                )
-            },
-        color = MaterialTheme.colorScheme.surface
+                        },
+                        onDragCancel = {
+                            scope.launch {
+                                dragOffset.animateTo(0f, tween(200))
+                            }
+                        },
+                        onVerticalDrag = { _, dragAmount ->
+                            scope.launch {
+                                // Only allow dragging down (positive values)
+                                val newOffset = (dragOffset.value + dragAmount).coerceAtLeast(0f)
+                                dragOffset.snapTo(newOffset)
+                            }
+                        },
+                    )
+                },
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Large colored glow behind cover - positioned to center on cover art
             if (glowAlpha > 0f) {
                 glowBrush?.let { brush ->
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(550.dp)
-                            .offset(y = 80.dp)  // Push down to align with cover art
-                            .align(Alignment.TopCenter)
-                            .graphicsLayer { alpha = glowAlpha }
-                            .background(brush = brush)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(550.dp)
+                                .offset(y = 80.dp) // Push down to align with cover art
+                                .align(Alignment.TopCenter)
+                                .graphicsLayer { alpha = glowAlpha }
+                                .background(brush = brush),
                     )
                 }
             }
 
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp)
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 24.dp),
             ) {
                 // Top bar with collapse handle and menu
                 NowPlayingTopBar(
@@ -225,69 +229,70 @@ fun NowPlayingScreen(
                     onGoToContributor = onGoToContributor,
                     onShowAuthorPicker = onShowAuthorPicker,
                     onShowNarratorPicker = onShowNarratorPicker,
-                    onCloseBook = onCloseBook
+                    onCloseBook = onCloseBook,
                 )
 
                 Spacer(Modifier.height(16.dp))
 
                 // Cover art (glow is rendered behind at screen level)
                 Box(
-                    modifier = Modifier
-                        .weight(0.45f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .weight(0.45f)
+                            .fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
                 ) {
                     CoverArt(
                         coverUrl = state.coverUrl,
-                        onColorExtracted = { dominantColor = it }
+                        onColorExtracted = { dominantColor = it },
                     )
                 }
 
-            Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
 
-            // Title and chapter info
-            TitleSection(
-                title = state.title,
-                author = state.author,
-                chapterTitle = state.chapterTitle,
-                chapterLabel = state.chapterLabel
-            )
+                // Title and chapter info
+                TitleSection(
+                    title = state.title,
+                    author = state.author,
+                    chapterTitle = state.chapterTitle,
+                    chapterLabel = state.chapterLabel,
+                )
 
-            Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
 
-            // Chapter seek bar
-            ChapterSeekBar(
-                progress = state.chapterProgress,
-                currentTime = state.chapterPosition,
-                totalTime = state.chapterDuration,
-                isPlaying = state.isPlaying,
-                onSeek = onSeek
-            )
+                // Chapter seek bar
+                ChapterSeekBar(
+                    progress = state.chapterProgress,
+                    currentTime = state.chapterPosition,
+                    totalTime = state.chapterDuration,
+                    isPlaying = state.isPlaying,
+                    onSeek = onSeek,
+                )
 
-            Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(32.dp))
 
-            // Main controls
-            MainControls(
-                isPlaying = state.isPlaying,
-                onPlayPause = onPlayPause,
-                onSkipBack = onSkipBack,
-                onSkipForward = onSkipForward,
-                onPreviousChapter = onPreviousChapter,
-                onNextChapter = onNextChapter
-            )
+                // Main controls
+                MainControls(
+                    isPlaying = state.isPlaying,
+                    onPlayPause = onPlayPause,
+                    onSkipBack = onSkipBack,
+                    onSkipForward = onSkipForward,
+                    onPreviousChapter = onPreviousChapter,
+                    onNextChapter = onNextChapter,
+                )
 
-            Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
 
-            // Secondary controls
-            SecondaryControls(
-                playbackSpeed = state.playbackSpeed,
-                sleepTimerState = sleepTimerState,
-                onSpeedClick = onSpeedClick,
-                onChaptersClick = onChaptersClick,
-                onSleepTimerClick = onSleepTimerClick
-            )
+                // Secondary controls
+                SecondaryControls(
+                    playbackSpeed = state.playbackSpeed,
+                    sleepTimerState = sleepTimerState,
+                    onSpeedClick = onSpeedClick,
+                    onChaptersClick = onChaptersClick,
+                    onSleepTimerClick = onSleepTimerClick,
+                )
 
-            Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
@@ -302,33 +307,35 @@ private fun NowPlayingTopBar(
     onGoToContributor: (String) -> Unit,
     onShowAuthorPicker: () -> Unit,
     onShowNarratorPicker: () -> Unit,
-    onCloseBook: () -> Unit
+    onCloseBook: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center,
     ) {
         // Drag handle indicator
         Surface(
-            modifier = Modifier
-                .width(40.dp)
-                .height(4.dp),
+            modifier =
+                Modifier
+                    .width(40.dp)
+                    .height(4.dp),
             shape = RoundedCornerShape(2.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
         ) {}
 
         // Collapse button
         IconButton(
             onClick = onCollapse,
-            modifier = Modifier.align(Alignment.CenterStart)
+            modifier = Modifier.align(Alignment.CenterStart),
         ) {
             Icon(
                 Icons.Default.KeyboardArrowDown,
-                contentDescription = "Collapse"
+                contentDescription = "Collapse",
             )
         }
 
@@ -337,13 +344,13 @@ private fun NowPlayingTopBar(
             IconButton(onClick = { showMenu = true }) {
                 Icon(
                     Icons.Default.MoreVert,
-                    contentDescription = "More options"
+                    contentDescription = "More options",
                 )
             }
 
             DropdownMenu(
                 expanded = showMenu,
-                onDismissRequest = { showMenu = false }
+                onDismissRequest = { showMenu = false },
             ) {
                 // Go to Book
                 DropdownMenuItem(
@@ -354,7 +361,7 @@ private fun NowPlayingTopBar(
                     },
                     leadingIcon = {
                         Icon(Icons.Default.Book, contentDescription = null)
-                    }
+                    },
                 )
 
                 // Go to Series (if available)
@@ -367,7 +374,7 @@ private fun NowPlayingTopBar(
                         },
                         leadingIcon = {
                             Icon(Icons.AutoMirrored.Filled.LibraryBooks, contentDescription = null)
-                        }
+                        },
                     )
                 }
 
@@ -387,7 +394,7 @@ private fun NowPlayingTopBar(
                         },
                         leadingIcon = {
                             Icon(Icons.Default.Person, contentDescription = null)
-                        }
+                        },
                     )
                 }
 
@@ -407,7 +414,7 @@ private fun NowPlayingTopBar(
                         },
                         leadingIcon = {
                             Icon(Icons.Default.RecordVoiceOver, contentDescription = null)
-                        }
+                        },
                     )
                 }
 
@@ -422,7 +429,7 @@ private fun NowPlayingTopBar(
                     },
                     leadingIcon = {
                         Icon(Icons.Default.Close, contentDescription = null)
-                    }
+                    },
                 )
             }
         }
@@ -432,7 +439,7 @@ private fun NowPlayingTopBar(
 @Composable
 private fun CoverArt(
     coverUrl: String?,
-    onColorExtracted: (Color) -> Unit
+    onColorExtracted: (Color) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -442,74 +449,80 @@ private fun CoverArt(
 
     // Cover art with shadow
     Surface(
-        modifier = Modifier
-            .fillMaxHeight()
-            .aspectRatio(1f),
+        modifier =
+            Modifier
+                .fillMaxHeight()
+                .aspectRatio(1f),
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 24.dp,
-        tonalElevation = 0.dp
+        tonalElevation = 0.dp,
     ) {
         SubcomposeAsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(coverUrl)
-                .allowHardware(false)
-                .build(),
+            model =
+                ImageRequest
+                    .Builder(context)
+                    .data(coverUrl)
+                    .allowHardware(false)
+                    .build(),
             contentDescription = "Book cover",
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
             success = { state ->
-                // Only extract color once per image load to prevent continuous recomposition
-                if (!colorExtracted) {
-                    colorExtracted = true
-                    scope.launch(Dispatchers.IO) {
-                        try {
-                            val bitmap = state.result.image.toBitmap()
-                            val color = extractDominantColor(bitmap)
-                            if (color != null) {
-                                withContext(Dispatchers.Main) {
-                                    onColorExtracted(color)
+                // Extract dominant color once per image load
+                LaunchedEffect(state.result.image) {
+                    if (!colorExtracted) {
+                        colorExtracted = true
+                        withContext(Dispatchers.IO) {
+                            try {
+                                val bitmap = state.result.image.toBitmap()
+                                val color = extractDominantColor(bitmap)
+                                if (color != null) {
+                                    withContext(Dispatchers.Main) {
+                                        onColorExtracted(color)
+                                    }
                                 }
+                            } catch (e: Exception) {
+                                logger.debug(e) { "Color extraction from cover art failed" }
                             }
-                        } catch (e: Exception) {
-                            // Color extraction failed
                         }
                     }
                 }
                 SubcomposeAsyncImageContent()
-            }
+            },
         )
     }
 }
 
-private fun extractDominantColor(bitmap: Bitmap): Color? {
-    return try {
+private fun extractDominantColor(bitmap: Bitmap): Color? =
+    try {
         val palette = Palette.from(bitmap).generate()
-        val swatch = palette.vibrantSwatch
-            ?: palette.mutedSwatch
-            ?: palette.dominantSwatch
+        val swatch =
+            palette.vibrantSwatch
+                ?: palette.mutedSwatch
+                ?: palette.dominantSwatch
         swatch?.rgb?.let { Color(it) }
     } catch (e: Exception) {
+        logger.debug(e) { "Failed to extract dominant color from bitmap" }
         null
     }
-}
 
 @Composable
 private fun TitleSection(
     title: String,
     author: String,
     chapterTitle: String?,
-    chapterLabel: String
+    chapterLabel: String,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = title,
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
             maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
 
         Spacer(Modifier.height(4.dp))
@@ -520,7 +533,7 @@ private fun TitleSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
 
         if (chapterTitle != null) {
@@ -532,13 +545,13 @@ private fun TitleSection(
                 color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             Text(
                 text = chapterLabel,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -556,7 +569,7 @@ private fun ChapterSeekBar(
     currentTime: Duration,
     totalTime: Duration,
     isPlaying: Boolean,
-    onSeek: (Float) -> Unit
+    onSeek: (Float) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // M3 Expressive wavy seek bar
@@ -564,22 +577,22 @@ private fun ChapterSeekBar(
             progress = progress,
             onSeek = onSeek,
             modifier = Modifier.fillMaxWidth(),
-            isPlaying = isPlaying
+            isPlaying = isPlaying,
         )
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 text = currentTime.formatPlaybackTime(),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = totalTime.formatPlaybackTime(),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -602,120 +615,129 @@ private fun MainControls(
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
     onPreviousChapter: () -> Unit,
-    onNextChapter: () -> Unit
+    onNextChapter: () -> Unit,
 ) {
     // Shape definitions matching M3 Expressive connected button group
     val buttonHeight = 56.dp
     val cornerRadius = 16.dp
-    val fullRadius = 28.dp  // For pill ends
+    val fullRadius = 28.dp // For pill ends
 
     // Leading shape: left side fully rounded, right side squared
-    val leadingShape = RoundedCornerShape(
-        topStart = fullRadius,
-        bottomStart = fullRadius,
-        topEnd = cornerRadius,
-        bottomEnd = cornerRadius
-    )
+    val leadingShape =
+        RoundedCornerShape(
+            topStart = fullRadius,
+            bottomStart = fullRadius,
+            topEnd = cornerRadius,
+            bottomEnd = cornerRadius,
+        )
 
     // Middle shape: all corners slightly rounded (squircle)
     val middleShape = RoundedCornerShape(cornerRadius)
 
     // Trailing shape: right side fully rounded, left side squared
-    val trailingShape = RoundedCornerShape(
-        topStart = cornerRadius,
-        bottomStart = cornerRadius,
-        topEnd = fullRadius,
-        bottomEnd = fullRadius
-    )
+    val trailingShape =
+        RoundedCornerShape(
+            topStart = cornerRadius,
+            bottomStart = cornerRadius,
+            topEnd = fullRadius,
+            bottomEnd = fullRadius,
+        )
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // Previous chapter - LEADING shape (left pill end)
         FilledTonalButton(
             onClick = onPreviousChapter,
-            modifier = Modifier
-                .weight(1f)
-                .height(buttonHeight),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(buttonHeight),
             shape = leadingShape,
-            contentPadding = PaddingValues(0.dp)
+            contentPadding = PaddingValues(0.dp),
         ) {
             Icon(
                 Icons.Default.SkipPrevious,
                 contentDescription = "Previous chapter",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
         }
 
         // Skip back 10s - MIDDLE shape
         FilledTonalButton(
             onClick = onSkipBack,
-            modifier = Modifier
-                .weight(1f)
-                .height(buttonHeight),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(buttonHeight),
             shape = middleShape,
-            contentPadding = PaddingValues(0.dp)
+            contentPadding = PaddingValues(0.dp),
         ) {
             Icon(
                 Icons.Default.Replay10,
                 contentDescription = "Skip back 10 seconds",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
         }
 
         // Play/Pause - MIDDLE shape but FILLED color (hero) and wider
         Button(
             onClick = onPlayPause,
-            modifier = Modifier
-                .weight(1.4f)
-                .height(buttonHeight),
+            modifier =
+                Modifier
+                    .weight(1.4f)
+                    .height(buttonHeight),
             shape = middleShape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ),
-            contentPadding = PaddingValues(0.dp)
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
+            contentPadding = PaddingValues(0.dp),
         ) {
             Icon(
                 if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                 contentDescription = if (isPlaying) "Pause" else "Play",
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(32.dp),
             )
         }
 
         // Skip forward 30s - MIDDLE shape
         FilledTonalButton(
             onClick = onSkipForward,
-            modifier = Modifier
-                .weight(1f)
-                .height(buttonHeight),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(buttonHeight),
             shape = middleShape,
-            contentPadding = PaddingValues(0.dp)
+            contentPadding = PaddingValues(0.dp),
         ) {
             Icon(
                 Icons.Default.Forward30,
                 contentDescription = "Skip forward 30 seconds",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
         }
 
         // Next chapter - TRAILING shape (right pill end)
         FilledTonalButton(
             onClick = onNextChapter,
-            modifier = Modifier
-                .weight(1f)
-                .height(buttonHeight),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .height(buttonHeight),
             shape = trailingShape,
-            contentPadding = PaddingValues(0.dp)
+            contentPadding = PaddingValues(0.dp),
         ) {
             Icon(
                 Icons.Default.SkipNext,
                 contentDescription = "Next chapter",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
         }
     }
@@ -727,17 +749,17 @@ private fun SecondaryControls(
     sleepTimerState: SleepTimerState,
     onSpeedClick: () -> Unit,
     onChaptersClick: () -> Unit,
-    onSleepTimerClick: () -> Unit
+    onSleepTimerClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
+        horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         // Speed button - opens speed picker sheet
         TextButton(onClick = onSpeedClick) {
             Text(
                 text = PlaybackSpeedPresets.format(playbackSpeed),
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
             )
         }
 
@@ -746,19 +768,19 @@ private fun SecondaryControls(
             Icon(
                 Icons.AutoMirrored.Filled.List,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.width(4.dp))
             Text(
                 text = "Chapters",
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
             )
         }
 
         // Sleep timer button
         SleepTimerButton(
             timerState = sleepTimerState,
-            onClick = onSleepTimerClick
+            onClick = onSleepTimerClick,
         )
     }
 }
@@ -769,41 +791,51 @@ private fun SecondaryControls(
 @Composable
 private fun SleepTimerButton(
     timerState: SleepTimerState,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val isActive = timerState is SleepTimerState.Active
     val isFading = timerState is SleepTimerState.FadingOut
 
-    val buttonText = when (timerState) {
-        is SleepTimerState.Inactive -> "Sleep"
-        is SleepTimerState.Active -> when (timerState.mode) {
-            is SleepTimerMode.Duration -> timerState.formatRemaining()
-            is SleepTimerMode.EndOfChapter -> "End of ch."
-        }
-        is SleepTimerState.FadingOut -> "..."
-    }
+    val buttonText =
+        when (timerState) {
+            is SleepTimerState.Inactive -> {
+                "Sleep"
+            }
 
-    val contentColor = when {
-        isActive -> MaterialTheme.colorScheme.primary
-        isFading -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-        else -> MaterialTheme.colorScheme.onSurface
-    }
+            is SleepTimerState.Active -> {
+                when (timerState.mode) {
+                    is SleepTimerMode.Duration -> timerState.formatRemaining()
+                    is SleepTimerMode.EndOfChapter -> "End of ch."
+                }
+            }
+
+            is SleepTimerState.FadingOut -> {
+                "..."
+            }
+        }
+
+    val contentColor =
+        when {
+            isActive -> MaterialTheme.colorScheme.primary
+            isFading -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            else -> MaterialTheme.colorScheme.onSurface
+        }
 
     TextButton(
         onClick = onClick,
-        enabled = !isFading
+        enabled = !isFading,
     ) {
         Icon(
             Icons.Default.Bedtime,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
-            tint = contentColor
+            tint = contentColor,
         )
         Spacer(Modifier.width(4.dp))
         Text(
             text = buttonText,
             style = MaterialTheme.typography.labelLarge,
-            color = contentColor
+            color = contentColor,
         )
     }
 }

@@ -22,9 +22,8 @@ private val logger = KotlinLogging.logger {}
  */
 class ImageDownloader(
     private val imageApi: ImageApi,
-    private val imageStorage: ImageStorage
+    private val imageStorage: ImageStorage,
 ) {
-
     /**
      * Download and save a single book cover.
      *
@@ -87,6 +86,7 @@ class ImageDownloader(
                         successfulDownloads.add(bookId)
                     }
                 }
+
                 is Result.Failure -> {
                     // Log and continue - non-fatal
                     logger.warn(result.exception) {

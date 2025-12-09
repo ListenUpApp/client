@@ -2,12 +2,12 @@
 
 package com.calypsan.listenup.client.data.local.db
 
+import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import kotlin.jvm.JvmInline
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
-import com.calypsan.listenup.client.core.currentEpochMilliseconds
 
 /**
  * Type-safe wrapper for Book IDs.
@@ -21,7 +21,9 @@ import com.calypsan.listenup.client.core.currentEpochMilliseconds
  * @property value The underlying book ID string (e.g., "book-abc123")
  */
 @JvmInline
-value class BookId(val value: String) {
+value class BookId(
+    val value: String,
+) {
     init {
         require(value.isNotBlank()) { "Book ID cannot be blank" }
     }
@@ -41,10 +43,13 @@ value class BookId(val value: String) {
  * Type-safe wrapper for Chapter IDs.
  */
 @JvmInline
-value class ChapterId(val value: String) {
+value class ChapterId(
+    val value: String,
+) {
     init {
         require(value.isNotBlank()) { "Chapter ID cannot be blank" }
     }
+
     override fun toString(): String = value
 }
 
@@ -58,21 +63,20 @@ value class ChapterId(val value: String) {
  * @property epochMillis Unix epoch milliseconds
  */
 @JvmInline
-value class Timestamp(val epochMillis: Long) : Comparable<Timestamp> {
-    override fun compareTo(other: Timestamp): Int =
-        epochMillis.compareTo(other.epochMillis)
+value class Timestamp(
+    val epochMillis: Long,
+) : Comparable<Timestamp> {
+    override fun compareTo(other: Timestamp): Int = epochMillis.compareTo(other.epochMillis)
 
     /**
      * Calculate duration between two timestamps.
      */
-    operator fun minus(other: Timestamp): Duration =
-        (epochMillis - other.epochMillis).milliseconds
+    operator fun minus(other: Timestamp): Duration = (epochMillis - other.epochMillis).milliseconds
 
     /**
      * Add duration to timestamp.
      */
-    operator fun plus(duration: Duration): Timestamp =
-        Timestamp(epochMillis + duration.inWholeMilliseconds)
+    operator fun plus(duration: Duration): Timestamp = Timestamp(epochMillis + duration.inWholeMilliseconds)
 
     override fun toString(): String = epochMillis.toString()
 
@@ -158,7 +162,9 @@ enum class SyncState {
      * Requires conflict resolution (currently last-write-wins by timestamp).
      * Marked for user review in future versions.
      */
-    CONFLICT;
+    CONFLICT,
+
+    ;
 
     companion object {
         /**

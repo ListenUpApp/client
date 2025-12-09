@@ -20,7 +20,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import platform.Foundation.NSData
-import platform.Foundation.NSError
 import platform.Foundation.NSHTTPURLResponse
 import platform.Foundation.NSMutableURLRequest
 import platform.Foundation.NSURL
@@ -51,7 +50,7 @@ class IosDownloadService(
     private val settingsRepository: SettingsRepository,
     private val tokenProvider: AudioTokenProvider,
     private val fileManager: DownloadFileManager,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
 ) : DownloadService {
     private val json = Json { ignoreUnknownKeys = true }
     private val urlSession = NSURLSession.sharedSession
@@ -75,9 +74,7 @@ class IosDownloadService(
     /**
      * Check if user explicitly deleted downloads for this book.
      */
-    override suspend fun wasExplicitlyDeleted(bookId: BookId): Boolean {
-        return downloadDao.hasDeletedRecords(bookId.value)
-    }
+    override suspend fun wasExplicitlyDeleted(bookId: BookId): Boolean = downloadDao.hasDeletedRecords(bookId.value)
 
     /**
      * Download a book's audio files.
@@ -94,10 +91,11 @@ class IosDownloadService(
         }
 
         // Get book entity
-        val bookEntity = bookDao.getById(bookId) ?: run {
-            logger.error { "Book not found: ${bookId.value}" }
-            return DownloadResult.Error("Book not found")
-        }
+        val bookEntity =
+            bookDao.getById(bookId) ?: run {
+                logger.error { "Book not found: ${bookId.value}" }
+                return DownloadResult.Error("Book not found")
+            }
 
         // Parse audio files
         val audioFilesJson = bookEntity.audioFilesJson
@@ -106,22 +104,24 @@ class IosDownloadService(
             return DownloadResult.Error("No audio files available")
         }
 
-        val audioFiles: List<AudioFileResponse> = try {
-            json.decodeFromString(audioFilesJson)
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to parse audio files JSON" }
-            return DownloadResult.Error("Failed to parse audio files")
-        }
+        val audioFiles: List<AudioFileResponse> =
+            try {
+                json.decodeFromString(audioFilesJson)
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to parse audio files JSON" }
+                return DownloadResult.Error("Failed to parse audio files")
+            }
 
         if (audioFiles.isEmpty()) {
             return DownloadResult.Error("No audio files available")
         }
 
         // Filter out already completed
-        val completedIds = existing
-            .filter { it.state == DownloadState.COMPLETED }
-            .map { it.audioFileId }
-            .toSet()
+        val completedIds =
+            existing
+                .filter { it.state == DownloadState.COMPLETED }
+                .map { it.audioFileId }
+                .toSet()
 
         val toDownload = audioFiles.filterNot { it.id in completedIds }
 
@@ -138,35 +138,38 @@ class IosDownloadService(
         }
 
         // Get server URL and token
-        val serverUrl = settingsRepository.getServerUrl()?.value ?: run {
-            logger.error { "No server URL configured" }
-            return DownloadResult.Error("No server configured")
-        }
+        val serverUrl =
+            settingsRepository.getServerUrl()?.value ?: run {
+                logger.error { "No server URL configured" }
+                return DownloadResult.Error("No server configured")
+            }
 
-        val token = tokenProvider.getToken() ?: run {
-            logger.error { "No auth token available" }
-            return DownloadResult.Error("Not authenticated")
-        }
+        val token =
+            tokenProvider.getToken() ?: run {
+                logger.error { "No auth token available" }
+                return DownloadResult.Error("Not authenticated")
+            }
 
         // Create download entries
         val now = Clock.System.now().toEpochMilliseconds()
-        val entities = toDownload.mapIndexed { _, file ->
-            DownloadEntity(
-                audioFileId = file.id,
-                bookId = bookId.value,
-                filename = file.filename,
-                fileIndex = audioFiles.indexOfFirst { it.id == file.id },
-                state = DownloadState.QUEUED,
-                localPath = null,
-                totalBytes = file.size,
-                downloadedBytes = 0,
-                queuedAt = now,
-                startedAt = null,
-                completedAt = null,
-                errorMessage = null,
-                retryCount = 0
-            )
-        }
+        val entities =
+            toDownload.mapIndexed { _, file ->
+                DownloadEntity(
+                    audioFileId = file.id,
+                    bookId = bookId.value,
+                    filename = file.filename,
+                    fileIndex = audioFiles.indexOfFirst { it.id == file.id },
+                    state = DownloadState.QUEUED,
+                    localPath = null,
+                    totalBytes = file.size,
+                    downloadedBytes = 0,
+                    queuedAt = now,
+                    startedAt = null,
+                    completedAt = null,
+                    errorMessage = null,
+                    retryCount = 0,
+                )
+            }
 
         downloadDao.insertAll(entities)
 
@@ -178,7 +181,7 @@ class IosDownloadService(
                         bookId = bookId.value,
                         audioFile = file,
                         serverUrl = serverUrl,
-                        token = token
+                        token = token,
                     )
                 } catch (e: Exception) {
                     logger.error(e) { "Failed to download file: ${file.id}" }
@@ -195,7 +198,7 @@ class IosDownloadService(
         bookId: String,
         audioFile: AudioFileResponse,
         serverUrl: String,
-        token: String
+        token: String,
     ) = withContext(Dispatchers.IO) {
         val audioFileId = audioFile.id
         val filename = audioFile.filename
@@ -204,17 +207,18 @@ class IosDownloadService(
         downloadDao.updateState(
             audioFileId,
             DownloadState.DOWNLOADING,
-            Clock.System.now().toEpochMilliseconds()
+            Clock.System.now().toEpochMilliseconds(),
         )
 
         // Build URL
         val url = "$serverUrl/api/stream/$audioFileId"
-        val nsUrl = NSURL.URLWithString(url) ?: throw IllegalStateException("Invalid URL: $url")
+        val nsUrl = NSURL.URLWithString(url) ?: error("Invalid URL: $url")
 
         // Create request with auth header
-        val request = NSMutableURLRequest.requestWithURL(nsUrl).apply {
-            setValue("Bearer $token", forHTTPHeaderField = "Authorization")
-        }
+        val request =
+            NSMutableURLRequest.requestWithURL(nsUrl).apply {
+                setValue("Bearer $token", forHTTPHeaderField = "Authorization")
+            }
 
         // Download using URLSession
         val data = downloadData(request)
@@ -232,7 +236,7 @@ class IosDownloadService(
             downloadDao.markCompleted(
                 audioFileId,
                 destPath.toString(),
-                Clock.System.now().toEpochMilliseconds()
+                Clock.System.now().toEpochMilliseconds(),
             )
             logger.info { "Downloaded: $filename" }
         } else {
@@ -243,22 +247,23 @@ class IosDownloadService(
 
     private suspend fun downloadData(request: NSMutableURLRequest): NSData? =
         suspendCancellableCoroutine { continuation ->
-            val task: NSURLSessionDataTask = urlSession.dataTaskWithRequest(request) { data, response, error ->
-                if (error != null) {
-                    logger.error { "Download error: ${error.localizedDescription}" }
-                    continuation.resume(null)
-                    return@dataTaskWithRequest
-                }
+            val task: NSURLSessionDataTask =
+                urlSession.dataTaskWithRequest(request) { data, response, error ->
+                    if (error != null) {
+                        logger.error { "Download error: ${error.localizedDescription}" }
+                        continuation.resume(null)
+                        return@dataTaskWithRequest
+                    }
 
-                val httpResponse = response as? NSHTTPURLResponse
-                if (httpResponse != null && httpResponse.statusCode !in 200..299) {
-                    logger.error { "HTTP error: ${httpResponse.statusCode}" }
-                    continuation.resume(null)
-                    return@dataTaskWithRequest
-                }
+                    val httpResponse = response as? NSHTTPURLResponse
+                    if (httpResponse != null && httpResponse.statusCode !in 200..299) {
+                        logger.error { "HTTP error: ${httpResponse.statusCode}" }
+                        continuation.resume(null)
+                        return@dataTaskWithRequest
+                    }
 
-                continuation.resume(data)
-            }
+                    continuation.resume(data)
+                }
 
             continuation.invokeOnCancellation {
                 task.cancel()

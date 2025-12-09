@@ -13,17 +13,26 @@ import platform.Foundation.NSHomeDirectory
  *
  * Note: Uses Dispatchers.Default instead of Dispatchers.IO since IO is internal on Native platforms.
  */
-actual val platformDatabaseModule: Module = module {
-    single {
-        val dbFile = "${NSHomeDirectory()}/listenup.db"
+actual val platformDatabaseModule: Module =
+    module {
+        single {
+            val dbFile = "${NSHomeDirectory()}/listenup.db"
 
-        Room.databaseBuilder<ListenUpDatabase>(
-            name = dbFile
-        )
-            .setDriver(BundledSQLiteDriver())
-            .setQueryCoroutineContext(Dispatchers.Default)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
-            .fallbackToDestructiveMigration(false)
-            .build()
+            Room
+                .databaseBuilder<ListenUpDatabase>(
+                    name = dbFile,
+                ).setDriver(BundledSQLiteDriver())
+                .setQueryCoroutineContext(Dispatchers.Default)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                    MIGRATION_7_8,
+                    MIGRATION_8_9,
+                ).fallbackToDestructiveMigration(false)
+                .build()
+        }
     }
-}

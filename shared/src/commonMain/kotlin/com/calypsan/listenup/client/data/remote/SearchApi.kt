@@ -16,9 +16,8 @@ import kotlinx.serialization.Serializable
  * @property clientFactory Factory for creating authenticated HttpClient
  */
 class SearchApi(
-    private val clientFactory: ApiClientFactory
+    private val clientFactory: ApiClientFactory,
 ) {
-
     /**
      * Search across books, contributors, and series.
      *
@@ -41,22 +40,24 @@ class SearchApi(
         minDuration: Float? = null,
         maxDuration: Float? = null,
         limit: Int = 20,
-        offset: Int = 0
+        offset: Int = 0,
     ): SearchResponse {
         val client = clientFactory.getClient()
-        val response: ApiResponse<SearchResponse> = client.get("/api/v1/search") {
-            parameter("q", query)
-            types?.let { parameter("types", it) }
-            genres?.let { parameter("genres", it) }
-            genrePath?.let { parameter("genre_path", it) }
-            minDuration?.let { parameter("min_duration", it) }
-            maxDuration?.let { parameter("max_duration", it) }
-            parameter("limit", limit)
-            parameter("offset", offset)
-            parameter("facets", "true")
-        }.body()
+        val response: ApiResponse<SearchResponse> =
+            client
+                .get("/api/v1/search") {
+                    parameter("q", query)
+                    types?.let { parameter("types", it) }
+                    genres?.let { parameter("genres", it) }
+                    genrePath?.let { parameter("genre_path", it) }
+                    minDuration?.let { parameter("min_duration", it) }
+                    maxDuration?.let { parameter("max_duration", it) }
+                    parameter("limit", limit)
+                    parameter("offset", offset)
+                    parameter("facets", "true")
+                }.body()
 
-        return response.data ?: throw Exception(response.error ?: "Search failed")
+        return response.data ?: throw SearchException(response.error ?: "Search failed")
     }
 }
 
@@ -67,12 +68,10 @@ class SearchApi(
 data class SearchResponse(
     val query: String,
     val total: Long,
-
     @SerialName("took_ms")
     val tookMs: Long,
-
     val hits: List<SearchHitResponse>,
-    val facets: SearchFacetsResponse? = null
+    val facets: SearchFacetsResponse? = null,
 )
 
 @Serializable
@@ -84,16 +83,12 @@ data class SearchHitResponse(
     val subtitle: String? = null,
     val author: String? = null,
     val narrator: String? = null,
-
     @SerialName("series_name")
     val seriesName: String? = null,
-
     val duration: Long? = null,
-
     @SerialName("book_count")
     val bookCount: Int? = null,
-
-    val highlights: Map<String, String>? = null
+    val highlights: Map<String, String>? = null,
 )
 
 @Serializable
@@ -101,11 +96,18 @@ data class SearchFacetsResponse(
     val types: List<FacetCountResponse>? = null,
     val genres: List<FacetCountResponse>? = null,
     val authors: List<FacetCountResponse>? = null,
-    val narrators: List<FacetCountResponse>? = null
+    val narrators: List<FacetCountResponse>? = null,
 )
 
 @Serializable
 data class FacetCountResponse(
     val value: String,
-    val count: Int
+    val count: Int,
 )
+
+/**
+ * Exception thrown when search fails.
+ */
+class SearchException(
+    message: String,
+) : Exception(message)

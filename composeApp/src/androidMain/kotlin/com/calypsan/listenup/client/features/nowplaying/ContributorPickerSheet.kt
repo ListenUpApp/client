@@ -38,59 +38,62 @@ fun ContributorPickerSheet(
     type: ContributorPickerType,
     contributors: List<Contributor>,
     onContributorSelected: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
-    val title = when (type) {
-        ContributorPickerType.AUTHORS -> "Select Author"
-        ContributorPickerType.NARRATORS -> "Select Narrator"
-    }
+    val title =
+        when (type) {
+            ContributorPickerType.AUTHORS -> "Select Author"
+            ContributorPickerType.NARRATORS -> "Select Narrator"
+        }
 
-    val icon = when (type) {
-        ContributorPickerType.AUTHORS -> Icons.Default.Person
-        ContributorPickerType.NARRATORS -> Icons.Default.RecordVoiceOver
-    }
+    val icon =
+        when (type) {
+            ContributorPickerType.AUTHORS -> Icons.Default.Person
+            ContributorPickerType.NARRATORS -> Icons.Default.RecordVoiceOver
+        }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp),
         ) {
             // Header
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(vertical = 16.dp)
+                modifier = Modifier.padding(vertical = 16.dp),
             )
 
             // Contributor list
             LazyColumn {
                 items(contributors) { contributor ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onContributorSelected(contributor.id)
-                                onDismiss()
-                            }
-                            .padding(vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onContributorSelected(contributor.id)
+                                    onDismiss()
+                                }.padding(vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
                             modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(Modifier.width(16.dp))
                         Text(
                             text = contributor.name,
-                            style = MaterialTheme.typography.bodyLarge
+                            style = MaterialTheme.typography.bodyLarge,
                         )
                     }
                 }

@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.darwin.Darwin
 import io.ktor.client.plugins.auth.Auth
@@ -15,8 +16,8 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import platform.Foundation.NSURLSessionConfiguration
-import platform.Foundation.NSURLRequest
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * iOS implementation of streaming HTTP client factory.
@@ -28,9 +29,9 @@ import platform.Foundation.NSURLRequest
 internal actual suspend fun createStreamingHttpClient(
     serverUrl: ServerUrl,
     settingsRepository: SettingsRepository,
-    authApi: AuthApi
-): HttpClient {
-    return HttpClient(Darwin) {
+    authApi: AuthApi,
+): HttpClient =
+    HttpClient(Darwin) {
         // Configure Darwin engine with infinite timeouts for streaming
         engine {
             configureRequest {
@@ -46,11 +47,13 @@ internal actual suspend fun createStreamingHttpClient(
         }
 
         install(ContentNegotiation) {
-            json(Json {
-                prettyPrint = false
-                isLenient = false
-                ignoreUnknownKeys = true
-            })
+            json(
+                Json {
+                    prettyPrint = false
+                    isLenient = false
+                    ignoreUnknownKeys = true
+                },
+            )
         }
 
         // NO HttpTimeout plugin - we're controlling timeouts at engine level
@@ -64,7 +67,7 @@ internal actual suspend fun createStreamingHttpClient(
                     if (access != null && refresh != null) {
                         BearerTokens(
                             accessToken = access,
-                            refreshToken = refresh
+                            refreshToken = refresh,
                         )
                     } else {
                         null
@@ -72,8 +75,9 @@ internal actual suspend fun createStreamingHttpClient(
                 }
 
                 refreshTokens {
-                    val currentRefreshToken = settingsRepository.getRefreshToken()
-                        ?: throw IllegalStateException("No refresh token available")
+                    val currentRefreshToken =
+                        settingsRepository.getRefreshToken()
+                            ?: error("No refresh token available")
 
                     try {
                         val response = authApi.refresh(currentRefreshToken)
@@ -82,14 +86,15 @@ internal actual suspend fun createStreamingHttpClient(
                             access = AccessToken(response.accessToken),
                             refresh = RefreshToken(response.refreshToken),
                             sessionId = response.sessionId,
-                            userId = response.userId
+                            userId = response.userId,
                         )
 
                         BearerTokens(
                             accessToken = response.accessToken,
-                            refreshToken = response.refreshToken
+                            refreshToken = response.refreshToken,
                         )
                     } catch (e: Exception) {
+                        logger.warn(e) { "Token refresh failed, clearing auth state" }
                         settingsRepository.clearAuthTokens()
                         null
                     }
@@ -107,4 +112,3 @@ internal actual suspend fun createStreamingHttpClient(
             contentType(ContentType.Application.Json)
         }
     }
-}

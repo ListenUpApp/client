@@ -13,16 +13,23 @@ import kotlinx.io.files.Path
  * - iOS: Uses NSFileManager documentDirectory
  */
 expect class DownloadFileManager {
-
     /**
      * Get the final destination path for a downloaded file.
      */
-    fun getDownloadPath(bookId: String, audioFileId: String, filename: String): Path
+    fun getDownloadPath(
+        bookId: String,
+        audioFileId: String,
+        filename: String,
+    ): Path
 
     /**
      * Get temp path for in-progress download (supports resume).
      */
-    fun getTempPath(bookId: String, audioFileId: String, filename: String): Path
+    fun getTempPath(
+        bookId: String,
+        audioFileId: String,
+        filename: String,
+    ): Path
 
     /**
      * Delete all downloaded files for a book.
@@ -53,7 +60,10 @@ expect class DownloadFileManager {
      * Move a file from source to destination (atomic if possible).
      * Used to finalize downloads from temp to permanent location.
      */
-    fun moveFile(source: Path, destination: Path): Boolean
+    fun moveFile(
+        source: Path,
+        destination: Path,
+    ): Boolean
 
     /**
      * Get available storage space in bytes.

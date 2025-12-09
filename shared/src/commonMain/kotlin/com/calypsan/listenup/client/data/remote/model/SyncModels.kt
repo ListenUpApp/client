@@ -11,17 +11,18 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class SyncManifestResponse(
+    // ISO 8601 timestamp of last library change
     @SerialName("library_version")
-    val libraryVersion: String,      // ISO 8601 timestamp of last library change
-
+    val libraryVersion: String,
+    // ISO 8601 timestamp for this sync checkpoint
     @SerialName("checkpoint")
-    val checkpoint: String,          // ISO 8601 timestamp for this sync checkpoint
-
+    val checkpoint: String,
+    // All book IDs in library
     @SerialName("book_ids")
-    val bookIds: List<String>,       // All book IDs in library
-
+    val bookIds: List<String>,
+    // Summary counts
     @SerialName("counts")
-    val counts: LibraryCounts        // Summary counts
+    val counts: LibraryCounts,
 )
 
 /**
@@ -31,12 +32,10 @@ data class SyncManifestResponse(
 data class LibraryCounts(
     @SerialName("books")
     val books: Int,
-
     @SerialName("contributors")
     val contributors: Int,
-
     @SerialName("series")
-    val series: Int
+    val series: Int,
 )
 
 /**
@@ -46,17 +45,18 @@ data class LibraryCounts(
  */
 @Serializable
 data class SyncBooksResponse(
+    // Base64-encoded cursor, null if no more pages
     @SerialName("next_cursor")
-    val nextCursor: String? = null,  // Base64-encoded cursor, null if no more pages
-
+    val nextCursor: String? = null,
+    // Array of book objects
     @SerialName("books")
-    val books: List<BookResponse>,   // Array of book objects
-
+    val books: List<BookResponse>,
+    // IDs of books deleted since requested timestamp
     @SerialName("deleted_book_ids")
-    val deletedBookIds: List<String> = emptyList(), // IDs of books deleted since requested timestamp
-
+    val deletedBookIds: List<String> = emptyList(),
+    // True if more pages available
     @SerialName("has_more")
-    val hasMore: Boolean             // True if more pages available
+    val hasMore: Boolean,
 )
 
 /**
@@ -74,61 +74,51 @@ data class BookResponse(
     // Syncable fields
     @SerialName("id")
     val id: String,
-
+    // ISO 8601 timestamp
     @SerialName("created_at")
-    val createdAt: String,           // ISO 8601 timestamp
-
+    val createdAt: String,
+    // ISO 8601 timestamp
     @SerialName("updated_at")
-    val updatedAt: String,           // ISO 8601 timestamp
-
+    val updatedAt: String,
+    // ISO 8601 timestamp, null if not deleted
     @SerialName("deleted_at")
-    val deletedAt: String? = null,   // ISO 8601 timestamp, null if not deleted
-
+    val deletedAt: String? = null,
     // Core metadata (minimal for v1)
     @SerialName("title")
     val title: String,
-
     @SerialName("subtitle")
     val subtitle: String? = null,
-
     @SerialName("description")
     val description: String? = null,
-
     @SerialName("publisher")
     val publisher: String? = null,
-
+    // Server sends this as a string
     @SerialName("publish_year")
-    val publishYear: String? = null, // Server sends this as a string
-
+    val publishYear: String? = null,
     @SerialName("language")
     val language: String? = null,
-
+    // List of strings
     @SerialName("genres")
-    val genres: List<String>? = null, // List of strings
-
+    val genres: List<String>? = null,
     @SerialName("contributors")
     val contributors: List<BookContributorResponse> = emptyList(),
-
     @SerialName("cover_image")
     val coverImage: ImageFileInfoResponse? = null,
-
+    // Milliseconds
     @SerialName("total_duration")
-    val totalDuration: Long,         // Milliseconds
-
+    val totalDuration: Long,
     @SerialName("series_id")
     val seriesId: String? = null,
-
+    // Denormalized series name
     @SerialName("series_name")
-    val seriesName: String? = null, // Denormalized series name
-
+    val seriesName: String? = null,
+    // Series sequence (e.g., "1", "1.5")
     @SerialName("sequence")
-    val sequence: String? = null, // Series sequence (e.g., "1", "1.5")
-
+    val sequence: String? = null,
     @SerialName("chapters")
     val chapters: List<ChapterResponse> = emptyList(),
-
     @SerialName("audio_files")
-    val audioFiles: List<AudioFileResponse> = emptyList()
+    val audioFiles: List<AudioFileResponse> = emptyList(),
 )
 
 @Serializable
@@ -138,7 +128,7 @@ data class BookContributorResponse(
     @SerialName("name")
     val name: String,
     @SerialName("roles")
-    val roles: List<String>
+    val roles: List<String>,
 )
 
 @Serializable
@@ -148,7 +138,7 @@ data class ChapterResponse(
     @SerialName("start_time")
     val startTime: Long,
     @SerialName("end_time")
-    val endTime: Long
+    val endTime: Long,
 )
 
 @Serializable
@@ -162,7 +152,7 @@ data class AudioFileResponse(
     @SerialName("duration")
     val duration: Long,
     @SerialName("size")
-    val size: Long
+    val size: Long,
 )
 
 /**
@@ -170,38 +160,36 @@ data class AudioFileResponse(
  */
 @Serializable
 data class ImageFileInfoResponse(
+    // File path on server
     @SerialName("path")
-    val path: String,                // File path on server
-
+    val path: String,
+    // e.g., "cover.jpg"
     @SerialName("filename")
-    val filename: String,            // e.g., "cover.jpg"
-
+    val filename: String,
+    // e.g., "jpeg", "png"
     @SerialName("format")
-    val format: String,              // e.g., "jpeg", "png"
-
+    val format: String,
+    // Bytes
     @SerialName("size")
-    val size: Long,                  // Bytes
-
+    val size: Long,
+    // File inode for change detection
     @SerialName("inode")
-    val inode: Long,                 // File inode for change detection
-
+    val inode: Long,
+    // Unix timestamp in milliseconds
     @SerialName("mod_time")
-    val modTime: Long                // Unix timestamp in milliseconds
+    val modTime: Long,
 )
 
 @Serializable
 data class SyncSeriesResponse(
     @SerialName("next_cursor")
     val nextCursor: String? = null,
-
     @SerialName("series")
     val series: List<SeriesResponse>,
-
     @SerialName("deleted_series_ids")
     val deletedSeriesIds: List<String> = emptyList(),
-
     @SerialName("has_more")
-    val hasMore: Boolean
+    val hasMore: Boolean,
 )
 
 @Serializable
@@ -215,22 +203,19 @@ data class SeriesResponse(
     @SerialName("created_at")
     val createdAt: String,
     @SerialName("updated_at")
-    val updatedAt: String
+    val updatedAt: String,
 )
 
 @Serializable
 data class SyncContributorsResponse(
     @SerialName("next_cursor")
     val nextCursor: String? = null,
-
     @SerialName("contributors")
     val contributors: List<ContributorResponse>,
-
     @SerialName("deleted_contributor_ids")
     val deletedContributorIds: List<String> = emptyList(),
-
     @SerialName("has_more")
-    val hasMore: Boolean
+    val hasMore: Boolean,
 )
 
 @Serializable
@@ -246,7 +231,7 @@ data class ContributorResponse(
     @SerialName("created_at")
     val createdAt: String,
     @SerialName("updated_at")
-    val updatedAt: String
+    val updatedAt: String,
 )
 
 /**
@@ -256,15 +241,16 @@ data class ContributorResponse(
  */
 @Serializable
 data class SSEEvent(
+    // ISO 8601 timestamp
     @SerialName("timestamp")
-    val timestamp: String,           // ISO 8601 timestamp
-
+    val timestamp: String,
+    // Event type (e.g., "book.created", "heartbeat")
     @SerialName("type")
-    val type: String,                // Event type (e.g., "book.created", "heartbeat")
-
+    val type: String,
+    // Event-specific data as JSON object
+    // Deserialized based on event type
     @SerialName("data")
-    val data: kotlinx.serialization.json.JsonElement  // Event-specific data as JSON object
-                                                       // Deserialized based on event type
+    val data: kotlinx.serialization.json.JsonElement,
 )
 
 /**
@@ -273,7 +259,7 @@ data class SSEEvent(
 @Serializable
 data class SSEBookEvent(
     @SerialName("book")
-    val book: BookResponse
+    val book: BookResponse,
 )
 
 /**
@@ -283,9 +269,9 @@ data class SSEBookEvent(
 data class SSEBookDeletedEvent(
     @SerialName("book_id")
     val bookId: String,
-
+    // ISO 8601 timestamp
     @SerialName("deleted_at")
-    val deletedAt: String            // ISO 8601 timestamp
+    val deletedAt: String,
 )
 
 /**
@@ -295,9 +281,9 @@ data class SSEBookDeletedEvent(
 data class SSELibraryScanStartedEvent(
     @SerialName("library_id")
     val libraryId: String,
-
+    // ISO 8601 timestamp
     @SerialName("started_at")
-    val startedAt: String            // ISO 8601 timestamp
+    val startedAt: String,
 )
 
 /**
@@ -307,16 +293,13 @@ data class SSELibraryScanStartedEvent(
 data class SSELibraryScanCompletedEvent(
     @SerialName("library_id")
     val libraryId: String,
-
+    // ISO 8601 timestamp
     @SerialName("completed_at")
-    val completedAt: String,         // ISO 8601 timestamp
-
+    val completedAt: String,
     @SerialName("books_added")
     val booksAdded: Int,
-
     @SerialName("books_updated")
     val booksUpdated: Int,
-
     @SerialName("books_removed")
-    val booksRemoved: Int
+    val booksRemoved: Int,
 )

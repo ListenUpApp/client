@@ -10,54 +10,41 @@ import androidx.room.TypeConverter
  * value classes with zero runtime overhead while maintaining Room compatibility.
  */
 class ValueClassConverters {
-
     /**
      * Convert BookId value class to String for database storage.
      */
     @TypeConverter
-    fun fromBookId(value: BookId): String {
-        return value.value
-    }
+    fun fromBookId(value: BookId): String = value.value
 
     /**
      * Convert String from database to BookId value class.
      */
     @TypeConverter
-    fun toBookId(value: String): BookId {
-        return BookId(value)
-    }
+    fun toBookId(value: String): BookId = BookId(value)
 
     /**
      * Convert Timestamp value class to Long for database storage.
      */
     @TypeConverter
-    fun fromTimestamp(value: Timestamp): Long {
-        return value.epochMillis
-    }
+    fun fromTimestamp(value: Timestamp): Long = value.epochMillis
 
     /**
      * Convert Long from database to Timestamp value class.
      */
     @TypeConverter
-    fun toTimestamp(value: Long): Timestamp {
-        return Timestamp(value)
-    }
+    fun toTimestamp(value: Long): Timestamp = Timestamp(value)
 
     /**
      * Convert nullable Timestamp value class to nullable Long for database storage.
      */
     @TypeConverter
-    fun fromNullableTimestamp(value: Timestamp?): Long? {
-        return value?.epochMillis
-    }
+    fun fromNullableTimestamp(value: Timestamp?): Long? = value?.epochMillis
 
     /**
      * Convert nullable Long from database to nullable Timestamp value class.
      */
     @TypeConverter
-    fun toNullableTimestamp(value: Long?): Timestamp? {
-        return value?.let { Timestamp(it) }
-    }
+    fun toNullableTimestamp(value: Long?): Timestamp? = value?.let { Timestamp(it) }
 }
 
 /**
@@ -68,7 +55,6 @@ class ValueClassConverters {
  * when reading from the database.
  */
 class Converters {
-
     /**
      * Converts [SyncState] enum to integer ordinal for database storage.
      *
@@ -76,9 +62,7 @@ class Converters {
      * @return Integer ordinal (0-3) representing the sync state
      */
     @TypeConverter
-    fun fromSyncState(value: SyncState): Int {
-        return value.ordinal
-    }
+    fun fromSyncState(value: SyncState): Int = value.ordinal
 
     /**
      * Converts integer ordinal from database to [SyncState] enum.
@@ -87,9 +71,7 @@ class Converters {
      * @return Corresponding SyncState enum value
      */
     @TypeConverter
-    fun toSyncState(value: Int): SyncState {
-        return SyncState.entries[value]
-    }
+    fun toSyncState(value: Int): SyncState = SyncState.entries[value]
 
     @TypeConverter
     fun fromDownloadState(state: DownloadState): Int = state.ordinal
@@ -104,10 +86,10 @@ class Converters {
  * Ordinals: QUEUED=0, DOWNLOADING=1, PAUSED=2, COMPLETED=3, FAILED=4, DELETED=5
  */
 enum class DownloadState {
-    QUEUED,      // Waiting to start
+    QUEUED, // Waiting to start
     DOWNLOADING, // In progress
-    PAUSED,      // User paused or interrupted
-    COMPLETED,   // Successfully downloaded
-    FAILED,      // Error occurred
-    DELETED      // User explicitly deleted - files removed, don't auto-download
+    PAUSED, // User paused or interrupted
+    COMPLETED, // Successfully downloaded
+    FAILED, // Error occurred
+    DELETED, // User explicitly deleted - files removed, don't auto-download
 }

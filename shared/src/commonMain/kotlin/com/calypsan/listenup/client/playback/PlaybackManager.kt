@@ -33,7 +33,7 @@ class PlaybackManager(
     private val progressTracker: ProgressTracker,
     private val tokenProvider: AudioTokenProvider,
     private val downloadService: DownloadService,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
 ) {
     private val _currentBookId = MutableStateFlow<BookId?>(null)
     val currentBookId: StateFlow<BookId?> = _currentBookId.asStateFlow()
@@ -94,12 +94,13 @@ class PlaybackManager(
             return null
         }
 
-        val audioFiles: List<AudioFileResponse> = try {
-            json.decodeFromString(audioFilesJson)
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to parse audio files JSON" }
-            return null
-        }
+        val audioFiles: List<AudioFileResponse> =
+            try {
+                json.decodeFromString(audioFilesJson)
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to parse audio files JSON" }
+                return null
+            }
 
         if (audioFiles.isEmpty()) {
             logger.error { "Empty audio files list for book: ${bookId.value}" }
@@ -110,25 +111,32 @@ class PlaybackManager(
         logger.debug { "=== Audio Files for book ${bookId.value} ===" }
         var totalDuration = 0L
         audioFiles.forEachIndexed { index, file ->
-            logger.debug { "  File[$index]: id=${file.id}, filename=${file.filename}, duration=${file.duration}ms (${file.duration / 1000}s), size=${file.size}, format=${file.format}" }
+            logger.debug {
+                "  File[$index]: id=${file.id}, filename=${file.filename}, duration=${file.duration}ms (${file.duration / 1000}s), size=${file.size}, format=${file.format}"
+            }
             // Check for problematic values
             if (file.duration <= 0) {
                 logger.warn { "  ⚠️ WARNING: File[$index] has invalid duration: ${file.duration}" }
             }
             if (file.duration > 86400000) { // More than 24 hours - suspicious
-                logger.warn { "  ⚠️ WARNING: File[$index] has suspiciously large duration: ${file.duration}ms (${file.duration / 3600000}h)" }
+                logger.warn {
+                    "  ⚠️ WARNING: File[$index] has suspiciously large duration: ${file.duration}ms (${file.duration / 3600000}h)"
+                }
             }
             totalDuration += file.duration
         }
-        logger.debug { "=== Total calculated duration: ${totalDuration}ms (${totalDuration / 1000}s / ${totalDuration / 60000}min) ===" }
+        logger.debug {
+            "=== Total calculated duration: ${totalDuration}ms (${totalDuration / 1000}s / ${totalDuration / 60000}min) ==="
+        }
 
         // 5. Build PlaybackTimeline with local path resolution
-        val timeline = PlaybackTimeline.buildWithLocalPaths(
-            bookId = bookId,
-            audioFiles = audioFiles,
-            baseUrl = serverUrl,
-            resolveLocalPath = { audioFileId -> downloadService.getLocalPath(audioFileId) }
-        )
+        val timeline =
+            PlaybackTimeline.buildWithLocalPaths(
+                bookId = bookId,
+                audioFiles = audioFiles,
+                baseUrl = serverUrl,
+                resolveLocalPath = { audioFileId -> downloadService.getLocalPath(audioFileId) },
+            )
         _currentTimeline.value = timeline
         _currentBookId.value = bookId
         _totalDurationMs.value = timeline.totalDurationMs
@@ -147,15 +155,21 @@ class PlaybackManager(
             logger.warn { "⚠️ WARNING: Negative resume position: $resumePositionMs" }
         }
         if (resumePositionMs > timeline.totalDurationMs) {
-            logger.warn { "⚠️ WARNING: Resume position $resumePositionMs exceeds book duration ${timeline.totalDurationMs}" }
+            logger.warn {
+                "⚠️ WARNING: Resume position $resumePositionMs exceeds book duration ${timeline.totalDurationMs}"
+            }
         }
 
         // Test timeline.resolve() with resume position
         val resolvedPosition = timeline.resolve(resumePositionMs)
-        logger.debug { "Resolved resume position: mediaItemIndex=${resolvedPosition.mediaItemIndex}, positionInFileMs=${resolvedPosition.positionInFileMs}" }
+        logger.debug {
+            "Resolved resume position: mediaItemIndex=${resolvedPosition.mediaItemIndex}, positionInFileMs=${resolvedPosition.positionInFileMs}"
+        }
 
         if (resolvedPosition.mediaItemIndex >= timeline.files.size) {
-            logger.warn { "⚠️ WARNING: Invalid mediaItemIndex ${resolvedPosition.mediaItemIndex} >= ${timeline.files.size}" }
+            logger.warn {
+                "⚠️ WARNING: Invalid mediaItemIndex ${resolvedPosition.mediaItemIndex} >= ${timeline.files.size}"
+            }
         }
 
         // 7. Trigger background download if not fully downloaded
@@ -174,7 +188,7 @@ class PlaybackManager(
             timeline = timeline,
             bookTitle = book.title,
             resumePositionMs = resumePositionMs,
-            resumeSpeed = resumeSpeed
+            resumeSpeed = resumeSpeed,
         )
     }
 
@@ -222,6 +236,6 @@ class PlaybackManager(
         val timeline: PlaybackTimeline,
         val bookTitle: String,
         val resumePositionMs: Long,
-        val resumeSpeed: Float
+        val resumeSpeed: Float,
     )
 }

@@ -1,6 +1,5 @@
 package com.calypsan.listenup.client.di
 
-import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
@@ -13,7 +12,6 @@ import com.calypsan.listenup.client.data.remote.api.ListenUpApi
 import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
-import com.calypsan.listenup.client.data.repository.NetworkMonitor
 import com.calypsan.listenup.client.data.repository.SearchRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.FtsPopulator
@@ -26,8 +24,6 @@ import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
-import org.koin.core.module.dsl.singleOf
-import org.koin.dsl.bind
 import org.koin.dsl.module
 
 /**
@@ -40,15 +36,16 @@ expect val platformStorageModule: Module
  * Data layer dependencies.
  * Provides repositories for settings and domain data.
  */
-val dataModule = module {
-    // Settings repository - single source of truth for app configuration
-    single {
-        SettingsRepository(
-            secureStorage = get(),
-            instanceRepository = get()
-        )
+val dataModule =
+    module {
+        // Settings repository - single source of truth for app configuration
+        single {
+            SettingsRepository(
+                secureStorage = get(),
+                instanceRepository = get(),
+            )
+        }
     }
-}
 
 /**
  * Network layer dependencies.
@@ -58,31 +55,32 @@ val dataModule = module {
  * When user configures a different server URL at runtime, API instances
  * should be recreated via factory pattern or manual invalidation.
  */
-val networkModule = module {
-    // AuthApi - handles login, logout, and token refresh
-    // Gets server URL dynamically from SettingsRepository
-    single {
-        val settingsRepository: SettingsRepository = get()
-        AuthApi(getServerUrl = { settingsRepository.getServerUrl() })
-    }
+val networkModule =
+    module {
+        // AuthApi - handles login, logout, and token refresh
+        // Gets server URL dynamically from SettingsRepository
+        single {
+            val settingsRepository: SettingsRepository = get()
+            AuthApi(getServerUrl = { settingsRepository.getServerUrl() })
+        }
 
-    // ApiClientFactory - creates authenticated HTTP clients with auto-refresh
-    single {
-        ApiClientFactory(
-            settingsRepository = get(),
-            authApi = get()
-        )
-    }
+        // ApiClientFactory - creates authenticated HTTP clients with auto-refresh
+        single {
+            ApiClientFactory(
+                settingsRepository = get(),
+                authApi = get(),
+            )
+        }
 
-    // ListenUpApi - main API for server communication
-    // Uses default base URL initially; can be recreated when server URL changes
-    single {
-        ListenUpApi(
-            baseUrl = getBaseUrl(),
-            apiClientFactory = get()
-        )
+        // ListenUpApi - main API for server communication
+        // Uses default base URL initially; can be recreated when server URL changes
+        single {
+            ListenUpApi(
+                baseUrl = getBaseUrl(),
+                apiClientFactory = get(),
+            )
+        }
     }
-}
 
 /**
  * Platform-specific base URL for the API.
@@ -96,236 +94,255 @@ expect fun getBaseUrl(): String
  * Repository layer dependencies.
  * Binds repository interfaces to their implementations.
  */
-val repositoryModule = module {
-    // InstanceRepository needs unauthenticated API to avoid circular dependency
-    // (SettingsRepository -> InstanceRepository -> ListenUpApi -> ApiClientFactory -> SettingsRepository)
-    single<InstanceRepository> {
-        InstanceRepositoryImpl(
-            api = ListenUpApi(
-                baseUrl = getBaseUrl(),
-                apiClientFactory = null // Public endpoints don't need authentication
+val repositoryModule =
+    module {
+        // InstanceRepository needs unauthenticated API to avoid circular dependency
+        // (SettingsRepository -> InstanceRepository -> ListenUpApi -> ApiClientFactory -> SettingsRepository)
+        single<InstanceRepository> {
+            InstanceRepositoryImpl(
+                api =
+                    ListenUpApi(
+                        baseUrl = getBaseUrl(),
+                        apiClientFactory = null, // Public endpoints don't need authentication
+                    ),
             )
-        )
-    }
+        }
 
-    // Provide DAOs from database
-    single { get<ListenUpDatabase>().userDao() }
-    single { get<ListenUpDatabase>().bookDao() }
-    single { get<ListenUpDatabase>().syncDao() }
-    single { get<ListenUpDatabase>().chapterDao() }
-    single { get<ListenUpDatabase>().seriesDao() }
-    single { get<ListenUpDatabase>().contributorDao() }
-    single { get<ListenUpDatabase>().bookContributorDao() }
-    single { get<ListenUpDatabase>().playbackPositionDao() }
-    single { get<ListenUpDatabase>().pendingListeningEventDao() }
-    single { get<ListenUpDatabase>().downloadDao() }
-    single { get<ListenUpDatabase>().searchDao() }
-}
+        // Provide DAOs from database
+        single { get<ListenUpDatabase>().userDao() }
+        single { get<ListenUpDatabase>().bookDao() }
+        single { get<ListenUpDatabase>().syncDao() }
+        single { get<ListenUpDatabase>().chapterDao() }
+        single { get<ListenUpDatabase>().seriesDao() }
+        single { get<ListenUpDatabase>().contributorDao() }
+        single { get<ListenUpDatabase>().bookContributorDao() }
+        single { get<ListenUpDatabase>().playbackPositionDao() }
+        single { get<ListenUpDatabase>().pendingListeningEventDao() }
+        single { get<ListenUpDatabase>().downloadDao() }
+        single { get<ListenUpDatabase>().searchDao() }
+    }
 
 /**
  * Use case layer dependencies.
  * Creates use case instances for business logic.
  */
-val useCaseModule = module {
-    factoryOf(::GetInstanceUseCase)
-}
+val useCaseModule =
+    module {
+        factoryOf(::GetInstanceUseCase)
+    }
 
 /**
  * Presentation layer dependencies.
  * Provides ViewModels for UI screens.
  */
-val presentationModule = module {
-    factory { ServerConnectViewModel(settingsRepository = get()) }
-    factory {
-        com.calypsan.listenup.client.presentation.auth.SetupViewModel(
-            authApi = get(),
-            settingsRepository = get(),
-            userDao = get()
-        )
+val presentationModule =
+    module {
+        factory { ServerConnectViewModel(settingsRepository = get()) }
+        factory {
+            com.calypsan.listenup.client.presentation.auth.SetupViewModel(
+                authApi = get(),
+                settingsRepository = get(),
+                userDao = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.auth.LoginViewModel(
+                authApi = get(),
+                settingsRepository = get(),
+                userDao = get(),
+            )
+        }
+        factory {
+            LibraryViewModel(
+                bookRepository = get(),
+                seriesDao = get(),
+                contributorDao = get(),
+                syncManager = get(),
+                settingsRepository = get(),
+                syncDao = get(),
+                playbackPositionDao = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel(
+                bookRepository = get(),
+                tagApi = get(),
+                playbackPositionDao = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel(
+                seriesDao = get(),
+                bookRepository = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel(
+                contributorDao = get(),
+                bookDao = get(),
+                imageStorage = get(),
+                playbackPositionDao = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.contributordetail.ContributorBooksViewModel(
+                contributorDao = get(),
+                bookDao = get(),
+                imageStorage = get(),
+                playbackPositionDao = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.home.HomeViewModel(
+                homeRepository = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.search.SearchViewModel(
+                searchRepository = get(),
+            )
+        }
     }
-    factory {
-        com.calypsan.listenup.client.presentation.auth.LoginViewModel(
-            authApi = get(),
-            settingsRepository = get(),
-            userDao = get()
-        )
-    }
-    factory {
-        LibraryViewModel(
-            bookRepository = get(),
-            seriesDao = get(),
-            contributorDao = get(),
-            syncManager = get(),
-            settingsRepository = get(),
-            syncDao = get(),
-            playbackPositionDao = get()
-        )
-    }
-    factory {
-        com.calypsan.listenup.client.presentation.book_detail.BookDetailViewModel(
-            bookRepository = get(),
-            tagApi = get(),
-            playbackPositionDao = get()
-        )
-    }
-    factory {
-        com.calypsan.listenup.client.presentation.series_detail.SeriesDetailViewModel(
-            seriesDao = get(),
-            bookRepository = get()
-        )
-    }
-    factory {
-        com.calypsan.listenup.client.presentation.contributor_detail.ContributorDetailViewModel(
-            contributorDao = get(),
-            bookDao = get(),
-            imageStorage = get(),
-            playbackPositionDao = get()
-        )
-    }
-    factory {
-        com.calypsan.listenup.client.presentation.contributor_detail.ContributorBooksViewModel(
-            contributorDao = get(),
-            bookDao = get(),
-            imageStorage = get(),
-            playbackPositionDao = get()
-        )
-    }
-    factory {
-        com.calypsan.listenup.client.presentation.home.HomeViewModel(
-            homeRepository = get()
-        )
-    }
-    factory {
-        com.calypsan.listenup.client.presentation.search.SearchViewModel(
-            searchRepository = get()
-        )
-    }
-}
 
 /**
  * Sync infrastructure module.
  *
  * Provides SyncManager, SyncApi, and related sync components.
  */
-val syncModule = module {
-    // Application-scoped CoroutineScope for long-lived background operations.
-    // Used by SSEManager and SyncManager for tasks that span the app's lifetime.
-    // SupervisorJob ensures child failures don't cancel siblings.
-    single<kotlinx.coroutines.CoroutineScope>(qualifier = org.koin.core.qualifier.named("appScope")) {
-        kotlinx.coroutines.CoroutineScope(
-            kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default
-        )
-    }
+val syncModule =
+    module {
+        // Application-scoped CoroutineScope for long-lived background operations.
+        // Used by SSEManager and SyncManager for tasks that span the app's lifetime.
+        // SupervisorJob ensures child failures don't cancel siblings.
+        single<kotlinx.coroutines.CoroutineScope>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("appScope"),
+        ) {
+            kotlinx.coroutines.CoroutineScope(
+                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default,
+            )
+        }
 
-    // Sync API uses ApiClientFactory to get authenticated HttpClient at call time
-    // This avoids runBlocking during DI initialization (structured concurrency)
-    single {
-        SyncApi(clientFactory = get())
-    }
+        // Sync API uses ApiClientFactory to get authenticated HttpClient at call time
+        // This avoids runBlocking during DI initialization (structured concurrency)
+        single {
+            SyncApi(clientFactory = get())
+        }
 
-    // Image API for downloading cover images
-    single {
-        ImageApi(clientFactory = get())
-    }
+        // Image API for downloading cover images
+        single {
+            ImageApi(clientFactory = get())
+        }
 
-    // Image downloader for batch cover downloads during sync
-    single {
-        ImageDownloader(
-            imageApi = get(),
-            imageStorage = get()
-        )
-    }
+        // Image downloader for batch cover downloads during sync
+        single {
+            ImageDownloader(
+                imageApi = get(),
+                imageStorage = get(),
+            )
+        }
 
-    // SSE Manager for real-time updates
-    single<SSEManager> {
-        SSEManager(
-            clientFactory = get(),
-            settingsRepository = get(),
-            scope = get(qualifier = org.koin.core.qualifier.named("appScope"))
-        )
-    }
+        // SSE Manager for real-time updates
+        single<SSEManager> {
+            SSEManager(
+                clientFactory = get(),
+                settingsRepository = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        }
 
-    // SearchApi for server-side search
-    single {
-        SearchApi(clientFactory = get())
-    }
+        // SearchApi for server-side search
+        single {
+            SearchApi(clientFactory = get())
+        }
 
-    // TagApi for user tag operations
-    single {
-        TagApi(clientFactory = get())
-    }
+        // TagApi for user tag operations
+        single {
+            TagApi(clientFactory = get())
+        }
 
-    // FtsPopulator for rebuilding FTS tables after sync
-    single {
-        FtsPopulator(
-            bookDao = get(),
-            contributorDao = get(),
-            seriesDao = get(),
-            searchDao = get()
-        )
-    }
+        // FtsPopulator for rebuilding FTS tables after sync
+        single {
+            FtsPopulator(
+                bookDao = get(),
+                contributorDao = get(),
+                seriesDao = get(),
+                searchDao = get(),
+            )
+        }
 
-    // SyncManager orchestrates sync operations
-    single {
-        SyncManager(
-            syncApi = get(),
-            bookDao = get(),
-            seriesDao = get(),
-            contributorDao = get(),
-            chapterDao = get(),
-            bookContributorDao = get(),
-            syncDao = get(),
-            imageDownloader = get(),
-            sseManager = get(),
-            settingsRepository = get(),
-            ftsPopulator = get(),
-            scope = get(qualifier = org.koin.core.qualifier.named("appScope"))
-        )
-    }
+        // SyncManager orchestrates sync operations
+        single {
+            SyncManager(
+                syncApi = get(),
+                bookDao = get(),
+                seriesDao = get(),
+                contributorDao = get(),
+                chapterDao = get(),
+                bookContributorDao = get(),
+                syncDao = get(),
+                imageDownloader = get(),
+                sseManager = get(),
+                ftsPopulator = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        }
 
-    // SearchRepository for offline-first search
-    single {
-        SearchRepository(
-            searchApi = get(),
-            searchDao = get(),
-            imageStorage = get(),
-            networkMonitor = get()
-        )
-    }
+        // SearchRepository for offline-first search
+        single {
+            SearchRepository(
+                searchApi = get(),
+                searchDao = get(),
+                imageStorage = get(),
+                networkMonitor = get(),
+            )
+        }
 
-    // BookRepository for UI data access
-    single {
-        BookRepository(
-            bookDao = get(),
-            chapterDao = get(),
-            syncManager = get(),
-            imageStorage = get()
-        )
-    }
+        // BookRepository for UI data access
+        single {
+            BookRepository(
+                bookDao = get(),
+                chapterDao = get(),
+                syncManager = get(),
+                imageStorage = get(),
+            )
+        }
 
-    // HomeRepository for Home screen data (local-first)
-    single {
-        HomeRepository(
-            bookRepository = get(),
-            playbackPositionDao = get(),
-            userDao = get()
-        )
+        // HomeRepository for Home screen data (local-first)
+        single {
+            HomeRepository(
+                bookRepository = get(),
+                playbackPositionDao = get(),
+                userDao = get(),
+            )
+        }
     }
-}
 
 /**
  * All shared modules that should be loaded in both Android and iOS.
  */
-val sharedModules = listOf(
-    platformStorageModule,
-    platformDatabaseModule,
-    dataModule,
-    networkModule,
-    repositoryModule,
-    useCaseModule,
-    presentationModule,
-    syncModule
-)
+val sharedModules =
+    listOf(
+        platformStorageModule,
+        platformDatabaseModule,
+        dataModule,
+        networkModule,
+        repositoryModule,
+        useCaseModule,
+        presentationModule,
+        syncModule,
+    )
 
 /**
  * Platform-specific initialization function.

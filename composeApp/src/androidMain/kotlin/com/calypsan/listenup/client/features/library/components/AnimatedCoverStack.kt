@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
@@ -57,7 +56,7 @@ fun AnimatedCoverStack(
     modifier: Modifier = Modifier,
     coverHeight: Dp = 120.dp,
     cycleDurationMs: Long = 3000L,
-    maxVisibleCovers: Int = 4
+    maxVisibleCovers: Int = 4,
 ) {
     val visibleCovers = coverPaths.take(maxVisibleCovers)
     val coverCount = visibleCovers.size
@@ -67,30 +66,33 @@ fun AnimatedCoverStack(
             // Empty placeholder - full width
             FullWidthCover(
                 coverPath = null,
-                modifier = modifier.height(coverHeight)
+                modifier = modifier.height(coverHeight),
             )
         }
+
         coverCount == 1 -> {
             // Single book - full width cropped
             FullWidthCover(
                 coverPath = visibleCovers[0],
-                modifier = modifier.height(coverHeight)
+                modifier = modifier.height(coverHeight),
             )
         }
+
         coverCount == 2 -> {
             // Two books - side by side
             TwoUpCoverLayout(
                 coverPaths = visibleCovers,
-                modifier = modifier.height(coverHeight)
+                modifier = modifier.height(coverHeight),
             )
         }
+
         else -> {
             // 3+ books - animated stack
             AnimatedStackLayout(
                 coverPaths = visibleCovers,
                 coverHeight = coverHeight,
                 cycleDurationMs = cycleDurationMs,
-                modifier = modifier
+                modifier = modifier,
             )
         }
     }
@@ -102,30 +104,31 @@ fun AnimatedCoverStack(
 @Composable
 private fun FullWidthCover(
     coverPath: String?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(8.dp)
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        contentAlignment = Alignment.Center,
     ) {
         if (coverPath != null) {
             AsyncImage(
                 model = "file://$coverPath",
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         } else {
             Icon(
                 imageVector = Icons.Default.Book,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.padding(24.dp)
+                modifier = Modifier.padding(24.dp),
             )
         }
     }
@@ -138,18 +141,19 @@ private fun FullWidthCover(
 @Composable
 private fun TwoUpCoverLayout(
     coverPaths: List<String?>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     ) {
         coverPaths.take(2).forEach { coverPath ->
             StackedCover(
                 coverPath = coverPath,
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .aspectRatio(1f) // Square covers
+                modifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .aspectRatio(1f), // Square covers
             )
         }
     }
@@ -165,7 +169,7 @@ private fun AnimatedStackLayout(
     coverPaths: List<String?>,
     coverHeight: Dp,
     cycleDurationMs: Long,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val coverCount = coverPaths.size
 
@@ -186,10 +190,11 @@ private fun AnimatedStackLayout(
     val density = LocalDensity.current
 
     BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(coverHeight),
-        contentAlignment = Alignment.CenterStart
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(coverHeight),
+        contentAlignment = Alignment.CenterStart,
     ) {
         val containerWidthPx = with(density) { maxWidth.toPx() }
         val coverHeightPx = with(density) { coverHeight.toPx() }
@@ -202,11 +207,12 @@ private fun AnimatedStackLayout(
 
         coverPaths.forEachIndexed { index, coverPath ->
             // visualPosition: 0 = back, coverCount-1 = front (for z-ordering)
-            val visualPosition = calculateVisualPosition(
-                index = index,
-                frontIndex = frontIndex,
-                totalCount = coverCount
-            )
+            val visualPosition =
+                calculateVisualPosition(
+                    index = index,
+                    frontIndex = frontIndex,
+                    totalCount = coverCount,
+                )
 
             // X position: front cover on LEFT (offset 0), back covers fan out to RIGHT
             // Invert the position for x-offset calculation
@@ -215,45 +221,49 @@ private fun AnimatedStackLayout(
 
             val animatedXOffset by animateFloatAsState(
                 targetValue = targetXOffsetPx,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                ),
-                label = "xOffset"
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow,
+                    ),
+                label = "xOffset",
             )
 
             // Front cover slightly larger (visualPosition high = front = larger)
-            val targetScale = 0.92f + (visualPosition.toFloat() / (coverCount - 1)) * 0.08f
+            val targetScale = 0.92f + visualPosition.toFloat() / (coverCount - 1) * 0.08f
             val animatedScale by animateFloatAsState(
                 targetValue = targetScale,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                ),
-                label = "scale"
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow,
+                    ),
+                label = "scale",
             )
 
             // Z-index: front cover on top (highest z)
             val animatedZIndex by animateFloatAsState(
                 targetValue = visualPosition.toFloat(),
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMedium
-                ),
-                label = "zIndex"
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium,
+                    ),
+                label = "zIndex",
             )
 
             StackedCover(
                 coverPath = coverPath,
-                modifier = Modifier
-                    .height(coverHeight)
-                    .aspectRatio(1f) // Square covers
-                    .zIndex(animatedZIndex)
-                    .graphicsLayer {
-                        translationX = animatedXOffset
-                        scaleX = animatedScale
-                        scaleY = animatedScale
-                    }
+                modifier =
+                    Modifier
+                        .height(coverHeight)
+                        .aspectRatio(1f) // Square covers
+                        .zIndex(animatedZIndex)
+                        .graphicsLayer {
+                            translationX = animatedXOffset
+                            scaleX = animatedScale
+                            scaleY = animatedScale
+                        },
             )
         }
     }
@@ -267,7 +277,11 @@ private fun AnimatedStackLayout(
  * @param totalCount Total number of covers
  * @return Visual position (0 = back, totalCount-1 = front)
  */
-private fun calculateVisualPosition(index: Int, frontIndex: Int, totalCount: Int): Int {
+private fun calculateVisualPosition(
+    index: Int,
+    frontIndex: Int,
+    totalCount: Int,
+): Int {
     // Position relative to front (0 = at front, wrapping around)
     val relativePosition = (index - frontIndex + totalCount) % totalCount
     // Invert so front = highest number for z-ordering
@@ -280,29 +294,30 @@ private fun calculateVisualPosition(index: Int, frontIndex: Int, totalCount: Int
 @Composable
 private fun StackedCover(
     coverPath: String?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(8.dp)
 
     Box(
-        modifier = modifier
-            .shadow(
-                elevation = 4.dp,
-                shape = shape,
-                clip = false
-            )
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier
+                .shadow(
+                    elevation = 4.dp,
+                    shape = shape,
+                    clip = false,
+                ).clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        contentAlignment = Alignment.Center,
     ) {
         if (coverPath != null) {
             AsyncImage(
                 model = "file://$coverPath",
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(shape)
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .clip(shape),
             )
         } else {
             CoverPlaceholder(modifier = Modifier.fillMaxSize())
@@ -316,16 +331,17 @@ private fun StackedCover(
 @Composable
 private fun CoverPlaceholder(modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = Icons.Default.Book,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
         )
     }
 }

@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.features.contributor_detail
+package com.calypsan.listenup.client.features.contributordetail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -37,9 +35,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.features.library.BookCard
-import com.calypsan.listenup.client.presentation.contributor_detail.ContributorBooksUiState
-import com.calypsan.listenup.client.presentation.contributor_detail.ContributorBooksViewModel
-import com.calypsan.listenup.client.presentation.contributor_detail.SeriesGroup
+import com.calypsan.listenup.client.presentation.contributordetail.ContributorBooksUiState
+import com.calypsan.listenup.client.presentation.contributordetail.ContributorBooksViewModel
+import com.calypsan.listenup.client.presentation.contributordetail.SeriesGroup
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -61,7 +59,7 @@ fun ContributorBooksScreen(
     role: String,
     onBackClick: () -> Unit,
     onBookClick: (String) -> Unit,
-    viewModel: ContributorBooksViewModel = koinViewModel()
+    viewModel: ContributorBooksViewModel = koinViewModel(),
 ) {
     LaunchedEffect(contributorId, role) {
         viewModel.loadBooks(contributorId, role)
@@ -76,45 +74,49 @@ fun ContributorBooksScreen(
                     Text(
                         text = state.roleDisplayName,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
             )
-        }
+        },
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
         ) {
             when {
                 state.isLoading -> {
                     ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
                 }
+
                 state.error != null -> {
                     Text(
                         text = state.error ?: "Unknown error",
                         color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.Center)
+                        modifier = Modifier.align(Alignment.Center),
                     )
                 }
+
                 else -> {
                     ContributorBooksContent(
                         state = state,
                         bookProgress = state.bookProgress,
-                        onBookClick = onBookClick
+                        onBookClick = onBookClick,
                     )
                 }
             }
@@ -129,22 +131,22 @@ fun ContributorBooksScreen(
 private fun ContributorBooksContent(
     state: ContributorBooksUiState,
     bookProgress: Map<String, Float>,
-    onBookClick: (String) -> Unit
+    onBookClick: (String) -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         // Series sections (horizontal carousels)
         items(
             items = state.seriesGroups,
-            key = { it.seriesName }
+            key = { it.seriesName },
         ) { seriesGroup ->
             SeriesSection(
                 seriesGroup = seriesGroup,
                 bookProgress = bookProgress,
-                onBookClick = onBookClick
+                onBookClick = onBookClick,
             )
         }
 
@@ -154,7 +156,7 @@ private fun ContributorBooksContent(
                 StandaloneBooksSection(
                     books = state.standaloneBooks,
                     bookProgress = bookProgress,
-                    onBookClick = onBookClick
+                    onBookClick = onBookClick,
                 )
             }
         }
@@ -168,22 +170,22 @@ private fun ContributorBooksContent(
 private fun SeriesSection(
     seriesGroup: SeriesGroup,
     bookProgress: Map<String, Float>,
-    onBookClick: (String) -> Unit
+    onBookClick: (String) -> Unit,
 ) {
     Column {
         // Series header
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         ) {
             Text(
                 text = seriesGroup.seriesName,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             Text(
                 text = "${seriesGroup.books.size} ${if (seriesGroup.books.size == 1) "book" else "books"}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -192,17 +194,17 @@ private fun SeriesSection(
         // Horizontal book carousel for series
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(
                 items = seriesGroup.books,
-                key = { it.id.value }
+                key = { it.id.value },
             ) { book ->
                 BookCard(
                     book = book,
                     onClick = { onBookClick(book.id.value) },
                     progress = bookProgress[book.id.value],
-                    modifier = Modifier.width(140.dp)
+                    modifier = Modifier.width(140.dp),
                 )
             }
         }
@@ -216,22 +218,22 @@ private fun SeriesSection(
 private fun StandaloneBooksSection(
     books: List<com.calypsan.listenup.client.domain.model.Book>,
     bookProgress: Map<String, Float>,
-    onBookClick: (String) -> Unit
+    onBookClick: (String) -> Unit,
 ) {
     Column {
         // Section header
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         ) {
             Text(
                 text = "Other Books",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             Text(
                 text = "${books.size} ${if (books.size == 1) "book" else "books"}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -241,19 +243,19 @@ private fun StandaloneBooksSection(
         // Using a fixed height grid within the lazy column
         Column(
             modifier = Modifier.padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             books.chunked(3).forEach { rowBooks ->
                 androidx.compose.foundation.layout.Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     rowBooks.forEach { book ->
                         BookCard(
                             book = book,
                             onClick = { onBookClick(book.id.value) },
                             progress = bookProgress[book.id.value],
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                     }
                     // Fill remaining slots with spacers to maintain grid alignment
