@@ -19,8 +19,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -28,7 +30,10 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
 import com.calypsan.listenup.client.design.components.AlphabetIndex
 import com.calypsan.listenup.client.design.components.AlphabetScrollbar
+import com.calypsan.listenup.client.design.components.SortSplitButton
 import com.calypsan.listenup.client.features.nowplaying.MiniPlayerReservedHeight
+import com.calypsan.listenup.client.presentation.library.SortCategory
+import com.calypsan.listenup.client.presentation.library.SortState
 import kotlinx.coroutines.launch
 
 /**
@@ -37,12 +42,18 @@ import kotlinx.coroutines.launch
  * Displays a list of narrators with their book counts.
  *
  * @param narrators List of narrators with book counts
+ * @param sortState Current sort state (category + direction)
+ * @param onCategorySelected Called when user selects a new category
+ * @param onDirectionToggle Called when user toggles sort direction
  * @param onNarratorClick Callback when a narrator is clicked
  * @param modifier Optional modifier
  */
 @Composable
 fun NarratorsContent(
     narrators: List<ContributorWithBookCount>,
+    sortState: SortState,
+    onCategorySelected: (SortCategory) -> Unit,
+    onDirectionToggle: () -> Unit,
     onNarratorClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -53,12 +64,32 @@ fun NarratorsContent(
             val listState = rememberLazyListState()
             val scope = rememberCoroutineScope()
 
-            val alphabetIndex = remember(narrators) {
-                AlphabetIndex.build(narrators) { it.contributor.name }
+            // Build alphabet index for name-based sort
+            val alphabetIndex = remember(narrators, sortState) {
+                if (sortState.category == SortCategory.NAME) {
+                    AlphabetIndex.build(narrators) { it.contributor.name }
+                } else {
+                    null
+                }
             }
 
             val isScrolling by remember {
                 derivedStateOf { listState.isScrollInProgress }
+            }
+
+            // Track scroll direction for button visibility
+            var previousScrollOffset by remember { mutableIntStateOf(0) }
+            val showSortButton by remember {
+                derivedStateOf {
+                    val firstVisible = listState.firstVisibleItemIndex
+                    val currentOffset = listState.firstVisibleItemScrollOffset
+
+                    val isAtTop = firstVisible == 0 && currentOffset < 50
+                    val isScrollingUp = currentOffset < previousScrollOffset
+
+                    previousScrollOffset = currentOffset
+                    isAtTop || isScrollingUp || !listState.isScrollInProgress
+                }
             }
 
             LazyColumn(
@@ -66,7 +97,7 @@ fun NarratorsContent(
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
-                    top = 16.dp,
+                    top = 48.dp,
                     bottom = 16.dp + MiniPlayerReservedHeight
                 ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -84,18 +115,34 @@ fun NarratorsContent(
                 }
             }
 
-            AlphabetScrollbar(
-                alphabetIndex = alphabetIndex,
-                onLetterSelected = { index ->
-                    scope.launch {
-                        listState.animateScrollToItem(index)
-                    }
-                },
-                isScrolling = isScrolling,
+            // Sort split button
+            SortSplitButton(
+                state = sortState,
+                categories = SortCategory.contributorCategories,
+                onCategorySelected = onCategorySelected,
+                onDirectionToggle = onDirectionToggle,
+                visible = showSortButton,
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 4.dp, bottom = MiniPlayerReservedHeight)
+                    .align(Alignment.TopStart)
+                    .padding(start = 16.dp, top = 8.dp)
             )
+
+            // Alphabet scrollbar (only for name sort)
+            // Anchored to TopEnd so it stays fixed relative to content start
+            if (alphabetIndex != null) {
+                AlphabetScrollbar(
+                    alphabetIndex = alphabetIndex,
+                    onLetterSelected = { index ->
+                        scope.launch {
+                            listState.animateScrollToItem(index)
+                        }
+                    },
+                    isScrolling = isScrolling,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight)
+                )
+            }
         }
     }
 }

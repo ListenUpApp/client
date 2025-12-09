@@ -1,0 +1,78 @@
+package com.calypsan.listenup.client.data.repository
+
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * Android implementation of [NetworkMonitor] using ConnectivityManager.
+ *
+ * Registers a network callback to track connectivity changes in real-time.
+ * Checks for internet capability (not just network connection) to ensure
+ * actual connectivity.
+ *
+ * Lifecycle: Should be created once and kept alive for the app's lifetime.
+ * The network callback is registered in init and never unregistered since
+ * we want continuous monitoring.
+ *
+ * @param context Application context for accessing ConnectivityManager
+ */
+class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
+
+    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE)
+        as ConnectivityManager
+
+    private val _isOnlineFlow = MutableStateFlow(checkCurrentConnectivity())
+    override val isOnlineFlow: StateFlow<Boolean> = _isOnlineFlow.asStateFlow()
+
+    init {
+        val networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                _isOnlineFlow.value = true
+            }
+
+            override fun onLost(network: Network) {
+                // Re-check since there might be other networks available
+                _isOnlineFlow.value = checkCurrentConnectivity()
+            }
+
+            override fun onCapabilitiesChanged(
+                network: Network,
+                capabilities: NetworkCapabilities
+            ) {
+                val hasInternet = capabilities.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_INTERNET
+                ) && capabilities.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
+                )
+                _isOnlineFlow.value = hasInternet
+            }
+        }
+
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        connectivityManager.registerNetworkCallback(request, networkCallback)
+    }
+
+    override fun isOnline(): Boolean = _isOnlineFlow.value
+
+    /**
+     * Check current connectivity state.
+     *
+     * Used for initial state and when a network is lost to check
+     * if other networks are still available.
+     */
+    private fun checkCurrentConnectivity(): Boolean {
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+               capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+}

@@ -11,6 +11,13 @@ interface SeriesDao {
     @Query("SELECT * FROM series")
     fun observeAll(): Flow<List<SeriesEntity>>
 
+    /**
+     * Get all series synchronously.
+     * Used by FtsPopulator to populate FTS tables during sync.
+     */
+    @Query("SELECT * FROM series")
+    suspend fun getAll(): List<SeriesEntity>
+
     @Query("SELECT * FROM series WHERE id = :id")
     suspend fun getById(id: String): SeriesEntity?
 
@@ -81,6 +88,13 @@ interface SeriesDao {
 interface ContributorDao {
     @Query("SELECT * FROM contributors")
     fun observeAll(): Flow<List<ContributorEntity>>
+
+    /**
+     * Get all contributors synchronously.
+     * Used by FtsPopulator to populate FTS tables during sync.
+     */
+    @Query("SELECT * FROM contributors")
+    suspend fun getAll(): List<ContributorEntity>
 
     @Query("SELECT * FROM contributors WHERE id = :id")
     suspend fun getById(id: String): ContributorEntity?

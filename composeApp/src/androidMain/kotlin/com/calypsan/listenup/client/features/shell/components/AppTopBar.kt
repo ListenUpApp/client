@@ -72,7 +72,8 @@ fun AppTopBar(
     onAvatarMenuExpandedChange: (Boolean) -> Unit,
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
-    scrollBehavior: TopAppBarScrollBehavior? = null
+    scrollBehavior: TopAppBarScrollBehavior? = null,
+    showAvatar: Boolean = true
 ) {
     // Guard against null destination during recomposition transitions
     val safeDestination = currentDestination ?: ShellDestination.Home
@@ -125,15 +126,17 @@ fun AppTopBar(
                 SyncIndicator(syncState = syncState)
             }
 
-            // Avatar (always visible)
-            UserAvatar(
-                user = user,
-                expanded = isAvatarMenuExpanded,
-                onExpandedChange = onAvatarMenuExpandedChange,
-                onSettingsClick = onSettingsClick,
-                onSignOutClick = onSignOutClick,
-                modifier = Modifier.padding(end = 8.dp)
-            )
+            // Avatar (hidden on medium/expanded screens where it's in the rail/drawer)
+            if (showAvatar) {
+                UserAvatar(
+                    user = user,
+                    expanded = isAvatarMenuExpanded,
+                    onExpandedChange = onAvatarMenuExpandedChange,
+                    onSettingsClick = onSettingsClick,
+                    onSignOutClick = onSignOutClick,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
         },
         scrollBehavior = scrollBehavior
     )

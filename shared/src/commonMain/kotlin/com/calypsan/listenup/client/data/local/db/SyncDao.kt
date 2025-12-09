@@ -34,6 +34,14 @@ interface SyncDao {
     @Upsert
     suspend fun upsert(metadata: SyncMetadataEntity)
 
+    /**
+     * Delete metadata by key.
+     *
+     * @param key The metadata key to delete
+     */
+    @Query("DELETE FROM sync_metadata WHERE key = :key")
+    suspend fun delete(key: String)
+
     companion object {
         const val KEY_LAST_SYNC_BOOKS = "last_sync_books"
     }
@@ -61,4 +69,17 @@ suspend fun SyncDao.getLastSyncTime(): Timestamp? {
  */
 suspend fun SyncDao.setLastSyncTime(timestamp: Timestamp) {
     upsert(SyncMetadataEntity(SyncDao.KEY_LAST_SYNC_BOOKS, timestamp.epochMillis.toString()))
+}
+
+/**
+ * Clear last successful sync timestamp for books.
+ *
+ * This forces the next sync to be a full sync (not delta),
+ * re-fetching all books from the server. Useful when:
+ * - audioFilesJson is missing for existing books
+ * - Database was corrupted or needs to be refreshed
+ * - Migration requires re-population of data
+ */
+suspend fun SyncDao.clearLastSyncTime() {
+    delete(SyncDao.KEY_LAST_SYNC_BOOKS)
 }

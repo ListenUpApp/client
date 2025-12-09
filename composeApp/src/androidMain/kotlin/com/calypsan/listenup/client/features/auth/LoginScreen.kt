@@ -70,13 +70,13 @@ fun LoginScreen(
     LaunchedEffect(state.status) {
         when (val status = state.status) {
             is LoginStatus.Error -> {
-                val message = when (status.type) {
+                val message = when (val type = status.type) {
                     is LoginErrorType.InvalidCredentials ->
                         "Invalid email or password."
                     is LoginErrorType.NetworkError ->
-                        "Network error. Please check your connection."
+                        type.detail ?: "Network error. Check your connection."
                     is LoginErrorType.ServerError ->
-                        "Server error. Please try again."
+                        type.detail ?: "Server error. Please try again."
                     is LoginErrorType.ValidationError -> null // Handled inline
                 }
                 message?.let {

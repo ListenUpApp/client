@@ -1,31 +1,35 @@
 package com.calypsan.listenup.client.features.library.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import org.koin.compose.koinInject
 
 /**
- * Card displaying a series with animated overlapping book covers.
+ * Floating series card with editorial design.
  *
- * Features:
- * - Animated cover stack cycling through book covers
- * - Series name below covers
- * - Book count display
- * - Full-width layout for mobile
- * - Clickable to navigate to series detail
+ * Design philosophy: Cover stack is the hero. No container boxing.
+ * Individual covers in the stack have their own shadows.
+ * Press interaction uses scale animation for tactile feedback.
  *
  * @param seriesWithBooks The series with its associated books
  * @param onClick Callback when the card is clicked
@@ -42,8 +46,14 @@ fun SeriesCard(
     val books = seriesWithBooks.books
     val bookCount = books.size
 
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        label = "card_scale"
+    )
+
     // Extract cover paths from books, sorted by series sequence
-    // Uses ImageStorage to resolve actual file paths from book IDs
     val coverPaths = books
         .sortedBy { it.sequence?.toFloatOrNull() ?: Float.MAX_VALUE }
         .map { bookEntity ->
@@ -54,37 +64,42 @@ fun SeriesCard(
             }
         }
 
-    Surface(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // Animated cover stack with Material 3 Expressive animations
-            AnimatedCoverStack(
-                coverPaths = coverPaths,
-                coverHeight = 140.dp,
-                cycleDurationMs = 3000L,
-                maxVisibleCovers = 5
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
             )
+    ) {
+        // Animated cover stack (individual covers have their own shadows)
+        AnimatedCoverStack(
+            coverPaths = coverPaths,
+            coverHeight = 140.dp,
+            cycleDurationMs = 3000L,
+            maxVisibleCovers = 5
+        )
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-            // Series name
+        // Metadata
+        Column(modifier = Modifier.padding(horizontal = 4.dp)) {
             Text(
                 text = series.name,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.2).sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Book count
             Text(
                 text = "$bookCount ${if (bookCount == 1) "book" else "books"}",
                 style = MaterialTheme.typography.bodySmall,

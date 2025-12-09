@@ -12,9 +12,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,8 +25,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -35,13 +38,18 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 /**
  * Data class representing the alphabet index for a list of items.
@@ -64,20 +72,71 @@ data class AlphabetIndex(
                 }
             }
 
+            // Sort: non-letters (#) first, then alphabetically
             val letters = letterToIndex.keys
-                .sortedWith(compareBy({ !it.isLetter() }, { it }))
+                .sortedWith(compareBy({ it.isLetter() }, { it }))
 
             return AlphabetIndex(letters, letterToIndex)
         }
     }
 }
 
+// =============================================================================
+// Adaptive Sizing Configuration
+// =============================================================================
+
+private object AdaptiveScrollbarConfig {
+    // Font size bounds (sp)
+    const val MIN_FONT_SIZE_SP = 8f
+    const val MAX_FONT_SIZE_SP = 14f
+
+    // Font size as proportion of slot height
+    const val FONT_SIZE_RATIO = 0.65f
+
+    // Weight distribution for spatial breathing effect
+    const val WEIGHT_SELECTED = 1.6f
+    const val WEIGHT_DISTANCE_1 = 1.2f
+    const val WEIGHT_DISTANCE_2 = 0.9f
+    const val WEIGHT_DISTANT = 0.8f
+    const val WEIGHT_AT_REST = 1.0f
+
+    // Visual emphasis
+    const val OPACITY_DISTANT = 0.85f
+    const val SCALE_SELECTED = 1.3f
+
+    // Padding inside the scrollbar column
+    val VERTICAL_PADDING = 8.dp
+    val HORIZONTAL_PADDING = 8.dp
+}
+
 /**
- * Google Contacts-style alphabet scrollbar.
+ * Calculates the weight for a letter based on its distance from the selected letter.
+ * Weights determine how much vertical space each letter gets.
+ */
+private fun calculateWeight(index: Int, selectedIndex: Int?): Float {
+    if (selectedIndex == null) return AdaptiveScrollbarConfig.WEIGHT_AT_REST
+
+    return when (abs(index - selectedIndex)) {
+        0 -> AdaptiveScrollbarConfig.WEIGHT_SELECTED
+        1 -> AdaptiveScrollbarConfig.WEIGHT_DISTANCE_1
+        2 -> AdaptiveScrollbarConfig.WEIGHT_DISTANCE_2
+        else -> AdaptiveScrollbarConfig.WEIGHT_DISTANT
+    }
+}
+
+/**
+ * Google Contacts-style alphabet scrollbar with adaptive sizing.
  *
- * - Floats over content with no background when idle
- * - Shows background and popup when touched
+ * Design philosophy: Fill available space, breathe on interaction.
+ * - Measures available height and distributes letters evenly to fit
+ * - On interaction, space redistributes around selection (subtle fisheye)
+ * - Material 3 Expressive springs for snappy, bouncy animations
+ *
+ * Features:
+ * - Adaptive sizing that always fits available space
+ * - Subtle spatial redistribution on touch (modern fisheye)
  * - Haptic feedback on letter changes
+ * - Popup indicator for selected letter
  */
 @Composable
 fun AlphabetScrollbar(
@@ -89,14 +148,20 @@ fun AlphabetScrollbar(
     if (alphabetIndex.letters.isEmpty()) return
 
     val view = LocalView.current
+    val density = LocalDensity.current
+
+    // Track container height for adaptive sizing
+    var containerHeightPx by remember { mutableFloatStateOf(0f) }
+
+    // Track the actual center Y position of each letter (measured, not calculated)
+    val letterCenterYs = remember { mutableStateMapOf<Int, Float>() }
 
     var isInteracting by remember { mutableStateOf(false) }
     var selectedLetter by remember { mutableStateOf<Char?>(null) }
     var selectedLetterIndex by remember { mutableStateOf<Int?>(null) }
     var lastHapticLetter by remember { mutableStateOf<Char?>(null) }
     var isVisible by remember { mutableStateOf(false) }
-    var columnHeight by remember { mutableIntStateOf(0) }
-    var selectedLetterY by remember { mutableStateOf(0f) }
+    var selectedLetterY by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(isScrolling, isInteracting) {
         if (isScrolling || isInteracting) {
@@ -104,6 +169,25 @@ fun AlphabetScrollbar(
         } else {
             delay(1500)
             isVisible = false
+        }
+    }
+
+    // Calculate available height for letters (excluding padding)
+    val availableHeightPx by remember(containerHeightPx) {
+        derivedStateOf {
+            val paddingPx = with(density) {
+                (AdaptiveScrollbarConfig.VERTICAL_PADDING * 2).toPx()
+            }
+            (containerHeightPx - paddingPx).coerceAtLeast(0f)
+        }
+    }
+
+    // Calculate total weight for normalization
+    val totalWeight by remember(selectedLetterIndex, alphabetIndex.letters.size) {
+        derivedStateOf {
+            alphabetIndex.letters.indices.sumOf { index ->
+                calculateWeight(index, selectedLetterIndex).toDouble()
+            }.toFloat()
         }
     }
 
@@ -133,18 +217,34 @@ fun AlphabetScrollbar(
         label = "slide"
     )
 
-    data class LetterPosition(val letter: Char, val index: Int, val centerY: Float)
+    /**
+     * Find the letter closest to the given touch Y coordinate.
+     * Uses actual measured positions, not calculated ones.
+     */
+    fun findLetterAtY(touchY: Float): Triple<Char, Int, Float>? {
+        if (letterCenterYs.isEmpty()) return null
 
-    fun letterAtPosition(y: Float): LetterPosition? {
-        if (columnHeight <= 0 || alphabetIndex.letters.isEmpty()) return null
-        val letterHeight = columnHeight.toFloat() / alphabetIndex.letters.size
-        val index = (y / letterHeight).toInt().coerceIn(0, alphabetIndex.letters.size - 1)
-        val letterCenterY = (index + 0.5f) * letterHeight
-        return LetterPosition(alphabetIndex.letters[index], index, letterCenterY)
+        var bestIndex = 0
+        var bestDistance = Float.MAX_VALUE
+
+        letterCenterYs.forEach { (index, centerY) ->
+            val distance = abs(touchY - centerY)
+            if (distance < bestDistance) {
+                bestDistance = distance
+                bestIndex = index
+            }
+        }
+
+        if (bestIndex >= alphabetIndex.letters.size) return null
+
+        val letter = alphabetIndex.letters[bestIndex]
+        val centerY = letterCenterYs[bestIndex] ?: return null
+
+        return Triple(letter, bestIndex, centerY)
     }
 
     fun selectLetter(y: Float, isInitialTouch: Boolean = false) {
-        letterAtPosition(y)?.let { (letter, index, centerY) ->
+        findLetterAtY(y)?.let { (letter, index, centerY) ->
             if (letter != selectedLetter) {
                 selectedLetter = letter
                 selectedLetterIndex = index
@@ -164,8 +264,12 @@ fun AlphabetScrollbar(
 
     Box(
         modifier = modifier
+            .fillMaxHeight()
             .offset(x = slideOffset)
             .alpha(alpha)
+            .onSizeChanged { size ->
+                containerHeightPx = size.height.toFloat()
+            }
     ) {
         // Popup indicator - positioned at the selected letter's Y
         AnimatedVisibility(
@@ -198,10 +302,9 @@ fun AlphabetScrollbar(
             }
         }
 
-        // The scrollbar - always has background for visibility over content
+        // The scrollbar column with adaptive letter sizing
         Column(
             modifier = Modifier
-                .align(Alignment.CenterEnd)
                 .clip(RoundedCornerShape(16.dp))
                 .background(
                     if (isInteracting)
@@ -209,7 +312,6 @@ fun AlphabetScrollbar(
                     else
                         MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.95f)
                 )
-                .onSizeChanged { columnHeight = it.height }
                 .pointerInput(alphabetIndex) {
                     detectTapGestures(
                         onPress = { offset ->
@@ -246,16 +348,29 @@ fun AlphabetScrollbar(
                         }
                     )
                 }
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(
+                    horizontal = AdaptiveScrollbarConfig.HORIZONTAL_PADDING,
+                    vertical = AdaptiveScrollbarConfig.VERTICAL_PADDING
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             alphabetIndex.letters.forEachIndexed { index, letter ->
-                AnimatedLetterItem(
+                val weight = calculateWeight(index, selectedLetterIndex)
+                val letterHeightPx = if (totalWeight > 0) {
+                    availableHeightPx * (weight / totalWeight)
+                } else {
+                    availableHeightPx / alphabetIndex.letters.size
+                }
+                val letterHeightDp = with(density) { letterHeightPx.toDp() }
+
+                AdaptiveLetterItem(
                     letter = letter,
                     index = index,
                     selectedIndex = selectedLetterIndex,
-                    isSelected = letter == selectedLetter
+                    height = letterHeightDp,
+                    onPositionMeasured = { centerY ->
+                        letterCenterYs[index] = centerY
+                    }
                 )
             }
         }
@@ -263,20 +378,49 @@ fun AlphabetScrollbar(
 }
 
 /**
- * Individual letter with animated scale based on proximity to selection.
- * Tight gradient: touched = 1.3x, ±1 neighbors = 1.1x, rest = 1.0x
+ * Individual letter with adaptive height and animated visual properties.
+ *
+ * Height is determined by weight distribution (subtle fisheye effect).
+ * Visual emphasis through scale, opacity, color, and font weight.
  */
 @Composable
-private fun AnimatedLetterItem(
+private fun AdaptiveLetterItem(
     letter: Char,
     index: Int,
     selectedIndex: Int?,
-    isSelected: Boolean
+    height: Dp,
+    onPositionMeasured: (Float) -> Unit
 ) {
+    val density = LocalDensity.current
+
+    // Animate height changes with spring
+    val animatedHeight by animateDpAsState(
+        targetValue = height,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "letterHeight"
+    )
+
+    // Calculate font size from slot height
+    val fontSizeSp = with(density) {
+        val heightSp = animatedHeight.toSp().value
+        (heightSp * AdaptiveScrollbarConfig.FONT_SIZE_RATIO)
+            .coerceIn(
+                AdaptiveScrollbarConfig.MIN_FONT_SIZE_SP,
+                AdaptiveScrollbarConfig.MAX_FONT_SIZE_SP
+            )
+    }
+
+    // Distance-based visual properties
+    val distance = selectedIndex?.let { abs(index - it) }
+    val isSelected = index == selectedIndex
+
+    // Scale animation for selected letter
     val targetScale = when {
         selectedIndex == null -> 1f
-        index == selectedIndex -> 1.3f
-        kotlin.math.abs(index - selectedIndex) == 1 -> 1.1f
+        isSelected -> AdaptiveScrollbarConfig.SCALE_SELECTED
         else -> 1f
     }
 
@@ -289,17 +433,58 @@ private fun AnimatedLetterItem(
         label = "letterScale"
     )
 
-    Text(
-        text = letter.toString(),
-        fontSize = 16.sp,
-        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-        color = if (isSelected)
-            MaterialTheme.colorScheme.primary
-        else
-            MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }
+    // Opacity for distant letters (dimming effect)
+    val targetOpacity = when {
+        selectedIndex == null -> 1f
+        distance != null && distance <= 1 -> 1f
+        else -> AdaptiveScrollbarConfig.OPACITY_DISTANT
+    }
+
+    val opacity by animateFloatAsState(
+        targetValue = targetOpacity,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "letterOpacity"
     )
+
+    // Font weight based on selection
+    val fontWeight = when {
+        isSelected -> FontWeight.Bold
+        distance != null && distance == 1 -> FontWeight.Medium
+        else -> FontWeight.Normal
+    }
+
+    // Color based on selection
+    val color = if (isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    Box(
+        modifier = Modifier
+            .height(animatedHeight)
+            .onGloballyPositioned { coordinates ->
+                // Report center Y position relative to parent Column for hit detection
+                val posInParent = coordinates.positionInParent()
+                val centerY = posInParent.y + coordinates.size.height / 2f
+                onPositionMeasured(centerY)
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = letter.toString(),
+            fontSize = fontSizeSp.sp,
+            fontWeight = fontWeight,
+            color = color,
+            modifier = Modifier
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = opacity
+                }
+        )
+    }
 }

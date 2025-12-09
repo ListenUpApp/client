@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext traffic for localhost development -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">127.0.0.1</domain>
-        <domain includeSubdomains="true">10.0.2.2</domain> <!-- Android emulator host -->
-    </domain-config>
+    <!--
+        Allow cleartext (HTTP) traffic to all hosts.
+        Users may self-host without HTTPS on local networks, Tailscale, etc.
+        The app will prefer HTTPS when available but won't block HTTP.
+    -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
 </network-security-config>

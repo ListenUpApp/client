@@ -126,6 +126,7 @@ fun ContributorDetailScreen(
                 else -> {
                     ContributorDetailContent(
                         state = state,
+                        bookProgress = state.bookProgress,
                         onBookClick = onBookClick,
                         onViewAllClick = { role -> onViewAllClick(contributorId, role) }
                     )
@@ -141,6 +142,7 @@ fun ContributorDetailScreen(
 @Composable
 private fun ContributorDetailContent(
     state: ContributorDetailUiState,
+    bookProgress: Map<String, Float>,
     onBookClick: (String) -> Unit,
     onViewAllClick: (role: String) -> Unit
 ) {
@@ -169,6 +171,7 @@ private fun ContributorDetailContent(
         ) { section ->
             RoleSectionRow(
                 section = section,
+                bookProgress = bookProgress,
                 onBookClick = onBookClick,
                 onViewAllClick = { onViewAllClick(section.role) }
             )
@@ -247,6 +250,7 @@ private fun ContributorHeader(
 @Composable
 private fun RoleSectionRow(
     section: RoleSection,
+    bookProgress: Map<String, Float>,
     onBookClick: (String) -> Unit,
     onViewAllClick: () -> Unit
 ) {
@@ -299,6 +303,7 @@ private fun RoleSectionRow(
                 BookCard(
                     book = book,
                     onClick = { onBookClick(book.id.value) },
+                    progress = bookProgress[book.id.value],
                     modifier = Modifier.width(140.dp)
                 )
             }

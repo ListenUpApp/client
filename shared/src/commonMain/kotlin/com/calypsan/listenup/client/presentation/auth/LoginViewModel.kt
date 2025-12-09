@@ -113,21 +113,59 @@ class LoginViewModel(
 }
 
 /**
- * Convert exception to semantic error type.
+ * Convert exception to semantic error type with helpful details.
  */
 private fun Exception.toLoginErrorType(): LoginErrorType {
+    val msg = message?.lowercase() ?: ""
+    val causeMsg = cause?.message?.lowercase() ?: ""
+    val fullMsg = "$msg $causeMsg"
+
     return when {
-        message?.contains("invalid credentials", ignoreCase = true) == true ||
-                message?.contains("unauthorized", ignoreCase = true) == true ||
-                message?.contains("401", ignoreCase = true) == true ->
+        // Authentication errors
+        msg.contains("invalid credentials") ||
+        msg.contains("unauthorized") ||
+        msg.contains("401") ->
             LoginErrorType.InvalidCredentials
 
-        message?.contains("network", ignoreCase = true) == true ||
-                message?.contains("connection", ignoreCase = true) == true ->
-            LoginErrorType.NetworkError
+        // Connection refused - server not running or wrong port
+        fullMsg.contains("connection refused") ||
+        fullMsg.contains("econnrefused") ->
+            LoginErrorType.NetworkError("Connection refused. Is the server running?")
 
-        else -> LoginErrorType.ServerError
+        // Connection timeout
+        fullMsg.contains("timeout") ||
+        fullMsg.contains("timed out") ->
+            LoginErrorType.NetworkError("Connection timed out. Check server address.")
+
+        // Host not found
+        fullMsg.contains("unable to resolve host") ||
+        fullMsg.contains("unknown host") ||
+        fullMsg.contains("no address associated") ->
+            LoginErrorType.NetworkError("Server not found. Check the address.")
+
+        // Generic network/connection issues
+        fullMsg.contains("network") ||
+        fullMsg.contains("connect") ||
+        fullMsg.contains("socket") ||
+        fullMsg.contains("ioexception") ->
+            LoginErrorType.NetworkError(cause?.message ?: message)
+
+        // HTTP errors
+        fullMsg.contains("500") || fullMsg.contains("502") ||
+        fullMsg.contains("503") || fullMsg.contains("504") ->
+            LoginErrorType.ServerError("Server error (${extractStatusCode(fullMsg)})")
+
+        // Unknown - include the actual error message
+        else -> LoginErrorType.ServerError(message ?: "Unknown error")
     }
+}
+
+/**
+ * Extract HTTP status code from error message if present.
+ */
+private fun extractStatusCode(msg: String): String {
+    val codes = listOf("500", "502", "503", "504", "400", "403", "404")
+    return codes.find { msg.contains(it) } ?: "unknown"
 }
 
 /**

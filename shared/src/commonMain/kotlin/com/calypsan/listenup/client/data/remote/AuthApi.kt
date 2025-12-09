@@ -27,23 +27,37 @@ import kotlinx.serialization.json.Json
  * don't require authentication headers. The auth plugin would interfere
  * with token refresh logic.
  *
+ * Reads server URL dynamically from SettingsRepository to support runtime
+ * URL changes (e.g., user connecting to a different server).
+ *
  * All endpoints return new tokens on success, following the server's
  * token rotation pattern (15min access, 30d refresh).
  */
-class AuthApi(private val serverUrl: ServerUrl) {
-    private val client = HttpClient {
-        install(ContentNegotiation) {
-            json(Json {
-                prettyPrint = false
-                isLenient = false
-                ignoreUnknownKeys = true
-            })
-        }
+class AuthApi(private val getServerUrl: suspend () -> ServerUrl?) {
+    private val json = Json {
+        prettyPrint = false
+        isLenient = false
+        ignoreUnknownKeys = true
+    }
 
-        defaultRequest {
-            url(serverUrl.value)
-            contentType(ContentType.Application.Json)
+    private fun createClient(serverUrl: ServerUrl): HttpClient {
+        return HttpClient {
+            install(ContentNegotiation) {
+                json(this@AuthApi.json)
+            }
+
+            defaultRequest {
+                url(serverUrl.value)
+                contentType(ContentType.Application.Json)
+            }
         }
+    }
+
+    /**
+     * Get server URL or throw if not configured.
+     */
+    private suspend fun requireServerUrl(): ServerUrl {
+        return getServerUrl() ?: throw IllegalStateException("Server URL not configured")
     }
 
     /**
@@ -60,13 +74,18 @@ class AuthApi(private val serverUrl: ServerUrl) {
      * @throws Exception on network errors or validation failures
      */
     suspend fun setup(email: String, password: String, firstName: String, lastName: String): AuthResponse {
-        val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/setup") {
-            setBody(SetupRequest(email, password, firstName, lastName))
-        }.body()
+        val client = createClient(requireServerUrl())
+        try {
+            val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/setup") {
+                setBody(SetupRequest(email, password, firstName, lastName))
+            }.body()
 
-        return when (val result = response.toResult()) {
-            is Success -> result.data
-            is Failure -> throw result.exception
+            return when (val result = response.toResult()) {
+                is Success -> result.data
+                is Failure -> throw result.exception
+            }
+        } finally {
+            client.close()
         }
     }
 
@@ -87,13 +106,18 @@ class AuthApi(private val serverUrl: ServerUrl) {
             deviceModel = getDeviceModel()
         )
 
-        val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/login") {
-            setBody(LoginRequest(email, password, deviceInfo))
-        }.body()
+        val client = createClient(requireServerUrl())
+        try {
+            val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/login") {
+                setBody(LoginRequest(email, password, deviceInfo))
+            }.body()
 
-        return when (val result = response.toResult()) {
-            is Success -> result.data
-            is Failure -> throw result.exception
+            return when (val result = response.toResult()) {
+                is Success -> result.data
+                is Failure -> throw result.exception
+            }
+        } finally {
+            client.close()
         }
     }
 
@@ -125,13 +149,18 @@ class AuthApi(private val serverUrl: ServerUrl) {
      * @throws Exception on network errors or invalid/expired refresh token
      */
     suspend fun refresh(refreshToken: RefreshToken): AuthResponse {
-        val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/refresh") {
-            setBody(RefreshRequest(refreshToken.value))
-        }.body()
+        val client = createClient(requireServerUrl())
+        try {
+            val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/refresh") {
+                setBody(RefreshRequest(refreshToken.value))
+            }.body()
 
-        return when (val result = response.toResult()) {
-            is Success -> result.data
-            is Failure -> throw result.exception
+            return when (val result = response.toResult()) {
+                is Success -> result.data
+                is Failure -> throw result.exception
+            }
+        } finally {
+            client.close()
         }
     }
 
@@ -142,17 +171,14 @@ class AuthApi(private val serverUrl: ServerUrl) {
      * Always succeeds even if tokens are already invalid.
      */
     suspend fun logout(sessionId: String) {
-        client.post("/api/v1/auth/logout") {
-            setBody(LogoutRequest(sessionId))
+        val client = createClient(requireServerUrl())
+        try {
+            client.post("/api/v1/auth/logout") {
+                setBody(LogoutRequest(sessionId))
+            }
+        } finally {
+            client.close()
         }
-    }
-
-    /**
-     * Close the HTTP client and release resources.
-     * Call this when the API instance is no longer needed.
-     */
-    fun close() {
-        client.close()
     }
 }
 

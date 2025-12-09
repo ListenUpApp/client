@@ -5,6 +5,8 @@ import com.calypsan.listenup.client.core.AndroidSecureStorage
 import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.data.local.images.AndroidImageStorage
 import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.data.repository.AndroidNetworkMonitor
+import com.calypsan.listenup.client.data.repository.NetworkMonitor
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -21,5 +23,10 @@ actual val platformStorageModule: Module = module {
     single<ImageStorage> {
         val context: Context = get()
         AndroidImageStorage(context)
+    }
+
+    single<NetworkMonitor> {
+        val context: Context = get()
+        AndroidNetworkMonitor(context)
     }
 }

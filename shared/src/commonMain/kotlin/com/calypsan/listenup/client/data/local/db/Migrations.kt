@@ -86,6 +86,30 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
 }
 
 /**
+ * Migration from version 3 to version 4.
+ *
+ * Bridge migration - no schema changes.
+ * Versions 3→4→5 were internal development versions that may exist
+ * on some devices. This migration ensures a clean upgrade path.
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(connection: SQLiteConnection) {
+        // No schema changes - bridge migration only
+    }
+}
+
+/**
+ * Migration from version 4 to version 5.
+ *
+ * Bridge migration - no schema changes.
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(connection: SQLiteConnection) {
+        // No schema changes - bridge migration only
+    }
+}
+
+/**
  * Migration from version 5 to version 6.
  *
  * Changes:
@@ -184,6 +208,56 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("""
             ALTER TABLE books ADD COLUMN subtitle TEXT DEFAULT NULL
+        """.trimIndent())
+    }
+}
+
+/**
+ * Migration from version 8 to version 9.
+ *
+ * Changes:
+ * - Add FTS5 virtual tables for full-text search
+ * - books_fts, contributors_fts, series_fts
+ *
+ * Note: Using FTS5 for better ranking (bm25) and modern features.
+ * Tables are standalone (not external content) for simpler sync.
+ * Porter tokenizer enables stemming (e.g., "running" matches "run").
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(connection: SQLiteConnection) {
+        // Create books FTS5 table
+        connection.execSQL("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS books_fts USING fts5(
+                bookId,
+                title,
+                subtitle,
+                description,
+                author,
+                narrator,
+                seriesName,
+                genres,
+                tokenize='porter'
+            )
+        """.trimIndent())
+
+        // Create contributors FTS5 table
+        connection.execSQL("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS contributors_fts USING fts5(
+                contributorId,
+                name,
+                description,
+                tokenize='porter'
+            )
+        """.trimIndent())
+
+        // Create series FTS5 table
+        connection.execSQL("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS series_fts USING fts5(
+                seriesId,
+                name,
+                description,
+                tokenize='porter'
+            )
         """.trimIndent())
     }
 }

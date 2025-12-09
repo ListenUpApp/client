@@ -3,8 +3,10 @@ package com.calypsan.listenup.client.presentation.contributor_detail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Contributor
@@ -26,7 +28,8 @@ import kotlinx.coroutines.launch
 class ContributorDetailViewModel(
     private val contributorDao: ContributorDao,
     private val bookDao: BookDao,
-    private val imageStorage: ImageStorage
+    private val imageStorage: ImageStorage,
+    private val playbackPositionDao: PlaybackPositionDao
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ContributorDetailUiState())
@@ -59,10 +62,15 @@ class ContributorDetailViewModel(
                     )
                 }
 
+                // Load progress for all preview books across all sections
+                val allPreviewBooks = roleSections.flatMap { it.previewBooks }
+                val bookProgress = loadProgressForBooks(allPreviewBooks)
+
                 _state.value = ContributorDetailUiState(
                     isLoading = false,
                     contributor = contributor,
                     roleSections = roleSections,
+                    bookProgress = bookProgress,
                     error = null
                 )
             }
@@ -74,6 +82,22 @@ class ContributorDetailViewModel(
         return bookDao.observeByContributorAndRole(contributorId, role)
             .first()
             .map { bwc -> bwc.toDomain() }
+    }
+
+    /**
+     * Load progress for a list of books.
+     * Returns a map of bookId -> progress (0.0-1.0).
+     */
+    private suspend fun loadProgressForBooks(books: List<Book>): Map<String, Float> {
+        return books.mapNotNull { book ->
+            val position = playbackPositionDao.get(BookId(book.id.value))
+            if (position != null && book.duration > 0) {
+                val progress = (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
+                if (progress > 0f && progress < 0.99f) {
+                    book.id.value to progress
+                } else null
+            } else null
+        }.toMap()
     }
 
     private fun com.calypsan.listenup.client.data.local.db.BookWithContributors.toDomain(): Book {
@@ -100,9 +124,7 @@ class ContributorDetailViewModel(
             authors = authors,
             narrators = narrators,
             duration = book.totalDuration,
-            coverPath = book.coverUrl?.let {
-                if (imageStorage.exists(book.id)) imageStorage.getCoverPath(book.id) else null
-            },
+            coverPath = if (imageStorage.exists(book.id)) imageStorage.getCoverPath(book.id) else null,
             addedAt = book.createdAt,
             updatedAt = book.updatedAt,
             description = book.description,
@@ -142,6 +164,7 @@ data class ContributorDetailUiState(
     val isLoading: Boolean = false,
     val contributor: ContributorEntity? = null,
     val roleSections: List<RoleSection> = emptyList(),
+    val bookProgress: Map<String, Float> = emptyMap(),
     val error: String? = null
 )
 

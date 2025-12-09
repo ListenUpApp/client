@@ -68,6 +68,21 @@ class PlaybackService : MediaSessionService() {
     private val currentBookId: BookId?
         get() = playbackManager.currentBookId.value
 
+    /**
+     * Get the current book-relative position.
+     *
+     * ExoPlayer tracks position within the current file, but we need position
+     * relative to the entire book for progress tracking. The PlaybackTimeline
+     * handles this translation.
+     *
+     * @return Book-relative position in milliseconds, or 0 if unavailable
+     */
+    private fun getBookRelativePosition(): Long {
+        val player = player ?: return 0L
+        val timeline = playbackManager.currentTimeline.value ?: return player.currentPosition
+        return timeline.toBookPosition(player.currentMediaItemIndex, player.currentPosition)
+    }
+
     companion object {
         // Idle timeout tiers
         private val IDLE_TIMEOUT_SHORT = 30.minutes    // After natural pause
@@ -179,7 +194,7 @@ class PlaybackService : MediaSessionService() {
 
         progressTracker.onPlaybackPaused(
             bookId = bookId,
-            positionMs = player.currentPosition,
+            positionMs = getBookRelativePosition(),
             speed = player.playbackParameters.speed
         )
     }
@@ -211,7 +226,7 @@ class PlaybackService : MediaSessionService() {
                 if (player.isPlaying) {
                     progressTracker.onPositionUpdate(
                         bookId = bookId,
-                        positionMs = player.currentPosition,
+                        positionMs = getBookRelativePosition(),
                         speed = player.playbackParameters.speed
                     )
                 }
@@ -265,7 +280,7 @@ class PlaybackService : MediaSessionService() {
                 if (bookId != null && player != null) {
                     progressTracker.onPlaybackStarted(
                         bookId = bookId,
-                        positionMs = player.currentPosition,
+                        positionMs = getBookRelativePosition(),
                         speed = player.playbackParameters.speed
                     )
                 }
@@ -275,7 +290,7 @@ class PlaybackService : MediaSessionService() {
                 if (bookId != null && player != null) {
                     progressTracker.onPlaybackPaused(
                         bookId = bookId,
-                        positionMs = player.currentPosition,
+                        positionMs = getBookRelativePosition(),
                         speed = player.playbackParameters.speed
                     )
                 }

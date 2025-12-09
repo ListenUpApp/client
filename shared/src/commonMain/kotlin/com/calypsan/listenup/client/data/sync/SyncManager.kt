@@ -11,6 +11,7 @@ import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Syncable
 import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.SyncApi
@@ -41,6 +42,7 @@ private val logger = KotlinLogging.logger {}
  * - Pull changes from server (delta sync)
  * - Merge into local database (detect conflicts)
  * - Download cover images for books
+ * - Rebuild FTS tables for offline search
  * - Push local changes to server (future)
  * - Handle real-time SSE events for live updates
  * - Expose sync state to UI with progress reporting
@@ -50,7 +52,8 @@ private val logger = KotlinLogging.logger {}
  * 2. Upsert into Room database (conflict detection on serverVersion)
  * 3. Download cover images for new/updated books
  * 4. Update last sync timestamp
- * 5. Listen for SSE events and apply updates in real-time
+ * 5. Rebuild FTS tables for offline search
+ * 6. Listen for SSE events and apply updates in real-time
  *
  * Reliability features:
  * - Retry with exponential backoff on transient failures
@@ -63,6 +66,7 @@ private val logger = KotlinLogging.logger {}
  * @property syncDao Room DAO for sync metadata
  * @property imageDownloader Downloads and caches book cover images
  * @property sseManager Handles real-time Server-Sent Events
+ * @property ftsPopulator Populates FTS5 tables for offline search
  */
 class SyncManager(
     private val syncApi: SyncApi,
@@ -75,6 +79,7 @@ class SyncManager(
     private val imageDownloader: ImageDownloader,
     private val sseManager: SSEManager,
     private val settingsRepository: SettingsRepository,
+    private val ftsPopulator: FtsPopulator,
     /**
      * Application-scoped CoroutineScope for background tasks.
      *
@@ -144,7 +149,15 @@ class SyncManager(
             val now = Timestamp.now()
             syncDao.setLastSyncTime(now)
 
-            // Step 4: Connect to SSE stream for real-time updates (if not already connected)
+            // Step 4: Rebuild FTS tables for offline search
+            try {
+                ftsPopulator.rebuildAll()
+            } catch (e: Exception) {
+                // FTS rebuild failure is non-fatal - offline search may be stale but app works
+                logger.warn(e) { "FTS rebuild failed, offline search may be incomplete" }
+            }
+
+            // Step 5: Connect to SSE stream for real-time updates (if not already connected)
             sseManager.connect()
 
             logger.info { "Sync completed successfully" }
@@ -158,14 +171,33 @@ class SyncManager(
             logger.error(e) { "Sync failed after retries" }
             _syncState.value = SyncStatus.Error(exception = e)
 
-            // Check if this is a connection error indicating server is unreachable
+            // Offline-first: Don't redirect to server setup on network errors.
+            // The user can continue using cached data. Sync will retry later.
             if (isServerUnreachableError(e)) {
-                logger.warn { "Server appears unreachable, redirecting to server setup" }
-                settingsRepository.handleServerUnreachable()
+                logger.warn { "Server unreachable - continuing with local data" }
             }
 
             Result.Failure(exception = e, message = "Sync failed: ${e.message}")
         }
+    }
+
+    /**
+     * Force a full sync by clearing the sync checkpoint and re-syncing.
+     *
+     * This is useful when:
+     * - Books are missing audioFilesJson (playback shows 0:00 duration)
+     * - Database corruption is suspected
+     * - User wants to refresh all data from server
+     *
+     * Unlike regular sync(), this always fetches ALL data from server,
+     * not just changes since the last sync.
+     *
+     * @return Result indicating sync success or failure
+     */
+    suspend fun forceFullSync(): Result<Unit> {
+        logger.info { "Forcing full sync - clearing sync checkpoint" }
+        syncDao.clearLastSyncTime()
+        return sync()
     }
 
     /**
@@ -303,6 +335,8 @@ class SyncManager(
         serverBooks: List<BookEntity>,
         response: com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
     ) {
+        logger.info { "processServerBooks: received ${serverBooks.size} books from server" }
+
         // Detect and mark conflicts (server newer than local changes)
         val conflicts = detectConflicts(serverBooks)
         conflicts.forEach { (bookId, serverVersion) ->
@@ -312,8 +346,10 @@ class SyncManager(
 
         // Filter out books with local changes that are newer than server
         val booksToUpsert = serverBooks.filterNot { shouldPreserveLocalChanges(it) }
+        logger.info { "processServerBooks: ${booksToUpsert.size} books to upsert (after filtering)" }
 
         if (booksToUpsert.isEmpty()) {
+            logger.info { "processServerBooks: no books to upsert, skipping cover downloads" }
             return
         }
 
@@ -324,7 +360,6 @@ class SyncManager(
         val chaptersToUpsert = response.books
             .filter { bookResponse -> booksToUpsert.any { it.id.value == bookResponse.id } }
             .flatMap { bookResponse ->
-                logger.debug { "Book ${bookResponse.id} has ${bookResponse.chapters.size} chapters from server" }
                 bookResponse.chapters.mapIndexed { index, chapter ->
                     chapter.toEntity(BookId(bookResponse.id), index)
                 }
@@ -356,8 +391,10 @@ class SyncManager(
 
         // Download cover images for updated books (background/parallel)
         val updatedBookIds = booksToUpsert.map { it.id }
+        logger.info { "processServerBooks: scheduling cover downloads for ${updatedBookIds.size} books" }
         if (updatedBookIds.isNotEmpty()) {
             scope.launch {
+                logger.info { "Starting cover downloads for ${updatedBookIds.size} books..." }
                 val downloadedBookIds = imageDownloader.downloadCovers(updatedBookIds)
 
                 // Touch books that got new covers to trigger UI refresh

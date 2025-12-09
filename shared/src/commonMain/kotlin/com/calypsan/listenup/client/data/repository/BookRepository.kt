@@ -204,9 +204,7 @@ class BookRepository(
             narrators = narrators,
             allContributors = allContributors,
             duration = this.totalDuration,
-            coverPath = this.coverUrl?.let {
-                if (imageStorage.exists(this.id)) imageStorage.getCoverPath(this.id) else null
-            },
+            coverPath = if (imageStorage.exists(this.id)) imageStorage.getCoverPath(this.id) else null,
             addedAt = this.createdAt,
             updatedAt = this.updatedAt,
             description = this.description,

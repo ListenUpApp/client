@@ -26,43 +26,63 @@ val GoogleSans = FontFamily(
 )
 
 /**
+ * Condensed display variant for headlines.
+ * Slightly tighter width (95f) creates a premium, editorial feel.
+ * Used for display and headline styles to establish visual hierarchy.
+ */
+@OptIn(ExperimentalTextApi::class)
+val GoogleSansDisplay = FontFamily(
+    Font(
+        resId = R.font.google_sans,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(600),
+            FontVariation.width(95f)
+        )
+    )
+)
+
+/**
  * ListenUp typography system using Google Sans Flex.
  * Follows Material 3 Expressive type scale with custom font.
  */
 val ListenUpTypography = Typography(
-    // Display - Hero text, large headlines
+    // Display - Hero text, large headlines (condensed for editorial feel)
     displayLarge = TextStyle(
-        fontFamily = GoogleSans,
+        fontFamily = GoogleSansDisplay,
         fontWeight = FontWeight.Bold,
         fontSize = 57.sp,
         lineHeight = 64.sp,
         letterSpacing = (-0.25).sp
     ),
     displayMedium = TextStyle(
-        fontFamily = GoogleSans,
+        fontFamily = GoogleSansDisplay,
         fontWeight = FontWeight.Bold,
         fontSize = 45.sp,
-        lineHeight = 52.sp
+        lineHeight = 52.sp,
+        letterSpacing = (-0.25).sp
     ),
 
-    // Headline - Screen titles, section headers
+    // Headline - Screen titles, section headers (standard width, tight tracking for editorial feel)
     headlineLarge = TextStyle(
         fontFamily = GoogleSans,
         fontWeight = FontWeight.SemiBold,
         fontSize = 32.sp,
-        lineHeight = 40.sp
+        lineHeight = 40.sp,
+        letterSpacing = (-0.5).sp
     ),
     headlineMedium = TextStyle(
         fontFamily = GoogleSans,
         fontWeight = FontWeight.SemiBold,
         fontSize = 28.sp,
-        lineHeight = 36.sp
+        lineHeight = 36.sp,
+        letterSpacing = (-0.3).sp
     ),
     headlineSmall = TextStyle(
         fontFamily = GoogleSans,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Medium,
         fontSize = 24.sp,
-        lineHeight = 32.sp
+        lineHeight = 32.sp,
+        letterSpacing = (-0.2).sp
     ),
 
     // Title - List items, card headers

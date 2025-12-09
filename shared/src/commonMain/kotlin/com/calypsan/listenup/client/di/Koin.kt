@@ -6,11 +6,17 @@ import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.ImageApi
+import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SyncApi
+import com.calypsan.listenup.client.data.remote.TagApi
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
 import com.calypsan.listenup.client.data.repository.BookRepository
+import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
+import com.calypsan.listenup.client.data.repository.NetworkMonitor
+import com.calypsan.listenup.client.data.repository.SearchRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.sync.FtsPopulator
 import com.calypsan.listenup.client.data.sync.ImageDownloader
 import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.data.sync.SyncManager
@@ -54,9 +60,10 @@ val dataModule = module {
  */
 val networkModule = module {
     // AuthApi - handles login, logout, and token refresh
-    // Uses default base URL initially; can be recreated when server URL changes
+    // Gets server URL dynamically from SettingsRepository
     single {
-        AuthApi(serverUrl = ServerUrl(getBaseUrl()))
+        val settingsRepository: SettingsRepository = get()
+        AuthApi(getServerUrl = { settingsRepository.getServerUrl() })
     }
 
     // ApiClientFactory - creates authenticated HTTP clients with auto-refresh
@@ -112,6 +119,7 @@ val repositoryModule = module {
     single { get<ListenUpDatabase>().playbackPositionDao() }
     single { get<ListenUpDatabase>().pendingListeningEventDao() }
     single { get<ListenUpDatabase>().downloadDao() }
+    single { get<ListenUpDatabase>().searchDao() }
 }
 
 /**
@@ -149,12 +157,15 @@ val presentationModule = module {
             contributorDao = get(),
             syncManager = get(),
             settingsRepository = get(),
-            syncDao = get()
+            syncDao = get(),
+            playbackPositionDao = get()
         )
     }
     factory {
         com.calypsan.listenup.client.presentation.book_detail.BookDetailViewModel(
-            bookRepository = get()
+            bookRepository = get(),
+            tagApi = get(),
+            playbackPositionDao = get()
         )
     }
     factory {
@@ -167,14 +178,26 @@ val presentationModule = module {
         com.calypsan.listenup.client.presentation.contributor_detail.ContributorDetailViewModel(
             contributorDao = get(),
             bookDao = get(),
-            imageStorage = get()
+            imageStorage = get(),
+            playbackPositionDao = get()
         )
     }
     factory {
         com.calypsan.listenup.client.presentation.contributor_detail.ContributorBooksViewModel(
             contributorDao = get(),
             bookDao = get(),
-            imageStorage = get()
+            imageStorage = get(),
+            playbackPositionDao = get()
+        )
+    }
+    factory {
+        com.calypsan.listenup.client.presentation.home.HomeViewModel(
+            homeRepository = get()
+        )
+    }
+    factory {
+        com.calypsan.listenup.client.presentation.search.SearchViewModel(
+            searchRepository = get()
         )
     }
 }
@@ -222,6 +245,26 @@ val syncModule = module {
         )
     }
 
+    // SearchApi for server-side search
+    single {
+        SearchApi(clientFactory = get())
+    }
+
+    // TagApi for user tag operations
+    single {
+        TagApi(clientFactory = get())
+    }
+
+    // FtsPopulator for rebuilding FTS tables after sync
+    single {
+        FtsPopulator(
+            bookDao = get(),
+            contributorDao = get(),
+            seriesDao = get(),
+            searchDao = get()
+        )
+    }
+
     // SyncManager orchestrates sync operations
     single {
         SyncManager(
@@ -235,7 +278,18 @@ val syncModule = module {
             imageDownloader = get(),
             sseManager = get(),
             settingsRepository = get(),
+            ftsPopulator = get(),
             scope = get(qualifier = org.koin.core.qualifier.named("appScope"))
+        )
+    }
+
+    // SearchRepository for offline-first search
+    single {
+        SearchRepository(
+            searchApi = get(),
+            searchDao = get(),
+            imageStorage = get(),
+            networkMonitor = get()
         )
     }
 
@@ -246,6 +300,15 @@ val syncModule = module {
             chapterDao = get(),
             syncManager = get(),
             imageStorage = get()
+        )
+    }
+
+    // HomeRepository for Home screen data (local-first)
+    single {
+        HomeRepository(
+            bookRepository = get(),
+            playbackPositionDao = get(),
+            userDao = get()
         )
     }
 }

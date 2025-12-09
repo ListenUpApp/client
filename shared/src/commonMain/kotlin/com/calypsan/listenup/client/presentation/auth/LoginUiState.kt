@@ -46,14 +46,16 @@ sealed interface LoginErrorType {
     data object InvalidCredentials : LoginErrorType
 
     /**
-     * Network connection error.
+     * Network connection error (can't reach server).
+     * @property detail Additional context about the connection failure
      */
-    data object NetworkError : LoginErrorType
+    data class NetworkError(val detail: String? = null) : LoginErrorType
 
     /**
      * Server returned an error (500, etc).
+     * @property detail Additional context about the server error
      */
-    data object ServerError : LoginErrorType
+    data class ServerError(val detail: String? = null) : LoginErrorType
 
     /**
      * Client-side validation error on a specific field.
