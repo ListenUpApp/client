@@ -11,6 +11,7 @@ import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Syncable
 import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.SyncApi
@@ -178,6 +179,25 @@ class SyncManager(
 
             Result.Failure(exception = e, message = "Sync failed: ${e.message}")
         }
+    }
+
+    /**
+     * Force a full sync by clearing the sync checkpoint and re-syncing.
+     *
+     * This is useful when:
+     * - Books are missing audioFilesJson (playback shows 0:00 duration)
+     * - Database corruption is suspected
+     * - User wants to refresh all data from server
+     *
+     * Unlike regular sync(), this always fetches ALL data from server,
+     * not just changes since the last sync.
+     *
+     * @return Result indicating sync success or failure
+     */
+    suspend fun forceFullSync(): Result<Unit> {
+        logger.info { "Forcing full sync - clearing sync checkpoint" }
+        syncDao.clearLastSyncTime()
+        return sync()
     }
 
     /**

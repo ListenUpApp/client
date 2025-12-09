@@ -86,6 +86,30 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
 }
 
 /**
+ * Migration from version 3 to version 4.
+ *
+ * Bridge migration - no schema changes.
+ * Versions 3→4→5 were internal development versions that may exist
+ * on some devices. This migration ensures a clean upgrade path.
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(connection: SQLiteConnection) {
+        // No schema changes - bridge migration only
+    }
+}
+
+/**
+ * Migration from version 4 to version 5.
+ *
+ * Bridge migration - no schema changes.
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(connection: SQLiteConnection) {
+        // No schema changes - bridge migration only
+    }
+}
+
+/**
  * Migration from version 5 to version 6.
  *
  * Changes:
