@@ -137,6 +137,7 @@ fun AuthorsContent(
             )
 
             // Alphabet scrollbar (only for name sort)
+            // Anchored to TopEnd so it stays fixed relative to content start
             if (alphabetIndex != null) {
                 AlphabetScrollbar(
                     alphabetIndex = alphabetIndex,
@@ -147,8 +148,8 @@ fun AuthorsContent(
                     },
                     isScrolling = isScrolling,
                     modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .padding(end = 4.dp, bottom = MiniPlayerReservedHeight)
+                        .align(Alignment.TopEnd)
+                        .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight)
                 )
             }
         }

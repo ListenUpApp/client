@@ -250,9 +250,9 @@ private fun BookGrid(
                     }
                 }
                 if (letterPositions.isNotEmpty()) {
-                    // Sort letters: alphabetic first, then non-alphabetic
+                    // Sort: non-letters (#) first, then alphabetically
                     val letters = letterPositions.keys
-                        .sortedWith(compareBy({ !it.isLetter() }, { it }))
+                        .sortedWith(compareBy({ it.isLetter() }, { it }))
                     AlphabetIndex(letters, letterPositions)
                 } else {
                     null
@@ -349,6 +349,8 @@ private fun BookGrid(
         }
 
         // Alphabet scrollbar (only for text-based sorts)
+        // Anchored to TopEnd so it stays fixed relative to content start,
+        // regardless of header collapse state
         if (alphabetIndex != null) {
             AlphabetScrollbar(
                 alphabetIndex = alphabetIndex,
@@ -357,8 +359,8 @@ private fun BookGrid(
                 },
                 isScrolling = isScrolling,
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 4.dp, bottom = MiniPlayerReservedHeight)
+                    .align(Alignment.TopEnd)
+                    .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight)
             )
         }
     }
