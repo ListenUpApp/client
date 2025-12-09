@@ -5,18 +5,24 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -42,7 +48,120 @@ import com.calypsan.listenup.client.features.library.BookCard
 import com.calypsan.listenup.client.features.nowplaying.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
+import com.calypsan.listenup.client.util.sortLetter
 import kotlinx.coroutines.launch
+
+/**
+ * Represents an item in the book grid - either a section header or a book.
+ */
+private sealed class BookGridItem {
+    data class Header(val letter: Char) : BookGridItem()
+    data class BookItem(val book: Book) : BookGridItem()
+}
+
+/**
+ * Groups books with section headers based on the current sort category.
+ * Only adds headers for text-based sorts (Title, Author, Series).
+ *
+ * @param ignoreArticles When true and sorting by title, uses article-aware
+ *                       sorting (A, An, The ignored), affecting which letter
+ *                       each book groups under.
+ */
+private fun groupBooksWithHeaders(
+    books: List<Book>,
+    sortState: SortState,
+    ignoreArticles: Boolean
+): List<BookGridItem> {
+    // For numeric/date sorts, no headers
+    val isTextSort = sortState.category in listOf(
+        SortCategory.TITLE,
+        SortCategory.AUTHOR,
+        SortCategory.SERIES
+    )
+    if (!isTextSort) {
+        return books.map { BookGridItem.BookItem(it) }
+    }
+
+    val result = mutableListOf<BookGridItem>()
+    var currentLetter: Char? = null
+
+    for (book in books) {
+        val letter = when (sortState.category) {
+            // Title sort uses article-aware letter extraction
+            SortCategory.TITLE -> book.title.sortLetter(ignoreArticles)
+            // Other text sorts use literal first letter
+            SortCategory.AUTHOR -> {
+                val first = book.authorNames.firstOrNull()?.uppercaseChar() ?: '#'
+                if (first.isLetter()) first else '#'
+            }
+            SortCategory.SERIES -> {
+                val first = book.seriesName?.firstOrNull()?.uppercaseChar() ?: '#'
+                if (first.isLetter()) first else '#'
+            }
+            else -> '#'
+        }
+
+        if (letter != currentLetter) {
+            result.add(BookGridItem.Header(letter))
+            currentLetter = letter
+        }
+        result.add(BookGridItem.BookItem(book))
+    }
+
+    return result
+}
+
+/**
+ * Section header displaying a letter divider in the book grid.
+ */
+@Composable
+private fun SectionHeader(
+    letter: Char,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 4.dp)
+    ) {
+        Text(
+            text = letter.toString(),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant,
+            thickness = 1.dp,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+}
+
+/**
+ * Toggle chip for article-aware title sorting.
+ *
+ * When enabled, leading articles (A, An, The) are ignored when sorting by title.
+ * "The Alchemist" sorts under "A", not "T".
+ */
+@Composable
+private fun ArticleToggleChip(
+    enabled: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FilterChip(
+        selected = enabled,
+        onClick = onToggle,
+        label = {
+            Text(
+                text = "Aa",
+                style = MaterialTheme.typography.labelLarge
+            )
+        },
+        modifier = modifier
+    )
+}
 
 /**
  * Content for the Books tab in the Library screen.
@@ -50,8 +169,10 @@ import kotlinx.coroutines.launch
  * @param books List of books to display
  * @param syncState Current sync status for loading/error states
  * @param sortState Current sort state (category + direction)
+ * @param ignoreTitleArticles Whether to ignore articles (A, An, The) when sorting by title
  * @param onCategorySelected Called when user selects a new category
  * @param onDirectionToggle Called when user toggles sort direction
+ * @param onToggleIgnoreArticles Called when user toggles article handling
  * @param onBookClick Callback when a book is clicked
  * @param onRetry Callback when retry is clicked in error state
  * @param modifier Optional modifier
@@ -61,8 +182,10 @@ fun BooksContent(
     books: List<Book>,
     syncState: SyncStatus,
     sortState: SortState,
+    ignoreTitleArticles: Boolean,
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
+    onToggleIgnoreArticles: () -> Unit,
     onBookClick: (String) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier
@@ -82,8 +205,10 @@ fun BooksContent(
                 BookGrid(
                     books = books,
                     sortState = sortState,
+                    ignoreTitleArticles = ignoreTitleArticles,
                     onCategorySelected = onCategorySelected,
                     onDirectionToggle = onDirectionToggle,
+                    onToggleIgnoreArticles = onToggleIgnoreArticles,
                     onBookClick = onBookClick
                 )
             }
@@ -98,20 +223,41 @@ fun BooksContent(
 private fun BookGrid(
     books: List<Book>,
     sortState: SortState,
+    ignoreTitleArticles: Boolean,
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
+    onToggleIgnoreArticles: () -> Unit,
     onBookClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val gridState = rememberLazyGridState()
     val scope = rememberCoroutineScope()
 
-    // Build alphabet index based on current sort category
-    val alphabetIndex = remember(books, sortState) {
+    // Group books with section headers for text-based sorts
+    val gridItems = remember(books, sortState, ignoreTitleArticles) {
+        groupBooksWithHeaders(books, sortState, ignoreTitleArticles)
+    }
+
+    // Build alphabet index based on current sort category, accounting for headers
+    val alphabetIndex = remember(gridItems, sortState) {
         when (sortState.category) {
-            SortCategory.TITLE -> AlphabetIndex.build(books) { it.title }
-            SortCategory.AUTHOR -> AlphabetIndex.build(books) { it.authorNames }
-            SortCategory.SERIES -> AlphabetIndex.build(books) { it.seriesName ?: "\uFFFF" }
+            SortCategory.TITLE, SortCategory.AUTHOR, SortCategory.SERIES -> {
+                // Map letters to their header positions in the grid
+                val letterPositions = mutableMapOf<Char, Int>()
+                gridItems.forEachIndexed { index, item ->
+                    if (item is BookGridItem.Header) {
+                        letterPositions[item.letter] = index
+                    }
+                }
+                if (letterPositions.isNotEmpty()) {
+                    // Sort letters: alphabetic first, then non-alphabetic
+                    val letters = letterPositions.keys
+                        .sortedWith(compareBy({ !it.isLetter() }, { it }))
+                    AlphabetIndex(letters, letterPositions)
+                } else {
+                    null
+                }
+            }
             else -> null // Numeric sorts don't benefit from alphabet navigation
         }
     }
@@ -147,26 +293,60 @@ private fun BookGrid(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            items(items = books, key = { it.id.value }) { book ->
-                BookCard(
-                    book = book,
-                    onClick = { onBookClick(book.id.value) },
-                    modifier = Modifier.animateItem()
-                )
+            items(
+                items = gridItems,
+                key = { gridItem ->
+                    when (gridItem) {
+                        is BookGridItem.Header -> "header-${gridItem.letter}"
+                        is BookGridItem.BookItem -> gridItem.book.id.value
+                    }
+                },
+                span = { gridItem ->
+                    when (gridItem) {
+                        is BookGridItem.Header -> GridItemSpan(maxLineSpan)
+                        is BookGridItem.BookItem -> GridItemSpan(1)
+                    }
+                }
+            ) { gridItem ->
+                when (gridItem) {
+                    is BookGridItem.Header -> {
+                        SectionHeader(letter = gridItem.letter)
+                    }
+                    is BookGridItem.BookItem -> {
+                        BookCard(
+                            book = gridItem.book,
+                            onClick = { onBookClick(gridItem.book.id.value) },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                }
             }
         }
 
-        // Sort split button
-        SortSplitButton(
-            state = sortState,
-            categories = SortCategory.booksCategories,
-            onCategorySelected = onCategorySelected,
-            onDirectionToggle = onDirectionToggle,
-            visible = showSortButton,
+        // Sort controls row
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(start = 16.dp, top = 8.dp)
-        )
+        ) {
+            SortSplitButton(
+                state = sortState,
+                categories = SortCategory.booksCategories,
+                onCategorySelected = onCategorySelected,
+                onDirectionToggle = onDirectionToggle,
+                visible = showSortButton
+            )
+
+            // Article toggle chip - only visible when sorting by Title
+            if (sortState.category == SortCategory.TITLE && showSortButton) {
+                Spacer(modifier = Modifier.width(8.dp))
+                ArticleToggleChip(
+                    enabled = ignoreTitleArticles,
+                    onToggle = onToggleIgnoreArticles
+                )
+            }
+        }
 
         // Alphabet scrollbar (only for text-based sorts)
         if (alphabetIndex != null) {

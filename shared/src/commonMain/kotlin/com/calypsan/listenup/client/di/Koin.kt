@@ -60,9 +60,10 @@ val dataModule = module {
  */
 val networkModule = module {
     // AuthApi - handles login, logout, and token refresh
-    // Uses default base URL initially; can be recreated when server URL changes
+    // Gets server URL dynamically from SettingsRepository
     single {
-        AuthApi(serverUrl = ServerUrl(getBaseUrl()))
+        val settingsRepository: SettingsRepository = get()
+        AuthApi(getServerUrl = { settingsRepository.getServerUrl() })
     }
 
     // ApiClientFactory - creates authenticated HTTP clients with auto-refresh

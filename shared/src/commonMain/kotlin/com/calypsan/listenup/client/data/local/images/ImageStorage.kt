@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.local.images
 
+import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
 
 /**

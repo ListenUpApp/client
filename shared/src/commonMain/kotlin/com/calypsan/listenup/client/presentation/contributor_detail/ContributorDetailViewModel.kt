@@ -100,9 +100,7 @@ class ContributorDetailViewModel(
             authors = authors,
             narrators = narrators,
             duration = book.totalDuration,
-            coverPath = book.coverUrl?.let {
-                if (imageStorage.exists(book.id)) imageStorage.getCoverPath(book.id) else null
-            },
+            coverPath = if (imageStorage.exists(book.id)) imageStorage.getCoverPath(book.id) else null,
             addedAt = book.createdAt,
             updatedAt = book.updatedAt,
             description = book.description,

@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.data.local.images
 
 import android.content.Context
+import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -24,11 +25,12 @@ class AndroidImageStorage(
     }
 
     override suspend fun saveCover(bookId: BookId, imageData: ByteArray): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             val file = getCoverFile(bookId)
             file.writeBytes(imageData)
-        }.onFailure { e ->
-            Result.failure<Unit>(IOException("Failed to save cover for book ${bookId.value}", e))
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Failure(IOException("Failed to save cover for book ${bookId.value}", e))
         }
     }
 
@@ -41,18 +43,19 @@ class AndroidImageStorage(
     }
 
     override suspend fun deleteCover(bookId: BookId): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             val file = getCoverFile(bookId)
             if (file.exists()) {
                 file.delete()
             }
-        }.onFailure { e ->
-            Result.failure<Unit>(IOException("Failed to delete cover for book ${bookId.value}", e))
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Failure(IOException("Failed to delete cover for book ${bookId.value}", e))
         }
     }
 
     override suspend fun clearAll(): Result<Int> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             val files = coversDir.listFiles() ?: emptyArray()
             var deletedCount = 0
             files.forEach { file ->
@@ -62,9 +65,9 @@ class AndroidImageStorage(
                     }
                 }
             }
-            deletedCount
-        }.onFailure { e ->
-            Result.failure<Int>(IOException("Failed to clear cover cache", e))
+            Result.Success(deletedCount)
+        } catch (e: Exception) {
+            Result.Failure(IOException("Failed to clear cover cache", e))
         }
     }
 

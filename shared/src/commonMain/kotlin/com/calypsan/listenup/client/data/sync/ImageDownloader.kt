@@ -37,30 +37,34 @@ class ImageDownloader(
     suspend fun downloadCover(bookId: BookId): Result<Boolean> {
         // Skip if already exists locally
         if (imageStorage.exists(bookId)) {
-            logger.debug { "Cover already exists locally for book ${bookId.value}" }
+            logger.info { "Cover already exists locally for book ${bookId.value}" }
             return Result.Success(false)
         }
+
+        logger.info { "Downloading cover for book ${bookId.value}..." }
 
         // Download from server
         val downloadResult = imageApi.downloadCover(bookId)
         if (downloadResult is Result.Failure) {
             // 404 is expected for books without covers - don't log as error
-            logger.debug { "Cover not available for book ${bookId.value}: ${downloadResult.exception.message}" }
+            logger.info { "Cover not available for book ${bookId.value}: ${downloadResult.exception.message}" }
             return Result.Success(false)
         }
 
         // Save to local storage
         val imageBytes = (downloadResult as Result.Success).data
+        logger.info { "Downloaded ${imageBytes.size} bytes for book ${bookId.value}, saving..." }
+
         val saveResult = imageStorage.saveCover(bookId, imageBytes)
 
         if (saveResult is Result.Failure) {
-            logger.warn(saveResult.exception) {
+            logger.error(saveResult.exception) {
                 "Failed to save cover for book ${bookId.value}"
             }
             return Result.Failure(saveResult.exception)
         }
 
-        logger.debug { "Successfully downloaded and saved cover for book ${bookId.value}" }
+        logger.info { "Successfully downloaded and saved cover for book ${bookId.value}" }
         return Result.Success(true)
     }
 

@@ -13,6 +13,7 @@ import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncStatus
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.util.sortableTitle
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -57,14 +58,19 @@ class LibraryViewModel(
     private val _narratorsSortState = MutableStateFlow(SortState.contributorDefault)
     val narratorsSortState: StateFlow<SortState> = _narratorsSortState.asStateFlow()
 
+    // Article handling for title sort (A, An, The)
+    private val _ignoreTitleArticles = MutableStateFlow(true)
+    val ignoreTitleArticles: StateFlow<Boolean> = _ignoreTitleArticles.asStateFlow()
+
     /**
      * Observable list of books, sorted by current sort state.
      */
     val books: StateFlow<List<Book>> = combine(
         bookRepository.observeBooks(),
-        _booksSortState
-    ) { books, sortState ->
-        sortBooks(books, sortState)
+        _booksSortState,
+        _ignoreTitleArticles
+    ) { books, sortState, ignoreArticles ->
+        sortBooks(books, sortState, ignoreArticles)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -121,7 +127,7 @@ class LibraryViewModel(
     private var hasPerformedInitialSync = false
 
     init {
-        // Load persisted sort states
+        // Load persisted sort states and preferences
         viewModelScope.launch {
             settingsRepository.getBooksSortState()?.let { key ->
                 SortState.fromPersistenceKey(key)?.let { _booksSortState.value = it }
@@ -135,6 +141,8 @@ class LibraryViewModel(
             settingsRepository.getNarratorsSortState()?.let { key ->
                 SortState.fromPersistenceKey(key)?.let { _narratorsSortState.value = it }
             }
+            // Load article handling preference
+            _ignoreTitleArticles.value = settingsRepository.getIgnoreTitleArticles()
         }
 
         logger.debug { "Initialized (auto-sync deferred until screen visible)" }
@@ -198,6 +206,17 @@ class LibraryViewModel(
             is LibraryUiEvent.NarratorsDirectionToggled -> updateNarratorsSortState(
                 _narratorsSortState.value.toggleDirection()
             )
+
+            // Title sort article handling
+            is LibraryUiEvent.ToggleIgnoreTitleArticles -> toggleIgnoreTitleArticles()
+        }
+    }
+
+    private fun toggleIgnoreTitleArticles() {
+        val newValue = !_ignoreTitleArticles.value
+        _ignoreTitleArticles.value = newValue
+        viewModelScope.launch {
+            settingsRepository.setIgnoreTitleArticles(newValue)
         }
     }
 
@@ -239,14 +258,14 @@ class LibraryViewModel(
 
     // Sorting helper functions
 
-    private fun sortBooks(books: List<Book>, state: SortState): List<Book> {
+    private fun sortBooks(books: List<Book>, state: SortState, ignoreArticles: Boolean): List<Book> {
         val isAsc = state.direction == SortDirection.ASCENDING
 
         return when (state.category) {
             SortCategory.TITLE -> if (isAsc) {
-                books.sortedBy { it.title.lowercase() }
+                books.sortedBy { it.title.sortableTitle(ignoreArticles) }
             } else {
-                books.sortedByDescending { it.title.lowercase() }
+                books.sortedByDescending { it.title.sortableTitle(ignoreArticles) }
             }
 
             SortCategory.AUTHOR -> if (isAsc) {
@@ -366,6 +385,7 @@ sealed interface LibraryUiEvent {
     // Books tab
     data class BooksCategoryChanged(val category: SortCategory) : LibraryUiEvent
     data object BooksDirectionToggled : LibraryUiEvent
+    data object ToggleIgnoreTitleArticles : LibraryUiEvent
 
     // Series tab
     data class SeriesCategoryChanged(val category: SortCategory) : LibraryUiEvent

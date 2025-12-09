@@ -315,6 +315,8 @@ class SyncManager(
         serverBooks: List<BookEntity>,
         response: com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
     ) {
+        logger.info { "processServerBooks: received ${serverBooks.size} books from server" }
+
         // Detect and mark conflicts (server newer than local changes)
         val conflicts = detectConflicts(serverBooks)
         conflicts.forEach { (bookId, serverVersion) ->
@@ -324,8 +326,10 @@ class SyncManager(
 
         // Filter out books with local changes that are newer than server
         val booksToUpsert = serverBooks.filterNot { shouldPreserveLocalChanges(it) }
+        logger.info { "processServerBooks: ${booksToUpsert.size} books to upsert (after filtering)" }
 
         if (booksToUpsert.isEmpty()) {
+            logger.info { "processServerBooks: no books to upsert, skipping cover downloads" }
             return
         }
 
@@ -367,8 +371,10 @@ class SyncManager(
 
         // Download cover images for updated books (background/parallel)
         val updatedBookIds = booksToUpsert.map { it.id }
+        logger.info { "processServerBooks: scheduling cover downloads for ${updatedBookIds.size} books" }
         if (updatedBookIds.isNotEmpty()) {
             scope.launch {
+                logger.info { "Starting cover downloads for ${updatedBookIds.size} books..." }
                 val downloadedBookIds = imageDownloader.downloadCovers(updatedBookIds)
 
                 // Touch books that got new covers to trigger UI refresh

@@ -40,18 +40,30 @@ class SettingsRepository(
         private const val KEY_SORT_SERIES = "sort_series"
         private const val KEY_SORT_AUTHORS = "sort_authors"
         private const val KEY_SORT_NARRATORS = "sort_narrators"
+
+        // Title sort article handling
+        private const val KEY_IGNORE_TITLE_ARTICLES = "ignore_title_articles"
     }
 
     // Server configuration
 
     /**
      * Set the server URL for API requests.
-     * This is persisted across app restarts and triggers auth state re-derivation.
+     * This is persisted across app restarts and checks server status to determine
+     * if setup (root user creation) is needed.
      */
     suspend fun setServerUrl(url: ServerUrl) {
         secureStorage.save(KEY_SERVER_URL, url.value)
-        // Re-derive state after URL change
-        _authState.value = deriveAuthState()
+        // Check if we already have tokens (returning user)
+        val hasToken = getAccessToken() != null
+        if (hasToken) {
+            // Trust local tokens - derive state from stored data
+            _authState.value = deriveAuthState()
+        } else {
+            // No tokens - need to check server to determine if setup is required
+            // This is the first time connecting, so check if server has users
+            checkServerStatus()
+        }
     }
 
     /**
@@ -338,5 +350,22 @@ class SettingsRepository(
      */
     suspend fun setNarratorsSortState(persistenceKey: String) {
         secureStorage.save(KEY_SORT_NARRATORS, persistenceKey)
+    }
+
+    // Title sort article handling
+
+    /**
+     * Get whether to ignore leading articles (A, An, The) when sorting by title.
+     * @return true to ignore articles (default), false for literal sort
+     */
+    suspend fun getIgnoreTitleArticles(): Boolean {
+        return secureStorage.read(KEY_IGNORE_TITLE_ARTICLES)?.toBooleanStrictOrNull() ?: true
+    }
+
+    /**
+     * Set whether to ignore leading articles when sorting by title.
+     */
+    suspend fun setIgnoreTitleArticles(ignore: Boolean) {
+        secureStorage.save(KEY_IGNORE_TITLE_ARTICLES, ignore.toString())
     }
 }

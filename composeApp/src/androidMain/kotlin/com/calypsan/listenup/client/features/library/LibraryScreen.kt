@@ -72,6 +72,7 @@ fun LibraryScreen(
     val seriesSortState by viewModel.seriesSortState.collectAsStateWithLifecycle()
     val authorsSortState by viewModel.authorsSortState.collectAsStateWithLifecycle()
     val narratorsSortState by viewModel.narratorsSortState.collectAsStateWithLifecycle()
+    val ignoreTitleArticles by viewModel.ignoreTitleArticles.collectAsStateWithLifecycle()
 
     // Pager state for tab switching
     val pagerState = rememberPagerState(pageCount = { LibraryTab.entries.size })
@@ -105,11 +106,15 @@ fun LibraryScreen(
                         books = books,
                         syncState = syncState,
                         sortState = booksSortState,
+                        ignoreTitleArticles = ignoreTitleArticles,
                         onCategorySelected = { category ->
                             viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
                         },
                         onDirectionToggle = {
                             viewModel.onEvent(LibraryUiEvent.BooksDirectionToggled)
+                        },
+                        onToggleIgnoreArticles = {
+                            viewModel.onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
                         },
                         onBookClick = onBookClick,
                         onRetry = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) }
