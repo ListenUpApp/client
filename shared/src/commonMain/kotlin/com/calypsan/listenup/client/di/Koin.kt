@@ -157,13 +157,15 @@ val presentationModule = module {
             contributorDao = get(),
             syncManager = get(),
             settingsRepository = get(),
-            syncDao = get()
+            syncDao = get(),
+            playbackPositionDao = get()
         )
     }
     factory {
         com.calypsan.listenup.client.presentation.book_detail.BookDetailViewModel(
             bookRepository = get(),
-            tagApi = get()
+            tagApi = get(),
+            playbackPositionDao = get()
         )
     }
     factory {
@@ -176,14 +178,16 @@ val presentationModule = module {
         com.calypsan.listenup.client.presentation.contributor_detail.ContributorDetailViewModel(
             contributorDao = get(),
             bookDao = get(),
-            imageStorage = get()
+            imageStorage = get(),
+            playbackPositionDao = get()
         )
     }
     factory {
         com.calypsan.listenup.client.presentation.contributor_detail.ContributorBooksViewModel(
             contributorDao = get(),
             bookDao = get(),
-            imageStorage = get()
+            imageStorage = get(),
+            playbackPositionDao = get()
         )
     }
     factory {

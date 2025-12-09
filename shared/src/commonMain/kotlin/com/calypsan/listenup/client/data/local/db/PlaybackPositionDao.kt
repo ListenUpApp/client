@@ -83,4 +83,13 @@ interface PlaybackPositionDao {
      */
     @Query("SELECT * FROM playback_positions ORDER BY updatedAt DESC LIMIT :limit")
     suspend fun getRecentPositions(limit: Int): List<PlaybackPositionEntity>
+
+    /**
+     * Observe all playback positions.
+     * Used for displaying progress indicators throughout the app.
+     *
+     * @return Flow emitting list of all positions whenever any position changes
+     */
+    @Query("SELECT * FROM playback_positions")
+    fun observeAll(): Flow<List<PlaybackPositionEntity>>
 }

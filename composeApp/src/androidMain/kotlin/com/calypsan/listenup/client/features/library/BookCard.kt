@@ -32,8 +32,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.domain.model.Book
-import java.io.File
 
 /**
  * Floating book card with editorial design.
@@ -44,12 +44,16 @@ import java.io.File
  *
  * @param book The book to display
  * @param onClick Callback when card is clicked
+ * @param progress Optional progress (0.0-1.0) to show overlay. Null = no overlay.
+ * @param timeRemaining Optional formatted time remaining (e.g., "2h 15m left")
  * @param modifier Optional modifier for the card
  */
 @Composable
 fun BookCard(
     book: Book,
     onClick: () -> Unit,
+    progress: Float? = null,
+    timeRemaining: String? = null,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -71,10 +75,12 @@ fun BookCard(
                 onClick = onClick
             )
     ) {
-        // Cover with glow
+        // Cover with glow and optional progress overlay
         CoverWithGlow(
             coverPath = book.coverPath,
             contentDescription = book.title,
+            progress = progress,
+            timeRemaining = timeRemaining,
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
@@ -113,14 +119,22 @@ fun BookCard(
 }
 
 /**
- * Cover art with shadow for depth.
+ * Cover art with shadow for depth and optional progress overlay.
  *
  * Uses standard elevation shadow to lift the cover off the surface.
+ *
+ * @param coverPath Local file path to cover image
+ * @param contentDescription Accessibility description
+ * @param progress Optional progress (0.0-1.0) to show overlay
+ * @param timeRemaining Optional formatted time remaining
+ * @param modifier Optional modifier
  */
 @Composable
 private fun CoverWithGlow(
     coverPath: String?,
     contentDescription: String?,
+    progress: Float? = null,
+    timeRemaining: String? = null,
     modifier: Modifier = Modifier
 ) {
     val shape = MaterialTheme.shapes.medium
@@ -136,9 +150,8 @@ private fun CoverWithGlow(
         contentAlignment = Alignment.Center
     ) {
         if (coverPath != null) {
-            val file = File(coverPath)
             AsyncImage(
-                model = file,
+                model = "file://$coverPath",
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize()
@@ -165,6 +178,15 @@ private fun CoverWithGlow(
                     modifier = Modifier.padding(32.dp)
                 )
             }
+        }
+
+        // Progress overlay (only shown when progress is provided and > 0)
+        if (progress != null && progress > 0f) {
+            ProgressOverlay(
+                progress = progress,
+                timeRemaining = timeRemaining,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }

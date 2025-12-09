@@ -113,6 +113,7 @@ fun ContributorBooksScreen(
                 else -> {
                     ContributorBooksContent(
                         state = state,
+                        bookProgress = state.bookProgress,
                         onBookClick = onBookClick
                     )
                 }
@@ -127,6 +128,7 @@ fun ContributorBooksScreen(
 @Composable
 private fun ContributorBooksContent(
     state: ContributorBooksUiState,
+    bookProgress: Map<String, Float>,
     onBookClick: (String) -> Unit
 ) {
     LazyColumn(
@@ -141,6 +143,7 @@ private fun ContributorBooksContent(
         ) { seriesGroup ->
             SeriesSection(
                 seriesGroup = seriesGroup,
+                bookProgress = bookProgress,
                 onBookClick = onBookClick
             )
         }
@@ -150,6 +153,7 @@ private fun ContributorBooksContent(
             item {
                 StandaloneBooksSection(
                     books = state.standaloneBooks,
+                    bookProgress = bookProgress,
                     onBookClick = onBookClick
                 )
             }
@@ -163,6 +167,7 @@ private fun ContributorBooksContent(
 @Composable
 private fun SeriesSection(
     seriesGroup: SeriesGroup,
+    bookProgress: Map<String, Float>,
     onBookClick: (String) -> Unit
 ) {
     Column {
@@ -196,6 +201,7 @@ private fun SeriesSection(
                 BookCard(
                     book = book,
                     onClick = { onBookClick(book.id.value) },
+                    progress = bookProgress[book.id.value],
                     modifier = Modifier.width(140.dp)
                 )
             }
@@ -209,6 +215,7 @@ private fun SeriesSection(
 @Composable
 private fun StandaloneBooksSection(
     books: List<com.calypsan.listenup.client.domain.model.Book>,
+    bookProgress: Map<String, Float>,
     onBookClick: (String) -> Unit
 ) {
     Column {
@@ -245,6 +252,7 @@ private fun StandaloneBooksSection(
                         BookCard(
                             book = book,
                             onClick = { onBookClick(book.id.value) },
+                            progress = bookProgress[book.id.value],
                             modifier = Modifier.weight(1f)
                         )
                     }

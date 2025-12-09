@@ -45,7 +45,6 @@ import coil3.compose.AsyncImage
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.presentation.search.SearchUiState
-import java.io.File
 
 /**
  * Full-screen overlay for search results.
@@ -302,7 +301,7 @@ private fun BookSearchResultCard(
             val coverPath = hit.coverPath
             if (coverPath != null) {
                 AsyncImage(
-                    model = File(coverPath),
+                    model = "file://$coverPath",
                     contentDescription = "Cover for ${hit.name}",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

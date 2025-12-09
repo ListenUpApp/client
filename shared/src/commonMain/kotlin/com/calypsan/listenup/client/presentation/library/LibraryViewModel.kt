@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.data.local.db.SyncDao
@@ -42,7 +43,8 @@ class LibraryViewModel(
     private val contributorDao: ContributorDao,
     private val syncManager: SyncManager,
     private val settingsRepository: SettingsRepository,
-    private val syncDao: SyncDao
+    private val syncDao: SyncDao,
+    private val playbackPositionDao: PlaybackPositionDao
 ) : ViewModel() {
 
     // Sort state for each tab (category + direction)
@@ -123,6 +125,38 @@ class LibraryViewModel(
      * Observable sync status.
      */
     val syncState: StateFlow<SyncStatus> = syncManager.syncState
+
+    /**
+     * Observable progress data for all books.
+     * Maps bookId -> progress (0.0 to 1.0).
+     * Used for showing progress indicators on book cards.
+     */
+    val bookProgress: StateFlow<Map<String, Float>> = combine(
+        playbackPositionDao.observeAll(),
+        books
+    ) { positions, booksList ->
+        // Create a map of book durations for progress calculation
+        val bookDurations = booksList.associate { it.id.value to it.duration }
+
+        // Convert positions to progress percentages
+        positions.mapNotNull { position ->
+            val bookId = position.bookId.value
+            val duration = bookDurations[bookId] ?: return@mapNotNull null
+            if (duration <= 0) return@mapNotNull null
+
+            val progress = (position.positionMs.toFloat() / duration).coerceIn(0f, 1f)
+            // Only include books with meaningful progress (> 0% and < 99%)
+            if (progress > 0f && progress < 0.99f) {
+                bookId to progress
+            } else {
+                null
+            }
+        }.toMap()
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyMap()
+    )
 
     private var hasPerformedInitialSync = false
 

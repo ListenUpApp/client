@@ -28,7 +28,7 @@ fun BookProgressBar(
     progress: Float,
     modifier: Modifier = Modifier,
     accentColor: Color = MaterialTheme.colorScheme.primary,
-    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+    trackColor: Color = MaterialTheme.colorScheme.outlineVariant,
     height: Dp = 4.dp
 ) {
     Box(

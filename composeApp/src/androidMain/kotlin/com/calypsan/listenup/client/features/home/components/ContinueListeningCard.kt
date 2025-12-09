@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -32,17 +33,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.calypsan.listenup.client.design.components.BookProgressBar
+import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
-import java.io.File
 
 /**
  * Card for a book in the Continue Listening section.
  *
  * Features:
  * - Floating cover art with shadow
- * - Progress bar showing listening progress
- * - Time remaining indicator
+ * - Progress overlay on cover with bar and time remaining
  * - Press-to-scale animation
  *
  * @param book The continue listening book to display
@@ -75,25 +74,18 @@ fun ContinueListeningCard(
                 onClick = onClick
             )
     ) {
-        // Cover with shadow
-        CoverWithShadow(
+        // Cover with progress overlay
+        CoverWithProgressOverlay(
             coverPath = book.coverPath,
             contentDescription = book.title,
-            modifier = Modifier
-                .aspectRatio(1f)
+            progress = book.progress,
+            timeRemaining = book.timeRemainingFormatted,
+            modifier = Modifier.aspectRatio(1f)
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Progress bar
-        BookProgressBar(
-            progress = book.progress,
-            modifier = Modifier.padding(horizontal = 2.dp)
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // Metadata
+        // Metadata (title and author only - progress info is on overlay now)
         Column(modifier = Modifier.padding(horizontal = 2.dp)) {
             Text(
                 text = book.title,
@@ -113,52 +105,44 @@ fun ContinueListeningCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Text(
-                text = book.timeRemainingFormatted,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-            )
         }
     }
 }
 
 /**
- * Cover art with shadow for depth.
+ * Cover art with progress overlay at the bottom.
+ *
+ * Features a gradient scrim for readability, progress bar, and time remaining text.
  */
 @Composable
-private fun CoverWithShadow(
+private fun CoverWithProgressOverlay(
     coverPath: String?,
     contentDescription: String?,
+    progress: Float,
+    timeRemaining: String,
     modifier: Modifier = Modifier
 ) {
     val shape = MaterialTheme.shapes.medium
 
     Box(
         modifier = modifier
-            .shadow(
-                elevation = 6.dp,
-                shape = shape
-            )
+            .shadow(elevation = 6.dp, shape = shape)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
+        // Cover image
         if (coverPath != null) {
-            val file = File(coverPath)
             AsyncImage(
-                model = file,
+                model = "file://$coverPath",
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.matchParentSize()
+                modifier = Modifier.fillMaxSize()
             )
         } else {
             // Gradient placeholder
             Box(
                 modifier = Modifier
-                    .matchParentSize()
+                    .fillMaxSize()
                     .background(
                         Brush.linearGradient(
                             colors = listOf(
@@ -177,5 +161,13 @@ private fun CoverWithShadow(
                 )
             }
         }
+
+        // Progress overlay using shared component
+        ProgressOverlay(
+            progress = progress,
+            timeRemaining = timeRemaining,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
+

@@ -2,6 +2,8 @@ package com.calypsan.listenup.client.presentation.book_detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.remote.TagApi
 import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.domain.model.Book
@@ -17,7 +19,8 @@ import kotlinx.coroutines.launch
  */
 class BookDetailViewModel(
     private val bookRepository: BookRepository,
-    private val tagApi: TagApi
+    private val tagApi: TagApi,
+    private val playbackPositionDao: PlaybackPositionDao
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BookDetailUiState())
@@ -54,6 +57,18 @@ class BookDetailViewModel(
                     ?.filter { it.isNotBlank() }
                     ?: emptyList()
 
+                // Load progress for this book
+                val position = playbackPositionDao.get(BookId(bookId))
+                val progress = if (position != null && book.duration > 0) {
+                    (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
+                } else null
+
+                // Calculate time remaining if there's progress
+                val timeRemaining = if (progress != null && progress > 0f && progress < 0.99f) {
+                    val remainingMs = book.duration - (position?.positionMs ?: 0L)
+                    formatTimeRemaining(remainingMs)
+                } else null
+
                 _state.value = BookDetailUiState(
                     isLoading = false,
                     book = book,
@@ -65,7 +80,9 @@ class BookDetailViewModel(
                     genresList = genresList,
                     year = book.publishYear,
                     rating = book.rating,
-                    chapters = chapters
+                    chapters = chapters,
+                    progress = if (progress != null && progress > 0f && progress < 0.99f) progress else null,
+                    timeRemainingFormatted = timeRemaining
                 )
 
                 // Load tags for this book (non-blocking, optional feature)
@@ -181,6 +198,10 @@ data class BookDetailUiState(
     val rating: Double? = null,
     val chapters: List<ChapterUiModel> = emptyList(),
 
+    // Progress (for overlay display)
+    val progress: Float? = null,
+    val timeRemainingFormatted: String? = null,
+
     // Tags
     val tags: List<Tag> = emptyList(),
     val allUserTags: List<Tag> = emptyList(),
@@ -206,6 +227,22 @@ data class ChapterUiModel(
  * The heuristic removes the series name and common book number patterns,
  * then checks if there's any meaningful content left.
  */
+/**
+ * Format milliseconds as human-readable time remaining.
+ * E.g., "2h 15m left" or "45m left"
+ */
+private fun formatTimeRemaining(ms: Long): String {
+    val totalMinutes = ms / 60_000
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+
+    return when {
+        hours > 0 -> "${hours}h ${minutes}m left"
+        minutes > 0 -> "${minutes}m left"
+        else -> "< 1m left"
+    }
+}
+
 private fun isSubtitleRedundant(
     subtitle: String,
     seriesName: String?,

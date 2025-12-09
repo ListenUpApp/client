@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
-import java.io.File
 
 /**
  * Displays book covers with layout based on count:
@@ -116,7 +115,7 @@ private fun FullWidthCover(
     ) {
         if (coverPath != null) {
             AsyncImage(
-                model = File(coverPath),
+                model = "file://$coverPath",
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -297,9 +296,8 @@ private fun StackedCover(
         contentAlignment = Alignment.Center
     ) {
         if (coverPath != null) {
-            val file = File(coverPath)
             AsyncImage(
-                model = file,
+                model = "file://$coverPath",
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

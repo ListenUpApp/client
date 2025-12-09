@@ -67,6 +67,7 @@ import com.calypsan.listenup.client.data.model.BookDownloadStatus
 import com.calypsan.listenup.client.design.components.GenreChipRow
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
+import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.download.DownloadResult
@@ -303,7 +304,7 @@ private fun BookDetailLeftPane(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Cover Image
+        // Cover Image with optional progress overlay
         ElevatedCard(
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp),
@@ -311,12 +312,23 @@ private fun BookDetailLeftPane(
                 .fillMaxWidth()
                 .aspectRatio(1f)
         ) {
-            AsyncImage(
-                model = state.book?.coverPath,
-                contentDescription = state.book?.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            Box(modifier = Modifier.fillMaxSize()) {
+                AsyncImage(
+                    model = state.book?.coverPath,
+                    contentDescription = state.book?.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Progress overlay (shown when book has progress)
+                state.progress?.let { progress ->
+                    ProgressOverlay(
+                        progress = progress,
+                        timeRemaining = state.timeRemainingFormatted,
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
+            }
         }
 
         // Title
@@ -621,7 +633,7 @@ private fun SinglePaneBookDetail(
         contentPadding = PaddingValues(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // Cover Image Section
+        // Cover Image Section with optional progress overlay
         item {
             Box(
                 modifier = Modifier
@@ -636,12 +648,23 @@ private fun SinglePaneBookDetail(
                         .width(200.dp)
                         .aspectRatio(1f)
                 ) {
-                    AsyncImage(
-                        model = state.book?.coverPath,
-                        contentDescription = state.book?.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AsyncImage(
+                            model = state.book?.coverPath,
+                            contentDescription = state.book?.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        // Progress overlay (shown when book has progress)
+                        state.progress?.let { progress ->
+                            ProgressOverlay(
+                                progress = progress,
+                                timeRemaining = state.timeRemainingFormatted,
+                                modifier = Modifier.align(Alignment.BottomCenter)
+                            )
+                        }
+                    }
                 }
             }
         }

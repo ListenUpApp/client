@@ -47,11 +47,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.presentation.series_detail.SeriesDetailUiState
 import com.calypsan.listenup.client.presentation.series_detail.SeriesDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
-import java.io.File
 
 /**
  * Screen displaying series details with its books.
@@ -206,11 +206,19 @@ private fun SeriesDetailContent(
 
 /**
  * List item for a book in the series.
+ *
+ * @param book The book to display
+ * @param onClick Callback when item is clicked
+ * @param progress Optional progress (0.0-1.0) to show overlay
+ * @param timeRemaining Optional formatted time remaining
+ * @param modifier Optional modifier
  */
 @Composable
 private fun SeriesBookItem(
     book: Book,
     onClick: () -> Unit,
+    progress: Float? = null,
+    timeRemaining: String? = null,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -225,7 +233,7 @@ private fun SeriesBookItem(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Book cover
+            // Book cover with optional progress overlay
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -234,9 +242,8 @@ private fun SeriesBookItem(
                 contentAlignment = Alignment.Center
             ) {
                 if (book.coverPath != null) {
-                    val file = File(book.coverPath!!)
                     AsyncImage(
-                        model = file,
+                        model = "file://${book.coverPath}",
                         contentDescription = book.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -249,6 +256,15 @@ private fun SeriesBookItem(
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                         modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                // Progress overlay
+                if (progress != null && progress > 0f) {
+                    ProgressOverlay(
+                        progress = progress,
+                        timeRemaining = timeRemaining,
+                        modifier = Modifier.align(Alignment.BottomCenter)
                     )
                 }
             }

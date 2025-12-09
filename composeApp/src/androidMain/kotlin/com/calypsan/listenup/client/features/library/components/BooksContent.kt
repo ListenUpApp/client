@@ -170,6 +170,7 @@ private fun ArticleToggleChip(
  * @param syncState Current sync status for loading/error states
  * @param sortState Current sort state (category + direction)
  * @param ignoreTitleArticles Whether to ignore articles (A, An, The) when sorting by title
+ * @param bookProgress Map of bookId to progress (0.0-1.0) for in-progress books
  * @param onCategorySelected Called when user selects a new category
  * @param onDirectionToggle Called when user toggles sort direction
  * @param onToggleIgnoreArticles Called when user toggles article handling
@@ -183,6 +184,7 @@ fun BooksContent(
     syncState: SyncStatus,
     sortState: SortState,
     ignoreTitleArticles: Boolean,
+    bookProgress: Map<String, Float>,
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
     onToggleIgnoreArticles: () -> Unit,
@@ -206,6 +208,7 @@ fun BooksContent(
                     books = books,
                     sortState = sortState,
                     ignoreTitleArticles = ignoreTitleArticles,
+                    bookProgress = bookProgress,
                     onCategorySelected = onCategorySelected,
                     onDirectionToggle = onDirectionToggle,
                     onToggleIgnoreArticles = onToggleIgnoreArticles,
@@ -224,6 +227,7 @@ private fun BookGrid(
     books: List<Book>,
     sortState: SortState,
     ignoreTitleArticles: Boolean,
+    bookProgress: Map<String, Float>,
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
     onToggleIgnoreArticles: () -> Unit,
@@ -316,6 +320,7 @@ private fun BookGrid(
                         BookCard(
                             book = gridItem.book,
                             onClick = { onBookClick(gridItem.book.id.value) },
+                            progress = bookProgress[gridItem.book.id.value],
                             modifier = Modifier.animateItem()
                         )
                     }

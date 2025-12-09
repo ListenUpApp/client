@@ -66,6 +66,7 @@ fun LibraryScreen(
     val authors by viewModel.authors.collectAsStateWithLifecycle()
     val narrators by viewModel.narrators.collectAsStateWithLifecycle()
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
+    val bookProgress by viewModel.bookProgress.collectAsStateWithLifecycle()
 
     // Collect sort state for each tab
     val booksSortState by viewModel.booksSortState.collectAsStateWithLifecycle()
@@ -107,6 +108,7 @@ fun LibraryScreen(
                         syncState = syncState,
                         sortState = booksSortState,
                         ignoreTitleArticles = ignoreTitleArticles,
+                        bookProgress = bookProgress,
                         onCategorySelected = { category ->
                             viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
                         },
