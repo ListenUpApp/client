@@ -18,5 +18,9 @@ ij_kotlin_packages_to_use_import_on_demand = platform.**,kotlinx.cinterop.**
 [*.md]
 trim_trailing_whitespace = false
 
+[*Test.kt]
+# Tests often have longer descriptive names and setup lines
+ktlint_standard_max-line-length = disabled
+
 [*.{yml,yaml}]
 indent_size = 2
