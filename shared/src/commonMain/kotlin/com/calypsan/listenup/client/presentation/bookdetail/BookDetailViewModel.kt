@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.remote.TagApi
-import com.calypsan.listenup.client.data.repository.BookRepository
+import com.calypsan.listenup.client.data.remote.TagApiContract
+import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Tag
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -21,8 +21,8 @@ private val logger = KotlinLogging.logger {}
  * ViewModel for the Book Detail screen.
  */
 class BookDetailViewModel(
-    private val bookRepository: BookRepository,
-    private val tagApi: TagApi,
+    private val bookRepository: BookRepositoryContract,
+    private val tagApi: TagApiContract,
     private val playbackPositionDao: PlaybackPositionDao,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BookDetailUiState())

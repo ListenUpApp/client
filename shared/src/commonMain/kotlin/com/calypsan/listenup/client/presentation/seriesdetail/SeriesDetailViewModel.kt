@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.presentation.seriesdetail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.SeriesDao
-import com.calypsan.listenup.client.data.repository.BookRepository
+import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
  */
 class SeriesDetailViewModel(
     private val seriesDao: SeriesDao,
-    private val bookRepository: BookRepository,
+    private val bookRepository: BookRepositoryContract,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SeriesDetailUiState())
     val state: StateFlow<SeriesDetailUiState> = _state.asStateFlow()

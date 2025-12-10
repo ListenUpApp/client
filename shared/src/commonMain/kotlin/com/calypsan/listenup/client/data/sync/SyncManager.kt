@@ -13,7 +13,7 @@ import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
-import com.calypsan.listenup.client.data.remote.SyncApi
+import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.network.sockets.ConnectTimeoutException
@@ -31,6 +31,24 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * Contract for sync operations.
+ *
+ * Defines the public API for syncing data and observing sync status.
+ * Used by ViewModels and enables testing via fake implementations.
+ */
+interface SyncManagerContract {
+    /**
+     * Current synchronization status.
+     */
+    val syncState: StateFlow<SyncStatus>
+
+    /**
+     * Perform full synchronization with server.
+     */
+    suspend fun sync(): Result<Unit>
+}
 
 /**
  * Orchestrates synchronization between local Room database and server.
@@ -66,16 +84,16 @@ private val logger = KotlinLogging.logger {}
  * @property ftsPopulator Populates FTS5 tables for offline search
  */
 class SyncManager(
-    private val syncApi: SyncApi,
+    private val syncApi: SyncApiContract,
     private val bookDao: BookDao,
     private val seriesDao: SeriesDao,
     private val contributorDao: ContributorDao,
     private val chapterDao: com.calypsan.listenup.client.data.local.db.ChapterDao,
     private val bookContributorDao: com.calypsan.listenup.client.data.local.db.BookContributorDao,
     private val syncDao: SyncDao,
-    private val imageDownloader: ImageDownloader,
-    private val sseManager: SSEManager,
-    private val ftsPopulator: FtsPopulator,
+    private val imageDownloader: ImageDownloaderContract,
+    private val sseManager: SSEManagerContract,
+    private val ftsPopulator: FtsPopulatorContract,
     /**
      * Application-scoped CoroutineScope for background tasks.
      *
@@ -86,7 +104,7 @@ class SyncManager(
      * Injected from Koin for testability and consistency with SSEManager.
      */
     private val scope: CoroutineScope,
-) {
+) : SyncManagerContract {
     private val _syncState = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
 
     init {
@@ -108,7 +126,7 @@ class SyncManager(
      * - Syncing/Progress -> Error (on failure)
      * - Success/Error -> Idle (ready for next sync)
      */
-    val syncState: StateFlow<SyncStatus> = _syncState.asStateFlow()
+    override val syncState: StateFlow<SyncStatus> = _syncState.asStateFlow()
 
     /**
      * Perform full synchronization with server.
@@ -121,7 +139,7 @@ class SyncManager(
      *
      * @return Result indicating success or failure
      */
-    suspend fun sync(): Result<Unit> {
+    override suspend fun sync(): Result<Unit> {
         logger.debug { "Starting sync operation" }
         _syncState.value = SyncStatus.Syncing
 

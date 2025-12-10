@@ -21,7 +21,7 @@ import io.ktor.client.request.get
  */
 class ImageApi(
     private val clientFactory: ApiClientFactory,
-) {
+) : ImageApiContract {
     /**
      * Download cover image for a book.
      *
@@ -35,7 +35,7 @@ class ImageApi(
      * @param bookId Unique identifier for the book
      * @return Result containing image bytes or error
      */
-    suspend fun downloadCover(bookId: BookId): Result<ByteArray> =
+    override suspend fun downloadCover(bookId: BookId): Result<ByteArray> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             client.get("/api/v1/covers/${bookId.value}").body<ByteArray>()

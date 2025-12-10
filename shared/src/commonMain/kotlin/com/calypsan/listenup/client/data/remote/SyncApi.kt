@@ -29,11 +29,14 @@ import kotlinx.serialization.Serializable
  * Uses ApiClientFactory to obtain authenticated HttpClient at call time,
  * avoiding runBlocking during dependency injection initialization.
  *
+ * Implements [SyncApiContract] for testability - tests can mock the interface
+ * without needing to mock HTTP client internals.
+ *
  * @property clientFactory Factory for creating authenticated HttpClient
  */
 class SyncApi(
     private val clientFactory: ApiClientFactory,
-) {
+) : SyncApiContract {
     /**
      * Fetch sync manifest with library overview.
      *
@@ -45,7 +48,7 @@ class SyncApi(
      *
      * @return Result containing SyncManifestResponse or error
      */
-    suspend fun getManifest(): Result<SyncManifestResponse> =
+    override suspend fun getManifest(): Result<SyncManifestResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<SyncManifestResponse> =
@@ -67,10 +70,10 @@ class SyncApi(
      * @param updatedAfter ISO 8601 timestamp to filter books updated after this time (for delta sync)
      * @return Result containing SyncBooksResponse or error
      */
-    suspend fun getBooks(
-        limit: Int = 100,
-        cursor: String? = null,
-        updatedAfter: String? = null,
+    override suspend fun getBooks(
+        limit: Int,
+        cursor: String?,
+        updatedAfter: String?,
     ): Result<SyncBooksResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
@@ -94,9 +97,9 @@ class SyncApi(
      * @param updatedAfter ISO 8601 timestamp for delta sync (optional)
      * @return Result containing combined SyncBooksResponse with all changes
      */
-    suspend fun getAllBooks(
-        limit: Int = 100,
-        updatedAfter: String? = null,
+    override suspend fun getAllBooks(
+        limit: Int,
+        updatedAfter: String?,
     ): Result<SyncBooksResponse> =
         suspendRunCatching {
             val allBooks = mutableListOf<BookResponse>()
@@ -127,10 +130,10 @@ class SyncApi(
     /**
      * Fetch paginated series for syncing.
      */
-    suspend fun getSeries(
-        limit: Int = 100,
-        cursor: String? = null,
-        updatedAfter: String? = null,
+    override suspend fun getSeries(
+        limit: Int,
+        cursor: String?,
+        updatedAfter: String?,
     ): Result<SyncSeriesResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
@@ -144,9 +147,9 @@ class SyncApi(
             response.toResult().getOrThrow()
         }
 
-    suspend fun getAllSeries(
-        limit: Int = 100,
-        updatedAfter: String? = null,
+    override suspend fun getAllSeries(
+        limit: Int,
+        updatedAfter: String?,
     ): Result<List<com.calypsan.listenup.client.data.remote.model.SeriesResponse>> =
         suspendRunCatching {
             val allItems = mutableListOf<com.calypsan.listenup.client.data.remote.model.SeriesResponse>()
@@ -171,10 +174,10 @@ class SyncApi(
     /**
      * Fetch paginated contributors for syncing.
      */
-    suspend fun getContributors(
-        limit: Int = 100,
-        cursor: String? = null,
-        updatedAfter: String? = null,
+    override suspend fun getContributors(
+        limit: Int,
+        cursor: String?,
+        updatedAfter: String?,
     ): Result<SyncContributorsResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
@@ -188,9 +191,9 @@ class SyncApi(
             response.toResult().getOrThrow()
         }
 
-    suspend fun getAllContributors(
-        limit: Int = 100,
-        updatedAfter: String? = null,
+    override suspend fun getAllContributors(
+        limit: Int,
+        updatedAfter: String?,
     ): Result<List<com.calypsan.listenup.client.data.remote.model.ContributorResponse>> =
         suspendRunCatching {
             val allItems = mutableListOf<com.calypsan.listenup.client.data.remote.model.ContributorResponse>()
@@ -224,7 +227,7 @@ class SyncApi(
      * @param events List of listening events to submit
      * @return Result containing acknowledged event IDs
      */
-    suspend fun submitListeningEvents(events: List<ListeningEventRequest>): Result<ListeningEventsResponse> =
+    override suspend fun submitListeningEvents(events: List<ListeningEventRequest>): Result<ListeningEventsResponse> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             val response: ApiResponse<ListeningEventsResponse> =

@@ -4,9 +4,12 @@ import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApi
+import com.calypsan.listenup.client.data.remote.AuthApiContract
 import com.calypsan.listenup.client.data.remote.ImageApi
 import com.calypsan.listenup.client.data.remote.SearchApi
+import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SyncApi
+import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.TagApi
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
 import com.calypsan.listenup.client.data.repository.BookRepository
@@ -59,7 +62,7 @@ val networkModule =
     module {
         // AuthApi - handles login, logout, and token refresh
         // Gets server URL dynamically from SettingsRepository
-        single {
+        single<AuthApiContract> {
             val settingsRepository: SettingsRepository = get()
             AuthApi(getServerUrl = { settingsRepository.getServerUrl() })
         }
@@ -226,7 +229,7 @@ val syncModule =
 
         // Sync API uses ApiClientFactory to get authenticated HttpClient at call time
         // This avoids runBlocking during DI initialization (structured concurrency)
-        single {
+        single<SyncApiContract> {
             SyncApi(clientFactory = get())
         }
 
@@ -258,7 +261,7 @@ val syncModule =
         }
 
         // SearchApi for server-side search
-        single {
+        single<SearchApiContract> {
             SearchApi(clientFactory = get())
         }
 

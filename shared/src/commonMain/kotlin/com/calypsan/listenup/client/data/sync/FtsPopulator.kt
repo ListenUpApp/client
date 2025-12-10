@@ -34,14 +34,14 @@ class FtsPopulator(
     private val contributorDao: ContributorDao,
     private val seriesDao: SeriesDao,
     private val searchDao: SearchDao,
-) {
+) : FtsPopulatorContract {
     /**
      * Rebuild all FTS tables from main tables.
      *
      * This is a full rebuild that clears and repopulates all FTS tables.
      * Call after sync operations complete to ensure search is up-to-date.
      */
-    suspend fun rebuildAll() =
+    override suspend fun rebuildAll() =
         withContext(Dispatchers.IO) {
             logger.info { "Starting FTS rebuild..." }
 

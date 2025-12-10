@@ -21,13 +21,13 @@ import kotlinx.serialization.Serializable
  */
 class TagApi(
     private val clientFactory: ApiClientFactory,
-) {
+) : TagApiContract {
     /**
      * Get all tags for the current user.
      *
      * Endpoint: GET /api/v1/tags/
      */
-    suspend fun getUserTags(): List<Tag> {
+    override suspend fun getUserTags(): List<Tag> {
         val client = clientFactory.getClient()
         val response: List<TagResponse> = client.get("/api/v1/tags/").body()
         return response.map { it.toDomain() }
@@ -40,7 +40,7 @@ class TagApi(
      *
      * @param bookId The book ID to get tags for
      */
-    suspend fun getBookTags(bookId: String): List<Tag> {
+    override suspend fun getBookTags(bookId: String): List<Tag> {
         val client = clientFactory.getClient()
         val response: List<TagResponse> = client.get("/api/v1/books/$bookId/tags").body()
         return response.map { it.toDomain() }
@@ -54,7 +54,7 @@ class TagApi(
      * @param bookId The book to tag
      * @param tagId The tag to apply
      */
-    suspend fun addTagToBook(
+    override suspend fun addTagToBook(
         bookId: String,
         tagId: String,
     ) {
@@ -73,7 +73,7 @@ class TagApi(
      * @param bookId The book to untag
      * @param tagId The tag to remove
      */
-    suspend fun removeTagFromBook(
+    override suspend fun removeTagFromBook(
         bookId: String,
         tagId: String,
     ) {
@@ -90,9 +90,9 @@ class TagApi(
      * @param color Optional hex color for the tag (e.g., "#FF5733")
      * @return The created tag
      */
-    suspend fun createTag(
+    override suspend fun createTag(
         name: String,
-        color: String? = null,
+        color: String?,
     ): Tag {
         val client = clientFactory.getClient()
         val response: TagResponse =
@@ -111,7 +111,7 @@ class TagApi(
      *
      * @param tagId The tag to delete
      */
-    suspend fun deleteTag(tagId: String) {
+    override suspend fun deleteTag(tagId: String) {
         val client = clientFactory.getClient()
         client.delete("/api/v1/tags/$tagId")
     }

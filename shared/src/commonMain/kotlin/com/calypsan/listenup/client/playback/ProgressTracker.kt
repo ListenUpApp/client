@@ -10,7 +10,7 @@ import com.calypsan.listenup.client.data.local.db.PendingListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.ListeningEventRequest
-import com.calypsan.listenup.client.data.remote.SyncApi
+import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +36,7 @@ class ProgressTracker(
     private val positionDao: PlaybackPositionDao,
     private val eventDao: PendingListeningEventDao,
     private val downloadDao: DownloadDao,
-    private val syncApi: SyncApi,
+    private val syncApi: SyncApiContract,
     private val deviceId: String,
     private val scope: CoroutineScope,
 ) {

@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.data.sync
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.remote.ImageApi
+import com.calypsan.listenup.client.data.remote.ImageApiContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
@@ -21,9 +21,9 @@ private val logger = KotlinLogging.logger {}
  * @property imageStorage Local storage for cover images
  */
 class ImageDownloader(
-    private val imageApi: ImageApi,
+    private val imageApi: ImageApiContract,
     private val imageStorage: ImageStorage,
-) {
+) : ImageDownloaderContract {
     /**
      * Download and save a single book cover.
      *
@@ -33,7 +33,7 @@ class ImageDownloader(
      * @param bookId Unique identifier for the book
      * @return Result indicating if cover was successfully downloaded and saved
      */
-    suspend fun downloadCover(bookId: BookId): Result<Boolean> {
+    override suspend fun downloadCover(bookId: BookId): Result<Boolean> {
         // Skip if already exists locally
         if (imageStorage.exists(bookId)) {
             logger.info { "Cover already exists locally for book ${bookId.value}" }
@@ -76,7 +76,7 @@ class ImageDownloader(
      * @param bookIds List of book identifiers to download covers for
      * @return Result containing list of BookIds that were successfully downloaded
      */
-    suspend fun downloadCovers(bookIds: List<BookId>): Result<List<BookId>> {
+    override suspend fun downloadCovers(bookIds: List<BookId>): Result<List<BookId>> {
         val successfulDownloads = mutableListOf<BookId>()
 
         bookIds.forEach { bookId ->

@@ -385,52 +385,42 @@ class SettingsRepositoryTest {
         }
 
     @Test
-    fun `initializeAuthState sets NeedsSetup when server requires setup`() =
+    fun `checkServerStatus sets NeedsSetup when server requires setup`() =
         runTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository = SettingsRepository(storage, instanceRepository)
-            everySuspend { storage.read("server_url") } returns "https://api.example.com"
-            everySuspend { storage.read("access_token") } returns null
-            everySuspend { storage.read("user_id") } returns null
-            everySuspend { storage.read("session_id") } returns null
             // Server returns setup required
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
                 Result.Success(
                     createTestInstance(setupRequired = true),
                 )
 
-            // When
-            repository.initializeAuthState()
+            // When - checkServerStatus makes network call, initializeAuthState doesn't
+            repository.checkServerStatus()
 
             // Then
             assertIs<AuthState.NeedsSetup>(repository.authState.value)
         }
 
     @Test
-    fun `initializeAuthState clears URL and sets NeedsServerUrl on network failure`() =
+    fun `checkServerStatus sets NeedsLogin on network failure without clearing URL`() =
         runTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository = SettingsRepository(storage, instanceRepository)
-            everySuspend { storage.read("server_url") } returns "https://api.example.com"
-            everySuspend { storage.read("access_token") } returns null
-            everySuspend { storage.read("user_id") } returns null
-            everySuspend { storage.read("session_id") } returns null
-            everySuspend { storage.delete("server_url") } returns Unit
             // Server unreachable
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
                 Result.Failure(
                     Exception("Network error"),
                 )
 
-            // When
-            repository.initializeAuthState()
+            // When - checkServerStatus handles network errors gracefully
+            repository.checkServerStatus()
 
-            // Then
-            verifySuspend { storage.delete("server_url") }
-            assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
+            // Then - stays in NeedsLogin, doesn't clear URL (user can retry)
+            assertIs<AuthState.NeedsLogin>(repository.authState.value)
         }
 }

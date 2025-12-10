@@ -51,9 +51,9 @@ class SSEManager(
     private val clientFactory: ApiClientFactory,
     private val settingsRepository: SettingsRepository,
     private val scope: CoroutineScope,
-) {
+) : SSEManagerContract {
     private val _eventFlow = MutableSharedFlow<SSEEventType>(replay = 0, extraBufferCapacity = 64)
-    val eventFlow: SharedFlow<SSEEventType> = _eventFlow.asSharedFlow()
+    override val eventFlow: SharedFlow<SSEEventType> = _eventFlow.asSharedFlow()
 
     private var connectionJob: Job? = null
     private var isConnected = false
@@ -82,7 +82,7 @@ class SSEManager(
      *
      * Call this after successful login or sync to start receiving real-time updates.
      */
-    fun connect() {
+    override fun connect() {
         if (connectionJob?.isActive == true) {
             return // Already connected
         }
@@ -129,7 +129,7 @@ class SSEManager(
     /**
      * Disconnects from SSE stream and stops emitting events.
      */
-    fun disconnect() {
+    override fun disconnect() {
         logger.debug { "Disconnecting..." }
         connectionJob?.cancel()
         connectionJob = null

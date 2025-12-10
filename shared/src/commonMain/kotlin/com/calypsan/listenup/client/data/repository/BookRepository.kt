@@ -11,13 +11,41 @@ import com.calypsan.listenup.client.data.local.db.ChapterId
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.sync.SyncManager
+import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.model.Contributor
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+
+/**
+ * Contract for book data operations.
+ *
+ * Defines the public API for observing and refreshing books.
+ * Used by ViewModels and enables testing via fake implementations.
+ */
+interface BookRepositoryContract {
+    /**
+     * Observe all books as a reactive Flow of domain models.
+     */
+    fun observeBooks(): Flow<List<Book>>
+
+    /**
+     * Trigger sync to refresh books from server.
+     */
+    suspend fun refreshBooks(): Result<Unit>
+
+    /**
+     * Get a single book by ID.
+     */
+    suspend fun getBook(id: String): Book?
+
+    /**
+     * Get chapters for a book.
+     */
+    suspend fun getChapters(bookId: String): List<Chapter>
+}
 
 /**
  * Repository for book data operations.
@@ -43,9 +71,9 @@ import kotlinx.coroutines.flow.map
 class BookRepository(
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
-    private val syncManager: SyncManager,
+    private val syncManager: SyncManagerContract,
     private val imageStorage: ImageStorage,
-) {
+) : BookRepositoryContract {
     private val logger = KotlinLogging.logger {}
 
     /**
@@ -65,7 +93,7 @@ class BookRepository(
      *
      * @return Flow emitting list of domain Book models
      */
-    fun observeBooks(): Flow<List<Book>> =
+    override fun observeBooks(): Flow<List<Book>> =
         bookDao.observeAllWithContributors().map { booksWithContributors ->
             booksWithContributors.map { bookWithContributors ->
                 bookWithContributors.toDomain(imageStorage)
@@ -82,7 +110,7 @@ class BookRepository(
      *
      * @return Result indicating sync success or failure
      */
-    suspend fun refreshBooks(): Result<Unit> {
+    override suspend fun refreshBooks(): Result<Unit> {
         logger.debug { "Refreshing books from server" }
         return syncManager.sync()
     }
@@ -96,7 +124,7 @@ class BookRepository(
      * @param id The book ID
      * @return Domain Book model or null if not found
      */
-    suspend fun getBook(id: String): Book? {
+    override suspend fun getBook(id: String): Book? {
         val bookId = BookId(id)
         val bookWithContributors = bookDao.getByIdWithContributors(bookId) ?: return null
         return bookWithContributors.toDomain(imageStorage)
@@ -113,7 +141,7 @@ class BookRepository(
      * @param bookId The book ID
      * @return List of chapters
      */
-    suspend fun getChapters(bookId: String): List<Chapter> {
+    override suspend fun getChapters(bookId: String): List<Chapter> {
         val id = BookId(bookId)
         val localChapters = chapterDao.getChaptersForBook(id)
 

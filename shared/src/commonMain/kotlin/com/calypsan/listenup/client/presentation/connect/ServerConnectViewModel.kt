@@ -7,7 +7,7 @@ import com.calypsan.listenup.client.core.PlatformUtils
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.error.ErrorMapper
 import com.calypsan.listenup.client.core.error.ServerConnectError
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.domain.model.Instance
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
@@ -47,7 +47,7 @@ private val logger = KotlinLogging.logger {}
  * 2. Network verification (fetch /api/v1/instance)
  */
 class ServerConnectViewModel(
-    private val settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepositoryContract,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ServerConnectUiState())
     val state: StateFlow<ServerConnectUiState> = _state.asStateFlow()

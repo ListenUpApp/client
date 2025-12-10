@@ -8,9 +8,9 @@ import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.remote.AuthApi
+import com.calypsan.listenup.client.data.remote.AuthApiContract
 import com.calypsan.listenup.client.data.remote.AuthUser
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,8 +26,8 @@ import kotlin.time.Instant
  * causing automatic navigation to the Library screen.
  */
 class SetupViewModel(
-    private val authApi: AuthApi,
-    private val settingsRepository: SettingsRepository,
+    private val authApi: AuthApiContract,
+    private val settingsRepository: SettingsRepositoryContract,
     private val userDao: UserDao,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SetupUiState())

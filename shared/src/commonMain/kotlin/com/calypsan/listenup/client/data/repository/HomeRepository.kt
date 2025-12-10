@@ -10,6 +10,29 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 
 /**
+ * Contract interface for home repository operations.
+ *
+ * Extracted to enable mocking in tests. Production implementation
+ * is [HomeRepository], test implementation can be a mock or fake.
+ */
+interface HomeRepositoryContract {
+    /**
+     * Fetch books the user is currently listening to.
+     *
+     * @param limit Maximum number of books to return
+     * @return Result containing list of ContinueListeningBook on success
+     */
+    suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningBook>>
+
+    /**
+     * Observe current user for greeting display.
+     *
+     * @return Flow that emits UserEntity when available
+     */
+    fun observeCurrentUser(): Flow<UserEntity?>
+}
+
+/**
  * Repository for Home screen data.
  *
  * Handles fetching continue listening books and user data for the greeting.
@@ -20,10 +43,10 @@ import kotlinx.coroutines.flow.Flow
  * @property userDao DAO for user data
  */
 class HomeRepository(
-    private val bookRepository: BookRepository,
+    private val bookRepository: BookRepositoryContract,
     private val playbackPositionDao: PlaybackPositionDao,
     private val userDao: UserDao,
-) {
+) : HomeRepositoryContract {
     private val logger = KotlinLogging.logger {}
 
     /**
@@ -35,7 +58,7 @@ class HomeRepository(
      * @param limit Maximum number of books to return
      * @return Result containing list of ContinueListeningBook on success
      */
-    suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningBook>> {
+    override suspend fun getContinueListening(limit: Int): Result<List<ContinueListeningBook>> {
         logger.debug { "Fetching continue listening books from local DB, limit=$limit" }
 
         val positions = playbackPositionDao.getRecentPositions(limit)
@@ -87,5 +110,5 @@ class HomeRepository(
      *
      * @return Flow that emits UserEntity when available
      */
-    fun observeCurrentUser(): Flow<UserEntity?> = userDao.observeCurrentUser()
+    override fun observeCurrentUser(): Flow<UserEntity?> = userDao.observeCurrentUser()
 }

@@ -33,7 +33,7 @@ private val logger = KotlinLogging.logger {}
 internal actual suspend fun createStreamingHttpClient(
     serverUrl: ServerUrl,
     settingsRepository: SettingsRepository,
-    authApi: AuthApi,
+    authApi: AuthApiContract,
 ): HttpClient =
     HttpClient(OkHttp) {
         // Configure OkHttp engine with infinite timeouts for streaming

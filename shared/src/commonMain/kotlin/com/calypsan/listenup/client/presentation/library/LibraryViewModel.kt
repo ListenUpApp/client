@@ -9,9 +9,9 @@ import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
-import com.calypsan.listenup.client.data.repository.BookRepository
-import com.calypsan.listenup.client.data.repository.SettingsRepository
-import com.calypsan.listenup.client.data.sync.SyncManager
+import com.calypsan.listenup.client.data.repository.BookRepositoryContract
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.data.sync.SyncStatus
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.util.sortableTitle
@@ -38,11 +38,11 @@ private val logger = KotlinLogging.logger {}
  * - Change category via dropdown menu
  */
 class LibraryViewModel(
-    private val bookRepository: BookRepository,
+    private val bookRepository: BookRepositoryContract,
     private val seriesDao: SeriesDao,
     private val contributorDao: ContributorDao,
-    private val syncManager: SyncManager,
-    private val settingsRepository: SettingsRepository,
+    private val syncManager: SyncManagerContract,
+    private val settingsRepository: SettingsRepositoryContract,
     private val syncDao: SyncDao,
     private val playbackPositionDao: PlaybackPositionDao,
 ) : ViewModel() {

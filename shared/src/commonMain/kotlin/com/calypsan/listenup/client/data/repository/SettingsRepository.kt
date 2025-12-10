@@ -11,6 +11,47 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
+ * Contract for application settings and authentication state.
+ *
+ * Defines the public API for managing server configuration, authentication,
+ * and library preferences. Used by ViewModels and enables testing.
+ */
+interface SettingsRepositoryContract {
+    val authState: StateFlow<AuthState>
+
+    // Server configuration
+    suspend fun setServerUrl(url: ServerUrl)
+    suspend fun getServerUrl(): ServerUrl?
+
+    // Authentication
+    suspend fun saveAuthTokens(access: AccessToken, refresh: RefreshToken, sessionId: String, userId: String)
+    suspend fun getAccessToken(): AccessToken?
+    suspend fun getRefreshToken(): RefreshToken?
+    suspend fun getSessionId(): String?
+    suspend fun getUserId(): String?
+    suspend fun updateAccessToken(token: AccessToken)
+    suspend fun clearAuthTokens()
+    suspend fun clearAll()
+    suspend fun isAuthenticated(): Boolean
+    suspend fun hasServerConfigured(): Boolean
+    suspend fun initializeAuthState()
+    suspend fun checkServerStatus(): AuthState
+    suspend fun disconnectFromServer()
+
+    // Library sort preferences
+    suspend fun getBooksSortState(): String?
+    suspend fun setBooksSortState(persistenceKey: String)
+    suspend fun getSeriesSortState(): String?
+    suspend fun setSeriesSortState(persistenceKey: String)
+    suspend fun getAuthorsSortState(): String?
+    suspend fun setAuthorsSortState(persistenceKey: String)
+    suspend fun getNarratorsSortState(): String?
+    suspend fun setNarratorsSortState(persistenceKey: String)
+    suspend fun getIgnoreTitleArticles(): Boolean
+    suspend fun setIgnoreTitleArticles(ignore: Boolean)
+}
+
+/**
  * Repository for managing application settings and authentication state.
  *
  * This is the single source of truth for:
@@ -24,9 +65,9 @@ import kotlinx.coroutines.flow.asStateFlow
 class SettingsRepository(
     private val secureStorage: SecureStorage,
     private val instanceRepository: InstanceRepository,
-) {
+) : SettingsRepositoryContract {
     private val _authState = MutableStateFlow<AuthState>(AuthState.NeedsServerUrl)
-    val authState: StateFlow<AuthState> = _authState.asStateFlow()
+    override val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     companion object {
         private const val KEY_SERVER_URL = "server_url"
@@ -52,7 +93,7 @@ class SettingsRepository(
      * This is persisted across app restarts and checks server status to determine
      * if setup (root user creation) is needed.
      */
-    suspend fun setServerUrl(url: ServerUrl) {
+    override suspend fun setServerUrl(url: ServerUrl) {
         secureStorage.save(KEY_SERVER_URL, url.value)
         // Check if we already have tokens (returning user)
         val hasToken = getAccessToken() != null
@@ -70,7 +111,7 @@ class SettingsRepository(
      * Get the configured server URL.
      * @return ServerUrl if configured, null otherwise
      */
-    suspend fun getServerUrl(): ServerUrl? = secureStorage.read(KEY_SERVER_URL)?.let { ServerUrl(it) }
+    override suspend fun getServerUrl(): ServerUrl? = secureStorage.read(KEY_SERVER_URL)?.let { ServerUrl(it) }
 
     // Authentication state management
 
@@ -83,7 +124,7 @@ class SettingsRepository(
      * @param sessionId Server session ID
      * @param userId Authenticated user's ID
      */
-    suspend fun saveAuthTokens(
+    override suspend fun saveAuthTokens(
         access: AccessToken,
         refresh: RefreshToken,
         sessionId: String,
@@ -101,31 +142,31 @@ class SettingsRepository(
      * Get the current access token.
      * @return AccessToken if authenticated, null otherwise
      */
-    suspend fun getAccessToken(): AccessToken? = secureStorage.read(KEY_ACCESS_TOKEN)?.let { AccessToken(it) }
+    override suspend fun getAccessToken(): AccessToken? = secureStorage.read(KEY_ACCESS_TOKEN)?.let { AccessToken(it) }
 
     /**
      * Get the current refresh token.
      * @return RefreshToken if authenticated, null otherwise
      */
-    suspend fun getRefreshToken(): RefreshToken? = secureStorage.read(KEY_REFRESH_TOKEN)?.let { RefreshToken(it) }
+    override suspend fun getRefreshToken(): RefreshToken? = secureStorage.read(KEY_REFRESH_TOKEN)?.let { RefreshToken(it) }
 
     /**
      * Get the current session ID.
      * @return Session ID if authenticated, null otherwise
      */
-    suspend fun getSessionId(): String? = secureStorage.read(KEY_SESSION_ID)
+    override suspend fun getSessionId(): String? = secureStorage.read(KEY_SESSION_ID)
 
     /**
      * Get the current user ID.
      * @return User ID if authenticated, null otherwise
      */
-    suspend fun getUserId(): String? = secureStorage.read(KEY_USER_ID)
+    override suspend fun getUserId(): String? = secureStorage.read(KEY_USER_ID)
 
     /**
      * Update only the access token (used during automatic token refresh).
      * Does not change auth state - assumes user is still authenticated.
      */
-    suspend fun updateAccessToken(token: AccessToken) {
+    override suspend fun updateAccessToken(token: AccessToken) {
         secureStorage.save(KEY_ACCESS_TOKEN, token.value)
     }
 
@@ -148,7 +189,7 @@ class SettingsRepository(
      * TODO: Add playback resilience - check if audio is playing before clearing.
      * If playing, show banner instead of redirecting to login.
      */
-    suspend fun clearAuthTokens() {
+    override suspend fun clearAuthTokens() {
         secureStorage.delete(KEY_ACCESS_TOKEN)
         secureStorage.delete(KEY_REFRESH_TOKEN)
         secureStorage.delete(KEY_SESSION_ID)
@@ -163,7 +204,7 @@ class SettingsRepository(
      * Clear all settings including server URL (complete reset).
      * Updates auth state to NeedsServerUrl.
      */
-    suspend fun clearAll() {
+    override suspend fun clearAll() {
         secureStorage.clear()
         _authState.value = AuthState.NeedsServerUrl
     }
@@ -174,12 +215,12 @@ class SettingsRepository(
      * Check if user has stored authentication tokens.
      * Note: Tokens may be expired - this only checks for presence.
      */
-    suspend fun isAuthenticated(): Boolean = getAccessToken() != null
+    override suspend fun isAuthenticated(): Boolean = getAccessToken() != null
 
     /**
      * Check if server URL has been configured.
      */
-    suspend fun hasServerConfigured(): Boolean = getServerUrl() != null
+    override suspend fun hasServerConfigured(): Boolean = getServerUrl() != null
 
     /**
      * Initialize authentication state on app startup.
@@ -196,7 +237,7 @@ class SettingsRepository(
      * they'll fail when used and trigger re-auth via 401 handling.
      * This ensures the app works offline with cached data.
      */
-    suspend fun initializeAuthState() {
+    override suspend fun initializeAuthState() {
         _authState.value = deriveAuthState()
     }
 
@@ -247,7 +288,7 @@ class SettingsRepository(
      * On network failure, we stay in NeedsLogin - the server URL is never cleared
      * automatically. Users must explicitly change servers via settings.
      */
-    suspend fun checkServerStatus(): AuthState {
+    override suspend fun checkServerStatus(): AuthState {
         _authState.value = AuthState.CheckingServer
 
         return when (val result = instanceRepository.getInstance(forceRefresh = true)) {
@@ -280,7 +321,7 @@ class SettingsRepository(
      *
      * For network errors, do NOT call this - let the user retry or work offline.
      */
-    suspend fun disconnectFromServer() {
+    override suspend fun disconnectFromServer() {
         secureStorage.delete(KEY_SERVER_URL)
         secureStorage.delete(KEY_ACCESS_TOKEN)
         secureStorage.delete(KEY_REFRESH_TOKEN)
@@ -296,12 +337,12 @@ class SettingsRepository(
      * Get the sort state for the Books tab.
      * @return Persistence key (category:direction), or null if not set
      */
-    suspend fun getBooksSortState(): String? = secureStorage.read(KEY_SORT_BOOKS)
+    override suspend fun getBooksSortState(): String? = secureStorage.read(KEY_SORT_BOOKS)
 
     /**
      * Set the sort state for the Books tab.
      */
-    suspend fun setBooksSortState(persistenceKey: String) {
+    override suspend fun setBooksSortState(persistenceKey: String) {
         secureStorage.save(KEY_SORT_BOOKS, persistenceKey)
     }
 
@@ -309,12 +350,12 @@ class SettingsRepository(
      * Get the sort state for the Series tab.
      * @return Persistence key (category:direction), or null if not set
      */
-    suspend fun getSeriesSortState(): String? = secureStorage.read(KEY_SORT_SERIES)
+    override suspend fun getSeriesSortState(): String? = secureStorage.read(KEY_SORT_SERIES)
 
     /**
      * Set the sort state for the Series tab.
      */
-    suspend fun setSeriesSortState(persistenceKey: String) {
+    override suspend fun setSeriesSortState(persistenceKey: String) {
         secureStorage.save(KEY_SORT_SERIES, persistenceKey)
     }
 
@@ -322,12 +363,12 @@ class SettingsRepository(
      * Get the sort state for the Authors tab.
      * @return Persistence key (category:direction), or null if not set
      */
-    suspend fun getAuthorsSortState(): String? = secureStorage.read(KEY_SORT_AUTHORS)
+    override suspend fun getAuthorsSortState(): String? = secureStorage.read(KEY_SORT_AUTHORS)
 
     /**
      * Set the sort state for the Authors tab.
      */
-    suspend fun setAuthorsSortState(persistenceKey: String) {
+    override suspend fun setAuthorsSortState(persistenceKey: String) {
         secureStorage.save(KEY_SORT_AUTHORS, persistenceKey)
     }
 
@@ -335,12 +376,12 @@ class SettingsRepository(
      * Get the sort state for the Narrators tab.
      * @return Persistence key (category:direction), or null if not set
      */
-    suspend fun getNarratorsSortState(): String? = secureStorage.read(KEY_SORT_NARRATORS)
+    override suspend fun getNarratorsSortState(): String? = secureStorage.read(KEY_SORT_NARRATORS)
 
     /**
      * Set the sort state for the Narrators tab.
      */
-    suspend fun setNarratorsSortState(persistenceKey: String) {
+    override suspend fun setNarratorsSortState(persistenceKey: String) {
         secureStorage.save(KEY_SORT_NARRATORS, persistenceKey)
     }
 
@@ -350,13 +391,13 @@ class SettingsRepository(
      * Get whether to ignore leading articles (A, An, The) when sorting by title.
      * @return true to ignore articles (default), false for literal sort
      */
-    suspend fun getIgnoreTitleArticles(): Boolean =
+    override suspend fun getIgnoreTitleArticles(): Boolean =
         secureStorage.read(KEY_IGNORE_TITLE_ARTICLES)?.toBooleanStrictOrNull() ?: true
 
     /**
      * Set whether to ignore leading articles when sorting by title.
      */
-    suspend fun setIgnoreTitleArticles(ignore: Boolean) {
+    override suspend fun setIgnoreTitleArticles(ignore: Boolean) {
         secureStorage.save(KEY_IGNORE_TITLE_ARTICLES, ignore.toString())
     }
 }

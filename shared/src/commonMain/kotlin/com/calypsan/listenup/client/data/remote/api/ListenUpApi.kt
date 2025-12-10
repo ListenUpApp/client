@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
+import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.domain.model.Instance
@@ -41,7 +42,7 @@ private val logger = KotlinLogging.logger {}
 class ListenUpApi(
     private val baseUrl: String,
     private val apiClientFactory: ApiClientFactory? = null,
-) {
+) : ListenUpApiContract {
     /**
      * Simple HTTP client for public endpoints (no authentication).
      * Used for endpoints like getInstance that don't require credentials.
@@ -101,7 +102,7 @@ class ListenUpApi(
      *
      * @return Result containing the Instance on success, or an error on failure
      */
-    suspend fun getInstance(): Result<Instance> =
+    override suspend fun getInstance(): Result<Instance> =
         suspendRunCatching {
             logger.debug { "Fetching instance information from $baseUrl/api/v1/instance" }
 
@@ -125,7 +126,7 @@ class ListenUpApi(
      * @param limit Maximum number of books to return (default 10)
      * @return Result containing list of PlaybackProgressResponse on success
      */
-    suspend fun getContinueListening(limit: Int = 10): Result<List<PlaybackProgressResponse>> =
+    override suspend fun getContinueListening(limit: Int): Result<List<PlaybackProgressResponse>> =
         suspendRunCatching {
             logger.debug { "Fetching continue listening from $baseUrl/api/v1/listening/continue" }
 

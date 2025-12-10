@@ -13,11 +13,14 @@ import kotlinx.serialization.Serializable
  * Provides federated search across books, contributors, and series.
  * Uses server-side Bleve full-text search for fuzzy matching and faceting.
  *
+ * Implements [SearchApiContract] for testability - tests can mock the interface
+ * without needing to mock HTTP client internals.
+ *
  * @property clientFactory Factory for creating authenticated HttpClient
  */
 class SearchApi(
     private val clientFactory: ApiClientFactory,
-) {
+) : SearchApiContract {
     /**
      * Search across books, contributors, and series.
      *
@@ -32,15 +35,15 @@ class SearchApi(
      * @param limit Max results to return
      * @param offset Pagination offset
      */
-    suspend fun search(
+    override suspend fun search(
         query: String,
-        types: String? = null,
-        genres: String? = null,
-        genrePath: String? = null,
-        minDuration: Float? = null,
-        maxDuration: Float? = null,
-        limit: Int = 20,
-        offset: Int = 0,
+        types: String?,
+        genres: String?,
+        genrePath: String?,
+        minDuration: Float?,
+        maxDuration: Float?,
+        limit: Int,
+        offset: Int,
     ): SearchResponse {
         val client = clientFactory.getClient()
         val response: ApiResponse<SearchResponse> =

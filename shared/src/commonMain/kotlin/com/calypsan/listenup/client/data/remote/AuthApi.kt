@@ -33,7 +33,7 @@ import kotlinx.serialization.json.Json
  */
 class AuthApi(
     private val getServerUrl: suspend () -> ServerUrl?,
-) {
+) : AuthApiContract {
     private val json =
         Json {
             prettyPrint = false
@@ -71,7 +71,7 @@ class AuthApi(
      * @return AuthResponse with tokens and user info on success
      * @throws Exception on network errors or validation failures
      */
-    suspend fun setup(
+    override suspend fun setup(
         email: String,
         password: String,
         firstName: String,
@@ -100,7 +100,7 @@ class AuthApi(
      * @return AuthResponse with tokens and user info on success
      * @throws Exception on network errors or invalid credentials
      */
-    suspend fun login(
+    override suspend fun login(
         email: String,
         password: String,
     ): AuthResponse {
@@ -159,7 +159,7 @@ class AuthApi(
      * @return AuthResponse with new token pair
      * @throws Exception on network errors or invalid/expired refresh token
      */
-    suspend fun refresh(refreshToken: RefreshToken): AuthResponse {
+    override suspend fun refresh(refreshToken: RefreshToken): AuthResponse {
         val client = createClient(requireServerUrl())
         try {
             val response: ApiResponse<AuthResponse> =
@@ -183,7 +183,7 @@ class AuthApi(
      * Server invalidates both access and refresh tokens.
      * Always succeeds even if tokens are already invalid.
      */
-    suspend fun logout(sessionId: String) {
+    override suspend fun logout(sessionId: String) {
         val client = createClient(requireServerUrl())
         try {
             client.post("/api/v1/auth/logout") {

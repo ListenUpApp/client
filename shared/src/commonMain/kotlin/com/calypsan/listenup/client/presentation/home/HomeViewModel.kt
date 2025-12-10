@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.repository.HomeRepository
+import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +29,7 @@ private val logger = KotlinLogging.logger {}
  * @property homeRepository Repository for home screen data
  */
 class HomeViewModel(
-    private val homeRepository: HomeRepository,
+    private val homeRepository: HomeRepositoryContract,
 ) : ViewModel() {
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()

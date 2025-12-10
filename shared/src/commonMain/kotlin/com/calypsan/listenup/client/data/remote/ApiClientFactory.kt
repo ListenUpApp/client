@@ -35,7 +35,7 @@ private val logger = KotlinLogging.logger {}
  */
 class ApiClientFactory(
     private val settingsRepository: SettingsRepository,
-    private val authApi: AuthApi,
+    private val authApi: AuthApiContract,
 ) {
     private val mutex = Mutex()
     private var cachedClient: HttpClient? = null
@@ -206,5 +206,5 @@ class ApiClientFactory(
 internal expect suspend fun createStreamingHttpClient(
     serverUrl: ServerUrl,
     settingsRepository: SettingsRepository,
-    authApi: AuthApi,
+    authApi: AuthApiContract,
 ): HttpClient

@@ -29,7 +29,7 @@ private val logger = KotlinLogging.logger {}
 internal actual suspend fun createStreamingHttpClient(
     serverUrl: ServerUrl,
     settingsRepository: SettingsRepository,
-    authApi: AuthApi,
+    authApi: AuthApiContract,
 ): HttpClient =
     HttpClient(Darwin) {
         // Configure Darwin engine with infinite timeouts for streaming
