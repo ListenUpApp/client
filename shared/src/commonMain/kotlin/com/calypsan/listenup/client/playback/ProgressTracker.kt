@@ -10,7 +10,7 @@ import com.calypsan.listenup.client.data.local.db.PendingListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.ListeningEventRequest
-import com.calypsan.listenup.client.data.remote.SyncApi
+import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -36,9 +36,9 @@ class ProgressTracker(
     private val positionDao: PlaybackPositionDao,
     private val eventDao: PendingListeningEventDao,
     private val downloadDao: DownloadDao,
-    private val syncApi: SyncApi,
+    private val syncApi: SyncApiContract,
     private val deviceId: String,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
 ) {
     private var currentSession: ListeningSession? = null
 
@@ -50,19 +50,24 @@ class ProgressTracker(
         val bookId: BookId,
         val startPositionMs: Long,
         val startedAt: Long,
-        val playbackSpeed: Float
+        val playbackSpeed: Float,
     )
 
     /**
      * Called when playback starts/resumes.
      */
-    fun onPlaybackStarted(bookId: BookId, positionMs: Long, speed: Float) {
-        currentSession = ListeningSession(
-            bookId = bookId,
-            startPositionMs = positionMs,
-            startedAt = Clock.System.now().toEpochMilliseconds(),
-            playbackSpeed = speed
-        )
+    fun onPlaybackStarted(
+        bookId: BookId,
+        positionMs: Long,
+        speed: Float,
+    ) {
+        currentSession =
+            ListeningSession(
+                bookId = bookId,
+                startPositionMs = positionMs,
+                startedAt = Clock.System.now().toEpochMilliseconds(),
+                playbackSpeed = speed,
+            )
         logger.debug { "Playback started: book=${bookId.value}, position=$positionMs" }
     }
 
@@ -70,7 +75,11 @@ class ProgressTracker(
      * Called when playback pauses/stops.
      * Saves position immediately, queues event for sync.
      */
-    fun onPlaybackPaused(bookId: BookId, positionMs: Long, speed: Float) {
+    fun onPlaybackPaused(
+        bookId: BookId,
+        positionMs: Long,
+        speed: Float,
+    ) {
         scope.launch {
             // CONCERN 1: Save position immediately (local, fast)
             savePosition(bookId, positionMs, speed)
@@ -82,16 +91,17 @@ class ProgressTracker(
 
                     // Only record if listened for at least 10 seconds
                     if (durationMs >= 10_000) {
-                        val event = PendingListeningEventEntity(
-                            id = NanoId.generate("evt"),
-                            bookId = bookId,
-                            startPositionMs = session.startPositionMs,
-                            endPositionMs = positionMs,
-                            startedAt = session.startedAt,
-                            endedAt = Clock.System.now().toEpochMilliseconds(),
-                            playbackSpeed = session.playbackSpeed,
-                            deviceId = deviceId
-                        )
+                        val event =
+                            PendingListeningEventEntity(
+                                id = NanoId.generate("evt"),
+                                bookId = bookId,
+                                startPositionMs = session.startPositionMs,
+                                endPositionMs = positionMs,
+                                startedAt = session.startedAt,
+                                endedAt = Clock.System.now().toEpochMilliseconds(),
+                                playbackSpeed = session.playbackSpeed,
+                                deviceId = deviceId,
+                            )
                         eventDao.insert(event)
                         logger.debug { "Listening event queued: ${event.id}, duration=${durationMs}ms" }
 
@@ -109,7 +119,11 @@ class ProgressTracker(
      * Called periodically during playback (every 30 seconds).
      * Updates local position, but doesn't create events.
      */
-    fun onPositionUpdate(bookId: BookId, positionMs: Long, speed: Float) {
+    fun onPositionUpdate(
+        bookId: BookId,
+        positionMs: Long,
+        speed: Float,
+    ) {
         scope.launch {
             savePosition(bookId, positionMs, speed)
         }
@@ -118,15 +132,19 @@ class ProgressTracker(
     /**
      * Save position to local database immediately.
      */
-    private suspend fun savePosition(bookId: BookId, positionMs: Long, speed: Float) {
+    private suspend fun savePosition(
+        bookId: BookId,
+        positionMs: Long,
+        speed: Float,
+    ) {
         positionDao.save(
             PlaybackPositionEntity(
                 bookId = bookId,
                 positionMs = positionMs,
                 playbackSpeed = speed,
                 updatedAt = Clock.System.now().toEpochMilliseconds(),
-                syncedAt = null
-            )
+                syncedAt = null,
+            ),
         )
         logger.debug { "Position saved: book=${bookId.value}, position=$positionMs" }
     }
@@ -135,7 +153,10 @@ class ProgressTracker(
      * Save position immediately (blocking for critical saves).
      * Used before error handling to ensure position is never lost.
      */
-    suspend fun savePositionNow(bookId: BookId, positionMs: Long) {
+    suspend fun savePositionNow(
+        bookId: BookId,
+        positionMs: Long,
+    ) {
         val speed = currentSession?.playbackSpeed ?: 1.0f
         savePosition(bookId, positionMs, speed)
     }
@@ -143,9 +164,7 @@ class ProgressTracker(
     /**
      * Get resume position for a book. Local-first.
      */
-    suspend fun getResumePosition(bookId: BookId): PlaybackPositionEntity? {
-        return positionDao.get(bookId)
-    }
+    suspend fun getResumePosition(bookId: BookId): PlaybackPositionEntity? = positionDao.get(bookId)
 
     /**
      * Mark a book as finished.
@@ -158,16 +177,17 @@ class ProgressTracker(
             // Record completion event
             currentSession?.let { session ->
                 if (session.bookId == bookId) {
-                    val event = PendingListeningEventEntity(
-                        id = NanoId.generate("evt"),
-                        bookId = bookId,
-                        startPositionMs = session.startPositionMs,
-                        endPositionMs = Long.MAX_VALUE, // Indicates completion
-                        startedAt = session.startedAt,
-                        endedAt = Clock.System.now().toEpochMilliseconds(),
-                        playbackSpeed = session.playbackSpeed,
-                        deviceId = deviceId
-                    )
+                    val event =
+                        PendingListeningEventEntity(
+                            id = NanoId.generate("evt"),
+                            bookId = bookId,
+                            startPositionMs = session.startPositionMs,
+                            endPositionMs = Long.MAX_VALUE, // Indicates completion
+                            startedAt = session.startedAt,
+                            endedAt = Clock.System.now().toEpochMilliseconds(),
+                            playbackSpeed = session.playbackSpeed,
+                            deviceId = deviceId,
+                        )
                     eventDao.insert(event)
                 }
             }
@@ -205,18 +225,19 @@ class ProgressTracker(
                 val pending = eventDao.getPending(MAX_SYNC_BATCH_SIZE)
                 if (pending.isEmpty()) return@launch
 
-                val requests = pending.map { event ->
-                    ListeningEventRequest(
-                        id = event.id,
-                        book_id = event.bookId.value,
-                        start_position_ms = event.startPositionMs,
-                        end_position_ms = event.endPositionMs,
-                        started_at = event.startedAt,
-                        ended_at = event.endedAt,
-                        playback_speed = event.playbackSpeed,
-                        device_id = event.deviceId
-                    )
-                }
+                val requests =
+                    pending.map { event ->
+                        ListeningEventRequest(
+                            id = event.id,
+                            book_id = event.bookId.value,
+                            start_position_ms = event.startPositionMs,
+                            end_position_ms = event.endPositionMs,
+                            started_at = event.startedAt,
+                            ended_at = event.endedAt,
+                            playback_speed = event.playbackSpeed,
+                            device_id = event.deviceId,
+                        )
+                    }
 
                 when (val result = syncApi.submitListeningEvents(requests)) {
                     is Result.Success -> {
@@ -226,6 +247,7 @@ class ProgressTracker(
                         }
                         logger.debug { "Synced ${result.data.acknowledged.size} events" }
                     }
+
                     is Result.Failure -> {
                         // Silent failure - events stay queued for next attempt
                         logger.debug { "Event sync failed: ${result.exception.message}" }

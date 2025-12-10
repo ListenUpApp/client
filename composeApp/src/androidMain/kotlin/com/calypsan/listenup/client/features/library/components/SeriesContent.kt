@@ -58,7 +58,7 @@ fun SeriesContent(
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
     onSeriesClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         if (series.isEmpty()) {
@@ -68,13 +68,14 @@ fun SeriesContent(
             val scope = rememberCoroutineScope()
 
             // Build alphabet index for name-based sort
-            val alphabetIndex = remember(series, sortState) {
-                if (sortState.category == SortCategory.NAME) {
-                    AlphabetIndex.build(series) { it.series.name }
-                } else {
-                    null
+            val alphabetIndex =
+                remember(series, sortState) {
+                    if (sortState.category == SortCategory.NAME) {
+                        AlphabetIndex.build(series) { it.series.name }
+                    } else {
+                        null
+                    }
                 }
-            }
 
             val isScrolling by remember {
                 derivedStateOf { gridState.isScrollInProgress }
@@ -98,23 +99,24 @@ fun SeriesContent(
             LazyVerticalGrid(
                 state = gridState,
                 columns = GridCells.Adaptive(minSize = 200.dp),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 48.dp,
-                    bottom = 16.dp + MiniPlayerReservedHeight
-                ),
+                contentPadding =
+                    PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 48.dp,
+                        bottom = 16.dp + MiniPlayerReservedHeight,
+                    ),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             ) {
                 items(
                     items = series,
-                    key = { it.series.id }
+                    key = { it.series.id },
                 ) { seriesWithBooks ->
                     SeriesCard(
                         seriesWithBooks = seriesWithBooks,
-                        onClick = { onSeriesClick(seriesWithBooks.series.id) }
+                        onClick = { onSeriesClick(seriesWithBooks.series.id) },
                     )
                 }
             }
@@ -126,9 +128,10 @@ fun SeriesContent(
                 onCategorySelected = onCategorySelected,
                 onDirectionToggle = onDirectionToggle,
                 visible = showSortButton,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 16.dp, top = 8.dp)
+                modifier =
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 16.dp, top = 8.dp),
             )
 
             // Alphabet scrollbar (only for name sort)
@@ -142,9 +145,10 @@ fun SeriesContent(
                         }
                     },
                     isScrolling = isScrolling,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight)
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight),
                 )
             }
         }
@@ -157,32 +161,33 @@ fun SeriesContent(
 @Composable
 private fun SeriesEmptyState() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier.padding(32.dp),
         ) {
             Icon(
                 imageVector = Icons.Outlined.AutoStories,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
             Text(
                 text = "No series yet",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = "Series will appear here when books are part of a series",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
         }
     }

@@ -24,10 +24,11 @@ object TitleSortUtils {
      * Pattern matches leading articles followed by whitespace.
      * Uses word boundary to avoid matching "A.I." or "The" at end of title.
      */
-    private val articlePattern = Regex(
-        "^(${ENGLISH_ARTICLES.joinToString("|")})\\s+",
-        RegexOption.IGNORE_CASE
-    )
+    private val articlePattern =
+        Regex(
+            "^(${ENGLISH_ARTICLES.joinToString("|")})\\s+",
+            RegexOption.IGNORE_CASE,
+        )
 
     /**
      * Pattern matches leading digits for natural sorting.
@@ -57,23 +58,28 @@ object TitleSortUtils {
      * 1. Sort before alphabetic titles (digits < letters in ASCII)
      * 2. Sort naturally within the "#" section (2 < 12 < 2001)
      */
-    fun sortableTitle(title: String, ignoreArticles: Boolean): String {
+    fun sortableTitle(
+        title: String,
+        ignoreArticles: Boolean,
+    ): String {
         // Step 1: Strip articles if enabled
-        val withoutArticles = if (ignoreArticles) {
-            title.replace(articlePattern, "")
-        } else {
-            title
-        }
+        val withoutArticles =
+            if (ignoreArticles) {
+                title.replace(articlePattern, "")
+            } else {
+                title
+            }
 
         // Step 2: Apply natural number sorting by zero-padding leading digits
         val leadingMatch = leadingNumberPattern.find(withoutArticles)
-        val naturalSorted = if (leadingMatch != null) {
-            val number = leadingMatch.value
-            val padded = number.padStart(NUMBER_PAD_WIDTH, '0')
-            withoutArticles.replaceFirst(number, padded)
-        } else {
-            withoutArticles
-        }
+        val naturalSorted =
+            if (leadingMatch != null) {
+                val number = leadingMatch.value
+                val padded = number.padStart(NUMBER_PAD_WIDTH, '0')
+                withoutArticles.replaceFirst(number, padded)
+            } else {
+                withoutArticles
+            }
 
         return naturalSorted.lowercase()
     }
@@ -83,7 +89,10 @@ object TitleSortUtils {
      *
      * @return Uppercase letter for alphabetic titles, '#' for numeric/special
      */
-    fun sortLetter(title: String, ignoreArticles: Boolean): Char {
+    fun sortLetter(
+        title: String,
+        ignoreArticles: Boolean,
+    ): Char {
         val sortable = sortableTitle(title, ignoreArticles)
         val first = sortable.firstOrNull()?.uppercaseChar() ?: '#'
         return if (first.isLetter()) first else '#'
@@ -93,11 +102,9 @@ object TitleSortUtils {
 /**
  * Extension function for convenient access.
  */
-fun String.sortableTitle(ignoreArticles: Boolean): String =
-    TitleSortUtils.sortableTitle(this, ignoreArticles)
+fun String.sortableTitle(ignoreArticles: Boolean): String = TitleSortUtils.sortableTitle(this, ignoreArticles)
 
 /**
  * Extension function for section header letter.
  */
-fun String.sortLetter(ignoreArticles: Boolean): Char =
-    TitleSortUtils.sortLetter(this, ignoreArticles)
+fun String.sortLetter(ignoreArticles: Boolean): Char = TitleSortUtils.sortLetter(this, ignoreArticles)

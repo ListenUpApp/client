@@ -16,7 +16,6 @@ import androidx.room.Upsert
  */
 @Dao
 interface SyncDao {
-
     /**
      * Get metadata value by key.
      *
@@ -54,11 +53,10 @@ interface SyncDao {
  *
  * @return Type-safe Timestamp, or null if never synced
  */
-suspend fun SyncDao.getLastSyncTime(): Timestamp? {
-    return getValue(SyncDao.KEY_LAST_SYNC_BOOKS)
+suspend fun SyncDao.getLastSyncTime(): Timestamp? =
+    getValue(SyncDao.KEY_LAST_SYNC_BOOKS)
         ?.toLongOrNull()
         ?.let { Timestamp(it) }
-}
 
 /**
  * Set last successful sync timestamp for books.

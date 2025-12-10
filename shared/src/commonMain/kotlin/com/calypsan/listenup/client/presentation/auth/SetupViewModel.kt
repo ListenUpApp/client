@@ -8,9 +8,9 @@ import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.remote.AuthApi
+import com.calypsan.listenup.client.data.remote.AuthApiContract
 import com.calypsan.listenup.client.data.remote.AuthUser
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,11 +26,10 @@ import kotlin.time.Instant
  * causing automatic navigation to the Library screen.
  */
 class SetupViewModel(
-    private val authApi: AuthApi,
-    private val settingsRepository: SettingsRepository,
-    private val userDao: UserDao
+    private val authApi: AuthApiContract,
+    private val settingsRepository: SettingsRepositoryContract,
+    private val userDao: UserDao,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(SetupUiState())
     val state: StateFlow<SetupUiState> = _state.asStateFlow()
 
@@ -45,7 +44,7 @@ class SetupViewModel(
         lastName: String,
         email: String,
         password: String,
-        passwordConfirm: String
+        passwordConfirm: String,
     ) {
         // Client-side validation
         val trimmedFirstName = firstName.trim()
@@ -53,47 +52,57 @@ class SetupViewModel(
         val trimmedEmail = email.trim()
 
         if (trimmedFirstName.isBlank()) {
-            _state.value = SetupUiState(
-                status = SetupStatus.Error(
-                    SetupErrorType.ValidationError(SetupField.FIRST_NAME)
+            _state.value =
+                SetupUiState(
+                    status =
+                        SetupStatus.Error(
+                            SetupErrorType.ValidationError(SetupField.FIRST_NAME),
+                        ),
                 )
-            )
             return
         }
 
         if (trimmedLastName.isBlank()) {
-            _state.value = SetupUiState(
-                status = SetupStatus.Error(
-                    SetupErrorType.ValidationError(SetupField.LAST_NAME)
+            _state.value =
+                SetupUiState(
+                    status =
+                        SetupStatus.Error(
+                            SetupErrorType.ValidationError(SetupField.LAST_NAME),
+                        ),
                 )
-            )
             return
         }
 
         if (!isValidEmail(trimmedEmail)) {
-            _state.value = SetupUiState(
-                status = SetupStatus.Error(
-                    SetupErrorType.ValidationError(SetupField.EMAIL)
+            _state.value =
+                SetupUiState(
+                    status =
+                        SetupStatus.Error(
+                            SetupErrorType.ValidationError(SetupField.EMAIL),
+                        ),
                 )
-            )
             return
         }
 
         if (password.length < 8) {
-            _state.value = SetupUiState(
-                status = SetupStatus.Error(
-                    SetupErrorType.ValidationError(SetupField.PASSWORD)
+            _state.value =
+                SetupUiState(
+                    status =
+                        SetupStatus.Error(
+                            SetupErrorType.ValidationError(SetupField.PASSWORD),
+                        ),
                 )
-            )
             return
         }
 
         if (password != passwordConfirm) {
-            _state.value = SetupUiState(
-                status = SetupStatus.Error(
-                    SetupErrorType.ValidationError(SetupField.PASSWORD_CONFIRM)
+            _state.value =
+                SetupUiState(
+                    status =
+                        SetupStatus.Error(
+                            SetupErrorType.ValidationError(SetupField.PASSWORD_CONFIRM),
+                        ),
                 )
-            )
             return
         }
 
@@ -102,19 +111,20 @@ class SetupViewModel(
             _state.value = SetupUiState(status = SetupStatus.Loading)
 
             try {
-                val response = authApi.setup(
-                    email = trimmedEmail,
-                    password = password,
-                    firstName = trimmedFirstName,
-                    lastName = trimmedLastName
-                )
+                val response =
+                    authApi.setup(
+                        email = trimmedEmail,
+                        password = password,
+                        firstName = trimmedFirstName,
+                        lastName = trimmedLastName,
+                    )
 
                 // Store tokens - this triggers AuthState.Authenticated
                 settingsRepository.saveAuthTokens(
                     access = AccessToken(response.accessToken),
                     refresh = RefreshToken(response.refreshToken),
                     sessionId = response.sessionId,
-                    userId = response.userId
+                    userId = response.userId,
                 )
 
                 // Save user data to local database for avatar display
@@ -122,9 +132,10 @@ class SetupViewModel(
 
                 _state.value = SetupUiState(status = SetupStatus.Success)
             } catch (e: Exception) {
-                _state.value = SetupUiState(
-                    status = SetupStatus.Error(e.toSetupErrorType())
-                )
+                _state.value =
+                    SetupUiState(
+                        status = SetupStatus.Error(e.toSetupErrorType()),
+                    )
             }
         }
     }
@@ -141,38 +152,38 @@ class SetupViewModel(
     /**
      * Basic email validation.
      */
-    private fun isValidEmail(email: String): Boolean {
-        return email.contains("@") && email.contains(".")
-    }
+    private fun isValidEmail(email: String): Boolean = email.contains("@") && email.contains(".")
 }
 
 /**
  * Convert exception to semantic error type.
  */
-private fun Exception.toSetupErrorType(): SetupErrorType {
-    return when {
-        message?.contains("already configured", ignoreCase = true) == true ->
+private fun Exception.toSetupErrorType(): SetupErrorType =
+    when {
+        message?.contains("already configured", ignoreCase = true) == true -> {
             SetupErrorType.AlreadyConfigured
+        }
 
         message?.contains("network", ignoreCase = true) == true ||
-                message?.contains("connection", ignoreCase = true) == true ->
+            message?.contains("connection", ignoreCase = true) == true -> {
             SetupErrorType.NetworkError
+        }
 
-        else -> SetupErrorType.ServerError
+        else -> {
+            SetupErrorType.ServerError
+        }
     }
-}
 
 /**
  * Convert AuthUser from API response to UserEntity for local storage.
  */
 @OptIn(ExperimentalTime::class)
-private fun AuthUser.toEntity(): UserEntity {
-    return UserEntity(
+private fun AuthUser.toEntity(): UserEntity =
+    UserEntity(
         id = id,
         email = email,
         displayName = displayName,
         isRoot = isRoot,
         createdAt = Instant.parse(createdAt).toEpochMilliseconds(),
-        updatedAt = Instant.parse(updatedAt).toEpochMilliseconds()
+        updatedAt = Instant.parse(updatedAt).toEpochMilliseconds(),
     )
-}

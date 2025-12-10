@@ -55,7 +55,7 @@ fun NarratorsContent(
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
     onNarratorClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         if (narrators.isEmpty()) {
@@ -65,13 +65,14 @@ fun NarratorsContent(
             val scope = rememberCoroutineScope()
 
             // Build alphabet index for name-based sort
-            val alphabetIndex = remember(narrators, sortState) {
-                if (sortState.category == SortCategory.NAME) {
-                    AlphabetIndex.build(narrators) { it.contributor.name }
-                } else {
-                    null
+            val alphabetIndex =
+                remember(narrators, sortState) {
+                    if (sortState.category == SortCategory.NAME) {
+                        AlphabetIndex.build(narrators) { it.contributor.name }
+                    } else {
+                        null
+                    }
                 }
-            }
 
             val isScrolling by remember {
                 derivedStateOf { listState.isScrollInProgress }
@@ -94,23 +95,24 @@ fun NarratorsContent(
 
             LazyColumn(
                 state = listState,
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 48.dp,
-                    bottom = 16.dp + MiniPlayerReservedHeight
-                ),
+                contentPadding =
+                    PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 48.dp,
+                        bottom = 16.dp + MiniPlayerReservedHeight,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             ) {
                 items(
                     items = narrators,
-                    key = { it.contributor.id }
+                    key = { it.contributor.id },
                 ) { narratorWithCount ->
                     // Reuse ContributorCard from AuthorsContent
                     ContributorCard(
                         contributorWithCount = narratorWithCount,
-                        onClick = { onNarratorClick(narratorWithCount.contributor.id) }
+                        onClick = { onNarratorClick(narratorWithCount.contributor.id) },
                     )
                 }
             }
@@ -122,9 +124,10 @@ fun NarratorsContent(
                 onCategorySelected = onCategorySelected,
                 onDirectionToggle = onDirectionToggle,
                 visible = showSortButton,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 16.dp, top = 8.dp)
+                modifier =
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 16.dp, top = 8.dp),
             )
 
             // Alphabet scrollbar (only for name sort)
@@ -138,9 +141,10 @@ fun NarratorsContent(
                         }
                     },
                     isScrolling = isScrolling,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight)
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight),
                 )
             }
         }
@@ -153,32 +157,33 @@ fun NarratorsContent(
 @Composable
 private fun NarratorsEmptyState() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier.padding(32.dp),
         ) {
             Icon(
                 imageVector = Icons.Outlined.RecordVoiceOver,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
             Text(
                 text = "No narrators yet",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = "Narrators will appear here when you have audiobooks",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
         }
     }

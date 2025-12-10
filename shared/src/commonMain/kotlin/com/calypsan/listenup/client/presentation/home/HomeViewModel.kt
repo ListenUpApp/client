@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.repository.HomeRepository
+import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,10 +11,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 private val logger = KotlinLogging.logger {}
 
@@ -29,9 +29,8 @@ private val logger = KotlinLogging.logger {}
  * @property homeRepository Repository for home screen data
  */
 class HomeViewModel(
-    private val homeRepository: HomeRepository
+    private val homeRepository: HomeRepositoryContract,
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
@@ -72,17 +71,18 @@ class HomeViewModel(
                         it.copy(
                             isLoading = false,
                             continueListening = result.data,
-                            error = null
+                            error = null,
                         )
                     }
                     logger.debug { "Loaded ${result.data.size} continue listening books" }
                 }
+
                 else -> {
                     val errorMessage = "Failed to load continue listening"
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            error = errorMessage
+                            error = errorMessage,
                         )
                     }
                     logger.error { errorMessage }
@@ -120,7 +120,7 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     val userName: String = "",
     val continueListening: List<ContinueListeningBook> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
 ) {
     /**
      * Time-aware greeting based on current hour.
@@ -136,12 +136,13 @@ data class HomeUiState(
             val localTime = now.toLocalDateTime(TimeZone.currentSystemDefault())
             val hour = localTime.hour
 
-            val timeGreeting = when (hour) {
-                in 5..11 -> "Good morning"
-                in 12..16 -> "Good afternoon"
-                in 17..20 -> "Good evening"
-                else -> "Good night"
-            }
+            val timeGreeting =
+                when (hour) {
+                    in 5..11 -> "Good morning"
+                    in 12..16 -> "Good afternoon"
+                    in 17..20 -> "Good evening"
+                    else -> "Good night"
+                }
 
             return if (userName.isNotBlank()) {
                 "$timeGreeting, $userName"

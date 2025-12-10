@@ -25,24 +25,25 @@ import androidx.room.Relation
             entity = BookEntity::class,
             parentColumns = ["id"],
             childColumns = ["bookId"],
-            onDelete = ForeignKey.CASCADE // If book is deleted, remove relation
+            onDelete = ForeignKey.CASCADE, // If book is deleted, remove relation
         ),
         ForeignKey(
             entity = ContributorEntity::class,
             parentColumns = ["id"],
             childColumns = ["contributorId"],
-            onDelete = ForeignKey.CASCADE // If contributor is deleted, remove relation
-        )
+            onDelete = ForeignKey.CASCADE, // If contributor is deleted, remove relation
+        ),
     ],
     indices = [
         Index(value = ["bookId"]),
-        Index(value = ["contributorId"])
-    ]
+        Index(value = ["contributorId"]),
+    ],
 )
 data class BookContributorCrossRef(
     val bookId: BookId,
     val contributorId: String,
-    val role: String // "author", "narrator", etc.
+    // "author", "narrator", etc.
+    val role: String,
 )
 
 /**
@@ -56,24 +57,23 @@ data class BookContributorCrossRef(
  */
 data class BookWithContributors(
     @Embedded val book: BookEntity,
-
     @Relation(
         entity = ContributorEntity::class,
         parentColumn = "id",
         entityColumn = "id",
-        associateBy = Junction(
-            value = BookContributorCrossRef::class,
-            parentColumn = "bookId",
-            entityColumn = "contributorId"
-        )
+        associateBy =
+            Junction(
+                value = BookContributorCrossRef::class,
+                parentColumn = "bookId",
+                entityColumn = "contributorId",
+            ),
     )
     val contributors: List<ContributorEntity>,
-
     @Relation(
         parentColumn = "id",
-        entityColumn = "bookId"
+        entityColumn = "bookId",
     )
-    val contributorRoles: List<BookContributorCrossRef>
+    val contributorRoles: List<BookContributorCrossRef>,
 )
 
 /**
@@ -84,7 +84,7 @@ data class BookWithContributors(
  */
 data class SeriesWithBookCount(
     @Embedded val series: SeriesEntity,
-    val bookCount: Int
+    val bookCount: Int,
 )
 
 /**
@@ -95,7 +95,7 @@ data class SeriesWithBookCount(
  */
 data class ContributorWithBookCount(
     @Embedded val contributor: ContributorEntity,
-    val bookCount: Int
+    val bookCount: Int,
 )
 
 /**
@@ -106,12 +106,11 @@ data class ContributorWithBookCount(
  */
 data class SeriesWithBooks(
     @Embedded val series: SeriesEntity,
-
     @Relation(
         parentColumn = "id",
-        entityColumn = "seriesId"
+        entityColumn = "seriesId",
     )
-    val books: List<BookEntity>
+    val books: List<BookEntity>,
 )
 
 /**
@@ -121,5 +120,5 @@ data class SeriesWithBooks(
  */
 data class RoleWithBookCount(
     val role: String,
-    val bookCount: Int
+    val bookCount: Int,
 )

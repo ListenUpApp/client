@@ -73,22 +73,23 @@ fun AppTopBar(
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior? = null,
-    showAvatar: Boolean = true
+    showAvatar: Boolean = true,
 ) {
     // Guard against null destination during recomposition transitions
     val safeDestination = currentDestination ?: ShellDestination.Home
 
     TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surface
-        ),
+        colors =
+            TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                scrolledContainerColor = MaterialTheme.colorScheme.surface,
+            ),
         navigationIcon = {
             if (isSearchExpanded) {
                 IconButton(onClick = { onSearchExpandedChange(false) }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Close search"
+                        contentDescription = "Close search",
                     )
                 }
             }
@@ -97,13 +98,13 @@ fun AppTopBar(
             AnimatedContent(
                 targetState = isSearchExpanded,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "search_animation"
+                label = "search_animation",
             ) { expanded ->
                 if (expanded) {
                     SearchField(
                         query = searchQuery,
                         onQueryChange = onSearchQueryChange,
-                        onClose = { onSearchExpandedChange(false) }
+                        onClose = { onSearchExpandedChange(false) },
                     )
                 } else {
                     Text(safeDestination.title)
@@ -116,7 +117,7 @@ fun AppTopBar(
                 IconButton(onClick = { onSearchExpandedChange(true) }) {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = "Search"
+                        contentDescription = "Search",
                     )
                 }
             }
@@ -134,11 +135,11 @@ fun AppTopBar(
                     onExpandedChange = onAvatarMenuExpandedChange,
                     onSettingsClick = onSettingsClick,
                     onSignOutClick = onSignOutClick,
-                    modifier = Modifier.padding(end = 8.dp)
+                    modifier = Modifier.padding(end = 8.dp),
                 )
             }
         },
-        scrollBehavior = scrollBehavior
+        scrollBehavior = scrollBehavior,
     )
 }
 
@@ -146,10 +147,11 @@ fun AppTopBar(
  * Search text field for the expanded search state.
  */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -164,18 +166,21 @@ private fun SearchField(
         placeholder = { Text("Search audiobooks...") },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(
-            onSearch = { keyboardController?.hide() }
-        ),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color.Transparent,
-            unfocusedContainerColor = Color.Transparent,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .focusRequester(focusRequester)
+        keyboardActions =
+            KeyboardActions(
+                onSearch = { keyboardController?.hide() },
+            ),
+        colors =
+            TextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+            ),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
     )
 }
 
@@ -192,22 +197,26 @@ private fun SyncIndicator(syncState: SyncStatus) {
     when (syncState) {
         is SyncStatus.Syncing,
         is SyncStatus.Progress,
-        is SyncStatus.Retrying -> {
+        is SyncStatus.Retrying,
+        -> {
             CircularProgressIndicator(
-                modifier = Modifier
-                    .size(24.dp)
-                    .padding(end = 4.dp),
-                strokeWidth = 2.dp
+                modifier =
+                    Modifier
+                        .size(24.dp)
+                        .padding(end = 4.dp),
+                strokeWidth = 2.dp,
             )
         }
+
         is SyncStatus.Error -> {
             Icon(
                 imageVector = Icons.Default.CloudOff,
                 contentDescription = "Sync error",
                 tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(end = 4.dp)
+                modifier = Modifier.padding(end = 4.dp),
             )
         }
+
         else -> {
             // Idle, Success - show nothing
         }

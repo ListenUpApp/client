@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.data.local.db
 
-/**
+/*
  * Data classes for FTS5 full-text search entries.
  *
  * These are NOT Room entities - FTS5 virtual tables are created manually
@@ -35,7 +35,7 @@ data class BookFtsEntry(
     val author: String?,
     val narrator: String?,
     val seriesName: String?,
-    val genres: String?
+    val genres: String?,
 )
 
 /**
@@ -44,7 +44,7 @@ data class BookFtsEntry(
 data class ContributorFtsEntry(
     val contributorId: String,
     val name: String,
-    val description: String?
+    val description: String?,
 )
 
 /**
@@ -53,5 +53,5 @@ data class ContributorFtsEntry(
 data class SeriesFtsEntry(
     val seriesId: String,
     val name: String,
-    val description: String?
+    val description: String?,
 )

@@ -50,19 +50,20 @@ private val logger = KotlinLogging.logger {}
 class SSEManager(
     private val clientFactory: ApiClientFactory,
     private val settingsRepository: SettingsRepository,
-    private val scope: CoroutineScope
-) {
+    private val scope: CoroutineScope,
+) : SSEManagerContract {
     private val _eventFlow = MutableSharedFlow<SSEEventType>(replay = 0, extraBufferCapacity = 64)
-    val eventFlow: SharedFlow<SSEEventType> = _eventFlow.asSharedFlow()
+    override val eventFlow: SharedFlow<SSEEventType> = _eventFlow.asSharedFlow()
 
     private var connectionJob: Job? = null
     private var isConnected = false
 
     // JSON parser for manually parsing SSE event data field
-    private val json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
 
     companion object {
         private const val SSE_ENDPOINT = "/api/v1/sync/stream"
@@ -81,52 +82,54 @@ class SSEManager(
      *
      * Call this after successful login or sync to start receiving real-time updates.
      */
-    fun connect() {
+    override fun connect() {
         if (connectionJob?.isActive == true) {
             return // Already connected
         }
 
-        connectionJob = scope.launch {
-            var reconnectDelay = INITIAL_RECONNECT_DELAY_MS
+        connectionJob =
+            scope.launch {
+                var reconnectDelay = INITIAL_RECONNECT_DELAY_MS
 
-            while (isActive) {
-                try {
-                    // Check if server URL is configured before attempting connection
-                    val serverUrl = settingsRepository.getServerUrl()
-                    if (serverUrl == null) {
-                        logger.debug { "Server URL not configured, skipping SSE connection" }
-                        break // Don't reconnect if not configured
+                while (isActive) {
+                    try {
+                        // Check if server URL is configured before attempting connection
+                        val serverUrl = settingsRepository.getServerUrl()
+                        if (serverUrl == null) {
+                            logger.debug { "Server URL not configured, skipping SSE connection" }
+                            break // Don't reconnect if not configured
+                        }
+
+                        logger.info { "Connecting to SSE stream..." }
+                        streamEvents()
+
+                        // If we get here, connection ended gracefully
+                        logger.debug { "Connection ended gracefully" }
+                        break
+                    } catch (e: Exception) {
+                        logger.warn(e) { "Connection error" }
+                        isConnected = false
+
+                        if (!isActive) {
+                            break // Don't reconnect if job was cancelled
+                        }
+
+                        // Exponential backoff
+                        logger.debug { "Reconnecting in ${reconnectDelay}ms..." }
+                        delay(reconnectDelay)
+                        reconnectDelay =
+                            (reconnectDelay * RECONNECT_BACKOFF_MULTIPLIER)
+                                .toLong()
+                                .coerceAtMost(MAX_RECONNECT_DELAY_MS)
                     }
-
-                    logger.info { "Connecting to SSE stream..." }
-                    streamEvents()
-
-                    // If we get here, connection ended gracefully
-                    logger.debug { "Connection ended gracefully" }
-                    break
-                } catch (e: Exception) {
-                    logger.warn(e) { "Connection error" }
-                    isConnected = false
-
-                    if (!isActive) {
-                        break // Don't reconnect if job was cancelled
-                    }
-
-                    // Exponential backoff
-                    logger.debug { "Reconnecting in ${reconnectDelay}ms..." }
-                    delay(reconnectDelay)
-                    reconnectDelay = (reconnectDelay * RECONNECT_BACKOFF_MULTIPLIER)
-                        .toLong()
-                        .coerceAtMost(MAX_RECONNECT_DELAY_MS)
                 }
             }
-        }
     }
 
     /**
      * Disconnects from SSE stream and stops emitting events.
      */
-    fun disconnect() {
+    override fun disconnect() {
         logger.debug { "Disconnecting..." }
         connectionJob?.cancel()
         connectionJob = null
@@ -139,8 +142,9 @@ class SSEManager(
      */
     private suspend fun streamEvents() {
         logger.trace { "Getting server URL..." }
-        val serverUrl = settingsRepository.getServerUrl()
-            ?: throw IllegalStateException("Server URL not configured")
+        val serverUrl =
+            settingsRepository.getServerUrl()
+                ?: error("Server URL not configured")
         logger.trace { "Server URL: $serverUrl" }
 
         logger.trace { "Getting streaming HTTP client (no timeouts)..." }
@@ -200,17 +204,21 @@ class SSEManager(
                         currentEventType = null
                     }
                 }
+
                 line.startsWith("event: ") -> {
                     // SSE event type line (we don't use this, data JSON has type field)
                     currentEventType = line.removePrefix("event: ")
                 }
+
                 line.startsWith("data: ") -> {
                     // SSE data line
                     currentEventData.append(line.removePrefix("data: "))
                 }
+
                 line.startsWith(":") -> {
                     // SSE comment line, ignore
                 }
+
                 line.startsWith("id: ") || line.startsWith("retry: ") -> {
                     // SSE id/retry lines, ignore
                 }
@@ -226,54 +234,64 @@ class SSEManager(
             logger.trace { "Processing event: $eventJson" }
 
             // Parse the SSE event envelope
-            val sseEvent = try {
-                json.decodeFromString<SSEEvent>(eventJson)
-            } catch (e: Exception) {
-                // Skip non-standard events (like initial "connected" message)
-                logger.trace { "Skipping non-standard event: ${e.message}" }
-                return
-            }
-
-            val eventType = when (sseEvent.type) {
-                "book.created", "book.updated" -> {
-                    val bookEvent = json.decodeFromJsonElement(SSEBookEvent.serializer(), sseEvent.data)
-                    if (sseEvent.type == "book.created") {
-                        SSEEventType.BookCreated(bookEvent.book)
-                    } else {
-                        SSEEventType.BookUpdated(bookEvent.book)
-                    }
-                }
-
-                "book.deleted" -> {
-                    val deleteEvent = json.decodeFromJsonElement(SSEBookDeletedEvent.serializer(), sseEvent.data)
-                    SSEEventType.BookDeleted(deleteEvent.bookId, deleteEvent.deletedAt)
-                }
-
-                "library.scan_started" -> {
-                    val scanEvent = json.decodeFromJsonElement(SSELibraryScanStartedEvent.serializer(), sseEvent.data)
-                    SSEEventType.ScanStarted(scanEvent.libraryId, scanEvent.startedAt)
-                }
-
-                "library.scan_completed" -> {
-                    val scanEvent = json.decodeFromJsonElement(SSELibraryScanCompletedEvent.serializer(), sseEvent.data)
-                    SSEEventType.ScanCompleted(
-                        libraryId = scanEvent.libraryId,
-                        booksAdded = scanEvent.booksAdded,
-                        booksUpdated = scanEvent.booksUpdated,
-                        booksRemoved = scanEvent.booksRemoved
-                    )
-                }
-
-                "heartbeat" -> {
-                    // Heartbeat keeps connection alive, no action needed
-                    SSEEventType.Heartbeat
-                }
-
-                else -> {
-                    logger.debug { "Unknown event type: ${sseEvent.type}" }
+            val sseEvent =
+                try {
+                    json.decodeFromString<SSEEvent>(eventJson)
+                } catch (e: Exception) {
+                    // Skip non-standard events (like initial "connected" message)
+                    logger.trace { "Skipping non-standard event: ${e.message}" }
                     return
                 }
-            }
+
+            val eventType =
+                when (sseEvent.type) {
+                    "book.created", "book.updated" -> {
+                        val bookEvent = json.decodeFromJsonElement(SSEBookEvent.serializer(), sseEvent.data)
+                        if (sseEvent.type == "book.created") {
+                            SSEEventType.BookCreated(bookEvent.book)
+                        } else {
+                            SSEEventType.BookUpdated(bookEvent.book)
+                        }
+                    }
+
+                    "book.deleted" -> {
+                        val deleteEvent = json.decodeFromJsonElement(SSEBookDeletedEvent.serializer(), sseEvent.data)
+                        SSEEventType.BookDeleted(deleteEvent.bookId, deleteEvent.deletedAt)
+                    }
+
+                    "library.scan_started" -> {
+                        val scanEvent =
+                            json.decodeFromJsonElement(
+                                SSELibraryScanStartedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ScanStarted(scanEvent.libraryId, scanEvent.startedAt)
+                    }
+
+                    "library.scan_completed" -> {
+                        val scanEvent =
+                            json.decodeFromJsonElement(
+                                SSELibraryScanCompletedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ScanCompleted(
+                            libraryId = scanEvent.libraryId,
+                            booksAdded = scanEvent.booksAdded,
+                            booksUpdated = scanEvent.booksUpdated,
+                            booksRemoved = scanEvent.booksRemoved,
+                        )
+                    }
+
+                    "heartbeat" -> {
+                        // Heartbeat keeps connection alive, no action needed
+                        SSEEventType.Heartbeat
+                    }
+
+                    else -> {
+                        logger.debug { "Unknown event type: ${sseEvent.type}" }
+                        return
+                    }
+                }
 
             _eventFlow.emit(eventType)
         } catch (e: Exception) {
@@ -287,15 +305,30 @@ class SSEManager(
  * Each event type corresponds to a server event defined in sse/events.go.
  */
 sealed class SSEEventType {
-    data class BookCreated(val book: com.calypsan.listenup.client.data.remote.model.BookResponse) : SSEEventType()
-    data class BookUpdated(val book: com.calypsan.listenup.client.data.remote.model.BookResponse) : SSEEventType()
-    data class BookDeleted(val bookId: String, val deletedAt: String) : SSEEventType()
-    data class ScanStarted(val libraryId: String, val startedAt: String) : SSEEventType()
+    data class BookCreated(
+        val book: com.calypsan.listenup.client.data.remote.model.BookResponse,
+    ) : SSEEventType()
+
+    data class BookUpdated(
+        val book: com.calypsan.listenup.client.data.remote.model.BookResponse,
+    ) : SSEEventType()
+
+    data class BookDeleted(
+        val bookId: String,
+        val deletedAt: String,
+    ) : SSEEventType()
+
+    data class ScanStarted(
+        val libraryId: String,
+        val startedAt: String,
+    ) : SSEEventType()
+
     data class ScanCompleted(
         val libraryId: String,
         val booksAdded: Int,
         val booksUpdated: Int,
-        val booksRemoved: Int
+        val booksRemoved: Int,
     ) : SSEEventType()
+
     data object Heartbeat : SSEEventType()
 }

@@ -31,7 +31,7 @@ private val logger = KotlinLogging.logger {}
  * which has access to MediaController.
  */
 class SleepTimerManager(
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
 ) {
     private val _state = MutableStateFlow<SleepTimerState>(SleepTimerState.Inactive)
     val state: StateFlow<SleepTimerState> = _state.asStateFlow()
@@ -88,10 +88,11 @@ class SleepTimerManager(
 
             logger.info { "Extending timer by $additionalMinutes min, new remaining: ${newRemaining / 60000} min" }
 
-            _state.value = current.copy(
-                remainingMs = newRemaining,
-                totalMs = newTotal
-            )
+            _state.value =
+                current.copy(
+                    remainingMs = newRemaining,
+                    totalMs = newTotal,
+                )
         }
     }
 
@@ -99,6 +100,7 @@ class SleepTimerManager(
      * Called by NowPlayingViewModel when chapter changes.
      * Used for end-of-chapter mode detection.
      */
+    @Suppress("CollapsibleIfStatements") // Nested if improves readability here
     fun onChapterChanged(newChapterIndex: Int) {
         val current = _state.value
         if (current is SleepTimerState.Active && current.mode is SleepTimerMode.EndOfChapter) {
@@ -127,43 +129,46 @@ class SleepTimerManager(
         val totalMs = minutes * 60_000L
         val startedAt = Clock.System.now().toEpochMilliseconds()
 
-        _state.value = SleepTimerState.Active(
-            mode = SleepTimerMode.Duration(minutes),
-            remainingMs = totalMs,
-            totalMs = totalMs,
-            startedAt = startedAt
-        )
+        _state.value =
+            SleepTimerState.Active(
+                mode = SleepTimerMode.Duration(minutes),
+                remainingMs = totalMs,
+                totalMs = totalMs,
+                startedAt = startedAt,
+            )
 
-        timerJob = scope.launch {
-            logger.debug { "Starting $minutes minute timer" }
+        timerJob =
+            scope.launch {
+                logger.debug { "Starting $minutes minute timer" }
 
-            while (isActive) {
-                delay(TICK_INTERVAL_MS)
+                while (isActive) {
+                    delay(TICK_INTERVAL_MS)
 
-                val current = _state.value
-                if (current !is SleepTimerState.Active) break
+                    val current = _state.value
+                    if (current !is SleepTimerState.Active) break
 
-                val elapsed = Clock.System.now().toEpochMilliseconds() - current.startedAt
-                val remaining = (current.totalMs - elapsed).coerceAtLeast(0)
+                    val elapsed = Clock.System.now().toEpochMilliseconds() - current.startedAt
+                    val remaining = (current.totalMs - elapsed).coerceAtLeast(0)
 
-                _state.value = current.copy(remainingMs = remaining)
+                    _state.value = current.copy(remainingMs = remaining)
 
-                if (remaining <= 0) {
-                    logger.info { "Duration timer completed" }
-                    triggerSleep()
-                    break
+                    if (remaining <= 0) {
+                        logger.info { "Duration timer completed" }
+                        triggerSleep()
+                        break
+                    }
                 }
             }
-        }
     }
 
     private fun startEndOfChapterTimer() {
-        _state.value = SleepTimerState.Active(
-            mode = SleepTimerMode.EndOfChapter,
-            remainingMs = 0,
-            totalMs = 0,
-            startedAt = Clock.System.now().toEpochMilliseconds()
-        )
+        _state.value =
+            SleepTimerState.Active(
+                mode = SleepTimerMode.EndOfChapter,
+                remainingMs = 0,
+                totalMs = 0,
+                startedAt = Clock.System.now().toEpochMilliseconds(),
+            )
         logger.debug { "Started end-of-chapter timer, waiting for chapter change" }
     }
 

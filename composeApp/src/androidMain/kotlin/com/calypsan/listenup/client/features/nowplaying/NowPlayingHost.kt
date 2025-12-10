@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -25,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.features.shell.components.NavigationBarHeight
 import com.calypsan.listenup.client.playback.ContributorPickerType
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
-import com.calypsan.listenup.client.playback.SleepTimerState
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Height of a standard snackbar for padding calculations */
@@ -47,7 +45,7 @@ fun NowPlayingHost(
     onNavigateToSeries: (String) -> Unit,
     onNavigateToContributor: (String) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: NowPlayingViewModel = koinViewModel()
+    viewModel: NowPlayingViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val sleepTimerState by viewModel.sleepTimerState.collectAsState()
@@ -57,20 +55,24 @@ fun NowPlayingHost(
         // Full screen (slides up when expanded)
         AnimatedVisibility(
             visible = state.isExpanded,
-            enter = slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
-            ) + fadeIn(),
-            exit = slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMedium
-                )
-            ) + fadeOut()
+            enter =
+                slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec =
+                        spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow,
+                        ),
+                ) + fadeIn(),
+            exit =
+                slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec =
+                        spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMedium,
+                        ),
+                ) + fadeOut(),
         ) {
             NowPlayingScreen(
                 state = state,
@@ -99,7 +101,7 @@ fun NowPlayingHost(
                 },
                 onShowAuthorPicker = { viewModel.showContributorPicker(ContributorPickerType.AUTHORS) },
                 onShowNarratorPicker = { viewModel.showContributorPicker(ContributorPickerType.NARRATORS) },
-                onCloseBook = viewModel::closeBook
+                onCloseBook = viewModel::closeBook,
             )
         }
 
@@ -110,18 +112,20 @@ fun NowPlayingHost(
         val density = LocalDensity.current
         val systemNavBarHeight = with(density) { navBarInsets.getBottom(density).toDp() }
         val snackbarPadding = if (isSnackbarVisible) SnackbarHeight + 8.dp else 0.dp
-        val targetBottomPadding = if (hasBottomNav) {
-            NavigationBarHeight + systemNavBarHeight + snackbarPadding
-        } else {
-            systemNavBarHeight + 8.dp + snackbarPadding  // Small margin from edge when no nav bar
-        }
+        val targetBottomPadding =
+            if (hasBottomNav) {
+                NavigationBarHeight + systemNavBarHeight + snackbarPadding
+            } else {
+                systemNavBarHeight + 8.dp + snackbarPadding // Small margin from edge when no nav bar
+            }
         val bottomPadding by animateDpAsState(
             targetValue = targetBottomPadding,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioLowBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            ),
-            label = "miniPlayerPosition"
+            animationSpec =
+                spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+            label = "miniPlayerPosition",
         )
 
         NowPlayingBar(
@@ -130,9 +134,10 @@ fun NowPlayingHost(
             onPlayPause = viewModel::playPause,
             onSkipBack = { viewModel.skipBack() },
             onSkipForward = { viewModel.skipForward() },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = bottomPadding)
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = bottomPadding),
         )
 
         // Chapter picker sheet
@@ -141,7 +146,7 @@ fun NowPlayingHost(
                 chapters = viewModel.getChapters(),
                 currentChapterIndex = state.chapterIndex,
                 onChapterSelected = viewModel::seekToChapter,
-                onDismiss = viewModel::hideChapterPicker
+                onDismiss = viewModel::hideChapterPicker,
             )
         }
 
@@ -152,16 +157,17 @@ fun NowPlayingHost(
                 onSetTimer = viewModel::setSleepTimer,
                 onCancelTimer = viewModel::cancelSleepTimer,
                 onExtendTimer = viewModel::extendSleepTimer,
-                onDismiss = viewModel::hideSleepTimer
+                onDismiss = viewModel::hideSleepTimer,
             )
         }
 
         // Contributor picker sheet (for multiple authors/narrators)
         state.showContributorPicker?.let { pickerType ->
-            val contributors = when (pickerType) {
-                ContributorPickerType.AUTHORS -> state.authors
-                ContributorPickerType.NARRATORS -> state.narrators
-            }
+            val contributors =
+                when (pickerType) {
+                    ContributorPickerType.AUTHORS -> state.authors
+                    ContributorPickerType.NARRATORS -> state.narrators
+                }
             ContributorPickerSheet(
                 type = pickerType,
                 contributors = contributors,
@@ -170,7 +176,7 @@ fun NowPlayingHost(
                     viewModel.collapse()
                     onNavigateToContributor(contributorId)
                 },
-                onDismiss = viewModel::hideContributorPicker
+                onDismiss = viewModel::hideContributorPicker,
             )
         }
 
@@ -179,7 +185,7 @@ fun NowPlayingHost(
             PlaybackSpeedSheet(
                 currentSpeed = state.playbackSpeed,
                 onSpeedChange = viewModel::setSpeed,
-                onDismiss = viewModel::hideSpeedPicker
+                onDismiss = viewModel::hideSpeedPicker,
             )
         }
     }

@@ -29,7 +29,7 @@ val NavigationBarHeight = 80.dp
 fun AppNavigationBar(
     currentDestination: ShellDestination?,
     onDestinationSelected: (ShellDestination) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     // Guard against null destination during recomposition transitions
     val safeDestination = currentDestination ?: ShellDestination.Home
@@ -44,10 +44,10 @@ fun AppNavigationBar(
                 icon = {
                     Icon(
                         imageVector = if (selected) destination.selectedIcon else destination.icon,
-                        contentDescription = destination.title
+                        contentDescription = destination.title,
                     )
                 },
-                label = { Text(destination.title) }
+                label = { Text(destination.title) },
             )
         }
     }

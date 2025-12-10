@@ -9,7 +9,9 @@ package com.calypsan.listenup.client.core
  * Type-safe wrapper for PASETO access tokens.
  * Prevents accidental logging or misuse of sensitive credentials.
  */
-data class AccessToken(val value: String) {
+data class AccessToken(
+    val value: String,
+) {
     init {
         require(value.isNotBlank()) { "Access token cannot be blank" }
     }
@@ -19,7 +21,9 @@ data class AccessToken(val value: String) {
  * Type-safe wrapper for refresh tokens.
  * Prevents accidental logging or misuse of sensitive credentials.
  */
-data class RefreshToken(val value: String) {
+data class RefreshToken(
+    val value: String,
+) {
     init {
         require(value.isNotBlank()) { "Refresh token cannot be blank" }
     }
@@ -40,7 +44,9 @@ data class RefreshToken(val value: String) {
  * ServerUrl("")                            // Invalid, throws exception
  * ```
  */
-data class ServerUrl(private val _value: String) {
+data class ServerUrl(
+    private val _value: String,
+) {
     /**
      * The normalized URL value with trailing slash removed.
      */

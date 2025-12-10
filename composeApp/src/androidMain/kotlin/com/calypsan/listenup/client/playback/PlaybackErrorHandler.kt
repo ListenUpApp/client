@@ -21,33 +21,46 @@ private val logger = KotlinLogging.logger {}
  */
 class PlaybackErrorHandler(
     private val progressTracker: ProgressTracker,
-    private val tokenProvider: AndroidAudioTokenProvider
+    private val tokenProvider: AndroidAudioTokenProvider,
 ) {
     /**
      * Classifies errors into actionable categories.
      */
     sealed class PlaybackError {
         // Retryable - ExoPlayer handles internally, we just wait
-        data class Network(val message: String) : PlaybackError()
+        data class Network(
+            val message: String,
+        ) : PlaybackError()
 
         // Retryable once - refresh token, retry request
-        data class AuthExpired(val message: String) : PlaybackError()
+        data class AuthExpired(
+            val message: String,
+        ) : PlaybackError()
 
         // Not retryable - user action required
-        data class NotFound(val message: String) : PlaybackError()
-        data class Codec(val message: String) : PlaybackError()
-        data class Unknown(val cause: Throwable) : PlaybackError()
+        data class NotFound(
+            val message: String,
+        ) : PlaybackError()
+
+        data class Codec(
+            val message: String,
+        ) : PlaybackError()
+
+        data class Unknown(
+            val cause: Throwable,
+        ) : PlaybackError()
     }
 
     /**
      * Maps ExoPlayer exceptions to our error types.
      */
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    fun classify(error: PlaybackException): PlaybackError {
-        return when (error.errorCode) {
+    fun classify(error: PlaybackException): PlaybackError =
+        when (error.errorCode) {
             // Network errors - ExoPlayer will retry, we just observe
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
-            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> {
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+            -> {
                 PlaybackError.Network("Network connection lost")
             }
 
@@ -68,13 +81,15 @@ class PlaybackErrorHandler(
             // Decoder errors - file is broken or unsupported
             PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
             PlaybackException.ERROR_CODE_DECODING_FAILED,
-            PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED -> {
+            PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
+            -> {
                 PlaybackError.Codec("Cannot play this audio format")
             }
 
-            else -> PlaybackError.Unknown(error)
+            else -> {
+                PlaybackError.Unknown(error)
+            }
         }
-    }
 
     /**
      * Handle error based on classification.
@@ -85,7 +100,7 @@ class PlaybackErrorHandler(
         error: PlaybackError,
         player: ExoPlayer,
         currentBookId: BookId?,
-        onShowError: (String) -> Unit
+        onShowError: (String) -> Unit,
     ): Boolean {
         // ALWAYS save position first - position is sacred
         currentBookId?.let { bookId ->
@@ -149,13 +164,12 @@ class PlaybackErrorHandler(
     /**
      * Get a user-friendly message for an error.
      */
-    fun getErrorMessage(error: PlaybackError): String {
-        return when (error) {
+    fun getErrorMessage(error: PlaybackError): String =
+        when (error) {
             is PlaybackError.Network -> "Connection lost. Retrying..."
             is PlaybackError.AuthExpired -> "Session expired. Please sign in."
             is PlaybackError.NotFound -> "File not available."
             is PlaybackError.Codec -> "Cannot play this format."
             is PlaybackError.Unknown -> "Playback error."
         }
-    }
 }

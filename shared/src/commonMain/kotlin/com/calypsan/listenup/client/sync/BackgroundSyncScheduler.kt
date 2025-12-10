@@ -11,7 +11,6 @@ package com.calypsan.listenup.client.sync
  * - iOS: BGTaskScheduler with BGAppRefreshTask
  */
 interface BackgroundSyncScheduler {
-
     /**
      * Schedule periodic background sync.
      *

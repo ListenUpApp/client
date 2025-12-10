@@ -40,7 +40,7 @@ fun SeriesCard(
     seriesWithBooks: SeriesWithBooks,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    imageStorage: ImageStorage = koinInject()
+    imageStorage: ImageStorage = koinInject(),
 ) {
     val series = seriesWithBooks.series
     val books = seriesWithBooks.books
@@ -50,39 +50,40 @@ fun SeriesCard(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
-        label = "card_scale"
+        label = "card_scale",
     )
 
     // Extract cover paths from books, sorted by series sequence
-    val coverPaths = books
-        .sortedBy { it.sequence?.toFloatOrNull() ?: Float.MAX_VALUE }
-        .map { bookEntity ->
-            if (imageStorage.exists(bookEntity.id)) {
-                imageStorage.getCoverPath(bookEntity.id)
-            } else {
-                null
+    val coverPaths =
+        books
+            .sortedBy { it.sequence?.toFloatOrNull() ?: Float.MAX_VALUE }
+            .map { bookEntity ->
+                if (imageStorage.exists(bookEntity.id)) {
+                    imageStorage.getCoverPath(bookEntity.id)
+                } else {
+                    null
+                }
             }
-        }
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }.clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
     ) {
         // Animated cover stack (individual covers have their own shadows)
         AnimatedCoverStack(
             coverPaths = coverPaths,
             coverHeight = 140.dp,
             cycleDurationMs = 3000L,
-            maxVisibleCovers = 5
+            maxVisibleCovers = 5,
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -91,19 +92,20 @@ fun SeriesCard(
         Column(modifier = Modifier.padding(horizontal = 4.dp)) {
             Text(
                 text = series.name,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.2).sp
-                ),
+                style =
+                    MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp,
+                    ),
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             Text(
                 text = "$bookCount ${if (bookCount == 1) "book" else "books"}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

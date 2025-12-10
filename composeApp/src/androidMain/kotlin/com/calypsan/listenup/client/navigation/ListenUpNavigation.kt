@@ -21,16 +21,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.features.shell.ShellDestination
 import androidx.navigation3.runtime.entryProvider
-import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
-import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.data.repository.AuthState
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
+import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
 import com.calypsan.listenup.client.features.shell.AppShell
+import com.calypsan.listenup.client.features.shell.ShellDestination
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -47,9 +47,7 @@ import org.koin.compose.koinInject
  * Uses Navigation 3 stable for Android (will migrate to KMP when Desktop support needed).
  */
 @Composable
-fun ListenUpNavigation(
-    settingsRepository: SettingsRepository = koinInject()
-) {
+fun ListenUpNavigation(settingsRepository: SettingsRepository = koinInject()) {
     // Initialize auth state on first composition
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
@@ -76,6 +74,7 @@ fun ListenUpNavigation(
  * Displayed briefly on app start while checking for stored credentials.
  */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun LoadingScreen(message: String = "Loading...") {
     FullScreenLoadingIndicator()
 }
@@ -90,16 +89,17 @@ private fun ServerSetupNavigation() {
 
     NavDisplay(
         backStack = backStack,
-        entryProvider = entryProvider {
-            entry<ServerSetup> {
-                ServerSetupScreen(
-                    onServerVerified = {
-                        // URL is saved, AuthState will change automatically
-                        // No manual navigation needed
-                    }
-                )
-            }
-        }
+        entryProvider =
+            entryProvider {
+                entry<ServerSetup> {
+                    ServerSetupScreen(
+                        onServerVerified = {
+                            // URL is saved, AuthState will change automatically
+                            // No manual navigation needed
+                        },
+                    )
+                }
+            },
     )
 }
 
@@ -113,11 +113,13 @@ private fun SetupNavigation() {
 
     NavDisplay(
         backStack = backStack,
-        entryProvider = entryProvider {
-            entry<Setup> {
-                com.calypsan.listenup.client.features.auth.SetupScreen()
-            }
-        }
+        entryProvider =
+            entryProvider {
+                entry<Setup> {
+                    com.calypsan.listenup.client.features.auth
+                        .SetupScreen()
+                }
+            },
     )
 }
 
@@ -131,11 +133,13 @@ private fun LoginNavigation() {
 
     NavDisplay(
         backStack = backStack,
-        entryProvider = entryProvider {
-            entry<Login> {
-                com.calypsan.listenup.client.features.auth.LoginScreen()
-            }
-        }
+        entryProvider =
+            entryProvider {
+                entry<Login> {
+                    com.calypsan.listenup.client.features.auth
+                        .LoginScreen()
+                }
+            },
     )
 }
 
@@ -156,9 +160,7 @@ private fun LoginNavigation() {
  * triggering automatic switch to UnauthenticatedNavigation.
  */
 @Composable
-private fun AuthenticatedNavigation(
-    settingsRepository: SettingsRepository
-) {
+private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
     val scope = rememberCoroutineScope()
     val backStack = remember { mutableStateListOf<Route>(Shell) }
 
@@ -171,99 +173,100 @@ private fun AuthenticatedNavigation(
     // Wrap navigation with NowPlayingHost for persistent mini player
     CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
         Box(modifier = Modifier.fillMaxSize()) {
-        NavDisplay(
-        backStack = backStack,
-        // Only handle back if we're not at root - let system handle back-to-home
-        onBack = {
-            if (backStack.size > 1) {
-                backStack.removeLast()
-            }
-            // When size == 1, don't pop - allows system back-to-home animation
-        },
-        // Global slide transitions for all navigation
-        transitionSpec = {
-            slideInHorizontally { it } togetherWith slideOutHorizontally { -it }
-        },
-        popTransitionSpec = {
-            slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
-        },
-        predictivePopTransitionSpec = {
-            slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
-        },
-        entryProvider = entryProvider {
-            entry<Shell> {
-                AppShell(
-                    currentDestination = currentShellDestination,
-                    onDestinationChange = { currentShellDestination = it },
-                    onBookClick = { bookId ->
-                        backStack.add(BookDetail(bookId))
-                    },
-                    onSeriesClick = { seriesId ->
-                        backStack.add(SeriesDetail(seriesId))
-                    },
-                    onContributorClick = { contributorId ->
-                        backStack.add(ContributorDetail(contributorId))
-                    },
-                    onSignOut = {
-                        scope.launch {
-                            settingsRepository.clearAuthTokens()
+            NavDisplay(
+                backStack = backStack,
+                // Only handle back if we're not at root - let system handle back-to-home
+                onBack = {
+                    if (backStack.size > 1) {
+                        backStack.removeAt(backStack.lastIndex)
+                    }
+                    // When size == 1, don't pop - allows system back-to-home animation
+                },
+                // Global slide transitions for all navigation
+                transitionSpec = {
+                    slideInHorizontally { it } togetherWith slideOutHorizontally { -it }
+                },
+                popTransitionSpec = {
+                    slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
+                },
+                predictivePopTransitionSpec = {
+                    slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
+                },
+                entryProvider =
+                    entryProvider {
+                        entry<Shell> {
+                            AppShell(
+                                currentDestination = currentShellDestination,
+                                onDestinationChange = { currentShellDestination = it },
+                                onBookClick = { bookId ->
+                                    backStack.add(BookDetail(bookId))
+                                },
+                                onSeriesClick = { seriesId ->
+                                    backStack.add(SeriesDetail(seriesId))
+                                },
+                                onContributorClick = { contributorId ->
+                                    backStack.add(ContributorDetail(contributorId))
+                                },
+                                onSignOut = {
+                                    scope.launch {
+                                        settingsRepository.clearAuthTokens()
+                                    }
+                                },
+                            )
                         }
-                    }
-                )
-            }
-            entry<BookDetail> { args ->
-                com.calypsan.listenup.client.features.book_detail.BookDetailScreen(
-                    bookId = args.bookId,
-                    onBackClick = {
-                        backStack.removeLast()
+                        entry<BookDetail> { args ->
+                            com.calypsan.listenup.client.features.bookdetail.BookDetailScreen(
+                                bookId = args.bookId,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onSeriesClick = { seriesId ->
+                                    backStack.add(SeriesDetail(seriesId))
+                                },
+                                onContributorClick = { contributorId ->
+                                    backStack.add(ContributorDetail(contributorId))
+                                },
+                            )
+                        }
+                        entry<SeriesDetail> { args ->
+                            com.calypsan.listenup.client.features.seriesdetail.SeriesDetailScreen(
+                                seriesId = args.seriesId,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(BookDetail(bookId))
+                                },
+                            )
+                        }
+                        entry<ContributorDetail> { args ->
+                            com.calypsan.listenup.client.features.contributordetail.ContributorDetailScreen(
+                                contributorId = args.contributorId,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(BookDetail(bookId))
+                                },
+                                onViewAllClick = { contributorId, role ->
+                                    backStack.add(ContributorBooks(contributorId, role))
+                                },
+                            )
+                        }
+                        entry<ContributorBooks> { args ->
+                            com.calypsan.listenup.client.features.contributordetail.ContributorBooksScreen(
+                                contributorId = args.contributorId,
+                                role = args.role,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(BookDetail(bookId))
+                                },
+                            )
+                        }
                     },
-                    onSeriesClick = { seriesId ->
-                        backStack.add(SeriesDetail(seriesId))
-                    },
-                    onContributorClick = { contributorId ->
-                        backStack.add(ContributorDetail(contributorId))
-                    }
-                )
-            }
-            entry<SeriesDetail> { args ->
-                com.calypsan.listenup.client.features.series_detail.SeriesDetailScreen(
-                    seriesId = args.seriesId,
-                    onBackClick = {
-                        backStack.removeLast()
-                    },
-                    onBookClick = { bookId ->
-                        backStack.add(BookDetail(bookId))
-                    }
-                )
-            }
-            entry<ContributorDetail> { args ->
-                com.calypsan.listenup.client.features.contributor_detail.ContributorDetailScreen(
-                    contributorId = args.contributorId,
-                    onBackClick = {
-                        backStack.removeLast()
-                    },
-                    onBookClick = { bookId ->
-                        backStack.add(BookDetail(bookId))
-                    },
-                    onViewAllClick = { contributorId, role ->
-                        backStack.add(ContributorBooks(contributorId, role))
-                    }
-                )
-            }
-            entry<ContributorBooks> { args ->
-                com.calypsan.listenup.client.features.contributor_detail.ContributorBooksScreen(
-                    contributorId = args.contributorId,
-                    role = args.role,
-                    onBackClick = {
-                        backStack.removeLast()
-                    },
-                    onBookClick = { bookId ->
-                        backStack.add(BookDetail(bookId))
-                    }
-                )
-            }
-        }
-    )
+            )
 
             // Now Playing overlay - persistent across all navigation
             // Position adjusts based on whether bottom nav is visible (Shell vs detail screens)
@@ -279,15 +282,16 @@ private fun AuthenticatedNavigation(
                 },
                 onNavigateToContributor = { contributorId ->
                     backStack.add(ContributorDetail(contributorId))
-                }
+                },
             )
 
             // App-wide snackbar - positioned at bottom, mini player animates up when visible
             SnackbarHost(
                 hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp)
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp),
             )
         }
     }

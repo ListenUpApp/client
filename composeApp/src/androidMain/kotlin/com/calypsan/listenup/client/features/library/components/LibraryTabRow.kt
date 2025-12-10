@@ -1,8 +1,8 @@
 package com.calypsan.listenup.client.features.library.components
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -28,7 +28,7 @@ fun LibraryTabRow(
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit,
     collapseFraction: Float = 0f,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     // Icon fades out as top bar collapses
     val iconAlpha = 1f - collapseFraction
@@ -36,20 +36,23 @@ fun LibraryTabRow(
     SecondaryTabRow(
         selectedTabIndex = selectedTabIndex,
         modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         LibraryTab.entries.forEachIndexed { index, tab ->
             Tab(
                 selected = selectedTabIndex == index,
                 onClick = { onTabSelected(index) },
                 text = { Text(tab.title) },
-                icon = if (iconAlpha > 0.01f) {
-                    {
-                        Box(modifier = Modifier.alpha(iconAlpha)) {
-                            Icon(tab.icon, contentDescription = null)
+                icon =
+                    if (iconAlpha > 0.01f) {
+                        {
+                            Box(modifier = Modifier.alpha(iconAlpha)) {
+                                Icon(tab.icon, contentDescription = null)
+                            }
                         }
-                    }
-                } else null
+                    } else {
+                        null
+                    },
             )
         }
     }

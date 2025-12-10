@@ -50,30 +50,32 @@ fun SleepTimerSheet(
     onSetTimer: (SleepTimerMode) -> Unit,
     onCancelTimer: () -> Unit,
     onExtendTimer: (Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp),
         ) {
             // Header
             Text(
                 text = "Sleep Timer",
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(vertical = 16.dp)
+                modifier = Modifier.padding(vertical = 16.dp),
             )
 
             when (currentState) {
                 is SleepTimerState.Inactive -> {
                     SleepTimerOptions(onSetTimer = onSetTimer)
                 }
+
                 is SleepTimerState.Active -> {
                     ActiveTimerDisplay(
                         state = currentState,
@@ -81,9 +83,10 @@ fun SleepTimerSheet(
                         onCancel = {
                             onCancelTimer()
                             onDismiss()
-                        }
+                        },
                     )
                 }
+
                 is SleepTimerState.FadingOut -> {
                     FadingOutDisplay()
                 }
@@ -96,21 +99,19 @@ fun SleepTimerSheet(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SleepTimerOptions(
-    onSetTimer: (SleepTimerMode) -> Unit
-) {
+private fun SleepTimerOptions(onSetTimer: (SleepTimerMode) -> Unit) {
     val durationOptions = listOf(15, 30, 45, 60, 120)
 
     // Duration chips
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         durationOptions.forEach { minutes ->
             SuggestionChip(
                 onClick = { onSetTimer(SleepTimerMode.Duration(minutes)) },
-                label = { Text(SleepTimerMode.Duration(minutes).label) }
+                label = { Text(SleepTimerMode.Duration(minutes).label) },
             )
         }
     }
@@ -122,30 +123,30 @@ private fun SleepTimerOptions(
         onClick = { onSetTimer(SleepTimerMode.EndOfChapter) },
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.secondaryContainer
+        color = MaterialTheme.colorScheme.secondaryContainer,
     ) {
         Row(
             modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.Center,
         ) {
             Icon(
                 Icons.Default.Bedtime,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(
                     text = "End of chapter",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
                 Text(
                     text = "Pause when the current chapter ends",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
                 )
             }
         }
@@ -156,11 +157,11 @@ private fun SleepTimerOptions(
 private fun ActiveTimerDisplay(
     state: SleepTimerState.Active,
     onExtend: (Int) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         when (state.mode) {
             is SleepTimerMode.Duration -> {
@@ -168,7 +169,7 @@ private fun ActiveTimerDisplay(
                 Text(
                     text = state.formatRemaining(),
                     style = MaterialTheme.typography.displayMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
 
                 Spacer(Modifier.height(16.dp))
@@ -176,11 +177,12 @@ private fun ActiveTimerDisplay(
                 // Progress bar
                 LinearProgressIndicator(
                     progress = { state.progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp)),
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
 
                 Spacer(Modifier.height(24.dp))
@@ -189,18 +191,18 @@ private fun ActiveTimerDisplay(
                 Text(
                     text = "Add more time",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Spacer(Modifier.height(12.dp))
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     listOf(5, 10, 15).forEach { minutes ->
                         SuggestionChip(
                             onClick = { onExtend(minutes) },
-                            label = { Text("+$minutes min") }
+                            label = { Text("+$minutes min") },
                         )
                     }
                 }
@@ -212,14 +214,14 @@ private fun ActiveTimerDisplay(
                     Icons.Default.Bedtime,
                     contentDescription = null,
                     modifier = Modifier.size(56.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
                 )
 
                 Spacer(Modifier.height(16.dp))
 
                 Text(
                     text = "Until end of chapter",
-                    style = MaterialTheme.typography.headlineSmall
+                    style = MaterialTheme.typography.headlineSmall,
                 )
 
                 Spacer(Modifier.height(4.dp))
@@ -227,7 +229,7 @@ private fun ActiveTimerDisplay(
                 Text(
                     text = "Playback will pause when this chapter ends",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -237,7 +239,7 @@ private fun ActiveTimerDisplay(
         // Cancel button
         OutlinedButton(
             onClick = onCancel,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Cancel Timer")
         }
@@ -247,17 +249,18 @@ private fun ActiveTimerDisplay(
 @Composable
 private fun FadingOutDisplay() {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator()
             Spacer(Modifier.height(16.dp))
             Text(
                 text = "Fading out...",
-                style = MaterialTheme.typography.bodyLarge
+                style = MaterialTheme.typography.bodyLarge,
             )
         }
     }

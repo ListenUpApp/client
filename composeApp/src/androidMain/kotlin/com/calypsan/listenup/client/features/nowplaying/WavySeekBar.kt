@@ -52,7 +52,7 @@ fun WavySeekBar(
     onSeek: (Float) -> Unit,
     modifier: Modifier = Modifier,
     isPlaying: Boolean = false,
-    enabled: Boolean = true
+    enabled: Boolean = true,
 ) {
     val density = LocalDensity.current
 
@@ -71,77 +71,76 @@ fun WavySeekBar(
     val thumbSizePx = with(density) { thumbSize.toPx() }
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(48.dp) // Touch target height
-            .onSizeChanged { size ->
-                trackWidth = size.width.toFloat()
-            }
-            .pointerInput(enabled) {
-                if (!enabled) return@pointerInput
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(48.dp) // Touch target height
+                .onSizeChanged { size ->
+                    trackWidth = size.width.toFloat()
+                }.pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
 
-                detectTapGestures { offset ->
-                    // Calculate progress from tap position
-                    val newProgress = (offset.x / trackWidth).coerceIn(0f, 1f)
-                    onSeek(newProgress)
-                }
-            }
-            .pointerInput(enabled) {
-                if (!enabled) return@pointerInput
-
-                detectHorizontalDragGestures(
-                    onDragStart = { offset ->
-                        isDragging = true
-                        dragProgress = (offset.x / trackWidth).coerceIn(0f, 1f)
-                    },
-                    onDragEnd = {
-                        if (isDragging) {
-                            onSeek(dragProgress)
-                            isDragging = false
-                        }
-                    },
-                    onDragCancel = {
-                        isDragging = false
-                    },
-                    onHorizontalDrag = { _, dragAmount ->
-                        if (trackWidth > 0) {
-                            dragProgress = (dragProgress + dragAmount / trackWidth).coerceIn(0f, 1f)
-                        }
+                    detectTapGestures { offset ->
+                        // Calculate progress from tap position
+                        val newProgress = (offset.x / trackWidth).coerceIn(0f, 1f)
+                        onSeek(newProgress)
                     }
-                )
-            },
-        contentAlignment = Alignment.CenterStart
+                }.pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
+
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            isDragging = true
+                            dragProgress = (offset.x / trackWidth).coerceIn(0f, 1f)
+                        },
+                        onDragEnd = {
+                            if (isDragging) {
+                                onSeek(dragProgress)
+                                isDragging = false
+                            }
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            if (trackWidth > 0) {
+                                dragProgress = (dragProgress + dragAmount / trackWidth).coerceIn(0f, 1f)
+                            }
+                        },
+                    )
+                },
+        contentAlignment = Alignment.CenterStart,
     ) {
         // Wavy progress indicator track
         // Wave amplitude builds from flat (0) at the start to full (1) at the playhead,
         // then drops to flat for the unfilled track portion
         LinearWavyProgressIndicator(
             progress = { displayProgress },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .align(Alignment.Center),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .align(Alignment.Center),
             color = MaterialTheme.colorScheme.primary,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
             amplitude = { if (isPlaying) 1f else 0f },
             wavelength = 24.dp,
-            waveSpeed = 15.dp
+            waveSpeed = 15.dp,
         )
 
         // Thumb indicator
         Box(
-            modifier = Modifier
-                .offset {
-                    val thumbOffset = (displayProgress * (trackWidth - thumbSizePx)).roundToInt()
-                    IntOffset(thumbOffset, 0)
-                }
-                .size(thumbSize)
-                .shadow(
-                    elevation = if (isDragging) 8.dp else 4.dp,
-                    shape = CircleShape
-                )
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary)
+            modifier =
+                Modifier
+                    .offset {
+                        val thumbOffset = (displayProgress * (trackWidth - thumbSizePx)).roundToInt()
+                        IntOffset(thumbOffset, 0)
+                    }.size(thumbSize)
+                    .shadow(
+                        elevation = if (isDragging) 8.dp else 4.dp,
+                        shape = CircleShape,
+                    ).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
         )
     }
 }

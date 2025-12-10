@@ -16,9 +16,8 @@ sealed class SleepTimerState {
         val mode: SleepTimerMode,
         val remainingMs: Long,
         val totalMs: Long,
-        val startedAt: Long
+        val startedAt: Long,
     ) : SleepTimerState() {
-
         val progress: Float
             get() = if (totalMs > 0) 1f - (remainingMs.toFloat() / totalMs) else 0f
 
@@ -48,14 +47,17 @@ sealed class SleepTimerMode {
     /**
      * Timer for a specific duration.
      */
-    data class Duration(val minutes: Int) : SleepTimerMode() {
+    data class Duration(
+        val minutes: Int,
+    ) : SleepTimerMode() {
         val label: String
-            get() = when {
-                minutes < 60 -> "$minutes min"
-                minutes == 60 -> "1 hour"
-                minutes % 60 == 0 -> "${minutes / 60} hours"
-                else -> "${minutes / 60}h ${minutes % 60}m"
-            }
+            get() =
+                when {
+                    minutes < 60 -> "$minutes min"
+                    minutes == 60 -> "1 hour"
+                    minutes % 60 == 0 -> "${minutes / 60} hours"
+                    else -> "${minutes / 60}h ${minutes % 60}m"
+                }
     }
 
     /**

@@ -38,12 +38,12 @@ fun AppNavigationRail(
     onAvatarMenuExpandedChange: (Boolean) -> Unit,
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val safeDestination = currentDestination ?: ShellDestination.Home
 
     NavigationRail(
-        modifier = modifier.fillMaxHeight()
+        modifier = modifier.fillMaxHeight(),
     ) {
         // Navigation destinations
         ShellDestination.entries.forEach { destination ->
@@ -55,10 +55,10 @@ fun AppNavigationRail(
                 icon = {
                     Icon(
                         imageVector = if (selected) destination.selectedIcon else destination.icon,
-                        contentDescription = destination.title
+                        contentDescription = destination.title,
                     )
                 },
-                label = { Text(destination.title) }
+                label = { Text(destination.title) },
             )
         }
 
@@ -72,7 +72,7 @@ fun AppNavigationRail(
             onExpandedChange = onAvatarMenuExpandedChange,
             onSettingsClick = onSettingsClick,
             onSignOutClick = onSignOutClick,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 16.dp),
         )
     }
 }

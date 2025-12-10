@@ -55,8 +55,13 @@ import kotlinx.coroutines.launch
  * Represents an item in the book grid - either a section header or a book.
  */
 private sealed class BookGridItem {
-    data class Header(val letter: Char) : BookGridItem()
-    data class BookItem(val book: Book) : BookGridItem()
+    data class Header(
+        val letter: Char,
+    ) : BookGridItem()
+
+    data class BookItem(
+        val book: Book,
+    ) : BookGridItem()
 }
 
 /**
@@ -70,14 +75,16 @@ private sealed class BookGridItem {
 private fun groupBooksWithHeaders(
     books: List<Book>,
     sortState: SortState,
-    ignoreArticles: Boolean
+    ignoreArticles: Boolean,
 ): List<BookGridItem> {
     // For numeric/date sorts, no headers
-    val isTextSort = sortState.category in listOf(
-        SortCategory.TITLE,
-        SortCategory.AUTHOR,
-        SortCategory.SERIES
-    )
+    val isTextSort =
+        sortState.category in
+            listOf(
+                SortCategory.TITLE,
+                SortCategory.AUTHOR,
+                SortCategory.SERIES,
+            )
     if (!isTextSort) {
         return books.map { BookGridItem.BookItem(it) }
     }
@@ -86,20 +93,28 @@ private fun groupBooksWithHeaders(
     var currentLetter: Char? = null
 
     for (book in books) {
-        val letter = when (sortState.category) {
-            // Title sort uses article-aware letter extraction
-            SortCategory.TITLE -> book.title.sortLetter(ignoreArticles)
-            // Other text sorts use literal first letter
-            SortCategory.AUTHOR -> {
-                val first = book.authorNames.firstOrNull()?.uppercaseChar() ?: '#'
-                if (first.isLetter()) first else '#'
+        val letter =
+            when (sortState.category) {
+                // Title sort uses article-aware letter extraction
+                SortCategory.TITLE -> {
+                    book.title.sortLetter(ignoreArticles)
+                }
+
+                // Other text sorts use literal first letter
+                SortCategory.AUTHOR -> {
+                    val first = book.authorNames.firstOrNull()?.uppercaseChar() ?: '#'
+                    if (first.isLetter()) first else '#'
+                }
+
+                SortCategory.SERIES -> {
+                    val first = book.seriesName?.firstOrNull()?.uppercaseChar() ?: '#'
+                    if (first.isLetter()) first else '#'
+                }
+
+                else -> {
+                    '#'
+                }
             }
-            SortCategory.SERIES -> {
-                val first = book.seriesName?.firstOrNull()?.uppercaseChar() ?: '#'
-                if (first.isLetter()) first else '#'
-            }
-            else -> '#'
-        }
 
         if (letter != currentLetter) {
             result.add(BookGridItem.Header(letter))
@@ -117,23 +132,24 @@ private fun groupBooksWithHeaders(
 @Composable
 private fun SectionHeader(
     letter: Char,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 4.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 4.dp),
     ) {
         Text(
             text = letter.toString(),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 4.dp)
+            modifier = Modifier.padding(start = 4.dp),
         )
         HorizontalDivider(
             color = MaterialTheme.colorScheme.outlineVariant,
             thickness = 1.dp,
-            modifier = Modifier.padding(top = 4.dp)
+            modifier = Modifier.padding(top = 4.dp),
         )
     }
 }
@@ -148,7 +164,7 @@ private fun SectionHeader(
 private fun ArticleToggleChip(
     enabled: Boolean,
     onToggle: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     FilterChip(
         selected = enabled,
@@ -156,10 +172,10 @@ private fun ArticleToggleChip(
         label = {
             Text(
                 text = "Aa",
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
             )
         },
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -190,19 +206,22 @@ fun BooksContent(
     onToggleIgnoreArticles: () -> Unit,
     onBookClick: (String) -> Unit,
     onRetry: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         when {
             books.isEmpty() && syncState is SyncStatus.Syncing -> {
                 BooksLoadingState()
             }
+
             books.isEmpty() && syncState is SyncStatus.Error -> {
                 BooksErrorState(error = syncState.exception, onRetry = onRetry)
             }
+
             books.isEmpty() -> {
                 BooksEmptyState()
             }
+
             else -> {
                 BookGrid(
                     books = books,
@@ -212,7 +231,7 @@ fun BooksContent(
                     onCategorySelected = onCategorySelected,
                     onDirectionToggle = onDirectionToggle,
                     onToggleIgnoreArticles = onToggleIgnoreArticles,
-                    onBookClick = onBookClick
+                    onBookClick = onBookClick,
                 )
             }
         }
@@ -232,39 +251,45 @@ private fun BookGrid(
     onDirectionToggle: () -> Unit,
     onToggleIgnoreArticles: () -> Unit,
     onBookClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
     val scope = rememberCoroutineScope()
 
     // Group books with section headers for text-based sorts
-    val gridItems = remember(books, sortState, ignoreTitleArticles) {
-        groupBooksWithHeaders(books, sortState, ignoreTitleArticles)
-    }
+    val gridItems =
+        remember(books, sortState, ignoreTitleArticles) {
+            groupBooksWithHeaders(books, sortState, ignoreTitleArticles)
+        }
 
     // Build alphabet index based on current sort category, accounting for headers
-    val alphabetIndex = remember(gridItems, sortState) {
-        when (sortState.category) {
-            SortCategory.TITLE, SortCategory.AUTHOR, SortCategory.SERIES -> {
-                // Map letters to their header positions in the grid
-                val letterPositions = mutableMapOf<Char, Int>()
-                gridItems.forEachIndexed { index, item ->
-                    if (item is BookGridItem.Header) {
-                        letterPositions[item.letter] = index
+    val alphabetIndex =
+        remember(gridItems, sortState) {
+            when (sortState.category) {
+                SortCategory.TITLE, SortCategory.AUTHOR, SortCategory.SERIES -> {
+                    // Map letters to their header positions in the grid
+                    val letterPositions = mutableMapOf<Char, Int>()
+                    gridItems.forEachIndexed { index, item ->
+                        if (item is BookGridItem.Header) {
+                            letterPositions[item.letter] = index
+                        }
+                    }
+                    if (letterPositions.isNotEmpty()) {
+                        // Sort: non-letters (#) first, then alphabetically
+                        val letters =
+                            letterPositions.keys
+                                .sortedWith(compareBy({ it.isLetter() }, { it }))
+                        AlphabetIndex(letters, letterPositions)
+                    } else {
+                        null
                     }
                 }
-                if (letterPositions.isNotEmpty()) {
-                    // Sort: non-letters (#) first, then alphabetically
-                    val letters = letterPositions.keys
-                        .sortedWith(compareBy({ it.isLetter() }, { it }))
-                    AlphabetIndex(letters, letterPositions)
-                } else {
+
+                else -> {
                     null
-                }
+                } // Numeric sorts don't benefit from alphabet navigation
             }
-            else -> null // Numeric sorts don't benefit from alphabet navigation
         }
-    }
 
     val isScrolling by remember {
         derivedStateOf { gridState.isScrollInProgress }
@@ -287,15 +312,16 @@ private fun BookGrid(
         LazyVerticalGrid(
             state = gridState,
             columns = GridCells.Adaptive(minSize = 120.dp),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 48.dp,
-                bottom = 16.dp + MiniPlayerReservedHeight
-            ),
+            contentPadding =
+                PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 48.dp,
+                    bottom = 16.dp + MiniPlayerReservedHeight,
+                ),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         ) {
             items(
                 items = gridItems,
@@ -310,18 +336,19 @@ private fun BookGrid(
                         is BookGridItem.Header -> GridItemSpan(maxLineSpan)
                         is BookGridItem.BookItem -> GridItemSpan(1)
                     }
-                }
+                },
             ) { gridItem ->
                 when (gridItem) {
                     is BookGridItem.Header -> {
                         SectionHeader(letter = gridItem.letter)
                     }
+
                     is BookGridItem.BookItem -> {
                         BookCard(
                             book = gridItem.book,
                             onClick = { onBookClick(gridItem.book.id.value) },
                             progress = bookProgress[gridItem.book.id.value],
-                            modifier = Modifier.animateItem()
+                            modifier = Modifier.animateItem(),
                         )
                     }
                 }
@@ -331,16 +358,17 @@ private fun BookGrid(
         // Sort controls row
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 16.dp, top = 8.dp)
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 16.dp, top = 8.dp),
         ) {
             SortSplitButton(
                 state = sortState,
                 categories = SortCategory.booksCategories,
                 onCategorySelected = onCategorySelected,
                 onDirectionToggle = onDirectionToggle,
-                visible = showSortButton
+                visible = showSortButton,
             )
 
             // Article toggle chip - only visible when sorting by Title
@@ -348,7 +376,7 @@ private fun BookGrid(
                 Spacer(modifier = Modifier.width(8.dp))
                 ArticleToggleChip(
                     enabled = ignoreTitleArticles,
-                    onToggle = onToggleIgnoreArticles
+                    onToggle = onToggleIgnoreArticles,
                 )
             }
         }
@@ -363,9 +391,10 @@ private fun BookGrid(
                     scope.launch { gridState.animateScrollToItem(index) }
                 },
                 isScrolling = isScrolling,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight)
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight),
             )
         }
     }
@@ -374,20 +403,21 @@ private fun BookGrid(
 @Composable
 private fun BooksLoadingState() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ListenUpLoadingIndicator()
             Text(
                 text = "Loading your library...",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -396,66 +426,71 @@ private fun BooksLoadingState() {
 @Composable
 private fun BooksEmptyState() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier.padding(32.dp),
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.LibraryBooks,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = "No audiobooks yet",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = "Add audiobooks to your server to get started",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
         }
     }
 }
 
 @Composable
-private fun BooksErrorState(error: Exception, onRetry: () -> Unit) {
+private fun BooksErrorState(
+    error: Exception,
+    onRetry: () -> Unit,
+) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier.padding(32.dp),
         ) {
             Icon(
                 imageVector = Icons.Default.ErrorOutline,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.error
+                tint = MaterialTheme.colorScheme.error,
             )
             Text(
                 text = "Failed to load library",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.error
+                color = MaterialTheme.colorScheme.error,
             )
             Text(
                 text = error.message ?: "Unknown error",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(8.dp))
             ListenUpButton(text = "Retry", onClick = onRetry)

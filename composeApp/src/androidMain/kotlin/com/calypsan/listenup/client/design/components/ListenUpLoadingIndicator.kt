@@ -20,14 +20,12 @@ import androidx.compose.ui.unit.dp
  * @param modifier Optional modifier for the indicator
  */
 @Composable
-fun ListenUpLoadingIndicator(
-    modifier: Modifier = Modifier
-) {
+fun ListenUpLoadingIndicator(modifier: Modifier = Modifier) {
     CircularProgressIndicator(
         modifier = modifier.size(48.dp),
         color = MaterialTheme.colorScheme.primary,
         trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        strokeWidth = 4.dp
+        strokeWidth = 4.dp,
     )
 }
 
@@ -40,12 +38,10 @@ fun ListenUpLoadingIndicator(
  * @param modifier Optional modifier for the outer Box
  */
 @Composable
-fun FullScreenLoadingIndicator(
-    modifier: Modifier = Modifier
-) {
+fun FullScreenLoadingIndicator(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         ListenUpLoadingIndicator()
     }

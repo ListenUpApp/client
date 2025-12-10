@@ -30,7 +30,7 @@ private val logger = KotlinLogging.logger {}
  * - Connection is released when refCount hits 0
  */
 class MediaControllerHolder(
-    private val context: Context
+    private val context: Context,
 ) {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var _controller: MediaController? = null
@@ -102,10 +102,11 @@ class MediaControllerHolder(
 
         logger.info { "MediaControllerHolder: establishing connection" }
 
-        val sessionToken = SessionToken(
-            context,
-            ComponentName(context, PlaybackService::class.java)
-        )
+        val sessionToken =
+            SessionToken(
+                context,
+                ComponentName(context, PlaybackService::class.java),
+            )
 
         controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         controllerFuture?.addListener({

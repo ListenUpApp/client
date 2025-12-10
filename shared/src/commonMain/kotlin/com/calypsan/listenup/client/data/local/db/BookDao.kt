@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface BookDao {
-
     /**
      * Insert or update a book entity.
      * If a book with the same ID exists, it will be updated.
@@ -113,14 +112,13 @@ interface BookDao {
      * Get books with pending changes (NOT_SYNCED or CONFLICT states).
      * Convenience method wrapping getByStates.
      */
-    suspend fun getPendingChanges(): List<BookEntity> {
-        return getByStates(
+    suspend fun getPendingChanges(): List<BookEntity> =
+        getByStates(
             listOf(
                 SyncState.NOT_SYNCED_ORDINAL,
-                SyncState.CONFLICT_ORDINAL
-            )
+                SyncState.CONFLICT_ORDINAL,
+            ),
         )
-    }
 
     /**
      * Mark a book as successfully synced with server.
@@ -131,13 +129,18 @@ interface BookDao {
      * @param id Type-safe book ID
      * @param serverVersion Server's updated_at timestamp
      */
-    @Query("""
+    @Query(
+        """
         UPDATE books
         SET syncState = ${SyncState.SYNCED_ORDINAL},
             serverVersion = :serverVersion
         WHERE id = :id
-    """)
-    suspend fun markSynced(id: BookId, serverVersion: Timestamp)
+    """,
+    )
+    suspend fun markSynced(
+        id: BookId,
+        serverVersion: Timestamp,
+    )
 
     /**
      * Mark a book as having a sync conflict.
@@ -148,13 +151,18 @@ interface BookDao {
      * @param id Type-safe book ID
      * @param serverVersion Server's newer updated_at timestamp
      */
-    @Query("""
+    @Query(
+        """
         UPDATE books
         SET syncState = ${SyncState.CONFLICT_ORDINAL},
             serverVersion = :serverVersion
         WHERE id = :id
-    """)
-    suspend fun markConflict(id: BookId, serverVersion: Timestamp)
+    """,
+    )
+    suspend fun markConflict(
+        id: BookId,
+        serverVersion: Timestamp,
+    )
 
     /**
      * Delete a book by ID.
@@ -194,7 +202,10 @@ interface BookDao {
      * @param id Type-safe book ID to touch
      */
     @Query("UPDATE books SET updatedAt = :timestamp WHERE id = :id")
-    suspend fun touchUpdatedAt(id: BookId, timestamp: Timestamp)
+    suspend fun touchUpdatedAt(
+        id: BookId,
+        timestamp: Timestamp,
+    )
 
     /**
      * Observe all books belonging to a specific series.
@@ -233,7 +244,8 @@ interface BookDao {
      * @return Flow emitting list of books with their contributors
      */
     @Transaction
-    @Query("""
+    @Query(
+        """
         SELECT b.* FROM books b
         INNER JOIN book_contributors bc ON b.id = bc.bookId
         WHERE bc.contributorId = :contributorId AND bc.role = :role
@@ -242,9 +254,10 @@ interface BookDao {
             b.seriesName ASC,
             b.sequence ASC,
             b.title ASC
-    """)
+    """,
+    )
     fun observeByContributorAndRole(
         contributorId: String,
-        role: String
+        role: String,
     ): Flow<List<BookWithContributors>>
 }

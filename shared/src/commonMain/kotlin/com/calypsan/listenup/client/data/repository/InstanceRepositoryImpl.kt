@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.remote.api.ListenUpApi
+import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 
@@ -15,7 +15,7 @@ import com.calypsan.listenup.client.domain.repository.InstanceRepository
  * - Automatic refresh on stale data
  */
 class InstanceRepositoryImpl(
-    private val api: ListenUpApi
+    private val api: ListenUpApiContract,
 ) : InstanceRepository {
     /**
      * Cached instance data.

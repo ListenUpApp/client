@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.features.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,21 +41,23 @@ fun HomeScreen(
     onBookClick: (String) -> Unit,
     onNavigateToLibrary: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: HomeViewModel = koinViewModel()
+    viewModel: HomeViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     PullToRefreshBox(
         isRefreshing = state.isLoading,
         onRefresh = { viewModel.refresh() },
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
         ) {
             // Greeting header
             HomeHeader(greeting = state.greeting)
@@ -65,11 +66,11 @@ fun HomeScreen(
             if (state.hasContinueListening) {
                 ContinueListeningRow(
                     books = state.continueListening,
-                    onBookClick = onBookClick
+                    onBookClick = onBookClick,
                 )
             } else if (!state.isLoading) {
                 EmptyContinueListening(
-                    onBrowseLibrary = onNavigateToLibrary
+                    onBrowseLibrary = onNavigateToLibrary,
                 )
             }
 

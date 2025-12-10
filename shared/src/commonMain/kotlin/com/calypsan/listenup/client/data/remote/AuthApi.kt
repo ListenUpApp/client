@@ -1,9 +1,7 @@
 package com.calypsan.listenup.client.data.remote
 
-import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.RefreshToken
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
@@ -33,15 +31,18 @@ import kotlinx.serialization.json.Json
  * All endpoints return new tokens on success, following the server's
  * token rotation pattern (15min access, 30d refresh).
  */
-class AuthApi(private val getServerUrl: suspend () -> ServerUrl?) {
-    private val json = Json {
-        prettyPrint = false
-        isLenient = false
-        ignoreUnknownKeys = true
-    }
+class AuthApi(
+    private val getServerUrl: suspend () -> ServerUrl?,
+) : AuthApiContract {
+    private val json =
+        Json {
+            prettyPrint = false
+            isLenient = false
+            ignoreUnknownKeys = true
+        }
 
-    private fun createClient(serverUrl: ServerUrl): HttpClient {
-        return HttpClient {
+    private fun createClient(serverUrl: ServerUrl): HttpClient =
+        HttpClient {
             install(ContentNegotiation) {
                 json(this@AuthApi.json)
             }
@@ -51,14 +52,11 @@ class AuthApi(private val getServerUrl: suspend () -> ServerUrl?) {
                 contentType(ContentType.Application.Json)
             }
         }
-    }
 
     /**
      * Get server URL or throw if not configured.
      */
-    private suspend fun requireServerUrl(): ServerUrl {
-        return getServerUrl() ?: throw IllegalStateException("Server URL not configured")
-    }
+    private suspend fun requireServerUrl(): ServerUrl = getServerUrl() ?: error("Server URL not configured")
 
     /**
      * Create the root/admin user during initial server setup.
@@ -73,12 +71,19 @@ class AuthApi(private val getServerUrl: suspend () -> ServerUrl?) {
      * @return AuthResponse with tokens and user info on success
      * @throws Exception on network errors or validation failures
      */
-    suspend fun setup(email: String, password: String, firstName: String, lastName: String): AuthResponse {
+    override suspend fun setup(
+        email: String,
+        password: String,
+        firstName: String,
+        lastName: String,
+    ): AuthResponse {
         val client = createClient(requireServerUrl())
         try {
-            val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/setup") {
-                setBody(SetupRequest(email, password, firstName, lastName))
-            }.body()
+            val response: ApiResponse<AuthResponse> =
+                client
+                    .post("/api/v1/auth/setup") {
+                        setBody(SetupRequest(email, password, firstName, lastName))
+                    }.body()
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
@@ -95,22 +100,28 @@ class AuthApi(private val getServerUrl: suspend () -> ServerUrl?) {
      * @return AuthResponse with tokens and user info on success
      * @throws Exception on network errors or invalid credentials
      */
-    suspend fun login(email: String, password: String): AuthResponse {
-        val deviceInfo = DeviceInfo(
-            deviceType = "mobile",
-            platform = getPlatform(),
-            platformVersion = getPlatformVersion(),
-            clientName = "ListenUp Mobile",
-            clientVersion = "1.0.0",
-            clientBuild = "1",
-            deviceModel = getDeviceModel()
-        )
+    override suspend fun login(
+        email: String,
+        password: String,
+    ): AuthResponse {
+        val deviceInfo =
+            DeviceInfo(
+                deviceType = "mobile",
+                platform = getPlatform(),
+                platformVersion = getPlatformVersion(),
+                clientName = "ListenUp Mobile",
+                clientVersion = "1.0.0",
+                clientBuild = "1",
+                deviceModel = getDeviceModel(),
+            )
 
         val client = createClient(requireServerUrl())
         try {
-            val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/login") {
-                setBody(LoginRequest(email, password, deviceInfo))
-            }.body()
+            val response: ApiResponse<AuthResponse> =
+                client
+                    .post("/api/v1/auth/login") {
+                        setBody(LoginRequest(email, password, deviceInfo))
+                    }.body()
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
@@ -148,12 +159,14 @@ class AuthApi(private val getServerUrl: suspend () -> ServerUrl?) {
      * @return AuthResponse with new token pair
      * @throws Exception on network errors or invalid/expired refresh token
      */
-    suspend fun refresh(refreshToken: RefreshToken): AuthResponse {
+    override suspend fun refresh(refreshToken: RefreshToken): AuthResponse {
         val client = createClient(requireServerUrl())
         try {
-            val response: ApiResponse<AuthResponse> = client.post("/api/v1/auth/refresh") {
-                setBody(RefreshRequest(refreshToken.value))
-            }.body()
+            val response: ApiResponse<AuthResponse> =
+                client
+                    .post("/api/v1/auth/refresh") {
+                        setBody(RefreshRequest(refreshToken.value))
+                    }.body()
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
@@ -170,7 +183,7 @@ class AuthApi(private val getServerUrl: suspend () -> ServerUrl?) {
      * Server invalidates both access and refresh tokens.
      * Always succeeds even if tokens are already invalid.
      */
-    suspend fun logout(sessionId: String) {
+    override suspend fun logout(sessionId: String) {
         val client = createClient(requireServerUrl())
         try {
             client.post("/api/v1/auth/logout") {
@@ -189,14 +202,14 @@ private data class SetupRequest(
     @SerialName("email") val email: String,
     @SerialName("password") val password: String,
     @SerialName("first_name") val firstName: String,
-    @SerialName("last_name") val lastName: String
+    @SerialName("last_name") val lastName: String,
 )
 
 @Serializable
 private data class LoginRequest(
     @SerialName("email") val email: String,
     @SerialName("password") val password: String,
-    @SerialName("device_info") val deviceInfo: DeviceInfo
+    @SerialName("device_info") val deviceInfo: DeviceInfo,
 )
 
 @Serializable
@@ -210,18 +223,18 @@ private data class DeviceInfo(
     @SerialName("device_name") val deviceName: String = "",
     @SerialName("device_model") val deviceModel: String = "",
     @SerialName("browser_name") val browserName: String = "",
-    @SerialName("browser_version") val browserVersion: String = ""
+    @SerialName("browser_version") val browserVersion: String = "",
 )
 
 @Serializable
 private data class RefreshRequest(
     @SerialName("refresh_token") val refreshToken: String,
-    @SerialName("device_info") val deviceInfo: DeviceInfo? = null
+    @SerialName("device_info") val deviceInfo: DeviceInfo? = null,
 )
 
 @Serializable
 private data class LogoutRequest(
-    @SerialName("session_id") val sessionId: String
+    @SerialName("session_id") val sessionId: String,
 )
 
 // Response DTOs
@@ -237,7 +250,7 @@ data class AuthResponse(
     @SerialName("session_id") val sessionId: String,
     @SerialName("token_type") val tokenType: String,
     @SerialName("expires_in") val expiresIn: Int,
-    @SerialName("user") val user: AuthUser
+    @SerialName("user") val user: AuthUser,
 ) {
     // Convenience accessors for common user fields
     val userId: String get() = user.id
@@ -259,5 +272,5 @@ data class AuthUser(
     @SerialName("is_root") val isRoot: Boolean,
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
-    @SerialName("last_login_at") val lastLoginAt: String
+    @SerialName("last_login_at") val lastLoginAt: String,
 )

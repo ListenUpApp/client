@@ -52,27 +52,27 @@ import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 fun ContinueListeningCard(
     book: ContinueListeningBook,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
-        label = "card_scale"
+        label = "card_scale",
     )
 
     Column(
-        modifier = modifier
-            .width(140.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
+        modifier =
+            modifier
+                .width(140.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }.clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
     ) {
         // Cover with progress overlay
         CoverWithProgressOverlay(
@@ -80,7 +80,7 @@ fun ContinueListeningCard(
             contentDescription = book.title,
             progress = book.progress,
             timeRemaining = book.timeRemainingFormatted,
-            modifier = Modifier.aspectRatio(1f)
+            modifier = Modifier.aspectRatio(1f),
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -89,13 +89,14 @@ fun ContinueListeningCard(
         Column(modifier = Modifier.padding(horizontal = 2.dp)) {
             Text(
                 text = book.title,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.2).sp
-                ),
+                style =
+                    MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp,
+                    ),
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             Text(
@@ -103,7 +104,7 @@ fun ContinueListeningCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -120,15 +121,16 @@ private fun CoverWithProgressOverlay(
     contentDescription: String?,
     progress: Float,
     timeRemaining: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val shape = MaterialTheme.shapes.medium
 
     Box(
-        modifier = modifier
-            .shadow(elevation = 6.dp, shape = shape)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+        modifier =
+            modifier
+                .shadow(elevation = 6.dp, shape = shape)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         // Cover image
         if (coverPath != null) {
@@ -136,28 +138,30 @@ private fun CoverWithProgressOverlay(
                 model = "file://$coverPath",
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         } else {
             // Gradient placeholder
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                MaterialTheme.colorScheme.surfaceContainer
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors =
+                                    listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.surfaceContainer,
+                                    ),
+                            ),
+                        ),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.Book,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(24.dp)
+                    modifier = Modifier.padding(24.dp),
                 )
             }
         }
@@ -166,8 +170,7 @@ private fun CoverWithProgressOverlay(
         ProgressOverlay(
             progress = progress,
             timeRemaining = timeRemaining,
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
 }
-

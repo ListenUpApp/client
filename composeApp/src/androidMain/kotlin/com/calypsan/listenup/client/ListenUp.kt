@@ -3,6 +3,8 @@ package com.calypsan.listenup.client
 import android.app.Application
 import android.content.Context
 import android.provider.Settings
+import androidx.work.Configuration
+import androidx.work.WorkManager
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -23,8 +25,6 @@ import com.calypsan.listenup.client.playback.ProgressTracker
 import com.calypsan.listenup.client.playback.SleepTimerManager
 import com.calypsan.listenup.client.sync.AndroidBackgroundSyncScheduler
 import com.calypsan.listenup.client.sync.BackgroundSyncScheduler
-import androidx.work.Configuration
-import androidx.work.WorkManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,148 +32,150 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
-import org.koin.core.module.dsl.viewModel
-import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
+import org.koin.core.module.dsl.viewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 /**
  * Android-specific dependencies module.
  * Contains ViewModels and other Android-specific components.
  */
-val androidModule = module {
-    viewModelOf(::InstanceViewModel)
+val androidModule =
+    module {
+        viewModelOf(::InstanceViewModel)
 
-    // Background sync scheduler
-    single<BackgroundSyncScheduler> { AndroidBackgroundSyncScheduler(androidContext()) }
-}
+        // Background sync scheduler
+        single<BackgroundSyncScheduler> { AndroidBackgroundSyncScheduler(androidContext()) }
+    }
 
 /**
  * Playback module for audio streaming.
  * Contains Media3 integration and playback state management.
  */
-val playbackModule = module {
-    // Device ID for listening events (stable across app reinstalls on Android 8+)
-    single {
-        val context: Context = get()
-        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-            ?: "unknown-device"
-    }
+val playbackModule =
+    module {
+        // Device ID for listening events (stable across app reinstalls on Android 8+)
+        single {
+            val context: Context = get()
+            Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+                ?: "unknown-device"
+        }
 
-    // Application-scoped coroutine for progress tracking
-    single(createdAtStart = false) {
-        CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    }
+        // Application-scoped coroutine for progress tracking
+        single(createdAtStart = false) {
+            CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        }
 
-    // Audio token provider for authenticated streaming
-    // Bind to interface for shared code, but use concrete Android implementation
-    single<AudioTokenProvider> {
-        AndroidAudioTokenProvider(
-            settingsRepository = get(),
-            authApi = get(),
-            scope = get()
-        )
-    }
+        // Audio token provider for authenticated streaming
+        // Bind to interface for shared code, but use concrete Android implementation
+        single<AudioTokenProvider> {
+            AndroidAudioTokenProvider(
+                settingsRepository = get(),
+                authApi = get(),
+                scope = get(),
+            )
+        }
 
-    // Also expose the concrete type for Android-specific features (interceptor)
-    single { get<AudioTokenProvider>() as AndroidAudioTokenProvider }
+        // Also expose the concrete type for Android-specific features (interceptor)
+        single { get<AudioTokenProvider>() as AndroidAudioTokenProvider }
 
-    // Progress tracker for position persistence and event recording
-    single {
-        ProgressTracker(
-            positionDao = get(),
-            eventDao = get(),
-            downloadDao = get(),
-            syncApi = get(),
-            deviceId = get(),
-            scope = get()
-        )
-    }
+        // Progress tracker for position persistence and event recording
+        single {
+            ProgressTracker(
+                positionDao = get(),
+                eventDao = get(),
+                downloadDao = get(),
+                syncApi = get(),
+                deviceId = get(),
+                scope = get(),
+            )
+        }
 
-    // Playback error handler (needs concrete Android type for onUnauthorized())
-    single {
-        PlaybackErrorHandler(
-            progressTracker = get(),
-            tokenProvider = get<AndroidAudioTokenProvider>()
-        )
-    }
+        // Playback error handler (needs concrete Android type for onUnauthorized())
+        single {
+            PlaybackErrorHandler(
+                progressTracker = get(),
+                tokenProvider = get<AndroidAudioTokenProvider>(),
+            )
+        }
 
-    // Playback manager - orchestrates playback startup
-    single {
-        PlaybackManager(
-            settingsRepository = get(),
-            bookDao = get(),
-            progressTracker = get(),
-            tokenProvider = get(),
-            downloadService = get(),
-            scope = get()
-        )
-    }
+        // Playback manager - orchestrates playback startup
+        single {
+            PlaybackManager(
+                settingsRepository = get(),
+                bookDao = get(),
+                progressTracker = get(),
+                tokenProvider = get(),
+                downloadService = get(),
+                scope = get(),
+            )
+        }
 
-    // Sleep timer manager - handles sleep timer state and countdown
-    single {
-        SleepTimerManager(scope = get())
-    }
+        // Sleep timer manager - handles sleep timer state and countdown
+        single {
+            SleepTimerManager(scope = get())
+        }
 
-    // Shared MediaController holder - single connection for all ViewModels
-    // Eliminates duplicate controller connections and state drift
-    single {
-        MediaControllerHolder(context = get())
-    }
+        // Shared MediaController holder - single connection for all ViewModels
+        // Eliminates duplicate controller connections and state drift
+        single {
+            MediaControllerHolder(context = get())
+        }
 
-    // Player ViewModel - connects UI to MediaController
-    viewModel {
-        PlayerViewModel(
-            context = get(),
-            playbackManager = get(),
-            mediaControllerHolder = get()
-        )
-    }
+        // Player ViewModel - connects UI to MediaController
+        viewModel {
+            PlayerViewModel(
+                playbackManager = get(),
+                mediaControllerHolder = get(),
+            )
+        }
 
-    // Now Playing ViewModel - app-wide mini player and full screen state
-    viewModel {
-        NowPlayingViewModel(
-            context = get(),
-            playbackManager = get(),
-            bookRepository = get(),
-            sleepTimerManager = get(),
-            mediaControllerHolder = get()
-        )
+        // Now Playing ViewModel - app-wide mini player and full screen state
+        viewModel {
+            NowPlayingViewModel(
+                playbackManager = get(),
+                bookRepository = get(),
+                sleepTimerManager = get(),
+                mediaControllerHolder = get(),
+            )
+        }
     }
-}
 
 /**
  * Download module for offline audiobook downloads.
  * Contains download management and file storage components.
  */
-val downloadModule = module {
-    // Download file manager - handles local file operations
-    single { DownloadFileManager(androidContext()) }
+val downloadModule =
+    module {
+        // Download file manager - handles local file operations
+        single { DownloadFileManager(androidContext()) }
 
-    // Download manager - coordinates download queue and state
-    // Bound to DownloadService interface for shared code (PlaybackManager)
-    single<DownloadService> {
-        DownloadManager(
-            downloadDao = get(),
-            bookDao = get(),
-            settingsRepository = get(),
-            workManager = WorkManager.getInstance(androidContext()),
-            fileManager = get(),
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        )
+        // Download manager - coordinates download queue and state
+        // Bound to DownloadService interface for shared code (PlaybackManager)
+        single<DownloadService> {
+            DownloadManager(
+                downloadDao = get(),
+                bookDao = get(),
+                workManager = WorkManager.getInstance(androidContext()),
+                fileManager = get(),
+            )
+        }
+
+        // Also expose the concrete type for Android-specific features
+        single { get<DownloadService>() as DownloadManager }
     }
-
-    // Also expose the concrete type for Android-specific features
-    single { get<DownloadService>() as DownloadManager }
-}
 
 /**
  * ListenUp Application class.
  *
  * Initializes dependency injection, Coil image loading, and other app-wide concerns.
  */
-class ListenUp : Application(), SingletonImageLoader.Factory, KoinComponent {
+class ListenUp :
+    Application(),
+    SingletonImageLoader.Factory,
+    KoinComponent {
     override fun onCreate() {
         super.onCreate()
 
@@ -190,16 +192,19 @@ class ListenUp : Application(), SingletonImageLoader.Factory, KoinComponent {
         }
 
         // Configure WorkManager with custom factory for dependency injection
-        val workerFactory = DownloadWorkerFactory(
-            downloadDao = get(),
-            fileManager = get(),
-            tokenProvider = get<AndroidAudioTokenProvider>(),
-            settingsRepository = get()
-        )
+        val workerFactory =
+            DownloadWorkerFactory(
+                downloadDao = get(),
+                fileManager = get(),
+                tokenProvider = get<AndroidAudioTokenProvider>(),
+                settingsRepository = get(),
+            )
 
-        val workManagerConfig = Configuration.Builder()
-            .setWorkerFactory(workerFactory)
-            .build()
+        val workManagerConfig =
+            Configuration
+                .Builder()
+                .setWorkerFactory(workerFactory)
+                .build()
 
         WorkManager.initialize(this, workManagerConfig)
 
@@ -214,10 +219,9 @@ class ListenUp : Application(), SingletonImageLoader.Factory, KoinComponent {
      * Called once by Coil to initialize the app-wide ImageLoader.
      * Configured to load book covers from local file storage.
      */
-    override fun newImageLoader(context: PlatformContext): ImageLoader {
-        return ImageLoaderFactory.create(
+    override fun newImageLoader(context: PlatformContext): ImageLoader =
+        ImageLoaderFactory.create(
             context = this,
-            debug = false // TODO: Enable in debug builds when BuildConfig is available
+            debug = false, // TODO: Enable in debug builds when BuildConfig is available
         )
-    }
 }

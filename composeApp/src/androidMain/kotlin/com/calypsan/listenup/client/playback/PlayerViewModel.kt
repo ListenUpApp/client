@@ -1,6 +1,5 @@
 package com.calypsan.listenup.client.playback
 
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -33,11 +32,9 @@ private const val TAG = "PlayerVM"
  * - Provides control actions
  */
 class PlayerViewModel(
-    private val context: Context,
     private val playbackManager: PlaybackManager,
-    private val mediaControllerHolder: MediaControllerHolder
+    private val mediaControllerHolder: MediaControllerHolder,
 ) : ViewModel() {
-
     private var positionUpdateJob: Job? = null
     private var playerListener: Player.Listener? = null
 
@@ -64,21 +61,23 @@ class PlayerViewModel(
 
             val result = playbackManager.prepareForPlayback(bookId)
             if (result == null) {
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    error = "Failed to load book"
-                )
+                _state.value =
+                    _state.value.copy(
+                        isLoading = false,
+                        error = "Failed to load book",
+                    )
                 return@launch
             }
 
             currentTimeline = result.timeline
 
-            _state.value = _state.value.copy(
-                bookTitle = result.bookTitle,
-                totalDurationMs = result.timeline.totalDurationMs,
-                currentPositionMs = result.resumePositionMs,
-                playbackSpeed = result.resumeSpeed
-            )
+            _state.value =
+                _state.value.copy(
+                    bookTitle = result.bookTitle,
+                    totalDurationMs = result.timeline.totalDurationMs,
+                    currentPositionMs = result.resumePositionMs,
+                    playbackSpeed = result.resumeSpeed,
+                )
 
             // Connect to the player and start
             connectAndPlay(result)
@@ -99,27 +98,40 @@ class PlayerViewModel(
 
                 // Build media items from timeline
                 Log.d(TAG, "Building ${prepareResult.timeline.files.size} media items")
-                val mediaItems = prepareResult.timeline.files.mapIndexed { index, file ->
-                    Log.d(TAG, "  MediaItem[$index]: id=${file.audioFileId}, duration=${file.durationMs}ms, url=${file.streamingUrl.takeLast(30)}")
-                    MediaItem.Builder()
-                        .setMediaId(file.audioFileId)
-                        .setUri(file.streamingUrl)
-                        .setMediaMetadata(
-                            MediaMetadata.Builder()
-                                .setTitle(prepareResult.bookTitle)
-                                .setArtist(file.filename)
-                                .build()
+                val mediaItems =
+                    prepareResult.timeline.files.mapIndexed { index, file ->
+                        Log.d(
+                            TAG,
+                            "  MediaItem[$index]: id=${file.audioFileId}, " +
+                                "duration=${file.durationMs}ms, " +
+                                "url=${file.streamingUrl.takeLast(30)}",
                         )
-                        .build()
-                }
+                        MediaItem
+                            .Builder()
+                            .setMediaId(file.audioFileId)
+                            .setUri(file.streamingUrl)
+                            .setMediaMetadata(
+                                MediaMetadata
+                                    .Builder()
+                                    .setTitle(prepareResult.bookTitle)
+                                    .setArtist(file.filename)
+                                    .build(),
+                            ).build()
+                    }
 
                 // Set items with initial resume position
                 val startPosition = prepareResult.timeline.resolve(prepareResult.resumePositionMs)
-                Log.d(TAG, "Starting playback: resumePos=${prepareResult.resumePositionMs}ms -> mediaItem=${startPosition.mediaItemIndex}, posInFile=${startPosition.positionInFileMs}ms")
+                Log.d(
+                    TAG,
+                    "Starting playback: resumePos=${prepareResult.resumePositionMs}ms -> mediaItem=${startPosition.mediaItemIndex}, posInFile=${startPosition.positionInFileMs}ms",
+                )
 
                 // Validate start position before passing to ExoPlayer
                 if (startPosition.mediaItemIndex < 0 || startPosition.mediaItemIndex >= mediaItems.size) {
-                    Log.e(TAG, "⚠️ INVALID startPosition.mediaItemIndex: ${startPosition.mediaItemIndex}, mediaItems.size=${mediaItems.size}")
+                    Log.e(
+                        TAG,
+                        "⚠️ INVALID startPosition.mediaItemIndex: ${startPosition.mediaItemIndex}, mediaItems.size=${mediaItems.size}",
+                    )
                     _state.value = _state.value.copy(isLoading = false, error = "Invalid start position")
                     return@withController
                 }
@@ -139,22 +151,23 @@ class PlayerViewModel(
 
                 playbackManager.setPlaying(true)
 
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    isPlaying = true
-                )
+                _state.value =
+                    _state.value.copy(
+                        isLoading = false,
+                        isPlaying = true,
+                    )
 
                 startPositionUpdates()
                 Log.d(TAG, "Playback started successfully for: ${prepareResult.bookTitle}")
 
                 logger.info { "Playback started for: ${prepareResult.bookTitle}" }
-
             } catch (e: Exception) {
                 logger.error(e) { "Failed to start playback" }
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    error = "Failed to start playback"
-                )
+                _state.value =
+                    _state.value.copy(
+                        isLoading = false,
+                        error = "Failed to start playback",
+                    )
             }
         }
     }
@@ -236,12 +249,13 @@ class PlayerViewModel(
 
     private fun startPositionUpdates() {
         positionUpdateJob?.cancel()
-        positionUpdateJob = viewModelScope.launch {
-            while (isActive) {
-                updatePosition()
-                delay(250) // Update 4 times per second for smooth progress
+        positionUpdateJob =
+            viewModelScope.launch {
+                while (isActive) {
+                    updatePosition()
+                    delay(250) // Update 4 times per second for smooth progress
+                }
             }
-        }
     }
 
     private fun stopPositionUpdates() {
@@ -261,14 +275,18 @@ class PlayerViewModel(
 
         // Validate ExoPlayer values before using them (silent validation, only log errors)
         if (mediaItemIndex < 0 || mediaItemIndex >= timeline.files.size || positionInFile < 0) {
-            Log.e(TAG, "⚠️ INVALID position: mediaItem=$mediaItemIndex/${timeline.files.size}, posInFile=$positionInFile")
+            Log.e(
+                TAG,
+                "⚠️ INVALID position: mediaItem=$mediaItemIndex/${timeline.files.size}, posInFile=$positionInFile",
+            )
             return
         }
 
-        val bookPosition = timeline.toBookPosition(
-            mediaItemIndex = mediaItemIndex,
-            positionInFileMs = positionInFile
-        )
+        val bookPosition =
+            timeline.toBookPosition(
+                mediaItemIndex = mediaItemIndex,
+                positionInFileMs = positionInFile,
+            )
 
         // Validate calculated book position
         if (bookPosition < 0 || bookPosition > timeline.totalDurationMs + 1000) {
@@ -285,11 +303,12 @@ class PlayerViewModel(
             return // Skip very minor position updates to reduce recomposition
         }
 
-        _state.value = currentState.copy(
-            currentPositionMs = bookPosition,
-            isPlaying = isPlaying,
-            isBuffering = isBuffering
-        )
+        _state.value =
+            currentState.copy(
+                currentPositionMs = bookPosition,
+                isPlaying = isPlaying,
+                isBuffering = isBuffering,
+            )
 
         // Publish position to PlaybackManager for NowPlayingViewModel
         playbackManager.updatePosition(bookPosition)
@@ -313,10 +332,11 @@ class PlayerViewModel(
             _state.value = _state.value.copy(isBuffering = isBuffering)
 
             if (playbackState == Player.STATE_ENDED) {
-                _state.value = _state.value.copy(
-                    isPlaying = false,
-                    isFinished = true
-                )
+                _state.value =
+                    _state.value.copy(
+                        isPlaying = false,
+                        isFinished = true,
+                    )
             }
         }
 
@@ -350,16 +370,18 @@ data class PlayerUiState(
     val isBuffering: Boolean = false,
     val isFinished: Boolean = false,
     val error: String? = null,
-
     val bookTitle: String = "",
     val currentPositionMs: Long = 0,
     val totalDurationMs: Long = 0,
-    val playbackSpeed: Float = 1.0f
+    val playbackSpeed: Float = 1.0f,
 ) {
     val progress: Float
-        get() = if (totalDurationMs > 0) {
-            currentPositionMs.toFloat() / totalDurationMs
-        } else 0f
+        get() =
+            if (totalDurationMs > 0) {
+                currentPositionMs.toFloat() / totalDurationMs
+            } else {
+                0f
+            }
 
     val formattedPosition: String
         get() = formatDuration(currentPositionMs)
@@ -374,12 +396,12 @@ data class PlayerUiState(
 private fun formatDuration(ms: Long): String {
     val totalSeconds = ms / 1000
     val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
+    val minutes = totalSeconds % 3600 / 60
     val seconds = totalSeconds % 60
 
     return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, seconds)
+        String.format(java.util.Locale.ROOT, "%d:%02d:%02d", hours, minutes, seconds)
     } else {
-        String.format("%d:%02d", minutes, seconds)
+        String.format(java.util.Locale.ROOT, "%d:%02d", minutes, seconds)
     }
 }

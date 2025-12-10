@@ -21,27 +21,27 @@ sealed class ShellDestination(
     val route: String,
     val title: String,
     val icon: ImageVector,
-    val selectedIcon: ImageVector
+    val selectedIcon: ImageVector,
 ) {
     data object Home : ShellDestination(
         route = "home",
         title = "Home",
         icon = Icons.Outlined.Home,
-        selectedIcon = Icons.Filled.Home
+        selectedIcon = Icons.Filled.Home,
     )
 
     data object Library : ShellDestination(
         route = "library",
         title = "Library",
         icon = Icons.AutoMirrored.Outlined.LibraryBooks,
-        selectedIcon = Icons.AutoMirrored.Filled.LibraryBooks
+        selectedIcon = Icons.AutoMirrored.Filled.LibraryBooks,
     )
 
     data object Discover : ShellDestination(
         route = "discover",
         title = "Discover",
         icon = Icons.Outlined.Explore,
-        selectedIcon = Icons.Filled.Explore
+        selectedIcon = Icons.Filled.Explore,
     )
 
     companion object {

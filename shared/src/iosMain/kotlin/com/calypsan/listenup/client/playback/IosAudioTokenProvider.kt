@@ -35,7 +35,7 @@ private val logger = KotlinLogging.logger {}
 class IosAudioTokenProvider(
     private val settingsRepository: SettingsRepository,
     private val authApi: AuthApi,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
 ) : AudioTokenProvider {
     @Volatile
     private var cachedToken: String? = null
@@ -124,7 +124,7 @@ class IosAudioTokenProvider(
                         access = AccessToken(response.accessToken),
                         refresh = RefreshToken(response.refreshToken),
                         sessionId = sessionId,
-                        userId = userId
+                        userId = userId,
                     )
 
                     cachedToken = response.accessToken

@@ -27,10 +27,15 @@ interface BookContributorDao {
 
     @RewriteQueriesToDropUnusedColumns
     @Transaction
-    @Query("""
+    @Query(
+        """
         SELECT * FROM contributors
         INNER JOIN book_contributors ON contributors.id = book_contributors.contributorId
         WHERE book_contributors.bookId = :bookId AND book_contributors.role = :role
-    """)
-    suspend fun getContributorsForBookByRole(bookId: BookId, role: String): List<ContributorEntity>
+    """,
+    )
+    suspend fun getContributorsForBookByRole(
+        bookId: BookId,
+        role: String,
+    ): List<ContributorEntity>
 }

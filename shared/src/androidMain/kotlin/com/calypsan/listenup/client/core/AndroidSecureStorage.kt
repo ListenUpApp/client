@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.util.Base64
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.security.KeyStore
@@ -11,7 +13,8 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import android.util.Base64
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Modern Android implementation of SecureStorage using Android KeyStore directly.
@@ -25,8 +28,9 @@ import android.util.Base64
  *
  * @param context Android application context
  */
-internal class AndroidSecureStorage(private val context: Context) : SecureStorage {
-
+internal class AndroidSecureStorage(
+    private val context: Context,
+) : SecureStorage {
     private val prefs: SharedPreferences by lazy {
         context.getSharedPreferences("listenup_secure_prefs", Context.MODE_PRIVATE)
     }
@@ -40,44 +44,47 @@ internal class AndroidSecureStorage(private val context: Context) : SecureStorag
         get() = keyStore.getKey(keyAlias, null) as? SecretKey ?: generateKey()
 
     private fun generateKey(): SecretKey {
-        val keyGenerator = KeyGenerator.getInstance(
-            KeyProperties.KEY_ALGORITHM_AES,
-            "AndroidKeyStore"
-        )
+        val keyGenerator =
+            KeyGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_AES,
+                "AndroidKeyStore",
+            )
 
-        // Try StrongBox first (enhanced hardware security), fall back to regular if unavailable
-        val useStrongBox = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P
+        // Always try StrongBox (enhanced hardware security), fall back to regular if unavailable
+        // Note: StrongBox available on Android P+ (API 28+), minSdk is 34
+        val useStrongBox = true
 
         return try {
-            val spec = KeyGenParameterSpec.Builder(
-                keyAlias,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-            )
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setKeySize(256)
-                .setUserAuthenticationRequired(false)
-                .apply {
-                    if (useStrongBox) {
-                        setIsStrongBoxBacked(true)
-                    }
-                }
-                .build()
+            val spec =
+                KeyGenParameterSpec
+                    .Builder(
+                        keyAlias,
+                        KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+                    ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .setKeySize(256)
+                    .setUserAuthenticationRequired(false)
+                    .apply {
+                        if (useStrongBox) {
+                            setIsStrongBoxBacked(true)
+                        }
+                    }.build()
 
             keyGenerator.init(spec)
             keyGenerator.generateKey()
         } catch (e: Exception) {
             // StrongBox not available or other error - retry without StrongBox
             if (useStrongBox) {
-                val spec = KeyGenParameterSpec.Builder(
-                    keyAlias,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-                )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(256)
-                    .setUserAuthenticationRequired(false)
-                    .build()
+                val spec =
+                    KeyGenParameterSpec
+                        .Builder(
+                            keyAlias,
+                            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+                        ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                        .setKeySize(256)
+                        .setUserAuthenticationRequired(false)
+                        .build()
 
                 keyGenerator.init(spec)
                 keyGenerator.generateKey()
@@ -122,28 +129,35 @@ internal class AndroidSecureStorage(private val context: Context) : SecureStorag
         return String(plaintext, Charsets.UTF_8)
     }
 
-    override suspend fun save(key: String, value: String): Unit = withContext(Dispatchers.IO) {
+    override suspend fun save(
+        key: String,
+        value: String,
+    ) = withContext(Dispatchers.IO) {
         val encrypted = encrypt(value)
         prefs.edit().putString(key, encrypted).apply()
     }
 
-    override suspend fun read(key: String): String? = withContext(Dispatchers.IO) {
-        val encrypted = prefs.getString(key, null) ?: return@withContext null
-        try {
-            decrypt(encrypted)
-        } catch (e: Exception) {
-            // If decryption fails (corrupted data, key change), return null
-            null
+    override suspend fun read(key: String): String? =
+        withContext(Dispatchers.IO) {
+            val encrypted = prefs.getString(key, null) ?: return@withContext null
+            try {
+                decrypt(encrypted)
+            } catch (e: Exception) {
+                // If decryption fails (corrupted data, key change), return null
+                logger.warn(e) { "Decryption failed for key '$key' - data may be corrupted" }
+                null
+            }
         }
-    }
 
-    override suspend fun delete(key: String): Unit = withContext(Dispatchers.IO) {
-        prefs.edit().remove(key).apply()
-    }
+    override suspend fun delete(key: String) =
+        withContext(Dispatchers.IO) {
+            prefs.edit().remove(key).apply()
+        }
 
-    override suspend fun clear(): Unit = withContext(Dispatchers.IO) {
-        prefs.edit().clear().apply()
-    }
+    override suspend fun clear() =
+        withContext(Dispatchers.IO) {
+            prefs.edit().clear().apply()
+        }
 }
 
 /**
@@ -152,6 +166,4 @@ internal class AndroidSecureStorage(private val context: Context) : SecureStorag
  * Note: This function is internal and should be called via Koin DI
  * which provides the Android application context.
  */
-internal fun createAndroidSecureStorage(context: Context): SecureStorage {
-    return AndroidSecureStorage(context)
-}
+internal fun createAndroidSecureStorage(context: Context): SecureStorage = AndroidSecureStorage(context)

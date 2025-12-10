@@ -13,5 +13,5 @@ data class Tag(
     val name: String,
     val slug: String,
     val color: String? = null,
-    val bookCount: Int = 0
+    val bookCount: Int = 0,
 )

@@ -17,7 +17,7 @@ import com.calypsan.listenup.client.domain.repository.InstanceRepository
  * ```
  */
 class GetInstanceUseCase(
-    private val repository: InstanceRepository
+    private val repository: InstanceRepository,
 ) {
     /**
      * Execute the use case to get instance information.
@@ -25,7 +25,5 @@ class GetInstanceUseCase(
      * @param forceRefresh If true, forces a fresh fetch from the server
      * @return Result containing the Instance or an error
      */
-    suspend operator fun invoke(forceRefresh: Boolean = false): Result<Instance> {
-        return repository.getInstance(forceRefresh)
-    }
+    suspend operator fun invoke(forceRefresh: Boolean = false): Result<Instance> = repository.getInstance(forceRefresh)
 }

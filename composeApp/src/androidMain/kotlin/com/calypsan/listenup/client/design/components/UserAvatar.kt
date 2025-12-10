@@ -44,22 +44,23 @@ fun UserAvatar(
     onExpandedChange: (Boolean) -> Unit,
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
         // Clickable avatar circle
         Surface(
             onClick = { onExpandedChange(true) },
             shape = CircleShape,
-            color = user?.let { avatarColorForUser(it.id) }
-                ?: MaterialTheme.colorScheme.surfaceContainerHighest,
-            modifier = Modifier.size(40.dp)
+            color =
+                user?.let { avatarColorForUser(it.id) }
+                    ?: MaterialTheme.colorScheme.surfaceContainerHighest,
+            modifier = Modifier.size(40.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
                     text = user?.let { getInitials(it.displayName) } ?: "?",
                     style = MaterialTheme.typography.titleSmall,
-                    color = Color.White
+                    color = Color.White,
                 )
             }
         }
@@ -67,20 +68,20 @@ fun UserAvatar(
         // Dropdown menu
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { onExpandedChange(false) }
+            onDismissRequest = { onExpandedChange(false) },
         ) {
             // Header with user info (non-clickable)
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 Text(
                     text = user?.displayName ?: "Unknown",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
                     text = user?.email ?: "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -92,7 +93,7 @@ fun UserAvatar(
                 onClick = {
                     onExpandedChange(false)
                     onSettingsClick()
-                }
+                },
             )
 
             DropdownMenuItem(
@@ -101,7 +102,7 @@ fun UserAvatar(
                 onClick = {
                     onExpandedChange(false)
                     onSignOutClick()
-                }
+                },
             )
         }
     }

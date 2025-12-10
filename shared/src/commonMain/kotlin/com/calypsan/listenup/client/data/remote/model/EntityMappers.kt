@@ -11,16 +11,18 @@ import kotlin.time.Instant
 
 fun SeriesResponse.toEntity(): SeriesEntity {
     val now = Timestamp.now()
-    val serverUpdatedAt = try {
-        Timestamp.fromEpochMillis(Instant.parse(updatedAt).toEpochMilliseconds())
-    } catch (e: Exception) {
-        now
-    }
-    val serverCreatedAt = try {
-        Timestamp.fromEpochMillis(Instant.parse(createdAt).toEpochMilliseconds())
-    } catch (e: Exception) {
-        now
-    }
+    val serverUpdatedAt =
+        try {
+            Timestamp.fromEpochMillis(Instant.parse(updatedAt).toEpochMilliseconds())
+        } catch (_: Exception) {
+            now // Fallback to current time if parsing fails
+        }
+    val serverCreatedAt =
+        try {
+            Timestamp.fromEpochMillis(Instant.parse(createdAt).toEpochMilliseconds())
+        } catch (_: Exception) {
+            now // Fallback to current time if parsing fails
+        }
 
     return SeriesEntity(
         id = id,
@@ -30,22 +32,24 @@ fun SeriesResponse.toEntity(): SeriesEntity {
         lastModified = now,
         serverVersion = serverUpdatedAt,
         createdAt = serverCreatedAt,
-        updatedAt = serverUpdatedAt
+        updatedAt = serverUpdatedAt,
     )
 }
 
 fun ContributorResponse.toEntity(): ContributorEntity {
     val now = Timestamp.now()
-    val serverUpdatedAt = try {
-        Timestamp.fromEpochMillis(Instant.parse(updatedAt).toEpochMilliseconds())
-    } catch (e: Exception) {
-        now
-    }
-    val serverCreatedAt = try {
-        Timestamp.fromEpochMillis(Instant.parse(createdAt).toEpochMilliseconds())
-    } catch (e: Exception) {
-        now
-    }
+    val serverUpdatedAt =
+        try {
+            Timestamp.fromEpochMillis(Instant.parse(updatedAt).toEpochMilliseconds())
+        } catch (_: Exception) {
+            now // Fallback to current time if parsing fails
+        }
+    val serverCreatedAt =
+        try {
+            Timestamp.fromEpochMillis(Instant.parse(createdAt).toEpochMilliseconds())
+        } catch (_: Exception) {
+            now // Fallback to current time if parsing fails
+        }
 
     return ContributorEntity(
         id = id,
@@ -56,6 +60,6 @@ fun ContributorResponse.toEntity(): ContributorEntity {
         lastModified = now,
         serverVersion = serverUpdatedAt,
         createdAt = serverCreatedAt,
-        updatedAt = serverUpdatedAt
+        updatedAt = serverUpdatedAt,
     )
 }

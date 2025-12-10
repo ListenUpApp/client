@@ -60,39 +60,42 @@ fun NowPlayingBar(
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(
         visible = state.isVisible && !state.isExpanded,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
         exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-        modifier = modifier
+        modifier = modifier,
     ) {
         Surface(
             onClick = onTap,
-            modifier = Modifier
-                .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
-                .fillMaxWidth()
-                .height(80.dp),
+            modifier =
+                Modifier
+                    .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+                    .fillMaxWidth()
+                    .height(80.dp),
             shape = RoundedCornerShape(28.dp),
             tonalElevation = 6.dp,
-            shadowElevation = 4.dp
+            shadowElevation = 4.dp,
         ) {
             Column {
                 Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp, end = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(start = 12.dp, end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // Cover art
                     AsyncImage(
                         model = state.coverUrl,
                         contentDescription = "Book cover",
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop
+                        modifier =
+                            Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop,
                     )
 
                     Spacer(Modifier.width(12.dp))
@@ -103,14 +106,14 @@ fun NowPlayingBar(
                             text = state.title,
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = state.author,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         state.chapterTitle?.let { chapter ->
                             Text(
@@ -118,7 +121,7 @@ fun NowPlayingBar(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -128,18 +131,19 @@ fun NowPlayingBar(
                         isPlaying = state.isPlaying,
                         onPlayPause = onPlayPause,
                         onSkipBack = onSkipBack,
-                        onSkipForward = onSkipForward
+                        onSkipForward = onSkipForward,
                     )
                 }
 
                 // Progress bar
                 LinearProgressIndicator(
                     progress = { state.bookProgress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(3.dp),
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    drawStopIndicator = {}
+                    drawStopIndicator = {},
                 )
             }
         }
@@ -151,22 +155,22 @@ private fun NowPlayingBarControls(
     isPlaying: Boolean,
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
-    onSkipForward: () -> Unit
+    onSkipForward: () -> Unit,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // Skip back - rounded square, tonal
         FilledTonalIconButton(
             onClick = onSkipBack,
             modifier = Modifier.size(40.dp),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
         ) {
             Icon(
                 Icons.Default.Replay10,
                 contentDescription = "Skip back 10 seconds",
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
         }
 
@@ -174,12 +178,12 @@ private fun NowPlayingBarControls(
         FilledIconButton(
             onClick = onPlayPause,
             modifier = Modifier.size(48.dp),
-            shape = RoundedCornerShape(14.dp)
+            shape = RoundedCornerShape(14.dp),
         ) {
             Icon(
                 if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                 contentDescription = if (isPlaying) "Pause" else "Play",
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(28.dp),
             )
         }
 
@@ -187,12 +191,12 @@ private fun NowPlayingBarControls(
         FilledTonalIconButton(
             onClick = onSkipForward,
             modifier = Modifier.size(40.dp),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
         ) {
             Icon(
                 Icons.Default.Forward30,
                 contentDescription = "Skip forward 30 seconds",
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
         }
     }

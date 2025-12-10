@@ -14,19 +14,20 @@ import org.koin.dsl.module
  * Android-specific storage module.
  * Provides SecureStorage implementation using Android Keystore.
  */
-actual val platformStorageModule: Module = module {
-    single<SecureStorage> {
-        val context: Context = get()
-        AndroidSecureStorage(context)
-    }
+actual val platformStorageModule: Module =
+    module {
+        single<SecureStorage> {
+            val context: Context = get()
+            AndroidSecureStorage(context)
+        }
 
-    single<ImageStorage> {
-        val context: Context = get()
-        AndroidImageStorage(context)
-    }
+        single<ImageStorage> {
+            val context: Context = get()
+            AndroidImageStorage(context)
+        }
 
-    single<NetworkMonitor> {
-        val context: Context = get()
-        AndroidNetworkMonitor(context)
+        single<NetworkMonitor> {
+            val context: Context = get()
+            AndroidNetworkMonitor(context)
+        }
     }
-}

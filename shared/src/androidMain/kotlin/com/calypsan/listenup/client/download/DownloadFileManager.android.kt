@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.download
 
 import android.content.Context
 import kotlinx.io.files.Path
-import kotlinx.io.files.SystemFileSystem
 import java.io.File
 
 /**
@@ -10,10 +9,8 @@ import java.io.File
  * Uses Context.filesDir for app-private storage.
  */
 actual class DownloadFileManager(
-    private val context: Context
+    private val context: Context,
 ) {
-    private val fileSystem = SystemFileSystem
-
     private val downloadDir: Path
         get() {
             val dir = Path(context.filesDir.absolutePath, "audiobooks")
@@ -25,17 +22,25 @@ actual class DownloadFileManager(
             return dir
         }
 
-    actual fun getDownloadPath(bookId: String, audioFileId: String, filename: String): Path {
+    actual fun getDownloadPath(
+        bookId: String,
+        audioFileId: String,
+        filename: String,
+    ): Path {
         val bookDir = Path(downloadDir, bookId)
         // Ensure book directory exists
         val file = File(bookDir.toString())
         if (!file.exists()) {
             file.mkdirs()
         }
-        return Path(bookDir, "${audioFileId}_${filename}")
+        return Path(bookDir, "${audioFileId}_$filename")
     }
 
-    actual fun getTempPath(bookId: String, audioFileId: String, filename: String): Path {
+    actual fun getTempPath(
+        bookId: String,
+        audioFileId: String,
+        filename: String,
+    ): Path {
         val destFile = getDownloadPath(bookId, audioFileId, filename)
         return Path(destFile.parent!!, "${destFile.name}.tmp")
     }
@@ -57,28 +62,30 @@ actual class DownloadFileManager(
     actual fun calculateStorageUsed(): Long {
         val dir = File(downloadDir.toString())
         return if (dir.exists()) {
-            dir.walkTopDown()
+            dir
+                .walkTopDown()
                 .filter { it.isFile }
                 .sumOf { it.length() }
-        } else 0L
+        } else {
+            0L
+        }
     }
 
-    actual fun fileExists(path: String): Boolean {
-        return File(path).exists()
-    }
+    actual fun fileExists(path: String): Boolean = File(path).exists()
 
     actual fun getFileSize(path: String): Long {
         val file = File(path)
         return if (file.exists()) file.length() else 0L
     }
 
-    actual fun moveFile(source: Path, destination: Path): Boolean {
+    actual fun moveFile(
+        source: Path,
+        destination: Path,
+    ): Boolean {
         val sourceFile = File(source.toString())
         val destFile = File(destination.toString())
         return sourceFile.renameTo(destFile)
     }
 
-    actual fun getAvailableSpace(): Long {
-        return context.filesDir.usableSpace
-    }
+    actual fun getAvailableSpace(): Long = context.filesDir.usableSpace
 }

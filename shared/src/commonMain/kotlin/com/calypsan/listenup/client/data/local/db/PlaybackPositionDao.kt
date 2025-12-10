@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface PlaybackPositionDao {
-
     /**
      * Get the saved position for a book.
      *
@@ -56,7 +55,10 @@ interface PlaybackPositionDao {
      * @param syncedAt When the sync completed (epoch ms)
      */
     @Query("UPDATE playback_positions SET syncedAt = :syncedAt WHERE bookId = :bookId")
-    suspend fun markSynced(bookId: BookId, syncedAt: Long)
+    suspend fun markSynced(
+        bookId: BookId,
+        syncedAt: Long,
+    )
 
     /**
      * Delete position for a book.

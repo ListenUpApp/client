@@ -26,10 +26,10 @@ kotlin {
             }
         }
     }
-    
+
     listOf(
         iosArm64(),
-        iosSimulatorArm64()
+        iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "Shared"
@@ -43,7 +43,7 @@ kotlin {
     // TODO: Enable Native Swift Export when Gradle API is available
     // Swift Export is experimental in Kotlin 2.3.0-Beta2 but not yet exposed in Gradle plugin
     // For now, we'll use traditional framework export which still works great
-    
+
     sourceSets {
         commonMain.dependencies {
             implementation(libs.ktor.client.core)
@@ -84,13 +84,33 @@ kotlin {
 
 android {
     namespace = "com.calypsan.listenup.client.shared"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    compileSdk =
+        libs.versions.android.compileSdk
+            .get()
+            .toInt()
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
     defaultConfig {
-        minSdk = libs.versions.android.minSdk.get().toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+    }
+
+    lint {
+        warningsAsErrors = false
+        abortOnError = true
+        checkDependencies = false // Avoid KMP dependency double-scanning
+        htmlReport = true
+        xmlReport = true
+        // KMP-specific accommodations
+        disable +=
+            setOf(
+                "InvalidPackage", // False positives on multiplatform expect/actual
+                "ObsoleteLintCustomCheck", // Third-party KMP libs may trigger this
+            )
     }
 }
 

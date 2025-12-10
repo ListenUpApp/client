@@ -10,7 +10,7 @@ data class BookDownloadStatus(
     val totalFiles: Int,
     val completedFiles: Int,
     val totalBytes: Long,
-    val downloadedBytes: Long
+    val downloadedBytes: Long,
 ) {
     val progress: Float
         get() = if (totalBytes > 0) downloadedBytes.toFloat() / totalBytes else 0f
@@ -22,14 +22,15 @@ data class BookDownloadStatus(
         get() = state == BookDownloadState.DOWNLOADING || state == BookDownloadState.QUEUED
 
     companion object {
-        fun notDownloaded(bookId: String) = BookDownloadStatus(
-            bookId = bookId,
-            state = BookDownloadState.NOT_DOWNLOADED,
-            totalFiles = 0,
-            completedFiles = 0,
-            totalBytes = 0,
-            downloadedBytes = 0
-        )
+        fun notDownloaded(bookId: String) =
+            BookDownloadStatus(
+                bookId = bookId,
+                state = BookDownloadState.NOT_DOWNLOADED,
+                totalFiles = 0,
+                completedFiles = 0,
+                totalBytes = 0,
+                downloadedBytes = 0,
+            )
     }
 }
 
@@ -39,5 +40,5 @@ enum class BookDownloadState {
     DOWNLOADING,
     PARTIAL,
     COMPLETED,
-    FAILED
+    FAILED,
 }

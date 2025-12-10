@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DownloadDao {
-
     // Observe
     @Query("SELECT * FROM downloads WHERE bookId = :bookId ORDER BY fileIndex")
     fun observeForBook(bookId: String): Flow<List<DownloadEntity>>
@@ -39,44 +38,76 @@ interface DownloadDao {
 
     // Update state
     @Query("UPDATE downloads SET state = :state, startedAt = :startedAt WHERE audioFileId = :audioFileId")
-    suspend fun updateState(audioFileId: String, state: DownloadState, startedAt: Long? = null)
+    suspend fun updateState(
+        audioFileId: String,
+        state: DownloadState,
+        startedAt: Long? = null,
+    )
 
     @Query("UPDATE downloads SET state = :newState WHERE bookId = :bookId AND state != :excludeState")
-    suspend fun updateStateForBookExcluding(bookId: String, newState: DownloadState, excludeState: DownloadState)
+    suspend fun updateStateForBookExcluding(
+        bookId: String,
+        newState: DownloadState,
+        excludeState: DownloadState,
+    )
 
-    suspend fun updateStateForBook(bookId: String, state: DownloadState) =
-        updateStateForBookExcluding(bookId, state, DownloadState.COMPLETED)
+    suspend fun updateStateForBook(
+        bookId: String,
+        state: DownloadState,
+    ) = updateStateForBookExcluding(bookId, state, DownloadState.COMPLETED)
 
     // Update progress
     @Query("UPDATE downloads SET downloadedBytes = :downloaded, totalBytes = :total WHERE audioFileId = :audioFileId")
-    suspend fun updateProgress(audioFileId: String, downloaded: Long, total: Long)
+    suspend fun updateProgress(
+        audioFileId: String,
+        downloaded: Long,
+        total: Long,
+    )
 
     // Mark completed
-    @Query("""
+    @Query(
+        """
         UPDATE downloads SET
             state = :state,
             localPath = :localPath,
             completedAt = :completedAt,
             downloadedBytes = totalBytes
         WHERE audioFileId = :audioFileId
-    """)
-    suspend fun markCompletedWithState(audioFileId: String, localPath: String, completedAt: Long, state: DownloadState)
+    """,
+    )
+    suspend fun markCompletedWithState(
+        audioFileId: String,
+        localPath: String,
+        completedAt: Long,
+        state: DownloadState,
+    )
 
-    suspend fun markCompleted(audioFileId: String, localPath: String, completedAt: Long) =
-        markCompletedWithState(audioFileId, localPath, completedAt, DownloadState.COMPLETED)
+    suspend fun markCompleted(
+        audioFileId: String,
+        localPath: String,
+        completedAt: Long,
+    ) = markCompletedWithState(audioFileId, localPath, completedAt, DownloadState.COMPLETED)
 
     // Mark error
-    @Query("""
+    @Query(
+        """
         UPDATE downloads SET
             state = :state,
             errorMessage = :error,
             retryCount = retryCount + 1
         WHERE audioFileId = :audioFileId
-    """)
-    suspend fun updateErrorWithState(audioFileId: String, error: String, state: DownloadState)
+    """,
+    )
+    suspend fun updateErrorWithState(
+        audioFileId: String,
+        error: String,
+        state: DownloadState,
+    )
 
-    suspend fun updateError(audioFileId: String, error: String) =
-        updateErrorWithState(audioFileId, error, DownloadState.FAILED)
+    suspend fun updateError(
+        audioFileId: String,
+        error: String,
+    ) = updateErrorWithState(audioFileId, error, DownloadState.FAILED)
 
     /**
      * Mark all files for a book as DELETED (ordinal 5).

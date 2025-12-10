@@ -59,7 +59,7 @@ fun SortSplitButton(
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
     visible: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var categoryMenuExpanded by remember { mutableStateOf(false) }
 
@@ -67,74 +67,75 @@ fun SortSplitButton(
         visible = visible,
         enter = fadeIn(),
         exit = fadeOut(),
-        modifier = modifier
+        modifier = modifier,
     ) {
         Box {
             Surface(
                 shape = RoundedCornerShape(50),
                 color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.95f),
                 shadowElevation = 2.dp,
-                modifier = Modifier.clip(RoundedCornerShape(50))
+                modifier = Modifier.clip(RoundedCornerShape(50)),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.height(46.dp)
+                    modifier = Modifier.height(46.dp),
                 ) {
                     // Leading: Category selector
                     Surface(
                         onClick = { categoryMenuExpanded = true },
                         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0f),
-                        modifier = Modifier.height(46.dp)
+                        modifier = Modifier.height(46.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(start = 16.dp, end = 10.dp)
+                            modifier = Modifier.padding(start = 16.dp, end = 10.dp),
                         ) {
                             Text(
                                 text = state.category.label,
                                 style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Select category",
                                 modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
 
                     // Divider
                     VerticalDivider(
-                        modifier = Modifier
-                            .height(26.dp)
-                            .padding(vertical = 2.dp),
+                        modifier =
+                            Modifier
+                                .height(26.dp)
+                                .padding(vertical = 2.dp),
                         thickness = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant
+                        color = MaterialTheme.colorScheme.outlineVariant,
                     )
 
                     // Trailing: Direction toggle
                     Surface(
                         onClick = onDirectionToggle,
                         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0f),
-                        modifier = Modifier.height(46.dp)
+                        modifier = Modifier.height(46.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(start = 10.dp, end = 16.dp)
+                            modifier = Modifier.padding(start = 10.dp, end = 16.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SwapVert,
                                 contentDescription = "Toggle direction",
                                 modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.primary,
                             )
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = state.directionLabel,
                                 style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                     }
@@ -150,7 +151,7 @@ fun SortSplitButton(
                 onCategorySelected = { category ->
                     onCategorySelected(category)
                     categoryMenuExpanded = false
-                }
+                },
             )
         }
     }
@@ -165,12 +166,12 @@ private fun CategoryDropdownMenu(
     onDismiss: () -> Unit,
     currentCategory: SortCategory,
     categories: List<SortCategory>,
-    onCategorySelected: (SortCategory) -> Unit
+    onCategorySelected: (SortCategory) -> Unit,
 ) {
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
-        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer)
+        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
         categories.forEach { category ->
             val isSelected = category == currentCategory
@@ -180,28 +181,30 @@ private fun CategoryDropdownMenu(
                     Text(
                         text = category.label,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        }
+                        color =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
                     )
                 },
                 onClick = { onCategorySelected(category) },
-                leadingIcon = if (isSelected) {
-                    {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                } else {
-                    {
-                        Spacer(modifier = Modifier.size(18.dp))
-                    }
-                }
+                leadingIcon =
+                    if (isSelected) {
+                        {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    } else {
+                        {
+                            Spacer(modifier = Modifier.size(18.dp))
+                        }
+                    },
             )
         }
     }

@@ -25,13 +25,14 @@ import androidx.compose.ui.unit.dp
  * - large (28.dp): Cards, elevated surfaces
  * - extraLarge: Fully rounded elements (FABs, avatars)
  */
-private val ExpressiveShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(20.dp),
-    large = RoundedCornerShape(28.dp),
-    extraLarge = CircleShape
-)
+private val ExpressiveShapes =
+    Shapes(
+        extraSmall = RoundedCornerShape(8.dp),
+        small = RoundedCornerShape(12.dp),
+        medium = RoundedCornerShape(20.dp),
+        large = RoundedCornerShape(28.dp),
+        extraLarge = CircleShape,
+    )
 
 /**
  * Composition local for accessing the current theme's dark mode state.
@@ -47,15 +48,16 @@ val LocalDarkTheme = staticCompositionLocalOf { false }
  * Used on Android < 12 where dynamic color is unavailable.
  * Surface containers are tinted with the primary orange to create depth.
  */
-private val DarkColorScheme = darkColorScheme(
-    primary = ListenUpOrange,
-    // Tinted dark surface containers derived from orange seed
-    surface = Color(0xFF1A1210),
-    surfaceContainer = Color(0xFF251D1A),
-    surfaceContainerLow = Color(0xFF1F1714),
-    surfaceContainerHigh = Color(0xFF302723),
-    surfaceContainerHighest = Color(0xFF3B322D)
-)
+private val DarkColorScheme =
+    darkColorScheme(
+        primary = ListenUpOrange,
+        // Tinted dark surface containers derived from orange seed
+        surface = Color(0xFF1A1210),
+        surfaceContainer = Color(0xFF251D1A),
+        surfaceContainerLow = Color(0xFF1F1714),
+        surfaceContainerHigh = Color(0xFF302723),
+        surfaceContainerHighest = Color(0xFF3B322D),
+    )
 
 /**
  * ListenUp Material 3 theme with true Material You support.
@@ -76,30 +78,37 @@ private val DarkColorScheme = darkColorScheme(
 fun ListenUpTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
 
-    val colorScheme = when {
-        // Dynamic color on Android 12+ - respects wallpaper and system theme
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (darkTheme) {
-                dynamicDarkColorScheme(context)
-            } else {
-                dynamicLightColorScheme(context)
+    val colorScheme =
+        when {
+            // Dynamic color on Android 12+ - respects wallpaper and system theme
+            dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                if (darkTheme) {
+                    dynamicDarkColorScheme(context)
+                } else {
+                    dynamicLightColorScheme(context)
+                }
+            }
+
+            // Fallback for older devices
+            darkTheme -> {
+                DarkColorScheme
+            }
+
+            else -> {
+                LightColorScheme
             }
         }
-        // Fallback for older devices
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
 
     CompositionLocalProvider(LocalDarkTheme provides darkTheme) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = ListenUpTypography,
             shapes = ExpressiveShapes,
-            content = content
+            content = content,
         )
     }
 }

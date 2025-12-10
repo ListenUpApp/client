@@ -33,7 +33,9 @@ sealed interface SetupStatus {
     /**
      * Setup failed with an error.
      */
-    data class Error(val type: SetupErrorType) : SetupStatus
+    data class Error(
+        val type: SetupErrorType,
+    ) : SetupStatus
 }
 
 /**
@@ -54,7 +56,9 @@ sealed interface SetupErrorType {
     /**
      * Client-side validation error on a specific field.
      */
-    data class ValidationError(val field: SetupField) : SetupErrorType
+    data class ValidationError(
+        val field: SetupField,
+    ) : SetupErrorType
 
     /**
      * Server is already configured (shouldn't happen in normal flow).
@@ -70,5 +74,5 @@ enum class SetupField {
     LAST_NAME,
     EMAIL,
     PASSWORD,
-    PASSWORD_CONFIRM
+    PASSWORD_CONFIRM,
 }

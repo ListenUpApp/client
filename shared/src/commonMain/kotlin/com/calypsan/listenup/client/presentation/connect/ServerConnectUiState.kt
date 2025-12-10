@@ -20,24 +20,21 @@ data class ServerConnectUiState(
      * Bound to text field, updated on every keystroke.
      */
     val serverUrl: String = "",
-
     /**
      * Whether server verification is in progress.
      * Shows loading indicator and disables input during verification.
      */
     val isLoading: Boolean = false,
-
     /**
      * Current error to display, if any.
      * Null means no error. Error cleared when user modifies URL.
      */
     val error: ServerConnectError? = null,
-
     /**
      * Whether server verification completed successfully.
      * When true, UI should navigate to next screen.
      */
-    val isVerified: Boolean = false
+    val isVerified: Boolean = false,
 ) {
     /**
      * Whether the Connect button should be enabled.

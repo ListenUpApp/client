@@ -20,15 +20,14 @@ import kotlinx.serialization.Serializable
  * @property clientFactory Factory for creating authenticated HttpClient
  */
 class TagApi(
-    private val clientFactory: ApiClientFactory
-) {
-
+    private val clientFactory: ApiClientFactory,
+) : TagApiContract {
     /**
      * Get all tags for the current user.
      *
      * Endpoint: GET /api/v1/tags/
      */
-    suspend fun getUserTags(): List<Tag> {
+    override suspend fun getUserTags(): List<Tag> {
         val client = clientFactory.getClient()
         val response: List<TagResponse> = client.get("/api/v1/tags/").body()
         return response.map { it.toDomain() }
@@ -41,7 +40,7 @@ class TagApi(
      *
      * @param bookId The book ID to get tags for
      */
-    suspend fun getBookTags(bookId: String): List<Tag> {
+    override suspend fun getBookTags(bookId: String): List<Tag> {
         val client = clientFactory.getClient()
         val response: List<TagResponse> = client.get("/api/v1/books/$bookId/tags").body()
         return response.map { it.toDomain() }
@@ -55,7 +54,10 @@ class TagApi(
      * @param bookId The book to tag
      * @param tagId The tag to apply
      */
-    suspend fun addTagToBook(bookId: String, tagId: String) {
+    override suspend fun addTagToBook(
+        bookId: String,
+        tagId: String,
+    ) {
         val client = clientFactory.getClient()
         client.post("/api/v1/books/$bookId/tags") {
             contentType(ContentType.Application.Json)
@@ -71,7 +73,10 @@ class TagApi(
      * @param bookId The book to untag
      * @param tagId The tag to remove
      */
-    suspend fun removeTagFromBook(bookId: String, tagId: String) {
+    override suspend fun removeTagFromBook(
+        bookId: String,
+        tagId: String,
+    ) {
         val client = clientFactory.getClient()
         client.delete("/api/v1/books/$bookId/tags/$tagId")
     }
@@ -85,12 +90,17 @@ class TagApi(
      * @param color Optional hex color for the tag (e.g., "#FF5733")
      * @return The created tag
      */
-    suspend fun createTag(name: String, color: String? = null): Tag {
+    override suspend fun createTag(
+        name: String,
+        color: String?,
+    ): Tag {
         val client = clientFactory.getClient()
-        val response: TagResponse = client.post("/api/v1/tags/") {
-            contentType(ContentType.Application.Json)
-            setBody(CreateTagRequest(name = name, color = color))
-        }.body()
+        val response: TagResponse =
+            client
+                .post("/api/v1/tags/") {
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateTagRequest(name = name, color = color))
+                }.body()
         return response.toDomain()
     }
 
@@ -101,7 +111,7 @@ class TagApi(
      *
      * @param tagId The tag to delete
      */
-    suspend fun deleteTag(tagId: String) {
+    override suspend fun deleteTag(tagId: String) {
         val client = clientFactory.getClient()
         client.delete("/api/v1/tags/$tagId")
     }
@@ -115,41 +125,36 @@ internal data class TagResponse(
     val id: String,
     val name: String,
     val slug: String,
-
     @SerialName("owner_id")
     val ownerId: String,
-
     val color: String? = null,
-
     @SerialName("book_count")
     val bookCount: Int = 0,
-
     @SerialName("created_at")
     val createdAt: Long,
-
     @SerialName("updated_at")
     val updatedAt: Long,
-
     @SerialName("deleted_at")
-    val deletedAt: Long? = null
+    val deletedAt: Long? = null,
 ) {
-    fun toDomain() = Tag(
-        id = id,
-        name = name,
-        slug = slug,
-        color = color,
-        bookCount = bookCount
-    )
+    fun toDomain() =
+        Tag(
+            id = id,
+            name = name,
+            slug = slug,
+            color = color,
+            bookCount = bookCount,
+        )
 }
 
 @Serializable
 internal data class AddTagRequest(
     @SerialName("tag_id")
-    val tagId: String
+    val tagId: String,
 )
 
 @Serializable
 internal data class CreateTagRequest(
     val name: String,
-    val color: String? = null
+    val color: String? = null,
 )

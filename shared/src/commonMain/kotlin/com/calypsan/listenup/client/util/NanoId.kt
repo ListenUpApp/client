@@ -17,7 +17,6 @@ import kotlin.random.Random
  * Format with prefix: "evt-V1StGXR8_Z5jdHi6B-myT"
  */
 object NanoId {
-
     /**
      * URL-safe alphabet (64 characters).
      * Order matches NanoID spec: symbols, digits, uppercase, lowercase.
@@ -41,11 +40,12 @@ object NanoId {
      * @param size Number of characters (default: 21)
      * @return URL-safe unique identifier
      */
-    fun generate(size: Int = DEFAULT_SIZE): String = buildString(size) {
-        repeat(size) {
-            append(ALPHABET[Random.nextInt(64)])
+    fun generate(size: Int = DEFAULT_SIZE): String =
+        buildString(size) {
+            repeat(size) {
+                append(ALPHABET[Random.nextInt(64)])
+            }
         }
-    }
 
     /**
      * Generate a prefixed NanoID matching server format.
@@ -54,6 +54,8 @@ object NanoId {
      * @param size Number of characters after prefix (default: 21)
      * @return Prefixed identifier (e.g., "evt-V1StGXR8_Z5jdHi6B-myT")
      */
-    fun generate(prefix: String, size: Int = DEFAULT_SIZE): String =
-        "$prefix-${generate(size)}"
+    fun generate(
+        prefix: String,
+        size: Int = DEFAULT_SIZE,
+    ): String = "$prefix-${generate(size)}"
 }

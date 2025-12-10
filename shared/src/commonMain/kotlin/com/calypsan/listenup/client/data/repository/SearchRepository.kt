@@ -6,7 +6,7 @@ import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.remote.SearchApi
+import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SearchFacetsResponse
 import com.calypsan.listenup.client.data.remote.SearchHitResponse
 import com.calypsan.listenup.client.data.remote.SearchResponse
@@ -22,6 +22,32 @@ import kotlinx.coroutines.withContext
 import kotlin.time.measureTimedValue
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * Contract interface for search repository operations.
+ *
+ * Extracted to enable mocking in tests. Production implementation
+ * is [SearchRepository], test implementation can be a mock or fake.
+ */
+interface SearchRepositoryContract {
+    /**
+     * Search across books, contributors, and series.
+     *
+     * @param query Search query string
+     * @param types Types to search (null = all)
+     * @param genres Genre slugs to filter by
+     * @param genrePath Genre path prefix for hierarchical filtering
+     * @param limit Max results per type
+     * @return SearchResult with hits and metadata
+     */
+    suspend fun search(
+        query: String,
+        types: List<SearchHitType>? = null,
+        genres: List<String>? = null,
+        genrePath: String? = null,
+        limit: Int = 20,
+    ): SearchResult
+}
 
 /**
  * Repository for search operations.
@@ -40,11 +66,11 @@ private val logger = KotlinLogging.logger {}
  * @property networkMonitor For checking online/offline status
  */
 class SearchRepository(
-    private val searchApi: SearchApi,
+    private val searchApi: SearchApiContract,
     private val searchDao: SearchDao,
     private val imageStorage: ImageStorage,
-    private val networkMonitor: NetworkMonitor
-) {
+    private val networkMonitor: NetworkMonitor,
+) : SearchRepositoryContract {
     /**
      * Search across books, contributors, and series.
      *
@@ -57,12 +83,12 @@ class SearchRepository(
      * @param genrePath Genre path prefix for hierarchical filtering
      * @param limit Max results per type
      */
-    suspend fun search(
+    override suspend fun search(
         query: String,
-        types: List<SearchHitType>? = null,
-        genres: List<String>? = null,
-        genrePath: String? = null,
-        limit: Int = 20
+        types: List<SearchHitType>?,
+        genres: List<String>?,
+        genrePath: String?,
+        limit: Int,
     ): SearchResult {
         // Sanitize query
         val sanitizedQuery = sanitizeQuery(query)
@@ -71,7 +97,7 @@ class SearchRepository(
                 query = query,
                 total = 0,
                 tookMs = 0,
-                hits = emptyList()
+                hits = emptyList(),
             )
         }
 
@@ -97,21 +123,23 @@ class SearchRepository(
         types: List<SearchHitType>?,
         genres: List<String>?,
         genrePath: String?,
-        limit: Int
-    ): SearchResult = withContext(Dispatchers.IO) {
-        val typesParam = types?.joinToString(",") { it.name.lowercase() }
-        val genresParam = genres?.joinToString(",")
+        limit: Int,
+    ): SearchResult =
+        withContext(Dispatchers.IO) {
+            val typesParam = types?.joinToString(",") { it.name.lowercase() }
+            val genresParam = genres?.joinToString(",")
 
-        val response = searchApi.search(
-            query = query,
-            types = typesParam,
-            genres = genresParam,
-            genrePath = genrePath,
-            limit = limit
-        )
+            val response =
+                searchApi.search(
+                    query = query,
+                    types = typesParam,
+                    genres = genresParam,
+                    genrePath = genrePath,
+                    limit = limit,
+                )
 
-        response.toDomain(imageStorage)
-    }
+            response.toDomain(imageStorage)
+        }
 
     /**
      * Local Room FTS5 search.
@@ -119,54 +147,56 @@ class SearchRepository(
     private suspend fun searchLocal(
         query: String,
         types: List<SearchHitType>?,
-        limit: Int
-    ): SearchResult = withContext(Dispatchers.IO) {
-        val (result, duration) = measureTimedValue {
-            val ftsQuery = toFtsQuery(query)
-            val searchTypes = types ?: SearchHitType.entries
+        limit: Int,
+    ): SearchResult =
+        withContext(Dispatchers.IO) {
+            val (result, duration) =
+                measureTimedValue {
+                    val ftsQuery = toFtsQuery(query)
+                    val searchTypes = types ?: SearchHitType.entries
 
-            val hits = mutableListOf<SearchHit>()
+                    val hits = mutableListOf<SearchHit>()
 
-            // Search each type
-            if (SearchHitType.BOOK in searchTypes) {
-                try {
-                    val books = searchDao.searchBooks(ftsQuery, limit)
-                    hits.addAll(books.map { it.toSearchHit(imageStorage) })
-                } catch (e: Exception) {
-                    logger.warn(e) { "Book FTS search failed" }
+                    // Search each type
+                    if (SearchHitType.BOOK in searchTypes) {
+                        try {
+                            val books = searchDao.searchBooks(ftsQuery, limit)
+                            hits.addAll(books.map { it.toSearchHit(imageStorage) })
+                        } catch (e: Exception) {
+                            logger.warn(e) { "Book FTS search failed" }
+                        }
+                    }
+
+                    if (SearchHitType.CONTRIBUTOR in searchTypes) {
+                        try {
+                            val contributors = searchDao.searchContributors(ftsQuery, limit / 2)
+                            hits.addAll(contributors.map { it.toSearchHit() })
+                        } catch (e: Exception) {
+                            logger.warn(e) { "Contributor FTS search failed" }
+                        }
+                    }
+
+                    if (SearchHitType.SERIES in searchTypes) {
+                        try {
+                            val series = searchDao.searchSeries(ftsQuery, limit / 2)
+                            hits.addAll(series.map { it.toSearchHit() })
+                        } catch (e: Exception) {
+                            logger.warn(e) { "Series FTS search failed" }
+                        }
+                    }
+
+                    hits
                 }
-            }
 
-            if (SearchHitType.CONTRIBUTOR in searchTypes) {
-                try {
-                    val contributors = searchDao.searchContributors(ftsQuery, limit / 2)
-                    hits.addAll(contributors.map { it.toSearchHit() })
-                } catch (e: Exception) {
-                    logger.warn(e) { "Contributor FTS search failed" }
-                }
-            }
-
-            if (SearchHitType.SERIES in searchTypes) {
-                try {
-                    val series = searchDao.searchSeries(ftsQuery, limit / 2)
-                    hits.addAll(series.map { it.toSearchHit() })
-                } catch (e: Exception) {
-                    logger.warn(e) { "Series FTS search failed" }
-                }
-            }
-
-            hits
+            SearchResult(
+                query = query,
+                total = result.size,
+                tookMs = duration.inWholeMilliseconds,
+                hits = result,
+                facets = SearchFacets(), // No facets in local search
+                isOfflineResult = true,
+            )
         }
-
-        SearchResult(
-            query = query,
-            total = result.size,
-            tookMs = duration.inWholeMilliseconds,
-            hits = result,
-            facets = SearchFacets(), // No facets in local search
-            isOfflineResult = true
-        )
-    }
 
     /**
      * Sanitize search query to prevent injection and handle special chars.
@@ -184,40 +214,42 @@ class SearchRepository(
      * "brandon sanderson" -> "brandon* sanderson*"
      * Adds prefix matching for partial word search.
      */
-    private fun toFtsQuery(query: String): String {
-        return query
+    private fun toFtsQuery(query: String): String =
+        query
             .split(Regex("\\s+"))
             .filter { it.isNotBlank() }
             .joinToString(" ") { "$it*" }
-    }
 }
 
 // --- Extension functions for mapping ---
 
-private fun SearchResponse.toDomain(imageStorage: ImageStorage): SearchResult {
-    return SearchResult(
+private fun SearchResponse.toDomain(imageStorage: ImageStorage): SearchResult =
+    SearchResult(
         query = query,
         total = total.toInt(),
         tookMs = tookMs,
         hits = hits.map { it.toDomain(imageStorage) },
         facets = facets?.toDomain() ?: SearchFacets(),
-        isOfflineResult = false
+        isOfflineResult = false,
     )
-}
 
 private fun SearchHitResponse.toDomain(imageStorage: ImageStorage): SearchHit {
-    val hitType = when (type.lowercase()) {
-        "book" -> SearchHitType.BOOK
-        "contributor" -> SearchHitType.CONTRIBUTOR
-        "series" -> SearchHitType.SERIES
-        else -> SearchHitType.BOOK
-    }
+    val hitType =
+        when (type.lowercase()) {
+            "book" -> SearchHitType.BOOK
+            "contributor" -> SearchHitType.CONTRIBUTOR
+            "series" -> SearchHitType.SERIES
+            else -> SearchHitType.BOOK
+        }
 
     // Resolve cover path for books (convert String to BookId)
-    val coverPath = if (hitType == SearchHitType.BOOK) {
-        val bookId = BookId(id)
-        if (imageStorage.exists(bookId)) imageStorage.getCoverPath(bookId) else null
-    } else null
+    val coverPath =
+        if (hitType == SearchHitType.BOOK) {
+            val bookId = BookId(id)
+            if (imageStorage.exists(bookId)) imageStorage.getCoverPath(bookId) else null
+        } else {
+            null
+        }
 
     return SearchHit(
         id = id,
@@ -231,18 +263,17 @@ private fun SearchHitResponse.toDomain(imageStorage: ImageStorage): SearchHit {
         bookCount = bookCount,
         coverPath = coverPath,
         score = score,
-        highlight = highlights?.values?.firstOrNull()
+        highlight = highlights?.values?.firstOrNull(),
     )
 }
 
-private fun SearchFacetsResponse.toDomain(): SearchFacets {
-    return SearchFacets(
+private fun SearchFacetsResponse.toDomain(): SearchFacets =
+    SearchFacets(
         types = types?.map { FacetCount(it.value, it.count) } ?: emptyList(),
         genres = genres?.map { FacetCount(it.value, it.count) } ?: emptyList(),
         authors = authors?.map { FacetCount(it.value, it.count) } ?: emptyList(),
-        narrators = narrators?.map { FacetCount(it.value, it.count) } ?: emptyList()
+        narrators = narrators?.map { FacetCount(it.value, it.count) } ?: emptyList(),
     )
-}
 
 private fun BookEntity.toSearchHit(imageStorage: ImageStorage): SearchHit {
     val coverPath = if (imageStorage.exists(id)) imageStorage.getCoverPath(id) else null
@@ -258,26 +289,24 @@ private fun BookEntity.toSearchHit(imageStorage: ImageStorage): SearchHit {
         duration = totalDuration,
         bookCount = null,
         coverPath = coverPath,
-        score = 1.0f // No scoring in local search
+        score = 1.0f, // No scoring in local search
     )
 }
 
-private fun ContributorEntity.toSearchHit(): SearchHit {
-    return SearchHit(
+private fun ContributorEntity.toSearchHit(): SearchHit =
+    SearchHit(
         id = id,
         type = SearchHitType.CONTRIBUTOR,
         name = name,
         bookCount = null, // Would need count - acceptable for offline
-        score = 1.0f
+        score = 1.0f,
     )
-}
 
-private fun SeriesEntity.toSearchHit(): SearchHit {
-    return SearchHit(
+private fun SeriesEntity.toSearchHit(): SearchHit =
+    SearchHit(
         id = id,
         type = SearchHitType.SERIES,
         name = name,
         bookCount = null,
-        score = 1.0f
+        score = 1.0f,
     )
-}

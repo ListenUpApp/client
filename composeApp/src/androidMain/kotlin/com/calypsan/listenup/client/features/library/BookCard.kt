@@ -54,26 +54,26 @@ fun BookCard(
     onClick: () -> Unit,
     progress: Float? = null,
     timeRemaining: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
-        label = "card_scale"
+        label = "card_scale",
     )
 
     Column(
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
+        modifier =
+            modifier
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }.clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
     ) {
         // Cover with glow and optional progress overlay
         CoverWithGlow(
@@ -81,9 +81,10 @@ fun BookCard(
             contentDescription = book.title,
             progress = progress,
             timeRemaining = timeRemaining,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f),
         )
 
         Spacer(modifier = Modifier.height(6.dp))
@@ -92,13 +93,14 @@ fun BookCard(
         Column(modifier = Modifier.padding(horizontal = 4.dp)) {
             Text(
                 text = book.title,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.2).sp
-                ),
+                style =
+                    MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp,
+                    ),
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             Text(
@@ -106,13 +108,13 @@ fun BookCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             Text(
                 text = book.formatDuration(),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             )
         }
     }
@@ -135,47 +137,49 @@ private fun CoverWithGlow(
     contentDescription: String?,
     progress: Float? = null,
     timeRemaining: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val shape = MaterialTheme.shapes.medium
 
     Box(
-        modifier = modifier
-            .shadow(
-                elevation = 6.dp,
-                shape = shape
-            )
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier
+                .shadow(
+                    elevation = 6.dp,
+                    shape = shape,
+                ).clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        contentAlignment = Alignment.Center,
     ) {
         if (coverPath != null) {
             AsyncImage(
                 model = "file://$coverPath",
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.matchParentSize()
+                modifier = Modifier.matchParentSize(),
             )
         } else {
             // Gradient placeholder
             Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                MaterialTheme.colorScheme.surfaceContainer
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .matchParentSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors =
+                                    listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.surfaceContainer,
+                                    ),
+                            ),
+                        ),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.Book,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(32.dp)
+                    modifier = Modifier.padding(32.dp),
                 )
             }
         }
@@ -185,7 +189,7 @@ private fun CoverWithGlow(
             ProgressOverlay(
                 progress = progress,
                 timeRemaining = timeRemaining,
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
     }

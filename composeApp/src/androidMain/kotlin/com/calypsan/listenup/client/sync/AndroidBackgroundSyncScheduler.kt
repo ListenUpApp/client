@@ -23,9 +23,8 @@ private val logger = KotlinLogging.logger {}
  * - Constraint-based execution
  */
 class AndroidBackgroundSyncScheduler(
-    private val context: Context
+    private val context: Context,
 ) : BackgroundSyncScheduler {
-
     companion object {
         private const val WORK_NAME = "periodic_sync"
         private const val SYNC_INTERVAL_MINUTES = 15L
@@ -40,21 +39,23 @@ class AndroidBackgroundSyncScheduler(
     override fun schedule() {
         logger.info { "Scheduling periodic sync every $SYNC_INTERVAL_MINUTES minutes" }
 
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
+        val constraints =
+            Constraints
+                .Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
 
-        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
-            repeatInterval = SYNC_INTERVAL_MINUTES,
-            repeatIntervalTimeUnit = TimeUnit.MINUTES
-        )
-            .setConstraints(constraints)
-            .build()
+        val syncRequest =
+            PeriodicWorkRequestBuilder<SyncWorker>(
+                repeatInterval = SYNC_INTERVAL_MINUTES,
+                repeatIntervalTimeUnit = TimeUnit.MINUTES,
+            ).setConstraints(constraints)
+                .build()
 
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
-            syncRequest
+            syncRequest,
         )
 
         logger.info { "Periodic sync scheduled" }

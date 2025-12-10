@@ -33,25 +33,27 @@ class FtsPopulator(
     private val bookDao: BookDao,
     private val contributorDao: ContributorDao,
     private val seriesDao: SeriesDao,
-    private val searchDao: SearchDao
-) {
+    private val searchDao: SearchDao,
+) : FtsPopulatorContract {
     /**
      * Rebuild all FTS tables from main tables.
      *
      * This is a full rebuild that clears and repopulates all FTS tables.
      * Call after sync operations complete to ensure search is up-to-date.
      */
-    suspend fun rebuildAll() = withContext(Dispatchers.IO) {
-        logger.info { "Starting FTS rebuild..." }
+    override suspend fun rebuildAll() =
+        withContext(Dispatchers.IO) {
+            logger.info { "Starting FTS rebuild..." }
 
-        val duration = measureTime {
-            rebuildBooks()
-            rebuildContributors()
-            rebuildSeries()
+            val duration =
+                measureTime {
+                    rebuildBooks()
+                    rebuildContributors()
+                    rebuildSeries()
+                }
+
+            logger.info { "FTS rebuild completed in ${duration.inWholeMilliseconds}ms" }
         }
-
-        logger.info { "FTS rebuild completed in ${duration.inWholeMilliseconds}ms" }
-    }
 
     /**
      * Rebuild book FTS entries.
@@ -84,7 +86,7 @@ class FtsPopulator(
                     author = authorName,
                     narrator = narratorName,
                     seriesName = book.seriesName,
-                    genres = book.genres
+                    genres = book.genres,
                 )
                 insertCount++
             } catch (e: Exception) {
@@ -114,7 +116,7 @@ class FtsPopulator(
                 searchDao.insertContributorFts(
                     contributorId = contributor.id,
                     name = contributor.name,
-                    description = contributor.description
+                    description = contributor.description,
                 )
                 insertCount++
             } catch (e: Exception) {
@@ -144,7 +146,7 @@ class FtsPopulator(
                 searchDao.insertSeriesFts(
                     seriesId = s.id,
                     name = s.name,
-                    description = s.description
+                    description = s.description,
                 )
                 insertCount++
             } catch (e: Exception) {

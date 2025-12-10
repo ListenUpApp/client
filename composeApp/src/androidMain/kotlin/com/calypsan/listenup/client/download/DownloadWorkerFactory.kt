@@ -15,24 +15,23 @@ class DownloadWorkerFactory(
     private val downloadDao: DownloadDao,
     private val fileManager: DownloadFileManager,
     private val tokenProvider: AudioTokenProvider,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
 ) : WorkerFactory() {
-
     override fun createWorker(
         appContext: Context,
         workerClassName: String,
-        workerParameters: WorkerParameters
-    ): ListenableWorker? {
-        return when (workerClassName) {
-            DownloadWorker::class.java.name -> DownloadWorker(
+        workerParameters: WorkerParameters,
+    ): ListenableWorker? =
+        if (workerClassName == DownloadWorker::class.java.name) {
+            DownloadWorker(
                 appContext,
                 workerParameters,
                 downloadDao,
                 fileManager,
                 tokenProvider,
-                settingsRepository
+                settingsRepository,
             )
-            else -> null
+        } else {
+            null
         }
-    }
 }

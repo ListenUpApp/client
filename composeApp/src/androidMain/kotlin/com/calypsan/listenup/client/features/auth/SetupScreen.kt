@@ -61,7 +61,7 @@ import org.koin.compose.koinInject
 @Composable
 fun SetupScreen(
     modifier: Modifier = Modifier,
-    viewModel: SetupViewModel = koinInject()
+    viewModel: SetupViewModel = koinInject(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -70,20 +70,30 @@ fun SetupScreen(
     LaunchedEffect(state.status) {
         when (val status = state.status) {
             is SetupStatus.Error -> {
-                val message = when (status.type) {
-                    is SetupErrorType.NetworkError ->
-                        "Network error. Please check your connection."
-                    is SetupErrorType.ServerError ->
-                        "Server error. Please try again."
-                    is SetupErrorType.AlreadyConfigured ->
-                        "Server is already configured."
-                    is SetupErrorType.ValidationError -> null // Handled inline
-                }
+                val message =
+                    when (status.type) {
+                        is SetupErrorType.NetworkError -> {
+                            "Network error. Please check your connection."
+                        }
+
+                        is SetupErrorType.ServerError -> {
+                            "Server error. Please try again."
+                        }
+
+                        is SetupErrorType.AlreadyConfigured -> {
+                            "Server is already configured."
+                        }
+
+                        is SetupErrorType.ValidationError -> {
+                            null
+                        } // Handled inline
+                    }
                 message?.let {
                     snackbarHostState.showSnackbar(it)
                     viewModel.clearError()
                 }
             }
+
             else -> {}
         }
     }
@@ -92,7 +102,7 @@ fun SetupScreen(
         state = state,
         onSubmit = viewModel::onSetupSubmit,
         snackbarHostState = snackbarHostState,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -104,21 +114,22 @@ private fun SetupContent(
     state: com.calypsan.listenup.client.presentation.auth.SetupUiState,
     onSubmit: (String, String, String, String, String) -> Unit,
     snackbarHostState: SnackbarHostState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surface,
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
@@ -127,18 +138,20 @@ private fun SetupContent(
             Spacer(modifier = Modifier.height(48.dp))
 
             ElevatedCard(
-                modifier = Modifier
-                    .widthIn(max = 480.dp)
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .widthIn(max = 480.dp)
+                        .fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                )
+                colors =
+                    CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
             ) {
                 SetupForm(
                     state = state,
                     onSubmit = onSubmit,
-                    modifier = Modifier.padding(24.dp)
+                    modifier = Modifier.padding(24.dp),
                 )
             }
 
@@ -153,16 +166,17 @@ private fun SetupContent(
 @Composable
 private fun BrandLogo(modifier: Modifier = Modifier) {
     val isDarkTheme = LocalDarkTheme.current
-    val logoRes = if (isDarkTheme) {
-        R.drawable.listenup_logo_white
-    } else {
-        R.drawable.listenup_logo_black
-    }
+    val logoRes =
+        if (isDarkTheme) {
+            R.drawable.listenup_logo_white
+        } else {
+            R.drawable.listenup_logo_black
+        }
 
     Image(
         painter = painterResource(logoRes),
         contentDescription = "ListenUp Logo",
-        modifier = modifier.size(160.dp)
+        modifier = modifier.size(160.dp),
     )
 }
 
@@ -173,7 +187,7 @@ private fun BrandLogo(modifier: Modifier = Modifier) {
 private fun SetupForm(
     state: com.calypsan.listenup.client.presentation.auth.SetupUiState,
     onSubmit: (String, String, String, String, String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
@@ -186,19 +200,19 @@ private fun SetupForm(
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // Title
         Text(
             text = "Create Admin Account",
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
         )
 
         Text(
             text = "Set up your ListenUp server by creating the first admin account.",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         // First Name
@@ -207,23 +221,31 @@ private fun SetupForm(
             onValueChange = { firstName = it },
             label = "First Name",
             enabled = !isLoading,
-            isError = state.status is SetupStatus.Error &&
+            isError =
+                state.status is SetupStatus.Error &&
                     (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError).field == SetupField.FIRST_NAME,
-            supportingText = if (state.status is SetupStatus.Error &&
-                (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError).field == SetupField.FIRST_NAME
-            ) {
-                "First name is required"
-            } else null,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Next
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-            ),
-            modifier = Modifier.fillMaxWidth()
+                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
+                        .field == SetupField.FIRST_NAME,
+            supportingText =
+                if (state.status is SetupStatus.Error &&
+                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
+                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
+                        .field == SetupField.FIRST_NAME
+                ) {
+                    "First name is required"
+                } else {
+                    null
+                },
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) },
+                ),
+            modifier = Modifier.fillMaxWidth(),
         )
 
         // Last Name
@@ -232,23 +254,31 @@ private fun SetupForm(
             onValueChange = { lastName = it },
             label = "Last Name",
             enabled = !isLoading,
-            isError = state.status is SetupStatus.Error &&
+            isError =
+                state.status is SetupStatus.Error &&
                     (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError).field == SetupField.LAST_NAME,
-            supportingText = if (state.status is SetupStatus.Error &&
-                (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError).field == SetupField.LAST_NAME
-            ) {
-                "Last name is required"
-            } else null,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Next
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-            ),
-            modifier = Modifier.fillMaxWidth()
+                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
+                        .field == SetupField.LAST_NAME,
+            supportingText =
+                if (state.status is SetupStatus.Error &&
+                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
+                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
+                        .field == SetupField.LAST_NAME
+                ) {
+                    "Last name is required"
+                } else {
+                    null
+                },
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) },
+                ),
+            modifier = Modifier.fillMaxWidth(),
         )
 
         // Email
@@ -257,23 +287,31 @@ private fun SetupForm(
             onValueChange = { email = it },
             label = "Email",
             enabled = !isLoading,
-            isError = state.status is SetupStatus.Error &&
+            isError =
+                state.status is SetupStatus.Error &&
                     (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError).field == SetupField.EMAIL,
-            supportingText = if (state.status is SetupStatus.Error &&
-                (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError).field == SetupField.EMAIL
-            ) {
-                "Invalid email address"
-            } else null,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Next
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-            ),
-            modifier = Modifier.fillMaxWidth()
+                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
+                        .field == SetupField.EMAIL,
+            supportingText =
+                if (state.status is SetupStatus.Error &&
+                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
+                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
+                        .field == SetupField.EMAIL
+                ) {
+                    "Invalid email address"
+                } else {
+                    null
+                },
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) },
+                ),
+            modifier = Modifier.fillMaxWidth(),
         )
 
         // Password
@@ -283,23 +321,31 @@ private fun SetupForm(
             label = "Password",
             enabled = !isLoading,
             visualTransformation = PasswordVisualTransformation(),
-            isError = state.status is SetupStatus.Error &&
+            isError =
+                state.status is SetupStatus.Error &&
                     (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError).field == SetupField.PASSWORD,
-            supportingText = if (state.status is SetupStatus.Error &&
-                (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError).field == SetupField.PASSWORD
-            ) {
-                "Password must be at least 8 characters"
-            } else null,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Next
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-            ),
-            modifier = Modifier.fillMaxWidth()
+                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
+                        .field == SetupField.PASSWORD,
+            supportingText =
+                if (state.status is SetupStatus.Error &&
+                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
+                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
+                        .field == SetupField.PASSWORD
+                ) {
+                    "Password must be at least 8 characters"
+                } else {
+                    null
+                },
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Next,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) },
+                ),
+            modifier = Modifier.fillMaxWidth(),
         )
 
         // Confirm Password
@@ -309,28 +355,36 @@ private fun SetupForm(
             label = "Confirm Password",
             enabled = !isLoading,
             visualTransformation = PasswordVisualTransformation(),
-            isError = state.status is SetupStatus.Error &&
+            isError =
+                state.status is SetupStatus.Error &&
                     (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError).field == SetupField.PASSWORD_CONFIRM,
-            supportingText = if (state.status is SetupStatus.Error &&
-                (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
-                ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError).field == SetupField.PASSWORD_CONFIRM
-            ) {
-                "Passwords do not match"
-            } else null,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    focusManager.clearFocus()
-                    if (!isLoading) {
-                        onSubmit(firstName, lastName, email, password, passwordConfirm)
-                    }
-                }
-            ),
-            modifier = Modifier.fillMaxWidth()
+                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
+                        .field == SetupField.PASSWORD_CONFIRM,
+            supportingText =
+                if (state.status is SetupStatus.Error &&
+                    (state.status as SetupStatus.Error).type is SetupErrorType.ValidationError &&
+                    ((state.status as SetupStatus.Error).type as SetupErrorType.ValidationError)
+                        .field == SetupField.PASSWORD_CONFIRM
+                ) {
+                    "Passwords do not match"
+                } else {
+                    null
+                },
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onDone = {
+                        focusManager.clearFocus()
+                        if (!isLoading) {
+                            onSubmit(firstName, lastName, email, password, passwordConfirm)
+                        }
+                    },
+                ),
+            modifier = Modifier.fillMaxWidth(),
         )
 
         // Submit button
@@ -341,7 +395,7 @@ private fun SetupForm(
             text = "Create Account",
             enabled = !isLoading,
             isLoading = isLoading,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }

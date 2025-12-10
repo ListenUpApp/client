@@ -16,21 +16,24 @@ import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 data class PlaybackTimeline(
     val bookId: BookId,
     val totalDurationMs: Long,
-    val files: List<FileSegment>
+    val files: List<FileSegment>,
 ) {
     /**
      * Represents a single audio file in the book's timeline.
      */
     data class FileSegment(
-        val audioFileId: String,       // "af-{hex}" from server
+        val audioFileId: String, // "af-{hex}" from server
         val filename: String,
-        val format: String,            // "mp3", "m4b", etc.
-        val startOffsetMs: Long,       // Where this file starts in book timeline
+        val format: String, // "mp3", "m4b", etc.
+        // Where this file starts in book timeline
+        val startOffsetMs: Long,
         val durationMs: Long,
         val size: Long,
         val streamingUrl: String,
-        val localPath: String?,        // Local file path if downloaded, null otherwise
-        val mediaItemIndex: Int        // Index in ExoPlayer playlist
+        // Local file path if downloaded, null otherwise
+        val localPath: String?,
+        // Index in ExoPlayer playlist
+        val mediaItemIndex: Int,
     ) {
         /**
          * URI for playback - prefers local file over streaming.
@@ -60,7 +63,7 @@ data class PlaybackTimeline(
             if (bookPositionMs < accumulated + file.durationMs) {
                 return PlaybackPosition(
                     mediaItemIndex = file.mediaItemIndex,
-                    positionInFileMs = bookPositionMs - accumulated
+                    positionInFileMs = bookPositionMs - accumulated,
                 )
             }
             accumulated += file.durationMs
@@ -69,7 +72,7 @@ data class PlaybackTimeline(
         return if (files.isNotEmpty()) {
             PlaybackPosition(
                 mediaItemIndex = files.lastIndex,
-                positionInFileMs = files.last().durationMs
+                positionInFileMs = files.last().durationMs,
             )
         } else {
             PlaybackPosition(0, 0)
@@ -83,7 +86,10 @@ data class PlaybackTimeline(
      * @param positionInFileMs Position within that file
      * @return Position in the book timeline (milliseconds)
      */
-    fun toBookPosition(mediaItemIndex: Int, positionInFileMs: Long): Long {
+    fun toBookPosition(
+        mediaItemIndex: Int,
+        positionInFileMs: Long,
+    ): Long {
         val offset = files.getOrNull(mediaItemIndex)?.startOffsetMs ?: 0L
         return offset + positionInFileMs
     }
@@ -119,29 +125,31 @@ data class PlaybackTimeline(
         fun build(
             bookId: BookId,
             audioFiles: List<AudioFileResponse>,
-            baseUrl: String
+            baseUrl: String,
         ): PlaybackTimeline {
             var cumulativeOffset = 0L
-            val segments = audioFiles.mapIndexed { index, file ->
-                val segment = FileSegment(
-                    audioFileId = file.id,
-                    filename = file.filename,
-                    format = file.format,
-                    startOffsetMs = cumulativeOffset,
-                    durationMs = file.duration,
-                    size = file.size,
-                    streamingUrl = "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}",
-                    localPath = null,
-                    mediaItemIndex = index
-                )
-                cumulativeOffset += file.duration
-                segment
-            }
+            val segments =
+                audioFiles.mapIndexed { index, file ->
+                    val segment =
+                        FileSegment(
+                            audioFileId = file.id,
+                            filename = file.filename,
+                            format = file.format,
+                            startOffsetMs = cumulativeOffset,
+                            durationMs = file.duration,
+                            size = file.size,
+                            streamingUrl = "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}",
+                            localPath = null,
+                            mediaItemIndex = index,
+                        )
+                    cumulativeOffset += file.duration
+                    segment
+                }
 
             return PlaybackTimeline(
                 bookId = bookId,
                 totalDurationMs = cumulativeOffset,
-                files = segments
+                files = segments,
             )
         }
 
@@ -158,30 +166,32 @@ data class PlaybackTimeline(
             bookId: BookId,
             audioFiles: List<AudioFileResponse>,
             baseUrl: String,
-            resolveLocalPath: suspend (String) -> String?
+            resolveLocalPath: suspend (String) -> String?,
         ): PlaybackTimeline {
             var cumulativeOffset = 0L
-            val segments = audioFiles.mapIndexed { index, file ->
-                val localPath = resolveLocalPath(file.id)
-                val segment = FileSegment(
-                    audioFileId = file.id,
-                    filename = file.filename,
-                    format = file.format,
-                    startOffsetMs = cumulativeOffset,
-                    durationMs = file.duration,
-                    size = file.size,
-                    streamingUrl = "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}",
-                    localPath = localPath,
-                    mediaItemIndex = index
-                )
-                cumulativeOffset += file.duration
-                segment
-            }
+            val segments =
+                audioFiles.mapIndexed { index, file ->
+                    val localPath = resolveLocalPath(file.id)
+                    val segment =
+                        FileSegment(
+                            audioFileId = file.id,
+                            filename = file.filename,
+                            format = file.format,
+                            startOffsetMs = cumulativeOffset,
+                            durationMs = file.duration,
+                            size = file.size,
+                            streamingUrl = "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}",
+                            localPath = localPath,
+                            mediaItemIndex = index,
+                        )
+                    cumulativeOffset += file.duration
+                    segment
+                }
 
             return PlaybackTimeline(
                 bookId = bookId,
                 totalDurationMs = cumulativeOffset,
-                files = segments
+                files = segments,
             )
         }
     }
@@ -195,5 +205,5 @@ data class PlaybackTimeline(
  */
 data class PlaybackPosition(
     val mediaItemIndex: Int,
-    val positionInFileMs: Long
+    val positionInFileMs: Long,
 )

@@ -6,7 +6,7 @@ package com.calypsan.listenup.client.domain.model
 enum class SearchHitType {
     BOOK,
     CONTRIBUTOR,
-    SERIES
+    SERIES,
 }
 
 /**
@@ -27,7 +27,7 @@ data class SearchHit(
     val bookCount: Int? = null,
     val coverPath: String? = null,
     val score: Float = 0f,
-    val highlight: String? = null
+    val highlight: String? = null,
 ) {
     /**
      * Format duration as human-readable string.
@@ -38,10 +38,7 @@ data class SearchHit(
         val hours = totalMinutes / 60
         val minutes = totalMinutes % 60
 
-        return when {
-            hours > 0 -> "${hours}h ${minutes}m"
-            else -> "${minutes}m"
-        }
+        return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
     }
 }
 
@@ -50,7 +47,7 @@ data class SearchHit(
  */
 data class FacetCount(
     val value: String,
-    val count: Int
+    val count: Int,
 )
 
 /**
@@ -62,7 +59,7 @@ data class SearchFacets(
     val types: List<FacetCount> = emptyList(),
     val genres: List<FacetCount> = emptyList(),
     val authors: List<FacetCount> = emptyList(),
-    val narrators: List<FacetCount> = emptyList()
+    val narrators: List<FacetCount> = emptyList(),
 )
 
 /**
@@ -74,5 +71,5 @@ data class SearchResult(
     val tookMs: Long,
     val hits: List<SearchHit>,
     val facets: SearchFacets = SearchFacets(),
-    val isOfflineResult: Boolean = false
+    val isOfflineResult: Boolean = false,
 )

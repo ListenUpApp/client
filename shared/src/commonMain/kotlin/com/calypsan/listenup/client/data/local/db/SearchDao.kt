@@ -22,7 +22,6 @@ import androidx.room.SkipQueryVerification
  */
 @Dao
 interface SearchDao {
-
     // ==================== SEARCH QUERIES ====================
 
     /**
@@ -38,43 +37,58 @@ interface SearchDao {
      * @param limit Max results to return
      */
     @SkipQueryVerification
-    @Query("""
+    @Query(
+        """
         SELECT b.*
         FROM books_fts fts
         INNER JOIN books b ON fts.bookId = b.id
         WHERE books_fts MATCH :query
         ORDER BY bm25(books_fts)
         LIMIT :limit
-    """)
-    suspend fun searchBooks(query: String, limit: Int = 20): List<BookEntity>
+    """,
+    )
+    suspend fun searchBooks(
+        query: String,
+        limit: Int = 20,
+    ): List<BookEntity>
 
     /**
      * Search contributors using FTS5.
      */
     @SkipQueryVerification
-    @Query("""
+    @Query(
+        """
         SELECT c.*
         FROM contributors_fts fts
         INNER JOIN contributors c ON fts.contributorId = c.id
         WHERE contributors_fts MATCH :query
         ORDER BY bm25(contributors_fts)
         LIMIT :limit
-    """)
-    suspend fun searchContributors(query: String, limit: Int = 10): List<ContributorEntity>
+    """,
+    )
+    suspend fun searchContributors(
+        query: String,
+        limit: Int = 10,
+    ): List<ContributorEntity>
 
     /**
      * Search series using FTS5.
      */
     @SkipQueryVerification
-    @Query("""
+    @Query(
+        """
         SELECT s.*
         FROM series_fts fts
         INNER JOIN series s ON fts.seriesId = s.id
         WHERE series_fts MATCH :query
         ORDER BY bm25(series_fts)
         LIMIT :limit
-    """)
-    suspend fun searchSeries(query: String, limit: Int = 10): List<SeriesEntity>
+    """,
+    )
+    suspend fun searchSeries(
+        query: String,
+        limit: Int = 10,
+    ): List<SeriesEntity>
 
     // ==================== FTS POPULATION ====================
 
@@ -105,10 +119,12 @@ interface SearchDao {
      * Uses raw SQL since Room doesn't support INSERT into FTS5 tables directly.
      */
     @SkipQueryVerification
-    @Query("""
+    @Query(
+        """
         INSERT INTO books_fts (bookId, title, subtitle, description, author, narrator, seriesName, genres)
         VALUES (:bookId, :title, :subtitle, :description, :author, :narrator, :seriesName, :genres)
-    """)
+    """,
+    )
     suspend fun insertBookFts(
         bookId: String,
         title: String,
@@ -117,35 +133,39 @@ interface SearchDao {
         author: String?,
         narrator: String?,
         seriesName: String?,
-        genres: String?
+        genres: String?,
     )
 
     /**
      * Insert a contributor FTS entry.
      */
     @SkipQueryVerification
-    @Query("""
+    @Query(
+        """
         INSERT INTO contributors_fts (contributorId, name, description)
         VALUES (:contributorId, :name, :description)
-    """)
+    """,
+    )
     suspend fun insertContributorFts(
         contributorId: String,
         name: String,
-        description: String?
+        description: String?,
     )
 
     /**
      * Insert a series FTS entry.
      */
     @SkipQueryVerification
-    @Query("""
+    @Query(
+        """
         INSERT INTO series_fts (seriesId, name, description)
         VALUES (:seriesId, :name, :description)
-    """)
+    """,
+    )
     suspend fun insertSeriesFts(
         seriesId: String,
         name: String,
-        description: String?
+        description: String?,
     )
 
     // ==================== HELPER QUERIES FOR DENORMALIZATION ====================
@@ -156,22 +176,26 @@ interface SearchDao {
      * Returns the first author found. Books may have multiple authors,
      * but we only index the first one for search simplicity.
      */
-    @Query("""
+    @Query(
+        """
         SELECT c.name FROM contributors c
         INNER JOIN book_contributors bc ON bc.contributorId = c.id
         WHERE bc.bookId = :bookId AND bc.role = 'AUTHOR'
         LIMIT 1
-    """)
+    """,
+    )
     suspend fun getPrimaryAuthorName(bookId: String): String?
 
     /**
      * Get primary narrator name for a book.
      */
-    @Query("""
+    @Query(
+        """
         SELECT c.name FROM contributors c
         INNER JOIN book_contributors bc ON bc.contributorId = c.id
         WHERE bc.bookId = :bookId AND bc.role = 'NARRATOR'
         LIMIT 1
-    """)
+    """,
+    )
     suspend fun getPrimaryNarratorName(bookId: String): String?
 }

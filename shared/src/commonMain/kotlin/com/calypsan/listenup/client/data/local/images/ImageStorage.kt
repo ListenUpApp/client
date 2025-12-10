@@ -15,7 +15,10 @@ interface ImageStorage {
      * @param imageData Raw image bytes (JPEG format from server)
      * @return Result indicating success or failure
      */
-    suspend fun saveCover(bookId: BookId, imageData: ByteArray): Result<Unit>
+    suspend fun saveCover(
+        bookId: BookId,
+        imageData: ByteArray,
+    ): Result<Unit>
 
     /**
      * Get the local file path for a book's cover image.
