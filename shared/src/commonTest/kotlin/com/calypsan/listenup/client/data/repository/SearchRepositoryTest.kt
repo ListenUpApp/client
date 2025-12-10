@@ -422,31 +422,31 @@ class SearchRepositoryTest {
                 listOf(createTestBookEntity(title = "Book"))
             everySuspend { searchDao.searchContributors(any(), any()) } returns
                 listOf(
-                ContributorEntity(
-                    id = "c1",
-                    name = "Author",
-                    description = null,
-                    imagePath = null,
-                    syncState = SyncState.SYNCED,
-                    lastModified = Timestamp(0),
-                    serverVersion = Timestamp(1),
-                    createdAt = Timestamp(0),
-                    updatedAt = Timestamp(0),
-                ),
-            )
+                    ContributorEntity(
+                        id = "c1",
+                        name = "Author",
+                        description = null,
+                        imagePath = null,
+                        syncState = SyncState.SYNCED,
+                        lastModified = Timestamp(0),
+                        serverVersion = Timestamp(1),
+                        createdAt = Timestamp(0),
+                        updatedAt = Timestamp(0),
+                    ),
+                )
             everySuspend { searchDao.searchSeries(any(), any()) } returns
                 listOf(
-                SeriesEntity(
-                    id = "s1",
-                    name = "Series",
-                    description = null,
-                    syncState = SyncState.SYNCED,
-                    lastModified = Timestamp(0),
-                    serverVersion = Timestamp(1),
-                    createdAt = Timestamp(0),
-                    updatedAt = Timestamp(0),
-                ),
-            )
+                    SeriesEntity(
+                        id = "s1",
+                        name = "Series",
+                        description = null,
+                        syncState = SyncState.SYNCED,
+                        lastModified = Timestamp(0),
+                        serverVersion = Timestamp(1),
+                        createdAt = Timestamp(0),
+                        updatedAt = Timestamp(0),
+                    ),
+                )
 
             // When
             val result = repository.search("test")

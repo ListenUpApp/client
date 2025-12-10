@@ -100,10 +100,11 @@ class NanoIdTest {
     @Test
     fun `generate uses full alphabet range`() {
         // Generate many IDs and check that we see most characters
-        val allChars = (1..1000)
-            .map { NanoId.generate() }
-            .flatMap { it.toList() }
-            .toSet()
+        val allChars =
+            (1..1000)
+                .map { NanoId.generate() }
+                .flatMap { it.toList() }
+                .toSet()
 
         // With 1000 IDs of 21 chars each (21000 chars total), we should see
         // most of the 64 character alphabet. Allow for some statistical variance.

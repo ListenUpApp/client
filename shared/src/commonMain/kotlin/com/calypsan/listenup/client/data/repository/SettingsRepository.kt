@@ -21,33 +21,60 @@ interface SettingsRepositoryContract {
 
     // Server configuration
     suspend fun setServerUrl(url: ServerUrl)
+
     suspend fun getServerUrl(): ServerUrl?
 
     // Authentication
-    suspend fun saveAuthTokens(access: AccessToken, refresh: RefreshToken, sessionId: String, userId: String)
+    suspend fun saveAuthTokens(
+        access: AccessToken,
+        refresh: RefreshToken,
+        sessionId: String,
+        userId: String,
+    )
+
     suspend fun getAccessToken(): AccessToken?
+
     suspend fun getRefreshToken(): RefreshToken?
+
     suspend fun getSessionId(): String?
+
     suspend fun getUserId(): String?
+
     suspend fun updateAccessToken(token: AccessToken)
+
     suspend fun clearAuthTokens()
+
     suspend fun clearAll()
+
     suspend fun isAuthenticated(): Boolean
+
     suspend fun hasServerConfigured(): Boolean
+
     suspend fun initializeAuthState()
+
     suspend fun checkServerStatus(): AuthState
+
     suspend fun disconnectFromServer()
 
     // Library sort preferences
     suspend fun getBooksSortState(): String?
+
     suspend fun setBooksSortState(persistenceKey: String)
+
     suspend fun getSeriesSortState(): String?
+
     suspend fun setSeriesSortState(persistenceKey: String)
+
     suspend fun getAuthorsSortState(): String?
+
     suspend fun setAuthorsSortState(persistenceKey: String)
+
     suspend fun getNarratorsSortState(): String?
+
     suspend fun setNarratorsSortState(persistenceKey: String)
+
     suspend fun getIgnoreTitleArticles(): Boolean
+
     suspend fun setIgnoreTitleArticles(ignore: Boolean)
 }
 
@@ -148,7 +175,8 @@ class SettingsRepository(
      * Get the current refresh token.
      * @return RefreshToken if authenticated, null otherwise
      */
-    override suspend fun getRefreshToken(): RefreshToken? = secureStorage.read(KEY_REFRESH_TOKEN)?.let { RefreshToken(it) }
+    override suspend fun getRefreshToken(): RefreshToken? =
+        secureStorage.read(KEY_REFRESH_TOKEN)?.let { RefreshToken(it) }
 
     /**
      * Get the current session ID.

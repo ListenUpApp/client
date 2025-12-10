@@ -47,33 +47,35 @@ class BookEntityMapperTest {
         seriesName: String? = null,
         sequence: String? = null,
         publishYear: Int? = null,
-    ): BookEntity = BookEntity(
-        id = BookId(id),
-        title = title,
-        subtitle = subtitle,
-        coverUrl = null,
-        totalDuration = totalDuration,
-        description = description,
-        genres = genres,
-        seriesId = seriesId,
-        seriesName = seriesName,
-        sequence = sequence,
-        publishYear = publishYear,
-        audioFilesJson = null,
-        syncState = SyncState.SYNCED,
-        lastModified = Timestamp(1704067200000L),
-        serverVersion = Timestamp(1704067200000L),
-        createdAt = Timestamp(1704067200000L),
-        updatedAt = Timestamp(1704153600000L),
-    )
+    ): BookEntity =
+        BookEntity(
+            id = BookId(id),
+            title = title,
+            subtitle = subtitle,
+            coverUrl = null,
+            totalDuration = totalDuration,
+            description = description,
+            genres = genres,
+            seriesId = seriesId,
+            seriesName = seriesName,
+            sequence = sequence,
+            publishYear = publishYear,
+            audioFilesJson = null,
+            syncState = SyncState.SYNCED,
+            lastModified = Timestamp(1704067200000L),
+            serverVersion = Timestamp(1704067200000L),
+            createdAt = Timestamp(1704067200000L),
+            updatedAt = Timestamp(1704153600000L),
+        )
 
     private fun createContributor(
         id: String = "contributor-1",
         name: String = "Test Author",
-    ): Contributor = Contributor(
-        id = id,
-        name = name,
-    )
+    ): Contributor =
+        Contributor(
+            id = id,
+            name = name,
+        )
 
     // ========== Basic Property Mapping Tests ==========
 
@@ -150,11 +152,12 @@ class BookEntityMapperTest {
     @Test
     fun `toDomain maps series info correctly`() {
         val fixture = createFixture()
-        val entity = createBookEntity(
-            seriesId = "series-1",
-            seriesName = "Epic Fantasy Saga",
-            sequence = "2.5",
-        )
+        val entity =
+            createBookEntity(
+                seriesId = "series-1",
+                seriesName = "Epic Fantasy Saga",
+                sequence = "2.5",
+            )
 
         val book = entity.toDomain(fixture.imageStorage)
 
@@ -216,10 +219,11 @@ class BookEntityMapperTest {
     @Test
     fun `toDomain includes authors when provided`() {
         val fixture = createFixture()
-        val authors = listOf(
-            createContributor(id = "author-1", name = "Stephen King"),
-            createContributor(id = "author-2", name = "Peter Straub"),
-        )
+        val authors =
+            listOf(
+                createContributor(id = "author-1", name = "Stephen King"),
+                createContributor(id = "author-2", name = "Peter Straub"),
+            )
         val entity = createBookEntity()
 
         val book = entity.toDomain(fixture.imageStorage, authors = authors)
@@ -232,9 +236,10 @@ class BookEntityMapperTest {
     @Test
     fun `toDomain includes narrators when provided`() {
         val fixture = createFixture()
-        val narrators = listOf(
-            createContributor(id = "narrator-1", name = "Will Patton"),
-        )
+        val narrators =
+            listOf(
+                createContributor(id = "narrator-1", name = "Will Patton"),
+            )
         val entity = createBookEntity()
 
         val book = entity.toDomain(fixture.imageStorage, narrators = narrators)

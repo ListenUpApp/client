@@ -3,13 +3,13 @@ package com.calypsan.listenup.client.presentation.bookdetail
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
+import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.Tag
-import com.calypsan.listenup.client.data.local.db.Timestamp
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
@@ -55,11 +55,12 @@ class BookDetailViewModelTest {
         val tagApi: TagApiContract = mock()
         val playbackPositionDao: PlaybackPositionDao = mock()
 
-        fun build(): BookDetailViewModel = BookDetailViewModel(
-            bookRepository = bookRepository,
-            tagApi = tagApi,
-            playbackPositionDao = playbackPositionDao,
-        )
+        fun build(): BookDetailViewModel =
+            BookDetailViewModel(
+                bookRepository = bookRepository,
+                tagApi = tagApi,
+                playbackPositionDao = playbackPositionDao,
+            )
     }
 
     private fun createFixture(): TestFixture {
@@ -89,36 +90,38 @@ class BookDetailViewModelTest {
         seriesSequence: String? = null,
         publishYear: Int? = 2024,
         rating: Double? = 4.5,
-    ): Book = Book(
-        id = BookId(id),
-        title = title,
-        subtitle = subtitle,
-        authors = listOf(Contributor(id = "author-1", name = authorName, roles = listOf("Author"))),
-        narrators = listOf(Contributor(id = "narrator-1", name = narratorName, roles = listOf("Narrator"))),
-        duration = duration,
-        coverPath = null,
-        addedAt = Timestamp(1704067200000L),
-        updatedAt = Timestamp(1704067200000L),
-        description = description,
-        genres = genres,
-        seriesId = seriesId,
-        seriesName = seriesName,
-        seriesSequence = seriesSequence,
-        publishYear = publishYear,
-        rating = rating,
-    )
+    ): Book =
+        Book(
+            id = BookId(id),
+            title = title,
+            subtitle = subtitle,
+            authors = listOf(Contributor(id = "author-1", name = authorName, roles = listOf("Author"))),
+            narrators = listOf(Contributor(id = "narrator-1", name = narratorName, roles = listOf("Narrator"))),
+            duration = duration,
+            coverPath = null,
+            addedAt = Timestamp(1704067200000L),
+            updatedAt = Timestamp(1704067200000L),
+            description = description,
+            genres = genres,
+            seriesId = seriesId,
+            seriesName = seriesName,
+            seriesSequence = seriesSequence,
+            publishYear = publishYear,
+            rating = rating,
+        )
 
     private fun createChapter(
         id: String = "chapter-1",
         title: String = "Chapter 1",
         duration: Long = 1_800_000L, // 30 min
         startTime: Long = 0L,
-    ): Chapter = Chapter(
-        id = id,
-        title = title,
-        duration = duration,
-        startTime = startTime,
-    )
+    ): Chapter =
+        Chapter(
+            id = id,
+            title = title,
+            duration = duration,
+            startTime = startTime,
+        )
 
     private fun createTag(
         id: String = "tag-1",
@@ -126,25 +129,27 @@ class BookDetailViewModelTest {
         slug: String = "favorites",
         color: String? = "#FF5733",
         bookCount: Int = 5,
-    ): Tag = Tag(
-        id = id,
-        name = name,
-        slug = slug,
-        color = color,
-        bookCount = bookCount,
-    )
+    ): Tag =
+        Tag(
+            id = id,
+            name = name,
+            slug = slug,
+            color = color,
+            bookCount = bookCount,
+        )
 
     private fun createPlaybackPosition(
         bookId: String = "book-1",
         positionMs: Long = 1_800_000L, // 30 min in
         playbackSpeed: Float = 1.0f,
         updatedAt: Long = System.currentTimeMillis(),
-    ): PlaybackPositionEntity = PlaybackPositionEntity(
-        bookId = BookId(bookId),
-        positionMs = positionMs,
-        playbackSpeed = playbackSpeed,
-        updatedAt = updatedAt,
-    )
+    ): PlaybackPositionEntity =
+        PlaybackPositionEntity(
+            bookId = BookId(bookId),
+            positionMs = positionMs,
+            playbackSpeed = playbackSpeed,
+            updatedAt = updatedAt,
+        )
 
     @BeforeTest
     fun setup() {
@@ -159,412 +164,443 @@ class BookDetailViewModelTest {
     // ========== Initial State Tests ==========
 
     @Test
-    fun `initial state has isLoading true`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val viewModel = fixture.build()
+    fun `initial state has isLoading true`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val viewModel = fixture.build()
 
-        // Then
-        assertTrue(viewModel.state.value.isLoading)
-        assertNull(viewModel.state.value.book)
-        assertNull(viewModel.state.value.error)
-    }
+            // Then
+            assertTrue(viewModel.state.value.isLoading)
+            assertNull(viewModel.state.value.book)
+            assertNull(viewModel.state.value.error)
+        }
 
     // ========== Load Book Tests ==========
 
     @Test
-    fun `loadBook success populates book data`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(title = "My Book", description = "A description")
-        val chapters = listOf(createChapter(id = "ch1"), createChapter(id = "ch2"))
-        everySuspend { fixture.bookRepository.getBook("book-1") } returns book
-        everySuspend { fixture.bookRepository.getChapters("book-1") } returns chapters
-        val viewModel = fixture.build()
+    fun `loadBook success populates book data`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook(title = "My Book", description = "A description")
+            val chapters = listOf(createChapter(id = "ch1"), createChapter(id = "ch2"))
+            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.bookRepository.getChapters("book-1") } returns chapters
+            val viewModel = fixture.build()
 
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // Then
-        val state = viewModel.state.value
-        assertFalse(state.isLoading)
-        assertEquals(book, state.book)
-        assertEquals("A description", state.description)
-        assertEquals(2, state.chapters.size)
-        assertNull(state.error)
-    }
+            // Then
+            val state = viewModel.state.value
+            assertFalse(state.isLoading)
+            assertEquals(book, state.book)
+            assertEquals("A description", state.description)
+            assertEquals(2, state.chapters.size)
+            assertNull(state.error)
+        }
 
     @Test
-    fun `loadBook not found sets error state`() = runTest {
-        // Given
-        val fixture = createFixture()
-        everySuspend { fixture.bookRepository.getBook("nonexistent") } returns null
-        val viewModel = fixture.build()
+    fun `loadBook not found sets error state`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            everySuspend { fixture.bookRepository.getBook("nonexistent") } returns null
+            val viewModel = fixture.build()
 
-        // When
-        viewModel.loadBook("nonexistent")
-        advanceUntilIdle()
+            // When
+            viewModel.loadBook("nonexistent")
+            advanceUntilIdle()
 
-        // Then
-        val state = viewModel.state.value
-        assertFalse(state.isLoading)
-        assertNull(state.book)
-        assertEquals("Book not found", state.error)
-    }
+            // Then
+            val state = viewModel.state.value
+            assertFalse(state.isLoading)
+            assertNull(state.book)
+            assertEquals("Book not found", state.error)
+        }
 
     // ========== Subtitle Filtering Tests ==========
 
     @Test
-    fun `loadBook filters redundant subtitle with series name and book number`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(
-            subtitle = "The Stormlight Archive, Book 1",
-            seriesName = "The Stormlight Archive",
-            seriesSequence = "1",
-        )
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        val viewModel = fixture.build()
+    fun `loadBook filters redundant subtitle with series name and book number`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book =
+                createBook(
+                    subtitle = "The Stormlight Archive, Book 1",
+                    seriesName = "The Stormlight Archive",
+                    seriesSequence = "1",
+                )
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            val viewModel = fixture.build()
 
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // Then - subtitle should be filtered out (redundant)
-        assertNull(viewModel.state.value.subtitle)
-    }
-
-    @Test
-    fun `loadBook keeps meaningful subtitle`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(
-            subtitle = "A Novel of Discovery",
-            seriesName = "The Stormlight Archive",
-            seriesSequence = "1",
-        )
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        val viewModel = fixture.build()
-
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
-
-        // Then - subtitle should be kept (not redundant)
-        assertEquals("A Novel of Discovery", viewModel.state.value.subtitle)
-    }
+            // Then - subtitle should be filtered out (redundant)
+            assertNull(viewModel.state.value.subtitle)
+        }
 
     @Test
-    fun `loadBook keeps subtitle when no series`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(
-            subtitle = "Part 1",
-            seriesName = null,
-        )
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        val viewModel = fixture.build()
+    fun `loadBook keeps meaningful subtitle`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book =
+                createBook(
+                    subtitle = "A Novel of Discovery",
+                    seriesName = "The Stormlight Archive",
+                    seriesSequence = "1",
+                )
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            val viewModel = fixture.build()
 
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // Then - subtitle should be kept (no series to be redundant with)
-        assertEquals("Part 1", viewModel.state.value.subtitle)
-    }
+            // Then - subtitle should be kept (not redundant)
+            assertEquals("A Novel of Discovery", viewModel.state.value.subtitle)
+        }
+
+    @Test
+    fun `loadBook keeps subtitle when no series`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book =
+                createBook(
+                    subtitle = "Part 1",
+                    seriesName = null,
+                )
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            val viewModel = fixture.build()
+
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
+
+            // Then - subtitle should be kept (no series to be redundant with)
+            assertEquals("Part 1", viewModel.state.value.subtitle)
+        }
 
     // ========== Genre Parsing Tests ==========
 
     @Test
-    fun `loadBook parses comma-separated genres into list`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(genres = "Fiction, Fantasy, Adventure")
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        val viewModel = fixture.build()
+    fun `loadBook parses comma-separated genres into list`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook(genres = "Fiction, Fantasy, Adventure")
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            val viewModel = fixture.build()
 
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // Then
-        val genres = viewModel.state.value.genresList
-        assertEquals(3, genres.size)
-        assertEquals("Fiction", genres[0])
-        assertEquals("Fantasy", genres[1])
-        assertEquals("Adventure", genres[2])
-    }
+            // Then
+            val genres = viewModel.state.value.genresList
+            assertEquals(3, genres.size)
+            assertEquals("Fiction", genres[0])
+            assertEquals("Fantasy", genres[1])
+            assertEquals("Adventure", genres[2])
+        }
 
     @Test
-    fun `loadBook handles null genres`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(genres = null)
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        val viewModel = fixture.build()
+    fun `loadBook handles null genres`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook(genres = null)
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            val viewModel = fixture.build()
 
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // Then
-        assertTrue(viewModel.state.value.genresList.isEmpty())
-    }
+            // Then
+            assertTrue(
+                viewModel.state.value.genresList
+                    .isEmpty(),
+            )
+        }
 
     // ========== Progress Calculation Tests ==========
 
     @Test
-    fun `loadBook calculates progress from playback position`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(duration = 3_600_000L) // 1 hour
-        val position = createPlaybackPosition(positionMs = 1_800_000L) // 30 min in
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        everySuspend { fixture.playbackPositionDao.get(any()) } returns position
-        val viewModel = fixture.build()
+    fun `loadBook calculates progress from playback position`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook(duration = 3_600_000L) // 1 hour
+            val position = createPlaybackPosition(positionMs = 1_800_000L) // 30 min in
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.playbackPositionDao.get(any()) } returns position
+            val viewModel = fixture.build()
 
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // Then - 30 min / 60 min = 0.5
-        assertEquals(0.5f, viewModel.state.value.progress)
-    }
-
-    @Test
-    fun `loadBook hides progress when no position saved`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(duration = 3_600_000L)
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        everySuspend { fixture.playbackPositionDao.get(any()) } returns null
-        val viewModel = fixture.build()
-
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
-
-        // Then
-        assertNull(viewModel.state.value.progress)
-    }
+            // Then - 30 min / 60 min = 0.5
+            assertEquals(0.5f, viewModel.state.value.progress)
+        }
 
     @Test
-    fun `loadBook hides progress when nearly complete`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(duration = 3_600_000L) // 1 hour
-        val position = createPlaybackPosition(positionMs = 3_564_000L) // 99% complete
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        everySuspend { fixture.playbackPositionDao.get(any()) } returns position
-        val viewModel = fixture.build()
+    fun `loadBook hides progress when no position saved`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook(duration = 3_600_000L)
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.playbackPositionDao.get(any()) } returns null
+            val viewModel = fixture.build()
 
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // Then - progress should be null when > 99% complete
-        assertNull(viewModel.state.value.progress)
-    }
+            // Then
+            assertNull(viewModel.state.value.progress)
+        }
+
+    @Test
+    fun `loadBook hides progress when nearly complete`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook(duration = 3_600_000L) // 1 hour
+            val position = createPlaybackPosition(positionMs = 3_564_000L) // 99% complete
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.playbackPositionDao.get(any()) } returns position
+            val viewModel = fixture.build()
+
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
+
+            // Then - progress should be null when > 99% complete
+            assertNull(viewModel.state.value.progress)
+        }
 
     // ========== Time Remaining Tests ==========
 
     @Test
-    fun `loadBook formats time remaining with hours and minutes`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(duration = 10_800_000L) // 3 hours
-        val position = createPlaybackPosition(positionMs = 2_700_000L) // 45 min in
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        everySuspend { fixture.playbackPositionDao.get(any()) } returns position
-        val viewModel = fixture.build()
+    fun `loadBook formats time remaining with hours and minutes`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook(duration = 10_800_000L) // 3 hours
+            val position = createPlaybackPosition(positionMs = 2_700_000L) // 45 min in
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.playbackPositionDao.get(any()) } returns position
+            val viewModel = fixture.build()
 
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // Then - 2h 15m remaining
-        assertEquals("2h 15m left", viewModel.state.value.timeRemainingFormatted)
-    }
+            // Then - 2h 15m remaining
+            assertEquals("2h 15m left", viewModel.state.value.timeRemainingFormatted)
+        }
 
     @Test
-    fun `loadBook formats time remaining with minutes only`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(duration = 3_600_000L) // 1 hour
-        val position = createPlaybackPosition(positionMs = 2_700_000L) // 45 min in
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        everySuspend { fixture.playbackPositionDao.get(any()) } returns position
-        val viewModel = fixture.build()
+    fun `loadBook formats time remaining with minutes only`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook(duration = 3_600_000L) // 1 hour
+            val position = createPlaybackPosition(positionMs = 2_700_000L) // 45 min in
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.playbackPositionDao.get(any()) } returns position
+            val viewModel = fixture.build()
 
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // Then - 15m remaining
-        assertEquals("15m left", viewModel.state.value.timeRemainingFormatted)
-    }
+            // Then - 15m remaining
+            assertEquals("15m left", viewModel.state.value.timeRemainingFormatted)
+        }
 
     // ========== Tag Management Tests ==========
 
     @Test
-    fun `showTagPicker sets showTagPicker to true`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val viewModel = fixture.build()
-        assertFalse(viewModel.state.value.showTagPicker)
+    fun `showTagPicker sets showTagPicker to true`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val viewModel = fixture.build()
+            assertFalse(viewModel.state.value.showTagPicker)
 
-        // When
-        viewModel.showTagPicker()
+            // When
+            viewModel.showTagPicker()
 
-        // Then
-        assertTrue(viewModel.state.value.showTagPicker)
-    }
-
-    @Test
-    fun `hideTagPicker sets showTagPicker to false`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val viewModel = fixture.build()
-        viewModel.showTagPicker()
-        assertTrue(viewModel.state.value.showTagPicker)
-
-        // When
-        viewModel.hideTagPicker()
-
-        // Then
-        assertFalse(viewModel.state.value.showTagPicker)
-    }
+            // Then
+            assertTrue(viewModel.state.value.showTagPicker)
+        }
 
     @Test
-    fun `loadBook loads tags for book`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook()
-        val bookTags = listOf(createTag(id = "tag-1", name = "Favorites"))
-        val userTags = listOf(createTag(id = "tag-1"), createTag(id = "tag-2", name = "To Read"))
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        everySuspend { fixture.tagApi.getBookTags(any()) } returns bookTags
-        everySuspend { fixture.tagApi.getUserTags() } returns userTags
-        val viewModel = fixture.build()
+    fun `hideTagPicker sets showTagPicker to false`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val viewModel = fixture.build()
+            viewModel.showTagPicker()
+            assertTrue(viewModel.state.value.showTagPicker)
 
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+            // When
+            viewModel.hideTagPicker()
 
-        // Then
-        assertEquals(1, viewModel.state.value.tags.size)
-        assertEquals("Favorites", viewModel.state.value.tags[0].name)
-        assertEquals(2, viewModel.state.value.allUserTags.size)
-    }
+            // Then
+            assertFalse(viewModel.state.value.showTagPicker)
+        }
 
     @Test
-    fun `addTag calls API and refreshes tags`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(id = "book-1")
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        everySuspend { fixture.tagApi.addTagToBook(any(), any()) } returns Unit
-        val viewModel = fixture.build()
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+    fun `loadBook loads tags for book`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook()
+            val bookTags = listOf(createTag(id = "tag-1", name = "Favorites"))
+            val userTags = listOf(createTag(id = "tag-1"), createTag(id = "tag-2", name = "To Read"))
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.tagApi.getBookTags(any()) } returns bookTags
+            everySuspend { fixture.tagApi.getUserTags() } returns userTags
+            val viewModel = fixture.build()
 
-        // When
-        viewModel.addTag("tag-1")
-        advanceUntilIdle()
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // Then
-        verifySuspend { fixture.tagApi.addTagToBook("book-1", "tag-1") }
-    }
-
-    @Test
-    fun `removeTag calls API and refreshes tags`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(id = "book-1")
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        everySuspend { fixture.tagApi.removeTagFromBook(any(), any()) } returns Unit
-        val viewModel = fixture.build()
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
-
-        // When
-        viewModel.removeTag("tag-1")
-        advanceUntilIdle()
-
-        // Then
-        verifySuspend { fixture.tagApi.removeTagFromBook("book-1", "tag-1") }
-    }
+            // Then
+            assertEquals(1, viewModel.state.value.tags.size)
+            assertEquals(
+                "Favorites",
+                viewModel.state.value.tags[0]
+                    .name,
+            )
+            assertEquals(2, viewModel.state.value.allUserTags.size)
+        }
 
     @Test
-    fun `createAndAddTag creates tag and adds to book`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook(id = "book-1")
-        val newTag = createTag(id = "new-tag", name = "New Tag")
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        everySuspend { fixture.tagApi.createTag(any(), any()) } returns newTag
-        everySuspend { fixture.tagApi.addTagToBook(any(), any()) } returns Unit
-        val viewModel = fixture.build()
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
-        viewModel.showTagPicker()
+    fun `addTag calls API and refreshes tags`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook(id = "book-1")
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.tagApi.addTagToBook(any(), any()) } returns Unit
+            val viewModel = fixture.build()
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // When
-        viewModel.createAndAddTag("New Tag")
-        advanceUntilIdle()
+            // When
+            viewModel.addTag("tag-1")
+            advanceUntilIdle()
 
-        // Then
-        verifySuspend { fixture.tagApi.createTag("New Tag", null) }
-        verifySuspend { fixture.tagApi.addTagToBook("book-1", "new-tag") }
-        assertFalse(viewModel.state.value.showTagPicker) // Picker should close
-    }
+            // Then
+            verifySuspend { fixture.tagApi.addTagToBook("book-1", "tag-1") }
+        }
 
     @Test
-    fun `tag operations do nothing when no book loaded`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val viewModel = fixture.build()
+    fun `removeTag calls API and refreshes tags`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook(id = "book-1")
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.tagApi.removeTagFromBook(any(), any()) } returns Unit
+            val viewModel = fixture.build()
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
 
-        // When - try to add tag without loading book
-        viewModel.addTag("tag-1")
-        advanceUntilIdle()
+            // When
+            viewModel.removeTag("tag-1")
+            advanceUntilIdle()
 
-        // Then - no API calls made (book is null)
-        // This test verifies the early return behavior
-    }
+            // Then
+            verifySuspend { fixture.tagApi.removeTagFromBook("book-1", "tag-1") }
+        }
 
     @Test
-    fun `loadBook handles tag loading failure gracefully`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBook()
-        everySuspend { fixture.bookRepository.getBook(any()) } returns book
-        everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-        everySuspend { fixture.tagApi.getBookTags(any()) } throws Exception("Network error")
-        val viewModel = fixture.build()
+    fun `createAndAddTag creates tag and adds to book`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook(id = "book-1")
+            val newTag = createTag(id = "new-tag", name = "New Tag")
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.tagApi.createTag(any(), any()) } returns newTag
+            everySuspend { fixture.tagApi.addTagToBook(any(), any()) } returns Unit
+            val viewModel = fixture.build()
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
+            viewModel.showTagPicker()
 
-        // When
-        viewModel.loadBook("book-1")
-        advanceUntilIdle()
+            // When
+            viewModel.createAndAddTag("New Tag")
+            advanceUntilIdle()
 
-        // Then - book loads successfully despite tag failure
-        assertFalse(viewModel.state.value.isLoading)
-        assertEquals(book, viewModel.state.value.book)
-        assertNull(viewModel.state.value.error) // Tags are optional - no error shown
-    }
+            // Then
+            verifySuspend { fixture.tagApi.createTag("New Tag", null) }
+            verifySuspend { fixture.tagApi.addTagToBook("book-1", "new-tag") }
+            assertFalse(viewModel.state.value.showTagPicker) // Picker should close
+        }
+
+    @Test
+    fun `tag operations do nothing when no book loaded`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val viewModel = fixture.build()
+
+            // When - try to add tag without loading book
+            viewModel.addTag("tag-1")
+            advanceUntilIdle()
+
+            // Then - no API calls made (book is null)
+            // This test verifies the early return behavior
+        }
+
+    @Test
+    fun `loadBook handles tag loading failure gracefully`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook()
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.tagApi.getBookTags(any()) } throws Exception("Network error")
+            val viewModel = fixture.build()
+
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
+
+            // Then - book loads successfully despite tag failure
+            assertFalse(viewModel.state.value.isLoading)
+            assertEquals(book, viewModel.state.value.book)
+            assertNull(viewModel.state.value.error) // Tags are optional - no error shown
+        }
 }

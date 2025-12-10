@@ -56,226 +56,238 @@ class InstanceRepositoryImplTest {
         name: String = "Test Server",
         version: String = "1.0.0",
         setupRequired: Boolean = false,
-    ): Instance = Instance(
-        id = InstanceId(id),
-        name = name,
-        version = version,
-        localUrl = "http://localhost:8080",
-        remoteUrl = null,
-        setupRequired = setupRequired,
-        createdAt = Instant.fromEpochMilliseconds(1704067200000L),
-        updatedAt = Instant.fromEpochMilliseconds(1704067200000L),
-    )
+    ): Instance =
+        Instance(
+            id = InstanceId(id),
+            name = name,
+            version = version,
+            localUrl = "http://localhost:8080",
+            remoteUrl = null,
+            setupRequired = setupRequired,
+            createdAt = Instant.fromEpochMilliseconds(1704067200000L),
+            updatedAt = Instant.fromEpochMilliseconds(1704067200000L),
+        )
 
     // ========== API Fetch Tests ==========
 
     @Test
-    fun `getInstance fetches from API on first call`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val instance = createInstance(name = "My Server")
-        everySuspend { fixture.api.getInstance() } returns Success(instance)
-        val repository = fixture.build()
+    fun `getInstance fetches from API on first call`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val instance = createInstance(name = "My Server")
+            everySuspend { fixture.api.getInstance() } returns Success(instance)
+            val repository = fixture.build()
 
-        // When
-        val result = repository.getInstance()
+            // When
+            val result = repository.getInstance()
 
-        // Then
-        assertIs<Success<Instance>>(result)
-        assertEquals("My Server", result.data.name)
-        verifySuspend { fixture.api.getInstance() }
-    }
-
-    @Test
-    fun `getInstance returns cached data on subsequent calls`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val instance = createInstance(name = "Cached Server")
-        var callCount = 0
-        everySuspend { fixture.api.getInstance() } returns Success(instance).also { callCount++ }
-        val repository = fixture.build()
-
-        // When - first call
-        repository.getInstance()
-
-        // When - second call (should use cache)
-        val result = repository.getInstance(forceRefresh = false)
-
-        // Then
-        assertIs<Success<Instance>>(result)
-        assertEquals("Cached Server", result.data.name)
-    }
+            // Then
+            assertIs<Success<Instance>>(result)
+            assertEquals("My Server", result.data.name)
+            verifySuspend { fixture.api.getInstance() }
+        }
 
     @Test
-    fun `getInstance with forceRefresh true bypasses cache`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val oldInstance = createInstance(name = "Old Server", version = "1.0.0")
-        val newInstance = createInstance(name = "New Server", version = "2.0.0")
+    fun `getInstance returns cached data on subsequent calls`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val instance = createInstance(name = "Cached Server")
+            var callCount = 0
+            everySuspend { fixture.api.getInstance() } returns Success(instance).also { callCount++ }
+            val repository = fixture.build()
 
-        everySuspend { fixture.api.getInstance() } returns Success(oldInstance)
-        val repository = fixture.build()
+            // When - first call
+            repository.getInstance()
 
-        // When - first call caches old instance
-        repository.getInstance()
+            // When - second call (should use cache)
+            val result = repository.getInstance(forceRefresh = false)
 
-        // Update mock to return new instance
-        everySuspend { fixture.api.getInstance() } returns Success(newInstance)
-
-        // When - force refresh to get new instance
-        val result = repository.getInstance(forceRefresh = true)
-
-        // Then
-        assertIs<Success<Instance>>(result)
-        assertEquals("New Server", result.data.name)
-        assertEquals("2.0.0", result.data.version)
-    }
+            // Then
+            assertIs<Success<Instance>>(result)
+            assertEquals("Cached Server", result.data.name)
+        }
 
     @Test
-    fun `getInstance caches successful API response`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val instance = createInstance(name = "Server to Cache")
-        everySuspend { fixture.api.getInstance() } returns Success(instance)
-        val repository = fixture.build()
+    fun `getInstance with forceRefresh true bypasses cache`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val oldInstance = createInstance(name = "Old Server", version = "1.0.0")
+            val newInstance = createInstance(name = "New Server", version = "2.0.0")
 
-        // When - first call should cache
-        repository.getInstance()
+            everySuspend { fixture.api.getInstance() } returns Success(oldInstance)
+            val repository = fixture.build()
 
-        // When - second call should return cached
-        everySuspend { fixture.api.getInstance() } returns Failure(RuntimeException("Should not be called"))
-        val result = repository.getInstance(forceRefresh = false)
+            // When - first call caches old instance
+            repository.getInstance()
 
-        // Then - should return cached data, not the failure
-        assertIs<Success<Instance>>(result)
-        assertEquals("Server to Cache", result.data.name)
-    }
+            // Update mock to return new instance
+            everySuspend { fixture.api.getInstance() } returns Success(newInstance)
+
+            // When - force refresh to get new instance
+            val result = repository.getInstance(forceRefresh = true)
+
+            // Then
+            assertIs<Success<Instance>>(result)
+            assertEquals("New Server", result.data.name)
+            assertEquals("2.0.0", result.data.version)
+        }
+
+    @Test
+    fun `getInstance caches successful API response`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val instance = createInstance(name = "Server to Cache")
+            everySuspend { fixture.api.getInstance() } returns Success(instance)
+            val repository = fixture.build()
+
+            // When - first call should cache
+            repository.getInstance()
+
+            // When - second call should return cached
+            everySuspend { fixture.api.getInstance() } returns Failure(RuntimeException("Should not be called"))
+            val result = repository.getInstance(forceRefresh = false)
+
+            // Then - should return cached data, not the failure
+            assertIs<Success<Instance>>(result)
+            assertEquals("Server to Cache", result.data.name)
+        }
 
     // ========== Error Handling Tests ==========
 
     @Test
-    fun `getInstance returns failure when API fails`() = runTest {
-        // Given
-        val fixture = createFixture()
-        everySuspend { fixture.api.getInstance() } returns Failure(RuntimeException("Network error"))
-        val repository = fixture.build()
+    fun `getInstance returns failure when API fails`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            everySuspend { fixture.api.getInstance() } returns Failure(RuntimeException("Network error"))
+            val repository = fixture.build()
 
-        // When
-        val result = repository.getInstance()
+            // When
+            val result = repository.getInstance()
 
-        // Then
-        assertIs<Failure>(result)
-        assertEquals("Network error", result.exception.message)
-    }
+            // Then
+            assertIs<Failure>(result)
+            assertEquals("Network error", result.exception.message)
+        }
 
     @Test
-    fun `getInstance does not cache failure results`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val instance = createInstance(name = "Recovered Server")
-        everySuspend { fixture.api.getInstance() } returns Failure(RuntimeException("First call fails"))
-        val repository = fixture.build()
+    fun `getInstance does not cache failure results`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val instance = createInstance(name = "Recovered Server")
+            everySuspend { fixture.api.getInstance() } returns Failure(RuntimeException("First call fails"))
+            val repository = fixture.build()
 
-        // When - first call fails
-        val firstResult = repository.getInstance()
-        assertIs<Failure>(firstResult)
+            // When - first call fails
+            val firstResult = repository.getInstance()
+            assertIs<Failure>(firstResult)
 
-        // Now API succeeds
-        everySuspend { fixture.api.getInstance() } returns Success(instance)
+            // Now API succeeds
+            everySuspend { fixture.api.getInstance() } returns Success(instance)
 
-        // When - second call should try API again (not use cached failure)
-        val secondResult = repository.getInstance()
+            // When - second call should try API again (not use cached failure)
+            val secondResult = repository.getInstance()
 
-        // Then
-        assertIs<Success<Instance>>(secondResult)
-        assertEquals("Recovered Server", secondResult.data.name)
-    }
+            // Then
+            assertIs<Success<Instance>>(secondResult)
+            assertEquals("Recovered Server", secondResult.data.name)
+        }
 
     // ========== Instance Property Tests ==========
 
     @Test
-    fun `getInstance returns instance with all properties populated`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val instance = createInstance(
-            id = "test-instance-123",
-            name = "Full Server",
-            version = "2.5.0",
-            setupRequired = false,
-        )
-        everySuspend { fixture.api.getInstance() } returns Success(instance)
-        val repository = fixture.build()
+    fun `getInstance returns instance with all properties populated`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val instance =
+                createInstance(
+                    id = "test-instance-123",
+                    name = "Full Server",
+                    version = "2.5.0",
+                    setupRequired = false,
+                )
+            everySuspend { fixture.api.getInstance() } returns Success(instance)
+            val repository = fixture.build()
 
-        // When
-        val result = repository.getInstance()
+            // When
+            val result = repository.getInstance()
 
-        // Then
-        assertIs<Success<Instance>>(result)
-        assertEquals("test-instance-123", result.data.id.value)
-        assertEquals("Full Server", result.data.name)
-        assertEquals("2.5.0", result.data.version)
-        assertEquals(false, result.data.setupRequired)
-        assertEquals("http://localhost:8080", result.data.localUrl)
-    }
-
-    @Test
-    fun `getInstance returns instance needing setup`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val instance = createInstance(setupRequired = true)
-        everySuspend { fixture.api.getInstance() } returns Success(instance)
-        val repository = fixture.build()
-
-        // When
-        val result = repository.getInstance()
-
-        // Then
-        assertIs<Success<Instance>>(result)
-        assertEquals(true, result.data.setupRequired)
-        assertEquals(true, result.data.needsSetup)
-        assertEquals(false, result.data.isReady)
-    }
+            // Then
+            assertIs<Success<Instance>>(result)
+            assertEquals("test-instance-123", result.data.id.value)
+            assertEquals("Full Server", result.data.name)
+            assertEquals("2.5.0", result.data.version)
+            assertEquals(false, result.data.setupRequired)
+            assertEquals("http://localhost:8080", result.data.localUrl)
+        }
 
     @Test
-    fun `getInstance returns instance that is ready`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val instance = createInstance(setupRequired = false)
-        everySuspend { fixture.api.getInstance() } returns Success(instance)
-        val repository = fixture.build()
+    fun `getInstance returns instance needing setup`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val instance = createInstance(setupRequired = true)
+            everySuspend { fixture.api.getInstance() } returns Success(instance)
+            val repository = fixture.build()
 
-        // When
-        val result = repository.getInstance()
+            // When
+            val result = repository.getInstance()
 
-        // Then
-        assertIs<Success<Instance>>(result)
-        assertEquals(false, result.data.setupRequired)
-        assertEquals(false, result.data.needsSetup)
-        assertEquals(true, result.data.isReady)
-        assertEquals(true, result.data.hasRootUser)
-    }
+            // Then
+            assertIs<Success<Instance>>(result)
+            assertEquals(true, result.data.setupRequired)
+            assertEquals(true, result.data.needsSetup)
+            assertEquals(false, result.data.isReady)
+        }
+
+    @Test
+    fun `getInstance returns instance that is ready`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val instance = createInstance(setupRequired = false)
+            everySuspend { fixture.api.getInstance() } returns Success(instance)
+            val repository = fixture.build()
+
+            // When
+            val result = repository.getInstance()
+
+            // Then
+            assertIs<Success<Instance>>(result)
+            assertEquals(false, result.data.setupRequired)
+            assertEquals(false, result.data.needsSetup)
+            assertEquals(true, result.data.isReady)
+            assertEquals(true, result.data.hasRootUser)
+        }
 
     // ========== Default Parameter Tests ==========
 
     @Test
-    fun `getInstance defaults to forceRefresh false`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val instance = createInstance(name = "Default Refresh Server")
-        everySuspend { fixture.api.getInstance() } returns Success(instance)
-        val repository = fixture.build()
+    fun `getInstance defaults to forceRefresh false`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val instance = createInstance(name = "Default Refresh Server")
+            everySuspend { fixture.api.getInstance() } returns Success(instance)
+            val repository = fixture.build()
 
-        // When - first call
-        repository.getInstance()
+            // When - first call
+            repository.getInstance()
 
-        // Replace with failure
-        everySuspend { fixture.api.getInstance() } returns Failure(RuntimeException("Should not call"))
+            // Replace with failure
+            everySuspend { fixture.api.getInstance() } returns Failure(RuntimeException("Should not call"))
 
-        // When - call without parameter (defaults to false)
-        val result = repository.getInstance()
+            // When - call without parameter (defaults to false)
+            val result = repository.getInstance()
 
-        // Then - should use cache
-        assertIs<Success<Instance>>(result)
-        assertEquals("Default Refresh Server", result.data.name)
-    }
+            // Then - should use cache
+            assertIs<Success<Instance>>(result)
+            assertEquals("Default Refresh Server", result.data.name)
+        }
 }

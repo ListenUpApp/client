@@ -37,12 +37,13 @@ class FtsPopulatorTest {
         val seriesDao: SeriesDao = mock()
         val searchDao: SearchDao = mock()
 
-        fun build(): FtsPopulator = FtsPopulator(
-            bookDao = bookDao,
-            contributorDao = contributorDao,
-            seriesDao = seriesDao,
-            searchDao = searchDao,
-        )
+        fun build(): FtsPopulator =
+            FtsPopulator(
+                bookDao = bookDao,
+                contributorDao = contributorDao,
+                seriesDao = seriesDao,
+                searchDao = searchDao,
+            )
     }
 
     private fun createFixture(): TestFixture {
@@ -59,7 +60,8 @@ class FtsPopulatorTest {
         everySuspend { fixture.searchDao.clearSeriesFts() } returns Unit
         everySuspend { fixture.searchDao.getPrimaryAuthorName(any()) } returns null
         everySuspend { fixture.searchDao.getPrimaryNarratorName(any()) } returns null
-        everySuspend { fixture.searchDao.insertBookFts(any(), any(), any(), any(), any(), any(), any(), any()) } returns Unit
+        everySuspend { fixture.searchDao.insertBookFts(any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            Unit
         everySuspend { fixture.searchDao.insertContributorFts(any(), any(), any()) } returns Unit
         everySuspend { fixture.searchDao.insertSeriesFts(any(), any(), any()) } returns Unit
 
@@ -75,314 +77,333 @@ class FtsPopulatorTest {
         description: String? = null,
         seriesName: String? = null,
         genres: String? = null,
-    ): BookEntity = BookEntity(
-        id = BookId(id),
-        title = title,
-        subtitle = subtitle,
-        coverUrl = null,
-        totalDuration = 3_600_000L,
-        description = description,
-        genres = genres,
-        seriesId = null,
-        seriesName = seriesName,
-        sequence = null,
-        publishYear = 2024,
-        audioFilesJson = null,
-        syncState = SyncState.SYNCED,
-        lastModified = Timestamp(1704067200000L),
-        serverVersion = Timestamp(1704067200000L),
-        createdAt = Timestamp(1704067200000L),
-        updatedAt = Timestamp(1704067200000L),
-    )
+    ): BookEntity =
+        BookEntity(
+            id = BookId(id),
+            title = title,
+            subtitle = subtitle,
+            coverUrl = null,
+            totalDuration = 3_600_000L,
+            description = description,
+            genres = genres,
+            seriesId = null,
+            seriesName = seriesName,
+            sequence = null,
+            publishYear = 2024,
+            audioFilesJson = null,
+            syncState = SyncState.SYNCED,
+            lastModified = Timestamp(1704067200000L),
+            serverVersion = Timestamp(1704067200000L),
+            createdAt = Timestamp(1704067200000L),
+            updatedAt = Timestamp(1704067200000L),
+        )
 
     private fun createContributorEntity(
         id: String = "contributor-1",
         name: String = "Test Author",
         description: String? = null,
-    ): ContributorEntity = ContributorEntity(
-        id = id,
-        name = name,
-        description = description,
-        imagePath = null,
-        syncState = SyncState.SYNCED,
-        lastModified = Timestamp(1704067200000L),
-        serverVersion = Timestamp(1704067200000L),
-        createdAt = Timestamp(1704067200000L),
-        updatedAt = Timestamp(1704067200000L),
-    )
+    ): ContributorEntity =
+        ContributorEntity(
+            id = id,
+            name = name,
+            description = description,
+            imagePath = null,
+            syncState = SyncState.SYNCED,
+            lastModified = Timestamp(1704067200000L),
+            serverVersion = Timestamp(1704067200000L),
+            createdAt = Timestamp(1704067200000L),
+            updatedAt = Timestamp(1704067200000L),
+        )
 
     private fun createSeriesEntity(
         id: String = "series-1",
         name: String = "Test Series",
         description: String? = null,
-    ): SeriesEntity = SeriesEntity(
-        id = id,
-        name = name,
-        description = description,
-        syncState = SyncState.SYNCED,
-        lastModified = Timestamp(1704067200000L),
-        serverVersion = Timestamp(1704067200000L),
-        createdAt = Timestamp(1704067200000L),
-        updatedAt = Timestamp(1704067200000L),
-    )
+    ): SeriesEntity =
+        SeriesEntity(
+            id = id,
+            name = name,
+            description = description,
+            syncState = SyncState.SYNCED,
+            lastModified = Timestamp(1704067200000L),
+            serverVersion = Timestamp(1704067200000L),
+            createdAt = Timestamp(1704067200000L),
+            updatedAt = Timestamp(1704067200000L),
+        )
 
     // ========== Rebuild All Tests ==========
 
     @Test
-    fun `rebuildAll clears all FTS tables`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val ftsPopulator = fixture.build()
+    fun `rebuildAll clears all FTS tables`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val ftsPopulator = fixture.build()
 
-        // When
-        ftsPopulator.rebuildAll()
+            // When
+            ftsPopulator.rebuildAll()
 
-        // Then
-        verifySuspend { fixture.searchDao.clearBooksFts() }
-        verifySuspend { fixture.searchDao.clearContributorsFts() }
-        verifySuspend { fixture.searchDao.clearSeriesFts() }
-    }
-
-    @Test
-    fun `rebuildAll inserts all books into FTS`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book1 = createBookEntity(id = "book-1", title = "Book One")
-        val book2 = createBookEntity(id = "book-2", title = "Book Two")
-
-        everySuspend { fixture.bookDao.getAll() } returns listOf(book1, book2)
-        val ftsPopulator = fixture.build()
-
-        // When
-        ftsPopulator.rebuildAll()
-
-        // Then
-        verifySuspend { fixture.searchDao.insertBookFts("book-1", "Book One", null, null, null, null, null, null) }
-        verifySuspend { fixture.searchDao.insertBookFts("book-2", "Book Two", null, null, null, null, null, null) }
-    }
-
-    @Test
-    fun `rebuildAll inserts all contributors into FTS`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val contributor1 = createContributorEntity(id = "contributor-1", name = "Author One")
-        val contributor2 = createContributorEntity(id = "contributor-2", name = "Author Two")
-
-        everySuspend { fixture.contributorDao.getAll() } returns listOf(contributor1, contributor2)
-        val ftsPopulator = fixture.build()
-
-        // When
-        ftsPopulator.rebuildAll()
-
-        // Then
-        verifySuspend { fixture.searchDao.insertContributorFts("contributor-1", "Author One", null) }
-        verifySuspend { fixture.searchDao.insertContributorFts("contributor-2", "Author Two", null) }
-    }
-
-    @Test
-    fun `rebuildAll inserts all series into FTS`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val series1 = createSeriesEntity(id = "series-1", name = "Series One")
-        val series2 = createSeriesEntity(id = "series-2", name = "Series Two")
-
-        everySuspend { fixture.seriesDao.getAll() } returns listOf(series1, series2)
-        val ftsPopulator = fixture.build()
-
-        // When
-        ftsPopulator.rebuildAll()
-
-        // Then
-        verifySuspend { fixture.searchDao.insertSeriesFts("series-1", "Series One", null) }
-        verifySuspend { fixture.searchDao.insertSeriesFts("series-2", "Series Two", null) }
-    }
-
-    @Test
-    fun `rebuildAll includes book subtitle and description`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBookEntity(
-            id = "book-1",
-            title = "Main Title",
-            subtitle = "A Great Subtitle",
-            description = "This is a description",
-        )
-
-        everySuspend { fixture.bookDao.getAll() } returns listOf(book)
-        val ftsPopulator = fixture.build()
-
-        // When
-        ftsPopulator.rebuildAll()
-
-        // Then
-        verifySuspend {
-            fixture.searchDao.insertBookFts(
-                "book-1",
-                "Main Title",
-                "A Great Subtitle",
-                "This is a description",
-                null,
-                null,
-                null,
-                null,
-            )
+            // Then
+            verifySuspend { fixture.searchDao.clearBooksFts() }
+            verifySuspend { fixture.searchDao.clearContributorsFts() }
+            verifySuspend { fixture.searchDao.clearSeriesFts() }
         }
-    }
 
     @Test
-    fun `rebuildAll includes author and narrator names from lookup`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBookEntity(id = "book-1", title = "Test Book")
+    fun `rebuildAll inserts all books into FTS`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book1 = createBookEntity(id = "book-1", title = "Book One")
+            val book2 = createBookEntity(id = "book-2", title = "Book Two")
 
-        everySuspend { fixture.bookDao.getAll() } returns listOf(book)
-        everySuspend { fixture.searchDao.getPrimaryAuthorName("book-1") } returns "John Author"
-        everySuspend { fixture.searchDao.getPrimaryNarratorName("book-1") } returns "Jane Narrator"
-        val ftsPopulator = fixture.build()
+            everySuspend { fixture.bookDao.getAll() } returns listOf(book1, book2)
+            val ftsPopulator = fixture.build()
 
-        // When
-        ftsPopulator.rebuildAll()
+            // When
+            ftsPopulator.rebuildAll()
 
-        // Then
-        verifySuspend {
-            fixture.searchDao.insertBookFts(
-                "book-1",
-                "Test Book",
-                null,
-                null,
-                "John Author",
-                "Jane Narrator",
-                null,
-                null,
-            )
+            // Then
+            verifySuspend { fixture.searchDao.insertBookFts("book-1", "Book One", null, null, null, null, null, null) }
+            verifySuspend { fixture.searchDao.insertBookFts("book-2", "Book Two", null, null, null, null, null, null) }
         }
-    }
 
     @Test
-    fun `rebuildAll includes series name and genres`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val book = createBookEntity(
-            id = "book-1",
-            title = "Fantasy Book",
-            seriesName = "Epic Series",
-            genres = "fantasy,adventure",
-        )
+    fun `rebuildAll inserts all contributors into FTS`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val contributor1 = createContributorEntity(id = "contributor-1", name = "Author One")
+            val contributor2 = createContributorEntity(id = "contributor-2", name = "Author Two")
 
-        everySuspend { fixture.bookDao.getAll() } returns listOf(book)
-        val ftsPopulator = fixture.build()
+            everySuspend { fixture.contributorDao.getAll() } returns listOf(contributor1, contributor2)
+            val ftsPopulator = fixture.build()
 
-        // When
-        ftsPopulator.rebuildAll()
+            // When
+            ftsPopulator.rebuildAll()
 
-        // Then
-        verifySuspend {
-            fixture.searchDao.insertBookFts(
-                "book-1",
-                "Fantasy Book",
-                null,
-                null,
-                null,
-                null,
-                "Epic Series",
-                "fantasy,adventure",
-            )
+            // Then
+            verifySuspend { fixture.searchDao.insertContributorFts("contributor-1", "Author One", null) }
+            verifySuspend { fixture.searchDao.insertContributorFts("contributor-2", "Author Two", null) }
         }
-    }
 
     @Test
-    fun `rebuildAll includes contributor description`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val contributor = createContributorEntity(
-            id = "contributor-1",
-            name = "Famous Author",
-            description = "An award-winning author",
-        )
+    fun `rebuildAll inserts all series into FTS`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val series1 = createSeriesEntity(id = "series-1", name = "Series One")
+            val series2 = createSeriesEntity(id = "series-2", name = "Series Two")
 
-        everySuspend { fixture.contributorDao.getAll() } returns listOf(contributor)
-        val ftsPopulator = fixture.build()
+            everySuspend { fixture.seriesDao.getAll() } returns listOf(series1, series2)
+            val ftsPopulator = fixture.build()
 
-        // When
-        ftsPopulator.rebuildAll()
+            // When
+            ftsPopulator.rebuildAll()
 
-        // Then
-        verifySuspend {
-            fixture.searchDao.insertContributorFts(
-                "contributor-1",
-                "Famous Author",
-                "An award-winning author",
-            )
+            // Then
+            verifySuspend { fixture.searchDao.insertSeriesFts("series-1", "Series One", null) }
+            verifySuspend { fixture.searchDao.insertSeriesFts("series-2", "Series Two", null) }
         }
-    }
 
     @Test
-    fun `rebuildAll includes series description`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val series = createSeriesEntity(
-            id = "series-1",
-            name = "Epic Series",
-            description = "An epic fantasy saga",
-        )
+    fun `rebuildAll includes book subtitle and description`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book =
+                createBookEntity(
+                    id = "book-1",
+                    title = "Main Title",
+                    subtitle = "A Great Subtitle",
+                    description = "This is a description",
+                )
 
-        everySuspend { fixture.seriesDao.getAll() } returns listOf(series)
-        val ftsPopulator = fixture.build()
+            everySuspend { fixture.bookDao.getAll() } returns listOf(book)
+            val ftsPopulator = fixture.build()
 
-        // When
-        ftsPopulator.rebuildAll()
+            // When
+            ftsPopulator.rebuildAll()
 
-        // Then
-        verifySuspend {
-            fixture.searchDao.insertSeriesFts(
-                "series-1",
-                "Epic Series",
-                "An epic fantasy saga",
-            )
+            // Then
+            verifySuspend {
+                fixture.searchDao.insertBookFts(
+                    "book-1",
+                    "Main Title",
+                    "A Great Subtitle",
+                    "This is a description",
+                    null,
+                    null,
+                    null,
+                    null,
+                )
+            }
         }
-    }
+
+    @Test
+    fun `rebuildAll includes author and narrator names from lookup`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBookEntity(id = "book-1", title = "Test Book")
+
+            everySuspend { fixture.bookDao.getAll() } returns listOf(book)
+            everySuspend { fixture.searchDao.getPrimaryAuthorName("book-1") } returns "John Author"
+            everySuspend { fixture.searchDao.getPrimaryNarratorName("book-1") } returns "Jane Narrator"
+            val ftsPopulator = fixture.build()
+
+            // When
+            ftsPopulator.rebuildAll()
+
+            // Then
+            verifySuspend {
+                fixture.searchDao.insertBookFts(
+                    "book-1",
+                    "Test Book",
+                    null,
+                    null,
+                    "John Author",
+                    "Jane Narrator",
+                    null,
+                    null,
+                )
+            }
+        }
+
+    @Test
+    fun `rebuildAll includes series name and genres`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book =
+                createBookEntity(
+                    id = "book-1",
+                    title = "Fantasy Book",
+                    seriesName = "Epic Series",
+                    genres = "fantasy,adventure",
+                )
+
+            everySuspend { fixture.bookDao.getAll() } returns listOf(book)
+            val ftsPopulator = fixture.build()
+
+            // When
+            ftsPopulator.rebuildAll()
+
+            // Then
+            verifySuspend {
+                fixture.searchDao.insertBookFts(
+                    "book-1",
+                    "Fantasy Book",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Epic Series",
+                    "fantasy,adventure",
+                )
+            }
+        }
+
+    @Test
+    fun `rebuildAll includes contributor description`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val contributor =
+                createContributorEntity(
+                    id = "contributor-1",
+                    name = "Famous Author",
+                    description = "An award-winning author",
+                )
+
+            everySuspend { fixture.contributorDao.getAll() } returns listOf(contributor)
+            val ftsPopulator = fixture.build()
+
+            // When
+            ftsPopulator.rebuildAll()
+
+            // Then
+            verifySuspend {
+                fixture.searchDao.insertContributorFts(
+                    "contributor-1",
+                    "Famous Author",
+                    "An award-winning author",
+                )
+            }
+        }
+
+    @Test
+    fun `rebuildAll includes series description`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val series =
+                createSeriesEntity(
+                    id = "series-1",
+                    name = "Epic Series",
+                    description = "An epic fantasy saga",
+                )
+
+            everySuspend { fixture.seriesDao.getAll() } returns listOf(series)
+            val ftsPopulator = fixture.build()
+
+            // When
+            ftsPopulator.rebuildAll()
+
+            // Then
+            verifySuspend {
+                fixture.searchDao.insertSeriesFts(
+                    "series-1",
+                    "Epic Series",
+                    "An epic fantasy saga",
+                )
+            }
+        }
 
     // ========== Empty Data Tests ==========
 
     @Test
-    fun `rebuildAll handles empty books list`() = runTest {
-        // Given
-        val fixture = createFixture()
-        everySuspend { fixture.bookDao.getAll() } returns emptyList()
-        val ftsPopulator = fixture.build()
+    fun `rebuildAll handles empty books list`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            everySuspend { fixture.bookDao.getAll() } returns emptyList()
+            val ftsPopulator = fixture.build()
 
-        // When
-        ftsPopulator.rebuildAll()
+            // When
+            ftsPopulator.rebuildAll()
 
-        // Then - should clear but not insert
-        verifySuspend { fixture.searchDao.clearBooksFts() }
-    }
-
-    @Test
-    fun `rebuildAll handles empty contributors list`() = runTest {
-        // Given
-        val fixture = createFixture()
-        everySuspend { fixture.contributorDao.getAll() } returns emptyList()
-        val ftsPopulator = fixture.build()
-
-        // When
-        ftsPopulator.rebuildAll()
-
-        // Then - should clear but not insert
-        verifySuspend { fixture.searchDao.clearContributorsFts() }
-    }
+            // Then - should clear but not insert
+            verifySuspend { fixture.searchDao.clearBooksFts() }
+        }
 
     @Test
-    fun `rebuildAll handles empty series list`() = runTest {
-        // Given
-        val fixture = createFixture()
-        everySuspend { fixture.seriesDao.getAll() } returns emptyList()
-        val ftsPopulator = fixture.build()
+    fun `rebuildAll handles empty contributors list`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            everySuspend { fixture.contributorDao.getAll() } returns emptyList()
+            val ftsPopulator = fixture.build()
 
-        // When
-        ftsPopulator.rebuildAll()
+            // When
+            ftsPopulator.rebuildAll()
 
-        // Then - should clear but not insert
-        verifySuspend { fixture.searchDao.clearSeriesFts() }
-    }
+            // Then - should clear but not insert
+            verifySuspend { fixture.searchDao.clearContributorsFts() }
+        }
+
+    @Test
+    fun `rebuildAll handles empty series list`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            everySuspend { fixture.seriesDao.getAll() } returns emptyList()
+            val ftsPopulator = fixture.build()
+
+            // When
+            ftsPopulator.rebuildAll()
+
+            // Then - should clear but not insert
+            verifySuspend { fixture.searchDao.clearSeriesFts() }
+        }
 }

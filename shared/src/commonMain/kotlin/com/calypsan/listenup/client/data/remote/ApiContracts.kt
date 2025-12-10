@@ -5,12 +5,12 @@ import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.remote.model.ContributorResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
-import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.data.remote.model.SeriesResponse
 import com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
 import com.calypsan.listenup.client.data.remote.model.SyncContributorsResponse
 import com.calypsan.listenup.client.data.remote.model.SyncManifestResponse
 import com.calypsan.listenup.client.data.remote.model.SyncSeriesResponse
+import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.model.Tag
 
 /**
@@ -116,9 +116,7 @@ interface SyncApiContract {
     /**
      * Submit listening events to the server.
      */
-    suspend fun submitListeningEvents(
-        events: List<ListeningEventRequest>,
-    ): Result<ListeningEventsResponse>
+    suspend fun submitListeningEvents(events: List<ListeningEventRequest>): Result<ListeningEventsResponse>
 }
 
 /**
@@ -177,17 +175,26 @@ interface TagApiContract {
     /**
      * Add a tag to a book.
      */
-    suspend fun addTagToBook(bookId: String, tagId: String)
+    suspend fun addTagToBook(
+        bookId: String,
+        tagId: String,
+    )
 
     /**
      * Remove a tag from a book.
      */
-    suspend fun removeTagFromBook(bookId: String, tagId: String)
+    suspend fun removeTagFromBook(
+        bookId: String,
+        tagId: String,
+    )
 
     /**
      * Create a new tag.
      */
-    suspend fun createTag(name: String, color: String? = null): Tag
+    suspend fun createTag(
+        name: String,
+        color: String? = null,
+    ): Tag
 
     /**
      * Delete a tag.

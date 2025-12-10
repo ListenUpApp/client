@@ -23,17 +23,19 @@ class ValueClassesTest {
 
     @Test
     fun `AccessToken rejects blank token`() {
-        val exception = assertFailsWith<IllegalArgumentException> {
-            AccessToken("")
-        }
+        val exception =
+            assertFailsWith<IllegalArgumentException> {
+                AccessToken("")
+            }
         assertEquals("Access token cannot be blank", exception.message)
     }
 
     @Test
     fun `AccessToken rejects whitespace-only token`() {
-        val exception = assertFailsWith<IllegalArgumentException> {
-            AccessToken("   ")
-        }
+        val exception =
+            assertFailsWith<IllegalArgumentException> {
+                AccessToken("   ")
+            }
         assertEquals("Access token cannot be blank", exception.message)
     }
 
@@ -47,17 +49,19 @@ class ValueClassesTest {
 
     @Test
     fun `RefreshToken rejects blank token`() {
-        val exception = assertFailsWith<IllegalArgumentException> {
-            RefreshToken("")
-        }
+        val exception =
+            assertFailsWith<IllegalArgumentException> {
+                RefreshToken("")
+            }
         assertEquals("Refresh token cannot be blank", exception.message)
     }
 
     @Test
     fun `RefreshToken rejects whitespace-only token`() {
-        val exception = assertFailsWith<IllegalArgumentException> {
-            RefreshToken("   ")
-        }
+        val exception =
+            assertFailsWith<IllegalArgumentException> {
+                RefreshToken("   ")
+            }
         assertEquals("Refresh token cannot be blank", exception.message)
     }
 
@@ -101,33 +105,37 @@ class ValueClassesTest {
 
     @Test
     fun `ServerUrl rejects blank URL`() {
-        val exception = assertFailsWith<IllegalArgumentException> {
-            ServerUrl("")
-        }
+        val exception =
+            assertFailsWith<IllegalArgumentException> {
+                ServerUrl("")
+            }
         assertEquals("Server URL cannot be blank", exception.message)
     }
 
     @Test
     fun `ServerUrl rejects whitespace-only URL`() {
-        val exception = assertFailsWith<IllegalArgumentException> {
-            ServerUrl("   ")
-        }
+        val exception =
+            assertFailsWith<IllegalArgumentException> {
+                ServerUrl("   ")
+            }
         assertEquals("Server URL cannot be blank", exception.message)
     }
 
     @Test
     fun `ServerUrl rejects URL without protocol`() {
-        val exception = assertFailsWith<IllegalArgumentException> {
-            ServerUrl("api.example.com")
-        }
+        val exception =
+            assertFailsWith<IllegalArgumentException> {
+                ServerUrl("api.example.com")
+            }
         assertEquals("Server URL must start with http:// or https://, got: api.example.com", exception.message)
     }
 
     @Test
     fun `ServerUrl rejects URL with ftp protocol`() {
-        val exception = assertFailsWith<IllegalArgumentException> {
-            ServerUrl("ftp://files.example.com")
-        }
+        val exception =
+            assertFailsWith<IllegalArgumentException> {
+                ServerUrl("ftp://files.example.com")
+            }
         assertEquals("Server URL must start with http:// or https://, got: ftp://files.example.com", exception.message)
     }
 

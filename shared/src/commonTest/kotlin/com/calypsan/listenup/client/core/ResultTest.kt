@@ -98,9 +98,10 @@ class ResultTest {
     fun `getOrThrow throws exception for Failure`() {
         val exception = IllegalArgumentException("invalid")
         val result: Result<String> = Failure(exception)
-        val thrown = assertFailsWith<IllegalArgumentException> {
-            result.getOrThrow()
-        }
+        val thrown =
+            assertFailsWith<IllegalArgumentException> {
+                result.getOrThrow()
+            }
         assertEquals("invalid", thrown.message)
     }
 
@@ -136,10 +137,11 @@ class ResultTest {
         val exception = Exception("first error")
         val result: Result<Int> = Failure(exception)
         var transformCalled = false
-        val chained = result.flatMap {
-            transformCalled = true
-            Success(it * 2)
-        }
+        val chained =
+            result.flatMap {
+                transformCalled = true
+                Success(it * 2)
+            }
         assertIs<Failure>(chained)
         assertEquals(exception, chained.exception)
         assertFalse(transformCalled)
@@ -213,16 +215,19 @@ class ResultTest {
 
     @Test
     fun `runCatching returns Success for successful block`() {
-        val result = com.calypsan.listenup.client.core.runCatching { 42 }
+        val result =
+            com.calypsan.listenup.client.core
+                .runCatching { 42 }
         assertIs<Success<Int>>(result)
         assertEquals(42, result.data)
     }
 
     @Test
     fun `runCatching returns Failure for throwing block`() {
-        val result = com.calypsan.listenup.client.core.runCatching<Int> {
-            throw IllegalStateException("error")
-        }
+        val result =
+            com.calypsan.listenup.client.core.runCatching<Int> {
+                throw IllegalStateException("error")
+            }
         assertIs<Failure>(result)
         assertIs<IllegalStateException>(result.exception)
     }
@@ -240,9 +245,10 @@ class ResultTest {
     @Test
     fun `suspendRunCatching returns Failure for throwing suspend block`() =
         runTest {
-            val result = suspendRunCatching<Int> {
-                throw IllegalArgumentException("async error")
-            }
+            val result =
+                suspendRunCatching<Int> {
+                    throw IllegalArgumentException("async error")
+                }
             assertIs<Failure>(result)
             assertIs<IllegalArgumentException>(result.exception)
         }
@@ -264,19 +270,20 @@ class ResultTest {
             var exceptionCaught = false
             var resultReturned = false
 
-            val job = launch {
-                try {
-                    suspendRunCatching {
-                        // Simulate long-running work
-                        kotlinx.coroutines.delay(10_000)
-                        "should not reach"
+            val job =
+                launch {
+                    try {
+                        suspendRunCatching {
+                            // Simulate long-running work
+                            kotlinx.coroutines.delay(10_000)
+                            "should not reach"
+                        }
+                        resultReturned = true
+                    } catch (e: CancellationException) {
+                        exceptionCaught = true
+                        throw e
                     }
-                    resultReturned = true
-                } catch (e: CancellationException) {
-                    exceptionCaught = true
-                    throw e
                 }
-            }
 
             // Let the coroutine start
             testScheduler.advanceTimeBy(100)
@@ -298,10 +305,11 @@ class ResultTest {
     fun `mapSuspend transforms Success value with suspend function`() =
         runTest {
             val result: Result<Int> = Success(21)
-            val mapped = result.mapSuspend {
-                kotlinx.coroutines.delay(1)
-                it * 2
-            }
+            val mapped =
+                result.mapSuspend {
+                    kotlinx.coroutines.delay(1)
+                    it * 2
+                }
             assertIs<Success<Int>>(mapped)
             assertEquals(42, mapped.data)
         }
@@ -312,10 +320,11 @@ class ResultTest {
             val exception = Exception("error")
             val result: Result<Int> = Failure(exception)
             var transformCalled = false
-            val mapped = result.mapSuspend {
-                transformCalled = true
-                it * 2
-            }
+            val mapped =
+                result.mapSuspend {
+                    transformCalled = true
+                    it * 2
+                }
             assertIs<Failure>(mapped)
             assertFalse(transformCalled)
         }

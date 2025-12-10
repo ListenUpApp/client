@@ -101,7 +101,9 @@ class ErrorMapperTest {
 
     @Test
     fun `map custom exception returns UnknownError`() {
-        class CustomException(message: String) : Exception(message)
+        class CustomException(
+            message: String,
+        ) : Exception(message)
         val exception = CustomException("Custom domain error")
         val error = ErrorMapper.map(exception)
 
