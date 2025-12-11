@@ -12,7 +12,10 @@ import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.TagApi
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
+import com.calypsan.listenup.client.data.remote.ListenUpApiContract
+import com.calypsan.listenup.client.data.repository.BookEditRepository
 import com.calypsan.listenup.client.data.repository.BookRepository
+import com.calypsan.listenup.client.data.repository.ContributorRepository
 import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.SearchRepository
@@ -77,7 +80,7 @@ val networkModule =
 
         // ListenUpApi - main API for server communication
         // Uses default base URL initially; can be recreated when server URL changes
-        single {
+        single<ListenUpApiContract> {
             ListenUpApi(
                 baseUrl = getBaseUrl(),
                 apiClientFactory = get(),
@@ -205,6 +208,13 @@ val presentationModule =
                 searchRepository = get(),
             )
         }
+        factory {
+            com.calypsan.listenup.client.presentation.bookedit.BookEditViewModel(
+                bookRepository = get(),
+                bookEditRepository = get(),
+                contributorRepository = get(),
+            )
+        }
     }
 
 /**
@@ -328,6 +338,23 @@ val syncModule =
                 bookRepository = get(),
                 playbackPositionDao = get(),
                 userDao = get(),
+            )
+        }
+
+        // ContributorRepository for contributor search with offline fallback
+        single {
+            ContributorRepository(
+                api = get(),
+                searchDao = get(),
+                networkMonitor = get(),
+            )
+        }
+
+        // BookEditRepository for book editing operations
+        single {
+            BookEditRepository(
+                api = get(),
+                bookDao = get(),
             )
         }
     }

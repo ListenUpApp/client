@@ -244,4 +244,121 @@ interface ListenUpApiContract {
      * @return Result containing list of PlaybackProgressResponse on success
      */
     suspend fun getContinueListening(limit: Int = 10): Result<List<PlaybackProgressResponse>>
+
+    /**
+     * Search contributors for autocomplete during book editing.
+     *
+     * Uses server-side Bleve search for O(log n) performance with:
+     * - Prefix matching ("bran" → "Brandon Sanderson")
+     * - Word matching ("sanderson" in "Brandon Sanderson")
+     * - Fuzzy matching for typo tolerance
+     *
+     * @param query Search query (min 2 characters recommended)
+     * @param limit Maximum results to return (default 10, max 50)
+     * @return Result containing list of matching contributors
+     */
+    suspend fun searchContributors(
+        query: String,
+        limit: Int = 10,
+    ): Result<List<ContributorSearchResult>>
+
+    /**
+     * Update book metadata (PATCH semantics).
+     *
+     * Only fields present in the request are updated:
+     * - null field = don't change
+     * - empty string = clear the field
+     *
+     * @param bookId Book to update
+     * @param update Fields to update
+     * @return Result containing the updated book
+     */
+    suspend fun updateBook(
+        bookId: String,
+        update: BookUpdateRequest,
+    ): Result<BookEditResponse>
+
+    /**
+     * Set book contributors (replaces all existing contributors).
+     *
+     * Contributors are matched by name:
+     * - Existing contributor with same name → linked
+     * - New name → contributor created automatically
+     *
+     * Orphaned contributors (no books) are automatically cleaned up.
+     *
+     * @param bookId Book to update
+     * @param contributors New list of contributors with roles
+     * @return Result containing the updated book
+     */
+    suspend fun setBookContributors(
+        bookId: String,
+        contributors: List<ContributorInput>,
+    ): Result<BookEditResponse>
 }
+
+/**
+ * Contributor search result for autocomplete.
+ *
+ * Lightweight representation returned by contributor search endpoint.
+ * Used when editing book contributors to find existing contributors to link.
+ */
+data class ContributorSearchResult(
+    val id: String,
+    val name: String,
+    val bookCount: Int,
+)
+
+/**
+ * Request for updating book metadata (PATCH semantics).
+ *
+ * Only non-null fields are sent to the server:
+ * - null = don't change this field
+ * - empty string = clear this field
+ */
+data class BookUpdateRequest(
+    val title: String? = null,
+    val subtitle: String? = null,
+    val description: String? = null,
+    val publisher: String? = null,
+    val publishYear: String? = null,
+    val language: String? = null,
+    val isbn: String? = null,
+    val asin: String? = null,
+    val explicit: Boolean? = null,
+    val abridged: Boolean? = null,
+    val seriesId: String? = null,
+    val sequence: String? = null,
+)
+
+/**
+ * Contributor with roles for setting book contributors.
+ */
+data class ContributorInput(
+    val name: String,
+    val roles: List<String>,
+)
+
+/**
+ * Book response for edit operations.
+ *
+ * Contains fields needed after editing. Separate from SyncModels.BookResponse
+ * which has additional sync-specific fields (chapters, audio files, etc.).
+ */
+data class BookEditResponse(
+    val id: String,
+    val title: String,
+    val subtitle: String?,
+    val description: String?,
+    val publisher: String?,
+    val publishYear: String?,
+    val language: String?,
+    val isbn: String?,
+    val asin: String?,
+    val explicit: Boolean,
+    val abridged: Boolean,
+    val seriesId: String?,
+    val seriesName: String?,
+    val sequence: String?,
+    val updatedAt: String,
+)
