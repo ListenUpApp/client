@@ -55,6 +55,19 @@ data class BookDetail(
 ) : Route
 
 /**
+ * Book edit screen - edit book metadata and contributors.
+ *
+ * Allows editing title, subtitle, description, series info, publish year,
+ * and managing contributors (authors/narrators) with autocomplete search.
+ *
+ * @property bookId The unique ID of the book to edit.
+ */
+@Serializable
+data class BookEdit(
+    val bookId: String,
+) : Route
+
+/**
  * Series detail screen - displays series info and its books.
  *
  * @property seriesId The unique ID of the series to display.

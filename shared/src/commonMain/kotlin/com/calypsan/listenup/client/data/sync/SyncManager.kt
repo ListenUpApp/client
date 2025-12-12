@@ -14,6 +14,7 @@ import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.network.sockets.ConnectTimeoutException
@@ -594,6 +595,9 @@ class SyncManager(
                     val entity = event.book.toEntity()
                     bookDao.upsert(entity)
 
+                    // Save book-contributor relationships
+                    saveBookContributors(event.book)
+
                     // Download cover image in background
                     scope.launch {
                         downloadCoverForBook(event.book.id)
@@ -604,6 +608,9 @@ class SyncManager(
                     logger.debug { "SSE: Book updated - ${event.book.title}" }
                     val entity = event.book.toEntity()
                     bookDao.upsert(entity)
+
+                    // Save book-contributor relationships
+                    saveBookContributors(event.book)
 
                     // Download updated cover image if changed
                     scope.launch {
@@ -635,6 +642,29 @@ class SyncManager(
             }
         } catch (e: Exception) {
             logger.error(e) { "Failed to handle SSE event: $event" }
+        }
+    }
+
+    /**
+     * Save book-contributor relationships from an SSE event.
+     * Replaces existing relationships for the book.
+     */
+    private suspend fun saveBookContributors(book: BookResponse) {
+        val bookId = BookId(book.id)
+
+        // Delete existing relationships for this book
+        bookContributorDao.deleteContributorsForBook(bookId)
+
+        // Create new relationships
+        val crossRefs = book.contributors.flatMap { contributor ->
+            contributor.roles.map { role ->
+                contributor.toEntity(bookId, role)
+            }
+        }
+
+        if (crossRefs.isNotEmpty()) {
+            bookContributorDao.insertAll(crossRefs)
+            logger.debug { "SSE: Saved ${crossRefs.size} contributor relationships for book ${book.id}" }
         }
     }
 

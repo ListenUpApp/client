@@ -38,10 +38,19 @@ data class EditableContributor(
 
 /**
  * Role types for contributors.
+ * Matches server-side roles in domain/contributor.go
  */
 enum class ContributorRole(val displayName: String, val apiValue: String) {
-    AUTHOR("Author", "AUTHOR"),
-    NARRATOR("Narrator", "NARRATOR"),
+    AUTHOR("Author", "author"),
+    NARRATOR("Narrator", "narrator"),
+    EDITOR("Editor", "editor"),
+    TRANSLATOR("Translator", "translator"),
+    FOREWORD("Foreword", "foreword"),
+    INTRODUCTION("Introduction", "introduction"),
+    AFTERWORD("Afterword", "afterword"),
+    PRODUCER("Producer", "producer"),
+    ADAPTER("Adapter", "adapter"),
+    ILLUSTRATOR("Illustrator", "illustrator"),
     ;
 
     companion object {
@@ -71,26 +80,41 @@ data class BookEditUiState(
     // Contributors
     val contributors: List<EditableContributor> = emptyList(),
 
-    // Contributor search
-    val contributorSearchQuery: String = "",
-    val contributorSearchResults: List<ContributorSearchResult> = emptyList(),
-    val isSearchingContributors: Boolean = false,
-    val isOfflineSearchResult: Boolean = false,
+    // Per-role search state (replaces single search)
+    val roleSearchQueries: Map<ContributorRole, String> = emptyMap(),
+    val roleSearchResults: Map<ContributorRole, List<ContributorSearchResult>> = emptyMap(),
+    val roleSearchLoading: Map<ContributorRole, Boolean> = emptyMap(),
+    val roleOfflineResults: Map<ContributorRole, Boolean> = emptyMap(),
+
+    // Visible role sections (prepopulated from existing contributors + user-added)
+    val visibleRoles: Set<ContributorRole> = emptySet(),
 
     // Track if changes have been made
     val hasChanges: Boolean = false,
 ) {
     /**
+     * Get contributors for a specific role.
+     */
+    fun contributorsForRole(role: ContributorRole): List<EditableContributor> =
+        contributors.filter { role in it.roles }
+
+    /**
      * Authors from contributor list.
      */
     val authors: List<EditableContributor>
-        get() = contributors.filter { ContributorRole.AUTHOR in it.roles }
+        get() = contributorsForRole(ContributorRole.AUTHOR)
 
     /**
      * Narrators from contributor list.
      */
     val narrators: List<EditableContributor>
-        get() = contributors.filter { ContributorRole.NARRATOR in it.roles }
+        get() = contributorsForRole(ContributorRole.NARRATOR)
+
+    /**
+     * Roles that are not yet visible (available to add).
+     */
+    val availableRolesToAdd: List<ContributorRole>
+        get() = ContributorRole.entries.filter { it !in visibleRoles }
 }
 
 /**
@@ -104,13 +128,14 @@ sealed interface BookEditUiEvent {
     data class SeriesSequenceChanged(val sequence: String) : BookEditUiEvent
     data class PublishYearChanged(val year: String) : BookEditUiEvent
 
-    // Contributor management
-    data class ContributorSearchQueryChanged(val query: String) : BookEditUiEvent
-    data class AddContributor(val name: String, val roles: Set<ContributorRole>) : BookEditUiEvent
-    data class SelectSearchResult(val result: ContributorSearchResult, val roles: Set<ContributorRole>) : BookEditUiEvent
-    data class RemoveContributor(val contributor: EditableContributor) : BookEditUiEvent
-    data class UpdateContributorRoles(val contributor: EditableContributor, val roles: Set<ContributorRole>) : BookEditUiEvent
-    data object ClearContributorSearch : BookEditUiEvent
+    // Per-role contributor management
+    data class RoleSearchQueryChanged(val role: ContributorRole, val query: String) : BookEditUiEvent
+    data class RoleContributorSelected(val role: ContributorRole, val result: ContributorSearchResult) : BookEditUiEvent
+    data class RoleContributorEntered(val role: ContributorRole, val name: String) : BookEditUiEvent
+    data class ClearRoleSearch(val role: ContributorRole) : BookEditUiEvent
+    data class AddRoleSection(val role: ContributorRole) : BookEditUiEvent
+    data class RemoveContributor(val contributor: EditableContributor, val role: ContributorRole) : BookEditUiEvent
+    data class RemoveRoleSection(val role: ContributorRole) : BookEditUiEvent
 
     // Actions
     data object Save : BookEditUiEvent
@@ -151,9 +176,9 @@ class BookEditViewModel(
     private val _navActions = MutableStateFlow<BookEditNavAction?>(null)
     val navActions: StateFlow<BookEditNavAction?> = _navActions.asStateFlow()
 
-    // Internal query flow for debounced contributor search
-    private val contributorQueryFlow = MutableStateFlow("")
-    private var searchJob: Job? = null
+    // Per-role query flows for debounced search
+    private val roleQueryFlows = mutableMapOf<ContributorRole, MutableStateFlow<String>>()
+    private val roleSearchJobs = mutableMapOf<ContributorRole, Job>()
 
     // Track original values for change detection
     private var originalTitle: String = ""
@@ -163,22 +188,29 @@ class BookEditViewModel(
     private var originalPublishYear: String = ""
     private var originalContributors: List<EditableContributor> = emptyList()
 
-    init {
-        // Set up debounced contributor search
-        contributorQueryFlow
-            .debounce(300) // Wait 300ms after last keystroke
+    /**
+     * Set up debounced search for a specific role.
+     */
+    private fun setupRoleSearch(role: ContributorRole) {
+        if (roleQueryFlows.containsKey(role)) return
+
+        val queryFlow = MutableStateFlow("")
+        roleQueryFlows[role] = queryFlow
+
+        queryFlow
+            .debounce(300)
             .distinctUntilChanged()
-            .filter { it.length >= 2 || it.isEmpty() } // Min 2 chars
+            .filter { it.length >= 2 || it.isEmpty() }
             .onEach { query ->
                 if (query.isBlank()) {
                     _state.update {
                         it.copy(
-                            contributorSearchResults = emptyList(),
-                            isSearchingContributors = false,
+                            roleSearchResults = it.roleSearchResults - role,
+                            roleSearchLoading = it.roleSearchLoading - role,
                         )
                     }
                 } else {
-                    performContributorSearch(query)
+                    performRoleSearch(role, query)
                 }
             }.launchIn(viewModelScope)
     }
@@ -207,6 +239,19 @@ class BookEditViewModel(
                 )
             }
 
+            // Determine visible roles from existing contributors
+            val rolesFromContributors = editableContributors
+                .flatMap { it.roles }
+                .toSet()
+
+            // Always show Author section, plus any roles that have contributors
+            val initialVisibleRoles = rolesFromContributors + ContributorRole.AUTHOR
+
+            // Set up search for each visible role
+            initialVisibleRoles.forEach { role ->
+                setupRoleSearch(role)
+            }
+
             // Store original values
             originalTitle = book.title
             originalSubtitle = book.subtitle ?: ""
@@ -225,11 +270,12 @@ class BookEditViewModel(
                     seriesSequence = book.seriesSequence ?: "",
                     publishYear = book.publishYear?.toString() ?: "",
                     contributors = editableContributors,
+                    visibleRoles = initialVisibleRoles,
                     hasChanges = false,
                 )
             }
 
-            logger.debug { "Loaded book for editing: ${book.title}" }
+            logger.debug { "Loaded book for editing: ${book.title}, description=${book.description?.take(50) ?: "null"}" }
         }
     }
 
@@ -265,38 +311,44 @@ class BookEditViewModel(
                 updateHasChanges()
             }
 
-            is BookEditUiEvent.ContributorSearchQueryChanged -> {
-                _state.update { it.copy(contributorSearchQuery = event.query) }
-                contributorQueryFlow.value = event.query
+            is BookEditUiEvent.RoleSearchQueryChanged -> {
+                _state.update {
+                    it.copy(roleSearchQueries = it.roleSearchQueries + (event.role to event.query))
+                }
+                roleQueryFlows[event.role]?.value = event.query
             }
 
-            is BookEditUiEvent.AddContributor -> {
-                addContributor(event.name, event.roles)
+            is BookEditUiEvent.RoleContributorSelected -> {
+                selectRoleContributor(event.role, event.result)
             }
 
-            is BookEditUiEvent.SelectSearchResult -> {
-                selectSearchResult(event.result, event.roles)
+            is BookEditUiEvent.RoleContributorEntered -> {
+                addRoleContributor(event.role, event.name)
+            }
+
+            is BookEditUiEvent.ClearRoleSearch -> {
+                _state.update {
+                    it.copy(
+                        roleSearchQueries = it.roleSearchQueries + (event.role to ""),
+                        roleSearchResults = it.roleSearchResults - event.role,
+                    )
+                }
+                roleQueryFlows[event.role]?.value = ""
+            }
+
+            is BookEditUiEvent.AddRoleSection -> {
+                setupRoleSearch(event.role)
+                _state.update {
+                    it.copy(visibleRoles = it.visibleRoles + event.role)
+                }
             }
 
             is BookEditUiEvent.RemoveContributor -> {
-                _state.update { current ->
-                    current.copy(contributors = current.contributors - event.contributor)
-                }
-                updateHasChanges()
+                removeContributorFromRole(event.contributor, event.role)
             }
 
-            is BookEditUiEvent.UpdateContributorRoles -> {
-                updateContributorRoles(event.contributor, event.roles)
-            }
-
-            is BookEditUiEvent.ClearContributorSearch -> {
-                _state.update {
-                    it.copy(
-                        contributorSearchQuery = "",
-                        contributorSearchResults = emptyList(),
-                    )
-                }
-                contributorQueryFlow.value = ""
+            is BookEditUiEvent.RemoveRoleSection -> {
+                removeRoleSection(event.role)
             }
 
             is BookEditUiEvent.Save -> {
@@ -320,114 +372,181 @@ class BookEditViewModel(
         _navActions.value = null
     }
 
-    private fun performContributorSearch(query: String) {
-        searchJob?.cancel()
-        searchJob = viewModelScope.launch {
-            _state.update { it.copy(isSearchingContributors = true) }
+    private fun performRoleSearch(role: ContributorRole, query: String) {
+        roleSearchJobs[role]?.cancel()
+        roleSearchJobs[role] = viewModelScope.launch {
+            _state.update {
+                it.copy(roleSearchLoading = it.roleSearchLoading + (role to true))
+            }
 
             val response = contributorRepository.searchContributors(query, limit = 10)
 
+            // Filter out contributors already added for this role
+            val currentContributorIds = _state.value.contributorsForRole(role).mapNotNull { it.id }.toSet()
+            val filteredResults = response.contributors.filter { it.id !in currentContributorIds }
+
             _state.update {
                 it.copy(
-                    contributorSearchResults = response.contributors,
-                    isSearchingContributors = false,
-                    isOfflineSearchResult = response.isOfflineResult,
+                    roleSearchResults = it.roleSearchResults + (role to filteredResults),
+                    roleSearchLoading = it.roleSearchLoading + (role to false),
+                    roleOfflineResults = it.roleOfflineResults + (role to response.isOfflineResult),
                 )
             }
 
-            logger.debug { "Contributor search: ${response.contributors.size} results for '$query'" }
+            logger.debug { "Contributor search for $role: ${filteredResults.size} results for '$query'" }
         }
     }
 
-    private fun addContributor(name: String, roles: Set<ContributorRole>) {
-        if (name.isBlank() || roles.isEmpty()) return
+    private fun addRoleContributor(role: ContributorRole, name: String) {
+        if (name.isBlank()) return
 
-        val newContributor = EditableContributor(
-            id = null, // New contributor
-            name = name.trim(),
-            roles = roles,
-        )
+        val trimmedName = name.trim()
 
         _state.update { current ->
             // Check if contributor already exists (by name)
             val existing = current.contributors.find {
-                it.name.equals(name.trim(), ignoreCase = true)
+                it.name.equals(trimmedName, ignoreCase = true)
             }
 
             if (existing != null) {
-                // Merge roles
-                val updated = existing.copy(roles = existing.roles + roles)
+                // Check if already has this role (duplicate prevention)
+                if (role in existing.roles) {
+                    // Already has this role - just clear search, don't add duplicate
+                    return@update current.copy(
+                        roleSearchQueries = current.roleSearchQueries + (role to ""),
+                        roleSearchResults = current.roleSearchResults - role,
+                    )
+                }
+                // Add role to existing contributor
+                val updated = existing.copy(roles = existing.roles + role)
                 current.copy(
                     contributors = current.contributors.map {
                         if (it == existing) updated else it
                     },
-                    contributorSearchQuery = "",
-                    contributorSearchResults = emptyList(),
+                    roleSearchQueries = current.roleSearchQueries + (role to ""),
+                    roleSearchResults = current.roleSearchResults - role,
                 )
             } else {
+                // Add new contributor with this role
+                val newContributor = EditableContributor(
+                    id = null,
+                    name = trimmedName,
+                    roles = setOf(role),
+                )
                 current.copy(
                     contributors = current.contributors + newContributor,
-                    contributorSearchQuery = "",
-                    contributorSearchResults = emptyList(),
+                    roleSearchQueries = current.roleSearchQueries + (role to ""),
+                    roleSearchResults = current.roleSearchResults - role,
                 )
             }
         }
 
-        contributorQueryFlow.value = ""
+        roleQueryFlows[role]?.value = ""
         updateHasChanges()
     }
 
-    private fun selectSearchResult(result: ContributorSearchResult, roles: Set<ContributorRole>) {
-        if (roles.isEmpty()) return
-
-        val contributor = EditableContributor(
-            id = result.id,
-            name = result.name,
-            roles = roles,
-        )
-
+    private fun selectRoleContributor(role: ContributorRole, result: ContributorSearchResult) {
         _state.update { current ->
             // Check if contributor already exists (by ID)
             val existing = current.contributors.find { it.id == result.id }
 
             if (existing != null) {
-                // Merge roles
-                val updated = existing.copy(roles = existing.roles + roles)
+                // Check if already has this role (duplicate prevention)
+                if (role in existing.roles) {
+                    // Already has this role - just clear search, don't add duplicate
+                    return@update current.copy(
+                        roleSearchQueries = current.roleSearchQueries + (role to ""),
+                        roleSearchResults = current.roleSearchResults - role,
+                    )
+                }
+                // Add role to existing contributor
+                val updated = existing.copy(roles = existing.roles + role)
                 current.copy(
                     contributors = current.contributors.map {
                         if (it == existing) updated else it
                     },
-                    contributorSearchQuery = "",
-                    contributorSearchResults = emptyList(),
+                    roleSearchQueries = current.roleSearchQueries + (role to ""),
+                    roleSearchResults = current.roleSearchResults - role,
                 )
             } else {
+                // Add new contributor with this role
+                val newContributor = EditableContributor(
+                    id = result.id,
+                    name = result.name,
+                    roles = setOf(role),
+                )
                 current.copy(
-                    contributors = current.contributors + contributor,
-                    contributorSearchQuery = "",
-                    contributorSearchResults = emptyList(),
+                    contributors = current.contributors + newContributor,
+                    roleSearchQueries = current.roleSearchQueries + (role to ""),
+                    roleSearchResults = current.roleSearchResults - role,
                 )
             }
         }
 
-        contributorQueryFlow.value = ""
+        roleQueryFlows[role]?.value = ""
         updateHasChanges()
     }
 
-    private fun updateContributorRoles(contributor: EditableContributor, roles: Set<ContributorRole>) {
-        if (roles.isEmpty()) {
-            // Remove contributor if no roles
-            _state.update { current ->
-                current.copy(contributors = current.contributors - contributor)
+    private fun removeContributorFromRole(contributor: EditableContributor, role: ContributorRole) {
+        _state.update { current ->
+            val updatedRoles = contributor.roles - role
+
+            val updatedContributors = if (updatedRoles.isEmpty()) {
+                // Remove contributor entirely if no roles left
+                current.contributors - contributor
+            } else {
+                // Just remove this role from the contributor
+                current.contributors.map {
+                    if (it == contributor) it.copy(roles = updatedRoles) else it
+                }
             }
-        } else {
-            _state.update { current ->
-                current.copy(
-                    contributors = current.contributors.map {
-                        if (it == contributor) it.copy(roles = roles) else it
-                    },
-                )
+
+            // Check if any contributors still have this role
+            val roleStillHasContributors = updatedContributors.any { role in it.roles }
+
+            // Auto-hide section if empty (unless it's AUTHOR which always shows)
+            val updatedVisibleRoles = if (!roleStillHasContributors && role != ContributorRole.AUTHOR) {
+                current.visibleRoles - role
+            } else {
+                current.visibleRoles
             }
+
+            current.copy(
+                contributors = updatedContributors,
+                visibleRoles = updatedVisibleRoles,
+            )
         }
+        updateHasChanges()
+    }
+
+    private fun removeRoleSection(role: ContributorRole) {
+        _state.update { current ->
+            // Remove role from all contributors
+            val updatedContributors = current.contributors.mapNotNull { contributor ->
+                val updatedRoles = contributor.roles - role
+                if (updatedRoles.isEmpty()) {
+                    null // Remove contributor entirely if no roles left
+                } else {
+                    contributor.copy(roles = updatedRoles)
+                }
+            }
+
+            // Remove from visible roles and clean up search state
+            current.copy(
+                contributors = updatedContributors,
+                visibleRoles = current.visibleRoles - role,
+                roleSearchQueries = current.roleSearchQueries - role,
+                roleSearchResults = current.roleSearchResults - role,
+                roleSearchLoading = current.roleSearchLoading - role,
+                roleOfflineResults = current.roleOfflineResults - role,
+            )
+        }
+
+        // Clean up the query flow
+        roleQueryFlows.remove(role)
+        roleSearchJobs[role]?.cancel()
+        roleSearchJobs.remove(role)
+
         updateHasChanges()
     }
 
