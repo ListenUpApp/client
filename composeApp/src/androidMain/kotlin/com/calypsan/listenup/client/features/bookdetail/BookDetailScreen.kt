@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
@@ -63,6 +65,7 @@ import coil3.compose.AsyncImage
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.model.BookDownloadStatus
 import com.calypsan.listenup.client.design.components.GenreChipRow
+import com.calypsan.listenup.client.design.components.MarkdownText
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.design.components.ProgressOverlay
@@ -521,14 +524,22 @@ private fun BookDetailRightPane(
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 6,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (description.length > 300) {
+                    Box(
+                        modifier = if (isDescriptionExpanded) {
+                            Modifier
+                        } else {
+                            Modifier
+                                .heightIn(max = 120.dp)
+                                .clip(RoundedCornerShape(0.dp))
+                        },
+                    ) {
+                        MarkdownText(
+                            markdown = description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (description.length > 200) {
                         TextButton(
                             onClick = { isDescriptionExpanded = !isDescriptionExpanded },
                             contentPadding = PaddingValues(0.dp),
@@ -900,18 +911,28 @@ private fun SinglePaneBookDetail(
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp),
                 ) {
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 4,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    TextButton(
-                        onClick = { isDescriptionExpanded = !isDescriptionExpanded },
-                        contentPadding = PaddingValues(0.dp),
+                    Box(
+                        modifier = if (isDescriptionExpanded) {
+                            Modifier
+                        } else {
+                            Modifier
+                                .heightIn(max = 100.dp)
+                                .clip(RoundedCornerShape(0.dp))
+                        },
                     ) {
-                        Text(if (isDescriptionExpanded) "Read less" else "Read more")
+                        MarkdownText(
+                            markdown = description,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (description.length > 200) {
+                        TextButton(
+                            onClick = { isDescriptionExpanded = !isDescriptionExpanded },
+                            contentPadding = PaddingValues(0.dp),
+                        ) {
+                            Text(if (isDescriptionExpanded) "Read less" else "Read more")
+                        }
                     }
                 }
             }
