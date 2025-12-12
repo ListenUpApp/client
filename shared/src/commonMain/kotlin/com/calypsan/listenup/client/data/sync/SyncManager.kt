@@ -15,6 +15,7 @@ import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.BookResponse
+import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.network.sockets.ConnectTimeoutException
@@ -91,6 +92,7 @@ class SyncManager(
     private val contributorDao: ContributorDao,
     private val chapterDao: com.calypsan.listenup.client.data.local.db.ChapterDao,
     private val bookContributorDao: com.calypsan.listenup.client.data.local.db.BookContributorDao,
+    private val bookSeriesDao: com.calypsan.listenup.client.data.local.db.BookSeriesDao,
     private val syncDao: SyncDao,
     private val imageDownloader: ImageDownloaderContract,
     private val sseManager: SSEManagerContract,
@@ -408,6 +410,24 @@ class SyncManager(
             bookContributorDao.insertAll(bookContributorsToUpsert)
         }
 
+        // Sync book-series relationships for upserted books
+        val bookSeriesToUpsert =
+            response.books
+                .filter { bookResponse -> booksToUpsert.any { it.id.value == bookResponse.id } }
+                .flatMap { bookResponse ->
+                    // First, delete existing relationships for this book
+                    bookSeriesDao.deleteSeriesForBook(BookId(bookResponse.id))
+
+                    // Then create new relationships from seriesInfo array
+                    bookResponse.seriesInfo.map { seriesInfo ->
+                        seriesInfo.toEntity(BookId(bookResponse.id))
+                    }
+                }
+
+        if (bookSeriesToUpsert.isNotEmpty()) {
+            bookSeriesDao.insertAll(bookSeriesToUpsert)
+        }
+
         // Download cover images for updated books (background/parallel)
         val updatedBookIds = booksToUpsert.map { it.id }
         logger.info { "processServerBooks: scheduling cover downloads for ${updatedBookIds.size} books" }
@@ -595,8 +615,9 @@ class SyncManager(
                     val entity = event.book.toEntity()
                     bookDao.upsert(entity)
 
-                    // Save book-contributor relationships
+                    // Save book-contributor and book-series relationships
                     saveBookContributors(event.book)
+                    saveBookSeries(event.book)
 
                     // Download cover image in background
                     scope.launch {
@@ -609,8 +630,9 @@ class SyncManager(
                     val entity = event.book.toEntity()
                     bookDao.upsert(entity)
 
-                    // Save book-contributor relationships
+                    // Save book-contributor and book-series relationships
                     saveBookContributors(event.book)
+                    saveBookSeries(event.book)
 
                     // Download updated cover image if changed
                     scope.launch {
@@ -665,6 +687,27 @@ class SyncManager(
         if (crossRefs.isNotEmpty()) {
             bookContributorDao.insertAll(crossRefs)
             logger.debug { "SSE: Saved ${crossRefs.size} contributor relationships for book ${book.id}" }
+        }
+    }
+
+    /**
+     * Save book-series relationships from an SSE event.
+     * Replaces existing relationships for the book.
+     */
+    private suspend fun saveBookSeries(book: BookResponse) {
+        val bookId = BookId(book.id)
+
+        // Delete existing relationships for this book
+        bookSeriesDao.deleteSeriesForBook(bookId)
+
+        // Create new relationships from seriesInfo array
+        val crossRefs = book.seriesInfo.map { seriesInfo ->
+            seriesInfo.toEntity(bookId)
+        }
+
+        if (crossRefs.isNotEmpty()) {
+            bookSeriesDao.insertAll(crossRefs)
+            logger.debug { "SSE: Saved ${crossRefs.size} series relationships for book ${book.id}" }
         }
     }
 

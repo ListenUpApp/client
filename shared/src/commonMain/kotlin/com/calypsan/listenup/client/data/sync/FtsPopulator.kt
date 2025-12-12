@@ -74,9 +74,10 @@ class FtsPopulator(
         var insertCount = 0
         for (book in books) {
             try {
-                // Get primary author and narrator for this book
+                // Get denormalized data for FTS indexing
                 val authorName = searchDao.getPrimaryAuthorName(book.id.value)
                 val narratorName = searchDao.getPrimaryNarratorName(book.id.value)
+                val seriesNames = searchDao.getSeriesNamesForBook(book.id.value)
 
                 searchDao.insertBookFts(
                     bookId = book.id.value,
@@ -85,7 +86,7 @@ class FtsPopulator(
                     description = book.description,
                     author = authorName,
                     narrator = narratorName,
-                    seriesName = book.seriesName,
+                    seriesName = seriesNames,
                     genres = book.genres,
                 )
                 insertCount++

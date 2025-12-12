@@ -9,6 +9,7 @@ import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Contributor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -133,6 +134,18 @@ class ContributorBooksViewModel(
                 .distinctBy { it.id }
                 .map { Contributor(it.id, it.name) }
 
+        // Build series list from junction table data
+        val seriesById = series.associateBy { it.id }
+        val bookSeriesList = seriesSequences.mapNotNull { seq ->
+            seriesById[seq.seriesId]?.let { seriesEntity ->
+                BookSeries(
+                    seriesId = seriesEntity.id,
+                    seriesName = seriesEntity.name,
+                    sequence = seq.sequence,
+                )
+            }
+        }
+
         return Book(
             id = book.id,
             title = book.title,
@@ -144,9 +157,7 @@ class ContributorBooksViewModel(
             updatedAt = book.updatedAt,
             description = book.description,
             genres = book.genres,
-            seriesId = book.seriesId,
-            seriesName = book.seriesName,
-            seriesSequence = book.sequence,
+            series = bookSeriesList,
             publishYear = book.publishYear,
             rating = null,
         )

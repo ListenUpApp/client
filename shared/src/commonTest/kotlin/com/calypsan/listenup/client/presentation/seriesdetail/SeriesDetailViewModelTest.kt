@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.seriesdetail
 
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
@@ -9,6 +10,7 @@ import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Contributor
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -91,8 +93,6 @@ class SeriesDetailViewModelTest {
     private fun createBookEntity(
         id: String = "book-1",
         title: String = "Test Book",
-        seriesId: String = "series-1",
-        sequence: String? = "1",
     ): BookEntity =
         BookEntity(
             id = BookId(id),
@@ -102,9 +102,6 @@ class SeriesDetailViewModelTest {
             totalDuration = 3_600_000L,
             description = null,
             genres = null,
-            seriesId = seriesId,
-            seriesName = "Test Series",
-            sequence = sequence,
             publishYear = 2024,
             audioFilesJson = null,
             syncState = SyncState.SYNCED,
@@ -114,10 +111,23 @@ class SeriesDetailViewModelTest {
             updatedAt = Timestamp(1704067200000L),
         )
 
+    private fun createBookSeriesCrossRef(
+        bookId: String,
+        seriesId: String,
+        sequence: String? = null,
+    ): BookSeriesCrossRef =
+        BookSeriesCrossRef(
+            bookId = BookId(bookId),
+            seriesId = seriesId,
+            sequence = sequence,
+        )
+
     private fun createBook(
         id: String = "book-1",
         title: String = "Test Book",
         seriesSequence: String? = "1",
+        seriesId: String = "series-1",
+        seriesName: String = "Test Series",
     ): Book =
         Book(
             id = BookId(id),
@@ -129,7 +139,7 @@ class SeriesDetailViewModelTest {
             coverPath = null,
             addedAt = Timestamp(1704067200000L),
             updatedAt = Timestamp(1704067200000L),
-            seriesSequence = seriesSequence,
+            series = listOf(BookSeries(seriesId = seriesId, seriesName = seriesName, sequence = seriesSequence)),
         )
 
     @BeforeTest
@@ -190,7 +200,7 @@ class SeriesDetailViewModelTest {
 
             // When
             viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value = SeriesWithBooks(series = series, books = listOf(bookEntity))
+            fixture.seriesFlow.value = SeriesWithBooks(series = series, books = listOf(bookEntity), bookSequences = listOf(createBookSeriesCrossRef("book-1", "series-1", "1")))
             advanceUntilIdle()
 
             // Then
@@ -227,9 +237,9 @@ class SeriesDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val series = createSeriesEntity()
-            val book1Entity = createBookEntity(id = "book-1", title = "Book One", sequence = "1")
-            val book2Entity = createBookEntity(id = "book-2", title = "Book Two", sequence = "2")
-            val book3Entity = createBookEntity(id = "book-3", title = "Book Three", sequence = "1.5")
+            val book1Entity = createBookEntity(id = "book-1", title = "Book One")
+            val book2Entity = createBookEntity(id = "book-2", title = "Book Two")
+            val book3Entity = createBookEntity(id = "book-3", title = "Book Three")
 
             val book1 = createBook(id = "book-1", title = "Book One", seriesSequence = "1")
             val book2 = createBook(id = "book-2", title = "Book Two", seriesSequence = "2")
@@ -240,12 +250,17 @@ class SeriesDetailViewModelTest {
             everySuspend { fixture.bookRepository.getBook("book-3") } returns book3
             val viewModel = fixture.build()
 
-            // When - books come in unsorted order
+            // When - books come in unsorted order, sequence info in bookSequences
             viewModel.loadSeries("series-1")
             fixture.seriesFlow.value =
                 SeriesWithBooks(
                     series = series,
                     books = listOf(book2Entity, book3Entity, book1Entity), // Out of order
+                    bookSequences = listOf(
+                        createBookSeriesCrossRef("book-1", "series-1", "1"),
+                        createBookSeriesCrossRef("book-2", "series-1", "2"),
+                        createBookSeriesCrossRef("book-3", "series-1", "1.5"),
+                    ),
                 )
             advanceUntilIdle()
 
@@ -263,8 +278,8 @@ class SeriesDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val series = createSeriesEntity()
-            val book1Entity = createBookEntity(id = "book-1", title = "Numbered Book", sequence = "1")
-            val book2Entity = createBookEntity(id = "book-2", title = "Unnumbered Book", sequence = null)
+            val book1Entity = createBookEntity(id = "book-1", title = "Numbered Book")
+            val book2Entity = createBookEntity(id = "book-2", title = "Unnumbered Book")
 
             val book1 = createBook(id = "book-1", title = "Numbered Book", seriesSequence = "1")
             val book2 = createBook(id = "book-2", title = "Unnumbered Book", seriesSequence = null)
@@ -273,12 +288,16 @@ class SeriesDetailViewModelTest {
             everySuspend { fixture.bookRepository.getBook("book-2") } returns book2
             val viewModel = fixture.build()
 
-            // When
+            // When - sequence info in bookSequences (null for unnumbered)
             viewModel.loadSeries("series-1")
             fixture.seriesFlow.value =
                 SeriesWithBooks(
                     series = series,
                     books = listOf(book2Entity, book1Entity),
+                    bookSequences = listOf(
+                        createBookSeriesCrossRef("book-1", "series-1", "1"),
+                        createBookSeriesCrossRef("book-2", "series-1", null),
+                    ),
                 )
             advanceUntilIdle()
 
@@ -299,7 +318,7 @@ class SeriesDetailViewModelTest {
 
             // When
             viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value = SeriesWithBooks(series = series, books = emptyList())
+            fixture.seriesFlow.value = SeriesWithBooks(series = series, books = emptyList(), bookSequences = emptyList())
             advanceUntilIdle()
 
             // Then
@@ -327,6 +346,7 @@ class SeriesDetailViewModelTest {
                 SeriesWithBooks(
                     series = series,
                     books = listOf(book1Entity, book2Entity),
+                    bookSequences = emptyList(),
                 )
             advanceUntilIdle()
 
@@ -346,7 +366,7 @@ class SeriesDetailViewModelTest {
 
             // When
             viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value = SeriesWithBooks(series = series, books = emptyList())
+            fixture.seriesFlow.value = SeriesWithBooks(series = series, books = emptyList(), bookSequences = emptyList())
             advanceUntilIdle()
 
             // Then
@@ -367,12 +387,12 @@ class SeriesDetailViewModelTest {
 
             // When - first emission
             viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value = SeriesWithBooks(series = series1, books = emptyList())
+            fixture.seriesFlow.value = SeriesWithBooks(series = series1, books = emptyList(), bookSequences = emptyList())
             advanceUntilIdle()
             assertEquals("Original Name", viewModel.state.value.seriesName)
 
             // When - second emission (simulating sync update)
-            fixture.seriesFlow.value = SeriesWithBooks(series = series2, books = emptyList())
+            fixture.seriesFlow.value = SeriesWithBooks(series = series2, books = emptyList(), bookSequences = emptyList())
             advanceUntilIdle()
 
             // Then

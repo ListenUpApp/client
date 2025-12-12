@@ -13,6 +13,7 @@ import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.model.Contributor
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -217,7 +218,21 @@ class BookRepository(
                 )
             }
 
-        return book.toDomain(imageStorage, authors, narrators, allContributors)
+        // Get series with their sequences
+        val seriesById = series.associateBy { it.id }
+        val bookSeriesList =
+            seriesSequences
+                .mapNotNull { crossRef ->
+                    seriesById[crossRef.seriesId]?.let { seriesEntity ->
+                        BookSeries(
+                            seriesId = seriesEntity.id,
+                            seriesName = seriesEntity.name,
+                            sequence = crossRef.sequence,
+                        )
+                    }
+                }
+
+        return book.toDomain(imageStorage, authors, narrators, allContributors, bookSeriesList)
     }
 
     private fun BookEntity.toDomain(
@@ -225,6 +240,7 @@ class BookRepository(
         authors: List<Contributor>,
         narrators: List<Contributor>,
         allContributors: List<Contributor>,
+        series: List<BookSeries>,
     ): Book =
         Book(
             id = this.id,
@@ -239,9 +255,7 @@ class BookRepository(
             updatedAt = this.updatedAt,
             description = this.description,
             genres = this.genres,
-            seriesId = this.seriesId,
-            seriesName = this.seriesName,
-            seriesSequence = this.sequence,
+            series = series,
             publishYear = this.publishYear,
             rating = null, // Rating is not directly stored in BookEntity yet, default to null
         )

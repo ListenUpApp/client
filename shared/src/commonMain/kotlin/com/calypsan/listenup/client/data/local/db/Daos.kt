@@ -59,9 +59,9 @@ interface SeriesDao {
      */
     @Query(
         """
-        SELECT s.*, COUNT(b.id) as bookCount
+        SELECT s.*, COUNT(bs.bookId) as bookCount
         FROM series s
-        LEFT JOIN books b ON s.id = b.seriesId
+        LEFT JOIN book_series bs ON s.id = bs.seriesId
         GROUP BY s.id
         ORDER BY s.name ASC
     """,

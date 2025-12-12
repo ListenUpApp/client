@@ -295,6 +295,41 @@ interface ListenUpApiContract {
         bookId: String,
         contributors: List<ContributorInput>,
     ): Result<BookEditResponse>
+
+    /**
+     * Search series for autocomplete during book editing.
+     *
+     * Uses server-side Bleve search for O(log n) performance with:
+     * - Prefix matching ("mist" → "Mistborn")
+     * - Word matching
+     * - Fuzzy matching for typo tolerance
+     *
+     * @param query Search query (min 2 characters recommended)
+     * @param limit Maximum results to return (default 10, max 50)
+     * @return Result containing list of matching series
+     */
+    suspend fun searchSeries(
+        query: String,
+        limit: Int = 10,
+    ): Result<List<SeriesSearchResult>>
+
+    /**
+     * Set book series (replaces all existing series relationships).
+     *
+     * Series are matched by name:
+     * - Existing series with same name → linked
+     * - New name → series created automatically
+     *
+     * Orphaned series (no books) are automatically cleaned up.
+     *
+     * @param bookId Book to update
+     * @param series New list of series with sequence numbers
+     * @return Result containing the updated book
+     */
+    suspend fun setBookSeries(
+        bookId: String,
+        series: List<SeriesInput>,
+    ): Result<BookEditResponse>
 }
 
 /**
@@ -304,6 +339,18 @@ interface ListenUpApiContract {
  * Used when editing book contributors to find existing contributors to link.
  */
 data class ContributorSearchResult(
+    val id: String,
+    val name: String,
+    val bookCount: Int,
+)
+
+/**
+ * Series search result for autocomplete.
+ *
+ * Lightweight representation returned by series search endpoint.
+ * Used when editing book series to find existing series to link.
+ */
+data class SeriesSearchResult(
     val id: String,
     val name: String,
     val bookCount: Int,
@@ -337,6 +384,14 @@ data class BookUpdateRequest(
 data class ContributorInput(
     val name: String,
     val roles: List<String>,
+)
+
+/**
+ * Series with sequence for setting book series.
+ */
+data class SeriesInput(
+    val name: String,
+    val sequence: String?,
 )
 
 /**

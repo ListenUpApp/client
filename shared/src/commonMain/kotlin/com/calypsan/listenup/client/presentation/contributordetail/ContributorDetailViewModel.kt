@@ -140,9 +140,8 @@ class ContributorDetailViewModel(
             updatedAt = book.updatedAt,
             description = book.description,
             genres = book.genres,
-            seriesId = book.seriesId,
-            seriesName = book.seriesName,
-            seriesSequence = book.sequence,
+            // Series loaded via junction table - not available in this simple mapper
+            series = emptyList(),
             publishYear = book.publishYear,
             rating = null,
         )

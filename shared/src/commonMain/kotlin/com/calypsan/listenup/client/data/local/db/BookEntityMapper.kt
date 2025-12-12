@@ -40,9 +40,8 @@ fun BookEntity.toDomain(
         updatedAt = updatedAt,
         description = description,
         genres = genres,
-        seriesId = seriesId,
-        seriesName = seriesName,
-        seriesSequence = sequence,
+        // Series loaded via junction table - not available in this simple mapper
+        series = emptyList(),
         publishYear = publishYear,
         rating = null,
     )

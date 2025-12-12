@@ -21,6 +21,8 @@ import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.data.repository.ContributorRepository
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
+import com.calypsan.listenup.client.data.repository.SeriesRepository
+import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
 import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
@@ -137,6 +139,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().seriesDao() }
         single { get<ListenUpDatabase>().contributorDao() }
         single { get<ListenUpDatabase>().bookContributorDao() }
+        single { get<ListenUpDatabase>().bookSeriesDao() }
         single { get<ListenUpDatabase>().playbackPositionDao() }
         single { get<ListenUpDatabase>().pendingListeningEventDao() }
         single { get<ListenUpDatabase>().downloadDao() }
@@ -228,6 +231,7 @@ val presentationModule =
                 bookRepository = get(),
                 bookEditRepository = get(),
                 contributorRepository = get(),
+                seriesRepository = get(),
             )
         }
     }
@@ -314,6 +318,7 @@ val syncModule =
                 contributorDao = get(),
                 chapterDao = get(),
                 bookContributorDao = get(),
+                bookSeriesDao = get(),
                 syncDao = get(),
                 imageDownloader = get(),
                 sseManager = get(),
@@ -364,6 +369,15 @@ val syncModule =
                 networkMonitor = get(),
             )
         } bind ContributorRepositoryContract::class
+
+        // SeriesRepository for series search with offline fallback
+        single {
+            SeriesRepository(
+                api = get(),
+                searchDao = get(),
+                networkMonitor = get(),
+            )
+        } bind SeriesRepositoryContract::class
 
         // BookEditRepository for book editing operations
         single {

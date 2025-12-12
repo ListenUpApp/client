@@ -7,6 +7,7 @@ import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.Tag
@@ -90,8 +91,14 @@ class BookDetailViewModelTest {
         seriesSequence: String? = null,
         publishYear: Int? = 2024,
         rating: Double? = 4.5,
-    ): Book =
-        Book(
+    ): Book {
+        val seriesList =
+            if (seriesId != null && seriesName != null) {
+                listOf(BookSeries(seriesId = seriesId, seriesName = seriesName, sequence = seriesSequence))
+            } else {
+                emptyList()
+            }
+        return Book(
             id = BookId(id),
             title = title,
             subtitle = subtitle,
@@ -103,12 +110,11 @@ class BookDetailViewModelTest {
             updatedAt = Timestamp(1704067200000L),
             description = description,
             genres = genres,
-            seriesId = seriesId,
-            seriesName = seriesName,
-            seriesSequence = seriesSequence,
+            series = seriesList,
             publishYear = publishYear,
             rating = rating,
         )
+    }
 
     private fun createChapter(
         id: String = "chapter-1",
@@ -231,6 +237,7 @@ class BookDetailViewModelTest {
             val book =
                 createBook(
                     subtitle = "The Stormlight Archive, Book 1",
+                    seriesId = "series-1",
                     seriesName = "The Stormlight Archive",
                     seriesSequence = "1",
                 )

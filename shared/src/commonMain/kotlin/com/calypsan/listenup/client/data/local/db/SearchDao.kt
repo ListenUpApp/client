@@ -198,4 +198,19 @@ interface SearchDao {
     """,
     )
     suspend fun getPrimaryNarratorName(bookId: String): String?
+
+    /**
+     * Get series names for a book (comma-separated).
+     *
+     * Returns names of all series the book belongs to, joined with comma.
+     * Used for FTS indexing to make books searchable by series name.
+     */
+    @Query(
+        """
+        SELECT GROUP_CONCAT(s.name, ', ') FROM series s
+        INNER JOIN book_series bs ON s.id = bs.seriesId
+        WHERE bs.bookId = :bookId
+    """,
+    )
+    suspend fun getSeriesNamesForBook(bookId: String): String?
 }

@@ -63,9 +63,6 @@ class BookRepositoryTest {
         totalDuration: Long = 3_600_000L,
         description: String? = null,
         genres: String? = null,
-        seriesId: String? = null,
-        seriesName: String? = null,
-        sequence: String? = null,
         publishYear: Int? = null,
     ): BookEntity =
         BookEntity(
@@ -76,9 +73,6 @@ class BookRepositoryTest {
             totalDuration = totalDuration,
             description = description,
             genres = genres,
-            seriesId = seriesId,
-            seriesName = seriesName,
-            sequence = sequence,
             publishYear = publishYear,
             audioFilesJson = null,
             syncState = SyncState.SYNCED,
@@ -154,6 +148,8 @@ class BookRepositoryTest {
                     book = bookEntity,
                     contributors = emptyList(),
                     contributorRoles = emptyList(),
+                    series = emptyList(),
+                    seriesSequences = emptyList(),
                 )
             val fixture = createFixture()
             every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
@@ -180,6 +176,8 @@ class BookRepositoryTest {
                     book = bookEntity,
                     contributors = emptyList(),
                     contributorRoles = emptyList(),
+                    series = emptyList(),
+                    seriesSequences = emptyList(),
                 )
             val fixture = createFixture()
             every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
@@ -204,6 +202,8 @@ class BookRepositoryTest {
                     book = bookEntity,
                     contributors = emptyList(),
                     contributorRoles = emptyList(),
+                    series = emptyList(),
+                    seriesSequences = emptyList(),
                 )
             val fixture = createFixture()
             every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
@@ -234,6 +234,8 @@ class BookRepositoryTest {
                     book = bookEntity,
                     contributors = listOf(author),
                     contributorRoles = listOf(crossRef),
+                    series = emptyList(),
+                    seriesSequences = emptyList(),
                 )
             val fixture = createFixture()
             every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
@@ -271,6 +273,8 @@ class BookRepositoryTest {
                     book = bookEntity,
                     contributors = listOf(narrator),
                     contributorRoles = listOf(crossRef),
+                    series = emptyList(),
+                    seriesSequences = emptyList(),
                 )
             val fixture = createFixture()
             every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
@@ -314,6 +318,8 @@ class BookRepositoryTest {
                     book = bookEntity,
                     contributors = listOf(contributor),
                     contributorRoles = listOf(authorRole, narratorRole),
+                    series = emptyList(),
+                    seriesSequences = emptyList(),
                 )
             val fixture = createFixture()
             every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
@@ -354,6 +360,8 @@ class BookRepositoryTest {
                     book = bookEntity,
                     contributors = listOf(author1, author2, narrator),
                     contributorRoles = listOf(authorRole1, authorRole2, narratorRole),
+                    series = emptyList(),
+                    seriesSequences = emptyList(),
                 )
             val fixture = createFixture()
             every { fixture.bookDao.observeAllWithContributors() } returns flowOf(listOf(bookWithContributors))
@@ -451,6 +459,8 @@ class BookRepositoryTest {
                     book = bookEntity,
                     contributors = emptyList(),
                     contributorRoles = emptyList(),
+                    series = emptyList(),
+                    seriesSequences = emptyList(),
                 )
             val fixture = createFixture()
             everySuspend { fixture.bookDao.getByIdWithContributors(BookId("book-1")) } returns bookWithContributors
@@ -475,6 +485,8 @@ class BookRepositoryTest {
                     book = bookEntity,
                     contributors = emptyList(),
                     contributorRoles = emptyList(),
+                    series = emptyList(),
+                    seriesSequences = emptyList(),
                 )
             val fixture = createFixture()
             everySuspend { fixture.bookDao.getByIdWithContributors(BookId("book-1")) } returns bookWithContributors

@@ -116,9 +116,6 @@ class ContributorDetailViewModelTest {
             totalDuration = duration,
             description = null,
             genres = null,
-            seriesId = null,
-            seriesName = null,
-            sequence = null,
             publishYear = 2024,
             audioFilesJson = null,
             syncState = SyncState.SYNCED,
@@ -137,6 +134,8 @@ class ContributorDetailViewModelTest {
             book = bookEntity,
             contributors = contributors,
             contributorRoles = roles,
+            series = emptyList(),
+            seriesSequences = emptyList(),
         )
 
     private fun createPlaybackPosition(

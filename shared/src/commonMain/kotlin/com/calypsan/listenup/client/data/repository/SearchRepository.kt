@@ -285,7 +285,7 @@ private fun BookEntity.toSearchHit(imageStorage: ImageStorage): SearchHit {
         subtitle = subtitle,
         author = null, // Would need join - acceptable for offline
         narrator = null,
-        seriesName = seriesName,
+        seriesName = null, // Series now in junction table - acceptable for offline
         duration = totalDuration,
         bookCount = null,
         coverPath = coverPath,

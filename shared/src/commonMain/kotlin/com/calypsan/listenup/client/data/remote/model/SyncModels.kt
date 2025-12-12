@@ -107,12 +107,14 @@ data class BookResponse(
     // Milliseconds
     @SerialName("total_duration")
     val totalDuration: Long,
+    // Multiple series (many-to-many with sequence per series)
+    @SerialName("series_info")
+    val seriesInfo: List<BookSeriesInfoResponse> = emptyList(),
+    // Legacy single series fields (backward compat, will be deprecated)
     @SerialName("series_id")
     val seriesId: String? = null,
-    // Denormalized series name
     @SerialName("series_name")
     val seriesName: String? = null,
-    // Series sequence (e.g., "1", "1.5")
     @SerialName("sequence")
     val sequence: String? = null,
     @SerialName("chapters")
@@ -129,6 +131,20 @@ data class BookContributorResponse(
     val name: String,
     @SerialName("roles")
     val roles: List<String>,
+)
+
+/**
+ * Series relationship for a book (many-to-many).
+ * A book can belong to multiple series with different sequences.
+ */
+@Serializable
+data class BookSeriesInfoResponse(
+    @SerialName("series_id")
+    val seriesId: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("sequence")
+    val sequence: String? = null,
 )
 
 @Serializable

@@ -12,6 +12,15 @@ import com.calypsan.listenup.client.data.local.db.Timestamp
  * Cover images are stored locally and accessed via file paths generated
  * by ImageStorage. No network access needed for display.
  */
+/**
+ * Series membership with position within that series.
+ */
+data class BookSeries(
+    val seriesId: String,
+    val seriesName: String,
+    val sequence: String? = null, // e.g., "1", "1.5"
+)
+
 data class Book(
     val id: BookId,
     val title: String,
@@ -25,12 +34,16 @@ data class Book(
     val updatedAt: Timestamp,
     val description: String? = null,
     val genres: String? = null, // Comma-separated string
-    val seriesId: String? = null,
-    val seriesName: String? = null,
-    val seriesSequence: String? = null, // e.g., "1", "1.5"
+    // Multiple series support (many-to-many)
+    val series: List<BookSeries> = emptyList(),
     val publishYear: Int? = null,
     val rating: Double? = null,
 ) {
+    // Convenience properties for backward compatibility with single-series UI code
+    val seriesId: String? get() = series.firstOrNull()?.seriesId
+    val seriesName: String? get() = series.firstOrNull()?.seriesName
+    val seriesSequence: String? get() = series.firstOrNull()?.sequence
+
     /**
      * Format duration as human-readable string.
      * Example: "2h 34m" or "45m"
@@ -52,17 +65,19 @@ data class Book(
     /**
      * Combines series name and sequence for display, e.g., "A Song of Ice and Fire #1".
      * Returns null if no series name is available.
+     * Uses first series if book belongs to multiple series.
      */
-    @Suppress("UseLet") // if/else chain is clearer here
     val fullSeriesTitle: String?
-        get() =
-            if (seriesName != null && seriesSequence != null && seriesSequence.isNotBlank()) {
-                "$seriesName #$seriesSequence"
-            } else if (seriesName != null) {
-                seriesName
+        get() {
+            val firstSeries = series.firstOrNull() ?: return null
+            val name = firstSeries.seriesName
+            val seq = firstSeries.sequence
+            return if (seq != null && seq.isNotBlank()) {
+                "$name #$seq"
             } else {
-                null
+                name
             }
+        }
 
     /**
      * Helper to get comma-separated author names for display.

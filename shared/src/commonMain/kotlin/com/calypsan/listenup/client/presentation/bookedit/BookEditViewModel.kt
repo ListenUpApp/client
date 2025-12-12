@@ -7,9 +7,13 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.remote.BookUpdateRequest
 import com.calypsan.listenup.client.data.remote.ContributorInput
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
+import com.calypsan.listenup.client.data.remote.SeriesInput
+import com.calypsan.listenup.client.data.remote.SeriesSearchResult
 import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
+import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
+import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Contributor
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.FlowPreview
@@ -60,6 +64,15 @@ enum class ContributorRole(val displayName: String, val apiValue: String) {
 }
 
 /**
+ * Series membership for editing.
+ */
+data class EditableSeries(
+    val id: String? = null, // null for newly added series
+    val name: String,
+    val sequence: String? = null, // e.g., "1", "1.5"
+)
+
+/**
  * UI state for book editing screen.
  */
 data class BookEditUiState(
@@ -73,12 +86,17 @@ data class BookEditUiState(
     val title: String = "",
     val subtitle: String = "",
     val description: String = "",
-    val seriesName: String? = null,
-    val seriesSequence: String = "",
     val publishYear: String = "",
 
     // Contributors
     val contributors: List<EditableContributor> = emptyList(),
+
+    // Series (multi-series support)
+    val series: List<EditableSeries> = emptyList(),
+    val seriesSearchQuery: String = "",
+    val seriesSearchResults: List<SeriesSearchResult> = emptyList(),
+    val seriesSearchLoading: Boolean = false,
+    val seriesOfflineResult: Boolean = false,
 
     // Per-role search state (replaces single search)
     val roleSearchQueries: Map<ContributorRole, String> = emptyMap(),
@@ -125,8 +143,15 @@ sealed interface BookEditUiEvent {
     data class TitleChanged(val title: String) : BookEditUiEvent
     data class SubtitleChanged(val subtitle: String) : BookEditUiEvent
     data class DescriptionChanged(val description: String) : BookEditUiEvent
-    data class SeriesSequenceChanged(val sequence: String) : BookEditUiEvent
     data class PublishYearChanged(val year: String) : BookEditUiEvent
+
+    // Series management
+    data class SeriesSearchQueryChanged(val query: String) : BookEditUiEvent
+    data class SeriesSelected(val result: SeriesSearchResult) : BookEditUiEvent
+    data class SeriesEntered(val name: String) : BookEditUiEvent
+    data class SeriesSequenceChanged(val series: EditableSeries, val sequence: String) : BookEditUiEvent
+    data class RemoveSeries(val series: EditableSeries) : BookEditUiEvent
+    data object ClearSeriesSearch : BookEditUiEvent
 
     // Per-role contributor management
     data class RoleSearchQueryChanged(val role: ContributorRole, val query: String) : BookEditUiEvent
@@ -169,6 +194,7 @@ class BookEditViewModel(
     private val bookRepository: BookRepositoryContract,
     private val bookEditRepository: BookEditRepositoryContract,
     private val contributorRepository: ContributorRepositoryContract,
+    private val seriesRepository: SeriesRepositoryContract,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BookEditUiState())
     val state: StateFlow<BookEditUiState> = _state.asStateFlow()
@@ -180,13 +206,17 @@ class BookEditViewModel(
     private val roleQueryFlows = mutableMapOf<ContributorRole, MutableStateFlow<String>>()
     private val roleSearchJobs = mutableMapOf<ContributorRole, Job>()
 
+    // Series search flow
+    private val seriesQueryFlow = MutableStateFlow("")
+    private var seriesSearchJob: Job? = null
+
     // Track original values for change detection
     private var originalTitle: String = ""
     private var originalSubtitle: String = ""
     private var originalDescription: String = ""
-    private var originalSequence: String = ""
     private var originalPublishYear: String = ""
     private var originalContributors: List<EditableContributor> = emptyList()
+    private var originalSeries: List<EditableSeries> = emptyList()
 
     /**
      * Set up debounced search for a specific role.
@@ -211,6 +241,32 @@ class BookEditViewModel(
                     }
                 } else {
                     performRoleSearch(role, query)
+                }
+            }.launchIn(viewModelScope)
+    }
+
+    init {
+        setupSeriesSearch()
+    }
+
+    /**
+     * Set up debounced search for series.
+     */
+    private fun setupSeriesSearch() {
+        seriesQueryFlow
+            .debounce(300)
+            .distinctUntilChanged()
+            .filter { it.length >= 2 || it.isEmpty() }
+            .onEach { query ->
+                if (query.isBlank()) {
+                    _state.update {
+                        it.copy(
+                            seriesSearchResults = emptyList(),
+                            seriesSearchLoading = false,
+                        )
+                    }
+                } else {
+                    performSeriesSearch(query)
                 }
             }.launchIn(viewModelScope)
     }
@@ -252,13 +308,22 @@ class BookEditViewModel(
                 setupRoleSearch(role)
             }
 
+            // Convert domain series to editable format
+            val editableSeries = book.series.map { s ->
+                EditableSeries(
+                    id = s.seriesId,
+                    name = s.seriesName,
+                    sequence = s.sequence,
+                )
+            }
+
             // Store original values
             originalTitle = book.title
             originalSubtitle = book.subtitle ?: ""
             originalDescription = book.description ?: ""
-            originalSequence = book.seriesSequence ?: ""
             originalPublishYear = book.publishYear?.toString() ?: ""
             originalContributors = editableContributors
+            originalSeries = editableSeries
 
             _state.update {
                 it.copy(
@@ -266,10 +331,9 @@ class BookEditViewModel(
                     title = book.title,
                     subtitle = book.subtitle ?: "",
                     description = book.description ?: "",
-                    seriesName = book.seriesName,
-                    seriesSequence = book.seriesSequence ?: "",
                     publishYear = book.publishYear?.toString() ?: "",
                     contributors = editableContributors,
+                    series = editableSeries,
                     visibleRoles = initialVisibleRoles,
                     hasChanges = false,
                 )
@@ -299,16 +363,43 @@ class BookEditViewModel(
                 updateHasChanges()
             }
 
-            is BookEditUiEvent.SeriesSequenceChanged -> {
-                _state.update { it.copy(seriesSequence = event.sequence) }
-                updateHasChanges()
-            }
-
             is BookEditUiEvent.PublishYearChanged -> {
                 // Only allow numeric input
                 val filtered = event.year.filter { it.isDigit() }.take(4)
                 _state.update { it.copy(publishYear = filtered) }
                 updateHasChanges()
+            }
+
+            // Series events
+            is BookEditUiEvent.SeriesSearchQueryChanged -> {
+                _state.update { it.copy(seriesSearchQuery = event.query) }
+                seriesQueryFlow.value = event.query
+            }
+
+            is BookEditUiEvent.SeriesSelected -> {
+                selectSeries(event.result)
+            }
+
+            is BookEditUiEvent.SeriesEntered -> {
+                addSeries(event.name)
+            }
+
+            is BookEditUiEvent.SeriesSequenceChanged -> {
+                updateSeriesSequence(event.series, event.sequence)
+            }
+
+            is BookEditUiEvent.RemoveSeries -> {
+                removeSeries(event.series)
+            }
+
+            is BookEditUiEvent.ClearSeriesSearch -> {
+                _state.update {
+                    it.copy(
+                        seriesSearchQuery = "",
+                        seriesSearchResults = emptyList(),
+                    )
+                }
+                seriesQueryFlow.value = ""
             }
 
             is BookEditUiEvent.RoleSearchQueryChanged -> {
@@ -550,14 +641,121 @@ class BookEditViewModel(
         updateHasChanges()
     }
 
+    // ========== Series Helper Methods ==========
+
+    private fun performSeriesSearch(query: String) {
+        seriesSearchJob?.cancel()
+        seriesSearchJob = viewModelScope.launch {
+            _state.update { it.copy(seriesSearchLoading = true) }
+
+            val response = seriesRepository.searchSeries(query, limit = 10)
+
+            // Filter out series already added to this book
+            val currentSeriesIds = _state.value.series.mapNotNull { it.id }.toSet()
+            val filteredResults = response.series.filter { it.id !in currentSeriesIds }
+
+            _state.update {
+                it.copy(
+                    seriesSearchResults = filteredResults,
+                    seriesSearchLoading = false,
+                    seriesOfflineResult = response.isOfflineResult,
+                )
+            }
+
+            logger.debug { "Series search: ${filteredResults.size} results for '$query'" }
+        }
+    }
+
+    private fun selectSeries(result: SeriesSearchResult) {
+        _state.update { current ->
+            // Check if series already exists
+            val existing = current.series.find { it.id == result.id }
+            if (existing != null) {
+                // Already added - just clear search
+                return@update current.copy(
+                    seriesSearchQuery = "",
+                    seriesSearchResults = emptyList(),
+                )
+            }
+
+            // Add new series
+            val newSeries = EditableSeries(
+                id = result.id,
+                name = result.name,
+                sequence = null,
+            )
+            current.copy(
+                series = current.series + newSeries,
+                seriesSearchQuery = "",
+                seriesSearchResults = emptyList(),
+            )
+        }
+
+        seriesQueryFlow.value = ""
+        updateHasChanges()
+    }
+
+    private fun addSeries(name: String) {
+        if (name.isBlank()) return
+
+        val trimmedName = name.trim()
+
+        _state.update { current ->
+            // Check if series already exists (by name)
+            val existing = current.series.find {
+                it.name.equals(trimmedName, ignoreCase = true)
+            }
+            if (existing != null) {
+                // Already added - just clear search
+                return@update current.copy(
+                    seriesSearchQuery = "",
+                    seriesSearchResults = emptyList(),
+                )
+            }
+
+            // Add new series (no ID = will be created on server)
+            val newSeries = EditableSeries(
+                id = null,
+                name = trimmedName,
+                sequence = null,
+            )
+            current.copy(
+                series = current.series + newSeries,
+                seriesSearchQuery = "",
+                seriesSearchResults = emptyList(),
+            )
+        }
+
+        seriesQueryFlow.value = ""
+        updateHasChanges()
+    }
+
+    private fun updateSeriesSequence(targetSeries: EditableSeries, sequence: String) {
+        _state.update { current ->
+            current.copy(
+                series = current.series.map {
+                    if (it == targetSeries) it.copy(sequence = sequence.ifBlank { null }) else it
+                },
+            )
+        }
+        updateHasChanges()
+    }
+
+    private fun removeSeries(targetSeries: EditableSeries) {
+        _state.update { current ->
+            current.copy(series = current.series - targetSeries)
+        }
+        updateHasChanges()
+    }
+
     private fun updateHasChanges() {
         val current = _state.value
         val hasChanges = current.title != originalTitle ||
             current.subtitle != originalSubtitle ||
             current.description != originalDescription ||
-            current.seriesSequence != originalSequence ||
             current.publishYear != originalPublishYear ||
-            current.contributors != originalContributors
+            current.contributors != originalContributors ||
+            current.series != originalSeries
 
         _state.update { it.copy(hasChanges = hasChanges) }
     }
@@ -577,7 +775,6 @@ class BookEditViewModel(
                 val metadataChanged = current.title != originalTitle ||
                     current.subtitle != originalSubtitle ||
                     current.description != originalDescription ||
-                    current.seriesSequence != originalSequence ||
                     current.publishYear != originalPublishYear
 
                 if (metadataChanged) {
@@ -585,7 +782,6 @@ class BookEditViewModel(
                         title = if (current.title != originalTitle) current.title else null,
                         subtitle = if (current.subtitle != originalSubtitle) current.subtitle else null,
                         description = if (current.description != originalDescription) current.description else null,
-                        sequence = if (current.seriesSequence != originalSequence) current.seriesSequence else null,
                         publishYear = if (current.publishYear != originalPublishYear) current.publishYear.ifBlank { null } else null,
                     )
 
@@ -617,8 +813,27 @@ class BookEditViewModel(
                     }
                 }
 
-                _state.update { it.copy(isSaving = false) }
-                _navActions.value = BookEditNavAction.ShowSaveSuccess("Changes saved")
+                // Update series
+                val seriesChanged = current.series != originalSeries
+                if (seriesChanged) {
+                    val seriesInputs = current.series.map { editable ->
+                        SeriesInput(
+                            name = editable.name,
+                            sequence = editable.sequence,
+                        )
+                    }
+
+                    when (val result = bookEditRepository.setBookSeries(current.bookId, seriesInputs)) {
+                        is Success -> logger.info { "Book series updated" }
+                        is Failure -> {
+                            _state.update { it.copy(isSaving = false, error = "Failed to save series: ${result.message}") }
+                            return@launch
+                        }
+                    }
+                }
+
+                _state.update { it.copy(isSaving = false, hasChanges = false) }
+                _navActions.value = BookEditNavAction.NavigateBack
 
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save book changes" }

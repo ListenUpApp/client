@@ -303,3 +303,94 @@ val MIGRATION_8_9 =
             )
         }
     }
+
+/**
+ * Migration from version 9 to version 10.
+ *
+ * Changes:
+ * - Add book_series junction table for many-to-many book-series relationships
+ * - Migrate existing seriesId/sequence data from books to book_series
+ * - Remove seriesId, seriesName, sequence columns from books table
+ *
+ * A book can now belong to multiple series (e.g., "Mistborn", "Mistborn Era 1", "The Cosmere").
+ */
+val MIGRATION_9_10 =
+    object : Migration(9, 10) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create book_series junction table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS book_series (
+                    bookId TEXT NOT NULL,
+                    seriesId TEXT NOT NULL,
+                    sequence TEXT,
+                    PRIMARY KEY (bookId, seriesId),
+                    FOREIGN KEY (bookId) REFERENCES books(id) ON DELETE CASCADE,
+                    FOREIGN KEY (seriesId) REFERENCES series(id) ON DELETE CASCADE
+                )
+                """.trimIndent(),
+            )
+
+            // Create indices for efficient lookups
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_book_series_bookId ON book_series(bookId)
+                """.trimIndent(),
+            )
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_book_series_seriesId ON book_series(seriesId)
+                """.trimIndent(),
+            )
+
+            // Migrate existing book-series relationships from books table
+            connection.execSQL(
+                """
+                INSERT INTO book_series (bookId, seriesId, sequence)
+                SELECT id, seriesId, sequence FROM books WHERE seriesId IS NOT NULL AND seriesId != ''
+                """.trimIndent(),
+            )
+
+            // SQLite doesn't support DROP COLUMN in older versions, so we rebuild the table
+            // Create new books table without series columns
+            connection.execSQL(
+                """
+                CREATE TABLE books_new (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    title TEXT NOT NULL,
+                    subtitle TEXT,
+                    coverUrl TEXT,
+                    totalDuration INTEGER NOT NULL,
+                    description TEXT,
+                    genres TEXT,
+                    publishYear INTEGER,
+                    audioFilesJson TEXT,
+                    syncState INTEGER NOT NULL,
+                    lastModified INTEGER NOT NULL,
+                    serverVersion INTEGER,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+
+            // Copy data to new table (excluding series columns)
+            connection.execSQL(
+                """
+                INSERT INTO books_new (id, title, subtitle, coverUrl, totalDuration, description, genres, publishYear, audioFilesJson, syncState, lastModified, serverVersion, createdAt, updatedAt)
+                SELECT id, title, subtitle, coverUrl, totalDuration, description, genres, publishYear, audioFilesJson, syncState, lastModified, serverVersion, createdAt, updatedAt FROM books
+                """.trimIndent(),
+            )
+
+            // Drop old table and rename new one
+            connection.execSQL("DROP TABLE books")
+            connection.execSQL("ALTER TABLE books_new RENAME TO books")
+
+            // Recreate index on syncState
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_books_syncState ON books(syncState)
+                """.trimIndent(),
+            )
+        }
+    }

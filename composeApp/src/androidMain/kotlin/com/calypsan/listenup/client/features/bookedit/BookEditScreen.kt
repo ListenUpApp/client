@@ -56,6 +56,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
+import com.calypsan.listenup.client.data.remote.SeriesSearchResult
 import com.calypsan.listenup.client.design.components.AutocompleteResultItem
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
@@ -68,6 +69,7 @@ import com.calypsan.listenup.client.presentation.bookedit.BookEditUiState
 import com.calypsan.listenup.client.presentation.bookedit.BookEditViewModel
 import com.calypsan.listenup.client.presentation.bookedit.ContributorRole
 import com.calypsan.listenup.client.presentation.bookedit.EditableContributor
+import com.calypsan.listenup.client.presentation.bookedit.EditableSeries
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -89,11 +91,9 @@ import org.koin.compose.viewmodel.koinViewModel
 fun BookEditScreen(
     bookId: String,
     onBackClick: () -> Unit,
-    onSaveSuccess: () -> Unit,
+    onSaveSuccess: () -> Unit = {},
     viewModel: BookEditViewModel = koinViewModel(),
 ) {
-    val snackbarHostState = LocalSnackbarHostState.current
-
     LaunchedEffect(bookId) {
         viewModel.loadBook(bookId)
     }
@@ -103,14 +103,14 @@ fun BookEditScreen(
 
     // Handle navigation actions
     LaunchedEffect(navAction) {
-        when (val action = navAction) {
+        when (navAction) {
             is BookEditNavAction.NavigateBack -> {
                 onBackClick()
                 viewModel.clearNavAction()
             }
             is BookEditNavAction.ShowSaveSuccess -> {
-                snackbarHostState.showSnackbar(action.message)
-                onSaveSuccess()
+                // Save success now navigates back directly
+                onBackClick()
                 viewModel.clearNavAction()
             }
             null -> { /* no action */ }
@@ -224,6 +224,7 @@ fun BookEditScreen(
             onDismissRequest = { showUnsavedChangesDialog = false },
             title = { Text("Unsaved Changes") },
             text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
+            shape = MaterialTheme.shapes.large,
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -260,6 +261,14 @@ private fun BookEditContent(
     ) {
         // Metadata Section
         MetadataSection(
+            state = state,
+            onEvent = onEvent,
+        )
+
+        HorizontalDivider()
+
+        // Series Section
+        SeriesSection(
             state = state,
             onEvent = onEvent,
         )
@@ -311,34 +320,6 @@ private fun MetadataSection(
             placeholder = "Enter a description...",
         )
 
-        // Series info (read-only name, editable sequence)
-        state.seriesName?.let { seriesName ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                // Series name is read-only, use OutlinedTextField with weight
-                OutlinedTextField(
-                    value = seriesName,
-                    onValueChange = { },
-                    label = { Text("Series") },
-                    singleLine = true,
-                    readOnly = true,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.weight(2f),
-                )
-                // Series sequence uses OutlinedTextField for weight support
-                OutlinedTextField(
-                    value = state.seriesSequence,
-                    onValueChange = { onEvent(BookEditUiEvent.SeriesSequenceChanged(it)) },
-                    label = { Text("Book #") },
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-
         // Publish Year
         ListenUpTextField(
             value = state.publishYear,
@@ -346,6 +327,141 @@ private fun MetadataSection(
             label = "Publish Year",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.width(150.dp),
+        )
+    }
+}
+
+/**
+ * Series editing section with search.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SeriesSection(
+    state: BookEditUiState,
+    onEvent: (BookEditUiEvent) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = "Series",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+
+        // Existing series chips with sequence editing
+        if (state.series.isNotEmpty()) {
+            state.series.forEach { series ->
+                SeriesChipWithSequence(
+                    series = series,
+                    onSequenceChange = { sequence ->
+                        onEvent(BookEditUiEvent.SeriesSequenceChanged(series, sequence))
+                    },
+                    onRemove = { onEvent(BookEditUiEvent.RemoveSeries(series)) },
+                )
+            }
+        }
+
+        // Offline indicator
+        if (state.seriesOfflineResult && state.seriesSearchResults.isNotEmpty()) {
+            Text(
+                text = "Showing offline results",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // Search field with autocomplete
+        ListenUpAutocompleteField(
+            value = state.seriesSearchQuery,
+            onValueChange = { onEvent(BookEditUiEvent.SeriesSearchQueryChanged(it)) },
+            results = state.seriesSearchResults,
+            onResultSelected = { result -> onEvent(BookEditUiEvent.SeriesSelected(result)) },
+            onSubmit = { query ->
+                val trimmed = query.trim()
+                if (trimmed.isNotEmpty()) {
+                    // If there's a top result, select it; otherwise add as new
+                    val topResult = state.seriesSearchResults.firstOrNull()
+                    if (topResult != null) {
+                        onEvent(BookEditUiEvent.SeriesSelected(topResult))
+                    } else if (trimmed.length >= 2) {
+                        onEvent(BookEditUiEvent.SeriesEntered(trimmed))
+                    }
+                }
+            },
+            resultContent = { result ->
+                AutocompleteResultItem(
+                    name = result.name,
+                    subtitle = if (result.bookCount > 0) {
+                        "${result.bookCount} ${if (result.bookCount == 1) "book" else "books"}"
+                    } else null,
+                    onClick = { onEvent(BookEditUiEvent.SeriesSelected(result)) },
+                )
+            },
+            placeholder = "Add series...",
+            isLoading = state.seriesSearchLoading,
+        )
+
+        // Show "Add new" chip when query is valid and no exact match exists
+        val trimmedQuery = state.seriesSearchQuery.trim()
+        val hasExactMatch = state.seriesSearchResults.any {
+            it.name.equals(trimmedQuery, ignoreCase = true)
+        }
+        if (trimmedQuery.length >= 2 && !state.seriesSearchLoading && !hasExactMatch) {
+            AssistChip(
+                onClick = { onEvent(BookEditUiEvent.SeriesEntered(trimmedQuery)) },
+                label = { Text("Add \"$trimmedQuery\"") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+            )
+        }
+    }
+}
+
+/**
+ * Chip displaying a series with editable sequence number.
+ */
+@Composable
+private fun SeriesChipWithSequence(
+    series: EditableSeries,
+    onSequenceChange: (String) -> Unit,
+    onRemove: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Series name chip with remove button
+        InputChip(
+            selected = false,
+            onClick = { },
+            label = { Text(series.name) },
+            trailingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Remove ${series.name}",
+                    modifier = Modifier
+                        .size(InputChipDefaults.AvatarSize)
+                        .clickable { onRemove() },
+                )
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp),
+        )
+
+        // Sequence number field
+        OutlinedTextField(
+            value = series.sequence ?: "",
+            onValueChange = onSequenceChange,
+            label = { Text("#") },
+            singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.weight(1f),
         )
     }
 }

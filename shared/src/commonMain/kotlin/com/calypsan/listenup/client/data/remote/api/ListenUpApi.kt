@@ -10,6 +10,8 @@ import com.calypsan.listenup.client.data.remote.BookUpdateRequest
 import com.calypsan.listenup.client.data.remote.ContributorInput
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
+import com.calypsan.listenup.client.data.remote.SeriesInput
+import com.calypsan.listenup.client.data.remote.SeriesSearchResult
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.domain.model.Instance
@@ -262,6 +264,78 @@ class ListenUpApi(
         }
 
     /**
+     * Search series for autocomplete during book editing.
+     *
+     * Uses server-side Bleve full-text search for O(log n) performance:
+     * - Prefix matching ("mist" → "Mistborn")
+     * - Word matching
+     * - Fuzzy matching for typo tolerance
+     *
+     * Endpoint: GET /api/v1/series/search?q={query}&limit={limit}
+     *
+     * @param query Search query (min 2 characters recommended)
+     * @param limit Maximum results to return (default 10, max 50)
+     * @return Result containing list of matching series
+     */
+    override suspend fun searchSeries(
+        query: String,
+        limit: Int,
+    ): Result<List<SeriesSearchResult>> =
+        suspendRunCatching {
+            logger.debug { "Searching series: query='$query', limit=$limit" }
+
+            val client = getAuthenticatedClient()
+            val response: ApiResponse<SeriesSearchResponse> =
+                client
+                    .get("/api/v1/series/search") {
+                        parameter("q", query)
+                        parameter("limit", limit.coerceIn(1, 50))
+                    }.body()
+
+            logger.debug { "Received series search response: success=${response.success}" }
+
+            when (val result = response.toResult()) {
+                is Success -> result.data.series.map { it.toDomain() }
+                is Failure -> throw result.exception
+            }
+        }
+
+    /**
+     * Set book series (replaces all existing series relationships).
+     *
+     * Endpoint: PUT /api/v1/books/{id}/series
+     *
+     * @param bookId Book to update
+     * @param series New list of series with sequence numbers
+     * @return Result containing the updated book
+     */
+    override suspend fun setBookSeries(
+        bookId: String,
+        series: List<SeriesInput>,
+    ): Result<BookEditResponse> =
+        suspendRunCatching {
+            logger.debug { "Setting book series: id=$bookId, count=${series.size}" }
+
+            val client = getAuthenticatedClient()
+            val request = SetSeriesApiRequest(
+                series = series.map { SeriesApiInput(it.name, it.sequence) },
+            )
+            val response: ApiResponse<BookEditApiResponse> =
+                client
+                    .put("/api/v1/books/$bookId/series") {
+                        contentType(ContentType.Application.Json)
+                        setBody(request)
+                    }.body()
+
+            logger.debug { "Received set series response: success=${response.success}" }
+
+            when (val result = response.toResult()) {
+                is Success -> result.data.toDomain()
+                is Failure -> throw result.exception
+            }
+        }
+
+    /**
      * Clean up resources when the API client is no longer needed.
      */
     fun close() {
@@ -348,6 +422,47 @@ private data class SetContributorsApiRequest(
 private data class ContributorApiInput(
     val name: String,
     val roles: List<String>,
+)
+
+/**
+ * Internal response model for series search endpoint.
+ * Maps to server's JSON response structure.
+ */
+@Serializable
+private data class SeriesSearchResponse(
+    val series: List<SeriesSearchResultResponse>,
+)
+
+/**
+ * Individual series result from search endpoint.
+ */
+@Serializable
+private data class SeriesSearchResultResponse(
+    val id: String,
+    val name: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+) {
+    fun toDomain(): SeriesSearchResult =
+        SeriesSearchResult(
+            id = id,
+            name = name,
+            bookCount = bookCount,
+        )
+}
+
+/**
+ * API request for PUT /api/v1/books/{id}/series.
+ */
+@Serializable
+private data class SetSeriesApiRequest(
+    val series: List<SeriesApiInput>,
+)
+
+@Serializable
+private data class SeriesApiInput(
+    val name: String,
+    val sequence: String?,
 )
 
 /**

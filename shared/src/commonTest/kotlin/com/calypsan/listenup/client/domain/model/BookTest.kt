@@ -23,8 +23,7 @@ class BookTest {
         coverPath: String? = null,
         authors: List<Contributor> = emptyList(),
         narrators: List<Contributor> = emptyList(),
-        seriesName: String? = null,
-        seriesSequence: String? = null,
+        series: List<BookSeries> = emptyList(),
     ): Book =
         Book(
             id = BookId("book-1"),
@@ -36,8 +35,7 @@ class BookTest {
             coverPath = coverPath,
             addedAt = Timestamp.now(),
             updatedAt = Timestamp.now(),
-            seriesName = seriesName,
-            seriesSequence = seriesSequence,
+            series = series,
         )
 
     // ========== Duration Formatting Tests ==========
@@ -97,37 +95,31 @@ class BookTest {
 
     @Test
     fun `fullSeriesTitle returns name and sequence when both present`() {
-        val book = createTestBook(seriesName = "Mistborn", seriesSequence = "1")
+        val book = createTestBook(series = listOf(BookSeries(seriesId = "series-1", seriesName = "Mistborn", sequence = "1")))
         assertEquals("Mistborn #1", book.fullSeriesTitle)
     }
 
     @Test
     fun `fullSeriesTitle handles decimal sequence numbers`() {
-        val book = createTestBook(seriesName = "Stormlight Archive", seriesSequence = "2.5")
+        val book = createTestBook(series = listOf(BookSeries(seriesId = "series-1", seriesName = "Stormlight Archive", sequence = "2.5")))
         assertEquals("Stormlight Archive #2.5", book.fullSeriesTitle)
     }
 
     @Test
     fun `fullSeriesTitle returns only name when sequence is null`() {
-        val book = createTestBook(seriesName = "Wheel of Time", seriesSequence = null)
+        val book = createTestBook(series = listOf(BookSeries(seriesId = "series-1", seriesName = "Wheel of Time", sequence = null)))
         assertEquals("Wheel of Time", book.fullSeriesTitle)
     }
 
     @Test
     fun `fullSeriesTitle returns only name when sequence is blank`() {
-        val book = createTestBook(seriesName = "Wheel of Time", seriesSequence = "  ")
+        val book = createTestBook(series = listOf(BookSeries(seriesId = "series-1", seriesName = "Wheel of Time", sequence = "  ")))
         assertEquals("Wheel of Time", book.fullSeriesTitle)
     }
 
     @Test
-    fun `fullSeriesTitle returns null when series name is null`() {
-        val book = createTestBook(seriesName = null, seriesSequence = "1")
-        assertNull(book.fullSeriesTitle)
-    }
-
-    @Test
-    fun `fullSeriesTitle returns null when both are null`() {
-        val book = createTestBook(seriesName = null, seriesSequence = null)
+    fun `fullSeriesTitle returns null when no series`() {
+        val book = createTestBook(series = emptyList())
         assertNull(book.fullSeriesTitle)
     }
 

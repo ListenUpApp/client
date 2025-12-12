@@ -217,7 +217,14 @@ interface BookDao {
      * @param seriesId The series ID to filter by
      * @return Flow emitting list of books in the series
      */
-    @Query("SELECT * FROM books WHERE seriesId = :seriesId ORDER BY sequence ASC, title ASC")
+    @Query(
+        """
+        SELECT b.* FROM books b
+        INNER JOIN book_series bs ON b.id = bs.bookId
+        WHERE bs.seriesId = :seriesId
+        ORDER BY bs.sequence ASC, b.title ASC
+    """,
+    )
     fun observeBySeriesId(seriesId: String): Flow<List<BookEntity>>
 
     /**
@@ -230,14 +237,21 @@ interface BookDao {
      * @return Flow emitting list of books with their contributors
      */
     @Transaction
-    @Query("SELECT * FROM books WHERE seriesId = :seriesId ORDER BY sequence ASC, title ASC")
+    @Query(
+        """
+        SELECT b.* FROM books b
+        INNER JOIN book_series bs ON b.id = bs.bookId
+        WHERE bs.seriesId = :seriesId
+        ORDER BY bs.sequence ASC, b.title ASC
+    """,
+    )
     fun observeBySeriesIdWithContributors(seriesId: String): Flow<List<BookWithContributors>>
 
     /**
      * Observe all books for a specific contributor in a specific role.
      *
      * Used for contributor detail pages to show books grouped by role.
-     * Results are ordered by series name (nulls last), then sequence, then title.
+     * Results are ordered by title (series ordering handled in UI/domain layer).
      *
      * @param contributorId The contributor's unique ID
      * @param role The role to filter by (e.g., "author", "narrator")
@@ -249,11 +263,7 @@ interface BookDao {
         SELECT b.* FROM books b
         INNER JOIN book_contributors bc ON b.id = bc.bookId
         WHERE bc.contributorId = :contributorId AND bc.role = :role
-        ORDER BY
-            CASE WHEN b.seriesName IS NULL THEN 1 ELSE 0 END,
-            b.seriesName ASC,
-            b.sequence ASC,
-            b.title ASC
+        ORDER BY b.title ASC
     """,
     )
     fun observeByContributorAndRole(

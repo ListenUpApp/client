@@ -13,6 +13,7 @@ import com.calypsan.listenup.client.data.remote.BookEditResponse
 import com.calypsan.listenup.client.data.remote.BookUpdateRequest
 import com.calypsan.listenup.client.data.remote.ContributorInput
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
+import com.calypsan.listenup.client.data.remote.SeriesInput
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -58,6 +59,22 @@ interface BookEditRepositoryContract {
     suspend fun setBookContributors(
         bookId: String,
         contributors: List<ContributorInput>,
+    ): Result<BookEditResponse>
+
+    /**
+     * Set book series (replaces all existing series relationships).
+     *
+     * Sends update to server, then triggers sync to update local database.
+     * Series are matched by name - existing series are linked,
+     * new names create new series.
+     *
+     * @param bookId ID of the book to update
+     * @param series New list of series with sequence numbers
+     * @return Result containing the updated book response
+     */
+    suspend fun setBookSeries(
+        bookId: String,
+        series: List<SeriesInput>,
     ): Result<BookEditResponse>
 }
 
@@ -144,6 +161,40 @@ class BookEditRepository(
         }
 
     /**
+     * Set book series.
+     *
+     * Flow:
+     * 1. Send PUT request to server
+     * 2. On success, the server response contains updated book
+     * 3. Update local book entity with new timestamp
+     *
+     * Note: Series relationships are synced separately - the book's updatedAt
+     * timestamp change will trigger a full sync that brings in series changes.
+     */
+    override suspend fun setBookSeries(
+        bookId: String,
+        series: List<SeriesInput>,
+    ): Result<BookEditResponse> =
+        withContext(Dispatchers.IO) {
+            logger.debug { "Setting series for book: $bookId, count: ${series.size}" }
+
+            // Send update to server
+            when (val result = api.setBookSeries(bookId, series)) {
+                is Success -> {
+                    // Update local database timestamp
+                    // Full series sync will happen on next sync cycle
+                    updateLocalBook(bookId, result.data)
+                    logger.info { "Series updated for book: $bookId" }
+                    result
+                }
+                is Failure -> {
+                    logger.error(result.exception) { "Failed to set series for book: $bookId" }
+                    result
+                }
+            }
+        }
+
+    /**
      * Update local BookEntity with server response data.
      *
      * Only updates fields that are present in both BookEntity and BookEditResponse.
@@ -169,13 +220,11 @@ class BookEditRepository(
         }
 
         // Update fields that BookEntity supports
+        // Note: Series is now managed via book_series junction table and separate API endpoint
         val updated = existing.copy(
             title = response.title,
             subtitle = response.subtitle,
             description = response.description,
-            seriesId = response.seriesId,
-            seriesName = response.seriesName,
-            sequence = response.sequence,
             publishYear = response.publishYear?.toIntOrNull(),
             // Update sync metadata
             updatedAt = serverUpdatedAt,

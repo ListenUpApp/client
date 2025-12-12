@@ -40,10 +40,14 @@ class SeriesDetailViewModel(
         viewModelScope.launch {
             seriesDao.observeByIdWithBooks(seriesId).collectLatest { seriesWithBooks ->
                 if (seriesWithBooks != null) {
+                    // Build a map of bookId to sequence for sorting
+                    val sequenceByBookId =
+                        seriesWithBooks.bookSequences.associate { it.bookId to it.sequence }
+
                     // Convert book entities to domain models with cover paths
                     val books =
                         seriesWithBooks.books
-                            .sortedBy { it.sequence?.toFloatOrNull() ?: Float.MAX_VALUE }
+                            .sortedBy { sequenceByBookId[it.id]?.toFloatOrNull() ?: Float.MAX_VALUE }
                             .map { bookEntity ->
                                 bookRepository.getBook(bookEntity.id.value)
                             }.filterNotNull()

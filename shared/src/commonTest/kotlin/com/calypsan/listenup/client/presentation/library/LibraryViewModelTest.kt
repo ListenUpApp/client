@@ -9,6 +9,7 @@ import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.SeriesDao
+import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.data.local.db.SyncDao
@@ -18,6 +19,7 @@ import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.data.sync.SyncStatus
+import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Contributor
 import dev.mokkery.answering.returns
@@ -69,10 +71,17 @@ class LibraryViewModelTest {
         duration: Long = 3_600_000L, // 1 hour
         publishYear: Int? = 2023,
         seriesName: String? = null,
+        seriesId: String? = null,
         seriesSequence: String? = null,
         addedAt: Timestamp = Timestamp(1000L),
-    ): Book =
-        Book(
+    ): Book {
+        val seriesList =
+            if (seriesId != null && seriesName != null) {
+                listOf(BookSeries(seriesId = seriesId, seriesName = seriesName, sequence = seriesSequence))
+            } else {
+                emptyList()
+            }
+        return Book(
             id = BookId(id),
             title = title,
             authors = authors,
@@ -82,9 +91,9 @@ class LibraryViewModelTest {
             addedAt = addedAt,
             updatedAt = addedAt,
             publishYear = publishYear,
-            seriesName = seriesName,
-            seriesSequence = seriesSequence,
+            series = seriesList,
         )
+    }
 
     private fun createTestSeries(
         id: String = "series-1",
@@ -619,10 +628,10 @@ class LibraryViewModelTest {
             // Given
             val books =
                 listOf(
-                    createTestBook(id = "1", title = "Book A", seriesName = "Alpha Series", seriesSequence = "2"),
-                    createTestBook(id = "2", title = "Book B", seriesName = "Alpha Series", seriesSequence = "1"),
+                    createTestBook(id = "1", title = "Book A", seriesId = "alpha", seriesName = "Alpha Series", seriesSequence = "2"),
+                    createTestBook(id = "2", title = "Book B", seriesId = "alpha", seriesName = "Alpha Series", seriesSequence = "1"),
                     createTestBook(id = "3", title = "Standalone", seriesName = null, seriesSequence = null),
-                    createTestBook(id = "4", title = "Book C", seriesName = "Beta Series", seriesSequence = "1"),
+                    createTestBook(id = "4", title = "Book C", seriesId = "beta", seriesName = "Beta Series", seriesSequence = "1"),
                 )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
@@ -674,8 +683,8 @@ class LibraryViewModelTest {
             // Given
             val seriesList =
                 listOf(
-                    SeriesWithBooks(series = createTestSeries(id = "1", name = "Zebra Series"), books = emptyList()),
-                    SeriesWithBooks(series = createTestSeries(id = "2", name = "Apple Series"), books = emptyList()),
+                    SeriesWithBooks(series = createTestSeries(id = "1", name = "Zebra Series"), books = emptyList(), bookSequences = emptyList()),
+                    SeriesWithBooks(series = createTestSeries(id = "2", name = "Apple Series"), books = emptyList(), bookSequences = emptyList()),
                 )
             val fixture = createFixture()
             every { fixture.seriesDao.observeAllWithBooks() } returns flowOf(seriesList)
@@ -697,6 +706,7 @@ class LibraryViewModelTest {
                     SeriesWithBooks(
                         series = createTestSeries(id = "1", name = "Small"),
                         books = emptyList(),
+                        bookSequences = emptyList(),
                     ),
                     SeriesWithBooks(
                         series = createTestSeries(id = "2", name = "Big"),
@@ -706,6 +716,7 @@ class LibraryViewModelTest {
                                 createDummyBookEntity("b2"),
                                 createDummyBookEntity("b3"),
                             ),
+                        bookSequences = emptyList(),
                     ),
                 )
             val fixture = createFixture()

@@ -17,6 +17,7 @@ import androidx.room.TypeConverters
  * - v3: Added ChapterEntity
  * - v8: Added subtitle column to books table
  * - v9: Added FTS5 tables for full-text search (books_fts, contributors_fts, series_fts)
+ * - v10: Added book_series junction table for many-to-many book-series relationships
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -30,11 +31,12 @@ import androidx.room.TypeConverters
         SeriesEntity::class,
         ContributorEntity::class,
         BookContributorCrossRef::class,
+        BookSeriesCrossRef::class,
         PlaybackPositionEntity::class,
         PendingListeningEventEntity::class,
         DownloadEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -53,6 +55,8 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun contributorDao(): ContributorDao
 
     abstract fun bookContributorDao(): BookContributorDao
+
+    abstract fun bookSeriesDao(): BookSeriesDao
 
     abstract fun playbackPositionDao(): PlaybackPositionDao
 

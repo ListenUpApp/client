@@ -52,9 +52,7 @@ data class BookEntity(
     val totalDuration: Long, // Total audiobook duration in milliseconds
     val description: String? = null,
     val genres: String? = null, // Comma-separated genres
-    val seriesId: String? = null,
-    val seriesName: String? = null, // Denormalized series name
-    val sequence: String? = null, // Series sequence (e.g., "1", "1.5")
+    // Series is now managed via book_series junction table (many-to-many)
     val publishYear: Int? = null,
     // Audio files as JSON (parsed at runtime for playback)
     val audioFilesJson: String? = null,

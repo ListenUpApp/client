@@ -37,9 +37,7 @@ fun BookResponse.toEntity(): BookEntity =
         totalDuration = totalDuration,
         description = description,
         genres = genres?.joinToString(", "),
-        seriesId = seriesId,
-        seriesName = seriesName,
-        sequence = sequence,
+        // Series is now stored via book_series junction table (many-to-many)
         publishYear = publishYear?.toIntOrNull(),
         // Audio files serialized as JSON for runtime parsing during playback
         audioFilesJson = audioFiles.takeIf { it.isNotEmpty() }?.let { Json.encodeToString(it) },
@@ -82,6 +80,13 @@ fun BookContributorResponse.toEntity(
         bookId = bookId,
         contributorId = contributorId,
         role = role,
+    )
+
+fun BookSeriesInfoResponse.toEntity(bookId: BookId): com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef =
+    com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef(
+        bookId = bookId,
+        seriesId = seriesId,
+        sequence = sequence,
     )
 
 /**

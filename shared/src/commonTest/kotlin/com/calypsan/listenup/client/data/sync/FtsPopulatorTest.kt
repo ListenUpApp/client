@@ -60,6 +60,7 @@ class FtsPopulatorTest {
         everySuspend { fixture.searchDao.clearSeriesFts() } returns Unit
         everySuspend { fixture.searchDao.getPrimaryAuthorName(any()) } returns null
         everySuspend { fixture.searchDao.getPrimaryNarratorName(any()) } returns null
+        everySuspend { fixture.searchDao.getSeriesNamesForBook(any()) } returns null
         everySuspend { fixture.searchDao.insertBookFts(any(), any(), any(), any(), any(), any(), any(), any()) } returns
             Unit
         everySuspend { fixture.searchDao.insertContributorFts(any(), any(), any()) } returns Unit
@@ -75,7 +76,6 @@ class FtsPopulatorTest {
         title: String = "Test Book",
         subtitle: String? = null,
         description: String? = null,
-        seriesName: String? = null,
         genres: String? = null,
     ): BookEntity =
         BookEntity(
@@ -86,9 +86,6 @@ class FtsPopulatorTest {
             totalDuration = 3_600_000L,
             description = description,
             genres = genres,
-            seriesId = null,
-            seriesName = seriesName,
-            sequence = null,
             publishYear = 2024,
             audioFilesJson = null,
             syncState = SyncState.SYNCED,
@@ -271,15 +268,14 @@ class FtsPopulatorTest {
         }
 
     @Test
-    fun `rebuildAll includes series name and genres`() =
+    fun `rebuildAll includes genres in FTS`() =
         runTest {
-            // Given
+            // Given - series names now come from SeriesEntity FTS, not BookEntity
             val fixture = createFixture()
             val book =
                 createBookEntity(
                     id = "book-1",
                     title = "Fantasy Book",
-                    seriesName = "Epic Series",
                     genres = "fantasy,adventure",
                 )
 
@@ -289,7 +285,7 @@ class FtsPopulatorTest {
             // When
             ftsPopulator.rebuildAll()
 
-            // Then
+            // Then - series names now come from junction table via getSeriesNamesForBook
             verifySuspend {
                 fixture.searchDao.insertBookFts(
                     "book-1",
@@ -298,7 +294,7 @@ class FtsPopulatorTest {
                     null,
                     null,
                     null,
-                    "Epic Series",
+                    null, // Series comes from junction table, not BookEntity
                     "fantasy,adventure",
                 )
             }

@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
@@ -74,6 +75,7 @@ class SyncManagerTest {
         val contributorDao: ContributorDao = mock()
         val chapterDao: ChapterDao = mock()
         val bookContributorDao: BookContributorDao = mock()
+        val bookSeriesDao: BookSeriesDao = mock()
         val syncDao: SyncDao = mock()
         val imageDownloader: ImageDownloaderContract = mock()
         val sseManager: SSEManagerContract = mock()
@@ -96,6 +98,7 @@ class SyncManagerTest {
                 contributorDao = contributorDao,
                 chapterDao = chapterDao,
                 bookContributorDao = bookContributorDao,
+                bookSeriesDao = bookSeriesDao,
                 syncDao = syncDao,
                 imageDownloader = imageDownloader,
                 sseManager = sseManager,
@@ -197,9 +200,6 @@ class SyncManagerTest {
             totalDuration = 3_600_000L,
             description = null,
             genres = null,
-            seriesId = null,
-            seriesName = null,
-            sequence = null,
             publishYear = null,
             audioFilesJson = null,
             syncState = syncState,
@@ -554,6 +554,8 @@ class SyncManagerTest {
             everySuspend { fixture.chapterDao.upsertAll(any()) } returns Unit
             everySuspend { fixture.bookContributorDao.deleteContributorsForBook(any()) } returns Unit
             everySuspend { fixture.bookContributorDao.insertAll(any()) } returns Unit
+            everySuspend { fixture.bookSeriesDao.deleteSeriesForBook(any()) } returns Unit
+            everySuspend { fixture.bookSeriesDao.insertAll(any()) } returns Unit
 
             val syncManager = fixture.build()
             advanceUntilIdle()
