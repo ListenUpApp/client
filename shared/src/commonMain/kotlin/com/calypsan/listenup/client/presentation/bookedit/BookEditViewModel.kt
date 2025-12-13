@@ -87,6 +87,8 @@ data class BookEditUiState(
     val subtitle: String = "",
     val description: String = "",
     val publishYear: String = "",
+    val publisher: String = "",
+    val language: String? = null, // ISO 639-1 code
 
     // Contributors
     val contributors: List<EditableContributor> = emptyList(),
@@ -144,6 +146,8 @@ sealed interface BookEditUiEvent {
     data class SubtitleChanged(val subtitle: String) : BookEditUiEvent
     data class DescriptionChanged(val description: String) : BookEditUiEvent
     data class PublishYearChanged(val year: String) : BookEditUiEvent
+    data class PublisherChanged(val publisher: String) : BookEditUiEvent
+    data class LanguageChanged(val code: String?) : BookEditUiEvent
 
     // Series management
     data class SeriesSearchQueryChanged(val query: String) : BookEditUiEvent
@@ -215,6 +219,8 @@ class BookEditViewModel(
     private var originalSubtitle: String = ""
     private var originalDescription: String = ""
     private var originalPublishYear: String = ""
+    private var originalPublisher: String = ""
+    private var originalLanguage: String? = null
     private var originalContributors: List<EditableContributor> = emptyList()
     private var originalSeries: List<EditableSeries> = emptyList()
 
@@ -322,6 +328,8 @@ class BookEditViewModel(
             originalSubtitle = book.subtitle ?: ""
             originalDescription = book.description ?: ""
             originalPublishYear = book.publishYear?.toString() ?: ""
+            originalPublisher = book.publisher ?: ""
+            originalLanguage = book.language
             originalContributors = editableContributors
             originalSeries = editableSeries
 
@@ -332,6 +340,8 @@ class BookEditViewModel(
                     subtitle = book.subtitle ?: "",
                     description = book.description ?: "",
                     publishYear = book.publishYear?.toString() ?: "",
+                    publisher = book.publisher ?: "",
+                    language = book.language,
                     contributors = editableContributors,
                     series = editableSeries,
                     visibleRoles = initialVisibleRoles,
@@ -367,6 +377,16 @@ class BookEditViewModel(
                 // Only allow numeric input
                 val filtered = event.year.filter { it.isDigit() }.take(4)
                 _state.update { it.copy(publishYear = filtered) }
+                updateHasChanges()
+            }
+
+            is BookEditUiEvent.PublisherChanged -> {
+                _state.update { it.copy(publisher = event.publisher) }
+                updateHasChanges()
+            }
+
+            is BookEditUiEvent.LanguageChanged -> {
+                _state.update { it.copy(language = event.code) }
                 updateHasChanges()
             }
 
@@ -754,6 +774,8 @@ class BookEditViewModel(
             current.subtitle != originalSubtitle ||
             current.description != originalDescription ||
             current.publishYear != originalPublishYear ||
+            current.publisher != originalPublisher ||
+            current.language != originalLanguage ||
             current.contributors != originalContributors ||
             current.series != originalSeries
 
@@ -775,7 +797,9 @@ class BookEditViewModel(
                 val metadataChanged = current.title != originalTitle ||
                     current.subtitle != originalSubtitle ||
                     current.description != originalDescription ||
-                    current.publishYear != originalPublishYear
+                    current.publishYear != originalPublishYear ||
+                    current.publisher != originalPublisher ||
+                    current.language != originalLanguage
 
                 if (metadataChanged) {
                     val updateRequest = BookUpdateRequest(
@@ -783,6 +807,8 @@ class BookEditViewModel(
                         subtitle = if (current.subtitle != originalSubtitle) current.subtitle else null,
                         description = if (current.description != originalDescription) current.description else null,
                         publishYear = if (current.publishYear != originalPublishYear) current.publishYear.ifBlank { null } else null,
+                        publisher = if (current.publisher != originalPublisher) current.publisher.ifBlank { null } else null,
+                        language = if (current.language != originalLanguage) current.language else null,
                     )
 
                     when (val result = bookEditRepository.updateBook(current.bookId, updateRequest)) {

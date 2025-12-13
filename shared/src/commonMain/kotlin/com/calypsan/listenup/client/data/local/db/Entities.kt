@@ -54,6 +54,8 @@ data class BookEntity(
     val genres: String? = null, // Comma-separated genres
     // Series is now managed via book_series junction table (many-to-many)
     val publishYear: Int? = null,
+    val publisher: String? = null, // Publisher name
+    val language: String? = null, // ISO 639-1 language code (e.g., "en", "es")
     // Audio files as JSON (parsed at runtime for playback)
     val audioFilesJson: String? = null,
     // Sync fields (implements Syncable)

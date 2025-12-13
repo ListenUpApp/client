@@ -39,6 +39,8 @@ fun BookResponse.toEntity(): BookEntity =
         genres = genres?.joinToString(", "),
         // Series is now stored via book_series junction table (many-to-many)
         publishYear = publishYear?.toIntOrNull(),
+        publisher = publisher,
+        language = language,
         // Audio files serialized as JSON for runtime parsing during playback
         audioFilesJson = audioFiles.takeIf { it.isNotEmpty() }?.let { Json.encodeToString(it) },
         // Sync fields - newly synced book is clean

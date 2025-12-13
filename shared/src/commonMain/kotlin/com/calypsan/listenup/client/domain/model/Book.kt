@@ -37,6 +37,8 @@ data class Book(
     // Multiple series support (many-to-many)
     val series: List<BookSeries> = emptyList(),
     val publishYear: Int? = null,
+    val publisher: String? = null,
+    val language: String? = null, // ISO 639-1 code (e.g., "en", "es")
     val rating: Double? = null,
 ) {
     // Convenience properties for backward compatibility with single-series UI code

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 10,
-    "identityHash": "932920a74a3b5bb4f683b365812f085c",
+    "identityHash": "2c717c13cc37ebe1d212bee6d6c50caf",
     "entities": [
       {
         "tableName": "users",
@@ -54,7 +54,7 @@
       },
       {
         "tableName": "books",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `subtitle` TEXT, `coverUrl` TEXT, `totalDuration` INTEGER NOT NULL, `description` TEXT, `genres` TEXT, `publishYear` INTEGER, `audioFilesJson` TEXT, `syncState` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `serverVersion` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `subtitle` TEXT, `coverUrl` TEXT, `totalDuration` INTEGER NOT NULL, `description` TEXT, `genres` TEXT, `publishYear` INTEGER, `publisher` TEXT, `language` TEXT, `audioFilesJson` TEXT, `syncState` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `serverVersion` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -98,6 +98,16 @@
             "fieldPath": "publishYear",
             "columnName": "publishYear",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "publisher",
+            "columnName": "publisher",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "language",
+            "columnName": "language",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "audioFilesJson",
@@ -771,7 +781,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '932920a74a3b5bb4f683b365812f085c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2c717c13cc37ebe1d212bee6d6c50caf')"
     ]
   }
 }

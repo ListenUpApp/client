@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
 import com.calypsan.listenup.client.data.remote.SeriesSearchResult
 import com.calypsan.listenup.client.design.components.AutocompleteResultItem
+import com.calypsan.listenup.client.design.components.LanguageDropdown
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpTextArea
@@ -320,14 +321,34 @@ private fun MetadataSection(
             placeholder = "Enter a description...",
         )
 
-        // Publish Year
+        // Publisher
         ListenUpTextField(
-            value = state.publishYear,
-            onValueChange = { onEvent(BookEditUiEvent.PublishYearChanged(it)) },
-            label = "Publish Year",
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.width(150.dp),
+            value = state.publisher,
+            onValueChange = { onEvent(BookEditUiEvent.PublisherChanged(it)) },
+            label = "Publisher",
         )
+
+        // Publish Year and Language side by side
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            // Publish Year
+            ListenUpTextField(
+                value = state.publishYear,
+                onValueChange = { onEvent(BookEditUiEvent.PublishYearChanged(it)) },
+                label = "Publish Year",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f),
+            )
+
+            // Language
+            LanguageDropdown(
+                selectedCode = state.language,
+                onLanguageSelected = { onEvent(BookEditUiEvent.LanguageChanged(it)) },
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 

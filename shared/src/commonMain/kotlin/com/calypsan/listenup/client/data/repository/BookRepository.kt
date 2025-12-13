@@ -257,6 +257,8 @@ class BookRepository(
             genres = this.genres,
             series = series,
             publishYear = this.publishYear,
+            publisher = this.publisher,
+            language = this.language,
             rating = null, // Rating is not directly stored in BookEntity yet, default to null
         )
 }

@@ -226,6 +226,8 @@ class BookEditRepository(
             subtitle = response.subtitle,
             description = response.description,
             publishYear = response.publishYear?.toIntOrNull(),
+            publisher = response.publisher,
+            language = response.language,
             // Update sync metadata
             updatedAt = serverUpdatedAt,
             lastModified = Timestamp.now(),
