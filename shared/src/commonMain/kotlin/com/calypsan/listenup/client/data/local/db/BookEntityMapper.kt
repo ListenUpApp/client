@@ -39,7 +39,8 @@ fun BookEntity.toDomain(
         addedAt = createdAt,
         updatedAt = updatedAt,
         description = description,
-        genres = genres,
+        genres = emptyList(), // Loaded on-demand when editing
+        tags = emptyList(), // Loaded on-demand when editing
         // Series loaded via junction table - not available in this simple mapper
         series = emptyList(),
         publishYear = publishYear,

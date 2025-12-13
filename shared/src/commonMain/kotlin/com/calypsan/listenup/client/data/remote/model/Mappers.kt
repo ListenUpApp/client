@@ -41,6 +41,9 @@ fun BookResponse.toEntity(): BookEntity =
         publishYear = publishYear?.toIntOrNull(),
         publisher = publisher,
         language = language,
+        isbn = isbn,
+        asin = asin,
+        abridged = abridged,
         // Audio files serialized as JSON for runtime parsing during playback
         audioFilesJson = audioFiles.takeIf { it.isNotEmpty() }?.let { Json.encodeToString(it) },
         // Sync fields - newly synced book is clean

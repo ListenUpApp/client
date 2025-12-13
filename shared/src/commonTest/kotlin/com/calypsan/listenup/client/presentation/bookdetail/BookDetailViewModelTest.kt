@@ -4,12 +4,14 @@ import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
@@ -53,12 +55,14 @@ class BookDetailViewModelTest {
 
     private class TestFixture {
         val bookRepository: BookRepositoryContract = mock()
+        val genreApi: GenreApiContract = mock()
         val tagApi: TagApiContract = mock()
         val playbackPositionDao: PlaybackPositionDao = mock()
 
         fun build(): BookDetailViewModel =
             BookDetailViewModel(
                 bookRepository = bookRepository,
+                genreApi = genreApi,
                 tagApi = tagApi,
                 playbackPositionDao = playbackPositionDao,
             )
@@ -67,7 +71,8 @@ class BookDetailViewModelTest {
     private fun createFixture(): TestFixture {
         val fixture = TestFixture()
 
-        // Default stubs for tag operations
+        // Default stubs for genre and tag operations
+        everySuspend { fixture.genreApi.getBookGenres(any()) } returns emptyList()
         everySuspend { fixture.tagApi.getBookTags(any()) } returns emptyList()
         everySuspend { fixture.tagApi.getUserTags() } returns emptyList()
         everySuspend { fixture.playbackPositionDao.get(any()) } returns null
@@ -85,7 +90,7 @@ class BookDetailViewModelTest {
         narratorName: String = "Test Narrator",
         duration: Long = 3_600_000L, // 1 hour
         description: String? = "A great book",
-        genres: String? = "Fiction, Fantasy",
+        genres: List<Genre> = emptyList(),
         seriesId: String? = null,
         seriesName: String? = null,
         seriesSequence: String? = null,
@@ -127,6 +132,21 @@ class BookDetailViewModelTest {
             title = title,
             duration = duration,
             startTime = startTime,
+        )
+
+    private fun createGenre(
+        id: String = "genre-1",
+        name: String = "Fantasy",
+        slug: String = "fantasy",
+        path: String = "/fiction/fantasy",
+        bookCount: Int = 10,
+    ): Genre =
+        Genre(
+            id = id,
+            name = name,
+            slug = slug,
+            path = path,
+            bookCount = bookCount,
         )
 
     private fun createTag(
@@ -298,16 +318,22 @@ class BookDetailViewModelTest {
             assertEquals("Part 1", viewModel.state.value.subtitle)
         }
 
-    // ========== Genre Parsing Tests ==========
+    // ========== Genre Loading Tests ==========
 
     @Test
-    fun `loadBook parses comma-separated genres into list`() =
+    fun `loadBook loads genres from API`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook(genres = "Fiction, Fantasy, Adventure")
+            val book = createBook()
+            val bookGenres = listOf(
+                createGenre(id = "g1", name = "Fiction", slug = "fiction", path = "/fiction"),
+                createGenre(id = "g2", name = "Fantasy", slug = "fantasy", path = "/fiction/fantasy"),
+                createGenre(id = "g3", name = "Adventure", slug = "adventure", path = "/fiction/adventure"),
+            )
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.genreApi.getBookGenres(any()) } returns bookGenres
             val viewModel = fixture.build()
 
             // When
@@ -315,21 +341,22 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val genres = viewModel.state.value.genresList
-            assertEquals(3, genres.size)
-            assertEquals("Fiction", genres[0])
-            assertEquals("Fantasy", genres[1])
-            assertEquals("Adventure", genres[2])
+            val genresList = viewModel.state.value.genresList
+            assertEquals(3, genresList.size)
+            assertEquals("Fiction", genresList[0])
+            assertEquals("Fantasy", genresList[1])
+            assertEquals("Adventure", genresList[2])
         }
 
     @Test
-    fun `loadBook handles null genres`() =
+    fun `loadBook handles empty genres from API`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook(genres = null)
+            val book = createBook()
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.genreApi.getBookGenres(any()) } returns emptyList()
             val viewModel = fixture.build()
 
             // When
@@ -337,10 +364,29 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(
-                viewModel.state.value.genresList
-                    .isEmpty(),
-            )
+            assertTrue(viewModel.state.value.genresList.isEmpty())
+        }
+
+    @Test
+    fun `loadBook handles genre loading failure gracefully`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book = createBook()
+            everySuspend { fixture.bookRepository.getBook(any()) } returns book
+            everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            everySuspend { fixture.genreApi.getBookGenres(any()) } throws Exception("Network error")
+            val viewModel = fixture.build()
+
+            // When
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
+
+            // Then - book loads successfully despite genre failure
+            assertFalse(viewModel.state.value.isLoading)
+            assertEquals(book, viewModel.state.value.book)
+            assertNull(viewModel.state.value.error) // Genres are optional - no error shown
+            assertTrue(viewModel.state.value.genresList.isEmpty())
         }
 
     // ========== Progress Calculation Tests ==========

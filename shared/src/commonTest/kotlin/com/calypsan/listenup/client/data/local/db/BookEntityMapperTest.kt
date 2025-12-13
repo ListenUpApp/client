@@ -135,13 +135,15 @@ class BookEntityMapperTest {
     }
 
     @Test
-    fun `toDomain maps genres correctly`() {
+    fun `toDomain returns empty genres - loaded on demand from API`() {
+        // Genres are loaded on-demand from the API, not from the entity
         val fixture = createFixture()
         val entity = createBookEntity(genres = "fiction,classic")
 
         val book = entity.toDomain(fixture.imageStorage)
 
-        assertEquals("fiction,classic", book.genres)
+        // Mapper returns empty list - genres fetched separately via GenreApi
+        assertTrue(book.genres.isEmpty())
     }
 
     @Test

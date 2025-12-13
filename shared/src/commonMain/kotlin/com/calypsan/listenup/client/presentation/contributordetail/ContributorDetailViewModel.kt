@@ -139,7 +139,8 @@ class ContributorDetailViewModel(
             addedAt = book.createdAt,
             updatedAt = book.updatedAt,
             description = book.description,
-            genres = book.genres,
+            genres = emptyList(), // Loaded on-demand when editing
+            tags = emptyList(), // Loaded on-demand when editing
             // Series loaded via junction table - not available in this simple mapper
             series = emptyList(),
             publishYear = book.publishYear,

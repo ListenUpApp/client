@@ -70,7 +70,9 @@ import com.calypsan.listenup.client.presentation.bookedit.BookEditUiState
 import com.calypsan.listenup.client.presentation.bookedit.BookEditViewModel
 import com.calypsan.listenup.client.presentation.bookedit.ContributorRole
 import com.calypsan.listenup.client.presentation.bookedit.EditableContributor
+import com.calypsan.listenup.client.presentation.bookedit.EditableGenre
 import com.calypsan.listenup.client.presentation.bookedit.EditableSeries
+import com.calypsan.listenup.client.presentation.bookedit.EditableTag
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -276,6 +278,22 @@ private fun BookEditContent(
 
         HorizontalDivider()
 
+        // Genres Section
+        GenresSection(
+            state = state,
+            onEvent = onEvent,
+        )
+
+        HorizontalDivider()
+
+        // Tags Section
+        TagsSection(
+            state = state,
+            onEvent = onEvent,
+        )
+
+        HorizontalDivider()
+
         // Contributors Section
         ContributorsSection(
             state = state,
@@ -347,6 +365,61 @@ private fun MetadataSection(
                 selectedCode = state.language,
                 onLanguageSelected = { onEvent(BookEditUiEvent.LanguageChanged(it)) },
                 modifier = Modifier.weight(1f),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Additional metadata section (ISBN, ASIN, Abridged)
+        Text(
+            text = "Identifiers & Format",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        // ISBN and ASIN side by side
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            ListenUpTextField(
+                value = state.isbn,
+                onValueChange = { onEvent(BookEditUiEvent.IsbnChanged(it)) },
+                label = "ISBN",
+                modifier = Modifier.weight(1f),
+            )
+
+            ListenUpTextField(
+                value = state.asin,
+                onValueChange = { onEvent(BookEditUiEvent.AsinChanged(it)) },
+                label = "ASIN",
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        // Abridged toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onEvent(BookEditUiEvent.AbridgedChanged(!state.abridged)) }
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    text = "Abridged",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = "This audiobook is a shortened version",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            androidx.compose.material3.Switch(
+                checked = state.abridged,
+                onCheckedChange = { onEvent(BookEditUiEvent.AbridgedChanged(it)) },
             )
         }
     }
@@ -485,6 +558,199 @@ private fun SeriesChipWithSequence(
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+/**
+ * Genres section for selecting from existing genres.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GenresSection(
+    state: BookEditUiState,
+    onEvent: (BookEditUiEvent) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = "Genres",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+
+        // Selected genre chips
+        if (state.genres.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                state.genres.forEach { genre ->
+                    GenreChip(
+                        genre = genre,
+                        onRemove = { onEvent(BookEditUiEvent.RemoveGenre(genre)) },
+                    )
+                }
+            }
+        }
+
+        // Search field with autocomplete
+        ListenUpAutocompleteField(
+            value = state.genreSearchQuery,
+            onValueChange = { onEvent(BookEditUiEvent.GenreSearchQueryChanged(it)) },
+            results = state.genreSearchResults,
+            onResultSelected = { genre -> onEvent(BookEditUiEvent.GenreSelected(genre)) },
+            onSubmit = { query ->
+                // Select top result if available
+                val topResult = state.genreSearchResults.firstOrNull()
+                if (topResult != null) {
+                    onEvent(BookEditUiEvent.GenreSelected(topResult))
+                }
+            },
+            resultContent = { genre ->
+                AutocompleteResultItem(
+                    name = genre.name,
+                    subtitle = genre.parentPath,
+                    onClick = { onEvent(BookEditUiEvent.GenreSelected(genre)) },
+                )
+            },
+            placeholder = "Add genre...",
+            isLoading = false, // Local filtering, no loading state
+        )
+
+        // No "Add new" chip - genres are system-controlled
+    }
+}
+
+/**
+ * Chip displaying a selected genre with remove button.
+ */
+@Composable
+private fun GenreChip(
+    genre: EditableGenre,
+    onRemove: () -> Unit,
+) {
+    InputChip(
+        selected = false,
+        onClick = { },
+        label = { Text(genre.name) },
+        trailingIcon = {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Remove ${genre.name}",
+                modifier = Modifier
+                    .size(InputChipDefaults.AvatarSize)
+                    .clickable { onRemove() },
+            )
+        },
+    )
+}
+
+/**
+ * Tags section for selecting existing or creating new tags.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TagsSection(
+    state: BookEditUiState,
+    onEvent: (BookEditUiEvent) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = "Tags",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+
+        // Selected tag chips
+        if (state.tags.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                state.tags.forEach { tag ->
+                    TagChip(
+                        tag = tag,
+                        onRemove = { onEvent(BookEditUiEvent.RemoveTag(tag)) },
+                    )
+                }
+            }
+        }
+
+        // Search field with autocomplete
+        ListenUpAutocompleteField(
+            value = state.tagSearchQuery,
+            onValueChange = { onEvent(BookEditUiEvent.TagSearchQueryChanged(it)) },
+            results = state.tagSearchResults,
+            onResultSelected = { tag -> onEvent(BookEditUiEvent.TagSelected(tag)) },
+            onSubmit = { query ->
+                val trimmed = query.trim()
+                if (trimmed.isNotEmpty()) {
+                    // If there's a top result, select it; otherwise create new
+                    val topResult = state.tagSearchResults.firstOrNull()
+                    if (topResult != null) {
+                        onEvent(BookEditUiEvent.TagSelected(topResult))
+                    } else if (trimmed.length >= 2) {
+                        onEvent(BookEditUiEvent.TagEntered(trimmed))
+                    }
+                }
+            },
+            resultContent = { tag ->
+                AutocompleteResultItem(
+                    name = tag.name,
+                    subtitle = null,
+                    onClick = { onEvent(BookEditUiEvent.TagSelected(tag)) },
+                )
+            },
+            placeholder = "Add tag...",
+            isLoading = state.tagSearchLoading || state.tagCreating,
+        )
+
+        // Show "Add new" chip when query is valid and no exact match exists
+        val trimmedQuery = state.tagSearchQuery.trim()
+        val hasExactMatch = state.tagSearchResults.any {
+            it.name.equals(trimmedQuery, ignoreCase = true)
+        }
+        val alreadyHasTag = state.tags.any {
+            it.name.equals(trimmedQuery, ignoreCase = true)
+        }
+        if (trimmedQuery.length >= 2 && !state.tagSearchLoading && !state.tagCreating &&
+            !hasExactMatch && !alreadyHasTag
+        ) {
+            AssistChip(
+                onClick = { onEvent(BookEditUiEvent.TagEntered(trimmedQuery)) },
+                label = { Text("Add \"$trimmedQuery\"") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+            )
+        }
+    }
+}
+
+/**
+ * Chip displaying a selected tag with remove button.
+ */
+@Composable
+private fun TagChip(
+    tag: EditableTag,
+    onRemove: () -> Unit,
+) {
+    InputChip(
+        selected = false,
+        onClick = { },
+        label = { Text(tag.name) },
+        trailingIcon = {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Remove ${tag.name}",
+                modifier = Modifier
+                    .size(InputChipDefaults.AvatarSize)
+                    .clickable { onRemove() },
+            )
+        },
+    )
 }
 
 /**

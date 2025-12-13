@@ -33,12 +33,16 @@ data class Book(
     val addedAt: Timestamp,
     val updatedAt: Timestamp,
     val description: String? = null,
-    val genres: String? = null, // Comma-separated string
+    val genres: List<Genre> = emptyList(),
+    val tags: List<Tag> = emptyList(),
     // Multiple series support (many-to-many)
     val series: List<BookSeries> = emptyList(),
     val publishYear: Int? = null,
     val publisher: String? = null,
     val language: String? = null, // ISO 639-1 code (e.g., "en", "es")
+    val isbn: String? = null, // ISBN for metadata lookup
+    val asin: String? = null, // Amazon ASIN for metadata lookup
+    val abridged: Boolean = false, // Whether this is an abridged version
     val rating: Double? = null,
 ) {
     // Convenience properties for backward compatibility with single-series UI code

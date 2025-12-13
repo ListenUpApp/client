@@ -11,6 +11,8 @@ import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.remote.GenreApi
+import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApi
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
@@ -190,6 +192,7 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel(
                 bookRepository = get(),
+                genreApi = get(),
                 tagApi = get(),
                 playbackPositionDao = get(),
             )
@@ -232,6 +235,8 @@ val presentationModule =
                 bookEditRepository = get(),
                 contributorRepository = get(),
                 seriesRepository = get(),
+                genreApi = get(),
+                tagApi = get(),
             )
         }
     }
@@ -298,6 +303,11 @@ val syncModule =
         single {
             TagApi(clientFactory = get())
         } bind TagApiContract::class
+
+        // GenreApi for genre operations
+        single {
+            GenreApi(clientFactory = get())
+        } bind GenreApiContract::class
 
         // FtsPopulator for rebuilding FTS tables after sync
         single {

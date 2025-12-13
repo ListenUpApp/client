@@ -9,12 +9,16 @@ import com.calypsan.listenup.client.data.remote.ContributorInput
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
 import com.calypsan.listenup.client.data.remote.SeriesInput
 import com.calypsan.listenup.client.data.remote.SeriesSearchResult
+import com.calypsan.listenup.client.data.remote.GenreApiContract
+import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
 import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.Genre
+import com.calypsan.listenup.client.domain.model.Tag
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -73,6 +77,36 @@ data class EditableSeries(
 )
 
 /**
+ * Genre for editing.
+ */
+data class EditableGenre(
+    val id: String,
+    val name: String,
+    val path: String,
+) {
+    /**
+     * Returns the parent path for display context.
+     * "/fiction/fantasy/epic-fantasy" -> "Fiction > Fantasy"
+     */
+    val parentPath: String?
+        get() {
+            val segments = path.trim('/').split('/')
+            if (segments.size <= 1) return null
+            return segments.dropLast(1)
+                .joinToString(" > ") { it.replaceFirstChar { c -> c.uppercase() } }
+        }
+}
+
+/**
+ * Tag for editing.
+ */
+data class EditableTag(
+    val id: String,
+    val name: String,
+    val color: String? = null,
+)
+
+/**
  * UI state for book editing screen.
  */
 data class BookEditUiState(
@@ -89,6 +123,11 @@ data class BookEditUiState(
     val publishYear: String = "",
     val publisher: String = "",
     val language: String? = null, // ISO 639-1 code
+
+    // Additional metadata (less commonly edited)
+    val isbn: String = "",
+    val asin: String = "",
+    val abridged: Boolean = false,
 
     // Contributors
     val contributors: List<EditableContributor> = emptyList(),
@@ -108,6 +147,20 @@ data class BookEditUiState(
 
     // Visible role sections (prepopulated from existing contributors + user-added)
     val visibleRoles: Set<ContributorRole> = emptySet(),
+
+    // Genres (system-controlled, select from existing)
+    val genres: List<EditableGenre> = emptyList(),
+    val allGenres: List<EditableGenre> = emptyList(), // Cached list from server
+    val genreSearchQuery: String = "",
+    val genreSearchResults: List<EditableGenre> = emptyList(), // Filtered locally
+
+    // Tags (user-scoped, can create new)
+    val tags: List<EditableTag> = emptyList(),
+    val allTags: List<EditableTag> = emptyList(), // User's existing tags
+    val tagSearchQuery: String = "",
+    val tagSearchResults: List<EditableTag> = emptyList(),
+    val tagSearchLoading: Boolean = false,
+    val tagCreating: Boolean = false, // Creating a new tag
 
     // Track if changes have been made
     val hasChanges: Boolean = false,
@@ -149,6 +202,11 @@ sealed interface BookEditUiEvent {
     data class PublisherChanged(val publisher: String) : BookEditUiEvent
     data class LanguageChanged(val code: String?) : BookEditUiEvent
 
+    // Additional metadata
+    data class IsbnChanged(val isbn: String) : BookEditUiEvent
+    data class AsinChanged(val asin: String) : BookEditUiEvent
+    data class AbridgedChanged(val abridged: Boolean) : BookEditUiEvent
+
     // Series management
     data class SeriesSearchQueryChanged(val query: String) : BookEditUiEvent
     data class SeriesSelected(val result: SeriesSearchResult) : BookEditUiEvent
@@ -165,6 +223,17 @@ sealed interface BookEditUiEvent {
     data class AddRoleSection(val role: ContributorRole) : BookEditUiEvent
     data class RemoveContributor(val contributor: EditableContributor, val role: ContributorRole) : BookEditUiEvent
     data class RemoveRoleSection(val role: ContributorRole) : BookEditUiEvent
+
+    // Genre management (select from existing only)
+    data class GenreSearchQueryChanged(val query: String) : BookEditUiEvent
+    data class GenreSelected(val genre: EditableGenre) : BookEditUiEvent
+    data class RemoveGenre(val genre: EditableGenre) : BookEditUiEvent
+
+    // Tag management (select existing or create new)
+    data class TagSearchQueryChanged(val query: String) : BookEditUiEvent
+    data class TagSelected(val tag: EditableTag) : BookEditUiEvent
+    data class TagEntered(val name: String) : BookEditUiEvent // Create new tag inline
+    data class RemoveTag(val tag: EditableTag) : BookEditUiEvent
 
     // Actions
     data object Save : BookEditUiEvent
@@ -199,6 +268,8 @@ class BookEditViewModel(
     private val bookEditRepository: BookEditRepositoryContract,
     private val contributorRepository: ContributorRepositoryContract,
     private val seriesRepository: SeriesRepositoryContract,
+    private val genreApi: GenreApiContract,
+    private val tagApi: TagApiContract,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BookEditUiState())
     val state: StateFlow<BookEditUiState> = _state.asStateFlow()
@@ -221,8 +292,17 @@ class BookEditViewModel(
     private var originalPublishYear: String = ""
     private var originalPublisher: String = ""
     private var originalLanguage: String? = null
+    private var originalIsbn: String = ""
+    private var originalAsin: String = ""
+    private var originalAbridged: Boolean = false
     private var originalContributors: List<EditableContributor> = emptyList()
     private var originalSeries: List<EditableSeries> = emptyList()
+    private var originalGenres: List<EditableGenre> = emptyList()
+    private var originalTags: List<EditableTag> = emptyList()
+
+    // Tag search flow
+    private val tagQueryFlow = MutableStateFlow("")
+    private var tagSearchJob: Job? = null
 
     /**
      * Set up debounced search for a specific role.
@@ -253,6 +333,29 @@ class BookEditViewModel(
 
     init {
         setupSeriesSearch()
+        setupTagSearch()
+    }
+
+    /**
+     * Set up debounced search for tags.
+     */
+    private fun setupTagSearch() {
+        tagQueryFlow
+            .debounce(300)
+            .distinctUntilChanged()
+            .filter { it.length >= 2 || it.isEmpty() }
+            .onEach { query ->
+                if (query.isBlank()) {
+                    _state.update {
+                        it.copy(
+                            tagSearchResults = emptyList(),
+                            tagSearchLoading = false,
+                        )
+                    }
+                } else {
+                    performTagSearch(query)
+                }
+            }.launchIn(viewModelScope)
     }
 
     /**
@@ -323,6 +426,10 @@ class BookEditViewModel(
                 )
             }
 
+            // Load genres and tags from server
+            val (allGenres, bookGenres) = loadGenresForBook(bookId)
+            val (allTags, bookTags) = loadTagsForBook(bookId)
+
             // Store original values
             originalTitle = book.title
             originalSubtitle = book.subtitle ?: ""
@@ -330,8 +437,13 @@ class BookEditViewModel(
             originalPublishYear = book.publishYear?.toString() ?: ""
             originalPublisher = book.publisher ?: ""
             originalLanguage = book.language
+            originalIsbn = book.isbn ?: ""
+            originalAsin = book.asin ?: ""
+            originalAbridged = book.abridged
             originalContributors = editableContributors
             originalSeries = editableSeries
+            originalGenres = bookGenres
+            originalTags = bookTags
 
             _state.update {
                 it.copy(
@@ -342,9 +454,16 @@ class BookEditViewModel(
                     publishYear = book.publishYear?.toString() ?: "",
                     publisher = book.publisher ?: "",
                     language = book.language,
+                    isbn = book.isbn ?: "",
+                    asin = book.asin ?: "",
+                    abridged = book.abridged,
                     contributors = editableContributors,
                     series = editableSeries,
                     visibleRoles = initialVisibleRoles,
+                    genres = bookGenres,
+                    allGenres = allGenres,
+                    tags = bookTags,
+                    allTags = allTags,
                     hasChanges = false,
                 )
             }
@@ -352,6 +471,57 @@ class BookEditViewModel(
             logger.debug { "Loaded book for editing: ${book.title}, description=${book.description?.take(50) ?: "null"}" }
         }
     }
+
+    /**
+     * Load all genres and book's current genres.
+     * Loads separately so a failure in one doesn't prevent the other from loading.
+     */
+    private suspend fun loadGenresForBook(bookId: String): Pair<List<EditableGenre>, List<EditableGenre>> {
+        // Load all genres (public endpoint)
+        val allGenres = try {
+            genreApi.listGenres().map { it.toEditable() }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to load all genres" }
+            emptyList()
+        }
+
+        // Load book's genres (requires auth)
+        val bookGenres = try {
+            genreApi.getBookGenres(bookId).map { it.toEditable() }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to load book genres" }
+            emptyList()
+        }
+
+        return allGenres to bookGenres
+    }
+
+    /**
+     * Load all user tags and book's current tags.
+     * Loads separately so a failure in one doesn't prevent the other from loading.
+     */
+    private suspend fun loadTagsForBook(bookId: String): Pair<List<EditableTag>, List<EditableTag>> {
+        // Load all user tags
+        val allTags = try {
+            tagApi.getUserTags().map { it.toEditable() }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to load all tags" }
+            emptyList()
+        }
+
+        // Load book's tags
+        val bookTags = try {
+            tagApi.getBookTags(bookId).map { it.toEditable() }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to load book tags" }
+            emptyList()
+        }
+
+        return allTags to bookTags
+    }
+
+    private fun Genre.toEditable() = EditableGenre(id = id, name = name, path = path)
+    private fun Tag.toEditable() = EditableTag(id = id, name = name, color = color)
 
     /**
      * Handle UI events.
@@ -387,6 +557,21 @@ class BookEditViewModel(
 
             is BookEditUiEvent.LanguageChanged -> {
                 _state.update { it.copy(language = event.code) }
+                updateHasChanges()
+            }
+
+            is BookEditUiEvent.IsbnChanged -> {
+                _state.update { it.copy(isbn = event.isbn) }
+                updateHasChanges()
+            }
+
+            is BookEditUiEvent.AsinChanged -> {
+                _state.update { it.copy(asin = event.asin) }
+                updateHasChanges()
+            }
+
+            is BookEditUiEvent.AbridgedChanged -> {
+                _state.update { it.copy(abridged = event.abridged) }
                 updateHasChanges()
             }
 
@@ -460,6 +645,40 @@ class BookEditViewModel(
 
             is BookEditUiEvent.RemoveRoleSection -> {
                 removeRoleSection(event.role)
+            }
+
+            // Genre events
+            is BookEditUiEvent.GenreSearchQueryChanged -> {
+                val query = event.query
+                _state.update { it.copy(genreSearchQuery = query) }
+                // Filter locally from allGenres
+                filterGenres(query)
+            }
+
+            is BookEditUiEvent.GenreSelected -> {
+                selectGenre(event.genre)
+            }
+
+            is BookEditUiEvent.RemoveGenre -> {
+                removeGenre(event.genre)
+            }
+
+            // Tag events
+            is BookEditUiEvent.TagSearchQueryChanged -> {
+                _state.update { it.copy(tagSearchQuery = event.query) }
+                tagQueryFlow.value = event.query
+            }
+
+            is BookEditUiEvent.TagSelected -> {
+                selectTag(event.tag)
+            }
+
+            is BookEditUiEvent.TagEntered -> {
+                createAndAddTag(event.name)
+            }
+
+            is BookEditUiEvent.RemoveTag -> {
+                removeTag(event.tag)
             }
 
             is BookEditUiEvent.Save -> {
@@ -768,6 +987,166 @@ class BookEditViewModel(
         updateHasChanges()
     }
 
+    // ========== Genre Helper Methods ==========
+
+    /**
+     * Filter genres locally based on search query.
+     */
+    private fun filterGenres(query: String) {
+        if (query.isBlank()) {
+            _state.update { it.copy(genreSearchResults = emptyList()) }
+            return
+        }
+
+        val lowerQuery = query.lowercase()
+        val currentGenreIds = _state.value.genres.map { it.id }.toSet()
+
+        val filtered = _state.value.allGenres
+            .filter { genre ->
+                genre.id !in currentGenreIds &&
+                    (genre.name.lowercase().contains(lowerQuery) ||
+                        genre.path.lowercase().contains(lowerQuery))
+            }
+            .take(10)
+
+        _state.update { it.copy(genreSearchResults = filtered) }
+    }
+
+    private fun selectGenre(genre: EditableGenre) {
+        _state.update { current ->
+            // Check if already added
+            if (current.genres.any { it.id == genre.id }) {
+                return@update current.copy(
+                    genreSearchQuery = "",
+                    genreSearchResults = emptyList(),
+                )
+            }
+
+            current.copy(
+                genres = current.genres + genre,
+                genreSearchQuery = "",
+                genreSearchResults = emptyList(),
+            )
+        }
+        updateHasChanges()
+    }
+
+    private fun removeGenre(genre: EditableGenre) {
+        _state.update { current ->
+            current.copy(genres = current.genres.filter { it.id != genre.id })
+        }
+        updateHasChanges()
+    }
+
+    // ========== Tag Helper Methods ==========
+
+    /**
+     * Perform server-side tag search.
+     */
+    private fun performTagSearch(query: String) {
+        tagSearchJob?.cancel()
+        tagSearchJob = viewModelScope.launch {
+            _state.update { it.copy(tagSearchLoading = true) }
+
+            // Filter from allTags (already loaded)
+            val lowerQuery = query.lowercase()
+            val currentTagIds = _state.value.tags.map { it.id }.toSet()
+
+            val filtered = _state.value.allTags
+                .filter { tag ->
+                    tag.id !in currentTagIds &&
+                        tag.name.lowercase().contains(lowerQuery)
+                }
+                .take(10)
+
+            _state.update {
+                it.copy(
+                    tagSearchResults = filtered,
+                    tagSearchLoading = false,
+                )
+            }
+        }
+    }
+
+    private fun selectTag(tag: EditableTag) {
+        _state.update { current ->
+            // Check if already added
+            if (current.tags.any { it.id == tag.id }) {
+                return@update current.copy(
+                    tagSearchQuery = "",
+                    tagSearchResults = emptyList(),
+                )
+            }
+
+            current.copy(
+                tags = current.tags + tag,
+                tagSearchQuery = "",
+                tagSearchResults = emptyList(),
+            )
+        }
+        tagQueryFlow.value = ""
+        updateHasChanges()
+    }
+
+    /**
+     * Create a new tag inline and add it to the book.
+     */
+    private fun createAndAddTag(name: String) {
+        if (name.isBlank()) return
+
+        val trimmedName = name.trim()
+
+        // Check if tag with same name already exists in allTags
+        val existingTag = _state.value.allTags.find {
+            it.name.equals(trimmedName, ignoreCase = true)
+        }
+
+        if (existingTag != null) {
+            // Use existing tag
+            selectTag(existingTag)
+            return
+        }
+
+        // Create new tag via API
+        viewModelScope.launch {
+            _state.update { it.copy(tagCreating = true) }
+
+            try {
+                val newTag = tagApi.createTag(trimmedName)
+                val editableTag = newTag.toEditable()
+
+                _state.update { current ->
+                    current.copy(
+                        tags = current.tags + editableTag,
+                        allTags = current.allTags + editableTag, // Add to available tags
+                        tagSearchQuery = "",
+                        tagSearchResults = emptyList(),
+                        tagCreating = false,
+                    )
+                }
+                tagQueryFlow.value = ""
+                updateHasChanges()
+
+                logger.info { "Created new tag: ${newTag.name}" }
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to create tag: $trimmedName" }
+                _state.update {
+                    it.copy(
+                        tagCreating = false,
+                        error = "Failed to create tag: ${e.message}",
+                    )
+                }
+            }
+        }
+    }
+
+    private fun removeTag(tag: EditableTag) {
+        _state.update { current ->
+            current.copy(tags = current.tags.filter { it.id != tag.id })
+        }
+        updateHasChanges()
+    }
+
     private fun updateHasChanges() {
         val current = _state.value
         val hasChanges = current.title != originalTitle ||
@@ -776,8 +1155,13 @@ class BookEditViewModel(
             current.publishYear != originalPublishYear ||
             current.publisher != originalPublisher ||
             current.language != originalLanguage ||
+            current.isbn != originalIsbn ||
+            current.asin != originalAsin ||
+            current.abridged != originalAbridged ||
             current.contributors != originalContributors ||
-            current.series != originalSeries
+            current.series != originalSeries ||
+            current.genres != originalGenres ||
+            current.tags != originalTags
 
         _state.update { it.copy(hasChanges = hasChanges) }
     }
@@ -799,7 +1183,10 @@ class BookEditViewModel(
                     current.description != originalDescription ||
                     current.publishYear != originalPublishYear ||
                     current.publisher != originalPublisher ||
-                    current.language != originalLanguage
+                    current.language != originalLanguage ||
+                    current.isbn != originalIsbn ||
+                    current.asin != originalAsin ||
+                    current.abridged != originalAbridged
 
                 if (metadataChanged) {
                     val updateRequest = BookUpdateRequest(
@@ -809,6 +1196,9 @@ class BookEditViewModel(
                         publishYear = if (current.publishYear != originalPublishYear) current.publishYear.ifBlank { null } else null,
                         publisher = if (current.publisher != originalPublisher) current.publisher.ifBlank { null } else null,
                         language = if (current.language != originalLanguage) current.language else null,
+                        isbn = if (current.isbn != originalIsbn) current.isbn.ifBlank { null } else null,
+                        asin = if (current.asin != originalAsin) current.asin.ifBlank { null } else null,
+                        abridged = if (current.abridged != originalAbridged) current.abridged else null,
                     )
 
                     when (val result = bookEditRepository.updateBook(current.bookId, updateRequest)) {
@@ -855,6 +1245,46 @@ class BookEditViewModel(
                             _state.update { it.copy(isSaving = false, error = "Failed to save series: ${result.message}") }
                             return@launch
                         }
+                    }
+                }
+
+                // Update genres
+                val genresChanged = current.genres != originalGenres
+                if (genresChanged) {
+                    try {
+                        genreApi.setBookGenres(current.bookId, current.genres.map { it.id })
+                        logger.info { "Book genres updated" }
+                    } catch (e: Exception) {
+                        logger.error(e) { "Failed to save genres" }
+                        _state.update { it.copy(isSaving = false, error = "Failed to save genres: ${e.message}") }
+                        return@launch
+                    }
+                }
+
+                // Update tags (add/remove individually)
+                val tagsChanged = current.tags != originalTags
+                if (tagsChanged) {
+                    try {
+                        val currentTagIds = current.tags.map { it.id }.toSet()
+                        val originalTagIds = originalTags.map { it.id }.toSet()
+
+                        // Remove tags that were removed
+                        val removedTagIds = originalTagIds - currentTagIds
+                        for (tagId in removedTagIds) {
+                            tagApi.removeTagFromBook(current.bookId, tagId)
+                        }
+
+                        // Add tags that were added
+                        val addedTagIds = currentTagIds - originalTagIds
+                        for (tagId in addedTagIds) {
+                            tagApi.addTagToBook(current.bookId, tagId)
+                        }
+
+                        logger.info { "Book tags updated: +${addedTagIds.size}, -${removedTagIds.size}" }
+                    } catch (e: Exception) {
+                        logger.error(e) { "Failed to save tags" }
+                        // Tags are less critical, log but don't fail the save
+                        logger.warn { "Continuing despite tag save failure" }
                     }
                 }
 

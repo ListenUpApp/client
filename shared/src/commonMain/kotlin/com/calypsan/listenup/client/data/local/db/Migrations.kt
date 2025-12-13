@@ -394,3 +394,74 @@ val MIGRATION_9_10 =
             )
         }
     }
+
+/**
+ * Migration from version 10 to version 11.
+ *
+ * Changes:
+ * - Add publisher column to books table (if not exists)
+ * - Add language column to books table (if not exists)
+ * - Add isbn column to books table
+ * - Add asin column to books table
+ * - Add abridged column to books table
+ *
+ * Note: publisher and language may already exist from earlier development builds,
+ * so we check for column existence before adding.
+ */
+val MIGRATION_10_11 =
+    object : Migration(10, 11) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Get existing columns in books table
+            val existingColumns = mutableSetOf<String>()
+            connection.prepare("PRAGMA table_info(books)").use { stmt ->
+                while (stmt.step()) {
+                    existingColumns.add(stmt.getText(1)) // Column name is at index 1
+                }
+            }
+
+            // Add publisher column if not exists
+            if ("publisher" !in existingColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE books ADD COLUMN publisher TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add language column if not exists
+            if ("language" !in existingColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE books ADD COLUMN language TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add isbn column if not exists
+            if ("isbn" !in existingColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE books ADD COLUMN isbn TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add asin column if not exists
+            if ("asin" !in existingColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE books ADD COLUMN asin TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add abridged column if not exists (defaults to false/0)
+            if ("abridged" !in existingColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE books ADD COLUMN abridged INTEGER NOT NULL DEFAULT 0
+                    """.trimIndent(),
+                )
+            }
+        }
+    }

@@ -97,6 +97,12 @@ data class BookResponse(
     val publishYear: String? = null,
     @SerialName("language")
     val language: String? = null,
+    @SerialName("isbn")
+    val isbn: String? = null,
+    @SerialName("asin")
+    val asin: String? = null,
+    @SerialName("abridged")
+    val abridged: Boolean = false,
     // List of strings
     @SerialName("genres")
     val genres: List<String>? = null,

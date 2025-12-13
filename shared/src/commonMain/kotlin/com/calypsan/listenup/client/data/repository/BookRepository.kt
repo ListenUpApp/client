@@ -254,11 +254,15 @@ class BookRepository(
             addedAt = this.createdAt,
             updatedAt = this.updatedAt,
             description = this.description,
-            genres = this.genres,
+            genres = emptyList(), // Loaded on-demand when editing
+            tags = emptyList(), // Loaded on-demand when editing
             series = series,
             publishYear = this.publishYear,
             publisher = this.publisher,
             language = this.language,
+            isbn = this.isbn,
+            asin = this.asin,
+            abridged = this.abridged,
             rating = null, // Rating is not directly stored in BookEntity yet, default to null
         )
 }

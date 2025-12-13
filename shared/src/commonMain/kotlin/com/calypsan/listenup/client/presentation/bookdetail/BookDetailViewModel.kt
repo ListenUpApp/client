@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
+import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +24,7 @@ private val logger = KotlinLogging.logger {}
  */
 class BookDetailViewModel(
     private val bookRepository: BookRepositoryContract,
+    private val genreApi: GenreApiContract,
     private val tagApi: TagApiContract,
     private val playbackPositionDao: PlaybackPositionDao,
 ) : ViewModel() {
@@ -54,14 +57,6 @@ class BookDetailViewModel(
                         }
                     }
 
-                // Parse comma-separated genres into list for chip display
-                val genresList =
-                    book.genres
-                        ?.split(",")
-                        ?.map { it.trim() }
-                        ?.filter { it.isNotBlank() }
-                        ?: emptyList()
-
                 // Load progress for this book
                 val position = playbackPositionDao.get(BookId(bookId))
                 val progress =
@@ -88,8 +83,6 @@ class BookDetailViewModel(
                         series = book.fullSeriesTitle,
                         description = book.description ?: "",
                         narrators = book.narratorNames,
-                        genres = book.genres ?: "",
-                        genresList = genresList,
                         year = book.publishYear,
                         rating = book.rating,
                         chapters = chapters,
@@ -97,7 +90,8 @@ class BookDetailViewModel(
                         timeRemainingFormatted = timeRemaining,
                     )
 
-                // Load tags for this book (non-blocking, optional feature)
+                // Load genres and tags for this book (non-blocking, optional features)
+                loadGenres(bookId)
                 loadTags(bookId)
             } else {
                 _state.value =
@@ -105,6 +99,27 @@ class BookDetailViewModel(
                         isLoading = false,
                         error = "Book not found",
                     )
+            }
+        }
+    }
+
+    /**
+     * Load genres for the current book.
+     * Genres are optional - failures don't affect the main screen.
+     */
+    private fun loadGenres(bookId: String) {
+        viewModelScope.launch {
+            try {
+                val bookGenres = genreApi.getBookGenres(bookId)
+                _state.update {
+                    it.copy(
+                        genres = bookGenres,
+                        genresList = bookGenres.map { g -> g.name },
+                    )
+                }
+            } catch (e: Exception) {
+                // Genres are optional - don't fail the whole screen
+                logger.warn(e) { "Failed to load genres" }
             }
         }
     }
@@ -214,14 +229,15 @@ data class BookDetailUiState(
     val series: String? = null,
     val description: String = "",
     val narrators: String = "",
-    val genres: String = "",
-    val genresList: List<String> = emptyList(),
     val year: Int? = null,
     val rating: Double? = null,
     val chapters: List<ChapterUiModel> = emptyList(),
     // Progress (for overlay display)
     val progress: Float? = null,
     val timeRemainingFormatted: String? = null,
+    // Genres (loaded from API)
+    val genres: List<Genre> = emptyList(),
+    val genresList: List<String> = emptyList(),
     // Tags
     val tags: List<Tag> = emptyList(),
     val allUserTags: List<Tag> = emptyList(),

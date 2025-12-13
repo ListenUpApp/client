@@ -387,7 +387,6 @@ private data class BookUpdateApiRequest(
     val language: String? = null,
     val isbn: String? = null,
     val asin: String? = null,
-    val explicit: Boolean? = null,
     val abridged: Boolean? = null,
     @SerialName("series_id")
     val seriesId: String? = null,
@@ -404,7 +403,6 @@ private fun BookUpdateRequest.toApiRequest(): BookUpdateApiRequest =
         language = language,
         isbn = isbn,
         asin = asin,
-        explicit = explicit,
         abridged = abridged,
         seriesId = seriesId,
         sequence = sequence,
@@ -481,7 +479,6 @@ private data class BookEditApiResponse(
     val language: String? = null,
     val isbn: String? = null,
     val asin: String? = null,
-    val explicit: Boolean = false,
     val abridged: Boolean = false,
     @SerialName("series_id")
     val seriesId: String? = null,
@@ -502,7 +499,6 @@ private data class BookEditApiResponse(
             language = language,
             isbn = isbn,
             asin = asin,
-            explicit = explicit,
             abridged = abridged,
             seriesId = seriesId,
             seriesName = seriesName,

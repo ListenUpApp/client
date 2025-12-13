@@ -156,7 +156,8 @@ class ContributorBooksViewModel(
             addedAt = book.createdAt,
             updatedAt = book.updatedAt,
             description = book.description,
-            genres = book.genres,
+            genres = emptyList(), // Loaded on-demand when editing
+            tags = emptyList(), // Loaded on-demand when editing
             series = bookSeriesList,
             publishYear = book.publishYear,
             rating = null,

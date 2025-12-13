@@ -198,7 +198,7 @@ class BookEditRepository(
      * Update local BookEntity with server response data.
      *
      * Only updates fields that are present in both BookEntity and BookEditResponse.
-     * Some fields (isbn, asin, explicit, abridged) are not currently stored in
+     * Some fields (isbn, asin, abridged) are not currently stored in
      * BookEntity and will be ignored.
      */
     private suspend fun updateLocalBook(
@@ -228,6 +228,9 @@ class BookEditRepository(
             publishYear = response.publishYear?.toIntOrNull(),
             publisher = response.publisher,
             language = response.language,
+            isbn = response.isbn,
+            asin = response.asin,
+            abridged = response.abridged,
             // Update sync metadata
             updatedAt = serverUpdatedAt,
             lastModified = Timestamp.now(),
