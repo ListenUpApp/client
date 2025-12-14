@@ -3,7 +3,6 @@ package com.calypsan.listenup.client.design.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -51,11 +50,12 @@ fun GenreChip(
 }
 
 /**
- * A centered row of genre chips that wraps to multiple lines.
+ * A row of genre chips that wraps to multiple lines.
  *
  * @param genres List of genre names
  * @param onGenreClick Optional callback when a genre is clicked
  * @param modifier Modifier for the row
+ * @param horizontalArrangement Horizontal arrangement for the chips (defaults to center)
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -63,23 +63,20 @@ fun GenreChipRow(
     genres: List<String>,
     onGenreClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
 ) {
     if (genres.isEmpty()) return
 
-    Box(
+    FlowRow(
         modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center,
+        horizontalArrangement = horizontalArrangement,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            genres.forEach { genre ->
-                GenreChip(
-                    genre = genre,
-                    onClick = onGenreClick?.let { { it(genre) } },
-                )
-            }
+        genres.forEach { genre ->
+            GenreChip(
+                genre = genre,
+                onClick = onGenreClick?.let { { it(genre) } },
+            )
         }
     }
 }

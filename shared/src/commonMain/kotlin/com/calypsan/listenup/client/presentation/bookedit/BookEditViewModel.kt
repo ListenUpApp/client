@@ -115,6 +115,9 @@ data class BookEditUiState(
     val isSaving: Boolean = false,
     val error: String? = null,
 
+    // Book identity (for immersive header)
+    val coverPath: String? = null,
+
     // Book metadata fields
     val bookId: String = "",
     val title: String = "",
@@ -448,6 +451,7 @@ class BookEditViewModel(
             _state.update {
                 it.copy(
                     isLoading = false,
+                    coverPath = book.coverPath,
                     title = book.title,
                     subtitle = book.subtitle ?: "",
                     description = book.description ?: "",

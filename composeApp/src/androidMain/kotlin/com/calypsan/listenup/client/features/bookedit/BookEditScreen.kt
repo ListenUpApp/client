@@ -1,6 +1,8 @@
 package com.calypsan.listenup.client.features.bookedit
 
+import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,39 +11,47 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,19 +61,33 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.palette.graphics.Palette
+import androidx.window.core.layout.WindowSizeClass
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.toBitmap
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
-import com.calypsan.listenup.client.data.remote.SeriesSearchResult
 import com.calypsan.listenup.client.design.components.AutocompleteResultItem
 import com.calypsan.listenup.client.design.components.LanguageDropdown
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpTextArea
 import com.calypsan.listenup.client.design.components.ListenUpTextField
-import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
+import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
 import com.calypsan.listenup.client.presentation.bookedit.BookEditNavAction
 import com.calypsan.listenup.client.presentation.bookedit.BookEditUiEvent
 import com.calypsan.listenup.client.presentation.bookedit.BookEditUiState
@@ -73,23 +97,22 @@ import com.calypsan.listenup.client.presentation.bookedit.EditableContributor
 import com.calypsan.listenup.client.presentation.bookedit.EditableGenre
 import com.calypsan.listenup.client.presentation.bookedit.EditableSeries
 import com.calypsan.listenup.client.presentation.bookedit.EditableTag
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Screen for editing book metadata and contributors.
+ * Creative Studio book editing screen following Material 3 Expressive Design.
  *
- * Features:
- * - Edit title, subtitle, description, series sequence, publish year
- * - Manage contributors (authors/narrators) with autocomplete search
- * - Debounced contributor search with offline fallback
- * - Change tracking with unsaved changes warning
+ * Design Philosophy: Transform data entry into creative expression with immersive
+ * visuals that tie the editing experience to the book's identity.
  *
- * @param bookId The ID of the book to edit
- * @param onBackClick Callback when back button is clicked
- * @param onSaveSuccess Callback after successful save
- * @param viewModel The ViewModel for book editing
+ * Layout:
+ * - Immersive backdrop with blurred cover art
+ * - Identity Header: Cover + Title/Subtitle side by side
+ * - Floating cards for each editing section
+ * - Extended FAB for Save action
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookEditScreen(
     bookId: String,
@@ -104,7 +127,6 @@ fun BookEditScreen(
     val state by viewModel.state.collectAsState()
     val navAction by viewModel.navActions.collectAsState()
 
-    // Handle navigation actions
     LaunchedEffect(navAction) {
         when (navAction) {
             is BookEditNavAction.NavigateBack -> {
@@ -112,7 +134,6 @@ fun BookEditScreen(
                 viewModel.clearNavAction()
             }
             is BookEditNavAction.ShowSaveSuccess -> {
-                // Save success now navigates back directly
                 onBackClick()
                 viewModel.clearNavAction()
             }
@@ -120,84 +141,94 @@ fun BookEditScreen(
         }
     }
 
-    // Unsaved changes dialog state
     var showUnsavedChangesDialog by remember { mutableStateOf(false) }
 
-    // Handle system back gesture
     BackHandler(enabled = state.hasChanges) {
         showUnsavedChangesDialog = true
     }
 
+    // Extract colors from cover for immersive backdrop
+    val coverColors = rememberCoverColors(state.coverPath)
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Edit Book",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            if (state.hasChanges) {
-                                showUnsavedChangesDialog = true
-                            } else {
-                                onBackClick()
-                            }
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
-                    }
-                },
-                actions = {
-                    if (state.isSaving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .padding(end = 16.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        IconButton(
-                            onClick = { viewModel.onEvent(BookEditUiEvent.Save) },
-                            enabled = state.hasChanges,
-                        ) {
+        containerColor = Color.Transparent,
+        floatingActionButton = {
+            // Extended FAB for Save - always visible, disabled when no changes
+            if (!state.isLoading) {
+                val isEnabled = state.hasChanges && !state.isSaving
+
+                ExtendedFloatingActionButton(
+                    onClick = { if (isEnabled) viewModel.onEvent(BookEditUiEvent.Save) },
+                    icon = {
+                        if (state.isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = if (isEnabled) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                },
+                            )
+                        } else {
                             Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Save",
-                                tint = if (state.hasChanges) {
-                                    MaterialTheme.colorScheme.primary
+                                Icons.Default.Save,
+                                contentDescription = null,
+                                tint = if (isEnabled) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
                                 } else {
                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                                 },
                             )
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            )
+                    },
+                    text = {
+                        Text(
+                            text = if (state.isSaving) "Saving..." else "Save Changes",
+                            color = if (isEnabled) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            },
+                        )
+                    },
+                    expanded = true,
+                    containerColor = if (isEnabled) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    },
+                )
+            }
         },
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .background(surfaceColor),
         ) {
+            // Immersive blurred backdrop
+            ImmersiveBackdrop(
+                coverPath = state.coverPath,
+                coverColors = coverColors,
+                surfaceColor = surfaceColor,
+            )
+
+            // Content
             when {
                 state.isLoading -> {
-                    ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                    ListenUpLoadingIndicator(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(paddingValues),
+                    )
                 }
                 state.error != null -> {
                     Column(
-                        modifier = Modifier.align(Alignment.Center),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(paddingValues),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
@@ -214,14 +245,22 @@ fun BookEditScreen(
                 else -> {
                     BookEditContent(
                         state = state,
+                        coverColors = coverColors,
                         onEvent = viewModel::onEvent,
+                        onBackClick = {
+                            if (state.hasChanges) {
+                                showUnsavedChangesDialog = true
+                            } else {
+                                onBackClick()
+                            }
+                        },
+                        modifier = Modifier.padding(bottom = paddingValues.calculateBottomPadding()),
                     )
                 }
             }
         }
     }
 
-    // Unsaved changes dialog
     if (showUnsavedChangesDialog) {
         AlertDialog(
             onDismissRequest = { showUnsavedChangesDialog = false },
@@ -247,137 +286,484 @@ fun BookEditScreen(
     }
 }
 
-/**
- * Main content for book edit screen.
- */
+// =============================================================================
+// COLOR EXTRACTION (same pattern as BookDetailScreen)
+// =============================================================================
+
+data class CoverColorScheme(
+    val dominant: Color,
+    val darkMuted: Color,
+    val onDominant: Color,
+)
+
+private fun extractColorScheme(bitmap: Bitmap, fallbackColor: Color): CoverColorScheme {
+    val palette = Palette.from(bitmap).generate()
+
+    val dominant = palette.dominantSwatch?.rgb?.let { Color(it) } ?: fallbackColor
+    val darkMuted = palette.darkMutedSwatch?.rgb?.let { Color(it) } ?: dominant
+
+    val onDominant = palette.dominantSwatch?.let {
+        Color(it.titleTextColor)
+    } ?: Color.White
+
+    return CoverColorScheme(
+        dominant = dominant,
+        darkMuted = darkMuted,
+        onDominant = onDominant,
+    )
+}
+
 @Composable
-private fun BookEditContent(
-    state: BookEditUiState,
-    onEvent: (BookEditUiEvent) -> Unit,
+private fun rememberCoverColors(
+    coverPath: String?,
+    fallbackColor: Color = MaterialTheme.colorScheme.primaryContainer,
+): CoverColorScheme {
+    val context = LocalContext.current
+    val defaultScheme = CoverColorScheme(
+        dominant = fallbackColor,
+        darkMuted = fallbackColor,
+        onDominant = Color.White,
+    )
+    var colorScheme by remember(coverPath) { mutableStateOf(defaultScheme) }
+
+    val painter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(context)
+            .data(coverPath)
+            .allowHardware(false)
+            .build()
+    )
+
+    LaunchedEffect(painter.state) {
+        val state = painter.state
+        if (state is AsyncImagePainter.State.Success) {
+            val extracted = withContext(Dispatchers.Default) {
+                try {
+                    val bitmap = state.result.image.toBitmap()
+                    extractColorScheme(bitmap, fallbackColor)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            if (extracted != null) {
+                colorScheme = extracted
+            }
+        }
+    }
+
+    return colorScheme
+}
+
+// =============================================================================
+// IMMERSIVE BACKDROP
+// =============================================================================
+
+@Composable
+private fun ImmersiveBackdrop(
+    coverPath: String?,
+    coverColors: CoverColorScheme,
+    surfaceColor: Color,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        // Metadata Section
-        MetadataSection(
-            state = state,
-            onEvent = onEvent,
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Blurred cover image
+        if (coverPath != null) {
+            AsyncImage(
+                model = coverPath,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+                    .blur(50.dp),
+            )
+        }
+
+        // Gradient overlay from cover color to surface
+        val gradientColors = listOf(
+            coverColors.darkMuted.copy(alpha = 0.85f),
+            coverColors.darkMuted.copy(alpha = 0.6f),
+            surfaceColor.copy(alpha = 0.95f),
+            surfaceColor,
         )
 
-        HorizontalDivider()
-
-        // Series Section
-        SeriesSection(
-            state = state,
-            onEvent = onEvent,
-        )
-
-        HorizontalDivider()
-
-        // Genres Section
-        GenresSection(
-            state = state,
-            onEvent = onEvent,
-        )
-
-        HorizontalDivider()
-
-        // Tags Section
-        TagsSection(
-            state = state,
-            onEvent = onEvent,
-        )
-
-        HorizontalDivider()
-
-        // Contributors Section
-        ContributorsSection(
-            state = state,
-            onEvent = onEvent,
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(450.dp)
+                .background(Brush.verticalGradient(gradientColors)),
         )
     }
 }
 
+// =============================================================================
+// CREATIVE STUDIO LAYOUT
+// =============================================================================
+
+@Composable
+private fun BookEditContent(
+    state: BookEditUiState,
+    coverColors: CoverColorScheme,
+    onEvent: (BookEditUiEvent) -> Unit,
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Detect window size for responsive layout
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val isMediumOrLarger = windowSizeClass.isWidthAtLeastBreakpoint(
+        WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND
+    )
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
+        // Identity Header with navigation
+        IdentityHeader(
+            coverPath = state.coverPath,
+            title = state.title,
+            subtitle = state.subtitle,
+            onTitleChange = { onEvent(BookEditUiEvent.TitleChanged(it)) },
+            onSubtitleChange = { onEvent(BookEditUiEvent.SubtitleChanged(it)) },
+            onBackClick = onBackClick,
+        )
+
+        // Cards section - responsive layout
+        if (isMediumOrLarger) {
+            TwoColumnCardsLayout(state = state, onEvent = onEvent)
+        } else {
+            SingleColumnCardsLayout(state = state, onEvent = onEvent)
+        }
+
+        // Bottom spacing for FAB
+        Spacer(modifier = Modifier.height(88.dp))
+    }
+}
+
 /**
- * Metadata editing fields.
+ * Single-column layout for mobile (Compact) screens.
  */
 @Composable
-private fun MetadataSection(
+private fun SingleColumnCardsLayout(
+    state: BookEditUiState,
+    onEvent: (BookEditUiEvent) -> Unit,
+) {
+    Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        // Card 1: Description (The Hook)
+        StudioCard(title = "Description") {
+            ListenUpTextArea(
+                value = state.description,
+                onValueChange = { onEvent(BookEditUiEvent.DescriptionChanged(it)) },
+                label = "Description",
+                placeholder = "Enter a description...",
+            )
+        }
+
+        // Card 2: Publishing
+        StudioCard(title = "Publishing") {
+            PublishingCardContent(state = state, onEvent = onEvent)
+        }
+
+        // Card 3: Identifiers & Format
+        StudioCard(title = "Identifiers") {
+            IdentifiersCardContent(state = state, onEvent = onEvent)
+        }
+
+        // Card 4: Series
+        StudioCard(title = "Series") {
+            SeriesCardContent(state = state, onEvent = onEvent)
+        }
+
+        // Card 5: Classification
+        StudioCard(title = "Classification") {
+            ClassificationCardContent(state = state, onEvent = onEvent)
+        }
+
+        // Card 6: Talent
+        StudioCard(title = "Talent") {
+            TalentCardContent(state = state, onEvent = onEvent)
+        }
+    }
+}
+
+/**
+ * Two-column layout for tablet (Medium/Expanded) screens.
+ *
+ * Full Width: Description (The Hook - primary content)
+ * Left Column: Publishing, Identifiers, Series
+ * Right Column: Classification, Talent
+ */
+@Composable
+private fun TwoColumnCardsLayout(
+    state: BookEditUiState,
+    onEvent: (BookEditUiEvent) -> Unit,
+) {
+    Column(
+        modifier = Modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        // Full-width: Description (The Hook) - Primary content
+        StudioCard(title = "Description") {
+            ListenUpTextArea(
+                value = state.description,
+                onValueChange = { onEvent(BookEditUiEvent.DescriptionChanged(it)) },
+                label = "Description",
+                placeholder = "Enter a description...",
+            )
+        }
+
+        // Two-column grid for remaining cards
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            // Left Column - Book metadata
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                StudioCard(title = "Publishing") {
+                    PublishingCardContent(state = state, onEvent = onEvent)
+                }
+
+                StudioCard(title = "Identifiers") {
+                    IdentifiersCardContent(state = state, onEvent = onEvent)
+                }
+
+                StudioCard(title = "Series") {
+                    SeriesCardContent(state = state, onEvent = onEvent)
+                }
+            }
+
+            // Right Column - Classification & Talent
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                StudioCard(title = "Classification") {
+                    ClassificationCardContent(state = state, onEvent = onEvent)
+                }
+
+                StudioCard(title = "Talent") {
+                    TalentCardContent(state = state, onEvent = onEvent)
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
+// IDENTITY HEADER
+// =============================================================================
+
+@Composable
+private fun IdentityHeader(
+    coverPath: String?,
+    title: String,
+    subtitle: String,
+    onTitleChange: (String) -> Unit,
+    onSubtitleChange: (String) -> Unit,
+    onBackClick: () -> Unit,
+) {
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .padding(16.dp),
+    ) {
+        // Navigation
+        IconButton(
+            onClick = onBackClick,
+            modifier = Modifier
+                .size(48.dp)
+                .background(
+                    color = surfaceColor.copy(alpha = 0.6f),
+                    shape = CircleShape,
+                ),
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Cover + Title/Subtitle row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // Cover art (120dp)
+            ElevatedCard(
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp),
+                modifier = Modifier
+                    .width(120.dp)
+                    .aspectRatio(1f),
+            ) {
+                AsyncImage(
+                    model = coverPath,
+                    contentDescription = "Book cover",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            // Title and Subtitle fields
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // Title - Large editorial style
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = onTitleChange,
+                    textStyle = TextStyle(
+                        fontFamily = GoogleSansDisplay,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = MaterialTheme.typography.headlineSmall.fontSize,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    placeholder = {
+                        Text(
+                            "Title",
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontFamily = GoogleSansDisplay,
+                                fontWeight = FontWeight.Bold,
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        focusedContainerColor = surfaceColor.copy(alpha = 0.4f),
+                        unfocusedContainerColor = surfaceColor.copy(alpha = 0.2f),
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                // Subtitle
+                OutlinedTextField(
+                    value = subtitle,
+                    onValueChange = onSubtitleChange,
+                    textStyle = MaterialTheme.typography.titleMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    placeholder = {
+                        Text(
+                            "Subtitle (optional)",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        focusedContainerColor = surfaceColor.copy(alpha = 0.4f),
+                        unfocusedContainerColor = surfaceColor.copy(alpha = 0.2f),
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+// =============================================================================
+// STUDIO CARD
+// =============================================================================
+
+/**
+ * Elevated card container for edit sections.
+ * Uses surfaceContainerHigh for visual pop against the gradient background.
+ */
+@Composable
+private fun StudioCard(
+    title: String,
+    content: @Composable () -> Unit,
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = GoogleSansDisplay,
+                    fontWeight = FontWeight.Bold,
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            content()
+        }
+    }
+}
+
+// =============================================================================
+// CARD CONTENTS
+// =============================================================================
+
+/**
+ * Card: Publisher, Year, Language
+ */
+@Composable
+private fun PublishingCardContent(
     state: BookEditUiState,
     onEvent: (BookEditUiEvent) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = "Metadata",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-
-        // Title
-        ListenUpTextField(
-            value = state.title,
-            onValueChange = { onEvent(BookEditUiEvent.TitleChanged(it)) },
-            label = "Title",
-        )
-
-        // Subtitle
-        ListenUpTextField(
-            value = state.subtitle,
-            onValueChange = { onEvent(BookEditUiEvent.SubtitleChanged(it)) },
-            label = "Subtitle",
-        )
-
-        // Description
-        ListenUpTextArea(
-            value = state.description,
-            onValueChange = { onEvent(BookEditUiEvent.DescriptionChanged(it)) },
-            label = "Description",
-            placeholder = "Enter a description...",
-        )
-
-        // Publisher
         ListenUpTextField(
             value = state.publisher,
             onValueChange = { onEvent(BookEditUiEvent.PublisherChanged(it)) },
             label = "Publisher",
         )
 
-        // Publish Year and Language side by side
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            // Publish Year
             ListenUpTextField(
                 value = state.publishYear,
                 onValueChange = { onEvent(BookEditUiEvent.PublishYearChanged(it)) },
-                label = "Publish Year",
+                label = "Year",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.weight(1f),
             )
 
-            // Language
             LanguageDropdown(
                 selectedCode = state.language,
                 onLanguageSelected = { onEvent(BookEditUiEvent.LanguageChanged(it)) },
                 modifier = Modifier.weight(1f),
             )
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Additional metadata section (ISBN, ASIN, Abridged)
-        Text(
-            text = "Identifiers & Format",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        // ISBN and ASIN side by side
+/**
+ * Card: ISBN, ASIN, Abridged toggle
+ */
+@Composable
+private fun IdentifiersCardContent(
+    state: BookEditUiState,
+    onEvent: (BookEditUiEvent) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth(),
@@ -402,22 +788,22 @@ private fun MetadataSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onEvent(BookEditUiEvent.AbridgedChanged(!state.abridged)) }
-                .padding(vertical = 8.dp),
+                .padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Abridged",
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Text(
-                    text = "This audiobook is a shortened version",
+                    text = "Shortened version of the original",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            androidx.compose.material3.Switch(
+            Switch(
                 checked = state.abridged,
                 onCheckedChange = { onEvent(BookEditUiEvent.AbridgedChanged(it)) },
             )
@@ -426,32 +812,24 @@ private fun MetadataSection(
 }
 
 /**
- * Series editing section with search.
+ * Card: Series with search and sequence editing
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SeriesSection(
+private fun SeriesCardContent(
     state: BookEditUiState,
     onEvent: (BookEditUiEvent) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = "Series",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-
-        // Existing series chips with sequence editing
-        if (state.series.isNotEmpty()) {
-            state.series.forEach { series ->
-                SeriesChipWithSequence(
-                    series = series,
-                    onSequenceChange = { sequence ->
-                        onEvent(BookEditUiEvent.SeriesSequenceChanged(series, sequence))
-                    },
-                    onRemove = { onEvent(BookEditUiEvent.RemoveSeries(series)) },
-                )
-            }
+        // Existing series with sequence editing
+        state.series.forEach { series ->
+            SeriesChipWithSequence(
+                series = series,
+                onSequenceChange = { sequence ->
+                    onEvent(BookEditUiEvent.SeriesSequenceChanged(series, sequence))
+                },
+                onRemove = { onEvent(BookEditUiEvent.RemoveSeries(series)) },
+            )
         }
 
         // Offline indicator
@@ -463,7 +841,7 @@ private fun SeriesSection(
             )
         }
 
-        // Search field with autocomplete
+        // Search field
         ListenUpAutocompleteField(
             value = state.seriesSearchQuery,
             onValueChange = { onEvent(BookEditUiEvent.SeriesSearchQueryChanged(it)) },
@@ -472,7 +850,6 @@ private fun SeriesSection(
             onSubmit = { query ->
                 val trimmed = query.trim()
                 if (trimmed.isNotEmpty()) {
-                    // If there's a top result, select it; otherwise add as new
                     val topResult = state.seriesSearchResults.firstOrNull()
                     if (topResult != null) {
                         onEvent(BookEditUiEvent.SeriesSelected(topResult))
@@ -494,7 +871,7 @@ private fun SeriesSection(
             isLoading = state.seriesSearchLoading,
         )
 
-        // Show "Add new" chip when query is valid and no exact match exists
+        // Add new chip
         val trimmedQuery = state.seriesSearchQuery.trim()
         val hasExactMatch = state.seriesSearchResults.any {
             it.name.equals(trimmedQuery, ignoreCase = true)
@@ -504,20 +881,13 @@ private fun SeriesSection(
                 onClick = { onEvent(BookEditUiEvent.SeriesEntered(trimmedQuery)) },
                 label = { Text("Add \"$trimmedQuery\"") },
                 leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
+                    Icon(Icons.Default.Add, null, Modifier.size(18.dp))
                 },
             )
         }
     }
 }
 
-/**
- * Chip displaying a series with editable sequence number.
- */
 @Composable
 private fun SeriesChipWithSequence(
     series: EditableSeries,
@@ -529,7 +899,6 @@ private fun SeriesChipWithSequence(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Series name chip with remove button
         InputChip(
             selected = false,
             onClick = { },
@@ -548,7 +917,6 @@ private fun SeriesChipWithSequence(
                 .height(56.dp),
         )
 
-        // Sequence number field
         OutlinedTextField(
             value = series.sequence ?: "",
             onValueChange = onSequenceChange,
@@ -561,67 +929,132 @@ private fun SeriesChipWithSequence(
 }
 
 /**
- * Genres section for selecting from existing genres.
+ * Card: Genres and Tags
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun GenresSection(
+private fun ClassificationCardContent(
     state: BookEditUiState,
     onEvent: (BookEditUiEvent) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = "Genres",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Genres subsection
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Genres",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium,
+            )
 
-        // Selected genre chips
-        if (state.genres.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                state.genres.forEach { genre ->
-                    GenreChip(
-                        genre = genre,
-                        onRemove = { onEvent(BookEditUiEvent.RemoveGenre(genre)) },
-                    )
+            if (state.genres.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    state.genres.forEach { genre ->
+                        GenreChip(
+                            genre = genre,
+                            onRemove = { onEvent(BookEditUiEvent.RemoveGenre(genre)) },
+                        )
+                    }
                 }
             }
+
+            ListenUpAutocompleteField(
+                value = state.genreSearchQuery,
+                onValueChange = { onEvent(BookEditUiEvent.GenreSearchQueryChanged(it)) },
+                results = state.genreSearchResults,
+                onResultSelected = { genre -> onEvent(BookEditUiEvent.GenreSelected(genre)) },
+                onSubmit = { query ->
+                    val topResult = state.genreSearchResults.firstOrNull()
+                    if (topResult != null) {
+                        onEvent(BookEditUiEvent.GenreSelected(topResult))
+                    }
+                },
+                resultContent = { genre ->
+                    AutocompleteResultItem(
+                        name = genre.name,
+                        subtitle = genre.parentPath,
+                        onClick = { onEvent(BookEditUiEvent.GenreSelected(genre)) },
+                    )
+                },
+                placeholder = "Add genre...",
+                isLoading = false,
+            )
         }
 
-        // Search field with autocomplete
-        ListenUpAutocompleteField(
-            value = state.genreSearchQuery,
-            onValueChange = { onEvent(BookEditUiEvent.GenreSearchQueryChanged(it)) },
-            results = state.genreSearchResults,
-            onResultSelected = { genre -> onEvent(BookEditUiEvent.GenreSelected(genre)) },
-            onSubmit = { query ->
-                // Select top result if available
-                val topResult = state.genreSearchResults.firstOrNull()
-                if (topResult != null) {
-                    onEvent(BookEditUiEvent.GenreSelected(topResult))
-                }
-            },
-            resultContent = { genre ->
-                AutocompleteResultItem(
-                    name = genre.name,
-                    subtitle = genre.parentPath,
-                    onClick = { onEvent(BookEditUiEvent.GenreSelected(genre)) },
-                )
-            },
-            placeholder = "Add genre...",
-            isLoading = false, // Local filtering, no loading state
-        )
+        // Tags subsection
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Tags",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium,
+            )
 
-        // No "Add new" chip - genres are system-controlled
+            if (state.tags.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    state.tags.forEach { tag ->
+                        TagChip(
+                            tag = tag,
+                            onRemove = { onEvent(BookEditUiEvent.RemoveTag(tag)) },
+                        )
+                    }
+                }
+            }
+
+            ListenUpAutocompleteField(
+                value = state.tagSearchQuery,
+                onValueChange = { onEvent(BookEditUiEvent.TagSearchQueryChanged(it)) },
+                results = state.tagSearchResults,
+                onResultSelected = { tag -> onEvent(BookEditUiEvent.TagSelected(tag)) },
+                onSubmit = { query ->
+                    val trimmed = query.trim()
+                    if (trimmed.isNotEmpty()) {
+                        val topResult = state.tagSearchResults.firstOrNull()
+                        if (topResult != null) {
+                            onEvent(BookEditUiEvent.TagSelected(topResult))
+                        } else if (trimmed.length >= 2) {
+                            onEvent(BookEditUiEvent.TagEntered(trimmed))
+                        }
+                    }
+                },
+                resultContent = { tag ->
+                    AutocompleteResultItem(
+                        name = tag.name,
+                        subtitle = null,
+                        onClick = { onEvent(BookEditUiEvent.TagSelected(tag)) },
+                    )
+                },
+                placeholder = "Add tag...",
+                isLoading = state.tagSearchLoading || state.tagCreating,
+            )
+
+            // Add new tag chip
+            val trimmedTagQuery = state.tagSearchQuery.trim()
+            val hasTagMatch = state.tagSearchResults.any {
+                it.name.equals(trimmedTagQuery, ignoreCase = true)
+            }
+            val alreadyHasTag = state.tags.any {
+                it.name.equals(trimmedTagQuery, ignoreCase = true)
+            }
+            if (trimmedTagQuery.length >= 2 && !state.tagSearchLoading && !state.tagCreating &&
+                !hasTagMatch && !alreadyHasTag
+            ) {
+                AssistChip(
+                    onClick = { onEvent(BookEditUiEvent.TagEntered(trimmedTagQuery)) },
+                    label = { Text("Add \"$trimmedTagQuery\"") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Add, null, Modifier.size(18.dp))
+                    },
+                )
+            }
+        }
     }
 }
 
-/**
- * Chip displaying a selected genre with remove button.
- */
 @Composable
 private fun GenreChip(
     genre: EditableGenre,
@@ -643,95 +1076,6 @@ private fun GenreChip(
     )
 }
 
-/**
- * Tags section for selecting existing or creating new tags.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun TagsSection(
-    state: BookEditUiState,
-    onEvent: (BookEditUiEvent) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = "Tags",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-
-        // Selected tag chips
-        if (state.tags.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                state.tags.forEach { tag ->
-                    TagChip(
-                        tag = tag,
-                        onRemove = { onEvent(BookEditUiEvent.RemoveTag(tag)) },
-                    )
-                }
-            }
-        }
-
-        // Search field with autocomplete
-        ListenUpAutocompleteField(
-            value = state.tagSearchQuery,
-            onValueChange = { onEvent(BookEditUiEvent.TagSearchQueryChanged(it)) },
-            results = state.tagSearchResults,
-            onResultSelected = { tag -> onEvent(BookEditUiEvent.TagSelected(tag)) },
-            onSubmit = { query ->
-                val trimmed = query.trim()
-                if (trimmed.isNotEmpty()) {
-                    // If there's a top result, select it; otherwise create new
-                    val topResult = state.tagSearchResults.firstOrNull()
-                    if (topResult != null) {
-                        onEvent(BookEditUiEvent.TagSelected(topResult))
-                    } else if (trimmed.length >= 2) {
-                        onEvent(BookEditUiEvent.TagEntered(trimmed))
-                    }
-                }
-            },
-            resultContent = { tag ->
-                AutocompleteResultItem(
-                    name = tag.name,
-                    subtitle = null,
-                    onClick = { onEvent(BookEditUiEvent.TagSelected(tag)) },
-                )
-            },
-            placeholder = "Add tag...",
-            isLoading = state.tagSearchLoading || state.tagCreating,
-        )
-
-        // Show "Add new" chip when query is valid and no exact match exists
-        val trimmedQuery = state.tagSearchQuery.trim()
-        val hasExactMatch = state.tagSearchResults.any {
-            it.name.equals(trimmedQuery, ignoreCase = true)
-        }
-        val alreadyHasTag = state.tags.any {
-            it.name.equals(trimmedQuery, ignoreCase = true)
-        }
-        if (trimmedQuery.length >= 2 && !state.tagSearchLoading && !state.tagCreating &&
-            !hasExactMatch && !alreadyHasTag
-        ) {
-            AssistChip(
-                onClick = { onEvent(BookEditUiEvent.TagEntered(trimmedQuery)) },
-                label = { Text("Add \"$trimmedQuery\"") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                },
-            )
-        }
-    }
-}
-
-/**
- * Chip displaying a selected tag with remove button.
- */
 @Composable
 private fun TagChip(
     tag: EditableTag,
@@ -754,24 +1098,17 @@ private fun TagChip(
 }
 
 /**
- * Contributors section with per-role search fields.
+ * Card: Contributors by role
  */
 @Composable
-private fun ContributorsSection(
+private fun TalentCardContent(
     state: BookEditUiState,
     onEvent: (BookEditUiEvent) -> Unit,
 ) {
-    // Dialog state for confirming role section removal
     var roleToRemove by remember { mutableStateOf<ContributorRole?>(null) }
     var contributorsToRemoveCount by remember { mutableStateOf(0) }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(
-            text = "Contributors",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-
         // Show a section for each visible role
         state.visibleRoles.forEach { role ->
             val contributorsForRole = state.contributorsForRole(role)
@@ -796,11 +1133,9 @@ private fun ContributorsSection(
                 },
                 onRemoveSection = {
                     if (contributorsForRole.size >= 2) {
-                        // Show confirmation dialog for 2+ contributors
                         roleToRemove = role
                         contributorsToRemoveCount = contributorsForRole.size
                     } else {
-                        // Remove immediately for 0-1 contributors
                         onEvent(BookEditUiEvent.RemoveRoleSection(role))
                     }
                 },
@@ -818,7 +1153,7 @@ private fun ContributorsSection(
         }
     }
 
-    // Confirmation dialog for removing role section with multiple contributors
+    // Confirmation dialog
     roleToRemove?.let { role ->
         AlertDialog(
             onDismissRequest = { roleToRemove = null },
@@ -845,10 +1180,6 @@ private fun ContributorsSection(
     }
 }
 
-/**
- * Section for contributors of a specific role.
- * Shows chips for existing contributors and a search field to add more.
- */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RoleContributorSection(
@@ -913,7 +1244,7 @@ private fun RoleContributorSection(
             )
         }
 
-        // Search field with autocomplete
+        // Search field
         ListenUpAutocompleteField(
             value = searchQuery,
             onValueChange = onQueryChange,
@@ -922,7 +1253,6 @@ private fun RoleContributorSection(
             onSubmit = { query ->
                 val trimmed = query.trim()
                 if (trimmed.isNotEmpty()) {
-                    // If there's a top result, select it; otherwise add as new
                     val topResult = searchResults.firstOrNull()
                     if (topResult != null) {
                         onResultSelected(topResult)
@@ -944,7 +1274,7 @@ private fun RoleContributorSection(
             isLoading = isSearching,
         )
 
-        // Show "Add new" chip when query is valid and no exact match exists
+        // Add new chip
         val trimmedQuery = searchQuery.trim()
         val hasExactMatch = searchResults.any { it.name.equals(trimmedQuery, ignoreCase = true) }
         if (trimmedQuery.length >= 2 && !isSearching && !hasExactMatch) {
@@ -952,20 +1282,13 @@ private fun RoleContributorSection(
                 onClick = { onNameEntered(trimmedQuery) },
                 label = { Text("Add \"$trimmedQuery\"") },
                 leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
+                    Icon(Icons.Default.Add, null, Modifier.size(18.dp))
                 },
             )
         }
     }
 }
 
-/**
- * Chip displaying a contributor with remove button.
- */
 @Composable
 private fun ContributorChip(
     contributor: EditableContributor,
@@ -994,9 +1317,6 @@ private fun ContributorChip(
     )
 }
 
-/**
- * Button to add a new role section.
- */
 @Composable
 private fun AddRoleButton(
     availableRoles: List<ContributorRole>,
@@ -1009,11 +1329,7 @@ private fun AddRoleButton(
             onClick = { expanded = true },
             label = { Text("Add Role") },
             leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
+                Icon(Icons.Default.Add, null, Modifier.size(18.dp))
             },
         )
 

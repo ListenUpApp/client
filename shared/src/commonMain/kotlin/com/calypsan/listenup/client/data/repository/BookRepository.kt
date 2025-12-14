@@ -208,15 +208,19 @@ class BookRepository(
                 .map { Contributor(it.id, it.name) }
 
         // Get all contributors with all their roles grouped
+        // NOTE: Room's Junction may return duplicate ContributorEntity instances when a contributor
+        // has multiple roles for the same book. We must dedupe by ID to prevent UI duplication bugs.
         val rolesByContributorId = contributorRoles.groupBy({ it.contributorId }, { it.role })
         val allContributors =
-            contributors.map { entity ->
-                Contributor(
-                    id = entity.id,
-                    name = entity.name,
-                    roles = rolesByContributorId[entity.id] ?: emptyList(),
-                )
-            }
+            contributors
+                .distinctBy { it.id }
+                .map { entity ->
+                    Contributor(
+                        id = entity.id,
+                        name = entity.name,
+                        roles = rolesByContributorId[entity.id] ?: emptyList(),
+                    )
+                }
 
         // Get series with their sequences
         val seriesById = series.associateBy { it.id }
