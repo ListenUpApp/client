@@ -465,3 +465,79 @@ val MIGRATION_10_11 =
             }
         }
     }
+
+/**
+ * Migration from version 11 to version 12.
+ *
+ * Changes:
+ * - Add website column to contributors table
+ * - Add birthDate column to contributors table
+ * - Add deathDate column to contributors table
+ * - Add aliases column to contributors table (comma-separated pen names)
+ * - Add creditedAs column to book_contributors table (original attribution name)
+ */
+val MIGRATION_11_12 =
+    object : Migration(11, 12) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Get existing columns in contributors table
+            val contributorColumns = mutableSetOf<String>()
+            connection.prepare("PRAGMA table_info(contributors)").use { stmt ->
+                while (stmt.step()) {
+                    contributorColumns.add(stmt.getText(1)) // Column name is at index 1
+                }
+            }
+
+            // Add website column if not exists
+            if ("website" !in contributorColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE contributors ADD COLUMN website TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add birthDate column if not exists
+            if ("birthDate" !in contributorColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE contributors ADD COLUMN birthDate TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add deathDate column if not exists
+            if ("deathDate" !in contributorColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE contributors ADD COLUMN deathDate TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add aliases column if not exists (comma-separated pen names)
+            if ("aliases" !in contributorColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE contributors ADD COLUMN aliases TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Get existing columns in book_contributors table
+            val bookContributorColumns = mutableSetOf<String>()
+            connection.prepare("PRAGMA table_info(book_contributors)").use { stmt ->
+                while (stmt.step()) {
+                    bookContributorColumns.add(stmt.getText(1))
+                }
+            }
+
+            // Add creditedAs column if not exists (original attribution name)
+            if ("creditedAs" !in bookContributorColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE book_contributors ADD COLUMN creditedAs TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+        }
+    }

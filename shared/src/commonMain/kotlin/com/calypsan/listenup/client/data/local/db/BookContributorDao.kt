@@ -38,4 +38,31 @@ interface BookContributorDao {
         bookId: BookId,
         role: String,
     ): List<ContributorEntity>
+
+    /**
+     * Get all book relationships for a contributor.
+     * Used when merging contributors (to re-link books to the target contributor).
+     */
+    @Query("SELECT * FROM book_contributors WHERE contributorId = :contributorId")
+    suspend fun getByContributorId(contributorId: String): List<BookContributorCrossRef>
+
+    /**
+     * Get a specific book-contributor relationship.
+     * Used to check if a relationship already exists before creating a new one.
+     */
+    @Query("SELECT * FROM book_contributors WHERE bookId = :bookId AND contributorId = :contributorId AND role = :role")
+    suspend fun get(bookId: BookId, contributorId: String, role: String): BookContributorCrossRef?
+
+    /**
+     * Delete a specific book-contributor relationship.
+     * Used when merging contributors to remove the old relationships.
+     */
+    @Query("DELETE FROM book_contributors WHERE bookId = :bookId AND contributorId = :contributorId AND role = :role")
+    suspend fun delete(bookId: BookId, contributorId: String, role: String)
+
+    /**
+     * Delete a book-contributor cross reference.
+     */
+    @Query("DELETE FROM book_contributors WHERE bookId = :bookId AND contributorId = :contributorId AND role = :role")
+    suspend fun deleteCrossRef(bookId: BookId, contributorId: String, role: String)
 }

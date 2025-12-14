@@ -192,32 +192,42 @@ class BookRepository(
         val contributorsById = contributors.associateBy { it.id }
 
         // Get authors: find all cross-refs with role "author", then look up the contributor
+        // Use creditedAs for display name when available (preserves original attribution after merge)
         val authors =
             contributorRoles
                 .filter { it.role == "author" }
-                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
+                .mapNotNull { crossRef ->
+                    contributorsById[crossRef.contributorId]?.let { entity ->
+                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
+                    }
+                }
                 .distinctBy { it.id }
-                .map { Contributor(it.id, it.name) }
 
         // Get narrators: find all cross-refs with role "narrator", then look up the contributor
+        // Use creditedAs for display name when available (preserves original attribution after merge)
         val narrators =
             contributorRoles
                 .filter { it.role == "narrator" }
-                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
+                .mapNotNull { crossRef ->
+                    contributorsById[crossRef.contributorId]?.let { entity ->
+                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
+                    }
+                }
                 .distinctBy { it.id }
-                .map { Contributor(it.id, it.name) }
 
         // Get all contributors with all their roles grouped
         // NOTE: Room's Junction may return duplicate ContributorEntity instances when a contributor
         // has multiple roles for the same book. We must dedupe by ID to prevent UI duplication bugs.
+        // Use creditedAs for display name when available (preserves original attribution after merge)
         val rolesByContributorId = contributorRoles.groupBy({ it.contributorId }, { it.role })
+        val creditedAsByContributorId = contributorRoles.associate { it.contributorId to it.creditedAs }
         val allContributors =
             contributors
                 .distinctBy { it.id }
                 .map { entity ->
                     Contributor(
                         id = entity.id,
-                        name = entity.name,
+                        name = creditedAsByContributorId[entity.id] ?: entity.name,
                         roles = rolesByContributorId[entity.id] ?: emptyList(),
                     )
                 }

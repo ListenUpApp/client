@@ -104,3 +104,16 @@ data class ContributorBooks(
     val contributorId: String,
     val role: String,
 ) : Route
+
+/**
+ * Contributor edit screen - edit contributor metadata and manage aliases.
+ *
+ * Allows editing name, biography, website, dates, and adding/removing aliases.
+ * Adding an alias from search results triggers a merge operation.
+ *
+ * @property contributorId The unique ID of the contributor to edit.
+ */
+@Serializable
+data class ContributorEdit(
+    val contributorId: String,
+) : Route

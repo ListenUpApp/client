@@ -13,9 +13,18 @@ import androidx.room.Relation
  * A contributor (e.g., Stephen King) can be associated with multiple books,
  * and a book can have multiple contributors (e.g., Author + Narrator).
  *
+ * The `creditedAs` field preserves the original attribution name when an alias
+ * is merged into a primary contributor. For example, when "Richard Bachman" is
+ * merged into "Stephen King", books originally by Bachman keep creditedAs = "Richard Bachman".
+ * This allows:
+ * - Book detail page to show "by Richard Bachman" (original credit)
+ * - Clicking the name navigates to Stephen King (the real contributor)
+ * - Stephen King's page shows "The Running Man (as Richard Bachman)"
+ *
  * @property bookId Foreign key to the book
  * @property contributorId Foreign key to the contributor
  * @property role The role of the contributor for this specific book (e.g., "author", "narrator")
+ * @property creditedAs The name shown on this book (null = use contributor's name)
  */
 @Entity(
     tableName = "book_contributors",
@@ -44,6 +53,8 @@ data class BookContributorCrossRef(
     val contributorId: String,
     // "author", "narrator", etc.
     val role: String,
+    // Original attribution name (e.g., "Richard Bachman" even when linked to Stephen King)
+    val creditedAs: String? = null,
 )
 
 /**

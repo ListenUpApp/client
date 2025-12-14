@@ -55,9 +55,25 @@ class ContributorBooksViewModel(
         viewModelScope.launch {
             bookDao.observeByContributorAndRole(contributorId, role).collectLatest { booksWithContributors ->
                 val books = booksWithContributors.map { it.toDomain() }
+                val contributorName = _state.value.contributorName
 
                 // Load progress for all books
                 val bookProgress = loadProgressForBooks(books)
+
+                // Extract creditedAs for books where the attribution differs
+                val bookCreditedAs = booksWithContributors
+                    .mapNotNull { bwc ->
+                        val crossRef = bwc.contributorRoles.find {
+                            it.contributorId == contributorId && it.role == role
+                        }
+                        val creditedAs = crossRef?.creditedAs
+                        if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
+                            bwc.book.id.value to creditedAs
+                        } else {
+                            null
+                        }
+                    }
+                    .toMap()
 
                 // Group books by series
                 val seriesGroups =
@@ -83,11 +99,12 @@ class ContributorBooksViewModel(
                 _state.value =
                     ContributorBooksUiState(
                         isLoading = false,
-                        contributorName = _state.value.contributorName,
+                        contributorName = contributorName,
                         roleDisplayName = ContributorDetailViewModel.roleToDisplayName(role),
                         seriesGroups = seriesGroups,
                         standaloneBooks = standaloneBooks,
                         bookProgress = bookProgress,
+                        bookCreditedAs = bookCreditedAs,
                         error = null,
                     )
             }
@@ -119,20 +136,28 @@ class ContributorBooksViewModel(
         val contributorsById = contributors.associateBy { it.id }
 
         // Get authors by filtering cross-refs with role "author"
+        // Use creditedAs for display name when available (preserves original attribution after merge)
         val authors =
             contributorRoles
                 .filter { it.role == "author" }
-                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
+                .mapNotNull { crossRef ->
+                    contributorsById[crossRef.contributorId]?.let { entity ->
+                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
+                    }
+                }
                 .distinctBy { it.id }
-                .map { Contributor(it.id, it.name) }
 
         // Get narrators by filtering cross-refs with role "narrator"
+        // Use creditedAs for display name when available (preserves original attribution after merge)
         val narrators =
             contributorRoles
                 .filter { it.role == "narrator" }
-                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
+                .mapNotNull { crossRef ->
+                    contributorsById[crossRef.contributorId]?.let { entity ->
+                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
+                    }
+                }
                 .distinctBy { it.id }
-                .map { Contributor(it.id, it.name) }
 
         // Build series list from junction table data
         val seriesById = series.associateBy { it.id }
@@ -169,12 +194,15 @@ class ContributorBooksViewModel(
  * UI state for the Contributor Books screen.
  */
 data class ContributorBooksUiState(
-    val isLoading: Boolean = false,
+    /** Start with loading=true to avoid briefly showing empty content before data loads */
+    val isLoading: Boolean = true,
     val contributorName: String = "",
     val roleDisplayName: String = "",
     val seriesGroups: List<SeriesGroup> = emptyList(),
     val standaloneBooks: List<Book> = emptyList(),
     val bookProgress: Map<String, Float> = emptyMap(),
+    /** Maps bookId to creditedAs name when different from contributor's name */
+    val bookCreditedAs: Map<String, String> = emptyMap(),
     val error: String? = null,
 ) {
     /** Total number of books */

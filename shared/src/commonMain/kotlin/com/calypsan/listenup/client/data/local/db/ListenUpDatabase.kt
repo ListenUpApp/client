@@ -19,6 +19,7 @@ import androidx.room.TypeConverters
  * - v9: Added FTS5 tables for full-text search (books_fts, contributors_fts, series_fts)
  * - v10: Added book_series junction table for many-to-many book-series relationships
  * - v11: Added publisher, language, isbn, asin, abridged columns to books table
+ * - v12: Added website, birthDate, deathDate, aliases columns to contributors; creditedAs to book_contributors
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -37,7 +38,7 @@ import androidx.room.TypeConverters
         PendingListeningEventEntity::class,
         DownloadEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

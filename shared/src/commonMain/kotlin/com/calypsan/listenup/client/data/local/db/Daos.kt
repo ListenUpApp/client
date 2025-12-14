@@ -201,4 +201,32 @@ interface ContributorDao {
     """,
     )
     fun observeRolesWithCountForContributor(contributorId: String): Flow<List<RoleWithBookCount>>
+
+    // =========================================================================
+    // Alias Support
+    // =========================================================================
+
+    /**
+     * Find a contributor that has the given name as an alias.
+     *
+     * Used during sync to check if an incoming contributor name (e.g., "Richard Bachman")
+     * should be linked to an existing contributor (e.g., Stephen King) who has that alias.
+     *
+     * Note: SQLite LIKE with wildcards is used for substring matching.
+     * The caller should verify the exact match in Kotlin code since this is a fuzzy search.
+     *
+     * @param aliasName The name to search for in aliases fields
+     * @return List of contributors that might have this alias (verify exact match in code)
+     */
+    @Query("SELECT * FROM contributors WHERE aliases LIKE '%' || :aliasName || '%'")
+    suspend fun findByAlias(aliasName: String): List<ContributorEntity>
+
+    /**
+     * Update a contributor's aliases field.
+     *
+     * @param contributorId The contributor to update
+     * @param aliases Comma-separated list of pen names (e.g., "Richard Bachman, John Swithen")
+     */
+    @Query("UPDATE contributors SET aliases = :aliases WHERE id = :contributorId")
+    suspend fun updateAliases(contributorId: String, aliases: String?)
 }

@@ -19,7 +19,7 @@ import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.network.sockets.ConnectTimeoutException
-import io.ktor.utils.io.errors.IOException
+import kotlinx.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async

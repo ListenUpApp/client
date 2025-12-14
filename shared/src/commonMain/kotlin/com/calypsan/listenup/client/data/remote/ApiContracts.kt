@@ -330,6 +330,63 @@ interface ListenUpApiContract {
         bookId: String,
         series: List<SeriesInput>,
     ): Result<BookEditResponse>
+
+    /**
+     * Merge a source contributor into a target contributor.
+     *
+     * The merge operation:
+     * - Re-links all books from source to target, preserving original attribution via creditedAs
+     * - Adds source's name to target's aliases field
+     * - Soft-deletes the source contributor
+     *
+     * Use this when a user identifies that two contributors are actually the same person
+     * (e.g., "Richard Bachman" is a pen name for "Stephen King").
+     *
+     * @param targetContributorId The contributor to merge into (absorbs the source)
+     * @param sourceContributorId The contributor to merge from (will be soft-deleted)
+     * @return Result containing the updated target contributor
+     */
+    suspend fun mergeContributor(
+        targetContributorId: String,
+        sourceContributorId: String,
+    ): Result<MergeContributorResponse>
+
+    /**
+     * Unmerge an alias from a contributor, creating a new separate contributor.
+     *
+     * POST /api/v1/contributors/{contributorId}/unmerge
+     *
+     * The unmerge operation:
+     * - Creates a new contributor with the alias name
+     * - Re-links books that were credited to that alias to the new contributor
+     * - Removes the alias from the source contributor
+     *
+     * Use this when a user decides an alias should be a separate contributor after all.
+     *
+     * @param contributorId The contributor to unmerge from
+     * @param aliasName The alias to split off as a new contributor
+     * @return Result containing the newly created contributor
+     */
+    suspend fun unmergeContributor(
+        contributorId: String,
+        aliasName: String,
+    ): Result<UnmergeContributorResponse>
+
+    /**
+     * Update a contributor's metadata.
+     *
+     * PUT /api/v1/contributors/{contributorId}
+     *
+     * Updates name, biography, website, birth_date, death_date, and aliases.
+     *
+     * @param contributorId The contributor to update
+     * @param request The update request containing new field values
+     * @return Result containing the updated contributor
+     */
+    suspend fun updateContributor(
+        contributorId: String,
+        request: UpdateContributorRequest,
+    ): Result<UpdateContributorResponse>
 }
 
 /**
@@ -413,5 +470,64 @@ data class BookEditResponse(
     val seriesId: String?,
     val seriesName: String?,
     val sequence: String?,
+    val updatedAt: String,
+)
+
+/**
+ * Response from contributor merge operation.
+ *
+ * Contains the updated target contributor with all merged aliases.
+ */
+data class MergeContributorResponse(
+    val id: String,
+    val name: String,
+    val sortName: String?,
+    val biography: String?,
+    val imageUrl: String?,
+    val asin: String?,
+    val aliases: List<String>,
+    val updatedAt: String,
+)
+
+/**
+ * Response from contributor unmerge operation.
+ *
+ * Contains the newly created contributor that was split off from the alias.
+ */
+data class UnmergeContributorResponse(
+    val id: String,
+    val name: String,
+    val sortName: String?,
+    val biography: String?,
+    val imageUrl: String?,
+    val asin: String?,
+    val aliases: List<String>,
+    val updatedAt: String,
+)
+
+/**
+ * Request to update a contributor's metadata.
+ */
+data class UpdateContributorRequest(
+    val name: String,
+    val biography: String?,
+    val website: String?,
+    val birthDate: String?,
+    val deathDate: String?,
+    val aliases: List<String>,
+)
+
+/**
+ * Response from updating a contributor.
+ */
+data class UpdateContributorResponse(
+    val id: String,
+    val name: String,
+    val biography: String?,
+    val imageUrl: String?,
+    val website: String?,
+    val birthDate: String?,
+    val deathDate: String?,
+    val aliases: List<String>,
     val updatedAt: String,
 )

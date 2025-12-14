@@ -10,6 +10,10 @@ import com.calypsan.listenup.client.data.remote.BookUpdateRequest
 import com.calypsan.listenup.client.data.remote.ContributorInput
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
+import com.calypsan.listenup.client.data.remote.MergeContributorResponse
+import com.calypsan.listenup.client.data.remote.UnmergeContributorResponse
+import com.calypsan.listenup.client.data.remote.UpdateContributorRequest
+import com.calypsan.listenup.client.data.remote.UpdateContributorResponse
 import com.calypsan.listenup.client.data.remote.SeriesInput
 import com.calypsan.listenup.client.data.remote.SeriesSearchResult
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
@@ -27,6 +31,7 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
+import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.request.url
@@ -336,6 +341,117 @@ class ListenUpApi(
         }
 
     /**
+     * Merge a source contributor into a target contributor.
+     *
+     * The merge operation:
+     * - Re-links all books from source to target, preserving original attribution via creditedAs
+     * - Adds source's name to target's aliases field
+     * - Soft-deletes the source contributor
+     *
+     * Endpoint: POST /api/v1/contributors/{targetId}/merge
+     *
+     * @param targetContributorId The contributor to merge into
+     * @param sourceContributorId The contributor to merge from (will be soft-deleted)
+     * @return Result containing the updated target contributor
+     */
+    override suspend fun mergeContributor(
+        targetContributorId: String,
+        sourceContributorId: String,
+    ): Result<MergeContributorResponse> =
+        suspendRunCatching {
+            logger.debug { "Merging contributor: source=$sourceContributorId into target=$targetContributorId" }
+
+            val client = getAuthenticatedClient()
+            val request = MergeContributorApiRequest(sourceContributorId = sourceContributorId)
+            val response: ApiResponse<MergeContributorApiResponse> =
+                client
+                    .post("/api/v1/contributors/$targetContributorId/merge") {
+                        contentType(ContentType.Application.Json)
+                        setBody(request)
+                    }.body()
+
+            logger.debug { "Received merge contributor response: success=${response.success}" }
+
+            when (val result = response.toResult()) {
+                is Success -> result.data.toDomain()
+                is Failure -> throw result.exception
+            }
+        }
+
+    /**
+     * Unmerge an alias from a contributor, creating a new separate contributor.
+     *
+     * POST /api/v1/contributors/{contributorId}/unmerge
+     *
+     * @param contributorId The contributor to unmerge from
+     * @param aliasName The alias to split off as a new contributor
+     * @return Result containing the newly created contributor
+     */
+    override suspend fun unmergeContributor(
+        contributorId: String,
+        aliasName: String,
+    ): Result<UnmergeContributorResponse> =
+        suspendRunCatching {
+            logger.debug { "Unmerging alias '$aliasName' from contributor: $contributorId" }
+
+            val client = getAuthenticatedClient()
+            val request = UnmergeContributorApiRequest(aliasName = aliasName)
+            val response: ApiResponse<UnmergeContributorApiResponse> =
+                client
+                    .post("/api/v1/contributors/$contributorId/unmerge") {
+                        contentType(ContentType.Application.Json)
+                        setBody(request)
+                    }.body()
+
+            logger.debug { "Received unmerge contributor response: success=${response.success}" }
+
+            when (val result = response.toResult()) {
+                is Success -> result.data.toDomain()
+                is Failure -> throw result.exception
+            }
+        }
+
+    /**
+     * Update a contributor's metadata.
+     *
+     * PUT /api/v1/contributors/{contributorId}
+     *
+     * @param contributorId The contributor to update
+     * @param request The update request containing new field values
+     * @return Result containing the updated contributor
+     */
+    override suspend fun updateContributor(
+        contributorId: String,
+        request: UpdateContributorRequest,
+    ): Result<UpdateContributorResponse> =
+        suspendRunCatching {
+            logger.debug { "Updating contributor: $contributorId" }
+
+            val client = getAuthenticatedClient()
+            val apiRequest = UpdateContributorApiRequest(
+                name = request.name,
+                biography = request.biography,
+                website = request.website,
+                birthDate = request.birthDate,
+                deathDate = request.deathDate,
+                aliases = request.aliases,
+            )
+            val response: ApiResponse<UpdateContributorApiResponse> =
+                client
+                    .put("/api/v1/contributors/$contributorId") {
+                        contentType(ContentType.Application.Json)
+                        setBody(apiRequest)
+                    }.body()
+
+            logger.debug { "Received update contributor response: success=${response.success}" }
+
+            when (val result = response.toResult()) {
+                is Success -> result.data.toDomain()
+                is Failure -> throw result.exception
+            }
+        }
+
+    /**
      * Clean up resources when the API client is no longer needed.
      */
     fun close() {
@@ -503,6 +619,138 @@ private data class BookEditApiResponse(
             seriesId = seriesId,
             seriesName = seriesName,
             sequence = sequence,
+            updatedAt = updatedAt,
+        )
+}
+
+// --- Merge Contributor API Models ---
+
+/**
+ * API request for POST /api/v1/contributors/{id}/merge.
+ */
+@Serializable
+private data class MergeContributorApiRequest(
+    @SerialName("source_contributor_id")
+    val sourceContributorId: String,
+)
+
+/**
+ * API response for contributor merge operation.
+ * Maps to server's contributor response structure.
+ */
+@Serializable
+private data class MergeContributorApiResponse(
+    val id: String,
+    val name: String,
+    @SerialName("sort_name")
+    val sortName: String? = null,
+    val biography: String? = null,
+    @SerialName("image_url")
+    val imageUrl: String? = null,
+    val asin: String? = null,
+    val aliases: List<String> = emptyList(),
+    @SerialName("updated_at")
+    val updatedAt: String,
+) {
+    fun toDomain(): MergeContributorResponse =
+        MergeContributorResponse(
+            id = id,
+            name = name,
+            sortName = sortName,
+            biography = biography,
+            imageUrl = imageUrl,
+            asin = asin,
+            aliases = aliases,
+            updatedAt = updatedAt,
+        )
+}
+
+// --- Unmerge Contributor API Models ---
+
+/**
+ * API request for POST /api/v1/contributors/{id}/unmerge.
+ */
+@Serializable
+private data class UnmergeContributorApiRequest(
+    @SerialName("alias_name")
+    val aliasName: String,
+)
+
+/**
+ * API response for contributor unmerge operation.
+ * Maps to server's contributor response structure.
+ */
+@Serializable
+private data class UnmergeContributorApiResponse(
+    val id: String,
+    val name: String,
+    @SerialName("sort_name")
+    val sortName: String? = null,
+    val biography: String? = null,
+    @SerialName("image_url")
+    val imageUrl: String? = null,
+    val asin: String? = null,
+    val aliases: List<String> = emptyList(),
+    @SerialName("updated_at")
+    val updatedAt: String,
+) {
+    fun toDomain(): UnmergeContributorResponse =
+        UnmergeContributorResponse(
+            id = id,
+            name = name,
+            sortName = sortName,
+            biography = biography,
+            imageUrl = imageUrl,
+            asin = asin,
+            aliases = aliases,
+            updatedAt = updatedAt,
+        )
+}
+
+/**
+ * API request for PUT /api/v1/contributors/{id}.
+ */
+@Serializable
+private data class UpdateContributorApiRequest(
+    val name: String,
+    val biography: String? = null,
+    val website: String? = null,
+    @SerialName("birth_date")
+    val birthDate: String? = null,
+    @SerialName("death_date")
+    val deathDate: String? = null,
+    val aliases: List<String> = emptyList(),
+)
+
+/**
+ * API response for contributor update operation.
+ */
+@Serializable
+private data class UpdateContributorApiResponse(
+    val id: String,
+    val name: String,
+    val biography: String? = null,
+    @SerialName("image_url")
+    val imageUrl: String? = null,
+    val website: String? = null,
+    @SerialName("birth_date")
+    val birthDate: String? = null,
+    @SerialName("death_date")
+    val deathDate: String? = null,
+    val aliases: List<String> = emptyList(),
+    @SerialName("updated_at")
+    val updatedAt: String,
+) {
+    fun toDomain(): UpdateContributorResponse =
+        UpdateContributorResponse(
+            id = id,
+            name = name,
+            biography = biography,
+            imageUrl = imageUrl,
+            website = website,
+            birthDate = birthDate,
+            deathDate = deathDate,
+            aliases = aliases,
             updatedAt = updatedAt,
         )
 }

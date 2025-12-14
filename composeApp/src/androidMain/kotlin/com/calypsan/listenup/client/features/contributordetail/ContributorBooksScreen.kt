@@ -1,39 +1,52 @@
 package com.calypsan.listenup.client.features.contributordetail
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.avatarColorForUser
+import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
+import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.features.library.BookCard
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorBooksUiState
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorBooksViewModel
@@ -41,18 +54,17 @@ import com.calypsan.listenup.client.presentation.contributordetail.SeriesGroup
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Screen showing all books for a contributor in a specific role.
+ * Deep Dive screen - explore all books by a contributor in a specific role.
  *
- * Books are grouped by series (with horizontal carousels per series)
- * followed by standalone books in a grid at the bottom.
+ * Design Philosophy: "A clean, organized grid that feels like a continuation of the profile."
+ * Features a condensed gradient header that echoes the Artist Portfolio aesthetic,
+ * followed by an organized grid of books grouped by series.
  *
- * @param contributorId The contributor's unique ID
- * @param role The role to filter by (e.g., "author", "narrator")
- * @param onBackClick Callback when back button is clicked
- * @param onBookClick Callback when a book is clicked
- * @param viewModel The ViewModel for contributor books data
+ * Layout:
+ * 1. Condensed Hero Header (200dp) - Role name with gradient backdrop
+ * 2. Series Sections - Horizontal carousels per series
+ * 3. Standalone Grid - Responsive grid for non-series books
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContributorBooksScreen(
     contributorId: String,
@@ -67,95 +79,113 @@ fun ContributorBooksScreen(
 
     val state by viewModel.state.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = state.roleDisplayName,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    ),
-            )
-        },
-    ) { paddingValues ->
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-        ) {
-            when {
-                state.isLoading -> {
-                    ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
-                }
+    Box(modifier = Modifier.fillMaxSize()) {
+        when {
+            state.isLoading -> {
+                ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
+            }
 
-                state.error != null -> {
-                    Text(
-                        text = state.error ?: "Unknown error",
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-                }
+            state.error != null -> {
+                Text(
+                    text = state.error ?: "Unknown error",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
 
-                else -> {
-                    ContributorBooksContent(
-                        state = state,
-                        bookProgress = state.bookProgress,
-                        onBookClick = onBookClick,
-                    )
-                }
+            else -> {
+                DeepDiveContent(
+                    contributorId = contributorId,
+                    state = state,
+                    onBackClick = onBackClick,
+                    onBookClick = onBookClick,
+                )
             }
         }
     }
 }
 
+// =============================================================================
+// MAIN CONTENT LAYOUT
+// =============================================================================
+
+@Composable
+private fun DeepDiveContent(
+    contributorId: String,
+    state: ContributorBooksUiState,
+    onBackClick: () -> Unit,
+    onBookClick: (String) -> Unit,
+) {
+    val colorScheme = rememberContributorColors(contributorId)
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    // If we have series groups, use a hybrid layout
+    // Otherwise, use a pure grid layout
+    if (state.seriesGroups.isNotEmpty()) {
+        HybridLayout(
+            state = state,
+            colorScheme = colorScheme,
+            surfaceColor = surfaceColor,
+            onBackClick = onBackClick,
+            onBookClick = onBookClick,
+        )
+    } else {
+        GridOnlyLayout(
+            state = state,
+            colorScheme = colorScheme,
+            surfaceColor = surfaceColor,
+            onBackClick = onBackClick,
+            onBookClick = onBookClick,
+        )
+    }
+}
+
 /**
- * Content for the contributor books screen.
+ * Hybrid layout: Header + Series carousels + Standalone grid
+ * Used when there are both series and standalone books.
  */
 @Composable
-private fun ContributorBooksContent(
+private fun HybridLayout(
     state: ContributorBooksUiState,
-    bookProgress: Map<String, Float>,
+    colorScheme: ContributorColorScheme,
+    surfaceColor: Color,
+    onBackClick: () -> Unit,
     onBookClick: (String) -> Unit,
 ) {
     LazyColumn(
-        contentPadding = PaddingValues(vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
         modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 32.dp),
     ) {
-        // Series sections (horizontal carousels)
+        // Condensed header
+        item {
+            CondensedHeader(
+                roleDisplayName = state.roleDisplayName,
+                contributorName = state.contributorName,
+                totalBooks = state.totalBooks,
+                colorScheme = colorScheme,
+                surfaceColor = surfaceColor,
+                onBackClick = onBackClick,
+            )
+        }
+
+        // Series sections with horizontal carousels
         items(
             items = state.seriesGroups,
             key = { it.seriesName },
         ) { seriesGroup ->
-            SeriesSection(
+            SeriesCarouselSection(
                 seriesGroup = seriesGroup,
-                bookProgress = bookProgress,
+                bookProgress = state.bookProgress,
                 onBookClick = onBookClick,
             )
         }
 
-        // Standalone books section (grid)
+        // Standalone books section
         if (state.hasStandaloneBooks) {
             item {
-                StandaloneBooksSection(
+                StandaloneBooksGrid(
                     books = state.standaloneBooks,
-                    bookProgress = bookProgress,
+                    bookProgress = state.bookProgress,
                     onBookClick = onBookClick,
                 )
             }
@@ -164,37 +194,172 @@ private fun ContributorBooksContent(
 }
 
 /**
- * A series section with horizontal book carousel.
+ * Grid-only layout: Header + Full responsive grid
+ * Used when all books are standalone (no series).
  */
 @Composable
-private fun SeriesSection(
+private fun GridOnlyLayout(
+    state: ContributorBooksUiState,
+    colorScheme: ContributorColorScheme,
+    surfaceColor: Color,
+    onBackClick: () -> Unit,
+    onBookClick: (String) -> Unit,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 140.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = 24.dp,
+            end = 24.dp,
+            bottom = 32.dp,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        // Full-width header
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            CondensedHeader(
+                roleDisplayName = state.roleDisplayName,
+                contributorName = state.contributorName,
+                totalBooks = state.totalBooks,
+                colorScheme = colorScheme,
+                surfaceColor = surfaceColor,
+                onBackClick = onBackClick,
+            )
+        }
+
+        // All books in a responsive grid
+        items(
+            items = state.standaloneBooks,
+            key = { it.id.value },
+        ) { book ->
+            BookCard(
+                book = book,
+                onClick = { onBookClick(book.id.value) },
+                progress = state.bookProgress[book.id.value],
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+// =============================================================================
+// CONDENSED HEADER - Role identity with gradient backdrop
+// =============================================================================
+
+@Composable
+private fun CondensedHeader(
+    roleDisplayName: String,
+    contributorName: String,
+    totalBooks: Int,
+    colorScheme: ContributorColorScheme,
+    surfaceColor: Color,
+    onBackClick: () -> Unit,
+) {
+    // Create a smooth gradient that echoes the Artist Portfolio
+    val gradientColors = listOf(
+        colorScheme.primaryDark,
+        colorScheme.primaryMuted.copy(alpha = 0.6f),
+        surfaceColor.copy(alpha = 0.95f),
+        surfaceColor,
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .background(Brush.verticalGradient(gradientColors)),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 8.dp),
+        ) {
+            // Floating back button
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .size(48.dp)
+                    .background(
+                        color = surfaceColor.copy(alpha = 0.5f),
+                        shape = CircleShape,
+                    ),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Role title and contributor name
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+            ) {
+                Text(
+                    text = roleDisplayName,
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontFamily = GoogleSansDisplay,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                Text(
+                    text = "$totalBooks ${if (totalBooks == 1) "book" else "books"} by $contributorName",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+// =============================================================================
+// SERIES CAROUSEL SECTION
+// =============================================================================
+
+@Composable
+private fun SeriesCarouselSection(
     seriesGroup: SeriesGroup,
     bookProgress: Map<String, Float>,
     onBookClick: (String) -> Unit,
 ) {
-    Column {
+    Column(
+        modifier = Modifier.padding(vertical = 16.dp),
+    ) {
         // Series header
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = 24.dp),
         ) {
             Text(
                 text = seriesGroup.seriesName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontFamily = GoogleSansDisplay,
+                    fontWeight = FontWeight.Bold,
+                ),
             )
             Text(
                 text = "${seriesGroup.books.size} ${if (seriesGroup.books.size == 1) "book" else "books"}",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Horizontal book carousel for series
+        // Horizontal carousel
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(
                 items = seriesGroup.books,
@@ -204,50 +369,57 @@ private fun SeriesSection(
                     book = book,
                     onClick = { onBookClick(book.id.value) },
                     progress = bookProgress[book.id.value],
-                    modifier = Modifier.width(140.dp),
+                    modifier = Modifier.width(150.dp),
                 )
             }
         }
     }
 }
 
-/**
- * Standalone books section displayed as a grid.
- */
+// =============================================================================
+// STANDALONE BOOKS GRID
+// =============================================================================
+
 @Composable
-private fun StandaloneBooksSection(
-    books: List<com.calypsan.listenup.client.domain.model.Book>,
+private fun StandaloneBooksGrid(
+    books: List<Book>,
     bookProgress: Map<String, Float>,
     onBookClick: (String) -> Unit,
 ) {
-    Column {
+    Column(
+        modifier = Modifier.padding(vertical = 16.dp),
+    ) {
         // Section header
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = 24.dp),
         ) {
             Text(
                 text = "Other Books",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontFamily = GoogleSansDisplay,
+                    fontWeight = FontWeight.Bold,
+                ),
             )
             Text(
                 text = "${books.size} ${if (books.size == 1) "book" else "books"}",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Grid of standalone books
-        // Using a fixed height grid within the lazy column
+        // Responsive grid using chunked rows
+        // This provides a clean grid while staying inside LazyColumn
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // Calculate items per row based on available space
+            // Using 3 for phones, works well with 24dp horizontal padding
             books.chunked(3).forEach { rowBooks ->
-                androidx.compose.foundation.layout.Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     rowBooks.forEach { book ->
@@ -258,12 +430,43 @@ private fun StandaloneBooksSection(
                             modifier = Modifier.weight(1f),
                         )
                     }
-                    // Fill remaining slots with spacers to maintain grid alignment
+                    // Fill remaining slots with spacers
                     repeat(3 - rowBooks.size) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
         }
+    }
+}
+
+// =============================================================================
+// COLOR SCHEME - Reuse from ContributorDetailScreen
+// =============================================================================
+
+/**
+ * Generate color scheme for gradient header.
+ * Matches the palette used in ContributorDetailScreen for visual continuity.
+ */
+@Composable
+private fun rememberContributorColors(contributorId: String): ContributorColorScheme {
+    return remember(contributorId) {
+        val baseColor = avatarColorForUser(contributorId)
+
+        ContributorColorScheme(
+            primary = baseColor,
+            primaryDark = baseColor.copy(
+                red = baseColor.red * 0.6f,
+                green = baseColor.green * 0.6f,
+                blue = baseColor.blue * 0.6f,
+            ),
+            primaryMuted = baseColor.copy(
+                red = baseColor.red * 0.8f,
+                green = baseColor.green * 0.8f,
+                blue = baseColor.blue * 0.8f,
+                alpha = 0.7f,
+            ),
+            onPrimary = Color.White,
+        )
     }
 }

@@ -85,6 +85,7 @@ fun BookContributorResponse.toEntity(
         bookId = bookId,
         contributorId = contributorId,
         role = role,
+        creditedAs = creditedAs,
     )
 
 fun BookSeriesInfoResponse.toEntity(bookId: BookId): com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef =

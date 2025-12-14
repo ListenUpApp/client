@@ -137,6 +137,9 @@ data class BookContributorResponse(
     val name: String,
     @SerialName("roles")
     val roles: List<String>,
+    // Original attribution name (e.g., "Richard Bachman" when contributor is Stephen King)
+    @SerialName("credited_as")
+    val creditedAs: String? = null,
 )
 
 /**
@@ -246,10 +249,18 @@ data class ContributorResponse(
     val id: String,
     @SerialName("name")
     val name: String,
-    @SerialName("description")
-    val description: String? = null,
-    @SerialName("image_path")
-    val imagePath: String? = null,
+    @SerialName("biography")
+    val biography: String? = null,
+    @SerialName("image_url")
+    val imageUrl: String? = null,
+    @SerialName("aliases")
+    val aliases: List<String>? = null,
+    @SerialName("website")
+    val website: String? = null,
+    @SerialName("birth_date")
+    val birthDate: String? = null,
+    @SerialName("death_date")
+    val deathDate: String? = null,
     @SerialName("created_at")
     val createdAt: String,
     @SerialName("updated_at")

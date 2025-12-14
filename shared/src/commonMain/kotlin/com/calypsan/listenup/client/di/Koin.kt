@@ -239,6 +239,14 @@ val presentationModule =
                 tagApi = get(),
             )
         }
+        factory {
+            com.calypsan.listenup.client.presentation.contributoredit.ContributorEditViewModel(
+                contributorDao = get(),
+                bookContributorDao = get(),
+                contributorRepository = get(),
+                api = get(),
+            )
+        }
     }
 
 /**

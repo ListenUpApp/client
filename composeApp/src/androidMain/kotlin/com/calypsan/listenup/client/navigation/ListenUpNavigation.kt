@@ -263,8 +263,23 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
                                 },
+                                onEditClick = { contributorId ->
+                                    backStack.add(ContributorEdit(contributorId))
+                                },
                                 onViewAllClick = { contributorId, role ->
                                     backStack.add(ContributorBooks(contributorId, role))
+                                },
+                            )
+                        }
+                        entry<ContributorEdit> { args ->
+                            com.calypsan.listenup.client.features.contributoredit.ContributorEditScreen(
+                                contributorId = args.contributorId,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onSaveSuccess = {
+                                    // Navigate back after successful save
+                                    backStack.removeAt(backStack.lastIndex)
                                 },
                             )
                         }
