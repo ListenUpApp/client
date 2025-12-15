@@ -99,4 +99,93 @@ class ImageDownloader(
         logger.info { "Downloaded ${successfulDownloads.size} covers out of ${bookIds.size} books" }
         return Result.Success(successfulDownloads)
     }
+
+    /**
+     * Download and save a single contributor image.
+     *
+     * Non-fatal errors (404, network issues) are logged but don't throw.
+     * Returns success=true if image was downloaded and saved successfully.
+     *
+     * @param contributorId Unique identifier for the contributor
+     * @return Result indicating if image was successfully downloaded and saved
+     */
+    override suspend fun downloadContributorImage(contributorId: String): Result<Boolean> {
+        // Skip if already exists locally
+        if (imageStorage.contributorImageExists(contributorId)) {
+            logger.info { "Image already exists locally for contributor $contributorId" }
+            return Result.Success(false)
+        }
+
+        logger.info { "Downloading image for contributor $contributorId..." }
+
+        // Download from server
+        val downloadResult = imageApi.downloadContributorImage(contributorId)
+        if (downloadResult is Result.Failure) {
+            // 404 is expected for contributors without images - don't log as error
+            logger.info { "Image not available for contributor $contributorId: ${downloadResult.exception.message}" }
+            return Result.Success(false)
+        }
+
+        // Save to local storage
+        val imageBytes = (downloadResult as Result.Success).data
+        logger.info { "Downloaded ${imageBytes.size} bytes for contributor $contributorId, saving..." }
+
+        val saveResult = imageStorage.saveContributorImage(contributorId, imageBytes)
+
+        if (saveResult is Result.Failure) {
+            logger.error(saveResult.exception) {
+                "Failed to save image for contributor $contributorId"
+            }
+            return Result.Failure(saveResult.exception)
+        }
+
+        logger.info { "Successfully downloaded and saved image for contributor $contributorId" }
+        return Result.Success(true)
+    }
+
+    /**
+     * Download images for multiple contributors in batch.
+     *
+     * Continues on individual failures - one failed download doesn't stop the batch.
+     * Returns list of contributor IDs that had images successfully downloaded.
+     *
+     * @param contributorIds List of contributor identifiers to download images for
+     * @return Result containing list of contributor IDs that were successfully downloaded
+     */
+    override suspend fun downloadContributorImages(contributorIds: List<String>): Result<List<String>> {
+        val successfulDownloads = mutableListOf<String>()
+
+        contributorIds.forEach { contributorId ->
+            when (val result = downloadContributorImage(contributorId)) {
+                is Result.Success -> {
+                    if (result.data) {
+                        successfulDownloads.add(contributorId)
+                    }
+                }
+
+                is Result.Failure -> {
+                    // Log and continue - non-fatal
+                    logger.warn(result.exception) {
+                        "Failed to download image for contributor $contributorId"
+                    }
+                }
+            }
+        }
+
+        logger.info { "Downloaded ${successfulDownloads.size} images out of ${contributorIds.size} contributors" }
+        return Result.Success(successfulDownloads)
+    }
+
+    /**
+     * Get the local file path for a contributor's image.
+     *
+     * @param contributorId Unique identifier for the contributor
+     * @return Absolute file path where the image is stored, or null if image doesn't exist
+     */
+    override fun getContributorImagePath(contributorId: String): String? =
+        if (imageStorage.contributorImageExists(contributorId)) {
+            imageStorage.getContributorImagePath(contributorId)
+        } else {
+            null
+        }
 }

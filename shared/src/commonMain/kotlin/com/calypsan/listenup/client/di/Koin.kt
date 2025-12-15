@@ -237,6 +237,8 @@ val presentationModule =
                 seriesRepository = get(),
                 genreApi = get(),
                 tagApi = get(),
+                imageApi = get(),
+                imageStorage = get(),
             )
         }
         factory {
@@ -245,6 +247,8 @@ val presentationModule =
                 bookContributorDao = get(),
                 contributorRepository = get(),
                 api = get(),
+                imageApi = get(),
+                imageStorage = get(),
             )
         }
     }
@@ -275,9 +279,9 @@ val syncModule =
             SyncApi(clientFactory = get())
         }
 
-        // Image API for downloading cover images
+        // Image API for downloading cover images and uploading images
         single {
-            ImageApi(clientFactory = get())
+            ImageApi(clientFactory = get(), settingsRepository = get())
         } bind ImageApiContract::class
 
         // Image downloader for batch cover downloads during sync

@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.features.bookedit
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
@@ -74,14 +76,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.palette.graphics.Palette
 import androidx.window.core.layout.WindowSizeClass
-import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
+import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.AutocompleteResultItem
+import com.calypsan.listenup.client.domain.imagepicker.ImagePickerResult
+import com.calypsan.listenup.client.util.rememberImagePicker
 import com.calypsan.listenup.client.design.components.LanguageDropdown
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
@@ -147,8 +151,8 @@ fun BookEditScreen(
         showUnsavedChangesDialog = true
     }
 
-    // Extract colors from cover for immersive backdrop
-    val coverColors = rememberCoverColors(state.coverPath)
+    // Extract colors from cover for immersive backdrop (use displayCoverPath to show staging)
+    val coverColors = rememberCoverColors(state.displayCoverPath, state.pendingCoverData)
     val surfaceColor = MaterialTheme.colorScheme.surface
 
     Scaffold(
@@ -210,7 +214,8 @@ fun BookEditScreen(
         ) {
             // Immersive blurred backdrop
             ImmersiveBackdrop(
-                coverPath = state.coverPath,
+                coverPath = state.displayCoverPath,
+                refreshKey = state.pendingCoverData,
                 coverColors = coverColors,
                 surfaceColor = surfaceColor,
             )
@@ -316,6 +321,7 @@ private fun extractColorScheme(bitmap: Bitmap, fallbackColor: Color): CoverColor
 @Composable
 private fun rememberCoverColors(
     coverPath: String?,
+    refreshKey: Any? = null,
     fallbackColor: Color = MaterialTheme.colorScheme.primaryContainer,
 ): CoverColorScheme {
     val context = LocalContext.current
@@ -324,11 +330,22 @@ private fun rememberCoverColors(
         darkMuted = fallbackColor,
         onDominant = Color.White,
     )
-    var colorScheme by remember(coverPath) { mutableStateOf(defaultScheme) }
+
+    // Use file's last modified time as cache key for automatic invalidation
+    val cacheKey = remember(coverPath, refreshKey) {
+        coverPath?.let {
+            val file = java.io.File(it)
+            if (file.exists()) "$it:${file.lastModified()}" else it
+        }
+    }
+
+    var colorScheme by remember(cacheKey) { mutableStateOf(defaultScheme) }
 
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(context)
             .data(coverPath)
+            .memoryCacheKey(cacheKey)
+            .diskCacheKey(cacheKey)
             .allowHardware(false)
             .build()
     )
@@ -360,16 +377,18 @@ private fun rememberCoverColors(
 @Composable
 private fun ImmersiveBackdrop(
     coverPath: String?,
+    refreshKey: Any?,
     coverColors: CoverColorScheme,
     surfaceColor: Color,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         // Blurred cover image
         if (coverPath != null) {
-            AsyncImage(
-                model = coverPath,
+            ListenUpAsyncImage(
+                path = coverPath,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
+                refreshKey = refreshKey,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(400.dp)
@@ -412,6 +431,19 @@ private fun BookEditContent(
         WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND
     )
 
+    // Image picker for cover uploads
+    val imagePicker = rememberImagePicker { result ->
+        when (result) {
+            is ImagePickerResult.Success -> {
+                onEvent(BookEditUiEvent.UploadCover(result.data, result.filename))
+            }
+            is ImagePickerResult.Cancelled -> { /* User cancelled */ }
+            is ImagePickerResult.Error -> {
+                // Error is handled via the ViewModel's error state
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -419,11 +451,14 @@ private fun BookEditContent(
     ) {
         // Identity Header with navigation
         IdentityHeader(
-            coverPath = state.coverPath,
+            coverPath = state.displayCoverPath,
+            refreshKey = state.pendingCoverData,
             title = state.title,
             subtitle = state.subtitle,
+            isUploadingCover = state.isUploadingCover,
             onTitleChange = { onEvent(BookEditUiEvent.TitleChanged(it)) },
             onSubtitleChange = { onEvent(BookEditUiEvent.SubtitleChanged(it)) },
+            onCoverClick = { imagePicker.launch() },
             onBackClick = onBackClick,
         )
 
@@ -560,10 +595,13 @@ private fun TwoColumnCardsLayout(
 @Composable
 private fun IdentityHeader(
     coverPath: String?,
+    refreshKey: Any?,
     title: String,
     subtitle: String,
+    isUploadingCover: Boolean,
     onTitleChange: (String) -> Unit,
     onSubtitleChange: (String) -> Unit,
+    onCoverClick: () -> Unit,
     onBackClick: () -> Unit,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -598,20 +636,60 @@ private fun IdentityHeader(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Cover art (120dp)
+            // Cover art (120dp) - tappable for upload
             ElevatedCard(
+                onClick = onCoverClick,
                 shape = RoundedCornerShape(12.dp),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp),
                 modifier = Modifier
                     .width(120.dp)
                     .aspectRatio(1f),
             ) {
-                AsyncImage(
-                    model = coverPath,
-                    contentDescription = "Book cover",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    ListenUpAsyncImage(
+                        path = coverPath,
+                        contentDescription = "Book cover",
+                        contentScale = ContentScale.Crop,
+                        refreshKey = refreshKey,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+
+                    // Loading overlay during upload
+                    if (isUploadingCover) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(32.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White,
+                            )
+                        }
+                    } else {
+                        // Edit indicator
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(6.dp)
+                                .size(28.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+                                    shape = CircleShape,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Change cover",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    }
+                }
             }
 
             // Title and Subtitle fields

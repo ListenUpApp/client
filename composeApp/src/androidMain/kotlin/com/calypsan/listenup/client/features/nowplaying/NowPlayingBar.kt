@@ -34,7 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.playback.NowPlayingState
 
 /**
@@ -88,8 +88,8 @@ fun NowPlayingBar(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // Cover art
-                    AsyncImage(
-                        model = state.coverUrl,
+                    ListenUpAsyncImage(
+                        path = state.coverUrl,
                         contentDescription = "Book cover",
                         modifier =
                             Modifier

@@ -72,13 +72,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.palette.graphics.Palette
 import androidx.window.core.layout.WindowSizeClass
-import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.data.model.BookDownloadStatus
 import com.calypsan.listenup.client.design.components.GenreChipRow
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
@@ -307,6 +307,10 @@ private fun extractColorScheme(bitmap: Bitmap, fallbackColor: Color): CoverColor
 /**
  * Composable that loads an image and extracts its color palette.
  * Palette extraction runs on background thread to avoid blocking UI.
+ * Uses file modification time for automatic cache invalidation.
+ *
+ * @param coverPath Local file path to the cover image
+ * @param fallbackColor Color to use when extraction fails
  */
 @Composable
 private fun rememberCoverColors(
@@ -323,11 +327,22 @@ private fun rememberCoverColors(
         darkMuted = fallbackColor,
         onDominant = Color.White,
     )
-    var colorScheme by remember(coverPath) { mutableStateOf(defaultScheme) }
+
+    // Use file's last modified time as cache key for automatic invalidation
+    val cacheKey = remember(coverPath) {
+        coverPath?.let {
+            val file = java.io.File(it)
+            if (file.exists()) "$it:${file.lastModified()}" else it
+        }
+    }
+
+    var colorScheme by remember(cacheKey) { mutableStateOf(defaultScheme) }
 
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(context)
             .data(coverPath)
+            .memoryCacheKey(cacheKey)
+            .diskCacheKey(cacheKey)
             .allowHardware(false) // Required for Palette extraction
             .build()
     )
@@ -377,8 +392,10 @@ private fun ImmersiveBookDetail(
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
 
-    // Extract colors from cover art
-    val coverColors = rememberCoverColors(state.book?.coverPath)
+    // Extract colors from cover art (use updatedAt for cache-busting)
+    val coverColors = rememberCoverColors(
+        coverPath = state.book?.coverPath,
+    )
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -653,8 +670,8 @@ private fun FloatingCoverCard(
             .aspectRatio(1f),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            AsyncImage(
-                model = coverPath,
+            ListenUpAsyncImage(
+                path = coverPath,
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -1153,7 +1170,9 @@ private fun TwoPaneBookDetail(
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
 ) {
-    val coverColors = rememberCoverColors(state.book?.coverPath)
+    val coverColors = rememberCoverColors(
+        coverPath = state.book?.coverPath,
+    )
     val surfaceColor = MaterialTheme.colorScheme.surface
 
     Row(modifier = Modifier.fillMaxSize()) {
@@ -1271,8 +1290,8 @@ private fun TwoPaneLeftPane(
                     .aspectRatio(1f),
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    AsyncImage(
-                        model = state.book?.coverPath,
+                    ListenUpAsyncImage(
+                        path = state.book?.coverPath,
                         contentDescription = state.book?.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),

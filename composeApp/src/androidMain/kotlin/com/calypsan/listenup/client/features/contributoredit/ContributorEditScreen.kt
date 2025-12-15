@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
@@ -57,12 +58,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
-import coil3.compose.AsyncImage
 import com.calypsan.listenup.client.design.components.AutocompleteResultItem
+import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.domain.imagepicker.ImagePickerResult
+import com.calypsan.listenup.client.util.rememberImagePicker
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.design.components.ListenUpDatePicker
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
@@ -380,6 +384,19 @@ private fun ArtistStudioContent(
         WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND
     )
 
+    // Image picker for avatar uploads
+    val imagePicker = rememberImagePicker { result ->
+        when (result) {
+            is ImagePickerResult.Success -> {
+                onEvent(ContributorEditUiEvent.UploadImage(result.data, result.filename))
+            }
+            is ImagePickerResult.Cancelled -> { /* User cancelled */ }
+            is ImagePickerResult.Error -> {
+                // Error is handled via the ViewModel's error state
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -390,7 +407,9 @@ private fun ArtistStudioContent(
             imagePath = state.imagePath,
             name = state.name,
             colorScheme = colorScheme,
+            isUploadingImage = state.isUploadingImage,
             onNameChange = { onEvent(ContributorEditUiEvent.NameChanged(it)) },
+            onAvatarClick = { imagePicker.launch() },
             onBackClick = onBackClick,
         )
 
@@ -415,7 +434,9 @@ private fun IdentityHeader(
     imagePath: String?,
     name: String,
     colorScheme: ContributorColorScheme,
+    isUploadingImage: Boolean,
     onNameChange: (String) -> Unit,
+    onAvatarClick: () -> Unit,
     onBackClick: () -> Unit,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -451,8 +472,9 @@ private fun IdentityHeader(
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Large editable avatar (120dp)
+            // Large editable avatar (120dp) - tappable for upload
             ElevatedCard(
+                onClick = onAvatarClick,
                 shape = CircleShape,
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp),
                 colors = CardDefaults.elevatedCardColors(
@@ -465,8 +487,8 @@ private fun IdentityHeader(
                     contentAlignment = Alignment.Center,
                 ) {
                     if (imagePath != null) {
-                        AsyncImage(
-                            model = imagePath,
+                        ListenUpAsyncImage(
+                            path = imagePath,
                             contentDescription = "Contributor photo",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
@@ -482,6 +504,42 @@ private fun IdentityHeader(
                             ),
                             color = colorScheme.onPrimary,
                         )
+                    }
+
+                    // Loading overlay during upload
+                    if (isUploadingImage) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(32.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White,
+                            )
+                        }
+                    } else {
+                        // Edit indicator
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(4.dp)
+                                .size(32.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+                                    shape = CircleShape,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Change photo",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
                     }
                 }
             }
@@ -742,7 +800,7 @@ private fun AliasesCardContent(
                     subtitle = if (result.bookCount > 0) {
                         "${result.bookCount} ${if (result.bookCount == 1) "book" else "books"} will be merged"
                     } else {
-                        "No books - will just add as alias"
+                        null
                     },
                     onClick = { onEvent(ContributorEditUiEvent.AliasSelected(result)) },
                 )

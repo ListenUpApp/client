@@ -9,7 +9,9 @@ import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
+import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.UpdateContributorRequest
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
@@ -36,6 +38,7 @@ data class ContributorEditUiState(
     // Loading states
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
+    val isUploadingImage: Boolean = false,
     val error: String? = null,
 
     // Contributor identity
@@ -75,6 +78,9 @@ sealed interface ContributorEditUiEvent {
     data class AliasSelected(val result: ContributorSearchResult) : ContributorEditUiEvent
     data class AliasEntered(val name: String) : ContributorEditUiEvent // Manual text entry
     data class RemoveAlias(val alias: String) : ContributorEditUiEvent
+
+    // Image upload
+    data class UploadImage(val imageData: ByteArray, val filename: String) : ContributorEditUiEvent
 
     // Actions
     data object Save : ContributorEditUiEvent
@@ -116,6 +122,8 @@ class ContributorEditViewModel(
     private val bookContributorDao: BookContributorDao,
     private val contributorRepository: ContributorRepositoryContract,
     private val api: ListenUpApiContract,
+    private val imageApi: ImageApiContract,
+    private val imageStorage: ImageStorage,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ContributorEditUiState())
     val state: StateFlow<ContributorEditUiState> = _state.asStateFlow()
@@ -134,6 +142,7 @@ class ContributorEditViewModel(
     private var originalBirthDate: String = ""
     private var originalDeathDate: String = ""
     private var originalAliases: List<String> = emptyList()
+    private var originalImagePath: String? = null
 
     // Track contributors to merge on save (selected from autocomplete)
     private val contributorsToMerge = mutableMapOf<String, ContributorSearchResult>()
@@ -187,6 +196,7 @@ class ContributorEditViewModel(
             originalBirthDate = contributor.birthDate ?: ""
             originalDeathDate = contributor.deathDate ?: ""
             originalAliases = aliases
+            originalImagePath = contributor.imagePath
 
             _state.update {
                 it.copy(
@@ -251,6 +261,10 @@ class ContributorEditViewModel(
 
             is ContributorEditUiEvent.RemoveAlias -> {
                 removeAlias(event.alias)
+            }
+
+            is ContributorEditUiEvent.UploadImage -> {
+                uploadImage(event.imageData, event.filename)
             }
 
             is ContributorEditUiEvent.Save -> {
@@ -359,6 +373,65 @@ class ContributorEditViewModel(
         updateHasChanges()
     }
 
+    // ========== Image Upload ==========
+
+    private fun uploadImage(
+        imageData: ByteArray,
+        filename: String,
+    ) {
+        val contributorId = _state.value.contributorId
+        if (contributorId.isBlank()) {
+            logger.error { "Cannot upload image: contributor ID is empty" }
+            return
+        }
+
+        viewModelScope.launch {
+            _state.update { it.copy(isUploadingImage = true, error = null) }
+
+            when (val result = imageApi.uploadContributorImage(contributorId, imageData, filename)) {
+                is Success -> {
+                    logger.info { "Contributor image uploaded successfully to server" }
+
+                    // Save image locally for offline-first access
+                    when (val saveResult = imageStorage.saveContributorImage(contributorId, imageData)) {
+                        is Success -> {
+                            val localPath = imageStorage.getContributorImagePath(contributorId)
+                            logger.info { "Contributor image saved locally: $localPath" }
+                            _state.update {
+                                it.copy(
+                                    isUploadingImage = false,
+                                    imagePath = localPath,
+                                )
+                            }
+                            updateHasChanges()
+                        }
+
+                        is Failure -> {
+                            logger.error { "Failed to save contributor image locally: ${saveResult.message}" }
+                            // Still mark upload as successful since server has the image
+                            _state.update {
+                                it.copy(
+                                    isUploadingImage = false,
+                                    error = "Image uploaded but failed to save locally",
+                                )
+                            }
+                        }
+                    }
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to upload contributor image: ${result.message}" }
+                    _state.update {
+                        it.copy(
+                            isUploadingImage = false,
+                            error = "Failed to upload image: ${result.message}",
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     private fun removeAlias(alias: String) {
         val isOriginalAlias = originalAliases.any { it.equals(alias, ignoreCase = true) }
 
@@ -426,7 +499,8 @@ class ContributorEditViewModel(
             current.website != originalWebsite ||
             current.birthDate != originalBirthDate ||
             current.deathDate != originalDeathDate ||
-            current.aliases.toSet() != originalAliases.toSet()
+            current.aliases.toSet() != originalAliases.toSet() ||
+            current.imagePath != originalImagePath
 
         _state.update { it.copy(hasChanges = hasChanges) }
     }
@@ -498,6 +572,7 @@ class ContributorEditViewModel(
                     birthDate = current.birthDate.ifBlank { null },
                     deathDate = current.deathDate.ifBlank { null },
                     aliases = aliasesString,
+                    imagePath = current.imagePath,
                     syncState = finalSyncState,
                     lastModified = Timestamp.now(),
                     updatedAt = Timestamp.now(),

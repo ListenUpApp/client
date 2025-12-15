@@ -513,6 +513,7 @@ class SyncManager(
         val limit = 100
         var pageCount = 0
         var totalDeleted = 0
+        val contributorsWithImages = mutableListOf<String>()
 
         while (hasMore) {
             _syncState.value =
@@ -532,6 +533,11 @@ class SyncManager(
 
                     val serverContributors = response.contributors.map { it.toEntity() }
                     val deletedContributorIds = response.deletedContributorIds
+
+                    // Track contributors with images for later download
+                    response.contributors
+                        .filter { !it.imageUrl.isNullOrBlank() }
+                        .forEach { contributorsWithImages.add(it.id) }
 
                     logger.debug {
                         "Fetched page $pageCount: ${serverContributors.size} contributors, ${deletedContributorIds.size} deletions"
@@ -556,6 +562,25 @@ class SyncManager(
         }
 
         logger.info { "Contributors sync complete: $pageCount pages processed, $totalDeleted deleted" }
+
+        // Download contributor images in background (non-blocking)
+        if (contributorsWithImages.isNotEmpty()) {
+            scope.launch {
+                logger.info { "Starting image downloads for ${contributorsWithImages.size} contributors..." }
+                val downloadedIds = imageDownloader.downloadContributorImages(contributorsWithImages)
+
+                // Update local database with local image paths for successfully downloaded images
+                if (downloadedIds is Result.Success && downloadedIds.data.isNotEmpty()) {
+                    downloadedIds.data.forEach { contributorId ->
+                        val localPath = imageDownloader.getContributorImagePath(contributorId)
+                        if (localPath != null) {
+                            contributorDao.updateImagePath(contributorId, localPath)
+                        }
+                    }
+                    logger.info { "Updated ${downloadedIds.data.size} contributors with local image paths" }
+                }
+            }
+        }
     }
 
     /**

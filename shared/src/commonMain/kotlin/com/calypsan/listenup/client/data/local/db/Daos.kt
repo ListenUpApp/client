@@ -229,4 +229,15 @@ interface ContributorDao {
      */
     @Query("UPDATE contributors SET aliases = :aliases WHERE id = :contributorId")
     suspend fun updateAliases(contributorId: String, aliases: String?)
+
+    /**
+     * Update the local image path for a contributor.
+     *
+     * Called after downloading a contributor's image during sync.
+     *
+     * @param contributorId The contributor to update
+     * @param imagePath Local file path to the downloaded image
+     */
+    @Query("UPDATE contributors SET imagePath = :imagePath WHERE id = :contributorId")
+    suspend fun updateImagePath(contributorId: String, imagePath: String?)
 }

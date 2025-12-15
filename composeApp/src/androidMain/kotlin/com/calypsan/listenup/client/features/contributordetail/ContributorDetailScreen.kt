@@ -186,6 +186,7 @@ private fun ContributorPortfolio(
             HeroHeader(
                 name = state.contributor?.name ?: "",
                 aliases = state.contributor?.aliasList() ?: emptyList(),
+                imagePath = state.contributor?.imagePath,
                 contributorId = contributorId,
                 colorScheme = colorScheme,
                 surfaceColor = surfaceColor,
@@ -245,6 +246,7 @@ private fun ContributorPortfolio(
 private fun HeroHeader(
     name: String,
     aliases: List<String>,
+    imagePath: String?,
     contributorId: String,
     colorScheme: ContributorColorScheme,
     surfaceColor: Color,
@@ -284,6 +286,7 @@ private fun HeroHeader(
             // Elevated Avatar - the visual anchor
             ElevatedAvatar(
                 name = name,
+                imagePath = imagePath,
                 contributorId = contributorId,
                 colorScheme = colorScheme,
             )
@@ -372,10 +375,12 @@ private fun NavigationBar(
 
 /**
  * Large elevated avatar (140dp) - the visual centerpiece.
+ * Displays contributor image if available, otherwise shows initials.
  */
 @Composable
 private fun ElevatedAvatar(
     name: String,
+    imagePath: String?,
     contributorId: String,
     colorScheme: ContributorColorScheme,
 ) {
@@ -393,14 +398,23 @@ private fun ElevatedAvatar(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = initials,
-                style = MaterialTheme.typography.displayMedium.copy(
-                    fontFamily = GoogleSansDisplay,
-                    fontWeight = FontWeight.Bold,
-                ),
-                color = colorScheme.onPrimary,
-            )
+            if (imagePath != null) {
+                com.calypsan.listenup.client.design.components.ListenUpAsyncImage(
+                    path = imagePath,
+                    contentDescription = "$name profile image",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Text(
+                    text = initials,
+                    style = MaterialTheme.typography.displayMedium.copy(
+                        fontFamily = GoogleSansDisplay,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                    color = colorScheme.onPrimary,
+                )
+            }
         }
     }
 }

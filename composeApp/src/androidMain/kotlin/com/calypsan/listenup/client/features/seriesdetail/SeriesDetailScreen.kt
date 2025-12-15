@@ -44,7 +44,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.domain.model.Book
@@ -248,8 +248,8 @@ private fun SeriesBookItem(
                 contentAlignment = Alignment.Center,
             ) {
                 if (book.coverPath != null) {
-                    AsyncImage(
-                        model = "file://${book.coverPath}",
+                    ListenUpAsyncImage(
+                        path = book.coverPath,
                         contentDescription = book.title,
                         contentScale = ContentScale.Crop,
                         modifier =

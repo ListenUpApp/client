@@ -216,7 +216,50 @@ interface ImageApiContract {
      * @return Result containing image bytes or error
      */
     suspend fun downloadCover(bookId: BookId): Result<ByteArray>
+
+    /**
+     * Download profile image for a contributor.
+     *
+     * @param contributorId Unique identifier for the contributor
+     * @return Result containing image bytes or error
+     */
+    suspend fun downloadContributorImage(contributorId: String): Result<ByteArray>
+
+    /**
+     * Upload cover image for a book.
+     *
+     * @param bookId Unique identifier for the book
+     * @param imageData Raw image bytes (JPEG, PNG, WebP, or GIF)
+     * @param filename Original filename for the image
+     * @return Result containing the image URL or error
+     */
+    suspend fun uploadBookCover(
+        bookId: String,
+        imageData: ByteArray,
+        filename: String,
+    ): Result<ImageUploadResponse>
+
+    /**
+     * Upload profile image for a contributor.
+     *
+     * @param contributorId Unique identifier for the contributor
+     * @param imageData Raw image bytes (JPEG, PNG, WebP, or GIF)
+     * @param filename Original filename for the image
+     * @return Result containing the image URL or error
+     */
+    suspend fun uploadContributorImage(
+        contributorId: String,
+        imageData: ByteArray,
+        filename: String,
+    ): Result<ImageUploadResponse>
 }
+
+/**
+ * Response from image upload operations.
+ */
+data class ImageUploadResponse(
+    val imageUrl: String,
+)
 
 /**
  * Contract interface for ListenUp API operations.

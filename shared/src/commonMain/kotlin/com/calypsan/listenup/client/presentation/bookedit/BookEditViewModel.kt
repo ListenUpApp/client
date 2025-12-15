@@ -4,12 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.BookUpdateRequest
 import com.calypsan.listenup.client.data.remote.ContributorInput
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
+import com.calypsan.listenup.client.data.remote.GenreApiContract
+import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.remote.SeriesInput
 import com.calypsan.listenup.client.data.remote.SeriesSearchResult
-import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
@@ -113,6 +116,7 @@ data class BookEditUiState(
     // Loading states
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
+    val isUploadingCover: Boolean = false,
     val error: String? = null,
 
     // Book identity (for immersive header)
@@ -167,7 +171,19 @@ data class BookEditUiState(
 
     // Track if changes have been made
     val hasChanges: Boolean = false,
+
+    // Pending cover upload (stored until Save Changes)
+    val pendingCoverData: ByteArray? = null,
+    val pendingCoverFilename: String? = null,
+
+    // Staging cover path for preview (separate from main cover)
+    val stagingCoverPath: String? = null,
 ) {
+    /**
+     * Returns the cover path to display - staging if available, otherwise original.
+     */
+    val displayCoverPath: String?
+        get() = stagingCoverPath ?: coverPath
     /**
      * Get contributors for a specific role.
      */
@@ -238,6 +254,9 @@ sealed interface BookEditUiEvent {
     data class TagEntered(val name: String) : BookEditUiEvent // Create new tag inline
     data class RemoveTag(val tag: EditableTag) : BookEditUiEvent
 
+    // Cover upload
+    data class UploadCover(val imageData: ByteArray, val filename: String) : BookEditUiEvent
+
     // Actions
     data object Save : BookEditUiEvent
     data object Cancel : BookEditUiEvent
@@ -273,6 +292,8 @@ class BookEditViewModel(
     private val seriesRepository: SeriesRepositoryContract,
     private val genreApi: GenreApiContract,
     private val tagApi: TagApiContract,
+    private val imageApi: ImageApiContract,
+    private val imageStorage: ImageStorage,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BookEditUiState())
     val state: StateFlow<BookEditUiState> = _state.asStateFlow()
@@ -302,6 +323,7 @@ class BookEditViewModel(
     private var originalSeries: List<EditableSeries> = emptyList()
     private var originalGenres: List<EditableGenre> = emptyList()
     private var originalTags: List<EditableTag> = emptyList()
+    private var originalCoverPath: String? = null
 
     // Tag search flow
     private val tagQueryFlow = MutableStateFlow("")
@@ -447,6 +469,7 @@ class BookEditViewModel(
             originalSeries = editableSeries
             originalGenres = bookGenres
             originalTags = bookTags
+            originalCoverPath = book.coverPath
 
             _state.update {
                 it.copy(
@@ -685,12 +708,16 @@ class BookEditViewModel(
                 removeTag(event.tag)
             }
 
+            is BookEditUiEvent.UploadCover -> {
+                uploadCover(event.imageData, event.filename)
+            }
+
             is BookEditUiEvent.Save -> {
                 saveChanges()
             }
 
             is BookEditUiEvent.Cancel -> {
-                _navActions.value = BookEditNavAction.NavigateBack
+                cancelAndCleanup()
             }
 
             is BookEditUiEvent.DismissError -> {
@@ -1151,6 +1178,71 @@ class BookEditViewModel(
         updateHasChanges()
     }
 
+    // ========== Cover Upload ==========
+
+    /**
+     * Handle cover selection.
+     * Saves the image to a staging location for preview.
+     * Does NOT overwrite the main cover until saveChanges() is called.
+     */
+    private fun uploadCover(
+        imageData: ByteArray,
+        filename: String,
+    ) {
+        val bookId = _state.value.bookId
+        if (bookId.isBlank()) {
+            logger.error { "Cannot set cover: book ID is empty" }
+            return
+        }
+
+        viewModelScope.launch {
+            _state.update { it.copy(isUploadingCover = true, error = null) }
+
+            // Save to staging location for preview (doesn't overwrite original)
+            when (val saveResult = imageStorage.saveCoverStaging(BookId(bookId), imageData)) {
+                is Success -> {
+                    val stagingPath = imageStorage.getCoverStagingPath(BookId(bookId))
+                    logger.info { "Cover saved to staging for preview: $stagingPath" }
+
+                    // Store pending data for upload when Save Changes is clicked
+                    _state.update {
+                        it.copy(
+                            isUploadingCover = false,
+                            stagingCoverPath = stagingPath,
+                            pendingCoverData = imageData,
+                            pendingCoverFilename = filename,
+                        )
+                    }
+                    updateHasChanges()
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to save cover to staging: ${saveResult.message}" }
+                    _state.update {
+                        it.copy(
+                            isUploadingCover = false,
+                            error = "Failed to save cover: ${saveResult.message}",
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Cancel editing and clean up any staging files.
+     */
+    private fun cancelAndCleanup() {
+        val bookId = _state.value.bookId
+        if (bookId.isNotBlank() && _state.value.stagingCoverPath != null) {
+            viewModelScope.launch {
+                imageStorage.deleteCoverStaging(BookId(bookId))
+                logger.debug { "Staging cover cleaned up on cancel" }
+            }
+        }
+        _navActions.value = BookEditNavAction.NavigateBack
+    }
+
     private fun updateHasChanges() {
         val current = _state.value
         val hasChanges = current.title != originalTitle ||
@@ -1165,7 +1257,8 @@ class BookEditViewModel(
             current.contributors != originalContributors ||
             current.series != originalSeries ||
             current.genres != originalGenres ||
-            current.tags != originalTags
+            current.tags != originalTags ||
+            current.pendingCoverData != null // Cover changed if we have pending data
 
         _state.update { it.copy(hasChanges = hasChanges) }
     }
@@ -1292,7 +1385,43 @@ class BookEditViewModel(
                     }
                 }
 
-                _state.update { it.copy(isSaving = false, hasChanges = false) }
+                // Commit staging cover and upload if changed
+                val pendingCoverData = current.pendingCoverData
+                val pendingCoverFilename = current.pendingCoverFilename
+                if (pendingCoverData != null && pendingCoverFilename != null) {
+                    // First, commit staging to main cover location
+                    when (val commitResult = imageStorage.commitCoverStaging(BookId(current.bookId))) {
+                        is Success -> {
+                            logger.info { "Staging cover committed to main location" }
+                        }
+                        is Failure -> {
+                            logger.error { "Failed to commit staging cover: ${commitResult.message}" }
+                            // Continue anyway - try to upload
+                        }
+                    }
+
+                    // Then upload to server
+                    when (val result = imageApi.uploadBookCover(current.bookId, pendingCoverData, pendingCoverFilename)) {
+                        is Success -> {
+                            logger.info { "Cover uploaded to server" }
+                        }
+                        is Failure -> {
+                            logger.error { "Failed to upload cover: ${result.message}" }
+                            // Cover is already saved locally, log but don't fail the save
+                            logger.warn { "Continuing despite cover upload failure (local cover saved)" }
+                        }
+                    }
+                }
+
+                _state.update {
+                    it.copy(
+                        isSaving = false,
+                        hasChanges = false,
+                        pendingCoverData = null,
+                        pendingCoverFilename = null,
+                        stagingCoverPath = null,
+                    )
+                }
                 _navActions.value = BookEditNavAction.NavigateBack
 
             } catch (e: Exception) {

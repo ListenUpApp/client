@@ -26,6 +26,30 @@ interface ImageDownloaderContract {
      * @return Result containing list of BookIds that were successfully downloaded
      */
     suspend fun downloadCovers(bookIds: List<BookId>): Result<List<BookId>>
+
+    /**
+     * Download and save a single contributor image.
+     *
+     * @param contributorId Unique identifier for the contributor
+     * @return Result indicating if image was successfully downloaded (true) or already existed/unavailable (false)
+     */
+    suspend fun downloadContributorImage(contributorId: String): Result<Boolean>
+
+    /**
+     * Download images for multiple contributors in batch.
+     *
+     * @param contributorIds List of contributor identifiers to download images for
+     * @return Result containing list of contributor IDs that were successfully downloaded
+     */
+    suspend fun downloadContributorImages(contributorIds: List<String>): Result<List<String>>
+
+    /**
+     * Get the local file path for a contributor's image.
+     *
+     * @param contributorId Unique identifier for the contributor
+     * @return Absolute file path where the image is stored, or null if not available
+     */
+    fun getContributorImagePath(contributorId: String): String?
 }
 
 /**

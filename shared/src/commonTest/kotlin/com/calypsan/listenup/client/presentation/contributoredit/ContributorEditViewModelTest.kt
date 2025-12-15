@@ -56,6 +56,8 @@ class ContributorEditViewModelTest {
         val bookContributorDao: BookContributorDao = mock()
         val contributorRepository: ContributorRepositoryContract = mock()
         val api: ListenUpApiContract = mock()
+        val imageApi: com.calypsan.listenup.client.data.remote.ImageApiContract = mock()
+        val imageStorage: com.calypsan.listenup.client.data.local.images.ImageStorage = mock()
 
         fun build(): ContributorEditViewModel =
             ContributorEditViewModel(
@@ -63,6 +65,8 @@ class ContributorEditViewModelTest {
                 bookContributorDao = bookContributorDao,
                 contributorRepository = contributorRepository,
                 api = api,
+                imageApi = imageApi,
+                imageStorage = imageStorage,
             )
     }
 

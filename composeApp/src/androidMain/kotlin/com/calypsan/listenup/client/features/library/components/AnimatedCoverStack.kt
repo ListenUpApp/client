@@ -35,7 +35,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import coil3.compose.AsyncImage
+import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import kotlinx.coroutines.delay
 
 /**
@@ -117,8 +117,8 @@ private fun FullWidthCover(
         contentAlignment = Alignment.Center,
     ) {
         if (coverPath != null) {
-            AsyncImage(
-                model = "file://$coverPath",
+            ListenUpAsyncImage(
+                path = coverPath,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -310,8 +310,8 @@ private fun StackedCover(
         contentAlignment = Alignment.Center,
     ) {
         if (coverPath != null) {
-            AsyncImage(
-                model = "file://$coverPath",
+            ListenUpAsyncImage(
+                path = coverPath,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier =

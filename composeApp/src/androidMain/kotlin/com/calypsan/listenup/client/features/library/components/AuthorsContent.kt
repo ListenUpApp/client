@@ -162,6 +162,7 @@ fun AuthorsContent(
 
 /**
  * Card displaying a contributor (author/narrator) with their book count.
+ * Shows contributor image if available, otherwise displays initials.
  */
 @Composable
 internal fun ContributorCard(
@@ -169,6 +170,8 @@ internal fun ContributorCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val contributor = contributorWithCount.contributor
+
     Surface(
         modifier =
             modifier
@@ -181,18 +184,28 @@ internal fun ContributorCard(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Avatar with initials
+            // Avatar with image or initials
             Surface(
                 shape = CircleShape,
-                color = avatarColorForUser(contributorWithCount.contributor.id),
+                color = avatarColorForUser(contributor.id),
                 modifier = Modifier.size(48.dp),
             ) {
+                val imagePath = contributor.imagePath
                 Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = getInitials(contributorWithCount.contributor.name),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
+                    if (imagePath != null) {
+                        coil3.compose.AsyncImage(
+                            model = imagePath,
+                            contentDescription = "${contributor.name} profile image",
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Text(
+                            text = getInitials(contributor.name),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
                 }
             }
 
@@ -201,7 +214,7 @@ internal fun ContributorCard(
             // Contributor info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = contributorWithCount.contributor.name,
+                    text = contributor.name,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
