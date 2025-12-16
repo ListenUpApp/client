@@ -46,6 +46,9 @@ fun SeriesCard(
     val books = seriesWithBooks.books
     val bookCount = books.size
 
+    // Build sequence lookup from book_series junction table
+    val sequenceByBookId = seriesWithBooks.bookSequences.associate { it.bookId to it.sequence }
+
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -56,7 +59,7 @@ fun SeriesCard(
     // Extract cover paths from books, sorted by series sequence
     val coverPaths =
         books
-            .sortedBy { it.sequence?.toFloatOrNull() ?: Float.MAX_VALUE }
+            .sortedBy { sequenceByBookId[it.id]?.toFloatOrNull() ?: Float.MAX_VALUE }
             .map { bookEntity ->
                 if (imageStorage.exists(bookEntity.id)) {
                     imageStorage.getCoverPath(bookEntity.id)

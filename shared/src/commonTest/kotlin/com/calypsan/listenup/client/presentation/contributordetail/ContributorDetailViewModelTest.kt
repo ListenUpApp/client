@@ -116,9 +116,6 @@ class ContributorDetailViewModelTest {
             totalDuration = duration,
             description = null,
             genres = null,
-            seriesId = null,
-            seriesName = null,
-            sequence = null,
             publishYear = 2024,
             audioFilesJson = null,
             syncState = SyncState.SYNCED,
@@ -137,6 +134,8 @@ class ContributorDetailViewModelTest {
             book = bookEntity,
             contributors = contributors,
             contributorRoles = roles,
+            series = emptyList(),
+            seriesSequences = emptyList(),
         )
 
     private fun createPlaybackPosition(
@@ -163,15 +162,15 @@ class ContributorDetailViewModelTest {
     // ========== Initial State Tests ==========
 
     @Test
-    fun `initial state has isLoading false and empty data`() =
+    fun `initial state has isLoading true and empty data`() =
         runTest {
             // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
 
-            // Then
+            // Then - isLoading starts true to avoid showing empty content before data loads
             val state = viewModel.state.value
-            assertFalse(state.isLoading)
+            assertTrue(state.isLoading)
             assertNull(state.contributor)
             assertTrue(state.roleSections.isEmpty())
             assertNull(state.error)

@@ -4,8 +4,8 @@ package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
-import com.calypsan.listenup.client.data.remote.AuthApi
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.remote.AuthApiContract
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -36,8 +36,8 @@ private val logger = KotlinLogging.logger {}
  * for use by shared code (PlaybackManager).
  */
 class AndroidAudioTokenProvider(
-    private val settingsRepository: SettingsRepository,
-    private val authApi: AuthApi,
+    private val settingsRepository: SettingsRepositoryContract,
+    private val authApi: AuthApiContract,
     private val scope: CoroutineScope,
 ) : AudioTokenProvider {
     @Volatile

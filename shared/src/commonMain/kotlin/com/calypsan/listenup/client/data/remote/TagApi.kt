@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.remote
 
+import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Tag
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -29,8 +30,8 @@ class TagApi(
      */
     override suspend fun getUserTags(): List<Tag> {
         val client = clientFactory.getClient()
-        val response: List<TagResponse> = client.get("/api/v1/tags/").body()
-        return response.map { it.toDomain() }
+        val response: ApiResponse<List<TagResponse>> = client.get("/api/v1/tags/").body()
+        return response.data?.map { it.toDomain() } ?: emptyList()
     }
 
     /**
@@ -42,8 +43,8 @@ class TagApi(
      */
     override suspend fun getBookTags(bookId: String): List<Tag> {
         val client = clientFactory.getClient()
-        val response: List<TagResponse> = client.get("/api/v1/books/$bookId/tags").body()
-        return response.map { it.toDomain() }
+        val response: ApiResponse<List<TagResponse>> = client.get("/api/v1/books/$bookId/tags").body()
+        return response.data?.map { it.toDomain() } ?: emptyList()
     }
 
     /**
@@ -95,13 +96,14 @@ class TagApi(
         color: String?,
     ): Tag {
         val client = clientFactory.getClient()
-        val response: TagResponse =
+        val response: ApiResponse<TagResponse> =
             client
                 .post("/api/v1/tags/") {
                     contentType(ContentType.Application.Json)
                     setBody(CreateTagRequest(name = name, color = color))
                 }.body()
-        return response.toDomain()
+        return response.data?.toDomain()
+            ?: throw Exception(response.error ?: "Failed to create tag")
     }
 
     /**
@@ -119,6 +121,9 @@ class TagApi(
 
 /**
  * Tag API response DTO.
+ *
+ * Note: Timestamps are ISO 8601 strings from the server (Go time.Time).
+ * We don't need them for the domain model, so we just ignore them.
  */
 @Serializable
 internal data class TagResponse(
@@ -131,11 +136,11 @@ internal data class TagResponse(
     @SerialName("book_count")
     val bookCount: Int = 0,
     @SerialName("created_at")
-    val createdAt: Long,
+    val createdAt: String? = null,
     @SerialName("updated_at")
-    val updatedAt: Long,
+    val updatedAt: String? = null,
     @SerialName("deleted_at")
-    val deletedAt: Long? = null,
+    val deletedAt: String? = null,
 ) {
     fun toDomain() =
         Tag(

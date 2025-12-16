@@ -50,15 +50,19 @@ class ContributorDetailViewModel(
             ) { contributor, rolesWithCount ->
                 Pair(contributor, rolesWithCount)
             }.collect { (contributor, rolesWithCount) ->
+                // Aggregate creditedAs mappings across all roles
+                val allCreditedAs = mutableMapOf<String, String>()
+
                 // For each role, load a preview of books
                 val roleSections =
                     rolesWithCount.map { roleWithCount ->
-                        val books = loadBooksForRole(contributorId, roleWithCount.role)
+                        val result = loadBooksForRole(contributorId, contributor.name, roleWithCount.role)
+                        allCreditedAs.putAll(result.creditedAsMap)
                         RoleSection(
                             role = roleWithCount.role,
                             displayName = roleToDisplayName(roleWithCount.role),
                             bookCount = roleWithCount.bookCount,
-                            previewBooks = books.take(PREVIEW_BOOK_COUNT),
+                            previewBooks = result.books.take(PREVIEW_BOOK_COUNT),
                         )
                     }
 
@@ -72,21 +76,53 @@ class ContributorDetailViewModel(
                         contributor = contributor,
                         roleSections = roleSections,
                         bookProgress = bookProgress,
+                        bookCreditedAs = allCreditedAs,
                         error = null,
                     )
             }
         }
     }
 
+    /**
+     * Result of loading books for a role, including creditedAs attribution.
+     */
+    private data class BooksForRoleResult(
+        val books: List<Book>,
+        /** Map of bookId to creditedAs name (when different from contributor's name) */
+        val creditedAsMap: Map<String, String>,
+    )
+
     private suspend fun loadBooksForRole(
         contributorId: String,
+        contributorName: String,
         role: String,
-    ): List<Book> {
+    ): BooksForRoleResult {
         // Get the books once (not as a flow) for the preview
-        return bookDao
-            .observeByContributorAndRole(contributorId, role)
-            .first()
-            .map { bwc -> bwc.toDomain() }
+        val booksWithContributors =
+            bookDao
+                .observeByContributorAndRole(contributorId, role)
+                .first()
+
+        val books = booksWithContributors.map { bwc -> bwc.toDomain() }
+
+        // Extract creditedAs for books where the attribution differs from contributor name
+        val creditedAsMap =
+            booksWithContributors
+                .mapNotNull { bwc ->
+                    val crossRef =
+                        bwc.contributorRoles.find {
+                            it.contributorId == contributorId && it.role == role
+                        }
+                    val creditedAs = crossRef?.creditedAs
+                    // Only include if creditedAs is set and differs from the contributor's actual name
+                    if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
+                        bwc.book.id.value to creditedAs
+                    } else {
+                        null
+                    }
+                }.toMap()
+
+        return BooksForRoleResult(books, creditedAsMap)
     }
 
     /**
@@ -114,20 +150,26 @@ class ContributorDetailViewModel(
         val contributorsById = contributors.associateBy { it.id }
 
         // Get authors by filtering cross-refs with role "author"
+        // Use creditedAs for display name when available (preserves original attribution after merge)
         val authors =
             contributorRoles
                 .filter { it.role == "author" }
-                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
-                .distinctBy { it.id }
-                .map { Contributor(it.id, it.name) }
+                .mapNotNull { crossRef ->
+                    contributorsById[crossRef.contributorId]?.let { entity ->
+                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
+                    }
+                }.distinctBy { it.id }
 
         // Get narrators by filtering cross-refs with role "narrator"
+        // Use creditedAs for display name when available (preserves original attribution after merge)
         val narrators =
             contributorRoles
                 .filter { it.role == "narrator" }
-                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
-                .distinctBy { it.id }
-                .map { Contributor(it.id, it.name) }
+                .mapNotNull { crossRef ->
+                    contributorsById[crossRef.contributorId]?.let { entity ->
+                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
+                    }
+                }.distinctBy { it.id }
 
         return Book(
             id = book.id,
@@ -139,10 +181,10 @@ class ContributorDetailViewModel(
             addedAt = book.createdAt,
             updatedAt = book.updatedAt,
             description = book.description,
-            genres = book.genres,
-            seriesId = book.seriesId,
-            seriesName = book.seriesName,
-            seriesSequence = book.sequence,
+            genres = emptyList(), // Loaded on-demand when editing
+            tags = emptyList(), // Loaded on-demand when editing
+            // Series loaded via junction table - not available in this simple mapper
+            series = emptyList(),
             publishYear = book.publishYear,
             rating = null,
         )
@@ -173,10 +215,13 @@ class ContributorDetailViewModel(
  * UI state for the Contributor Detail screen.
  */
 data class ContributorDetailUiState(
-    val isLoading: Boolean = false,
+    /** Start with loading=true to avoid briefly showing empty content before data loads */
+    val isLoading: Boolean = true,
     val contributor: ContributorEntity? = null,
     val roleSections: List<RoleSection> = emptyList(),
     val bookProgress: Map<String, Float> = emptyMap(),
+    /** Maps bookId to creditedAs name when different from contributor's name */
+    val bookCreditedAs: Map<String, String> = emptyMap(),
     val error: String? = null,
 )
 

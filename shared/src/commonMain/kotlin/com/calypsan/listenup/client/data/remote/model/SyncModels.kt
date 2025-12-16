@@ -97,6 +97,12 @@ data class BookResponse(
     val publishYear: String? = null,
     @SerialName("language")
     val language: String? = null,
+    @SerialName("isbn")
+    val isbn: String? = null,
+    @SerialName("asin")
+    val asin: String? = null,
+    @SerialName("abridged")
+    val abridged: Boolean = false,
     // List of strings
     @SerialName("genres")
     val genres: List<String>? = null,
@@ -107,12 +113,14 @@ data class BookResponse(
     // Milliseconds
     @SerialName("total_duration")
     val totalDuration: Long,
+    // Multiple series (many-to-many with sequence per series)
+    @SerialName("series_info")
+    val seriesInfo: List<BookSeriesInfoResponse> = emptyList(),
+    // Legacy single series fields (backward compat, will be deprecated)
     @SerialName("series_id")
     val seriesId: String? = null,
-    // Denormalized series name
     @SerialName("series_name")
     val seriesName: String? = null,
-    // Series sequence (e.g., "1", "1.5")
     @SerialName("sequence")
     val sequence: String? = null,
     @SerialName("chapters")
@@ -129,6 +137,23 @@ data class BookContributorResponse(
     val name: String,
     @SerialName("roles")
     val roles: List<String>,
+    // Original attribution name (e.g., "Richard Bachman" when contributor is Stephen King)
+    @SerialName("credited_as")
+    val creditedAs: String? = null,
+)
+
+/**
+ * Series relationship for a book (many-to-many).
+ * A book can belong to multiple series with different sequences.
+ */
+@Serializable
+data class BookSeriesInfoResponse(
+    @SerialName("series_id")
+    val seriesId: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("sequence")
+    val sequence: String? = null,
 )
 
 @Serializable
@@ -200,6 +225,8 @@ data class SeriesResponse(
     val name: String,
     @SerialName("description")
     val description: String? = null,
+    @SerialName("cover_image")
+    val coverImage: ImageFileInfoResponse? = null,
     @SerialName("created_at")
     val createdAt: String,
     @SerialName("updated_at")
@@ -224,10 +251,18 @@ data class ContributorResponse(
     val id: String,
     @SerialName("name")
     val name: String,
-    @SerialName("description")
-    val description: String? = null,
-    @SerialName("image_path")
-    val imagePath: String? = null,
+    @SerialName("biography")
+    val biography: String? = null,
+    @SerialName("image_url")
+    val imageUrl: String? = null,
+    @SerialName("aliases")
+    val aliases: List<String>? = null,
+    @SerialName("website")
+    val website: String? = null,
+    @SerialName("birth_date")
+    val birthDate: String? = null,
+    @SerialName("death_date")
+    val deathDate: String? = null,
     @SerialName("created_at")
     val createdAt: String,
     @SerialName("updated_at")

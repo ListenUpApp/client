@@ -220,11 +220,26 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onBackClick = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
+                                onEditClick = { bookId ->
+                                    backStack.add(BookEdit(bookId))
+                                },
                                 onSeriesClick = { seriesId ->
                                     backStack.add(SeriesDetail(seriesId))
                                 },
                                 onContributorClick = { contributorId ->
                                     backStack.add(ContributorDetail(contributorId))
+                                },
+                            )
+                        }
+                        entry<BookEdit> { args ->
+                            com.calypsan.listenup.client.features.bookedit.BookEditScreen(
+                                bookId = args.bookId,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onSaveSuccess = {
+                                    // Navigate back after successful save
+                                    backStack.removeAt(backStack.lastIndex)
                                 },
                             )
                         }
@@ -237,6 +252,21 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
                                 },
+                                onEditClick = { seriesId ->
+                                    backStack.add(SeriesEdit(seriesId))
+                                },
+                            )
+                        }
+                        entry<SeriesEdit> { args ->
+                            com.calypsan.listenup.client.features.seriesedit.SeriesEditScreen(
+                                seriesId = args.seriesId,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onSaveSuccess = {
+                                    // Navigate back after successful save
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
                             )
                         }
                         entry<ContributorDetail> { args ->
@@ -248,8 +278,23 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
                                 },
+                                onEditClick = { contributorId ->
+                                    backStack.add(ContributorEdit(contributorId))
+                                },
                                 onViewAllClick = { contributorId, role ->
                                     backStack.add(ContributorBooks(contributorId, role))
+                                },
+                            )
+                        }
+                        entry<ContributorEdit> { args ->
+                            com.calypsan.listenup.client.features.contributoredit.ContributorEditScreen(
+                                contributorId = args.contributorId,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onSaveSuccess = {
+                                    // Navigate back after successful save
+                                    backStack.removeAt(backStack.lastIndex)
                                 },
                             )
                         }

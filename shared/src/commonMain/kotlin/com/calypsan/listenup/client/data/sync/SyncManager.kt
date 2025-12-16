@@ -14,10 +14,11 @@ import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.remote.model.BookResponse
+import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.network.sockets.ConnectTimeoutException
-import io.ktor.utils.io.errors.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
@@ -90,6 +92,7 @@ class SyncManager(
     private val contributorDao: ContributorDao,
     private val chapterDao: com.calypsan.listenup.client.data.local.db.ChapterDao,
     private val bookContributorDao: com.calypsan.listenup.client.data.local.db.BookContributorDao,
+    private val bookSeriesDao: com.calypsan.listenup.client.data.local.db.BookSeriesDao,
     private val syncDao: SyncDao,
     private val imageDownloader: ImageDownloaderContract,
     private val sseManager: SSEManagerContract,
@@ -407,6 +410,24 @@ class SyncManager(
             bookContributorDao.insertAll(bookContributorsToUpsert)
         }
 
+        // Sync book-series relationships for upserted books
+        val bookSeriesToUpsert =
+            response.books
+                .filter { bookResponse -> booksToUpsert.any { it.id.value == bookResponse.id } }
+                .flatMap { bookResponse ->
+                    // First, delete existing relationships for this book
+                    bookSeriesDao.deleteSeriesForBook(BookId(bookResponse.id))
+
+                    // Then create new relationships from seriesInfo array
+                    bookResponse.seriesInfo.map { seriesInfo ->
+                        seriesInfo.toEntity(BookId(bookResponse.id))
+                    }
+                }
+
+        if (bookSeriesToUpsert.isNotEmpty()) {
+            bookSeriesDao.insertAll(bookSeriesToUpsert)
+        }
+
         // Download cover images for updated books (background/parallel)
         val updatedBookIds = booksToUpsert.map { it.id }
         logger.info { "processServerBooks: scheduling cover downloads for ${updatedBookIds.size} books" }
@@ -441,6 +462,7 @@ class SyncManager(
         val limit = 100
         var pageCount = 0
         var totalDeleted = 0
+        val seriesWithCovers = mutableListOf<String>()
 
         while (hasMore) {
             _syncState.value =
@@ -460,6 +482,11 @@ class SyncManager(
 
                     val serverSeries = response.series.map { it.toEntity() }
                     val deletedSeriesIds = response.deletedSeriesIds
+
+                    // Track series with cover images for later download
+                    response.series
+                        .filter { it.coverImage != null }
+                        .forEach { seriesWithCovers.add(it.id) }
 
                     logger.debug {
                         "Fetched page $pageCount: ${serverSeries.size} series, ${deletedSeriesIds.size} deletions"
@@ -484,6 +511,14 @@ class SyncManager(
         }
 
         logger.info { "Series sync complete: $pageCount pages processed, $totalDeleted deleted" }
+
+        // Download series covers in background (non-blocking)
+        if (seriesWithCovers.isNotEmpty()) {
+            scope.launch {
+                logger.info { "Starting cover downloads for ${seriesWithCovers.size} series..." }
+                imageDownloader.downloadSeriesCovers(seriesWithCovers)
+            }
+        }
     }
 
     private suspend fun pullContributors(updatedAfter: String?) {
@@ -492,6 +527,7 @@ class SyncManager(
         val limit = 100
         var pageCount = 0
         var totalDeleted = 0
+        val contributorsWithImages = mutableListOf<String>()
 
         while (hasMore) {
             _syncState.value =
@@ -511,6 +547,11 @@ class SyncManager(
 
                     val serverContributors = response.contributors.map { it.toEntity() }
                     val deletedContributorIds = response.deletedContributorIds
+
+                    // Track contributors with images for later download
+                    response.contributors
+                        .filter { !it.imageUrl.isNullOrBlank() }
+                        .forEach { contributorsWithImages.add(it.id) }
 
                     logger.debug {
                         "Fetched page $pageCount: ${serverContributors.size} contributors, ${deletedContributorIds.size} deletions"
@@ -535,6 +576,25 @@ class SyncManager(
         }
 
         logger.info { "Contributors sync complete: $pageCount pages processed, $totalDeleted deleted" }
+
+        // Download contributor images in background (non-blocking)
+        if (contributorsWithImages.isNotEmpty()) {
+            scope.launch {
+                logger.info { "Starting image downloads for ${contributorsWithImages.size} contributors..." }
+                val downloadedIds = imageDownloader.downloadContributorImages(contributorsWithImages)
+
+                // Update local database with local image paths for successfully downloaded images
+                if (downloadedIds is Result.Success && downloadedIds.data.isNotEmpty()) {
+                    downloadedIds.data.forEach { contributorId ->
+                        val localPath = imageDownloader.getContributorImagePath(contributorId)
+                        if (localPath != null) {
+                            contributorDao.updateImagePath(contributorId, localPath)
+                        }
+                    }
+                    logger.info { "Updated ${downloadedIds.data.size} contributors with local image paths" }
+                }
+            }
+        }
     }
 
     /**
@@ -594,6 +654,10 @@ class SyncManager(
                     val entity = event.book.toEntity()
                     bookDao.upsert(entity)
 
+                    // Save book-contributor and book-series relationships
+                    saveBookContributors(event.book)
+                    saveBookSeries(event.book)
+
                     // Download cover image in background
                     scope.launch {
                         downloadCoverForBook(event.book.id)
@@ -604,6 +668,10 @@ class SyncManager(
                     logger.debug { "SSE: Book updated - ${event.book.title}" }
                     val entity = event.book.toEntity()
                     bookDao.upsert(entity)
+
+                    // Save book-contributor and book-series relationships
+                    saveBookContributors(event.book)
+                    saveBookSeries(event.book)
 
                     // Download updated cover image if changed
                     scope.launch {
@@ -635,6 +703,52 @@ class SyncManager(
             }
         } catch (e: Exception) {
             logger.error(e) { "Failed to handle SSE event: $event" }
+        }
+    }
+
+    /**
+     * Save book-contributor relationships from an SSE event.
+     * Replaces existing relationships for the book.
+     */
+    private suspend fun saveBookContributors(book: BookResponse) {
+        val bookId = BookId(book.id)
+
+        // Delete existing relationships for this book
+        bookContributorDao.deleteContributorsForBook(bookId)
+
+        // Create new relationships
+        val crossRefs =
+            book.contributors.flatMap { contributor ->
+                contributor.roles.map { role ->
+                    contributor.toEntity(bookId, role)
+                }
+            }
+
+        if (crossRefs.isNotEmpty()) {
+            bookContributorDao.insertAll(crossRefs)
+            logger.debug { "SSE: Saved ${crossRefs.size} contributor relationships for book ${book.id}" }
+        }
+    }
+
+    /**
+     * Save book-series relationships from an SSE event.
+     * Replaces existing relationships for the book.
+     */
+    private suspend fun saveBookSeries(book: BookResponse) {
+        val bookId = BookId(book.id)
+
+        // Delete existing relationships for this book
+        bookSeriesDao.deleteSeriesForBook(bookId)
+
+        // Create new relationships from seriesInfo array
+        val crossRefs =
+            book.seriesInfo.map { seriesInfo ->
+                seriesInfo.toEntity(bookId)
+            }
+
+        if (crossRefs.isNotEmpty()) {
+            bookSeriesDao.insertAll(crossRefs)
+            logger.debug { "SSE: Saved ${crossRefs.size} series relationships for book ${book.id}" }
         }
     }
 

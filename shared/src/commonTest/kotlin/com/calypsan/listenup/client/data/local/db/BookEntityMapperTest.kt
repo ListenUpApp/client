@@ -9,6 +9,7 @@ import dev.mokkery.mock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Tests for BookEntityMapper extension function.
@@ -43,9 +44,6 @@ class BookEntityMapperTest {
         totalDuration: Long = 3_600_000L,
         description: String? = null,
         genres: String? = null,
-        seriesId: String? = null,
-        seriesName: String? = null,
-        sequence: String? = null,
         publishYear: Int? = null,
     ): BookEntity =
         BookEntity(
@@ -56,9 +54,6 @@ class BookEntityMapperTest {
             totalDuration = totalDuration,
             description = description,
             genres = genres,
-            seriesId = seriesId,
-            seriesName = seriesName,
-            sequence = sequence,
             publishYear = publishYear,
             audioFilesJson = null,
             syncState = SyncState.SYNCED,
@@ -140,30 +135,31 @@ class BookEntityMapperTest {
     }
 
     @Test
-    fun `toDomain maps genres correctly`() {
+    fun `toDomain returns empty genres - loaded on demand from API`() {
+        // Genres are loaded on-demand from the API, not from the entity
         val fixture = createFixture()
         val entity = createBookEntity(genres = "fiction,classic")
 
         val book = entity.toDomain(fixture.imageStorage)
 
-        assertEquals("fiction,classic", book.genres)
+        // Mapper returns empty list - genres fetched separately via GenreApi
+        assertTrue(book.genres.isEmpty())
     }
 
     @Test
-    fun `toDomain maps series info correctly`() {
+    fun `toDomain has empty series when no junction data`() {
+        // Series info now comes from junction table, not BookEntity
+        // When BookEntity.toDomain is called without junction data, series should be empty
         val fixture = createFixture()
-        val entity =
-            createBookEntity(
-                seriesId = "series-1",
-                seriesName = "Epic Fantasy Saga",
-                sequence = "2.5",
-            )
+        val entity = createBookEntity()
 
         val book = entity.toDomain(fixture.imageStorage)
 
-        assertEquals("series-1", book.seriesId)
-        assertEquals("Epic Fantasy Saga", book.seriesName)
-        assertEquals("2.5", book.seriesSequence)
+        // Series convenience properties return null when series list is empty
+        assertNull(book.seriesId)
+        assertNull(book.seriesName)
+        assertNull(book.seriesSequence)
+        assertTrue(book.series.isEmpty())
     }
 
     @Test

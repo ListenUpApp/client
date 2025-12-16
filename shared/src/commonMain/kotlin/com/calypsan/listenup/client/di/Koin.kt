@@ -5,28 +5,50 @@ import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.AuthApiContract
+import com.calypsan.listenup.client.data.remote.GenreApi
+import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.ImageApi
+import com.calypsan.listenup.client.data.remote.ImageApiContract
+import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.TagApi
+import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
+import com.calypsan.listenup.client.data.repository.BookEditRepository
+import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.BookRepository
+import com.calypsan.listenup.client.data.repository.BookRepositoryContract
+import com.calypsan.listenup.client.data.repository.ContributorRepository
+import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
 import com.calypsan.listenup.client.data.repository.HomeRepository
+import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.SearchRepository
+import com.calypsan.listenup.client.data.repository.SearchRepositoryContract
+import com.calypsan.listenup.client.data.repository.SeriesEditRepository
+import com.calypsan.listenup.client.data.repository.SeriesEditRepositoryContract
+import com.calypsan.listenup.client.data.repository.SeriesRepository
+import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.FtsPopulator
+import com.calypsan.listenup.client.data.sync.FtsPopulatorContract
 import com.calypsan.listenup.client.data.sync.ImageDownloader
+import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SSEManager
+import com.calypsan.listenup.client.data.sync.SSEManagerContract
 import com.calypsan.listenup.client.data.sync.SyncManager
+import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
+import org.koin.dsl.bind
 import org.koin.dsl.module
 
 /**
@@ -42,12 +64,13 @@ expect val platformStorageModule: Module
 val dataModule =
     module {
         // Settings repository - single source of truth for app configuration
+        // Bind to both concrete type and interface (for ViewModels)
         single {
             SettingsRepository(
                 secureStorage = get(),
                 instanceRepository = get(),
             )
-        }
+        } bind SettingsRepositoryContract::class
     }
 
 /**
@@ -62,10 +85,11 @@ val networkModule =
     module {
         // AuthApi - handles login, logout, and token refresh
         // Gets server URL dynamically from SettingsRepository
-        single<AuthApiContract> {
-            val settingsRepository: SettingsRepository = get()
+        // Bind to both concrete type and interface
+        single {
+            val settingsRepository: SettingsRepositoryContract = get()
             AuthApi(getServerUrl = { settingsRepository.getServerUrl() })
-        }
+        } bind AuthApiContract::class
 
         // ApiClientFactory - creates authenticated HTTP clients with auto-refresh
         single {
@@ -77,7 +101,7 @@ val networkModule =
 
         // ListenUpApi - main API for server communication
         // Uses default base URL initially; can be recreated when server URL changes
-        single {
+        single<ListenUpApiContract> {
             ListenUpApi(
                 baseUrl = getBaseUrl(),
                 apiClientFactory = get(),
@@ -119,6 +143,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().seriesDao() }
         single { get<ListenUpDatabase>().contributorDao() }
         single { get<ListenUpDatabase>().bookContributorDao() }
+        single { get<ListenUpDatabase>().bookSeriesDao() }
         single { get<ListenUpDatabase>().playbackPositionDao() }
         single { get<ListenUpDatabase>().pendingListeningEventDao() }
         single { get<ListenUpDatabase>().downloadDao() }
@@ -169,6 +194,7 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel(
                 bookRepository = get(),
+                genreApi = get(),
                 tagApi = get(),
                 playbackPositionDao = get(),
             )
@@ -177,6 +203,7 @@ val presentationModule =
             com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel(
                 seriesDao = get(),
                 bookRepository = get(),
+                imageStorage = get(),
             )
         }
         factory {
@@ -203,6 +230,36 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.search.SearchViewModel(
                 searchRepository = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.bookedit.BookEditViewModel(
+                bookRepository = get(),
+                bookEditRepository = get(),
+                contributorRepository = get(),
+                seriesRepository = get(),
+                genreApi = get(),
+                tagApi = get(),
+                imageApi = get(),
+                imageStorage = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.contributoredit.ContributorEditViewModel(
+                contributorDao = get(),
+                bookContributorDao = get(),
+                contributorRepository = get(),
+                api = get(),
+                imageApi = get(),
+                imageStorage = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.seriesedit.SeriesEditViewModel(
+                seriesDao = get(),
+                seriesEditRepository = get(),
+                imageStorage = get(),
+                imageApi = get(),
             )
         }
     }
@@ -233,10 +290,10 @@ val syncModule =
             SyncApi(clientFactory = get())
         }
 
-        // Image API for downloading cover images
+        // Image API for downloading cover images and uploading images
         single {
-            ImageApi(clientFactory = get())
-        }
+            ImageApi(clientFactory = get(), settingsRepository = get())
+        } bind ImageApiContract::class
 
         // Image downloader for batch cover downloads during sync
         single {
@@ -244,10 +301,10 @@ val syncModule =
                 imageApi = get(),
                 imageStorage = get(),
             )
-        }
+        } bind ImageDownloaderContract::class
 
         // SSE Manager for real-time updates
-        single<SSEManager> {
+        single {
             SSEManager(
                 clientFactory = get(),
                 settingsRepository = get(),
@@ -258,7 +315,7 @@ val syncModule =
                                 .named("appScope"),
                     ),
             )
-        }
+        } bind SSEManagerContract::class
 
         // SearchApi for server-side search
         single<SearchApiContract> {
@@ -268,7 +325,12 @@ val syncModule =
         // TagApi for user tag operations
         single {
             TagApi(clientFactory = get())
-        }
+        } bind TagApiContract::class
+
+        // GenreApi for genre operations
+        single {
+            GenreApi(clientFactory = get())
+        } bind GenreApiContract::class
 
         // FtsPopulator for rebuilding FTS tables after sync
         single {
@@ -278,7 +340,7 @@ val syncModule =
                 seriesDao = get(),
                 searchDao = get(),
             )
-        }
+        } bind FtsPopulatorContract::class
 
         // SyncManager orchestrates sync operations
         single {
@@ -289,6 +351,7 @@ val syncModule =
                 contributorDao = get(),
                 chapterDao = get(),
                 bookContributorDao = get(),
+                bookSeriesDao = get(),
                 syncDao = get(),
                 imageDownloader = get(),
                 sseManager = get(),
@@ -300,7 +363,7 @@ val syncModule =
                                 .named("appScope"),
                     ),
             )
-        }
+        } bind SyncManagerContract::class
 
         // SearchRepository for offline-first search
         single {
@@ -310,7 +373,7 @@ val syncModule =
                 imageStorage = get(),
                 networkMonitor = get(),
             )
-        }
+        } bind SearchRepositoryContract::class
 
         // BookRepository for UI data access
         single {
@@ -320,7 +383,7 @@ val syncModule =
                 syncManager = get(),
                 imageStorage = get(),
             )
-        }
+        } bind BookRepositoryContract::class
 
         // HomeRepository for Home screen data (local-first)
         single {
@@ -329,7 +392,41 @@ val syncModule =
                 playbackPositionDao = get(),
                 userDao = get(),
             )
-        }
+        } bind HomeRepositoryContract::class
+
+        // ContributorRepository for contributor search with offline fallback
+        single {
+            ContributorRepository(
+                api = get(),
+                searchDao = get(),
+                networkMonitor = get(),
+            )
+        } bind ContributorRepositoryContract::class
+
+        // SeriesRepository for series search with offline fallback
+        single {
+            SeriesRepository(
+                api = get(),
+                searchDao = get(),
+                networkMonitor = get(),
+            )
+        } bind SeriesRepositoryContract::class
+
+        // BookEditRepository for book editing operations
+        single {
+            BookEditRepository(
+                api = get(),
+                bookDao = get(),
+            )
+        } bind BookEditRepositoryContract::class
+
+        // SeriesEditRepository for series editing operations
+        single {
+            SeriesEditRepository(
+                api = get(),
+                seriesDao = get(),
+            )
+        } bind SeriesEditRepositoryContract::class
     }
 
 /**

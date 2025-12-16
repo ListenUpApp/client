@@ -55,12 +55,37 @@ data class BookDetail(
 ) : Route
 
 /**
+ * Book edit screen - edit book metadata and contributors.
+ *
+ * Allows editing title, subtitle, description, series info, publish year,
+ * and managing contributors (authors/narrators) with autocomplete search.
+ *
+ * @property bookId The unique ID of the book to edit.
+ */
+@Serializable
+data class BookEdit(
+    val bookId: String,
+) : Route
+
+/**
  * Series detail screen - displays series info and its books.
  *
  * @property seriesId The unique ID of the series to display.
  */
 @Serializable
 data class SeriesDetail(
+    val seriesId: String,
+) : Route
+
+/**
+ * Series edit screen - edit series metadata and cover.
+ *
+ * Allows editing name, description, and cover image for a series.
+ *
+ * @property seriesId The unique ID of the series to edit.
+ */
+@Serializable
+data class SeriesEdit(
     val seriesId: String,
 ) : Route
 
@@ -90,4 +115,17 @@ data class ContributorDetail(
 data class ContributorBooks(
     val contributorId: String,
     val role: String,
+) : Route
+
+/**
+ * Contributor edit screen - edit contributor metadata and manage aliases.
+ *
+ * Allows editing name, biography, website, dates, and adding/removing aliases.
+ * Adding an alias from search results triggers a merge operation.
+ *
+ * @property contributorId The unique ID of the contributor to edit.
+ */
+@Serializable
+data class ContributorEdit(
+    val contributorId: String,
 ) : Route

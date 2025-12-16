@@ -57,6 +57,9 @@ kotlin {
 
             // Palette for dynamic color extraction from cover art
             implementation(libs.androidx.palette.ktx)
+
+            // Markdown Rendering
+            implementation(libs.markdown.renderer.m3)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

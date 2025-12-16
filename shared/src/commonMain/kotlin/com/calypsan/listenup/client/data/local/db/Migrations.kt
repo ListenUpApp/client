@@ -303,3 +303,241 @@ val MIGRATION_8_9 =
             )
         }
     }
+
+/**
+ * Migration from version 9 to version 10.
+ *
+ * Changes:
+ * - Add book_series junction table for many-to-many book-series relationships
+ * - Migrate existing seriesId/sequence data from books to book_series
+ * - Remove seriesId, seriesName, sequence columns from books table
+ *
+ * A book can now belong to multiple series (e.g., "Mistborn", "Mistborn Era 1", "The Cosmere").
+ */
+val MIGRATION_9_10 =
+    object : Migration(9, 10) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create book_series junction table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS book_series (
+                    bookId TEXT NOT NULL,
+                    seriesId TEXT NOT NULL,
+                    sequence TEXT,
+                    PRIMARY KEY (bookId, seriesId),
+                    FOREIGN KEY (bookId) REFERENCES books(id) ON DELETE CASCADE,
+                    FOREIGN KEY (seriesId) REFERENCES series(id) ON DELETE CASCADE
+                )
+                """.trimIndent(),
+            )
+
+            // Create indices for efficient lookups
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_book_series_bookId ON book_series(bookId)
+                """.trimIndent(),
+            )
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_book_series_seriesId ON book_series(seriesId)
+                """.trimIndent(),
+            )
+
+            // Migrate existing book-series relationships from books table
+            connection.execSQL(
+                """
+                INSERT INTO book_series (bookId, seriesId, sequence)
+                SELECT id, seriesId, sequence FROM books WHERE seriesId IS NOT NULL AND seriesId != ''
+                """.trimIndent(),
+            )
+
+            // SQLite doesn't support DROP COLUMN in older versions, so we rebuild the table
+            // Create new books table without series columns
+            connection.execSQL(
+                """
+                CREATE TABLE books_new (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    title TEXT NOT NULL,
+                    subtitle TEXT,
+                    coverUrl TEXT,
+                    totalDuration INTEGER NOT NULL,
+                    description TEXT,
+                    genres TEXT,
+                    publishYear INTEGER,
+                    audioFilesJson TEXT,
+                    syncState INTEGER NOT NULL,
+                    lastModified INTEGER NOT NULL,
+                    serverVersion INTEGER,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+
+            // Copy data to new table (excluding series columns)
+            connection.execSQL(
+                """
+                INSERT INTO books_new (id, title, subtitle, coverUrl, totalDuration, description, genres, publishYear, audioFilesJson, syncState, lastModified, serverVersion, createdAt, updatedAt)
+                SELECT id, title, subtitle, coverUrl, totalDuration, description, genres, publishYear, audioFilesJson, syncState, lastModified, serverVersion, createdAt, updatedAt FROM books
+                """.trimIndent(),
+            )
+
+            // Drop old table and rename new one
+            connection.execSQL("DROP TABLE books")
+            connection.execSQL("ALTER TABLE books_new RENAME TO books")
+
+            // Recreate index on syncState
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_books_syncState ON books(syncState)
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 10 to version 11.
+ *
+ * Changes:
+ * - Add publisher column to books table (if not exists)
+ * - Add language column to books table (if not exists)
+ * - Add isbn column to books table
+ * - Add asin column to books table
+ * - Add abridged column to books table
+ *
+ * Note: publisher and language may already exist from earlier development builds,
+ * so we check for column existence before adding.
+ */
+val MIGRATION_10_11 =
+    object : Migration(10, 11) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Get existing columns in books table
+            val existingColumns = mutableSetOf<String>()
+            connection.prepare("PRAGMA table_info(books)").use { stmt ->
+                while (stmt.step()) {
+                    existingColumns.add(stmt.getText(1)) // Column name is at index 1
+                }
+            }
+
+            // Add publisher column if not exists
+            if ("publisher" !in existingColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE books ADD COLUMN publisher TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add language column if not exists
+            if ("language" !in existingColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE books ADD COLUMN language TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add isbn column if not exists
+            if ("isbn" !in existingColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE books ADD COLUMN isbn TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add asin column if not exists
+            if ("asin" !in existingColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE books ADD COLUMN asin TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add abridged column if not exists (defaults to false/0)
+            if ("abridged" !in existingColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE books ADD COLUMN abridged INTEGER NOT NULL DEFAULT 0
+                    """.trimIndent(),
+                )
+            }
+        }
+    }
+
+/**
+ * Migration from version 11 to version 12.
+ *
+ * Changes:
+ * - Add website column to contributors table
+ * - Add birthDate column to contributors table
+ * - Add deathDate column to contributors table
+ * - Add aliases column to contributors table (comma-separated pen names)
+ * - Add creditedAs column to book_contributors table (original attribution name)
+ */
+val MIGRATION_11_12 =
+    object : Migration(11, 12) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Get existing columns in contributors table
+            val contributorColumns = mutableSetOf<String>()
+            connection.prepare("PRAGMA table_info(contributors)").use { stmt ->
+                while (stmt.step()) {
+                    contributorColumns.add(stmt.getText(1)) // Column name is at index 1
+                }
+            }
+
+            // Add website column if not exists
+            if ("website" !in contributorColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE contributors ADD COLUMN website TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add birthDate column if not exists
+            if ("birthDate" !in contributorColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE contributors ADD COLUMN birthDate TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add deathDate column if not exists
+            if ("deathDate" !in contributorColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE contributors ADD COLUMN deathDate TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Add aliases column if not exists (comma-separated pen names)
+            if ("aliases" !in contributorColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE contributors ADD COLUMN aliases TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+
+            // Get existing columns in book_contributors table
+            val bookContributorColumns = mutableSetOf<String>()
+            connection.prepare("PRAGMA table_info(book_contributors)").use { stmt ->
+                while (stmt.step()) {
+                    bookContributorColumns.add(stmt.getText(1))
+                }
+            }
+
+            // Add creditedAs column if not exists (original attribution name)
+            if ("creditedAs" !in bookContributorColumns) {
+                connection.execSQL(
+                    """
+                    ALTER TABLE book_contributors ADD COLUMN creditedAs TEXT DEFAULT NULL
+                    """.trimIndent(),
+                )
+            }
+        }
+    }

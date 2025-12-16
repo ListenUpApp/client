@@ -51,11 +51,18 @@ fun ContributorResponse.toEntity(): ContributorEntity {
             now // Fallback to current time if parsing fails
         }
 
+    // Convert aliases list to comma-separated string for storage
+    val aliasesString = aliases?.takeIf { it.isNotEmpty() }?.joinToString(", ")
+
     return ContributorEntity(
         id = id,
         name = name,
-        description = description,
-        imagePath = imagePath,
+        description = biography,
+        imagePath = imageUrl,
+        aliases = aliasesString,
+        website = website,
+        birthDate = birthDate,
+        deathDate = deathDate,
         syncState = SyncState.SYNCED,
         lastModified = now,
         serverVersion = serverUpdatedAt,

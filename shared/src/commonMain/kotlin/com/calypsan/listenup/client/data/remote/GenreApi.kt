@@ -1,0 +1,136 @@
+package com.calypsan.listenup.client.data.remote
+
+import com.calypsan.listenup.client.domain.model.Genre
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * Contract interface for genre API operations.
+ *
+ * Extracted to enable mocking in tests.
+ */
+interface GenreApiContract {
+    /**
+     * Get all available genres.
+     */
+    suspend fun listGenres(): List<Genre>
+
+    /**
+     * Set genres for a book (replaces all existing genre associations).
+     */
+    suspend fun setBookGenres(
+        bookId: String,
+        genreIds: List<String>,
+    )
+
+    /**
+     * Get genres for a specific book.
+     */
+    suspend fun getBookGenres(bookId: String): List<Genre>
+}
+
+/**
+ * API client for genre operations.
+ *
+ * Genres are system-controlled categories. Users can select from
+ * existing genres but cannot create new ones from the client.
+ *
+ * @property clientFactory Factory for creating authenticated HttpClient
+ */
+class GenreApi(
+    private val clientFactory: ApiClientFactory,
+) : GenreApiContract {
+    /**
+     * Get all available genres.
+     *
+     * Endpoint: GET /api/v1/genres/
+     */
+    override suspend fun listGenres(): List<Genre> {
+        val client = clientFactory.getClient()
+        val response: GenreListResponse = client.get("/api/v1/genres/").body()
+        return response.data.map { it.toDomain() }
+    }
+
+    /**
+     * Set genres for a book.
+     *
+     * Endpoint: POST /api/v1/books/{bookId}/genres
+     *
+     * @param bookId The book to update
+     * @param genreIds List of genre IDs to associate
+     */
+    override suspend fun setBookGenres(
+        bookId: String,
+        genreIds: List<String>,
+    ) {
+        val client = clientFactory.getClient()
+        client.post("/api/v1/books/$bookId/genres") {
+            contentType(ContentType.Application.Json)
+            setBody(SetBookGenresRequest(genreIds = genreIds))
+        }
+    }
+
+    /**
+     * Get genres for a specific book.
+     *
+     * Endpoint: GET /api/v1/books/{bookId}/genres
+     *
+     * @param bookId The book ID to get genres for
+     */
+    override suspend fun getBookGenres(bookId: String): List<Genre> {
+        val client = clientFactory.getClient()
+        val response: GenreListResponse = client.get("/api/v1/books/$bookId/genres").body()
+        return response.data.map { it.toDomain() }
+    }
+}
+
+/**
+ * Wrapper for genre list response.
+ */
+@Serializable
+internal data class GenreListResponse(
+    val data: List<GenreResponse>,
+)
+
+/**
+ * Genre API response DTO.
+ */
+@Serializable
+internal data class GenreResponse(
+    val id: String,
+    val name: String,
+    val slug: String,
+    val path: String,
+    @SerialName("book_count")
+    val bookCount: Int = 0,
+    @SerialName("parent_id")
+    val parentId: String? = null,
+    val depth: Int = 0,
+    @SerialName("sort_order")
+    val sortOrder: Int = 0,
+    val color: String? = null,
+    val icon: String? = null,
+    @SerialName("is_system")
+    val isSystem: Boolean = false,
+) {
+    fun toDomain() =
+        Genre(
+            id = id,
+            name = name,
+            slug = slug,
+            path = path,
+            bookCount = bookCount,
+        )
+}
+
+@Serializable
+internal data class SetBookGenresRequest(
+    @SerialName("genre_ids")
+    val genreIds: List<String>,
+)

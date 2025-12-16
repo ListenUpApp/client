@@ -52,10 +52,13 @@ data class BookEntity(
     val totalDuration: Long, // Total audiobook duration in milliseconds
     val description: String? = null,
     val genres: String? = null, // Comma-separated genres
-    val seriesId: String? = null,
-    val seriesName: String? = null, // Denormalized series name
-    val sequence: String? = null, // Series sequence (e.g., "1", "1.5")
+    // Series is now managed via book_series junction table (many-to-many)
     val publishYear: Int? = null,
+    val publisher: String? = null, // Publisher name
+    val language: String? = null, // ISO 639-1 language code (e.g., "en", "es")
+    val isbn: String? = null, // ISBN for metadata lookup
+    val asin: String? = null, // Amazon ASIN for metadata lookup
+    val abridged: Boolean = false, // Whether this is an abridged version
     // Audio files as JSON (parsed at runtime for playback)
     val audioFilesJson: String? = null,
     // Sync fields (implements Syncable)
@@ -110,23 +113,53 @@ data class SeriesEntity(
 
 /**
  * Local database entity for contributors (authors, narrators, etc.).
+ *
+ * Aliases: Pen names that have been merged into this contributor.
+ * When "Richard Bachman" is added as an alias of "Stephen King":
+ * - All books by Richard Bachman get re-linked to Stephen King
+ * - Richard Bachman contributor is deleted
+ * - "Richard Bachman" is added to Stephen King's aliases field
+ *
+ * Future sync: When a book arrives with author "Richard Bachman",
+ * the system checks if any contributor has this in their aliases
+ * and links to that contributor instead.
  */
 @Entity(
     tableName = "contributors",
-    indices = [Index(value = ["syncState"])],
+    indices = [
+        Index(value = ["syncState"]),
+    ],
 )
 data class ContributorEntity(
     @PrimaryKey val id: String,
     val name: String,
     val description: String?,
     val imagePath: String?,
+    // Optional fields - will sync when server supports them
+    val website: String? = null,
+    val birthDate: String? = null, // ISO 8601 date (e.g., "1947-09-21")
+    val deathDate: String? = null, // ISO 8601 date (e.g., "2024-01-15")
+    // Merged pen names, comma-separated (e.g., "Richard Bachman, John Swithen")
+    val aliases: String? = null,
     // Sync fields
     override val syncState: SyncState,
     override val lastModified: Timestamp,
     override val serverVersion: Timestamp?,
     val createdAt: Timestamp,
     val updatedAt: Timestamp,
-) : Syncable
+) : Syncable {
+    /**
+     * Parse aliases into a list.
+     */
+    fun aliasList(): List<String> = aliases?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+
+    /**
+     * Check if a name matches this contributor (either primary name or alias).
+     */
+    fun matchesName(searchName: String): Boolean =
+        name.equals(searchName, ignoreCase = true) ||
+            aliasList().any { it.equals(searchName, ignoreCase = true) }
+}
 
 /**
  * Key-value store for sync metadata.

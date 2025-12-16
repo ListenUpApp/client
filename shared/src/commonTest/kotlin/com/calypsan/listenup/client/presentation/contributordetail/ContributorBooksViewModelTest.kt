@@ -4,14 +4,17 @@ import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.BookWithContributors
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
+import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.domain.model.BookSeries
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -106,9 +109,6 @@ class ContributorBooksViewModelTest {
         id: String = "book-1",
         title: String = "Test Book",
         duration: Long = 3_600_000L,
-        seriesName: String? = null,
-        seriesId: String? = null,
-        sequence: String? = null,
     ): BookEntity =
         BookEntity(
             id = BookId(id),
@@ -118,11 +118,23 @@ class ContributorBooksViewModelTest {
             totalDuration = duration,
             description = null,
             genres = null,
-            seriesId = seriesId,
-            seriesName = seriesName,
-            sequence = sequence,
             publishYear = 2024,
             audioFilesJson = null,
+            syncState = SyncState.SYNCED,
+            lastModified = Timestamp(1704067200000L),
+            serverVersion = Timestamp(1704067200000L),
+            createdAt = Timestamp(1704067200000L),
+            updatedAt = Timestamp(1704067200000L),
+        )
+
+    private fun createSeriesEntity(
+        id: String = "series-1",
+        name: String = "Test Series",
+    ): SeriesEntity =
+        SeriesEntity(
+            id = id,
+            name = name,
+            description = null,
             syncState = SyncState.SYNCED,
             lastModified = Timestamp(1704067200000L),
             serverVersion = Timestamp(1704067200000L),
@@ -134,11 +146,15 @@ class ContributorBooksViewModelTest {
         bookEntity: BookEntity,
         contributors: List<ContributorEntity> = emptyList(),
         roles: List<BookContributorCrossRef> = emptyList(),
+        series: List<SeriesEntity> = emptyList(),
+        seriesSequences: List<BookSeriesCrossRef> = emptyList(),
     ): BookWithContributors =
         BookWithContributors(
             book = bookEntity,
             contributors = contributors,
             contributorRoles = roles,
+            series = series,
+            seriesSequences = seriesSequences,
         )
 
     private fun createPlaybackPosition(
@@ -165,15 +181,15 @@ class ContributorBooksViewModelTest {
     // ========== Initial State Tests ==========
 
     @Test
-    fun `initial state has isLoading false and empty data`() =
+    fun `initial state has isLoading true and empty data`() =
         runTest {
             // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
 
-            // Then
+            // Then - isLoading starts true to avoid showing empty content before data loads
             val state = viewModel.state.value
-            assertFalse(state.isLoading)
+            assertTrue(state.isLoading)
             assertEquals("", state.contributorName)
             assertEquals("", state.roleDisplayName)
             assertTrue(state.seriesGroups.isEmpty())
@@ -236,19 +252,16 @@ class ContributorBooksViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
+            val darkTowerSeries = createSeriesEntity(id = "dark-tower-series", name = "Dark Tower")
             val book1 =
                 createBookEntity(
                     id = "book-1",
                     title = "The Dark Tower",
-                    seriesName = "Dark Tower",
-                    sequence = "1",
                 )
             val book2 =
                 createBookEntity(
                     id = "book-2",
                     title = "The Drawing of the Three",
-                    seriesName = "Dark Tower",
-                    sequence = "2",
                 )
             val viewModel = fixture.build()
 
@@ -256,8 +269,16 @@ class ContributorBooksViewModelTest {
             viewModel.loadBooks("contributor-1", "author")
             fixture.booksFlow.value =
                 listOf(
-                    createBookWithContributors(book1),
-                    createBookWithContributors(book2),
+                    createBookWithContributors(
+                        book1,
+                        series = listOf(darkTowerSeries),
+                        seriesSequences = listOf(BookSeriesCrossRef(BookId("book-1"), "dark-tower-series", "1")),
+                    ),
+                    createBookWithContributors(
+                        book2,
+                        series = listOf(darkTowerSeries),
+                        seriesSequences = listOf(BookSeriesCrossRef(BookId("book-2"), "dark-tower-series", "2")),
+                    ),
                 )
             advanceUntilIdle()
 
@@ -274,17 +295,16 @@ class ContributorBooksViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
+            val aSeries = createSeriesEntity(id = "a-series", name = "A Series")
             val seriesBook =
                 createBookEntity(
                     id = "book-1",
                     title = "Series Book",
-                    seriesName = "A Series",
                 )
             val standaloneBook =
                 createBookEntity(
                     id = "book-2",
                     title = "Standalone Book",
-                    seriesName = null,
                 )
             val viewModel = fixture.build()
 
@@ -292,7 +312,11 @@ class ContributorBooksViewModelTest {
             viewModel.loadBooks("contributor-1", "author")
             fixture.booksFlow.value =
                 listOf(
-                    createBookWithContributors(seriesBook),
+                    createBookWithContributors(
+                        seriesBook,
+                        series = listOf(aSeries),
+                        seriesSequences = listOf(BookSeriesCrossRef(BookId("book-1"), "a-series", null)),
+                    ),
                     createBookWithContributors(standaloneBook),
                 )
             advanceUntilIdle()
@@ -309,18 +333,31 @@ class ContributorBooksViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book1 = createBookEntity(id = "book-1", title = "Book One", seriesName = "Series", sequence = "2")
-            val book2 = createBookEntity(id = "book-2", title = "Book Two", seriesName = "Series", sequence = "1")
-            val book3 = createBookEntity(id = "book-3", title = "Book Three", seriesName = "Series", sequence = "1.5")
+            val testSeries = createSeriesEntity(id = "test-series", name = "Series")
+            val book1 = createBookEntity(id = "book-1", title = "Book One")
+            val book2 = createBookEntity(id = "book-2", title = "Book Two")
+            val book3 = createBookEntity(id = "book-3", title = "Book Three")
             val viewModel = fixture.build()
 
             // When
             viewModel.loadBooks("contributor-1", "author")
             fixture.booksFlow.value =
                 listOf(
-                    createBookWithContributors(book1),
-                    createBookWithContributors(book2),
-                    createBookWithContributors(book3),
+                    createBookWithContributors(
+                        book1,
+                        series = listOf(testSeries),
+                        seriesSequences = listOf(BookSeriesCrossRef(BookId("book-1"), "test-series", "2")),
+                    ),
+                    createBookWithContributors(
+                        book2,
+                        series = listOf(testSeries),
+                        seriesSequences = listOf(BookSeriesCrossRef(BookId("book-2"), "test-series", "1")),
+                    ),
+                    createBookWithContributors(
+                        book3,
+                        series = listOf(testSeries),
+                        seriesSequences = listOf(BookSeriesCrossRef(BookId("book-3"), "test-series", "1.5")),
+                    ),
                 )
             advanceUntilIdle()
 
@@ -337,9 +374,9 @@ class ContributorBooksViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book1 = createBookEntity(id = "book-1", title = "Zebra", seriesName = null)
-            val book2 = createBookEntity(id = "book-2", title = "Alpha", seriesName = null)
-            val book3 = createBookEntity(id = "book-3", title = "Beta", seriesName = null)
+            val book1 = createBookEntity(id = "book-1", title = "Zebra")
+            val book2 = createBookEntity(id = "book-2", title = "Alpha")
+            val book3 = createBookEntity(id = "book-3", title = "Beta")
             val viewModel = fixture.build()
 
             // When
@@ -364,16 +401,26 @@ class ContributorBooksViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book1 = createBookEntity(id = "book-1", title = "Book", seriesName = "Zebra Series")
-            val book2 = createBookEntity(id = "book-2", title = "Book", seriesName = "Alpha Series")
+            val zebraSeries = createSeriesEntity(id = "zebra-series", name = "Zebra Series")
+            val alphaSeries = createSeriesEntity(id = "alpha-series", name = "Alpha Series")
+            val book1 = createBookEntity(id = "book-1", title = "Book")
+            val book2 = createBookEntity(id = "book-2", title = "Book")
             val viewModel = fixture.build()
 
             // When
             viewModel.loadBooks("contributor-1", "author")
             fixture.booksFlow.value =
                 listOf(
-                    createBookWithContributors(book1),
-                    createBookWithContributors(book2),
+                    createBookWithContributors(
+                        book1,
+                        series = listOf(zebraSeries),
+                        seriesSequences = listOf(BookSeriesCrossRef(BookId("book-1"), "zebra-series", null)),
+                    ),
+                    createBookWithContributors(
+                        book2,
+                        series = listOf(alphaSeries),
+                        seriesSequences = listOf(BookSeriesCrossRef(BookId("book-2"), "alpha-series", null)),
+                    ),
                 )
             advanceUntilIdle()
 
@@ -391,7 +438,7 @@ class ContributorBooksViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBookEntity(id = "book-1", duration = 10_000L, seriesName = null)
+            val book = createBookEntity(id = "book-1", duration = 10_000L)
             everySuspend { fixture.playbackPositionDao.get(BookId("book-1")) } returns
                 createPlaybackPosition(
                     "book-1",
@@ -414,7 +461,7 @@ class ContributorBooksViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBookEntity(id = "book-1", duration = 10_000L, seriesName = null)
+            val book = createBookEntity(id = "book-1", duration = 10_000L)
             everySuspend { fixture.playbackPositionDao.get(BookId("book-1")) } returns
                 createPlaybackPosition(
                     "book-1",
@@ -441,17 +488,26 @@ class ContributorBooksViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val seriesBook1 = createBookEntity(id = "book-1", title = "Series 1", seriesName = "S")
-            val seriesBook2 = createBookEntity(id = "book-2", title = "Series 2", seriesName = "S")
-            val standalone = createBookEntity(id = "book-3", title = "Standalone", seriesName = null)
+            val sSeries = createSeriesEntity(id = "s-series", name = "S")
+            val seriesBook1 = createBookEntity(id = "book-1", title = "Series 1")
+            val seriesBook2 = createBookEntity(id = "book-2", title = "Series 2")
+            val standalone = createBookEntity(id = "book-3", title = "Standalone")
             val viewModel = fixture.build()
 
             // When
             viewModel.loadBooks("contributor-1", "author")
             fixture.booksFlow.value =
                 listOf(
-                    createBookWithContributors(seriesBook1),
-                    createBookWithContributors(seriesBook2),
+                    createBookWithContributors(
+                        seriesBook1,
+                        series = listOf(sSeries),
+                        seriesSequences = listOf(BookSeriesCrossRef(BookId("book-1"), "s-series", null)),
+                    ),
+                    createBookWithContributors(
+                        seriesBook2,
+                        series = listOf(sSeries),
+                        seriesSequences = listOf(BookSeriesCrossRef(BookId("book-2"), "s-series", null)),
+                    ),
                     createBookWithContributors(standalone),
                 )
             advanceUntilIdle()
@@ -465,7 +521,7 @@ class ContributorBooksViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBookEntity(id = "book-1", seriesName = null)
+            val book = createBookEntity(id = "book-1")
             val viewModel = fixture.build()
 
             // When
@@ -482,12 +538,20 @@ class ContributorBooksViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBookEntity(id = "book-1", seriesName = "Series")
+            val testSeries = createSeriesEntity(id = "test-series", name = "Series")
+            val book = createBookEntity(id = "book-1")
             val viewModel = fixture.build()
 
             // When
             viewModel.loadBooks("contributor-1", "author")
-            fixture.booksFlow.value = listOf(createBookWithContributors(book))
+            fixture.booksFlow.value =
+                listOf(
+                    createBookWithContributors(
+                        book,
+                        series = listOf(testSeries),
+                        seriesSequences = listOf(BookSeriesCrossRef(BookId("book-1"), "test-series", null)),
+                    ),
+                )
             advanceUntilIdle()
 
             // Then
@@ -501,7 +565,7 @@ class ContributorBooksViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBookEntity(id = "book-1", seriesName = null)
+            val book = createBookEntity(id = "book-1")
             every { fixture.imageStorage.exists(BookId("book-1")) } returns true
             every { fixture.imageStorage.getCoverPath(BookId("book-1")) } returns "/path/to/cover.jpg"
             val viewModel = fixture.build()

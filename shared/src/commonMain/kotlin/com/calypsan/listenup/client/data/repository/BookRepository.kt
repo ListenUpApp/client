@@ -13,6 +13,7 @@ import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.model.Contributor
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -191,33 +192,59 @@ class BookRepository(
         val contributorsById = contributors.associateBy { it.id }
 
         // Get authors: find all cross-refs with role "author", then look up the contributor
+        // Use creditedAs for display name when available (preserves original attribution after merge)
         val authors =
             contributorRoles
                 .filter { it.role == "author" }
-                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
-                .distinctBy { it.id }
-                .map { Contributor(it.id, it.name) }
+                .mapNotNull { crossRef ->
+                    contributorsById[crossRef.contributorId]?.let { entity ->
+                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
+                    }
+                }.distinctBy { it.id }
 
         // Get narrators: find all cross-refs with role "narrator", then look up the contributor
+        // Use creditedAs for display name when available (preserves original attribution after merge)
         val narrators =
             contributorRoles
                 .filter { it.role == "narrator" }
-                .mapNotNull { crossRef -> contributorsById[crossRef.contributorId] }
-                .distinctBy { it.id }
-                .map { Contributor(it.id, it.name) }
+                .mapNotNull { crossRef ->
+                    contributorsById[crossRef.contributorId]?.let { entity ->
+                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
+                    }
+                }.distinctBy { it.id }
 
         // Get all contributors with all their roles grouped
+        // NOTE: Room's Junction may return duplicate ContributorEntity instances when a contributor
+        // has multiple roles for the same book. We must dedupe by ID to prevent UI duplication bugs.
+        // Use creditedAs for display name when available (preserves original attribution after merge)
         val rolesByContributorId = contributorRoles.groupBy({ it.contributorId }, { it.role })
+        val creditedAsByContributorId = contributorRoles.associate { it.contributorId to it.creditedAs }
         val allContributors =
-            contributors.map { entity ->
-                Contributor(
-                    id = entity.id,
-                    name = entity.name,
-                    roles = rolesByContributorId[entity.id] ?: emptyList(),
-                )
-            }
+            contributors
+                .distinctBy { it.id }
+                .map { entity ->
+                    Contributor(
+                        id = entity.id,
+                        name = creditedAsByContributorId[entity.id] ?: entity.name,
+                        roles = rolesByContributorId[entity.id] ?: emptyList(),
+                    )
+                }
 
-        return book.toDomain(imageStorage, authors, narrators, allContributors)
+        // Get series with their sequences
+        val seriesById = series.associateBy { it.id }
+        val bookSeriesList =
+            seriesSequences
+                .mapNotNull { crossRef ->
+                    seriesById[crossRef.seriesId]?.let { seriesEntity ->
+                        BookSeries(
+                            seriesId = seriesEntity.id,
+                            seriesName = seriesEntity.name,
+                            sequence = crossRef.sequence,
+                        )
+                    }
+                }
+
+        return book.toDomain(imageStorage, authors, narrators, allContributors, bookSeriesList)
     }
 
     private fun BookEntity.toDomain(
@@ -225,6 +252,7 @@ class BookRepository(
         authors: List<Contributor>,
         narrators: List<Contributor>,
         allContributors: List<Contributor>,
+        series: List<BookSeries>,
     ): Book =
         Book(
             id = this.id,
@@ -238,11 +266,15 @@ class BookRepository(
             addedAt = this.createdAt,
             updatedAt = this.updatedAt,
             description = this.description,
-            genres = this.genres,
-            seriesId = this.seriesId,
-            seriesName = this.seriesName,
-            seriesSequence = this.sequence,
+            genres = emptyList(), // Loaded on-demand when editing
+            tags = emptyList(), // Loaded on-demand when editing
+            series = series,
             publishYear = this.publishYear,
+            publisher = this.publisher,
+            language = this.language,
+            isbn = this.isbn,
+            asin = this.asin,
+            abridged = this.abridged,
             rating = null, // Rating is not directly stored in BookEntity yet, default to null
         )
 }

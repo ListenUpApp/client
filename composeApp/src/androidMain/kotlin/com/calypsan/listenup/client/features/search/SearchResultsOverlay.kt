@@ -41,7 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.presentation.search.SearchUiState
@@ -306,8 +306,8 @@ private fun BookSearchResultCard(
             // Cover image
             val coverPath = hit.coverPath
             if (coverPath != null) {
-                AsyncImage(
-                    model = "file://$coverPath",
+                ListenUpAsyncImage(
+                    path = coverPath,
                     contentDescription = "Cover for ${hit.name}",
                     contentScale = ContentScale.Crop,
                     modifier =
