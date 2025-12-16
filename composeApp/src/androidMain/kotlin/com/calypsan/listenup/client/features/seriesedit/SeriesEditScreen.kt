@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.features.seriesedit
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,7 +56,6 @@ import com.calypsan.listenup.client.design.components.CoverColors
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpTextArea
-import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.design.components.rememberCoverColors
 import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
 import com.calypsan.listenup.client.domain.imagepicker.ImagePickerResult
@@ -98,6 +96,7 @@ fun SeriesEditScreen(
                 onSaveSuccess()
                 viewModel.consumeNavAction()
             }
+
             null -> { /* no action */ }
         }
     }
@@ -109,10 +108,11 @@ fun SeriesEditScreen(
     }
 
     // Generate color palette from cover
-    val colorScheme = rememberCoverColors(
-        imagePath = state.displayCoverPath,
-        refreshKey = state.pendingCoverData,
-    )
+    val colorScheme =
+        rememberCoverColors(
+            imagePath = state.displayCoverPath,
+            refreshKey = state.pendingCoverData,
+        )
     val surfaceColor = MaterialTheme.colorScheme.surface
 
     Scaffold(
@@ -128,9 +128,10 @@ fun SeriesEditScreen(
         },
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(surfaceColor),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(surfaceColor),
         ) {
             // Immersive gradient backdrop
             SeriesBackdrop(
@@ -142,9 +143,10 @@ fun SeriesEditScreen(
             when {
                 state.isLoading -> {
                     ListenUpLoadingIndicator(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(paddingValues),
+                        modifier =
+                            Modifier
+                                .align(Alignment.Center)
+                                .padding(paddingValues),
                     )
                 }
 
@@ -152,9 +154,10 @@ fun SeriesEditScreen(
                     ErrorContent(
                         error = state.error,
                         onDismiss = { viewModel.onEvent(SeriesEditUiEvent.ErrorDismissed) },
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(paddingValues),
+                        modifier =
+                            Modifier
+                                .align(Alignment.Center)
+                                .padding(paddingValues),
                     )
                 }
 
@@ -198,20 +201,23 @@ private fun SeriesBackdrop(
     surfaceColor: Color,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(400.dp)
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        colorScheme.vibrant.copy(alpha = 0.3f),
-                        colorScheme.darkVibrant.copy(alpha = 0.2f),
-                        surfaceColor.copy(alpha = 0.0f),
-                    ),
-                    startY = 0f,
-                    endY = 1200f,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(400.dp)
+                .background(
+                    brush =
+                        Brush.verticalGradient(
+                            colors =
+                                listOf(
+                                    colorScheme.vibrant.copy(alpha = 0.3f),
+                                    colorScheme.darkVibrant.copy(alpha = 0.2f),
+                                    surfaceColor.copy(alpha = 0.0f),
+                                ),
+                            startY = 0f,
+                            endY = 1200f,
+                        ),
                 ),
-            ),
     )
 }
 
@@ -226,11 +232,12 @@ private fun SaveFab(
     onSave: () -> Unit,
 ) {
     val isEnabled = hasChanges && !isSaving
-    val contentColor = if (isEnabled) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-    }
+    val contentColor =
+        if (isEnabled) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        }
 
     ExtendedFloatingActionButton(
         onClick = { if (isEnabled) onSave() },
@@ -256,11 +263,12 @@ private fun SaveFab(
             )
         },
         expanded = true,
-        containerColor = if (isEnabled) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHighest
-        },
+        containerColor =
+            if (isEnabled) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            },
     )
 }
 
@@ -324,20 +332,24 @@ private fun SeriesEditContent(
     modifier: Modifier = Modifier,
 ) {
     // Image picker for cover uploads
-    val imagePicker = rememberImagePicker { result ->
-        when (result) {
-            is ImagePickerResult.Success -> {
-                onEvent(SeriesEditUiEvent.CoverSelected(result.data, result.filename))
+    val imagePicker =
+        rememberImagePicker { result ->
+            when (result) {
+                is ImagePickerResult.Success -> {
+                    onEvent(SeriesEditUiEvent.CoverSelected(result.data, result.filename))
+                }
+
+                is ImagePickerResult.Cancelled -> { /* User cancelled */ }
+
+                is ImagePickerResult.Error -> { /* Error is handled via the ViewModel's error state */ }
             }
-            is ImagePickerResult.Cancelled -> { /* User cancelled */ }
-            is ImagePickerResult.Error -> { /* Error is handled via the ViewModel's error state */ }
         }
-    }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
     ) {
         // Identity Header with cover and name
         SeriesIdentityHeader(
@@ -388,20 +400,22 @@ private fun SeriesIdentityHeader(
     val surfaceColor = MaterialTheme.colorScheme.surface
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(16.dp),
     ) {
         // Floating back button
         IconButton(
             onClick = onBackClick,
-            modifier = Modifier
-                .size(48.dp)
-                .background(
-                    color = surfaceColor.copy(alpha = 0.5f),
-                    shape = CircleShape,
-                ),
+            modifier =
+                Modifier
+                    .size(48.dp)
+                    .background(
+                        color = surfaceColor.copy(alpha = 0.5f),
+                        shape = CircleShape,
+                    ),
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -423,9 +437,10 @@ private fun SeriesIdentityHeader(
                 onClick = onCoverClick,
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = colorScheme.muted.copy(alpha = 0.3f),
-                ),
+                colors =
+                    CardDefaults.elevatedCardColors(
+                        containerColor = colorScheme.muted.copy(alpha = 0.3f),
+                    ),
                 modifier = Modifier.size(120.dp),
             ) {
                 Box(
@@ -438,9 +453,10 @@ private fun SeriesIdentityHeader(
                             contentDescription = "Series cover",
                             contentScale = ContentScale.Crop,
                             refreshKey = isUploadingCover,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(16.dp)),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(16.dp)),
                         )
                     } else {
                         Text(
@@ -453,9 +469,10 @@ private fun SeriesIdentityHeader(
                     // Loading overlay during upload
                     if (isUploadingCover) {
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.5f)),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.5f)),
                             contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(
@@ -467,14 +484,15 @@ private fun SeriesIdentityHeader(
                     } else {
                         // Edit indicator
                         Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(4.dp)
-                                .size(32.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
-                                    shape = CircleShape,
-                                ),
+                            modifier =
+                                Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(4.dp)
+                                    .size(32.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+                                        shape = CircleShape,
+                                    ),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
@@ -492,28 +510,31 @@ private fun SeriesIdentityHeader(
             OutlinedTextField(
                 value = name,
                 onValueChange = onNameChange,
-                textStyle = TextStyle(
-                    fontFamily = GoogleSansDisplay,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = MaterialTheme.typography.headlineSmall.fontSize,
-                    color = MaterialTheme.colorScheme.onSurface,
-                ),
+                textStyle =
+                    TextStyle(
+                        fontFamily = GoogleSansDisplay,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = MaterialTheme.typography.headlineSmall.fontSize,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
                 placeholder = {
                     Text(
                         "Series Name",
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontFamily = GoogleSansDisplay,
-                            fontWeight = FontWeight.Bold,
-                        ),
+                        style =
+                            MaterialTheme.typography.headlineSmall.copy(
+                                fontFamily = GoogleSansDisplay,
+                                fontWeight = FontWeight.Bold,
+                            ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     )
                 },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                    focusedContainerColor = surfaceColor.copy(alpha = 0.4f),
-                    unfocusedContainerColor = surfaceColor.copy(alpha = 0.2f),
-                ),
+                colors =
+                    OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        focusedContainerColor = surfaceColor.copy(alpha = 0.4f),
+                        unfocusedContainerColor = surfaceColor.copy(alpha = 0.2f),
+                    ),
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
                 modifier = Modifier.weight(1f),
@@ -534,9 +555,10 @@ private fun SeriesStudioCard(
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
     ) {
         Column(
@@ -545,10 +567,11 @@ private fun SeriesStudioCard(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = GoogleSansDisplay,
-                    fontWeight = FontWeight.Bold,
-                ),
+                style =
+                    MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = GoogleSansDisplay,
+                        fontWeight = FontWeight.Bold,
+                    ),
                 color = MaterialTheme.colorScheme.onSurface,
             )
             content()

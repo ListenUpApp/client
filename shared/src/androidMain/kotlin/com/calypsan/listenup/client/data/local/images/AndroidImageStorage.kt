@@ -283,8 +283,7 @@ class AndroidImageStorage(
     private fun getContributorFile(contributorId: String): File =
         File(contributorsDir, "$contributorId.$FILE_EXTENSION")
 
-    private fun getSeriesCoverFile(seriesId: String): File =
-        File(seriesCoversDir, "$seriesId.$FILE_EXTENSION")
+    private fun getSeriesCoverFile(seriesId: String): File = File(seriesCoversDir, "$seriesId.$FILE_EXTENSION")
 
     private fun getSeriesCoverStagingFile(seriesId: String): File =
         File(seriesCoversDir, "${seriesId}_staging.$FILE_EXTENSION")

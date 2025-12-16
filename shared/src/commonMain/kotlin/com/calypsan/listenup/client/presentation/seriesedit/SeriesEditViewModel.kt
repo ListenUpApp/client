@@ -128,11 +128,12 @@ class SeriesEditViewModel(
             val bookCount = seriesWithBooks.books.size
 
             // Get cover path if it exists
-            val coverPath = if (imageStorage.seriesCoverExists(seriesId)) {
-                imageStorage.getSeriesCoverPath(seriesId)
-            } else {
-                null
-            }
+            val coverPath =
+                if (imageStorage.seriesCoverExists(seriesId)) {
+                    imageStorage.getSeriesCoverPath(seriesId)
+                } else {
+                    null
+                }
 
             // Store original values
             originalName = series.name

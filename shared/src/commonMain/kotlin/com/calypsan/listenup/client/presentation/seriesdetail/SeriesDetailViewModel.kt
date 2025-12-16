@@ -93,7 +93,10 @@ class SeriesDetailViewModel(
      * 2. First book's cover (fallback)
      * 3. null (no cover available)
      */
-    private fun resolveCoverPath(seriesId: String, books: List<Book>): String? {
+    private fun resolveCoverPath(
+        seriesId: String,
+        books: List<Book>,
+    ): String? {
         // Check for series-specific cover
         if (imageStorage.seriesCoverExists(seriesId)) {
             return imageStorage.getSeriesCoverPath(seriesId)

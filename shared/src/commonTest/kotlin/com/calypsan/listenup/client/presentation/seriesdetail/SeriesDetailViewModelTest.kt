@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookSeries
@@ -54,12 +55,14 @@ class SeriesDetailViewModelTest {
     private class TestFixture {
         val seriesDao: SeriesDao = mock()
         val bookRepository: BookRepositoryContract = mock()
+        val imageStorage: ImageStorage = mock()
         val seriesFlow = MutableStateFlow<SeriesWithBooks?>(null)
 
         fun build(): SeriesDetailViewModel =
             SeriesDetailViewModel(
                 seriesDao = seriesDao,
                 bookRepository = bookRepository,
+                imageStorage = imageStorage,
             )
     }
 
@@ -68,6 +71,9 @@ class SeriesDetailViewModelTest {
 
         // Default stub for observeByIdWithBooks
         every { fixture.seriesDao.observeByIdWithBooks(any()) } returns fixture.seriesFlow
+
+        // Default stub for imageStorage - no series cover exists
+        every { fixture.imageStorage.seriesCoverExists(any()) } returns false
 
         return fixture
     }
