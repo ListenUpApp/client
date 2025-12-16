@@ -4,15 +4,6 @@ import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.Timestamp
 
 /**
- * Domain model representing an audiobook.
- *
- * Clean model for UI consumption without sync infrastructure concerns.
- * Separates data layer (BookEntity with sync fields) from presentation layer.
- *
- * Cover images are stored locally and accessed via file paths generated
- * by ImageStorage. No network access needed for display.
- */
-/**
  * Series membership with position within that series.
  */
 data class BookSeries(
@@ -21,6 +12,12 @@ data class BookSeries(
     val sequence: String? = null, // e.g., "1", "1.5"
 )
 
+/**
+ * Domain model representing an audiobook.
+ *
+ * Clean model for UI consumption without sync infrastructure concerns.
+ * Cover images are stored locally and accessed via file paths.
+ */
 data class Book(
     val id: BookId,
     val title: String,

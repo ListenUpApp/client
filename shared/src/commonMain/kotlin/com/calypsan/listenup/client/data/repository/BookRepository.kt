@@ -200,8 +200,7 @@ class BookRepository(
                     contributorsById[crossRef.contributorId]?.let { entity ->
                         Contributor(entity.id, crossRef.creditedAs ?: entity.name)
                     }
-                }
-                .distinctBy { it.id }
+                }.distinctBy { it.id }
 
         // Get narrators: find all cross-refs with role "narrator", then look up the contributor
         // Use creditedAs for display name when available (preserves original attribution after merge)
@@ -212,8 +211,7 @@ class BookRepository(
                     contributorsById[crossRef.contributorId]?.let { entity ->
                         Contributor(entity.id, crossRef.creditedAs ?: entity.name)
                     }
-                }
-                .distinctBy { it.id }
+                }.distinctBy { it.id }
 
         // Get all contributors with all their roles grouped
         // NOTE: Room's Junction may return duplicate ContributorEntity instances when a contributor

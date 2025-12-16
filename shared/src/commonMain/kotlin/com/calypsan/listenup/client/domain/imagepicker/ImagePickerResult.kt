@@ -45,5 +45,7 @@ sealed class ImagePickerResult {
     /**
      * Error occurred while picking or reading the image.
      */
-    data class Error(val message: String) : ImagePickerResult()
+    data class Error(
+        val message: String,
+    ) : ImagePickerResult()
 }

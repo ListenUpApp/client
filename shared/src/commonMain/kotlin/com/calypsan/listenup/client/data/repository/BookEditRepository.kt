@@ -119,6 +119,7 @@ class BookEditRepository(
                     logger.info { "Book updated successfully: $bookId" }
                     result
                 }
+
                 is Failure -> {
                     logger.error(result.exception) { "Failed to update book: $bookId" }
                     result
@@ -153,6 +154,7 @@ class BookEditRepository(
                     logger.info { "Contributors updated for book: $bookId" }
                     result
                 }
+
                 is Failure -> {
                     logger.error(result.exception) { "Failed to set contributors for book: $bookId" }
                     result
@@ -187,6 +189,7 @@ class BookEditRepository(
                     logger.info { "Series updated for book: $bookId" }
                     result
                 }
+
                 is Failure -> {
                     logger.error(result.exception) { "Failed to set series for book: $bookId" }
                     result
@@ -206,36 +209,39 @@ class BookEditRepository(
         response: BookEditResponse,
     ) {
         val id = BookId(bookId)
-        val existing = bookDao.getById(id) ?: run {
-            logger.warn { "Book not found in local database: $bookId" }
-            return
-        }
+        val existing =
+            bookDao.getById(id) ?: run {
+                logger.warn { "Book not found in local database: $bookId" }
+                return
+            }
 
         // Parse the ISO 8601 timestamp from server
-        val serverUpdatedAt = try {
-            Timestamp.fromEpochMillis(Instant.parse(response.updatedAt).toEpochMilliseconds())
-        } catch (e: Exception) {
-            logger.warn { "Failed to parse timestamp: ${response.updatedAt}" }
-            Timestamp.now()
-        }
+        val serverUpdatedAt =
+            try {
+                Timestamp.fromEpochMillis(Instant.parse(response.updatedAt).toEpochMilliseconds())
+            } catch (e: Exception) {
+                logger.warn { "Failed to parse timestamp: ${response.updatedAt}" }
+                Timestamp.now()
+            }
 
         // Update fields that BookEntity supports
         // Note: Series is now managed via book_series junction table and separate API endpoint
-        val updated = existing.copy(
-            title = response.title,
-            subtitle = response.subtitle,
-            description = response.description,
-            publishYear = response.publishYear?.toIntOrNull(),
-            publisher = response.publisher,
-            language = response.language,
-            isbn = response.isbn,
-            asin = response.asin,
-            abridged = response.abridged,
-            // Update sync metadata
-            updatedAt = serverUpdatedAt,
-            lastModified = Timestamp.now(),
-            syncState = SyncState.SYNCED, // We just synced with server
-        )
+        val updated =
+            existing.copy(
+                title = response.title,
+                subtitle = response.subtitle,
+                description = response.description,
+                publishYear = response.publishYear?.toIntOrNull(),
+                publisher = response.publisher,
+                language = response.language,
+                isbn = response.isbn,
+                asin = response.asin,
+                abridged = response.abridged,
+                // Update sync metadata
+                updatedAt = serverUpdatedAt,
+                lastModified = Timestamp.now(),
+                syncState = SyncState.SYNCED, // We just synced with server
+            )
 
         bookDao.upsert(updated)
         logger.debug { "Local book updated: $bookId" }

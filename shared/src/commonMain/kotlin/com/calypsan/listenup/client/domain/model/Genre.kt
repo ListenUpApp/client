@@ -9,9 +9,9 @@ package com.calypsan.listenup.client.domain.model
  */
 data class Genre(
     val id: String,
-    val name: String,       // Display name: "Epic Fantasy"
-    val slug: String,       // URL-safe key: "epic-fantasy"
-    val path: String,       // Materialized path: "/fiction/fantasy/epic-fantasy"
+    val name: String, // Display name: "Epic Fantasy"
+    val slug: String, // URL-safe key: "epic-fantasy"
+    val path: String, // Materialized path: "/fiction/fantasy/epic-fantasy"
     val bookCount: Int = 0,
 ) {
     /**
@@ -22,7 +22,8 @@ data class Genre(
         get() {
             val segments = path.trim('/').split('/')
             if (segments.size <= 1) return null
-            return segments.dropLast(1)
+            return segments
+                .dropLast(1)
                 .joinToString(" > ") { it.replaceFirstChar { c -> c.uppercase() } }
         }
 }

@@ -228,7 +228,10 @@ interface ContributorDao {
      * @param aliases Comma-separated list of pen names (e.g., "Richard Bachman, John Swithen")
      */
     @Query("UPDATE contributors SET aliases = :aliases WHERE id = :contributorId")
-    suspend fun updateAliases(contributorId: String, aliases: String?)
+    suspend fun updateAliases(
+        contributorId: String,
+        aliases: String?,
+    )
 
     /**
      * Update the local image path for a contributor.
@@ -239,5 +242,8 @@ interface ContributorDao {
      * @param imagePath Local file path to the downloaded image
      */
     @Query("UPDATE contributors SET imagePath = :imagePath WHERE id = :contributorId")
-    suspend fun updateImagePath(contributorId: String, imagePath: String?)
+    suspend fun updateImagePath(
+        contributorId: String,
+        imagePath: String?,
+    )
 }

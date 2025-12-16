@@ -51,18 +51,30 @@ interface BookContributorDao {
      * Used to check if a relationship already exists before creating a new one.
      */
     @Query("SELECT * FROM book_contributors WHERE bookId = :bookId AND contributorId = :contributorId AND role = :role")
-    suspend fun get(bookId: BookId, contributorId: String, role: String): BookContributorCrossRef?
+    suspend fun get(
+        bookId: BookId,
+        contributorId: String,
+        role: String,
+    ): BookContributorCrossRef?
 
     /**
      * Delete a specific book-contributor relationship.
      * Used when merging contributors to remove the old relationships.
      */
     @Query("DELETE FROM book_contributors WHERE bookId = :bookId AND contributorId = :contributorId AND role = :role")
-    suspend fun delete(bookId: BookId, contributorId: String, role: String)
+    suspend fun delete(
+        bookId: BookId,
+        contributorId: String,
+        role: String,
+    )
 
     /**
      * Delete a book-contributor cross reference.
      */
     @Query("DELETE FROM book_contributors WHERE bookId = :bookId AND contributorId = :contributorId AND role = :role")
-    suspend fun deleteCrossRef(bookId: BookId, contributorId: String, role: String)
+    suspend fun deleteCrossRef(
+        bookId: BookId,
+        contributorId: String,
+        role: String,
+    )
 }

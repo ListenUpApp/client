@@ -19,7 +19,6 @@ import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.network.sockets.ConnectTimeoutException
-import kotlinx.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
@@ -30,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
@@ -703,11 +703,12 @@ class SyncManager(
         bookContributorDao.deleteContributorsForBook(bookId)
 
         // Create new relationships
-        val crossRefs = book.contributors.flatMap { contributor ->
-            contributor.roles.map { role ->
-                contributor.toEntity(bookId, role)
+        val crossRefs =
+            book.contributors.flatMap { contributor ->
+                contributor.roles.map { role ->
+                    contributor.toEntity(bookId, role)
+                }
             }
-        }
 
         if (crossRefs.isNotEmpty()) {
             bookContributorDao.insertAll(crossRefs)
@@ -726,9 +727,10 @@ class SyncManager(
         bookSeriesDao.deleteSeriesForBook(bookId)
 
         // Create new relationships from seriesInfo array
-        val crossRefs = book.seriesInfo.map { seriesInfo ->
-            seriesInfo.toEntity(bookId)
-        }
+        val crossRefs =
+            book.seriesInfo.map { seriesInfo ->
+                seriesInfo.toEntity(bookId)
+            }
 
         if (crossRefs.isNotEmpty()) {
             bookSeriesDao.insertAll(crossRefs)

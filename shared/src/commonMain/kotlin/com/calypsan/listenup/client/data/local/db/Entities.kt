@@ -151,8 +151,7 @@ data class ContributorEntity(
     /**
      * Parse aliases into a list.
      */
-    fun aliasList(): List<String> =
-        aliases?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+    fun aliasList(): List<String> = aliases?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
 
     /**
      * Check if a name matches this contributor (either primary name or alias).

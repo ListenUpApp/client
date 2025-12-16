@@ -1,6 +1,8 @@
 package com.calypsan.listenup.client.design.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -8,6 +10,8 @@ import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -17,6 +21,8 @@ import java.io.File
  * for local files. When a file is modified (e.g., a new cover is uploaded),
  * the cache key automatically updates based on the file's last-modified
  * timestamp, ensuring fresh images are displayed without manual version tracking.
+ *
+ * File system access is performed asynchronously to avoid blocking the main thread.
  *
  * Usage:
  * ```
@@ -55,19 +61,32 @@ fun ListenUpAsyncImage(
 ) {
     val context = LocalContext.current
 
-    val request = remember(path, refreshKey) {
-        path?.let {
-            // Use file modification time as cache key for automatic invalidation
-            val file = File(it)
-            val cacheKey = if (file.exists()) "$it:${file.lastModified()}" else it
-
-            ImageRequest.Builder(context)
-                .data(it)
-                .memoryCacheKey(cacheKey)
-                .diskCacheKey(cacheKey)
-                .build()
-        }
+    // Async file check to avoid blocking main thread
+    val cacheKey by produceState<String?>(
+        initialValue = path,
+        key1 = path,
+        key2 = refreshKey,
+    ) {
+        value =
+            withContext(Dispatchers.IO) {
+                path?.let { filePath ->
+                    val file = File(filePath)
+                    if (file.exists()) "$filePath:${file.lastModified()}" else filePath
+                }
+            }
     }
+
+    val request =
+        remember(cacheKey) {
+            cacheKey?.let { key ->
+                ImageRequest
+                    .Builder(context)
+                    .data(path)
+                    .memoryCacheKey(key)
+                    .diskCacheKey(key)
+                    .build()
+            }
+        }
 
     AsyncImage(
         model = request,
@@ -93,11 +112,12 @@ fun ListenUpAsyncImage(
     stripFilePrefix: Boolean = false,
     onState: ((AsyncImagePainter.State) -> Unit)? = null,
 ) {
-    val normalizedPath = if (stripFilePrefix && filePath?.startsWith("file://") == true) {
-        filePath.removePrefix("file://")
-    } else {
-        filePath
-    }
+    val normalizedPath =
+        if (stripFilePrefix && filePath?.startsWith("file://") == true) {
+            filePath.removePrefix("file://")
+        } else {
+            filePath
+        }
 
     ListenUpAsyncImage(
         path = normalizedPath,

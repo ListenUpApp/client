@@ -34,7 +34,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -44,9 +43,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
-import com.calypsan.listenup.client.design.components.avatarColorForUser
 import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.features.contributoredit.components.ContributorColorScheme
+import com.calypsan.listenup.client.features.contributoredit.components.rememberContributorColorScheme
 import com.calypsan.listenup.client.features.library.BookCard
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorBooksUiState
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorBooksViewModel
@@ -116,7 +116,7 @@ private fun DeepDiveContent(
     onBackClick: () -> Unit,
     onBookClick: (String) -> Unit,
 ) {
-    val colorScheme = rememberContributorColors(contributorId)
+    val colorScheme = rememberContributorColorScheme(contributorId)
     val surfaceColor = MaterialTheme.colorScheme.surface
 
     // If we have series groups, use a hybrid layout
@@ -208,11 +208,12 @@ private fun GridOnlyLayout(
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 140.dp),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = 24.dp,
-            end = 24.dp,
-            bottom = 32.dp,
-        ),
+        contentPadding =
+            PaddingValues(
+                start = 24.dp,
+                end = 24.dp,
+                bottom = 32.dp,
+            ),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -257,35 +258,39 @@ private fun CondensedHeader(
     onBackClick: () -> Unit,
 ) {
     // Create a smooth gradient that echoes the Artist Portfolio
-    val gradientColors = listOf(
-        colorScheme.primaryDark,
-        colorScheme.primaryMuted.copy(alpha = 0.6f),
-        surfaceColor.copy(alpha = 0.95f),
-        surfaceColor,
-    )
+    val gradientColors =
+        listOf(
+            colorScheme.primaryDark,
+            colorScheme.primaryMuted.copy(alpha = 0.6f),
+            surfaceColor.copy(alpha = 0.95f),
+            surfaceColor,
+        )
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .background(Brush.verticalGradient(gradientColors)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .background(Brush.verticalGradient(gradientColors)),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(horizontal = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(horizontal = 8.dp),
         ) {
             // Floating back button
             IconButton(
                 onClick = onBackClick,
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .size(48.dp)
-                    .background(
-                        color = surfaceColor.copy(alpha = 0.5f),
-                        shape = CircleShape,
-                    ),
+                modifier =
+                    Modifier
+                        .padding(top = 8.dp)
+                        .size(48.dp)
+                        .background(
+                            color = surfaceColor.copy(alpha = 0.5f),
+                            shape = CircleShape,
+                        ),
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -298,16 +303,18 @@ private fun CondensedHeader(
 
             // Role title and contributor name
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
             ) {
                 Text(
                     text = roleDisplayName,
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontFamily = GoogleSansDisplay,
-                        fontWeight = FontWeight.Bold,
-                    ),
+                    style =
+                        MaterialTheme.typography.headlineSmall.copy(
+                            fontFamily = GoogleSansDisplay,
+                            fontWeight = FontWeight.Bold,
+                        ),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -342,10 +349,11 @@ private fun SeriesCarouselSection(
         ) {
             Text(
                 text = seriesGroup.seriesName,
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontFamily = GoogleSansDisplay,
-                    fontWeight = FontWeight.Bold,
-                ),
+                style =
+                    MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = GoogleSansDisplay,
+                        fontWeight = FontWeight.Bold,
+                    ),
             )
             Text(
                 text = "${seriesGroup.books.size} ${if (seriesGroup.books.size == 1) "book" else "books"}",
@@ -395,10 +403,11 @@ private fun StandaloneBooksGrid(
         ) {
             Text(
                 text = "Other Books",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontFamily = GoogleSansDisplay,
-                    fontWeight = FontWeight.Bold,
-                ),
+                style =
+                    MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = GoogleSansDisplay,
+                        fontWeight = FontWeight.Bold,
+                    ),
             )
             Text(
                 text = "${books.size} ${if (books.size == 1) "book" else "books"}",
@@ -437,36 +446,5 @@ private fun StandaloneBooksGrid(
                 }
             }
         }
-    }
-}
-
-// =============================================================================
-// COLOR SCHEME - Reuse from ContributorDetailScreen
-// =============================================================================
-
-/**
- * Generate color scheme for gradient header.
- * Matches the palette used in ContributorDetailScreen for visual continuity.
- */
-@Composable
-private fun rememberContributorColors(contributorId: String): ContributorColorScheme {
-    return remember(contributorId) {
-        val baseColor = avatarColorForUser(contributorId)
-
-        ContributorColorScheme(
-            primary = baseColor,
-            primaryDark = baseColor.copy(
-                red = baseColor.red * 0.6f,
-                green = baseColor.green * 0.6f,
-                blue = baseColor.blue * 0.6f,
-            ),
-            primaryMuted = baseColor.copy(
-                red = baseColor.red * 0.8f,
-                green = baseColor.green * 0.8f,
-                blue = baseColor.blue * 0.8f,
-                alpha = 0.7f,
-            ),
-            onPrimary = Color.White,
-        )
     }
 }

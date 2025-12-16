@@ -24,7 +24,10 @@ interface GenreApiContract {
     /**
      * Set genres for a book (replaces all existing genre associations).
      */
-    suspend fun setBookGenres(bookId: String, genreIds: List<String>)
+    suspend fun setBookGenres(
+        bookId: String,
+        genreIds: List<String>,
+    )
 
     /**
      * Get genres for a specific book.
@@ -62,7 +65,10 @@ class GenreApi(
      * @param bookId The book to update
      * @param genreIds List of genre IDs to associate
      */
-    override suspend fun setBookGenres(bookId: String, genreIds: List<String>) {
+    override suspend fun setBookGenres(
+        bookId: String,
+        genreIds: List<String>,
+    ) {
         val client = clientFactory.getClient()
         client.post("/api/v1/books/$bookId/genres") {
             contentType(ContentType.Application.Json)
@@ -113,13 +119,14 @@ internal data class GenreResponse(
     @SerialName("is_system")
     val isSystem: Boolean = false,
 ) {
-    fun toDomain() = Genre(
-        id = id,
-        name = name,
-        slug = slug,
-        path = path,
-        bookCount = bookCount,
-    )
+    fun toDomain() =
+        Genre(
+            id = id,
+            name = name,
+            slug = slug,
+            path = path,
+            bookCount = bookCount,
+        )
 }
 
 @Serializable

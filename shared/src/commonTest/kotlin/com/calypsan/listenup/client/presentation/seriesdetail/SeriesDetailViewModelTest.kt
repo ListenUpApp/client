@@ -256,11 +256,12 @@ class SeriesDetailViewModelTest {
                 SeriesWithBooks(
                     series = series,
                     books = listOf(book2Entity, book3Entity, book1Entity), // Out of order
-                    bookSequences = listOf(
-                        createBookSeriesCrossRef("book-1", "series-1", "1"),
-                        createBookSeriesCrossRef("book-2", "series-1", "2"),
-                        createBookSeriesCrossRef("book-3", "series-1", "1.5"),
-                    ),
+                    bookSequences =
+                        listOf(
+                            createBookSeriesCrossRef("book-1", "series-1", "1"),
+                            createBookSeriesCrossRef("book-2", "series-1", "2"),
+                            createBookSeriesCrossRef("book-3", "series-1", "1.5"),
+                        ),
                 )
             advanceUntilIdle()
 
@@ -294,10 +295,11 @@ class SeriesDetailViewModelTest {
                 SeriesWithBooks(
                     series = series,
                     books = listOf(book2Entity, book1Entity),
-                    bookSequences = listOf(
-                        createBookSeriesCrossRef("book-1", "series-1", "1"),
-                        createBookSeriesCrossRef("book-2", "series-1", null),
-                    ),
+                    bookSequences =
+                        listOf(
+                            createBookSeriesCrossRef("book-1", "series-1", "1"),
+                            createBookSeriesCrossRef("book-2", "series-1", null),
+                        ),
                 )
             advanceUntilIdle()
 

@@ -61,19 +61,20 @@ class ContributorBooksViewModel(
                 val bookProgress = loadProgressForBooks(books)
 
                 // Extract creditedAs for books where the attribution differs
-                val bookCreditedAs = booksWithContributors
-                    .mapNotNull { bwc ->
-                        val crossRef = bwc.contributorRoles.find {
-                            it.contributorId == contributorId && it.role == role
-                        }
-                        val creditedAs = crossRef?.creditedAs
-                        if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
-                            bwc.book.id.value to creditedAs
-                        } else {
-                            null
-                        }
-                    }
-                    .toMap()
+                val bookCreditedAs =
+                    booksWithContributors
+                        .mapNotNull { bwc ->
+                            val crossRef =
+                                bwc.contributorRoles.find {
+                                    it.contributorId == contributorId && it.role == role
+                                }
+                            val creditedAs = crossRef?.creditedAs
+                            if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
+                                bwc.book.id.value to creditedAs
+                            } else {
+                                null
+                            }
+                        }.toMap()
 
                 // Group books by series
                 val seriesGroups =
@@ -144,8 +145,7 @@ class ContributorBooksViewModel(
                     contributorsById[crossRef.contributorId]?.let { entity ->
                         Contributor(entity.id, crossRef.creditedAs ?: entity.name)
                     }
-                }
-                .distinctBy { it.id }
+                }.distinctBy { it.id }
 
         // Get narrators by filtering cross-refs with role "narrator"
         // Use creditedAs for display name when available (preserves original attribution after merge)
@@ -156,20 +156,20 @@ class ContributorBooksViewModel(
                     contributorsById[crossRef.contributorId]?.let { entity ->
                         Contributor(entity.id, crossRef.creditedAs ?: entity.name)
                     }
-                }
-                .distinctBy { it.id }
+                }.distinctBy { it.id }
 
         // Build series list from junction table data
         val seriesById = series.associateBy { it.id }
-        val bookSeriesList = seriesSequences.mapNotNull { seq ->
-            seriesById[seq.seriesId]?.let { seriesEntity ->
-                BookSeries(
-                    seriesId = seriesEntity.id,
-                    seriesName = seriesEntity.name,
-                    sequence = seq.sequence,
-                )
+        val bookSeriesList =
+            seriesSequences.mapNotNull { seq ->
+                seriesById[seq.seriesId]?.let { seriesEntity ->
+                    BookSeries(
+                        seriesId = seriesEntity.id,
+                        seriesName = seriesEntity.name,
+                        sequence = seq.sequence,
+                    )
+                }
             }
-        }
 
         return Book(
             id = book.id,

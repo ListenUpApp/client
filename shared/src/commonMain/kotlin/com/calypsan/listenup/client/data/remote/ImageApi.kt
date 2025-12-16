@@ -5,8 +5,8 @@ import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import io.ktor.client.call.body
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
@@ -109,16 +109,17 @@ class ImageApi(
                 client
                     .submitFormWithBinaryData(
                         url = "/api/v1/books/$bookId/cover",
-                        formData = formData {
-                            append(
-                                "file",
-                                imageData,
-                                Headers.build {
-                                    append(HttpHeaders.ContentDisposition, "filename=\"$filename\"")
-                                    append(HttpHeaders.ContentType, "image/*")
-                                },
-                            )
-                        },
+                        formData =
+                            formData {
+                                append(
+                                    "file",
+                                    imageData,
+                                    Headers.build {
+                                        append(HttpHeaders.ContentDisposition, "filename=\"$filename\"")
+                                        append(HttpHeaders.ContentType, "image/*")
+                                    },
+                                )
+                            },
                     ) {
                         method = io.ktor.http.HttpMethod.Put
                     }.body()
@@ -129,7 +130,10 @@ class ImageApi(
                     val relativeUrl = apiResponse.imageUrl ?: apiResponse.coverUrl ?: ""
                     ImageUploadResponse(imageUrl = buildFullUrl(relativeUrl))
                 }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
 
@@ -159,16 +163,17 @@ class ImageApi(
                 client
                     .submitFormWithBinaryData(
                         url = "/api/v1/contributors/$contributorId/image",
-                        formData = formData {
-                            append(
-                                "file",
-                                imageData,
-                                Headers.build {
-                                    append(HttpHeaders.ContentDisposition, "filename=\"$filename\"")
-                                    append(HttpHeaders.ContentType, "image/*")
-                                },
-                            )
-                        },
+                        formData =
+                            formData {
+                                append(
+                                    "file",
+                                    imageData,
+                                    Headers.build {
+                                        append(HttpHeaders.ContentDisposition, "filename=\"$filename\"")
+                                        append(HttpHeaders.ContentType, "image/*")
+                                    },
+                                )
+                            },
                     ) {
                         method = io.ktor.http.HttpMethod.Put
                     }.body()
@@ -179,7 +184,10 @@ class ImageApi(
                     val relativeUrl = apiResponse.imageUrl ?: apiResponse.coverUrl ?: ""
                     ImageUploadResponse(imageUrl = buildFullUrl(relativeUrl))
                 }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
 }

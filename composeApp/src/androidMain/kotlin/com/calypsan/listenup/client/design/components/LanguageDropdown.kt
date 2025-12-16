@@ -4,10 +4,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,16 +45,18 @@ fun LanguageDropdown(
 
     // When not expanded, show the selected language name
     // When expanded, show the filter text for searching
-    val displayText = if (expanded) {
-        filterText
-    } else {
-        selectedCode?.let { Language.getDisplayName(it) } ?: ""
-    }
+    val displayText =
+        if (expanded) {
+            filterText
+        } else {
+            selectedCode?.let { Language.getDisplayName(it) } ?: ""
+        }
 
     // Filter languages based on search text
-    val filteredLanguages = remember(filterText) {
-        Language.filterLanguages(filterText)
-    }
+    val filteredLanguages =
+        remember(filterText) {
+            Language.filterLanguages(filterText)
+        }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -72,18 +74,22 @@ fun LanguageDropdown(
             onValueChange = { filterText = it },
             readOnly = !expanded, // Only allow typing when expanded
             label = { Text(label) },
-            placeholder = if (expanded) {
-                { Text("Search languages...") }
-            } else null,
+            placeholder =
+                if (expanded) {
+                    { Text("Search languages...") }
+                } else {
+                    null
+                },
             trailingIcon = {
                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
             },
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             shape = MaterialTheme.shapes.medium,
             singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
         )
 
         ExposedDropdownMenu(

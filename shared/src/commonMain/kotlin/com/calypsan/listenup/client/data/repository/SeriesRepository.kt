@@ -117,7 +117,9 @@ class SeriesRepository(
                     }
                 }
 
-            logger.debug { "Server series search: query='$query', results=${series.size}, took=${duration.inWholeMilliseconds}ms" }
+            logger.debug {
+                "Server series search: query='$query', results=${series.size}, took=${duration.inWholeMilliseconds}ms"
+            }
 
             SeriesSearchResponse(
                 series = series,
@@ -147,7 +149,9 @@ class SeriesRepository(
 
             val series = entities.map { it.toSearchResult() }
 
-            logger.debug { "Local series search: query='$query', results=${series.size}, took=${duration.inWholeMilliseconds}ms" }
+            logger.debug {
+                "Local series search: query='$query', results=${series.size}, took=${duration.inWholeMilliseconds}ms"
+            }
 
             SeriesSearchResponse(
                 series = series,

@@ -39,7 +39,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,9 +50,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
-import com.calypsan.listenup.client.design.components.avatarColorForUser
 import com.calypsan.listenup.client.design.components.getInitials
 import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
+import com.calypsan.listenup.client.features.contributoredit.components.ContributorColorScheme
+import com.calypsan.listenup.client.features.contributoredit.components.rememberContributorColorScheme
 import com.calypsan.listenup.client.features.library.BookCard
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailUiState
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel
@@ -117,48 +117,6 @@ fun ContributorDetailScreen(
 }
 
 // =============================================================================
-// COLOR SCHEME - Dynamic palette from contributor ID
-// =============================================================================
-
-/**
- * Color scheme derived from contributor's unique avatar color.
- * Creates a cohesive gradient palette for the immersive header.
- */
-data class ContributorColorScheme(
-    val primary: Color,
-    val primaryDark: Color,
-    val primaryMuted: Color,
-    val onPrimary: Color,
-)
-
-/**
- * Generate a rich color scheme from the contributor's avatar hue.
- * Derives darker and muted variants from the base avatar color.
- */
-@Composable
-private fun rememberContributorColors(contributorId: String): ContributorColorScheme {
-    return remember(contributorId) {
-        val baseColor = avatarColorForUser(contributorId)
-
-        ContributorColorScheme(
-            primary = baseColor,
-            primaryDark = baseColor.copy(
-                red = baseColor.red * 0.6f,
-                green = baseColor.green * 0.6f,
-                blue = baseColor.blue * 0.6f,
-            ),
-            primaryMuted = baseColor.copy(
-                red = baseColor.red * 0.8f,
-                green = baseColor.green * 0.8f,
-                blue = baseColor.blue * 0.8f,
-                alpha = 0.7f,
-            ),
-            onPrimary = Color.White,
-        )
-    }
-}
-
-// =============================================================================
 // MAIN PORTFOLIO LAYOUT
 // =============================================================================
 
@@ -172,7 +130,7 @@ private fun ContributorPortfolio(
     onViewAllClick: (role: String) -> Unit,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
-    val colorScheme = rememberContributorColors(contributorId)
+    val colorScheme = rememberContributorColorScheme(contributorId)
     val surfaceColor = MaterialTheme.colorScheme.surface
 
     LazyColumn(
@@ -254,24 +212,27 @@ private fun HeroHeader(
     onEditClick: () -> Unit,
 ) {
     // Create a smooth gradient from rich color to surface
-    val gradientColors = listOf(
-        colorScheme.primaryDark,
-        colorScheme.primaryMuted.copy(alpha = 0.8f),
-        colorScheme.primaryMuted.copy(alpha = 0.4f),
-        surfaceColor.copy(alpha = 0.9f),
-        surfaceColor,
-    )
+    val gradientColors =
+        listOf(
+            colorScheme.primaryDark,
+            colorScheme.primaryMuted.copy(alpha = 0.8f),
+            colorScheme.primaryMuted.copy(alpha = 0.4f),
+            surfaceColor.copy(alpha = 0.9f),
+            surfaceColor,
+        )
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 400.dp)
-            .background(Brush.verticalGradient(gradientColors)),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 400.dp)
+                .background(Brush.verticalGradient(gradientColors)),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.statusBars),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Floating navigation buttons
@@ -296,10 +257,11 @@ private fun HeroHeader(
             // Name in display typography
             Text(
                 text = name,
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontFamily = GoogleSansDisplay,
-                    fontWeight = FontWeight.Bold,
-                ),
+                style =
+                    MaterialTheme.typography.headlineLarge.copy(
+                        fontFamily = GoogleSansDisplay,
+                        fontWeight = FontWeight.Bold,
+                    ),
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
@@ -334,19 +296,21 @@ private fun NavigationBar(
     surfaceColor: Color,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         IconButton(
             onClick = onBackClick,
-            modifier = Modifier
-                .size(48.dp)
-                .background(
-                    color = surfaceColor.copy(alpha = 0.5f),
-                    shape = CircleShape,
-                ),
+            modifier =
+                Modifier
+                    .size(48.dp)
+                    .background(
+                        color = surfaceColor.copy(alpha = 0.5f),
+                        shape = CircleShape,
+                    ),
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -357,12 +321,13 @@ private fun NavigationBar(
 
         IconButton(
             onClick = onEditClick,
-            modifier = Modifier
-                .size(48.dp)
-                .background(
-                    color = surfaceColor.copy(alpha = 0.5f),
-                    shape = CircleShape,
-                ),
+            modifier =
+                Modifier
+                    .size(48.dp)
+                    .background(
+                        color = surfaceColor.copy(alpha = 0.5f),
+                        shape = CircleShape,
+                    ),
         ) {
             Icon(
                 imageVector = Icons.Default.Edit,
@@ -389,9 +354,10 @@ private fun ElevatedAvatar(
     ElevatedCard(
         shape = CircleShape,
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = colorScheme.primary,
-        ),
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = colorScheme.primary,
+            ),
         modifier = Modifier.size(140.dp),
     ) {
         Box(
@@ -408,10 +374,11 @@ private fun ElevatedAvatar(
             } else {
                 Text(
                     text = initials,
-                    style = MaterialTheme.typography.displayMedium.copy(
-                        fontFamily = GoogleSansDisplay,
-                        fontWeight = FontWeight.Bold,
-                    ),
+                    style =
+                        MaterialTheme.typography.displayMedium.copy(
+                            fontFamily = GoogleSansDisplay,
+                            fontWeight = FontWeight.Bold,
+                        ),
                     color = colorScheme.onPrimary,
                 )
             }
@@ -476,10 +443,11 @@ private fun BiographySection(
     Column(modifier = modifier) {
         Text(
             text = "About",
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontFamily = GoogleSansDisplay,
-                fontWeight = FontWeight.Bold,
-            ),
+            style =
+                MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = GoogleSansDisplay,
+                    fontWeight = FontWeight.Bold,
+                ),
             modifier = Modifier.padding(bottom = 12.dp),
         )
 
@@ -518,19 +486,21 @@ private fun WorkSection(
     ) {
         // Section header with display typography
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
                 Text(
                     text = section.displayName,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontFamily = GoogleSansDisplay,
-                        fontWeight = FontWeight.Bold,
-                    ),
+                    style =
+                        MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = GoogleSansDisplay,
+                            fontWeight = FontWeight.Bold,
+                        ),
                 )
                 Text(
                     text = "${section.bookCount} ${if (section.bookCount == 1) "book" else "books"}",
@@ -584,7 +554,10 @@ private fun WorkSection(
 /**
  * Format birth and death dates for display.
  */
-private fun formatLifeDates(birthDate: String?, deathDate: String?): String? {
+private fun formatLifeDates(
+    birthDate: String?,
+    deathDate: String?,
+): String? {
     val birth = birthDate?.let { formatDateForDisplay(it) }
     val death = deathDate?.let { formatDateForDisplay(it) }
 
@@ -607,10 +580,21 @@ private fun formatDateForDisplay(isoDate: String): String? {
         val month = parts[1].toIntOrNull() ?: return null
         val day = parts[2].toIntOrNull() ?: return null
         if (month < 1 || month > 12) return null
-        val monthNames = listOf(
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
-        )
+        val monthNames =
+            listOf(
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December",
+            )
         "${monthNames[month - 1]} $day, $year"
     } catch (e: Exception) {
         null

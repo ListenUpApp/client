@@ -51,7 +51,10 @@ data class EditableContributor(
  * Role types for contributors.
  * Matches server-side roles in domain/contributor.go
  */
-enum class ContributorRole(val displayName: String, val apiValue: String) {
+enum class ContributorRole(
+    val displayName: String,
+    val apiValue: String,
+) {
     AUTHOR("Author", "author"),
     NARRATOR("Narrator", "narrator"),
     EDITOR("Editor", "editor"),
@@ -95,7 +98,8 @@ data class EditableGenre(
         get() {
             val segments = path.trim('/').split('/')
             if (segments.size <= 1) return null
-            return segments.dropLast(1)
+            return segments
+                .dropLast(1)
                 .joinToString(" > ") { it.replaceFirstChar { c -> c.uppercase() } }
         }
 }
@@ -118,10 +122,8 @@ data class BookEditUiState(
     val isSaving: Boolean = false,
     val isUploadingCover: Boolean = false,
     val error: String? = null,
-
     // Book identity (for immersive header)
     val coverPath: String? = null,
-
     // Book metadata fields
     val bookId: String = "",
     val title: String = "",
@@ -130,37 +132,30 @@ data class BookEditUiState(
     val publishYear: String = "",
     val publisher: String = "",
     val language: String? = null, // ISO 639-1 code
-
     // Additional metadata (less commonly edited)
     val isbn: String = "",
     val asin: String = "",
     val abridged: Boolean = false,
-
     // Contributors
     val contributors: List<EditableContributor> = emptyList(),
-
     // Series (multi-series support)
     val series: List<EditableSeries> = emptyList(),
     val seriesSearchQuery: String = "",
     val seriesSearchResults: List<SeriesSearchResult> = emptyList(),
     val seriesSearchLoading: Boolean = false,
     val seriesOfflineResult: Boolean = false,
-
     // Per-role search state (replaces single search)
     val roleSearchQueries: Map<ContributorRole, String> = emptyMap(),
     val roleSearchResults: Map<ContributorRole, List<ContributorSearchResult>> = emptyMap(),
     val roleSearchLoading: Map<ContributorRole, Boolean> = emptyMap(),
     val roleOfflineResults: Map<ContributorRole, Boolean> = emptyMap(),
-
     // Visible role sections (prepopulated from existing contributors + user-added)
     val visibleRoles: Set<ContributorRole> = emptySet(),
-
     // Genres (system-controlled, select from existing)
     val genres: List<EditableGenre> = emptyList(),
     val allGenres: List<EditableGenre> = emptyList(), // Cached list from server
     val genreSearchQuery: String = "",
     val genreSearchResults: List<EditableGenre> = emptyList(), // Filtered locally
-
     // Tags (user-scoped, can create new)
     val tags: List<EditableTag> = emptyList(),
     val allTags: List<EditableTag> = emptyList(), // User's existing tags
@@ -168,14 +163,11 @@ data class BookEditUiState(
     val tagSearchResults: List<EditableTag> = emptyList(),
     val tagSearchLoading: Boolean = false,
     val tagCreating: Boolean = false, // Creating a new tag
-
     // Track if changes have been made
     val hasChanges: Boolean = false,
-
     // Pending cover upload (stored until Save Changes)
     val pendingCoverData: ByteArray? = null,
     val pendingCoverFilename: String? = null,
-
     // Staging cover path for preview (separate from main cover)
     val stagingCoverPath: String? = null,
 ) {
@@ -184,11 +176,11 @@ data class BookEditUiState(
      */
     val displayCoverPath: String?
         get() = stagingCoverPath ?: coverPath
+
     /**
      * Get contributors for a specific role.
      */
-    fun contributorsForRole(role: ContributorRole): List<EditableContributor> =
-        contributors.filter { role in it.roles }
+    fun contributorsForRole(role: ContributorRole): List<EditableContributor> = contributors.filter { role in it.roles }
 
     /**
      * Authors from contributor list.
@@ -214,52 +206,141 @@ data class BookEditUiState(
  */
 sealed interface BookEditUiEvent {
     // Metadata changes
-    data class TitleChanged(val title: String) : BookEditUiEvent
-    data class SubtitleChanged(val subtitle: String) : BookEditUiEvent
-    data class DescriptionChanged(val description: String) : BookEditUiEvent
-    data class PublishYearChanged(val year: String) : BookEditUiEvent
-    data class PublisherChanged(val publisher: String) : BookEditUiEvent
-    data class LanguageChanged(val code: String?) : BookEditUiEvent
+    data class TitleChanged(
+        val title: String,
+    ) : BookEditUiEvent
+
+    data class SubtitleChanged(
+        val subtitle: String,
+    ) : BookEditUiEvent
+
+    data class DescriptionChanged(
+        val description: String,
+    ) : BookEditUiEvent
+
+    data class PublishYearChanged(
+        val year: String,
+    ) : BookEditUiEvent
+
+    data class PublisherChanged(
+        val publisher: String,
+    ) : BookEditUiEvent
+
+    data class LanguageChanged(
+        val code: String?,
+    ) : BookEditUiEvent
 
     // Additional metadata
-    data class IsbnChanged(val isbn: String) : BookEditUiEvent
-    data class AsinChanged(val asin: String) : BookEditUiEvent
-    data class AbridgedChanged(val abridged: Boolean) : BookEditUiEvent
+    data class IsbnChanged(
+        val isbn: String,
+    ) : BookEditUiEvent
+
+    data class AsinChanged(
+        val asin: String,
+    ) : BookEditUiEvent
+
+    data class AbridgedChanged(
+        val abridged: Boolean,
+    ) : BookEditUiEvent
 
     // Series management
-    data class SeriesSearchQueryChanged(val query: String) : BookEditUiEvent
-    data class SeriesSelected(val result: SeriesSearchResult) : BookEditUiEvent
-    data class SeriesEntered(val name: String) : BookEditUiEvent
-    data class SeriesSequenceChanged(val series: EditableSeries, val sequence: String) : BookEditUiEvent
-    data class RemoveSeries(val series: EditableSeries) : BookEditUiEvent
+    data class SeriesSearchQueryChanged(
+        val query: String,
+    ) : BookEditUiEvent
+
+    data class SeriesSelected(
+        val result: SeriesSearchResult,
+    ) : BookEditUiEvent
+
+    data class SeriesEntered(
+        val name: String,
+    ) : BookEditUiEvent
+
+    data class SeriesSequenceChanged(
+        val series: EditableSeries,
+        val sequence: String,
+    ) : BookEditUiEvent
+
+    data class RemoveSeries(
+        val series: EditableSeries,
+    ) : BookEditUiEvent
+
     data object ClearSeriesSearch : BookEditUiEvent
 
     // Per-role contributor management
-    data class RoleSearchQueryChanged(val role: ContributorRole, val query: String) : BookEditUiEvent
-    data class RoleContributorSelected(val role: ContributorRole, val result: ContributorSearchResult) : BookEditUiEvent
-    data class RoleContributorEntered(val role: ContributorRole, val name: String) : BookEditUiEvent
-    data class ClearRoleSearch(val role: ContributorRole) : BookEditUiEvent
-    data class AddRoleSection(val role: ContributorRole) : BookEditUiEvent
-    data class RemoveContributor(val contributor: EditableContributor, val role: ContributorRole) : BookEditUiEvent
-    data class RemoveRoleSection(val role: ContributorRole) : BookEditUiEvent
+    data class RoleSearchQueryChanged(
+        val role: ContributorRole,
+        val query: String,
+    ) : BookEditUiEvent
+
+    data class RoleContributorSelected(
+        val role: ContributorRole,
+        val result: ContributorSearchResult,
+    ) : BookEditUiEvent
+
+    data class RoleContributorEntered(
+        val role: ContributorRole,
+        val name: String,
+    ) : BookEditUiEvent
+
+    data class ClearRoleSearch(
+        val role: ContributorRole,
+    ) : BookEditUiEvent
+
+    data class AddRoleSection(
+        val role: ContributorRole,
+    ) : BookEditUiEvent
+
+    data class RemoveContributor(
+        val contributor: EditableContributor,
+        val role: ContributorRole,
+    ) : BookEditUiEvent
+
+    data class RemoveRoleSection(
+        val role: ContributorRole,
+    ) : BookEditUiEvent
 
     // Genre management (select from existing only)
-    data class GenreSearchQueryChanged(val query: String) : BookEditUiEvent
-    data class GenreSelected(val genre: EditableGenre) : BookEditUiEvent
-    data class RemoveGenre(val genre: EditableGenre) : BookEditUiEvent
+    data class GenreSearchQueryChanged(
+        val query: String,
+    ) : BookEditUiEvent
+
+    data class GenreSelected(
+        val genre: EditableGenre,
+    ) : BookEditUiEvent
+
+    data class RemoveGenre(
+        val genre: EditableGenre,
+    ) : BookEditUiEvent
 
     // Tag management (select existing or create new)
-    data class TagSearchQueryChanged(val query: String) : BookEditUiEvent
-    data class TagSelected(val tag: EditableTag) : BookEditUiEvent
-    data class TagEntered(val name: String) : BookEditUiEvent // Create new tag inline
-    data class RemoveTag(val tag: EditableTag) : BookEditUiEvent
+    data class TagSearchQueryChanged(
+        val query: String,
+    ) : BookEditUiEvent
+
+    data class TagSelected(
+        val tag: EditableTag,
+    ) : BookEditUiEvent
+
+    data class TagEntered(
+        val name: String,
+    ) : BookEditUiEvent // Create new tag inline
+
+    data class RemoveTag(
+        val tag: EditableTag,
+    ) : BookEditUiEvent
 
     // Cover upload
-    data class UploadCover(val imageData: ByteArray, val filename: String) : BookEditUiEvent
+    data class UploadCover(
+        val imageData: ByteArray,
+        val filename: String,
+    ) : BookEditUiEvent
 
     // Actions
     data object Save : BookEditUiEvent
+
     data object Cancel : BookEditUiEvent
+
     data object DismissError : BookEditUiEvent
 }
 
@@ -268,7 +349,10 @@ sealed interface BookEditUiEvent {
  */
 sealed interface BookEditNavAction {
     data object NavigateBack : BookEditNavAction
-    data class ShowSaveSuccess(val message: String) : BookEditNavAction
+
+    data class ShowSaveSuccess(
+        val message: String,
+    ) : BookEditNavAction
 }
 
 /**
@@ -419,20 +503,23 @@ class BookEditViewModel(
             }
 
             // Convert domain contributors to editable format
-            val editableContributors = book.allContributors.map { contributor ->
-                EditableContributor(
-                    id = contributor.id,
-                    name = contributor.name,
-                    roles = contributor.roles
-                        .mapNotNull { ContributorRole.fromApiValue(it) }
-                        .toSet(),
-                )
-            }
+            val editableContributors =
+                book.allContributors.map { contributor ->
+                    EditableContributor(
+                        id = contributor.id,
+                        name = contributor.name,
+                        roles =
+                            contributor.roles
+                                .mapNotNull { ContributorRole.fromApiValue(it) }
+                                .toSet(),
+                    )
+                }
 
             // Determine visible roles from existing contributors
-            val rolesFromContributors = editableContributors
-                .flatMap { it.roles }
-                .toSet()
+            val rolesFromContributors =
+                editableContributors
+                    .flatMap { it.roles }
+                    .toSet()
 
             // Always show Author section, plus any roles that have contributors
             val initialVisibleRoles = rolesFromContributors + ContributorRole.AUTHOR
@@ -443,13 +530,14 @@ class BookEditViewModel(
             }
 
             // Convert domain series to editable format
-            val editableSeries = book.series.map { s ->
-                EditableSeries(
-                    id = s.seriesId,
-                    name = s.seriesName,
-                    sequence = s.sequence,
-                )
-            }
+            val editableSeries =
+                book.series.map { s ->
+                    EditableSeries(
+                        id = s.seriesId,
+                        name = s.seriesName,
+                        sequence = s.sequence,
+                    )
+                }
 
             // Load genres and tags from server
             val (allGenres, bookGenres) = loadGenresForBook(bookId)
@@ -495,7 +583,11 @@ class BookEditViewModel(
                 )
             }
 
-            logger.debug { "Loaded book for editing: ${book.title}, description=${book.description?.take(50) ?: "null"}" }
+            logger.debug {
+                "Loaded book for editing: ${book.title}, description=${book.description?.take(
+                    50,
+                ) ?: "null"}"
+            }
         }
     }
 
@@ -505,20 +597,22 @@ class BookEditViewModel(
      */
     private suspend fun loadGenresForBook(bookId: String): Pair<List<EditableGenre>, List<EditableGenre>> {
         // Load all genres (public endpoint)
-        val allGenres = try {
-            genreApi.listGenres().map { it.toEditable() }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to load all genres" }
-            emptyList()
-        }
+        val allGenres =
+            try {
+                genreApi.listGenres().map { it.toEditable() }
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to load all genres" }
+                emptyList()
+            }
 
         // Load book's genres (requires auth)
-        val bookGenres = try {
-            genreApi.getBookGenres(bookId).map { it.toEditable() }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to load book genres" }
-            emptyList()
-        }
+        val bookGenres =
+            try {
+                genreApi.getBookGenres(bookId).map { it.toEditable() }
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to load book genres" }
+                emptyList()
+            }
 
         return allGenres to bookGenres
     }
@@ -529,25 +623,28 @@ class BookEditViewModel(
      */
     private suspend fun loadTagsForBook(bookId: String): Pair<List<EditableTag>, List<EditableTag>> {
         // Load all user tags
-        val allTags = try {
-            tagApi.getUserTags().map { it.toEditable() }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to load all tags" }
-            emptyList()
-        }
+        val allTags =
+            try {
+                tagApi.getUserTags().map { it.toEditable() }
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to load all tags" }
+                emptyList()
+            }
 
         // Load book's tags
-        val bookTags = try {
-            tagApi.getBookTags(bookId).map { it.toEditable() }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to load book tags" }
-            emptyList()
-        }
+        val bookTags =
+            try {
+                tagApi.getBookTags(bookId).map { it.toEditable() }
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to load book tags" }
+                emptyList()
+            }
 
         return allTags to bookTags
     }
 
     private fun Genre.toEditable() = EditableGenre(id = id, name = name, path = path)
+
     private fun Tag.toEditable() = EditableTag(id = id, name = name, color = color)
 
     /**
@@ -733,41 +830,53 @@ class BookEditViewModel(
         _navActions.value = null
     }
 
-    private fun performRoleSearch(role: ContributorRole, query: String) {
+    private fun performRoleSearch(
+        role: ContributorRole,
+        query: String,
+    ) {
         roleSearchJobs[role]?.cancel()
-        roleSearchJobs[role] = viewModelScope.launch {
-            _state.update {
-                it.copy(roleSearchLoading = it.roleSearchLoading + (role to true))
+        roleSearchJobs[role] =
+            viewModelScope.launch {
+                _state.update {
+                    it.copy(roleSearchLoading = it.roleSearchLoading + (role to true))
+                }
+
+                val response = contributorRepository.searchContributors(query, limit = 10)
+
+                // Filter out contributors already added for this role
+                val currentContributorIds =
+                    _state.value
+                        .contributorsForRole(role)
+                        .mapNotNull { it.id }
+                        .toSet()
+                val filteredResults = response.contributors.filter { it.id !in currentContributorIds }
+
+                _state.update {
+                    it.copy(
+                        roleSearchResults = it.roleSearchResults + (role to filteredResults),
+                        roleSearchLoading = it.roleSearchLoading + (role to false),
+                        roleOfflineResults = it.roleOfflineResults + (role to response.isOfflineResult),
+                    )
+                }
+
+                logger.debug { "Contributor search for $role: ${filteredResults.size} results for '$query'" }
             }
-
-            val response = contributorRepository.searchContributors(query, limit = 10)
-
-            // Filter out contributors already added for this role
-            val currentContributorIds = _state.value.contributorsForRole(role).mapNotNull { it.id }.toSet()
-            val filteredResults = response.contributors.filter { it.id !in currentContributorIds }
-
-            _state.update {
-                it.copy(
-                    roleSearchResults = it.roleSearchResults + (role to filteredResults),
-                    roleSearchLoading = it.roleSearchLoading + (role to false),
-                    roleOfflineResults = it.roleOfflineResults + (role to response.isOfflineResult),
-                )
-            }
-
-            logger.debug { "Contributor search for $role: ${filteredResults.size} results for '$query'" }
-        }
     }
 
-    private fun addRoleContributor(role: ContributorRole, name: String) {
+    private fun addRoleContributor(
+        role: ContributorRole,
+        name: String,
+    ) {
         if (name.isBlank()) return
 
         val trimmedName = name.trim()
 
         _state.update { current ->
             // Check if contributor already exists (by name)
-            val existing = current.contributors.find {
-                it.name.equals(trimmedName, ignoreCase = true)
-            }
+            val existing =
+                current.contributors.find {
+                    it.name.equals(trimmedName, ignoreCase = true)
+                }
 
             if (existing != null) {
                 // Check if already has this role (duplicate prevention)
@@ -781,19 +890,21 @@ class BookEditViewModel(
                 // Add role to existing contributor
                 val updated = existing.copy(roles = existing.roles + role)
                 current.copy(
-                    contributors = current.contributors.map {
-                        if (it == existing) updated else it
-                    },
+                    contributors =
+                        current.contributors.map {
+                            if (it == existing) updated else it
+                        },
                     roleSearchQueries = current.roleSearchQueries + (role to ""),
                     roleSearchResults = current.roleSearchResults - role,
                 )
             } else {
                 // Add new contributor with this role
-                val newContributor = EditableContributor(
-                    id = null,
-                    name = trimmedName,
-                    roles = setOf(role),
-                )
+                val newContributor =
+                    EditableContributor(
+                        id = null,
+                        name = trimmedName,
+                        roles = setOf(role),
+                    )
                 current.copy(
                     contributors = current.contributors + newContributor,
                     roleSearchQueries = current.roleSearchQueries + (role to ""),
@@ -806,7 +917,10 @@ class BookEditViewModel(
         updateHasChanges()
     }
 
-    private fun selectRoleContributor(role: ContributorRole, result: ContributorSearchResult) {
+    private fun selectRoleContributor(
+        role: ContributorRole,
+        result: ContributorSearchResult,
+    ) {
         _state.update { current ->
             // Check if contributor already exists (by ID)
             val existing = current.contributors.find { it.id == result.id }
@@ -823,19 +937,21 @@ class BookEditViewModel(
                 // Add role to existing contributor
                 val updated = existing.copy(roles = existing.roles + role)
                 current.copy(
-                    contributors = current.contributors.map {
-                        if (it == existing) updated else it
-                    },
+                    contributors =
+                        current.contributors.map {
+                            if (it == existing) updated else it
+                        },
                     roleSearchQueries = current.roleSearchQueries + (role to ""),
                     roleSearchResults = current.roleSearchResults - role,
                 )
             } else {
                 // Add new contributor with this role
-                val newContributor = EditableContributor(
-                    id = result.id,
-                    name = result.name,
-                    roles = setOf(role),
-                )
+                val newContributor =
+                    EditableContributor(
+                        id = result.id,
+                        name = result.name,
+                        roles = setOf(role),
+                    )
                 current.copy(
                     contributors = current.contributors + newContributor,
                     roleSearchQueries = current.roleSearchQueries + (role to ""),
@@ -848,29 +964,34 @@ class BookEditViewModel(
         updateHasChanges()
     }
 
-    private fun removeContributorFromRole(contributor: EditableContributor, role: ContributorRole) {
+    private fun removeContributorFromRole(
+        contributor: EditableContributor,
+        role: ContributorRole,
+    ) {
         _state.update { current ->
             val updatedRoles = contributor.roles - role
 
-            val updatedContributors = if (updatedRoles.isEmpty()) {
-                // Remove contributor entirely if no roles left
-                current.contributors - contributor
-            } else {
-                // Just remove this role from the contributor
-                current.contributors.map {
-                    if (it == contributor) it.copy(roles = updatedRoles) else it
+            val updatedContributors =
+                if (updatedRoles.isEmpty()) {
+                    // Remove contributor entirely if no roles left
+                    current.contributors - contributor
+                } else {
+                    // Just remove this role from the contributor
+                    current.contributors.map {
+                        if (it == contributor) it.copy(roles = updatedRoles) else it
+                    }
                 }
-            }
 
             // Check if any contributors still have this role
             val roleStillHasContributors = updatedContributors.any { role in it.roles }
 
             // Auto-hide section if empty (unless it's AUTHOR which always shows)
-            val updatedVisibleRoles = if (!roleStillHasContributors && role != ContributorRole.AUTHOR) {
-                current.visibleRoles - role
-            } else {
-                current.visibleRoles
-            }
+            val updatedVisibleRoles =
+                if (!roleStillHasContributors && role != ContributorRole.AUTHOR) {
+                    current.visibleRoles - role
+                } else {
+                    current.visibleRoles
+                }
 
             current.copy(
                 contributors = updatedContributors,
@@ -883,14 +1004,15 @@ class BookEditViewModel(
     private fun removeRoleSection(role: ContributorRole) {
         _state.update { current ->
             // Remove role from all contributors
-            val updatedContributors = current.contributors.mapNotNull { contributor ->
-                val updatedRoles = contributor.roles - role
-                if (updatedRoles.isEmpty()) {
-                    null // Remove contributor entirely if no roles left
-                } else {
-                    contributor.copy(roles = updatedRoles)
+            val updatedContributors =
+                current.contributors.mapNotNull { contributor ->
+                    val updatedRoles = contributor.roles - role
+                    if (updatedRoles.isEmpty()) {
+                        null // Remove contributor entirely if no roles left
+                    } else {
+                        contributor.copy(roles = updatedRoles)
+                    }
                 }
-            }
 
             // Remove from visible roles and clean up search state
             current.copy(
@@ -915,25 +1037,29 @@ class BookEditViewModel(
 
     private fun performSeriesSearch(query: String) {
         seriesSearchJob?.cancel()
-        seriesSearchJob = viewModelScope.launch {
-            _state.update { it.copy(seriesSearchLoading = true) }
+        seriesSearchJob =
+            viewModelScope.launch {
+                _state.update { it.copy(seriesSearchLoading = true) }
 
-            val response = seriesRepository.searchSeries(query, limit = 10)
+                val response = seriesRepository.searchSeries(query, limit = 10)
 
-            // Filter out series already added to this book
-            val currentSeriesIds = _state.value.series.mapNotNull { it.id }.toSet()
-            val filteredResults = response.series.filter { it.id !in currentSeriesIds }
+                // Filter out series already added to this book
+                val currentSeriesIds =
+                    _state.value.series
+                        .mapNotNull { it.id }
+                        .toSet()
+                val filteredResults = response.series.filter { it.id !in currentSeriesIds }
 
-            _state.update {
-                it.copy(
-                    seriesSearchResults = filteredResults,
-                    seriesSearchLoading = false,
-                    seriesOfflineResult = response.isOfflineResult,
-                )
+                _state.update {
+                    it.copy(
+                        seriesSearchResults = filteredResults,
+                        seriesSearchLoading = false,
+                        seriesOfflineResult = response.isOfflineResult,
+                    )
+                }
+
+                logger.debug { "Series search: ${filteredResults.size} results for '$query'" }
             }
-
-            logger.debug { "Series search: ${filteredResults.size} results for '$query'" }
-        }
     }
 
     private fun selectSeries(result: SeriesSearchResult) {
@@ -949,11 +1075,12 @@ class BookEditViewModel(
             }
 
             // Add new series
-            val newSeries = EditableSeries(
-                id = result.id,
-                name = result.name,
-                sequence = null,
-            )
+            val newSeries =
+                EditableSeries(
+                    id = result.id,
+                    name = result.name,
+                    sequence = null,
+                )
             current.copy(
                 series = current.series + newSeries,
                 seriesSearchQuery = "",
@@ -972,9 +1099,10 @@ class BookEditViewModel(
 
         _state.update { current ->
             // Check if series already exists (by name)
-            val existing = current.series.find {
-                it.name.equals(trimmedName, ignoreCase = true)
-            }
+            val existing =
+                current.series.find {
+                    it.name.equals(trimmedName, ignoreCase = true)
+                }
             if (existing != null) {
                 // Already added - just clear search
                 return@update current.copy(
@@ -984,11 +1112,12 @@ class BookEditViewModel(
             }
 
             // Add new series (no ID = will be created on server)
-            val newSeries = EditableSeries(
-                id = null,
-                name = trimmedName,
-                sequence = null,
-            )
+            val newSeries =
+                EditableSeries(
+                    id = null,
+                    name = trimmedName,
+                    sequence = null,
+                )
             current.copy(
                 series = current.series + newSeries,
                 seriesSearchQuery = "",
@@ -1000,12 +1129,16 @@ class BookEditViewModel(
         updateHasChanges()
     }
 
-    private fun updateSeriesSequence(targetSeries: EditableSeries, sequence: String) {
+    private fun updateSeriesSequence(
+        targetSeries: EditableSeries,
+        sequence: String,
+    ) {
         _state.update { current ->
             current.copy(
-                series = current.series.map {
-                    if (it == targetSeries) it.copy(sequence = sequence.ifBlank { null }) else it
-                },
+                series =
+                    current.series.map {
+                        if (it == targetSeries) it.copy(sequence = sequence.ifBlank { null }) else it
+                    },
             )
         }
         updateHasChanges()
@@ -1030,15 +1163,20 @@ class BookEditViewModel(
         }
 
         val lowerQuery = query.lowercase()
-        val currentGenreIds = _state.value.genres.map { it.id }.toSet()
+        val currentGenreIds =
+            _state.value.genres
+                .map { it.id }
+                .toSet()
 
-        val filtered = _state.value.allGenres
-            .filter { genre ->
-                genre.id !in currentGenreIds &&
-                    (genre.name.lowercase().contains(lowerQuery) ||
-                        genre.path.lowercase().contains(lowerQuery))
-            }
-            .take(10)
+        val filtered =
+            _state.value.allGenres
+                .filter { genre ->
+                    genre.id !in currentGenreIds &&
+                        (
+                            genre.name.lowercase().contains(lowerQuery) ||
+                                genre.path.lowercase().contains(lowerQuery)
+                        )
+                }.take(10)
 
         _state.update { it.copy(genreSearchResults = filtered) }
     }
@@ -1076,27 +1214,31 @@ class BookEditViewModel(
      */
     private fun performTagSearch(query: String) {
         tagSearchJob?.cancel()
-        tagSearchJob = viewModelScope.launch {
-            _state.update { it.copy(tagSearchLoading = true) }
+        tagSearchJob =
+            viewModelScope.launch {
+                _state.update { it.copy(tagSearchLoading = true) }
 
-            // Filter from allTags (already loaded)
-            val lowerQuery = query.lowercase()
-            val currentTagIds = _state.value.tags.map { it.id }.toSet()
+                // Filter from allTags (already loaded)
+                val lowerQuery = query.lowercase()
+                val currentTagIds =
+                    _state.value.tags
+                        .map { it.id }
+                        .toSet()
 
-            val filtered = _state.value.allTags
-                .filter { tag ->
-                    tag.id !in currentTagIds &&
-                        tag.name.lowercase().contains(lowerQuery)
+                val filtered =
+                    _state.value.allTags
+                        .filter { tag ->
+                            tag.id !in currentTagIds &&
+                                tag.name.lowercase().contains(lowerQuery)
+                        }.take(10)
+
+                _state.update {
+                    it.copy(
+                        tagSearchResults = filtered,
+                        tagSearchLoading = false,
+                    )
                 }
-                .take(10)
-
-            _state.update {
-                it.copy(
-                    tagSearchResults = filtered,
-                    tagSearchLoading = false,
-                )
             }
-        }
     }
 
     private fun selectTag(tag: EditableTag) {
@@ -1128,9 +1270,10 @@ class BookEditViewModel(
         val trimmedName = name.trim()
 
         // Check if tag with same name already exists in allTags
-        val existingTag = _state.value.allTags.find {
-            it.name.equals(trimmedName, ignoreCase = true)
-        }
+        val existingTag =
+            _state.value.allTags.find {
+                it.name.equals(trimmedName, ignoreCase = true)
+            }
 
         if (existingTag != null) {
             // Use existing tag
@@ -1243,22 +1386,40 @@ class BookEditViewModel(
         _navActions.value = BookEditNavAction.NavigateBack
     }
 
+    /**
+     * Clean up staging files when ViewModel is destroyed.
+     * Handles cases where user navigates away without explicitly canceling or saving.
+     */
+    override fun onCleared() {
+        super.onCleared()
+        val bookId = _state.value.bookId
+        if (bookId.isNotBlank() && _state.value.stagingCoverPath != null) {
+            // viewModelScope is cancelled by this point, use GlobalScope for cleanup
+            @Suppress("OPT_IN_USAGE")
+            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                imageStorage.deleteCoverStaging(BookId(bookId))
+                logger.debug { "Staging cover cleaned up on ViewModel cleared" }
+            }
+        }
+    }
+
     private fun updateHasChanges() {
         val current = _state.value
-        val hasChanges = current.title != originalTitle ||
-            current.subtitle != originalSubtitle ||
-            current.description != originalDescription ||
-            current.publishYear != originalPublishYear ||
-            current.publisher != originalPublisher ||
-            current.language != originalLanguage ||
-            current.isbn != originalIsbn ||
-            current.asin != originalAsin ||
-            current.abridged != originalAbridged ||
-            current.contributors != originalContributors ||
-            current.series != originalSeries ||
-            current.genres != originalGenres ||
-            current.tags != originalTags ||
-            current.pendingCoverData != null // Cover changed if we have pending data
+        val hasChanges =
+            current.title != originalTitle ||
+                current.subtitle != originalSubtitle ||
+                current.description != originalDescription ||
+                current.publishYear != originalPublishYear ||
+                current.publisher != originalPublisher ||
+                current.language != originalLanguage ||
+                current.isbn != originalIsbn ||
+                current.asin != originalAsin ||
+                current.abridged != originalAbridged ||
+                current.contributors != originalContributors ||
+                current.series != originalSeries ||
+                current.genres != originalGenres ||
+                current.tags != originalTags ||
+                current.pendingCoverData != null // Cover changed if we have pending data
 
         _state.update { it.copy(hasChanges = hasChanges) }
     }
@@ -1275,31 +1436,50 @@ class BookEditViewModel(
 
             try {
                 // Update metadata
-                val metadataChanged = current.title != originalTitle ||
-                    current.subtitle != originalSubtitle ||
-                    current.description != originalDescription ||
-                    current.publishYear != originalPublishYear ||
-                    current.publisher != originalPublisher ||
-                    current.language != originalLanguage ||
-                    current.isbn != originalIsbn ||
-                    current.asin != originalAsin ||
-                    current.abridged != originalAbridged
+                val metadataChanged =
+                    current.title != originalTitle ||
+                        current.subtitle != originalSubtitle ||
+                        current.description != originalDescription ||
+                        current.publishYear != originalPublishYear ||
+                        current.publisher != originalPublisher ||
+                        current.language != originalLanguage ||
+                        current.isbn != originalIsbn ||
+                        current.asin != originalAsin ||
+                        current.abridged != originalAbridged
 
                 if (metadataChanged) {
-                    val updateRequest = BookUpdateRequest(
-                        title = if (current.title != originalTitle) current.title else null,
-                        subtitle = if (current.subtitle != originalSubtitle) current.subtitle else null,
-                        description = if (current.description != originalDescription) current.description else null,
-                        publishYear = if (current.publishYear != originalPublishYear) current.publishYear.ifBlank { null } else null,
-                        publisher = if (current.publisher != originalPublisher) current.publisher.ifBlank { null } else null,
-                        language = if (current.language != originalLanguage) current.language else null,
-                        isbn = if (current.isbn != originalIsbn) current.isbn.ifBlank { null } else null,
-                        asin = if (current.asin != originalAsin) current.asin.ifBlank { null } else null,
-                        abridged = if (current.abridged != originalAbridged) current.abridged else null,
-                    )
+                    val updateRequest =
+                        BookUpdateRequest(
+                            title = if (current.title != originalTitle) current.title else null,
+                            subtitle = if (current.subtitle != originalSubtitle) current.subtitle else null,
+                            description = if (current.description != originalDescription) current.description else null,
+                            publishYear =
+                                if (current.publishYear !=
+                                    originalPublishYear
+                                ) {
+                                    current.publishYear.ifBlank { null }
+                                } else {
+                                    null
+                                },
+                            publisher =
+                                if (current.publisher !=
+                                    originalPublisher
+                                ) {
+                                    current.publisher.ifBlank { null }
+                                } else {
+                                    null
+                                },
+                            language = if (current.language != originalLanguage) current.language else null,
+                            isbn = if (current.isbn != originalIsbn) current.isbn.ifBlank { null } else null,
+                            asin = if (current.asin != originalAsin) current.asin.ifBlank { null } else null,
+                            abridged = if (current.abridged != originalAbridged) current.abridged else null,
+                        )
 
                     when (val result = bookEditRepository.updateBook(current.bookId, updateRequest)) {
-                        is Success -> logger.info { "Book metadata updated" }
+                        is Success -> {
+                            logger.info { "Book metadata updated" }
+                        }
+
                         is Failure -> {
                             _state.update { it.copy(isSaving = false, error = "Failed to save: ${result.message}") }
                             return@launch
@@ -1310,17 +1490,26 @@ class BookEditViewModel(
                 // Update contributors
                 val contributorsChanged = current.contributors != originalContributors
                 if (contributorsChanged) {
-                    val contributorInputs = current.contributors.map { editable ->
-                        ContributorInput(
-                            name = editable.name,
-                            roles = editable.roles.map { it.apiValue },
-                        )
-                    }
+                    val contributorInputs =
+                        current.contributors.map { editable ->
+                            ContributorInput(
+                                name = editable.name,
+                                roles = editable.roles.map { it.apiValue },
+                            )
+                        }
 
                     when (val result = bookEditRepository.setBookContributors(current.bookId, contributorInputs)) {
-                        is Success -> logger.info { "Book contributors updated" }
+                        is Success -> {
+                            logger.info { "Book contributors updated" }
+                        }
+
                         is Failure -> {
-                            _state.update { it.copy(isSaving = false, error = "Failed to save contributors: ${result.message}") }
+                            _state.update {
+                                it.copy(
+                                    isSaving = false,
+                                    error = "Failed to save contributors: ${result.message}",
+                                )
+                            }
                             return@launch
                         }
                     }
@@ -1329,17 +1518,26 @@ class BookEditViewModel(
                 // Update series
                 val seriesChanged = current.series != originalSeries
                 if (seriesChanged) {
-                    val seriesInputs = current.series.map { editable ->
-                        SeriesInput(
-                            name = editable.name,
-                            sequence = editable.sequence,
-                        )
-                    }
+                    val seriesInputs =
+                        current.series.map { editable ->
+                            SeriesInput(
+                                name = editable.name,
+                                sequence = editable.sequence,
+                            )
+                        }
 
                     when (val result = bookEditRepository.setBookSeries(current.bookId, seriesInputs)) {
-                        is Success -> logger.info { "Book series updated" }
+                        is Success -> {
+                            logger.info { "Book series updated" }
+                        }
+
                         is Failure -> {
-                            _state.update { it.copy(isSaving = false, error = "Failed to save series: ${result.message}") }
+                            _state.update {
+                                it.copy(
+                                    isSaving = false,
+                                    error = "Failed to save series: ${result.message}",
+                                )
+                            }
                             return@launch
                         }
                     }
@@ -1394,6 +1592,7 @@ class BookEditViewModel(
                         is Success -> {
                             logger.info { "Staging cover committed to main location" }
                         }
+
                         is Failure -> {
                             logger.error { "Failed to commit staging cover: ${commitResult.message}" }
                             // Continue anyway - try to upload
@@ -1401,10 +1600,18 @@ class BookEditViewModel(
                     }
 
                     // Then upload to server
-                    when (val result = imageApi.uploadBookCover(current.bookId, pendingCoverData, pendingCoverFilename)) {
+                    when (
+                        val result =
+                            imageApi.uploadBookCover(
+                                current.bookId,
+                                pendingCoverData,
+                                pendingCoverFilename,
+                            )
+                    ) {
                         is Success -> {
                             logger.info { "Cover uploaded to server" }
                         }
+
                         is Failure -> {
                             logger.error { "Failed to upload cover: ${result.message}" }
                             // Cover is already saved locally, log but don't fail the save
@@ -1423,7 +1630,6 @@ class BookEditViewModel(
                     )
                 }
                 _navActions.value = BookEditNavAction.NavigateBack
-
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save book changes" }
                 _state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }

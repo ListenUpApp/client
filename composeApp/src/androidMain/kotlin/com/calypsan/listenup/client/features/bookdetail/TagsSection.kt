@@ -45,10 +45,11 @@ fun TagsSection(
         // Header - matches "About" and "Chapters" heading style
         Text(
             text = "Tags",
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontFamily = GoogleSansDisplay,
-                fontWeight = FontWeight.Bold,
-            ),
+            style =
+                MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = GoogleSansDisplay,
+                    fontWeight = FontWeight.Bold,
+                ),
             modifier = Modifier.padding(bottom = 12.dp),
         )
 

@@ -157,10 +157,11 @@ class ContributorEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity(
-                name = "Stephen King",
-                aliases = "Richard Bachman, John Swithen",
-            )
+            val contributor =
+                createContributorEntity(
+                    name = "Stephen King",
+                    aliases = "Richard Bachman, John Swithen",
+                )
             everySuspend { fixture.contributorDao.getById("contributor-1") } returns contributor
 
             val viewModel = fixture.build()
@@ -207,11 +208,12 @@ class ContributorEditViewModelTest {
             val contributor = createContributorEntity()
             everySuspend { fixture.contributorDao.getById("contributor-1") } returns contributor
 
-            val searchResult = ContributorSearchResult(
-                id = "contributor-2",
-                name = "Richard Bachman",
-                bookCount = 5,
-            )
+            val searchResult =
+                ContributorSearchResult(
+                    id = "contributor-2",
+                    name = "Richard Bachman",
+                    bookCount = 5,
+                )
             everySuspend { fixture.contributorRepository.searchContributors(any(), any()) } returns
                 ContributorSearchResponse(
                     contributors = listOf(searchResult),
@@ -257,11 +259,12 @@ class ContributorEditViewModelTest {
             advanceUntilIdle()
 
             // Add alias via autocomplete (which tracks for merge)
-            val searchResult = ContributorSearchResult(
-                id = "contributor-2",
-                name = "Richard Bachman",
-                bookCount = 5,
-            )
+            val searchResult =
+                ContributorSearchResult(
+                    id = "contributor-2",
+                    name = "Richard Bachman",
+                    bookCount = 5,
+                )
             viewModel.onEvent(ContributorEditUiEvent.AliasSelected(searchResult))
 
             // When
@@ -297,11 +300,12 @@ class ContributorEditViewModelTest {
             advanceUntilIdle()
 
             // Add alias via autocomplete
-            val searchResult = ContributorSearchResult(
-                id = "contributor-2",
-                name = "Richard Bachman",
-                bookCount = 5,
-            )
+            val searchResult =
+                ContributorSearchResult(
+                    id = "contributor-2",
+                    name = "Richard Bachman",
+                    bookCount = 5,
+                )
             viewModel.onEvent(ContributorEditUiEvent.AliasSelected(searchResult))
 
             // When
@@ -321,11 +325,12 @@ class ContributorEditViewModelTest {
             val fixture = createFixture()
             val contributor = createContributorEntity()
 
-            val bookRelation = BookContributorCrossRef(
-                bookId = BookId("book-1"),
-                contributorId = "contributor-2",
-                role = "author",
-            )
+            val bookRelation =
+                BookContributorCrossRef(
+                    bookId = BookId("book-1"),
+                    contributorId = "contributor-2",
+                    role = "author",
+                )
 
             everySuspend { fixture.contributorDao.getById("contributor-1") } returns contributor
             everySuspend { fixture.contributorDao.upsert(any()) } returns Unit
@@ -345,11 +350,12 @@ class ContributorEditViewModelTest {
             advanceUntilIdle()
 
             // Add alias via autocomplete
-            val searchResult = ContributorSearchResult(
-                id = "contributor-2",
-                name = "Richard Bachman",
-                bookCount = 1,
-            )
+            val searchResult =
+                ContributorSearchResult(
+                    id = "contributor-2",
+                    name = "Richard Bachman",
+                    bookCount = 1,
+                )
             viewModel.onEvent(ContributorEditUiEvent.AliasSelected(searchResult))
 
             // When
@@ -396,11 +402,12 @@ class ContributorEditViewModelTest {
             advanceUntilIdle()
 
             // Add alias via autocomplete
-            val searchResult = ContributorSearchResult(
-                id = "contributor-2",
-                name = "Richard Bachman",
-                bookCount = 5,
-            )
+            val searchResult =
+                ContributorSearchResult(
+                    id = "contributor-2",
+                    name = "Richard Bachman",
+                    bookCount = 5,
+                )
             viewModel.onEvent(ContributorEditUiEvent.AliasSelected(searchResult))
 
             // When
@@ -459,7 +466,10 @@ class ContributorEditViewModelTest {
             advanceUntilIdle()
 
             // Verify alias is present
-            assertTrue(viewModel.state.value.aliases.contains("Richard Bachman"))
+            assertTrue(
+                viewModel.state.value.aliases
+                    .contains("Richard Bachman"),
+            )
             assertFalse(viewModel.state.value.hasChanges)
 
             // When - removing an original alias calls the server unmerge API
@@ -467,7 +477,10 @@ class ContributorEditViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertFalse(viewModel.state.value.aliases.contains("Richard Bachman"))
+            assertFalse(
+                viewModel.state.value.aliases
+                    .contains("Richard Bachman"),
+            )
             // hasChanges is false because the unmerge was handled by server (not a local change)
             assertFalse(viewModel.state.value.hasChanges)
         }
@@ -487,9 +500,10 @@ class ContributorEditViewModelTest {
             everySuspend { fixture.bookContributorDao.insert(any()) } returns Unit
 
             // Server returns aliases including additional ones that were already on target
-            val mergeResponse = createMergeResponse(
-                aliases = listOf("Richard Bachman", "Existing Alias"),
-            )
+            val mergeResponse =
+                createMergeResponse(
+                    aliases = listOf("Richard Bachman", "Existing Alias"),
+                )
             everySuspend { fixture.api.mergeContributor("contributor-1", "contributor-2") } returns
                 Success(mergeResponse)
             // Update API also succeeds
@@ -501,11 +515,12 @@ class ContributorEditViewModelTest {
             advanceUntilIdle()
 
             // Add alias via autocomplete
-            val searchResult = ContributorSearchResult(
-                id = "contributor-2",
-                name = "Richard Bachman",
-                bookCount = 5,
-            )
+            val searchResult =
+                ContributorSearchResult(
+                    id = "contributor-2",
+                    name = "Richard Bachman",
+                    bookCount = 5,
+                )
             viewModel.onEvent(ContributorEditUiEvent.AliasSelected(searchResult))
 
             // When

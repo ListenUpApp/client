@@ -71,6 +71,7 @@ fun ListenUpSearchField(
                         strokeWidth = 2.dp,
                     )
                 }
+
                 value.isNotEmpty() && onClear != null -> {
                     IconButton(onClick = onClear) {
                         Icon(

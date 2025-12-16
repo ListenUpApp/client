@@ -326,11 +326,12 @@ class BookDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val book = createBook()
-            val bookGenres = listOf(
-                createGenre(id = "g1", name = "Fiction", slug = "fiction", path = "/fiction"),
-                createGenre(id = "g2", name = "Fantasy", slug = "fantasy", path = "/fiction/fantasy"),
-                createGenre(id = "g3", name = "Adventure", slug = "adventure", path = "/fiction/adventure"),
-            )
+            val bookGenres =
+                listOf(
+                    createGenre(id = "g1", name = "Fiction", slug = "fiction", path = "/fiction"),
+                    createGenre(id = "g2", name = "Fantasy", slug = "fantasy", path = "/fiction/fantasy"),
+                    createGenre(id = "g3", name = "Adventure", slug = "adventure", path = "/fiction/adventure"),
+                )
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.genreApi.getBookGenres(any()) } returns bookGenres
@@ -364,7 +365,10 @@ class BookDetailViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertTrue(viewModel.state.value.genresList.isEmpty())
+            assertTrue(
+                viewModel.state.value.genresList
+                    .isEmpty(),
+            )
         }
 
     @Test
@@ -386,7 +390,10 @@ class BookDetailViewModelTest {
             assertFalse(viewModel.state.value.isLoading)
             assertEquals(book, viewModel.state.value.book)
             assertNull(viewModel.state.value.error) // Genres are optional - no error shown
-            assertTrue(viewModel.state.value.genresList.isEmpty())
+            assertTrue(
+                viewModel.state.value.genresList
+                    .isEmpty(),
+            )
         }
 
     // ========== Progress Calculation Tests ==========

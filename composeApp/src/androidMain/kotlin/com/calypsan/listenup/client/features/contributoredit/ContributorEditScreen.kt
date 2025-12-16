@@ -2,45 +2,25 @@ package com.calypsan.listenup.client.features.contributoredit
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.InputChip
-import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -54,31 +34,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
-import com.calypsan.listenup.client.design.components.AutocompleteResultItem
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
-import com.calypsan.listenup.client.domain.imagepicker.ImagePickerResult
-import com.calypsan.listenup.client.util.rememberImagePicker
-import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.design.components.ListenUpDatePicker
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpTextArea
 import com.calypsan.listenup.client.design.components.ListenUpTextField
-import com.calypsan.listenup.client.design.components.avatarColorForUser
-import com.calypsan.listenup.client.design.components.getInitials
-import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
+import com.calypsan.listenup.client.domain.imagepicker.ImagePickerResult
+import com.calypsan.listenup.client.features.contributoredit.components.AliasesSection
+import com.calypsan.listenup.client.features.contributoredit.components.ContributorBackdrop
+import com.calypsan.listenup.client.features.contributoredit.components.ContributorColorScheme
+import com.calypsan.listenup.client.features.contributoredit.components.ContributorIdentityHeader
+import com.calypsan.listenup.client.features.contributoredit.components.ContributorStudioCard
+import com.calypsan.listenup.client.features.contributoredit.components.rememberContributorColorScheme
 import com.calypsan.listenup.client.presentation.contributoredit.ContributorEditNavAction
 import com.calypsan.listenup.client.presentation.contributoredit.ContributorEditUiEvent
 import com.calypsan.listenup.client.presentation.contributoredit.ContributorEditUiState
 import com.calypsan.listenup.client.presentation.contributoredit.ContributorEditViewModel
+import com.calypsan.listenup.client.util.rememberImagePicker
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -118,10 +92,12 @@ fun ContributorEditScreen(
                 onBackClick()
                 viewModel.clearNavAction()
             }
+
             is ContributorEditNavAction.SaveSuccess -> {
                 onSaveSuccess()
                 viewModel.clearNavAction()
             }
+
             null -> { /* no action */ }
         }
     }
@@ -149,12 +125,13 @@ fun ContributorEditScreen(
         },
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(surfaceColor),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(surfaceColor),
         ) {
             // Immersive gradient backdrop
-            ImmersiveBackdrop(
+            ContributorBackdrop(
                 colorScheme = colorScheme,
                 surfaceColor = surfaceColor,
             )
@@ -163,20 +140,24 @@ fun ContributorEditScreen(
             when {
                 state.isLoading -> {
                     ListenUpLoadingIndicator(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(paddingValues),
+                        modifier =
+                            Modifier
+                                .align(Alignment.Center)
+                                .padding(paddingValues),
                     )
                 }
+
                 state.error != null -> {
                     ErrorContent(
                         error = state.error,
                         onDismiss = { viewModel.onEvent(ContributorEditUiEvent.DismissError) },
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(paddingValues),
+                        modifier =
+                            Modifier
+                                .align(Alignment.Center)
+                                .padding(paddingValues),
                     )
                 }
+
                 else -> {
                     ArtistStudioContent(
                         state = state,
@@ -208,70 +189,6 @@ fun ContributorEditScreen(
 }
 
 // =============================================================================
-// COLOR SCHEME - Dynamic palette from contributor ID
-// =============================================================================
-
-/**
- * Rich color scheme derived from contributor's avatar hue.
- * More saturated than detail screen for editing atmosphere.
- */
-data class ContributorColorScheme(
-    val primary: Color,
-    val primaryDark: Color,
-    val primaryMuted: Color,
-    val onPrimary: Color,
-)
-
-@Composable
-private fun rememberContributorColorScheme(contributorId: String): ContributorColorScheme {
-    return remember(contributorId) {
-        val baseColor = avatarColorForUser(contributorId)
-
-        // Derive darker and muted variants from the base color
-        ContributorColorScheme(
-            primary = baseColor,
-            primaryDark = baseColor.copy(
-                red = baseColor.red * 0.6f,
-                green = baseColor.green * 0.6f,
-                blue = baseColor.blue * 0.6f,
-            ),
-            primaryMuted = baseColor.copy(
-                red = baseColor.red * 0.8f,
-                green = baseColor.green * 0.8f,
-                blue = baseColor.blue * 0.8f,
-                alpha = 0.7f,
-            ),
-            onPrimary = Color.White,
-        )
-    }
-}
-
-// =============================================================================
-// IMMERSIVE BACKDROP
-// =============================================================================
-
-@Composable
-private fun ImmersiveBackdrop(
-    colorScheme: ContributorColorScheme,
-    surfaceColor: Color,
-) {
-    val gradientColors = listOf(
-        colorScheme.primaryDark,
-        colorScheme.primaryMuted.copy(alpha = 0.7f),
-        colorScheme.primaryMuted.copy(alpha = 0.3f),
-        surfaceColor.copy(alpha = 0.95f),
-        surfaceColor,
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(400.dp)
-            .background(Brush.verticalGradient(gradientColors)),
-    )
-}
-
-// =============================================================================
 // EXTENDED FAB
 // =============================================================================
 
@@ -282,11 +199,12 @@ private fun SaveFab(
     onSave: () -> Unit,
 ) {
     val isEnabled = hasChanges && !isSaving
-    val contentColor = if (isEnabled) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-    }
+    val contentColor =
+        if (isEnabled) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        }
 
     ExtendedFloatingActionButton(
         onClick = { if (isEnabled) onSave() },
@@ -312,11 +230,12 @@ private fun SaveFab(
             )
         },
         expanded = true,
-        containerColor = if (isEnabled) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHighest
-        },
+        containerColor =
+            if (isEnabled) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            },
     )
 }
 
@@ -380,30 +299,35 @@ private fun ArtistStudioContent(
     modifier: Modifier = Modifier,
 ) {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-    val isMediumOrLarger = windowSizeClass.isWidthAtLeastBreakpoint(
-        WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND
-    )
+    val isMediumOrLarger =
+        windowSizeClass.isWidthAtLeastBreakpoint(
+            WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+        )
 
     // Image picker for avatar uploads
-    val imagePicker = rememberImagePicker { result ->
-        when (result) {
-            is ImagePickerResult.Success -> {
-                onEvent(ContributorEditUiEvent.UploadImage(result.data, result.filename))
-            }
-            is ImagePickerResult.Cancelled -> { /* User cancelled */ }
-            is ImagePickerResult.Error -> {
-                // Error is handled via the ViewModel's error state
+    val imagePicker =
+        rememberImagePicker { result ->
+            when (result) {
+                is ImagePickerResult.Success -> {
+                    onEvent(ContributorEditUiEvent.UploadImage(result.data, result.filename))
+                }
+
+                is ImagePickerResult.Cancelled -> { /* User cancelled */ }
+
+                is ImagePickerResult.Error -> {
+                    // Error is handled via the ViewModel's error state
+                }
             }
         }
-    }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
     ) {
         // Identity Header with avatar and name
-        IdentityHeader(
+        ContributorIdentityHeader(
             imagePath = state.imagePath,
             name = state.name,
             colorScheme = colorScheme,
@@ -426,159 +350,6 @@ private fun ArtistStudioContent(
 }
 
 // =============================================================================
-// IDENTITY HEADER - Avatar + Name side by side
-// =============================================================================
-
-@Composable
-private fun IdentityHeader(
-    imagePath: String?,
-    name: String,
-    colorScheme: ContributorColorScheme,
-    isUploadingImage: Boolean,
-    onNameChange: (String) -> Unit,
-    onAvatarClick: () -> Unit,
-    onBackClick: () -> Unit,
-) {
-    val surfaceColor = MaterialTheme.colorScheme.surface
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(16.dp),
-    ) {
-        // Floating back button
-        IconButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .size(48.dp)
-                .background(
-                    color = surfaceColor.copy(alpha = 0.5f),
-                    shape = CircleShape,
-                ),
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Avatar + Name row (matching BookEditScreen's identity header)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Large editable avatar (120dp) - tappable for upload
-            ElevatedCard(
-                onClick = onAvatarClick,
-                shape = CircleShape,
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = colorScheme.primary,
-                ),
-                modifier = Modifier.size(120.dp),
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (imagePath != null) {
-                        ListenUpAsyncImage(
-                            path = imagePath,
-                            contentDescription = "Contributor photo",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape),
-                        )
-                    } else {
-                        Text(
-                            text = getInitials(name),
-                            style = MaterialTheme.typography.displaySmall.copy(
-                                fontFamily = GoogleSansDisplay,
-                                fontWeight = FontWeight.Bold,
-                            ),
-                            color = colorScheme.onPrimary,
-                        )
-                    }
-
-                    // Loading overlay during upload
-                    if (isUploadingImage) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.5f)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White,
-                            )
-                        }
-                    } else {
-                        // Edit indicator
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(4.dp)
-                                .size(32.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
-                                    shape = CircleShape,
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Change photo",
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Name field - Large editorial style (matching BookEditScreen's title field)
-            OutlinedTextField(
-                value = name,
-                onValueChange = onNameChange,
-                textStyle = TextStyle(
-                    fontFamily = GoogleSansDisplay,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = MaterialTheme.typography.headlineSmall.fontSize,
-                    color = MaterialTheme.colorScheme.onSurface,
-                ),
-                placeholder = {
-                    Text(
-                        "Name",
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontFamily = GoogleSansDisplay,
-                            fontWeight = FontWeight.Bold,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    )
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                    focusedContainerColor = surfaceColor.copy(alpha = 0.4f),
-                    unfocusedContainerColor = surfaceColor.copy(alpha = 0.2f),
-                ),
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
-}
-
-// =============================================================================
 // SINGLE COLUMN LAYOUT (Mobile)
 // =============================================================================
 
@@ -591,20 +362,29 @@ private fun SingleColumnCardsLayout(
         modifier = Modifier.padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        StudioCard(title = "Biography") {
+        ContributorStudioCard(title = "Biography") {
             BiographyCardContent(state = state, onEvent = onEvent)
         }
 
-        StudioCard(title = "Links") {
+        ContributorStudioCard(title = "Links") {
             LinksCardContent(state = state, onEvent = onEvent)
         }
 
-        StudioCard(title = "Dates") {
+        ContributorStudioCard(title = "Dates") {
             DatesCardContent(state = state, onEvent = onEvent)
         }
 
-        StudioCard(title = "Also Known As") {
-            AliasesCardContent(state = state, onEvent = onEvent)
+        ContributorStudioCard(title = "Also Known As") {
+            AliasesSection(
+                aliases = state.aliases,
+                searchQuery = state.aliasSearchQuery,
+                searchResults = state.aliasSearchResults,
+                isSearching = state.aliasSearchLoading,
+                onSearchQueryChange = { onEvent(ContributorEditUiEvent.AliasSearchQueryChanged(it)) },
+                onAliasSelected = { onEvent(ContributorEditUiEvent.AliasSelected(it)) },
+                onAliasEntered = { onEvent(ContributorEditUiEvent.AliasEntered(it)) },
+                onRemoveAlias = { onEvent(ContributorEditUiEvent.RemoveAlias(it)) },
+            )
         }
     }
 }
@@ -623,7 +403,7 @@ private fun TwoColumnCardsLayout(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // Full-width: Biography (primary content)
-        StudioCard(title = "Biography") {
+        ContributorStudioCard(title = "Biography") {
             BiographyCardContent(state = state, onEvent = onEvent)
         }
 
@@ -636,11 +416,11 @@ private fun TwoColumnCardsLayout(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                StudioCard(title = "Links") {
+                ContributorStudioCard(title = "Links") {
                     LinksCardContent(state = state, onEvent = onEvent)
                 }
 
-                StudioCard(title = "Dates") {
+                ContributorStudioCard(title = "Dates") {
                     DatesCardContent(state = state, onEvent = onEvent)
                 }
             }
@@ -650,44 +430,19 @@ private fun TwoColumnCardsLayout(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                StudioCard(title = "Also Known As") {
-                    AliasesCardContent(state = state, onEvent = onEvent)
+                ContributorStudioCard(title = "Also Known As") {
+                    AliasesSection(
+                        aliases = state.aliases,
+                        searchQuery = state.aliasSearchQuery,
+                        searchResults = state.aliasSearchResults,
+                        isSearching = state.aliasSearchLoading,
+                        onSearchQueryChange = { onEvent(ContributorEditUiEvent.AliasSearchQueryChanged(it)) },
+                        onAliasSelected = { onEvent(ContributorEditUiEvent.AliasSelected(it)) },
+                        onAliasEntered = { onEvent(ContributorEditUiEvent.AliasEntered(it)) },
+                        onRemoveAlias = { onEvent(ContributorEditUiEvent.RemoveAlias(it)) },
+                    )
                 }
             }
-        }
-    }
-}
-
-// =============================================================================
-// STUDIO CARD
-// =============================================================================
-
-@Composable
-private fun StudioCard(
-    title: String,
-    content: @Composable () -> Unit,
-) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = GoogleSansDisplay,
-                    fontWeight = FontWeight.Bold,
-                ),
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            content()
         }
     }
 }
@@ -742,99 +497,4 @@ private fun DatesCardContent(
             placeholder = "Select death date",
         )
     }
-}
-
-/**
- * Aliases card with merge functionality.
- *
- * Add pen names to merge into this contributor.
- * E.g., Adding "Richard Bachman" to Stephen King will:
- * - Re-link all "Richard Bachman" books to Stephen King
- * - Delete the Richard Bachman contributor
- * - Store "Richard Bachman" as an alias name
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun AliasesCardContent(
-    state: ContributorEditUiState,
-    onEvent: (ContributorEditUiEvent) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (state.aliases.isEmpty()) {
-            Text(
-                text = "No pen names yet. Add aliases to merge other contributors into this one.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                state.aliases.forEach { alias ->
-                    AliasChip(
-                        aliasName = alias,
-                        onRemove = { onEvent(ContributorEditUiEvent.RemoveAlias(alias)) },
-                    )
-                }
-            }
-        }
-
-        // Search field for adding aliases
-        ListenUpAutocompleteField(
-            value = state.aliasSearchQuery,
-            onValueChange = { onEvent(ContributorEditUiEvent.AliasSearchQueryChanged(it)) },
-            results = state.aliasSearchResults,
-            onResultSelected = { result -> onEvent(ContributorEditUiEvent.AliasSelected(result)) },
-            onSubmit = { query ->
-                val topResult = state.aliasSearchResults.firstOrNull()
-                if (topResult != null && topResult.name.equals(query, ignoreCase = true)) {
-                    onEvent(ContributorEditUiEvent.AliasSelected(topResult))
-                } else if (query.isNotBlank()) {
-                    onEvent(ContributorEditUiEvent.AliasEntered(query))
-                }
-            },
-            resultContent = { result ->
-                AutocompleteResultItem(
-                    name = result.name,
-                    subtitle = if (result.bookCount > 0) {
-                        "${result.bookCount} ${if (result.bookCount == 1) "book" else "books"} will be merged"
-                    } else {
-                        null
-                    },
-                    onClick = { onEvent(ContributorEditUiEvent.AliasSelected(result)) },
-                )
-            },
-            placeholder = "Search contributor to merge, or type pen name...",
-            isLoading = state.aliasSearchLoading,
-        )
-    }
-}
-
-@Composable
-private fun AliasChip(
-    aliasName: String,
-    onRemove: () -> Unit,
-) {
-    InputChip(
-        selected = false,
-        onClick = { },
-        label = { Text(aliasName) },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = null,
-                modifier = Modifier.size(InputChipDefaults.AvatarSize),
-            )
-        },
-        trailingIcon = {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Remove $aliasName",
-                modifier = Modifier
-                    .size(InputChipDefaults.AvatarSize)
-                    .clickable { onRemove() },
-            )
-        },
-    )
 }

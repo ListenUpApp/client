@@ -90,7 +90,9 @@ class AndroidImageStorage(
                 val targetFile = getCoverFile(bookId)
 
                 if (!stagingFile.exists()) {
-                    return@withContext Result.Failure(IOException("No staging cover to commit for book ${bookId.value}"))
+                    return@withContext Result.Failure(
+                        IOException("No staging cover to commit for book ${bookId.value}"),
+                    )
                 }
 
                 // Copy staging to target, then delete staging
@@ -154,11 +156,9 @@ class AndroidImageStorage(
             }
         }
 
-    override fun getContributorImagePath(contributorId: String): String =
-        getContributorFile(contributorId).absolutePath
+    override fun getContributorImagePath(contributorId: String): String = getContributorFile(contributorId).absolutePath
 
-    override fun contributorImageExists(contributorId: String): Boolean =
-        getContributorFile(contributorId).exists()
+    override fun contributorImageExists(contributorId: String): Boolean = getContributorFile(contributorId).exists()
 
     override suspend fun deleteContributorImage(contributorId: String): Result<Unit> =
         withContext(Dispatchers.IO) {

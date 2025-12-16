@@ -8,8 +8,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
-import com.mikepenz.markdown.model.markdownPadding
 import com.mikepenz.markdown.m3.markdownTypography
+import com.mikepenz.markdown.model.markdownPadding
 
 /**
  * Renders Markdown text with Material 3 theming.
@@ -29,15 +29,18 @@ fun MarkdownText(
     Markdown(
         content = markdown,
         modifier = modifier,
-        colors = markdownColor(
-            text = color,
-        ),
-        typography = markdownTypography(
-            text = style,
-            paragraph = style,
-        ),
-        padding = markdownPadding(
-            block = 8.dp,
-        ),
+        colors =
+            markdownColor(
+                text = color,
+            ),
+        typography =
+            markdownTypography(
+                text = style,
+                paragraph = style,
+            ),
+        padding =
+            markdownPadding(
+                block = 8.dp,
+            ),
     )
 }

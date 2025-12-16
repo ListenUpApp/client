@@ -111,10 +111,11 @@ fun AutocompleteResultItem(
     },
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         leadingIcon()
@@ -142,7 +143,10 @@ fun AutocompleteResultItem(
 }
 
 // Preview data class
-private data class PreviewContributor(val name: String, val bookCount: Int)
+private data class PreviewContributor(
+    val name: String,
+    val bookCount: Int,
+)
 
 @Preview(name = "Empty State")
 @Composable
@@ -170,11 +174,12 @@ private fun PreviewAutocompleteFieldWithResults() {
             ListenUpAutocompleteField(
                 value = "Stephen",
                 onValueChange = {},
-                results = listOf(
-                    PreviewContributor("Stephen King", 12),
-                    PreviewContributor("Stephen Fry", 8),
-                    PreviewContributor("Stephen Hawking", 3),
-                ),
+                results =
+                    listOf(
+                        PreviewContributor("Stephen King", 12),
+                        PreviewContributor("Stephen Fry", 8),
+                        PreviewContributor("Stephen Hawking", 3),
+                    ),
                 onResultSelected = {},
                 onSubmit = {},
                 resultContent = { contributor ->

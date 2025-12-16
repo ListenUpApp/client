@@ -128,10 +128,11 @@ class ContributorRepositoryTest {
 
             every { networkMonitor.isOnline() } returns true
 
-            val serverResults = listOf(
-                createContributorSearchResult(id = "c1", name = "Brandon Sanderson", bookCount = 10),
-                createContributorSearchResult(id = "c2", name = "Brian McClellan", bookCount = 5),
-            )
+            val serverResults =
+                listOf(
+                    createContributorSearchResult(id = "c1", name = "Brandon Sanderson", bookCount = 10),
+                    createContributorSearchResult(id = "c2", name = "Brian McClellan", bookCount = 5),
+                )
             everySuspend { api.searchContributors(any(), any()) } returns Success(serverResults)
 
             // When
@@ -174,9 +175,10 @@ class ContributorRepositoryTest {
 
             every { networkMonitor.isOnline() } returns true
 
-            val serverResults = listOf(
-                createContributorSearchResult(id = "c1", name = "Brandon Sanderson", bookCount = 15),
-            )
+            val serverResults =
+                listOf(
+                    createContributorSearchResult(id = "c1", name = "Brandon Sanderson", bookCount = 15),
+                )
             everySuspend { api.searchContributors(any(), any()) } returns Success(serverResults)
 
             // When

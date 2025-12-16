@@ -64,9 +64,10 @@ fun ListenUpDatePicker(
     val displayValue = currentDate?.let { formatForDisplay(it) } ?: ""
 
     // Initial selection for the date picker (in millis since epoch)
-    val initialSelectionMillis = currentDate?.let {
-        it.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
-    }
+    val initialSelectionMillis =
+        currentDate?.let {
+            it.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+        }
 
     Box(modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
@@ -96,19 +97,21 @@ fun ListenUpDatePicker(
         )
         // Invisible overlay to intercept clicks and open dialog
         Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null, // No ripple, the text field handles that
-                ) { showDialog = true },
+            modifier =
+                Modifier
+                    .matchParentSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null, // No ripple, the text field handles that
+                    ) { showDialog = true },
         )
     }
 
     if (showDialog) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = initialSelectionMillis,
-        )
+        val datePickerState =
+            rememberDatePickerState(
+                initialSelectedDateMillis = initialSelectionMillis,
+            )
 
         DatePickerDialog(
             onDismissRequest = { showDialog = false },
@@ -116,9 +119,11 @@ fun ListenUpDatePicker(
                 TextButton(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            val selectedDate = Instant.ofEpochMilli(millis)
-                                .atZone(ZoneId.of("UTC"))
-                                .toLocalDate()
+                            val selectedDate =
+                                Instant
+                                    .ofEpochMilli(millis)
+                                    .atZone(ZoneId.of("UTC"))
+                                    .toLocalDate()
                             onValueChange(formatIsoDate(selectedDate))
                         }
                         showDialog = false
@@ -155,9 +160,7 @@ private fun parseIsoDate(isoDate: String): LocalDate? {
 /**
  * Format a LocalDate to ISO 8601 format (YYYY-MM-DD).
  */
-private fun formatIsoDate(date: LocalDate): String {
-    return date.format(DateTimeFormatter.ISO_LOCAL_DATE)
-}
+private fun formatIsoDate(date: LocalDate): String = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
 /**
  * Format a LocalDate for user-friendly display.

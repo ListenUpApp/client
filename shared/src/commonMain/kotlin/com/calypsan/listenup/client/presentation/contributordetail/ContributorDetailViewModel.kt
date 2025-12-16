@@ -98,27 +98,29 @@ class ContributorDetailViewModel(
         role: String,
     ): BooksForRoleResult {
         // Get the books once (not as a flow) for the preview
-        val booksWithContributors = bookDao
-            .observeByContributorAndRole(contributorId, role)
-            .first()
+        val booksWithContributors =
+            bookDao
+                .observeByContributorAndRole(contributorId, role)
+                .first()
 
         val books = booksWithContributors.map { bwc -> bwc.toDomain() }
 
         // Extract creditedAs for books where the attribution differs from contributor name
-        val creditedAsMap = booksWithContributors
-            .mapNotNull { bwc ->
-                val crossRef = bwc.contributorRoles.find {
-                    it.contributorId == contributorId && it.role == role
-                }
-                val creditedAs = crossRef?.creditedAs
-                // Only include if creditedAs is set and differs from the contributor's actual name
-                if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
-                    bwc.book.id.value to creditedAs
-                } else {
-                    null
-                }
-            }
-            .toMap()
+        val creditedAsMap =
+            booksWithContributors
+                .mapNotNull { bwc ->
+                    val crossRef =
+                        bwc.contributorRoles.find {
+                            it.contributorId == contributorId && it.role == role
+                        }
+                    val creditedAs = crossRef?.creditedAs
+                    // Only include if creditedAs is set and differs from the contributor's actual name
+                    if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
+                        bwc.book.id.value to creditedAs
+                    } else {
+                        null
+                    }
+                }.toMap()
 
         return BooksForRoleResult(books, creditedAsMap)
     }
@@ -156,8 +158,7 @@ class ContributorDetailViewModel(
                     contributorsById[crossRef.contributorId]?.let { entity ->
                         Contributor(entity.id, crossRef.creditedAs ?: entity.name)
                     }
-                }
-                .distinctBy { it.id }
+                }.distinctBy { it.id }
 
         // Get narrators by filtering cross-refs with role "narrator"
         // Use creditedAs for display name when available (preserves original attribution after merge)
@@ -168,8 +169,7 @@ class ContributorDetailViewModel(
                     contributorsById[crossRef.contributorId]?.let { entity ->
                         Contributor(entity.id, crossRef.creditedAs ?: entity.name)
                     }
-                }
-                .distinctBy { it.id }
+                }.distinctBy { it.id }
 
         return Book(
             id = book.id,

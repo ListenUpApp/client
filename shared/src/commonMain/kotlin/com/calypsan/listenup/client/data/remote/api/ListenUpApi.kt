@@ -11,11 +11,11 @@ import com.calypsan.listenup.client.data.remote.ContributorInput
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.MergeContributorResponse
+import com.calypsan.listenup.client.data.remote.SeriesInput
+import com.calypsan.listenup.client.data.remote.SeriesSearchResult
 import com.calypsan.listenup.client.data.remote.UnmergeContributorResponse
 import com.calypsan.listenup.client.data.remote.UpdateContributorRequest
 import com.calypsan.listenup.client.data.remote.UpdateContributorResponse
-import com.calypsan.listenup.client.data.remote.SeriesInput
-import com.calypsan.listenup.client.data.remote.SeriesSearchResult
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.domain.model.Instance
@@ -250,9 +250,10 @@ class ListenUpApi(
             logger.debug { "Setting book contributors: id=$bookId, count=${contributors.size}" }
 
             val client = getAuthenticatedClient()
-            val request = SetContributorsApiRequest(
-                contributors = contributors.map { ContributorApiInput(it.name, it.roles) },
-            )
+            val request =
+                SetContributorsApiRequest(
+                    contributors = contributors.map { ContributorApiInput(it.name, it.roles) },
+                )
             val response: ApiResponse<BookEditApiResponse> =
                 client
                     .put("/api/v1/books/$bookId/contributors") {
@@ -322,9 +323,10 @@ class ListenUpApi(
             logger.debug { "Setting book series: id=$bookId, count=${series.size}" }
 
             val client = getAuthenticatedClient()
-            val request = SetSeriesApiRequest(
-                series = series.map { SeriesApiInput(it.name, it.sequence) },
-            )
+            val request =
+                SetSeriesApiRequest(
+                    series = series.map { SeriesApiInput(it.name, it.sequence) },
+                )
             val response: ApiResponse<BookEditApiResponse> =
                 client
                     .put("/api/v1/books/$bookId/series") {
@@ -428,14 +430,15 @@ class ListenUpApi(
             logger.debug { "Updating contributor: $contributorId" }
 
             val client = getAuthenticatedClient()
-            val apiRequest = UpdateContributorApiRequest(
-                name = request.name,
-                biography = request.biography,
-                website = request.website,
-                birthDate = request.birthDate,
-                deathDate = request.deathDate,
-                aliases = request.aliases,
-            )
+            val apiRequest =
+                UpdateContributorApiRequest(
+                    name = request.name,
+                    biography = request.biography,
+                    website = request.website,
+                    birthDate = request.birthDate,
+                    deathDate = request.deathDate,
+                    aliases = request.aliases,
+                )
             val response: ApiResponse<UpdateContributorApiResponse> =
                 client
                     .put("/api/v1/contributors/$contributorId") {

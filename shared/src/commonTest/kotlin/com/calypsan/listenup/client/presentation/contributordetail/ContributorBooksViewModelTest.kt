@@ -8,9 +8,9 @@ import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.BookWithContributors
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
-import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
+import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.images.ImageStorage
@@ -181,15 +181,15 @@ class ContributorBooksViewModelTest {
     // ========== Initial State Tests ==========
 
     @Test
-    fun `initial state has isLoading false and empty data`() =
+    fun `initial state has isLoading true and empty data`() =
         runTest {
             // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
 
-            // Then
+            // Then - isLoading starts true to avoid showing empty content before data loads
             val state = viewModel.state.value
-            assertFalse(state.isLoading)
+            assertTrue(state.isLoading)
             assertEquals("", state.contributorName)
             assertEquals("", state.roleDisplayName)
             assertTrue(state.seriesGroups.isEmpty())

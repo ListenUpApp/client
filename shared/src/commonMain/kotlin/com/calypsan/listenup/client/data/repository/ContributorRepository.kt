@@ -130,7 +130,9 @@ class ContributorRepository(
                     }
                 }
 
-            logger.debug { "Server contributor search: query='$query', results=${contributors.size}, took=${duration.inWholeMilliseconds}ms" }
+            logger.debug {
+                "Server contributor search: query='$query', results=${contributors.size}, took=${duration.inWholeMilliseconds}ms"
+            }
 
             ContributorSearchResponse(
                 contributors = contributors,
@@ -164,7 +166,9 @@ class ContributorRepository(
 
             val contributors = entities.map { it.toSearchResult() }
 
-            logger.debug { "Local contributor search: query='$query', results=${contributors.size}, took=${duration.inWholeMilliseconds}ms" }
+            logger.debug {
+                "Local contributor search: query='$query', results=${contributors.size}, took=${duration.inWholeMilliseconds}ms"
+            }
 
             ContributorSearchResponse(
                 contributors = contributors,

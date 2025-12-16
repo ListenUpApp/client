@@ -40,24 +40,20 @@ data class ContributorEditUiState(
     val isSaving: Boolean = false,
     val isUploadingImage: Boolean = false,
     val error: String? = null,
-
     // Contributor identity
     val contributorId: String = "",
     val imagePath: String? = null,
-
     // Editable fields
     val name: String = "",
     val description: String = "",
     val website: String = "",
     val birthDate: String = "", // ISO 8601 format (YYYY-MM-DD)
     val deathDate: String = "", // ISO 8601 format (YYYY-MM-DD)
-
     // Aliases - pen names merged into this contributor
     val aliases: List<String> = emptyList(),
     val aliasSearchQuery: String = "",
     val aliasSearchResults: List<ContributorSearchResult> = emptyList(),
     val aliasSearchLoading: Boolean = false,
-
     // Track if changes have been made
     val hasChanges: Boolean = false,
 )
@@ -67,24 +63,54 @@ data class ContributorEditUiState(
  */
 sealed interface ContributorEditUiEvent {
     // Field changes
-    data class NameChanged(val name: String) : ContributorEditUiEvent
-    data class DescriptionChanged(val description: String) : ContributorEditUiEvent
-    data class WebsiteChanged(val website: String) : ContributorEditUiEvent
-    data class BirthDateChanged(val date: String) : ContributorEditUiEvent
-    data class DeathDateChanged(val date: String) : ContributorEditUiEvent
+    data class NameChanged(
+        val name: String,
+    ) : ContributorEditUiEvent
+
+    data class DescriptionChanged(
+        val description: String,
+    ) : ContributorEditUiEvent
+
+    data class WebsiteChanged(
+        val website: String,
+    ) : ContributorEditUiEvent
+
+    data class BirthDateChanged(
+        val date: String,
+    ) : ContributorEditUiEvent
+
+    data class DeathDateChanged(
+        val date: String,
+    ) : ContributorEditUiEvent
 
     // Alias management
-    data class AliasSearchQueryChanged(val query: String) : ContributorEditUiEvent
-    data class AliasSelected(val result: ContributorSearchResult) : ContributorEditUiEvent
-    data class AliasEntered(val name: String) : ContributorEditUiEvent // Manual text entry
-    data class RemoveAlias(val alias: String) : ContributorEditUiEvent
+    data class AliasSearchQueryChanged(
+        val query: String,
+    ) : ContributorEditUiEvent
+
+    data class AliasSelected(
+        val result: ContributorSearchResult,
+    ) : ContributorEditUiEvent
+
+    data class AliasEntered(
+        val name: String,
+    ) : ContributorEditUiEvent // Manual text entry
+
+    data class RemoveAlias(
+        val alias: String,
+    ) : ContributorEditUiEvent
 
     // Image upload
-    data class UploadImage(val imageData: ByteArray, val filename: String) : ContributorEditUiEvent
+    data class UploadImage(
+        val imageData: ByteArray,
+        val filename: String,
+    ) : ContributorEditUiEvent
 
     // Actions
     data object Save : ContributorEditUiEvent
+
     data object Cancel : ContributorEditUiEvent
+
     data object DismissError : ContributorEditUiEvent
 }
 
@@ -93,6 +119,7 @@ sealed interface ContributorEditUiEvent {
  */
 sealed interface ContributorEditNavAction {
     data object NavigateBack : ContributorEditNavAction
+
     data object SaveSuccess : ContributorEditNavAction
 }
 
@@ -290,30 +317,35 @@ class ContributorEditViewModel(
 
     private fun performAliasSearch(query: String) {
         aliasSearchJob?.cancel()
-        aliasSearchJob = viewModelScope.launch {
-            _state.update { it.copy(aliasSearchLoading = true) }
+        aliasSearchJob =
+            viewModelScope.launch {
+                _state.update { it.copy(aliasSearchLoading = true) }
 
-            val response = contributorRepository.searchContributors(query, limit = 10)
+                val response = contributorRepository.searchContributors(query, limit = 10)
 
-            // Filter out:
-            // - The current contributor (can't be an alias of itself)
-            // - Contributors already in aliases list
-            val currentId = _state.value.contributorId
-            val currentAliases = _state.value.aliases.map { it.lowercase() }.toSet()
+                // Filter out:
+                // - The current contributor (can't be an alias of itself)
+                // - Contributors already in aliases list
+                val currentId = _state.value.contributorId
+                val currentAliases =
+                    _state.value.aliases
+                        .map { it.lowercase() }
+                        .toSet()
 
-            val filteredResults = response.contributors.filter { result ->
-                result.id != currentId && result.name.lowercase() !in currentAliases
+                val filteredResults =
+                    response.contributors.filter { result ->
+                        result.id != currentId && result.name.lowercase() !in currentAliases
+                    }
+
+                _state.update {
+                    it.copy(
+                        aliasSearchResults = filteredResults,
+                        aliasSearchLoading = false,
+                    )
+                }
+
+                logger.debug { "Alias search: ${filteredResults.size} results for '$query'" }
             }
-
-            _state.update {
-                it.copy(
-                    aliasSearchResults = filteredResults,
-                    aliasSearchLoading = false,
-                )
-            }
-
-            logger.debug { "Alias search: ${filteredResults.size} results for '$query'" }
-        }
     }
 
     /**
@@ -469,7 +501,9 @@ class ContributorEditViewModel(
 
         when (val result = api.unmergeContributor(contributorId, aliasName)) {
             is Success -> {
-                logger.info { "Server unmerge successful: created contributor ${result.data.id} with name '${result.data.name}'" }
+                logger.info {
+                    "Server unmerge successful: created contributor ${result.data.id} with name '${result.data.name}'"
+                }
 
                 // Update local state to remove the alias
                 _state.update { current ->
@@ -487,20 +521,26 @@ class ContributorEditViewModel(
 
             is Failure -> {
                 logger.error(result.exception) { "Server unmerge failed for alias '$aliasName'" }
-                _state.update { it.copy(isSaving = false, error = "Failed to remove alias: ${result.exception.message}") }
+                _state.update {
+                    it.copy(
+                        isSaving = false,
+                        error = "Failed to remove alias: ${result.exception.message}",
+                    )
+                }
             }
         }
     }
 
     private fun updateHasChanges() {
         val current = _state.value
-        val hasChanges = current.name != originalName ||
-            current.description != originalDescription ||
-            current.website != originalWebsite ||
-            current.birthDate != originalBirthDate ||
-            current.deathDate != originalDeathDate ||
-            current.aliases.toSet() != originalAliases.toSet() ||
-            current.imagePath != originalImagePath
+        val hasChanges =
+            current.name != originalName ||
+                current.description != originalDescription ||
+                current.website != originalWebsite ||
+                current.birthDate != originalBirthDate ||
+                current.deathDate != originalDeathDate ||
+                current.aliases.toSet() != originalAliases.toSet() ||
+                current.imagePath != originalImagePath
 
         _state.update { it.copy(hasChanges = hasChanges) }
     }
@@ -539,51 +579,54 @@ class ContributorEditViewModel(
                 val finalAliases = serverAliases ?: current.aliases
 
                 // Update contributor on server
-                val updateRequest = UpdateContributorRequest(
-                    name = current.name,
-                    biography = current.description.ifBlank { null },
-                    website = current.website.ifBlank { null },
-                    birthDate = current.birthDate.ifBlank { null },
-                    deathDate = current.deathDate.ifBlank { null },
-                    aliases = finalAliases,
-                )
+                val updateRequest =
+                    UpdateContributorRequest(
+                        name = current.name,
+                        biography = current.description.ifBlank { null },
+                        website = current.website.ifBlank { null },
+                        birthDate = current.birthDate.ifBlank { null },
+                        deathDate = current.deathDate.ifBlank { null },
+                        aliases = finalAliases,
+                    )
 
                 val serverResponse = api.updateContributor(current.contributorId, updateRequest)
 
-                val (finalSyncState, aliasesString) = when (serverResponse) {
-                    is Success -> {
-                        logger.info { "Server update successful" }
-                        // Use server's response as source of truth
-                        val responseAliases = serverResponse.data.aliases
-                        SyncState.SYNCED to responseAliases.takeIf { it.isNotEmpty() }?.joinToString(", ")
+                val (finalSyncState, aliasesString) =
+                    when (serverResponse) {
+                        is Success -> {
+                            logger.info { "Server update successful" }
+                            // Use server's response as source of truth
+                            val responseAliases = serverResponse.data.aliases
+                            SyncState.SYNCED to responseAliases.takeIf { it.isNotEmpty() }?.joinToString(", ")
+                        }
+
+                        is Failure -> {
+                            logger.warn { "Server update failed, saving locally: ${serverResponse.exception.message}" }
+                            // Save locally for later sync
+                            SyncState.NOT_SYNCED to finalAliases.takeIf { it.isNotEmpty() }?.joinToString(", ")
+                        }
                     }
-                    is Failure -> {
-                        logger.warn { "Server update failed, saving locally: ${serverResponse.exception.message}" }
-                        // Save locally for later sync
-                        SyncState.NOT_SYNCED to finalAliases.takeIf { it.isNotEmpty() }?.joinToString(", ")
-                    }
-                }
 
                 // Update local database
-                val updated = existing.copy(
-                    name = current.name,
-                    description = current.description.ifBlank { null },
-                    website = current.website.ifBlank { null },
-                    birthDate = current.birthDate.ifBlank { null },
-                    deathDate = current.deathDate.ifBlank { null },
-                    aliases = aliasesString,
-                    imagePath = current.imagePath,
-                    syncState = finalSyncState,
-                    lastModified = Timestamp.now(),
-                    updatedAt = Timestamp.now(),
-                )
+                val updated =
+                    existing.copy(
+                        name = current.name,
+                        description = current.description.ifBlank { null },
+                        website = current.website.ifBlank { null },
+                        birthDate = current.birthDate.ifBlank { null },
+                        deathDate = current.deathDate.ifBlank { null },
+                        aliases = aliasesString,
+                        imagePath = current.imagePath,
+                        syncState = finalSyncState,
+                        lastModified = Timestamp.now(),
+                        updatedAt = Timestamp.now(),
+                    )
                 contributorDao.upsert(updated)
 
                 logger.info { "Contributor saved: ${current.name}, aliases: $finalAliases" }
 
                 _state.update { it.copy(isSaving = false, hasChanges = false) }
                 _navActions.value = ContributorEditNavAction.SaveSuccess
-
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save contributor changes" }
                 _state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }
@@ -625,20 +668,22 @@ class ContributorEditViewModel(
                 val localRelations = bookContributorDao.getByContributorId(tracked.id)
                 for (relation in localRelations) {
                     // Check if target already has a relationship for this book/role
-                    val existingTargetRelation = bookContributorDao.get(
-                        relation.bookId,
-                        targetContributorId,
-                        relation.role,
-                    )
+                    val existingTargetRelation =
+                        bookContributorDao.get(
+                            relation.bookId,
+                            targetContributorId,
+                            relation.role,
+                        )
 
                     if (existingTargetRelation == null) {
                         // Create new relationship pointing to target, with creditedAs preserving original name
-                        val newRelation = BookContributorCrossRef(
-                            bookId = relation.bookId,
-                            contributorId = targetContributorId,
-                            role = relation.role,
-                            creditedAs = relation.creditedAs ?: tracked.name,
-                        )
+                        val newRelation =
+                            BookContributorCrossRef(
+                                bookId = relation.bookId,
+                                contributorId = targetContributorId,
+                                role = relation.role,
+                                creditedAs = relation.creditedAs ?: tracked.name,
+                            )
                         bookContributorDao.insert(newRelation)
                     }
                     // Either way, delete the old relationship

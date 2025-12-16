@@ -95,8 +95,9 @@ private fun PreviewListenUpTextAreaWithText() {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ListenUpTextArea(
-                value = "This is a multi-line description that spans several lines. " +
-                    "It demonstrates how the text area handles longer content with proper wrapping.",
+                value =
+                    "This is a multi-line description that spans several lines. " +
+                        "It demonstrates how the text area handles longer content with proper wrapping.",
                 onValueChange = {},
                 label = "Description",
             )
