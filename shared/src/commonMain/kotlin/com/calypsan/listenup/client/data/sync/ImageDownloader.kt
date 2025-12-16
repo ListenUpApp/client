@@ -188,4 +188,80 @@ class ImageDownloader(
         } else {
             null
         }
+
+    /**
+     * Download and save a single series cover.
+     *
+     * Non-fatal errors (404, network issues) are logged but don't throw.
+     * Returns success=true if cover was downloaded and saved successfully.
+     *
+     * @param seriesId Unique identifier for the series
+     * @return Result indicating if cover was successfully downloaded and saved
+     */
+    override suspend fun downloadSeriesCover(seriesId: String): Result<Boolean> {
+        // Skip if already exists locally
+        if (imageStorage.seriesCoverExists(seriesId)) {
+            logger.info { "Cover already exists locally for series $seriesId" }
+            return Result.Success(false)
+        }
+
+        logger.info { "Downloading cover for series $seriesId..." }
+
+        // Download from server
+        val downloadResult = imageApi.downloadSeriesCover(seriesId)
+        if (downloadResult is Result.Failure) {
+            // 404 is expected for series without covers - don't log as error
+            logger.info { "Cover not available for series $seriesId: ${downloadResult.exception.message}" }
+            return Result.Success(false)
+        }
+
+        // Save to local storage
+        val imageBytes = (downloadResult as Result.Success).data
+        logger.info { "Downloaded ${imageBytes.size} bytes for series $seriesId, saving..." }
+
+        val saveResult = imageStorage.saveSeriesCover(seriesId, imageBytes)
+
+        if (saveResult is Result.Failure) {
+            logger.error(saveResult.exception) {
+                "Failed to save cover for series $seriesId"
+            }
+            return Result.Failure(saveResult.exception)
+        }
+
+        logger.info { "Successfully downloaded and saved cover for series $seriesId" }
+        return Result.Success(true)
+    }
+
+    /**
+     * Download covers for multiple series in batch.
+     *
+     * Continues on individual failures - one failed download doesn't stop the batch.
+     * Returns list of series IDs that had covers successfully downloaded.
+     *
+     * @param seriesIds List of series identifiers to download covers for
+     * @return Result containing list of series IDs that were successfully downloaded
+     */
+    override suspend fun downloadSeriesCovers(seriesIds: List<String>): Result<List<String>> {
+        val successfulDownloads = mutableListOf<String>()
+
+        seriesIds.forEach { seriesId ->
+            when (val result = downloadSeriesCover(seriesId)) {
+                is Result.Success -> {
+                    if (result.data) {
+                        successfulDownloads.add(seriesId)
+                    }
+                }
+
+                is Result.Failure -> {
+                    // Log and continue - non-fatal
+                    logger.warn(result.exception) {
+                        "Failed to download cover for series $seriesId"
+                    }
+                }
+            }
+        }
+
+        logger.info { "Downloaded ${successfulDownloads.size} covers out of ${seriesIds.size} series" }
+        return Result.Success(successfulDownloads)
+    }
 }

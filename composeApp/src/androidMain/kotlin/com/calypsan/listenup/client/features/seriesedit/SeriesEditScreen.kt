@@ -1,0 +1,557 @@
+package com.calypsan.listenup.client.features.seriesedit
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.design.components.CoverColors
+import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpTextArea
+import com.calypsan.listenup.client.design.components.ListenUpTextField
+import com.calypsan.listenup.client.design.components.rememberCoverColors
+import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
+import com.calypsan.listenup.client.domain.imagepicker.ImagePickerResult
+import com.calypsan.listenup.client.presentation.seriesedit.SeriesEditNavAction
+import com.calypsan.listenup.client.presentation.seriesedit.SeriesEditUiEvent
+import com.calypsan.listenup.client.presentation.seriesedit.SeriesEditUiState
+import com.calypsan.listenup.client.presentation.seriesedit.SeriesEditViewModel
+import com.calypsan.listenup.client.util.rememberImagePicker
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
+
+/**
+ * Series Edit Screen - simplified edit screen for series metadata and cover.
+ *
+ * Design follows ContributorEditScreen pattern with:
+ * - Dynamic gradient backdrop derived from cover
+ * - Identity header with cover and name field
+ * - Cards for description and metadata
+ * - Extended FAB for save action
+ */
+@Composable
+fun SeriesEditScreen(
+    seriesId: String,
+    onBackClick: () -> Unit,
+    onSaveSuccess: () -> Unit,
+    viewModel: SeriesEditViewModel = koinViewModel { parametersOf(seriesId) },
+) {
+    LaunchedEffect(seriesId) {
+        viewModel.loadSeries(seriesId)
+    }
+
+    val state by viewModel.state.collectAsState()
+    val navAction by viewModel.navActions.collectAsState()
+
+    LaunchedEffect(navAction) {
+        when (navAction) {
+            is SeriesEditNavAction.NavigateBack -> {
+                onSaveSuccess()
+                viewModel.consumeNavAction()
+            }
+            null -> { /* no action */ }
+        }
+    }
+
+    var showUnsavedChangesDialog by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = state.hasChanges) {
+        showUnsavedChangesDialog = true
+    }
+
+    // Generate color palette from cover
+    val colorScheme = rememberCoverColors(
+        imagePath = state.displayCoverPath,
+        refreshKey = state.pendingCoverData,
+    )
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    Scaffold(
+        containerColor = Color.Transparent,
+        floatingActionButton = {
+            if (!state.isLoading) {
+                SaveFab(
+                    hasChanges = state.hasChanges,
+                    isSaving = state.isSaving,
+                    onSave = { viewModel.onEvent(SeriesEditUiEvent.SaveClicked) },
+                )
+            }
+        },
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(surfaceColor),
+        ) {
+            // Immersive gradient backdrop
+            SeriesBackdrop(
+                colorScheme = colorScheme,
+                surfaceColor = surfaceColor,
+            )
+
+            // Content
+            when {
+                state.isLoading -> {
+                    ListenUpLoadingIndicator(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(paddingValues),
+                    )
+                }
+
+                state.error != null -> {
+                    ErrorContent(
+                        error = state.error,
+                        onDismiss = { viewModel.onEvent(SeriesEditUiEvent.ErrorDismissed) },
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(paddingValues),
+                    )
+                }
+
+                else -> {
+                    SeriesEditContent(
+                        state = state,
+                        colorScheme = colorScheme,
+                        onEvent = viewModel::onEvent,
+                        onBackClick = {
+                            if (state.hasChanges) {
+                                showUnsavedChangesDialog = true
+                            } else {
+                                onBackClick()
+                            }
+                        },
+                        modifier = Modifier.padding(bottom = paddingValues.calculateBottomPadding()),
+                    )
+                }
+            }
+        }
+    }
+
+    if (showUnsavedChangesDialog) {
+        UnsavedChangesDialog(
+            onDiscard = {
+                showUnsavedChangesDialog = false
+                viewModel.onEvent(SeriesEditUiEvent.CancelClicked)
+            },
+            onKeepEditing = { showUnsavedChangesDialog = false },
+        )
+    }
+}
+
+// =============================================================================
+// BACKDROP
+// =============================================================================
+
+@Composable
+private fun SeriesBackdrop(
+    colorScheme: CoverColors,
+    surfaceColor: Color,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(400.dp)
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        colorScheme.vibrant.copy(alpha = 0.3f),
+                        colorScheme.darkVibrant.copy(alpha = 0.2f),
+                        surfaceColor.copy(alpha = 0.0f),
+                    ),
+                    startY = 0f,
+                    endY = 1200f,
+                ),
+            ),
+    )
+}
+
+// =============================================================================
+// FLOATING ACTION BUTTON
+// =============================================================================
+
+@Composable
+private fun SaveFab(
+    hasChanges: Boolean,
+    isSaving: Boolean,
+    onSave: () -> Unit,
+) {
+    val isEnabled = hasChanges && !isSaving
+    val contentColor = if (isEnabled) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    }
+
+    ExtendedFloatingActionButton(
+        onClick = { if (isEnabled) onSave() },
+        icon = {
+            if (isSaving) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                    color = contentColor,
+                )
+            } else {
+                Icon(
+                    Icons.Default.Save,
+                    contentDescription = null,
+                    tint = contentColor,
+                )
+            }
+        },
+        text = {
+            Text(
+                text = if (isSaving) "Saving..." else "Save Changes",
+                color = contentColor,
+            )
+        },
+        expanded = true,
+        containerColor = if (isEnabled) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHighest
+        },
+    )
+}
+
+// =============================================================================
+// DIALOGS
+// =============================================================================
+
+@Composable
+private fun UnsavedChangesDialog(
+    onDiscard: () -> Unit,
+    onKeepEditing: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onKeepEditing,
+        title = { Text("Unsaved Changes") },
+        text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
+        shape = MaterialTheme.shapes.large,
+        confirmButton = {
+            TextButton(onClick = onDiscard) {
+                Text("Discard")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onKeepEditing) {
+                Text("Keep Editing")
+            }
+        },
+    )
+}
+
+@Composable
+private fun ErrorContent(
+    error: String?,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = error ?: "Unknown error",
+            color = MaterialTheme.colorScheme.error,
+        )
+        TextButton(onClick = onDismiss) {
+            Text("Dismiss")
+        }
+    }
+}
+
+// =============================================================================
+// MAIN CONTENT
+// =============================================================================
+
+@Composable
+private fun SeriesEditContent(
+    state: SeriesEditUiState,
+    colorScheme: CoverColors,
+    onEvent: (SeriesEditUiEvent) -> Unit,
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Image picker for cover uploads
+    val imagePicker = rememberImagePicker { result ->
+        when (result) {
+            is ImagePickerResult.Success -> {
+                onEvent(SeriesEditUiEvent.CoverSelected(result.data, result.filename))
+            }
+            is ImagePickerResult.Cancelled -> { /* User cancelled */ }
+            is ImagePickerResult.Error -> { /* Error is handled via the ViewModel's error state */ }
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
+        // Identity Header with cover and name
+        SeriesIdentityHeader(
+            coverPath = state.displayCoverPath,
+            name = state.name,
+            colorScheme = colorScheme,
+            isUploadingCover = state.isUploadingCover,
+            onNameChange = { onEvent(SeriesEditUiEvent.NameChanged(it)) },
+            onCoverClick = { imagePicker.launch() },
+            onBackClick = onBackClick,
+        )
+
+        // Cards section
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            // Description card
+            SeriesStudioCard(title = "Description") {
+                ListenUpTextArea(
+                    value = state.description,
+                    onValueChange = { onEvent(SeriesEditUiEvent.DescriptionChanged(it)) },
+                    label = "Description",
+                    placeholder = "Enter a description for this series...",
+                )
+            }
+        }
+
+        // Bottom spacing for FAB
+        Spacer(modifier = Modifier.height(88.dp))
+    }
+}
+
+// =============================================================================
+// IDENTITY HEADER
+// =============================================================================
+
+@Composable
+private fun SeriesIdentityHeader(
+    coverPath: String?,
+    name: String,
+    colorScheme: CoverColors,
+    isUploadingCover: Boolean,
+    onNameChange: (String) -> Unit,
+    onCoverClick: () -> Unit,
+    onBackClick: () -> Unit,
+) {
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .padding(16.dp),
+    ) {
+        // Floating back button
+        IconButton(
+            onClick = onBackClick,
+            modifier = Modifier
+                .size(48.dp)
+                .background(
+                    color = surfaceColor.copy(alpha = 0.5f),
+                    shape = CircleShape,
+                ),
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Cover + Name row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Large editable cover (120dp) - tappable for upload
+            ElevatedCard(
+                onClick = onCoverClick,
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 12.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = colorScheme.muted.copy(alpha = 0.3f),
+                ),
+                modifier = Modifier.size(120.dp),
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (coverPath != null) {
+                        ListenUpAsyncImage(
+                            path = coverPath,
+                            contentDescription = "Series cover",
+                            contentScale = ContentScale.Crop,
+                            refreshKey = isUploadingCover,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(16.dp)),
+                        )
+                    } else {
+                        Text(
+                            text = "No Cover",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    // Loading overlay during upload
+                    if (isUploadingCover) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(32.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White,
+                            )
+                        }
+                    } else {
+                        // Edit indicator
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(4.dp)
+                                .size(32.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+                                    shape = CircleShape,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Change cover",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Name field - Large editorial style
+            OutlinedTextField(
+                value = name,
+                onValueChange = onNameChange,
+                textStyle = TextStyle(
+                    fontFamily = GoogleSansDisplay,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = MaterialTheme.typography.headlineSmall.fontSize,
+                    color = MaterialTheme.colorScheme.onSurface,
+                ),
+                placeholder = {
+                    Text(
+                        "Series Name",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontFamily = GoogleSansDisplay,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    )
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    focusedContainerColor = surfaceColor.copy(alpha = 0.4f),
+                    unfocusedContainerColor = surfaceColor.copy(alpha = 0.2f),
+                ),
+                shape = RoundedCornerShape(16.dp),
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+// =============================================================================
+// STUDIO CARD
+// =============================================================================
+
+@Composable
+private fun SeriesStudioCard(
+    title: String,
+    content: @Composable () -> Unit,
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = GoogleSansDisplay,
+                    fontWeight = FontWeight.Bold,
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            content()
+        }
+    }
+}

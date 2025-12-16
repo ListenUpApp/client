@@ -462,6 +462,7 @@ class SyncManager(
         val limit = 100
         var pageCount = 0
         var totalDeleted = 0
+        val seriesWithCovers = mutableListOf<String>()
 
         while (hasMore) {
             _syncState.value =
@@ -481,6 +482,11 @@ class SyncManager(
 
                     val serverSeries = response.series.map { it.toEntity() }
                     val deletedSeriesIds = response.deletedSeriesIds
+
+                    // Track series with cover images for later download
+                    response.series
+                        .filter { it.coverImage != null }
+                        .forEach { seriesWithCovers.add(it.id) }
 
                     logger.debug {
                         "Fetched page $pageCount: ${serverSeries.size} series, ${deletedSeriesIds.size} deletions"
@@ -505,6 +511,14 @@ class SyncManager(
         }
 
         logger.info { "Series sync complete: $pageCount pages processed, $totalDeleted deleted" }
+
+        // Download series covers in background (non-blocking)
+        if (seriesWithCovers.isNotEmpty()) {
+            scope.launch {
+                logger.info { "Starting cover downloads for ${seriesWithCovers.size} series..." }
+                imageDownloader.downloadSeriesCovers(seriesWithCovers)
+            }
+        }
     }
 
     private suspend fun pullContributors(updatedAfter: String?) {

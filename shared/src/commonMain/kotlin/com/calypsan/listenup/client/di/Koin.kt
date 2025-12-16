@@ -21,6 +21,8 @@ import com.calypsan.listenup.client.data.repository.BookEditRepository
 import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
+import com.calypsan.listenup.client.data.repository.SeriesEditRepository
+import com.calypsan.listenup.client.data.repository.SeriesEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.ContributorRepository
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
 import com.calypsan.listenup.client.data.repository.HomeRepository
@@ -201,6 +203,7 @@ val presentationModule =
             com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel(
                 seriesDao = get(),
                 bookRepository = get(),
+                imageStorage = get(),
             )
         }
         factory {
@@ -249,6 +252,14 @@ val presentationModule =
                 api = get(),
                 imageApi = get(),
                 imageStorage = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.seriesedit.SeriesEditViewModel(
+                seriesDao = get(),
+                seriesEditRepository = get(),
+                imageStorage = get(),
+                imageApi = get(),
             )
         }
     }
@@ -408,6 +419,14 @@ val syncModule =
                 bookDao = get(),
             )
         } bind BookEditRepositoryContract::class
+
+        // SeriesEditRepository for series editing operations
+        single {
+            SeriesEditRepository(
+                api = get(),
+                seriesDao = get(),
+            )
+        } bind SeriesEditRepositoryContract::class
     }
 
 /**

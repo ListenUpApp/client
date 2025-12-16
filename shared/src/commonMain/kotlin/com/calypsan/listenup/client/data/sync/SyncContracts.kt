@@ -50,6 +50,22 @@ interface ImageDownloaderContract {
      * @return Absolute file path where the image is stored, or null if not available
      */
     fun getContributorImagePath(contributorId: String): String?
+
+    /**
+     * Download and save a single series cover.
+     *
+     * @param seriesId Unique identifier for the series
+     * @return Result indicating if cover was successfully downloaded (true) or already existed/unavailable (false)
+     */
+    suspend fun downloadSeriesCover(seriesId: String): Result<Boolean>
+
+    /**
+     * Download covers for multiple series in batch.
+     *
+     * @param seriesIds List of series identifiers to download covers for
+     * @return Result containing list of series IDs that were successfully downloaded
+     */
+    suspend fun downloadSeriesCovers(seriesIds: List<String>): Result<List<String>>
 }
 
 /**

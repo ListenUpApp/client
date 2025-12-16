@@ -11,8 +11,10 @@ import com.calypsan.listenup.client.data.remote.ContributorInput
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.MergeContributorResponse
+import com.calypsan.listenup.client.data.remote.SeriesEditResponse
 import com.calypsan.listenup.client.data.remote.SeriesInput
 import com.calypsan.listenup.client.data.remote.SeriesSearchResult
+import com.calypsan.listenup.client.data.remote.SeriesUpdateRequest
 import com.calypsan.listenup.client.data.remote.UnmergeContributorResponse
 import com.calypsan.listenup.client.data.remote.UpdateContributorRequest
 import com.calypsan.listenup.client.data.remote.UpdateContributorResponse
@@ -455,6 +457,39 @@ class ListenUpApi(
         }
 
     /**
+     * Update series metadata (PATCH semantics).
+     *
+     * Only fields present in the request are updated.
+     * Endpoint: PATCH /api/v1/series/{id}
+     *
+     * @param seriesId Series to update
+     * @param request Fields to update (null = don't change, empty = clear)
+     * @return Result containing the updated series
+     */
+    override suspend fun updateSeries(
+        seriesId: String,
+        request: SeriesUpdateRequest,
+    ): Result<SeriesEditResponse> =
+        suspendRunCatching {
+            logger.debug { "Updating series: id=$seriesId" }
+
+            val client = getAuthenticatedClient()
+            val response: ApiResponse<SeriesEditApiResponse> =
+                client
+                    .patch("/api/v1/series/$seriesId") {
+                        contentType(ContentType.Application.Json)
+                        setBody(request.toApiRequest())
+                    }.body()
+
+            logger.debug { "Received series update response: success=${response.success}" }
+
+            when (val result = response.toResult()) {
+                is Success -> result.data.toDomain()
+                is Failure -> throw result.exception
+            }
+        }
+
+    /**
      * Clean up resources when the API client is no longer needed.
      */
     fun close() {
@@ -754,6 +789,45 @@ private data class UpdateContributorApiResponse(
             birthDate = birthDate,
             deathDate = deathDate,
             aliases = aliases,
+            updatedAt = updatedAt,
+        )
+}
+
+// --- Series Edit API Models ---
+
+/**
+ * API request for PATCH /api/v1/series/{id}.
+ * Only non-null fields are sent to the server.
+ */
+@Serializable
+private data class SeriesUpdateApiRequest(
+    val name: String? = null,
+    val description: String? = null,
+)
+
+private fun SeriesUpdateRequest.toApiRequest(): SeriesUpdateApiRequest =
+    SeriesUpdateApiRequest(
+        name = name,
+        description = description,
+    )
+
+/**
+ * API response for series edit operations.
+ * Maps to server's series response structure.
+ */
+@Serializable
+private data class SeriesEditApiResponse(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+    @SerialName("updated_at")
+    val updatedAt: String,
+) {
+    fun toDomain(): SeriesEditResponse =
+        SeriesEditResponse(
+            id = id,
+            name = name,
+            description = description,
             updatedAt = updatedAt,
         )
 }

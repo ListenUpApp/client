@@ -20,6 +20,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.LibraryBooks
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +60,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * Screen displaying series details with its books.
  *
  * Features:
+ * - Hero section with cover image and stats
  * - Series name as title
  * - Optional description (expandable)
  * - List of books in the series with covers
@@ -72,6 +77,7 @@ fun SeriesDetailScreen(
     seriesId: String,
     onBackClick: () -> Unit,
     onBookClick: (String) -> Unit,
+    onEditClick: (String) -> Unit,
     viewModel: SeriesDetailViewModel = koinViewModel(),
 ) {
     LaunchedEffect(seriesId) {
@@ -95,6 +101,14 @@ fun SeriesDetailScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { onEditClick(seriesId) }) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit series",
                         )
                     }
                 },
@@ -147,10 +161,18 @@ private fun SeriesDetailContent(
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
 
     LazyColumn(
-        contentPadding = PaddingValues(vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 16.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
+        // Hero section with cover and stats
+        item {
+            SeriesHeroSection(
+                coverPath = state.coverPath,
+                bookCount = state.books.size,
+                totalDuration = state.formatTotalDuration(),
+            )
+        }
+
         // Description section (if available)
         state.seriesDescription?.takeIf { it.isNotBlank() }?.let { description ->
             item {
@@ -158,7 +180,8 @@ private fun SeriesDetailContent(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
+                            .padding(horizontal = 16.dp)
+                            .padding(top = 16.dp),
                 ) {
                     Text(
                         text = "About",
@@ -188,10 +211,13 @@ private fun SeriesDetailContent(
         // Books section header
         item {
             Text(
-                text = "${state.books.size} ${if (state.books.size == 1) "Book" else "Books"}",
+                text = "Books in Series",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier =
+                    Modifier
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 24.dp, bottom = 8.dp),
             )
         }
 
@@ -205,6 +231,108 @@ private fun SeriesDetailContent(
                 onClick = { onBookClick(book.id.value) },
             )
         }
+    }
+}
+
+/**
+ * Hero section with series cover and aggregate stats.
+ */
+@Composable
+private fun SeriesHeroSection(
+    coverPath: String?,
+    bookCount: Int,
+    totalDuration: String,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        // Cover image
+        Box(
+            modifier =
+                Modifier
+                    .size(180.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (coverPath != null) {
+                ListenUpAsyncImage(
+                    path = coverPath,
+                    contentDescription = "Series cover",
+                    contentScale = ContentScale.Crop,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(12.dp)),
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.LibraryBooks,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.size(64.dp),
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Stats row
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(32.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StatItem(
+                icon = Icons.Default.LibraryBooks,
+                value = "$bookCount",
+                label = if (bookCount == 1) "Book" else "Books",
+            )
+            StatItem(
+                icon = Icons.Default.Schedule,
+                value = totalDuration,
+                label = "Total",
+            )
+        }
+    }
+}
+
+/**
+ * Single stat item with icon, value, and label.
+ */
+@Composable
+private fun StatItem(
+    icon: ImageVector,
+    value: String,
+    label: String,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -229,7 +357,7 @@ private fun SeriesBookItem(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 16.dp, vertical = 4.dp)
                 .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,

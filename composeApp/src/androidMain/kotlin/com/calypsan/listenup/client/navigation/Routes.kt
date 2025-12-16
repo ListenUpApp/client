@@ -78,6 +78,18 @@ data class SeriesDetail(
 ) : Route
 
 /**
+ * Series edit screen - edit series metadata and cover.
+ *
+ * Allows editing name, description, and cover image for a series.
+ *
+ * @property seriesId The unique ID of the series to edit.
+ */
+@Serializable
+data class SeriesEdit(
+    val seriesId: String,
+) : Route
+
+/**
  * Contributor detail screen - displays contributor info and books by role.
  *
  * A contributor is a person who may have multiple roles (author, narrator, etc.)

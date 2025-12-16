@@ -225,6 +225,8 @@ data class SeriesResponse(
     val name: String,
     @SerialName("description")
     val description: String? = null,
+    @SerialName("cover_image")
+    val coverImage: ImageFileInfoResponse? = null,
     @SerialName("created_at")
     val createdAt: String,
     @SerialName("updated_at")

@@ -252,6 +252,36 @@ interface ImageApiContract {
         imageData: ByteArray,
         filename: String,
     ): Result<ImageUploadResponse>
+
+    /**
+     * Download cover image for a series.
+     *
+     * @param seriesId Unique identifier for the series
+     * @return Result containing image bytes or error
+     */
+    suspend fun downloadSeriesCover(seriesId: String): Result<ByteArray>
+
+    /**
+     * Upload cover image for a series.
+     *
+     * @param seriesId Unique identifier for the series
+     * @param imageData Raw image bytes (JPEG, PNG, WebP, or GIF)
+     * @param filename Original filename for the image
+     * @return Result containing the image URL or error
+     */
+    suspend fun uploadSeriesCover(
+        seriesId: String,
+        imageData: ByteArray,
+        filename: String,
+    ): Result<ImageUploadResponse>
+
+    /**
+     * Delete cover image for a series.
+     *
+     * @param seriesId Unique identifier for the series
+     * @return Result with Unit on success or error
+     */
+    suspend fun deleteSeriesCover(seriesId: String): Result<Unit>
 }
 
 /**
@@ -430,6 +460,22 @@ interface ListenUpApiContract {
         contributorId: String,
         request: UpdateContributorRequest,
     ): Result<UpdateContributorResponse>
+
+    /**
+     * Update series metadata (PATCH semantics).
+     *
+     * Only fields present in the request are updated:
+     * - null field = don't change
+     * - empty string = clear the field
+     *
+     * @param seriesId Series to update
+     * @param request Fields to update
+     * @return Result containing the updated series
+     */
+    suspend fun updateSeries(
+        seriesId: String,
+        request: SeriesUpdateRequest,
+    ): Result<SeriesEditResponse>
 }
 
 /**
@@ -572,5 +618,23 @@ data class UpdateContributorResponse(
     val birthDate: String?,
     val deathDate: String?,
     val aliases: List<String>,
+    val updatedAt: String,
+)
+
+/**
+ * Request to update a series' metadata (PATCH semantics).
+ */
+data class SeriesUpdateRequest(
+    val name: String? = null,
+    val description: String? = null,
+)
+
+/**
+ * Response from series edit operations.
+ */
+data class SeriesEditResponse(
+    val id: String,
+    val name: String,
+    val description: String? = null,
     val updatedAt: String,
 )
