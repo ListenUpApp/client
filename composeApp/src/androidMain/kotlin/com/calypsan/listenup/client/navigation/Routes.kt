@@ -129,3 +129,37 @@ data class ContributorBooks(
 data class ContributorEdit(
     val contributorId: String,
 ) : Route
+
+/**
+ * Invite registration screen - claim an invite and create account.
+ *
+ * Shown when the app is opened via an invite deep link.
+ * User only needs to set a password; other details come from the invite.
+ *
+ * @property serverUrl The server URL from the invite link.
+ * @property inviteCode The invite code from the URL.
+ */
+@Serializable
+data class InviteRegistration(
+    val serverUrl: String,
+    val inviteCode: String,
+) : Route
+
+// Admin Routes
+
+/**
+ * Admin screen - combined users and invites management.
+ *
+ * Shows users list, pending invites, and invite action.
+ * Only accessible to admin users (root or role=admin).
+ */
+@Serializable
+data object Admin : Route
+
+/**
+ * Create invite screen - create a new invite.
+ *
+ * Form for name, email, role, and expiration.
+ */
+@Serializable
+data object CreateInvite : Route

@@ -23,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
@@ -54,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.CoverColors
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpTextArea
 import com.calypsan.listenup.client.design.components.rememberCoverColors
@@ -281,21 +281,14 @@ private fun UnsavedChangesDialog(
     onDiscard: () -> Unit,
     onKeepEditing: () -> Unit,
 ) {
-    AlertDialog(
+    ListenUpDestructiveDialog(
         onDismissRequest = onKeepEditing,
-        title = { Text("Unsaved Changes") },
-        text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
-        shape = MaterialTheme.shapes.large,
-        confirmButton = {
-            TextButton(onClick = onDiscard) {
-                Text("Discard")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onKeepEditing) {
-                Text("Keep Editing")
-            }
-        },
+        title = "Unsaved Changes",
+        text = "You have unsaved changes. Are you sure you want to discard them?",
+        confirmText = "Discard",
+        onConfirm = onDiscard,
+        dismissText = "Keep Editing",
+        onDismiss = onKeepEditing,
     )
 }
 

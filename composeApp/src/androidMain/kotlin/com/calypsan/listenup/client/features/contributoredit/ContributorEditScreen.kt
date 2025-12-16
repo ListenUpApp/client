@@ -16,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -38,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.design.components.ListenUpDatePicker
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpTextArea
 import com.calypsan.listenup.client.design.components.ListenUpTextField
@@ -248,21 +248,14 @@ private fun UnsavedChangesDialog(
     onDiscard: () -> Unit,
     onKeepEditing: () -> Unit,
 ) {
-    AlertDialog(
+    ListenUpDestructiveDialog(
         onDismissRequest = onKeepEditing,
-        title = { Text("Unsaved Changes") },
-        text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
-        shape = MaterialTheme.shapes.large,
-        confirmButton = {
-            TextButton(onClick = onDiscard) {
-                Text("Discard")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onKeepEditing) {
-                Text("Keep Editing")
-            }
-        },
+        title = "Unsaved Changes",
+        text = "You have unsaved changes. Are you sure you want to discard them?",
+        confirmText = "Discard",
+        onConfirm = onDiscard,
+        dismissText = "Keep Editing",
+        onDismiss = onKeepEditing,
     )
 }
 

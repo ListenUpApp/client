@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -23,7 +22,6 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
 import com.calypsan.listenup.client.design.components.AutocompleteResultItem
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.presentation.bookedit.ContributorRole
 import com.calypsan.listenup.client.presentation.bookedit.EditableContributor
@@ -98,29 +97,16 @@ fun TalentSection(
 
     // Confirmation dialog
     roleToRemove?.let { role ->
-        AlertDialog(
+        ListenUpDestructiveDialog(
             onDismissRequest = { roleToRemove = null },
-            title = { Text("Remove ${role.displayName}s?") },
-            text = {
-                Text(
-                    "This will remove $contributorsToRemoveCount ${role.displayName.lowercase()}${if (contributorsToRemoveCount > 1) "s" else ""} from this book.",
-                )
+            title = "Remove ${role.displayName}s?",
+            text = "This will remove $contributorsToRemoveCount ${role.displayName.lowercase()}${if (contributorsToRemoveCount > 1) "s" else ""} from this book.",
+            confirmText = "Remove",
+            onConfirm = {
+                onRemoveRoleSection(role)
+                roleToRemove = null
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onRemoveRoleSection(role)
-                        roleToRemove = null
-                    },
-                ) {
-                    Text("Remove")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { roleToRemove = null }) {
-                    Text("Cancel")
-                }
-            },
+            onDismiss = { roleToRemove = null },
         )
     }
 }

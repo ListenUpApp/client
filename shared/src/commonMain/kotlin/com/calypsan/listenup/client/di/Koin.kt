@@ -7,8 +7,12 @@ import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.AuthApiContract
 import com.calypsan.listenup.client.data.remote.GenreApi
 import com.calypsan.listenup.client.data.remote.GenreApiContract
+import com.calypsan.listenup.client.data.remote.AdminApi
+import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.ImageApi
 import com.calypsan.listenup.client.data.remote.ImageApiContract
+import com.calypsan.listenup.client.data.remote.InviteApi
+import com.calypsan.listenup.client.data.remote.InviteApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SearchApiContract
@@ -23,6 +27,7 @@ import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.data.repository.ContributorRepository
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
+import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
@@ -44,7 +49,10 @@ import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
+import com.calypsan.listenup.client.presentation.admin.AdminViewModel
+import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
+import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
@@ -63,6 +71,10 @@ expect val platformStorageModule: Module
  */
 val dataModule =
     module {
+        // Deep link manager - singleton for handling invite deep links
+        // Must be initialized before MainActivity handles intents
+        single { DeepLinkManager() }
+
         // Settings repository - single source of truth for app configuration
         // Bind to both concrete type and interface (for ViewModels)
         single {
@@ -90,6 +102,10 @@ val networkModule =
             val settingsRepository: SettingsRepositoryContract = get()
             AuthApi(getServerUrl = { settingsRepository.getServerUrl() })
         } bind AuthApiContract::class
+
+        // InviteApi - handles public invite operations (no auth required)
+        // Server URL comes from deep link, not stored settings
+        single { InviteApi() } bind InviteApiContract::class
 
         // ApiClientFactory - creates authenticated HTTP clients with auto-refresh
         single {
@@ -180,6 +196,19 @@ val presentationModule =
                 userDao = get(),
             )
         }
+        // InviteRegistrationViewModel - takes serverUrl and inviteCode as parameters
+        factory { params ->
+            InviteRegistrationViewModel(
+                inviteApi = get(),
+                settingsRepository = get(),
+                userDao = get(),
+                serverUrl = params.get<String>(0),
+                inviteCode = params.get<String>(1),
+            )
+        }
+        // Admin ViewModels
+        factory { AdminViewModel(adminApi = get()) }
+        factory { CreateInviteViewModel(adminApi = get()) }
         factory {
             LibraryViewModel(
                 bookRepository = get(),
@@ -331,6 +360,11 @@ val syncModule =
         single {
             GenreApi(clientFactory = get())
         } bind GenreApiContract::class
+
+        // AdminApi for admin operations (user/invite management)
+        single {
+            AdminApi(clientFactory = get())
+        } bind AdminApiContract::class
 
         // FtsPopulator for rebuilding FTS tables after sync
         single {

@@ -16,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -38,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.design.components.CoverColors
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpTextArea
 import com.calypsan.listenup.client.design.components.rememberCoverColors
@@ -230,26 +230,17 @@ fun BookEditScreen(
     }
 
     if (showUnsavedChangesDialog) {
-        AlertDialog(
+        ListenUpDestructiveDialog(
             onDismissRequest = { showUnsavedChangesDialog = false },
-            title = { Text("Unsaved Changes") },
-            text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
-            shape = MaterialTheme.shapes.large,
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showUnsavedChangesDialog = false
-                        onBackClick()
-                    },
-                ) {
-                    Text("Discard")
-                }
+            title = "Unsaved Changes",
+            text = "You have unsaved changes. Are you sure you want to discard them?",
+            confirmText = "Discard",
+            onConfirm = {
+                showUnsavedChangesDialog = false
+                onBackClick()
             },
-            dismissButton = {
-                TextButton(onClick = { showUnsavedChangesDialog = false }) {
-                    Text("Keep Editing")
-                }
-            },
+            dismissText = "Keep Editing",
+            onDismiss = { showUnsavedChangesDialog = false },
         )
     }
 }

@@ -54,6 +54,7 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
  * @param onSearchQueryChange Callback when search query changes
  * @param isAvatarMenuExpanded Whether avatar dropdown is expanded
  * @param onAvatarMenuExpandedChange Callback when avatar menu expand state changes
+ * @param onAdminClick Callback when administration is clicked (only shown for admin users)
  * @param onSettingsClick Callback when settings is clicked
  * @param onSignOutClick Callback when sign out is clicked
  * @param scrollBehavior Scroll behavior for collapsing on scroll
@@ -70,6 +71,7 @@ fun AppTopBar(
     onSearchQueryChange: (String) -> Unit,
     isAvatarMenuExpanded: Boolean,
     onAvatarMenuExpandedChange: (Boolean) -> Unit,
+    onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior? = null,
@@ -133,6 +135,7 @@ fun AppTopBar(
                     user = user,
                     expanded = isAvatarMenuExpanded,
                     onExpandedChange = onAvatarMenuExpandedChange,
+                    onAdminClick = onAdminClick,
                     onSettingsClick = onSettingsClick,
                     onSignOutClick = onSignOutClick,
                     modifier = Modifier.padding(end = 8.dp),

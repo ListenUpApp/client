@@ -212,8 +212,12 @@ private data class LoginRequest(
     @SerialName("device_info") val deviceInfo: DeviceInfo,
 )
 
+/**
+ * Device information sent with authentication requests.
+ * Used for session tracking and device-specific features.
+ */
 @Serializable
-private data class DeviceInfo(
+internal data class DeviceInfo(
     @SerialName("device_type") val deviceType: String,
     @SerialName("platform") val platform: String,
     @SerialName("platform_version") val platformVersion: String,

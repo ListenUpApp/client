@@ -25,6 +25,7 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
  * @param user Current user entity for avatar display
  * @param isAvatarMenuExpanded Whether avatar dropdown is expanded
  * @param onAvatarMenuExpandedChange Callback when avatar menu expand state changes
+ * @param onAdminClick Callback when administration is clicked (only shown for admin users)
  * @param onSettingsClick Callback when settings is clicked
  * @param onSignOutClick Callback when sign out is clicked
  * @param modifier Optional modifier
@@ -36,6 +37,7 @@ fun AppNavigationRail(
     user: UserEntity?,
     isAvatarMenuExpanded: Boolean,
     onAvatarMenuExpandedChange: (Boolean) -> Unit,
+    onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -70,6 +72,7 @@ fun AppNavigationRail(
             user = user,
             expanded = isAvatarMenuExpanded,
             onExpandedChange = onAvatarMenuExpandedChange,
+            onAdminClick = onAdminClick,
             onSettingsClick = onSettingsClick,
             onSignOutClick = onSignOutClick,
             modifier = Modifier.padding(bottom = 16.dp),
