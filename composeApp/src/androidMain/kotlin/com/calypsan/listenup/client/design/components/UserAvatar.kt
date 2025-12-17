@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.design.components
 
 import androidx.compose.foundation.layout.Box
@@ -7,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.AdminPanelSettings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -33,6 +36,7 @@ import com.calypsan.listenup.client.data.local.db.UserEntity
  * @param user The current user entity (null shows placeholder)
  * @param expanded Whether the dropdown menu is expanded
  * @param onExpandedChange Callback when expanded state changes
+ * @param onAdminClick Callback when Administration is clicked (only shown for admin users)
  * @param onSettingsClick Callback when Settings is clicked
  * @param onSignOutClick Callback when Sign out is clicked
  * @param modifier Optional modifier
@@ -42,6 +46,7 @@ fun UserAvatar(
     user: UserEntity?,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
+    onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -86,6 +91,18 @@ fun UserAvatar(
             }
 
             HorizontalDivider()
+
+            // Administration menu item - only shown for admin users
+            if (user?.isRoot == true && onAdminClick != null) {
+                DropdownMenuItem(
+                    text = { Text("Administration") },
+                    leadingIcon = { Icon(Icons.Outlined.AdminPanelSettings, contentDescription = null) },
+                    onClick = {
+                        onExpandedChange(false)
+                        onAdminClick()
+                    },
+                )
+            }
 
             DropdownMenuItem(
                 text = { Text("Settings") },

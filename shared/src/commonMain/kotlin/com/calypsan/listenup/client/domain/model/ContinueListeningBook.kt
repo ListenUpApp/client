@@ -48,6 +48,7 @@ data class ContinueListeningBook(
             val hours = totalMinutes / 60
             val minutes = totalMinutes % 60
 
+            @Suppress("MagicNumber")
             return when {
                 ms < 5 * 60_000 -> "Almost done"
                 ms < 60 * 60_000 -> "$totalMinutes min left"

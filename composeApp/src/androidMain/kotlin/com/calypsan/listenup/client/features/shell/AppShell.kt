@@ -53,8 +53,10 @@ import org.koin.compose.viewmodel.koinViewModel
  * @param onBookClick Callback when a book is clicked (navigates to detail)
  * @param onSeriesClick Callback when a series is clicked (navigates to detail)
  * @param onContributorClick Callback when a contributor is clicked (author or narrator)
+ * @param onAdminClick Callback when administration is clicked (only shown for admin users)
  * @param onSignOut Callback when sign out is triggered
  */
+@Suppress("LongMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppShell(
@@ -63,6 +65,7 @@ fun AppShell(
     onBookClick: (String) -> Unit,
     onSeriesClick: (String) -> Unit,
     onContributorClick: (String) -> Unit,
+    onAdminClick: (() -> Unit)? = null,
     onSignOut: () -> Unit,
 ) {
     // Inject dependencies
@@ -161,6 +164,7 @@ fun AppShell(
             },
             isAvatarMenuExpanded = isAvatarMenuExpanded,
             onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
+            onAdminClick = onAdminClick,
             onSettingsClick = { /* TODO: Navigate to settings */ },
             onSignOutClick = onSignOut,
             scrollBehavior = scrollBehavior,
@@ -243,6 +247,7 @@ fun AppShell(
                     user = user,
                     isAvatarMenuExpanded = isAvatarMenuExpanded,
                     onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
+                    onAdminClick = onAdminClick,
                     onSettingsClick = { /* TODO: Navigate to settings */ },
                     onSignOutClick = onSignOut,
                 )
@@ -265,6 +270,7 @@ fun AppShell(
                 user = user,
                 isAvatarMenuExpanded = isAvatarMenuExpanded,
                 onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
+                onAdminClick = onAdminClick,
                 onSettingsClick = { /* TODO: Navigate to settings */ },
                 onSignOutClick = onSignOut,
             ) {

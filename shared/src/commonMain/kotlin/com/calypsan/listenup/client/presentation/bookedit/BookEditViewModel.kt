@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.presentation.bookedit
 
 import androidx.lifecycle.ViewModel
@@ -18,8 +20,6 @@ import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
 import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
-import com.calypsan.listenup.client.domain.model.BookSeries
-import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -369,6 +369,7 @@ sealed interface BookEditNavAction {
  * @property contributorRepository Repository for contributor search
  */
 @OptIn(FlowPreview::class)
+@Suppress("LargeClass", "TooManyFunctions")
 class BookEditViewModel(
     private val bookRepository: BookRepositoryContract,
     private val bookEditRepository: BookEditRepositoryContract,
@@ -650,6 +651,7 @@ class BookEditViewModel(
     /**
      * Handle UI events.
      */
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onEvent(event: BookEditUiEvent) {
         when (event) {
             is BookEditUiEvent.TitleChanged -> {
@@ -1424,6 +1426,7 @@ class BookEditViewModel(
         _state.update { it.copy(hasChanges = hasChanges) }
     }
 
+    @Suppress("CyclomaticComplexMethod", "CognitiveComplexMethod", "LongMethod")
     private fun saveChanges() {
         val current = _state.value
         if (!current.hasChanges) {

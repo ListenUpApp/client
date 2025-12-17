@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.features.contributordetail
 
 import androidx.compose.foundation.background
@@ -342,6 +344,7 @@ private fun NavigationBar(
  * Large elevated avatar (140dp) - the visual centerpiece.
  * Displays contributor image if available, otherwise shows initials.
  */
+@Suppress("UnusedParameter")
 @Composable
 private fun ElevatedAvatar(
     name: String,
@@ -596,7 +599,9 @@ private fun formatDateForDisplay(isoDate: String): String? {
                 "December",
             )
         "${monthNames[month - 1]} $day, $year"
-    } catch (e: Exception) {
+    } catch (
+        @Suppress("SwallowedException") e: Exception,
+    ) {
         null
     }
 }

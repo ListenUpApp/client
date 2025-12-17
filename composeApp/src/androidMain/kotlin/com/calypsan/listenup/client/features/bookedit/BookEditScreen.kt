@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.features.bookedit
 
 import androidx.activity.compose.BackHandler
@@ -8,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -16,7 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.design.components.CoverColors
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpTextArea
 import com.calypsan.listenup.client.design.components.rememberCoverColors
@@ -69,6 +70,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * - Floating cards for each editing section
  * - Extended FAB for Save action
  */
+@Suppress("UnusedParameter", "LongMethod", "CognitiveComplexMethod")
 @Composable
 fun BookEditScreen(
     bookId: String,
@@ -230,26 +232,17 @@ fun BookEditScreen(
     }
 
     if (showUnsavedChangesDialog) {
-        AlertDialog(
+        ListenUpDestructiveDialog(
             onDismissRequest = { showUnsavedChangesDialog = false },
-            title = { Text("Unsaved Changes") },
-            text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
-            shape = MaterialTheme.shapes.large,
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showUnsavedChangesDialog = false
-                        onBackClick()
-                    },
-                ) {
-                    Text("Discard")
-                }
+            title = "Unsaved Changes",
+            text = "You have unsaved changes. Are you sure you want to discard them?",
+            confirmText = "Discard",
+            onConfirm = {
+                showUnsavedChangesDialog = false
+                onBackClick()
             },
-            dismissButton = {
-                TextButton(onClick = { showUnsavedChangesDialog = false }) {
-                    Text("Keep Editing")
-                }
-            },
+            dismissText = "Keep Editing",
+            onDismiss = { showUnsavedChangesDialog = false },
         )
     }
 }
@@ -258,6 +251,7 @@ fun BookEditScreen(
 // CREATIVE STUDIO LAYOUT
 // =============================================================================
 
+@Suppress("UnusedParameter")
 @Composable
 private fun BookEditContent(
     state: BookEditUiState,
@@ -446,6 +440,7 @@ private fun SingleColumnCardsLayout(
  * Left Column: Publishing, Identifiers, Series
  * Right Column: Classification, Talent
  */
+@Suppress("LongMethod")
 @Composable
 private fun TwoColumnCardsLayout(
     state: BookEditUiState,

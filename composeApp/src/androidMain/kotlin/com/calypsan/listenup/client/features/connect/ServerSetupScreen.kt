@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.features.connect
 
 import androidx.compose.foundation.Image
@@ -20,6 +22,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,6 +60,7 @@ import org.koin.compose.koinInject
 @Composable
 fun ServerSetupScreen(
     onServerVerified: () -> Unit,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: ServerConnectViewModel = koinInject(),
 ) {
@@ -71,6 +75,7 @@ fun ServerSetupScreen(
     ServerSetupContent(
         state = state,
         onEvent = viewModel::onEvent,
+        onBack = onBack,
         modifier = modifier,
     )
 }
@@ -83,6 +88,7 @@ fun ServerSetupScreen(
 private fun ServerSetupContent(
     state: ServerConnectUiState,
     onEvent: (ServerConnectUiEvent) -> Unit,
+    onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -127,8 +133,17 @@ private fun ServerSetupContent(
                 )
             }
 
+            // Back button (only shown when there's somewhere to go back to)
+            if (onBack != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TextButton(onClick = onBack) {
+                    Text("Back to Server Selection")
+                }
+            }
+
             // Bottom spacing
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -216,6 +231,7 @@ private fun PreviewEmpty() {
         ServerSetupContent(
             state = ServerConnectUiState(),
             onEvent = {},
+            onBack = {},
         )
     }
 }
@@ -230,6 +246,7 @@ private fun PreviewWithUrl() {
                     serverUrl = "https://listenup.example.com",
                 ),
             onEvent = {},
+            onBack = {},
         )
     }
 }
@@ -245,6 +262,7 @@ private fun PreviewLoading() {
                     isLoading = true,
                 ),
             onEvent = {},
+            onBack = {},
         )
     }
 }
@@ -259,6 +277,7 @@ private fun PreviewDark() {
                     serverUrl = "https://listenup.example.com",
                 ),
             onEvent = {},
+            onBack = {},
         )
     }
 }

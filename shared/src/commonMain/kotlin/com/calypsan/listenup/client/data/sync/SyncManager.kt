@@ -15,7 +15,6 @@ import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.BookResponse
-import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.network.sockets.ConnectTimeoutException
@@ -85,6 +84,7 @@ interface SyncManagerContract {
  * @property sseManager Handles real-time Server-Sent Events
  * @property ftsPopulator Populates FTS5 tables for offline search
  */
+@Suppress("LongParameterList")
 class SyncManager(
     private val syncApi: SyncApiContract,
     private val bookDao: BookDao,
@@ -797,6 +797,7 @@ class SyncManager(
                 // General IO error - check message for connection refused
                 current is IOException -> {
                     val message = current.message?.lowercase() ?: ""
+                    @Suppress("ComplexCondition")
                     if (message.contains("econnrefused") ||
                         message.contains("connection refused") ||
                         message.contains("failed to connect") ||

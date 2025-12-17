@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * Defines the public API for managing server configuration, authentication,
  * and library preferences. Used by ViewModels and enables testing.
  */
+@Suppress("TooManyFunctions")
 interface SettingsRepositoryContract {
     val authState: StateFlow<AuthState>
 

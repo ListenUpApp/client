@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.core
 
 import android.content.Context

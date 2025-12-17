@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.design.components
 
 import android.graphics.Bitmap
@@ -10,7 +12,6 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
 import coil3.compose.AsyncImagePainter
@@ -96,7 +97,9 @@ fun extractDominantColor(bitmap: Bitmap): Color? =
                 ?: palette.mutedSwatch
                 ?: palette.dominantSwatch
         swatch?.rgb?.let { Color(it) }
-    } catch (e: Exception) {
+    } catch (
+        @Suppress("SwallowedException") e: Exception,
+    ) {
         null
     }
 
@@ -163,8 +166,8 @@ fun rememberCoverColors(
                     .build(),
         )
 
-    LaunchedEffect(painter.state, cacheKey) {
-        val state = painter.state
+    LaunchedEffect(painter.state.value, cacheKey) {
+        val state = painter.state.value
         if (state is AsyncImagePainter.State.Success) {
             // Run Palette extraction on background thread
             val extracted =
@@ -172,7 +175,9 @@ fun rememberCoverColors(
                     try {
                         val bitmap = state.result.image.toBitmap()
                         extractCoverColors(bitmap, fallbackColor)
-                    } catch (e: Exception) {
+                    } catch (
+                        @Suppress("SwallowedException") e: Exception,
+                    ) {
                         null
                     }
                 }

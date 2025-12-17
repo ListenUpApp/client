@@ -122,7 +122,7 @@ class SeriesEditRepository(
             try {
                 Timestamp.fromEpochMillis(Instant.parse(response.updatedAt).toEpochMilliseconds())
             } catch (e: Exception) {
-                logger.warn { "Failed to parse timestamp: ${response.updatedAt}" }
+                logger.warn(e) { "Failed to parse timestamp: ${response.updatedAt}" }
                 Timestamp.now()
             }
 

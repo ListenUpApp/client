@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.di
 
 import com.calypsan.listenup.client.download.DownloadFileManager

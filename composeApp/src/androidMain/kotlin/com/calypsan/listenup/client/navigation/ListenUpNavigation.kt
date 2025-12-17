@@ -24,30 +24,40 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.data.repository.AuthState
+import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
+import com.calypsan.listenup.client.features.admin.AdminScreen
+import com.calypsan.listenup.client.features.admin.CreateInviteScreen
+import com.calypsan.listenup.client.features.connect.ServerSelectScreen
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
+import com.calypsan.listenup.client.features.invite.InviteRegistrationScreen
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
+import com.calypsan.listenup.client.presentation.admin.AdminViewModel
+import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
+import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
+import com.calypsan.listenup.client.presentation.invite.InviteSubmissionStatus
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 /**
  * Root navigation composable for ListenUp Android app.
  *
- * Auth-driven navigation pattern:
- * - Observes auth state from SettingsRepository
- * - Shows loading screen during initialization
- * - Routes to unauthenticated flow (server setup → login)
- * - Routes to authenticated flow (library)
+ * Navigation priority:
+ * 1. Pending invite deep link (shows invite registration)
+ * 2. Auth state-driven routing (server setup → login → library)
  *
  * Navigation automatically adjusts when auth state changes.
  * Uses Navigation 3 stable for Android (will migrate to KMP when Desktop support needed).
  */
 @Composable
-fun ListenUpNavigation(settingsRepository: SettingsRepository = koinInject()) {
+fun ListenUpNavigation(
+    settingsRepository: SettingsRepository = koinInject(),
+    deepLinkManager: DeepLinkManager = koinInject(),
+) {
     // Initialize auth state on first composition
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
@@ -56,17 +66,66 @@ fun ListenUpNavigation(settingsRepository: SettingsRepository = koinInject()) {
         }
     }
 
+    // Observe pending invite deep link
+    val pendingInvite by deepLinkManager.pendingInvite.collectAsState()
+
     // Observe auth state changes
     val authState by settingsRepository.authState.collectAsState()
+
+    // Check for pending invite BEFORE auth state routing
+    // This allows invite registration even when already authenticated
+    pendingInvite?.let { invite ->
+        InviteRegistrationNavigation(
+            serverUrl = invite.serverUrl,
+            inviteCode = invite.code,
+            onComplete = { deepLinkManager.consumeInvite() },
+            onCancel = { deepLinkManager.consumeInvite() },
+        )
+        return
+    }
 
     // Route to appropriate screen based on auth state
     when (authState) {
         AuthState.NeedsServerUrl -> ServerSetupNavigation()
         AuthState.CheckingServer -> LoadingScreen("Checking server...")
         AuthState.NeedsSetup -> SetupNavigation()
-        AuthState.NeedsLogin -> LoginNavigation()
+        AuthState.NeedsLogin -> LoginNavigation(settingsRepository)
         is AuthState.Authenticated -> AuthenticatedNavigation(settingsRepository)
     }
+}
+
+/**
+ * Navigation for invite registration flow.
+ *
+ * Shows the invite registration screen and handles completion/cancellation.
+ * On successful registration, auth tokens are stored and AuthState becomes Authenticated,
+ * which will trigger navigation to the library after the invite is consumed.
+ */
+@Composable
+private fun InviteRegistrationNavigation(
+    serverUrl: String,
+    inviteCode: String,
+    onComplete: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val viewModel: InviteRegistrationViewModel =
+        koinInject {
+            org.koin.core.parameter
+                .parametersOf(serverUrl, inviteCode)
+        }
+
+    // Watch for successful registration to trigger completion
+    val state by viewModel.state.collectAsState()
+    LaunchedEffect(state.submissionStatus) {
+        if (state.submissionStatus is InviteSubmissionStatus.Success) {
+            onComplete()
+        }
+    }
+
+    InviteRegistrationScreen(
+        viewModel = viewModel,
+        onCancel = onCancel,
+    )
 }
 
 /**
@@ -81,21 +140,44 @@ private fun LoadingScreen(message: String = "Loading...") {
 
 /**
  * Server setup navigation - shown when no server URL is configured.
- * After successful verification, AuthState changes trigger automatic navigation.
+ *
+ * Flow:
+ * 1. ServerSelectScreen - shows discovered servers + manual option
+ * 2. ServerSetupScreen - manual URL entry (if user clicks "Add Manually")
+ *
+ * After successful selection/verification, AuthState changes trigger automatic navigation.
  */
 @Composable
 private fun ServerSetupNavigation() {
-    val backStack = remember { mutableStateListOf<Route>(ServerSetup) }
+    val backStack = remember { mutableStateListOf<Route>(ServerSelect) }
 
     NavDisplay(
         backStack = backStack,
+        onBack = {
+            if (backStack.size > 1) {
+                backStack.removeAt(backStack.lastIndex)
+            }
+        },
         entryProvider =
             entryProvider {
+                entry<ServerSelect> {
+                    ServerSelectScreen(
+                        onServerActivated = {
+                            // Server is selected, AuthState will change automatically
+                        },
+                        onManualEntryRequested = {
+                            backStack.add(ServerSetup)
+                        },
+                    )
+                }
                 entry<ServerSetup> {
                     ServerSetupScreen(
                         onServerVerified = {
                             // URL is saved, AuthState will change automatically
-                            // No manual navigation needed
+                            // Pop back to select (will be replaced by auth screen)
+                        },
+                        onBack = {
+                            backStack.removeAt(backStack.lastIndex)
                         },
                     )
                 }
@@ -128,7 +210,8 @@ private fun SetupNavigation() {
  * After successful login, AuthState.Authenticated triggers automatic navigation.
  */
 @Composable
-private fun LoginNavigation() {
+private fun LoginNavigation(settingsRepository: SettingsRepository) {
+    val scope = rememberCoroutineScope()
     val backStack = remember { mutableStateListOf<Route>(Login) }
 
     NavDisplay(
@@ -137,7 +220,14 @@ private fun LoginNavigation() {
             entryProvider {
                 entry<Login> {
                     com.calypsan.listenup.client.features.auth
-                        .LoginScreen()
+                        .LoginScreen(
+                            onChangeServer = {
+                                scope.launch {
+                                    // Clear server URL to go back to server selection
+                                    settingsRepository.disconnectFromServer()
+                                }
+                            },
+                        )
                 }
             },
     )
@@ -159,6 +249,7 @@ private fun LoginNavigation() {
  * When user logs out, SettingsRepository clears auth tokens,
  * triggering automatic switch to UnauthenticatedNavigation.
  */
+@Suppress("LongMethod")
 @Composable
 private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
     val scope = rememberCoroutineScope()
@@ -206,6 +297,9 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                                 onContributorClick = { contributorId ->
                                     backStack.add(ContributorDetail(contributorId))
+                                },
+                                onAdminClick = {
+                                    backStack.add(Admin)
                                 },
                                 onSignOut = {
                                     scope.launch {
@@ -307,6 +401,31 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
+                                },
+                            )
+                        }
+                        // Admin screens
+                        entry<Admin> {
+                            val viewModel: AdminViewModel = koinInject()
+                            AdminScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onInviteClick = {
+                                    backStack.add(CreateInvite)
+                                },
+                            )
+                        }
+                        entry<CreateInvite> {
+                            val viewModel: CreateInviteViewModel = koinInject()
+                            CreateInviteScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onSuccess = {
+                                    backStack.removeAt(backStack.lastIndex)
                                 },
                             )
                         }

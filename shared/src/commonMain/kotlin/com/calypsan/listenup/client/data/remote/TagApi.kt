@@ -103,7 +103,7 @@ class TagApi(
                     setBody(CreateTagRequest(name = name, color = color))
                 }.body()
         return response.data?.toDomain()
-            ?: throw Exception(response.error ?: "Failed to create tag")
+            ?: error(response.error ?: "Failed to create tag")
     }
 
     /**

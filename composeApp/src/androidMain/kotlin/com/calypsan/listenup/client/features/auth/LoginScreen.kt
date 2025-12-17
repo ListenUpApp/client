@@ -22,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,6 +61,7 @@ import org.koin.compose.koinInject
  */
 @Composable
 fun LoginScreen(
+    onChangeServer: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = koinInject(),
 ) {
@@ -101,6 +103,7 @@ fun LoginScreen(
     LoginContent(
         state = state,
         onSubmit = viewModel::onLoginSubmit,
+        onChangeServer = onChangeServer,
         snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
@@ -113,6 +116,7 @@ fun LoginScreen(
 private fun LoginContent(
     state: com.calypsan.listenup.client.presentation.auth.LoginUiState,
     onSubmit: (String, String) -> Unit,
+    onChangeServer: () -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
@@ -155,7 +159,13 @@ private fun LoginContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextButton(onClick = onChangeServer) {
+                Text("Change Server")
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

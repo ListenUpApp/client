@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.download
 
 import android.content.Context
@@ -106,6 +108,7 @@ class DownloadWorker(
         }
     }
 
+    @Suppress("CyclomaticComplexMethod", "CognitiveComplexMethod")
     private suspend fun downloadFile(
         audioFileId: String,
         bookId: String,
@@ -156,9 +159,7 @@ class DownloadWorker(
                 throw IOException("Download failed: HTTP ${response.code}")
             }
 
-            val body =
-                response.body
-                    ?: throw IOException("Empty response body")
+            val body = response.body
 
             val contentLength = body.contentLength()
             val totalSize =

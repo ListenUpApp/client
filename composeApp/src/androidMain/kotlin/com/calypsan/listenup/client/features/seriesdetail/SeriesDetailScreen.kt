@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.features.seriesdetail
 
 import androidx.compose.foundation.background
@@ -19,9 +21,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -271,7 +273,7 @@ private fun SeriesHeroSection(
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Default.LibraryBooks,
+                    imageVector = Icons.AutoMirrored.Filled.LibraryBooks,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                     modifier = Modifier.size(64.dp),
@@ -287,7 +289,7 @@ private fun SeriesHeroSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             StatItem(
-                icon = Icons.Default.LibraryBooks,
+                icon = Icons.AutoMirrored.Filled.LibraryBooks,
                 value = "$bookCount",
                 label = if (bookCount == 1) "Book" else "Books",
             )

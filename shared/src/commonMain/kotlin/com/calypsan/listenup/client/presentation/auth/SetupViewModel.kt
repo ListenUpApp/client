@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalTime::class)
+@file:Suppress("MagicNumber")
 
 package com.calypsan.listenup.client.presentation.auth
 

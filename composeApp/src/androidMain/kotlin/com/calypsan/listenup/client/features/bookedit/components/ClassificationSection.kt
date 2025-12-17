@@ -27,6 +27,7 @@ import com.calypsan.listenup.client.presentation.bookedit.EditableTag
 /**
  * Classification section with genres and tags.
  */
+@Suppress("LongParameterList")
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ClassificationSection(
@@ -198,6 +199,7 @@ private fun TagsSubsection(
             tags.any {
                 it.name.equals(trimmedQuery, ignoreCase = true)
             }
+        @Suppress("ComplexCondition")
         if (trimmedQuery.length >= 2 && !isSearching && !isCreating && !hasMatch && !alreadyHasTag) {
             AssistChip(
                 onClick = { onTagEntered(trimmedQuery) },

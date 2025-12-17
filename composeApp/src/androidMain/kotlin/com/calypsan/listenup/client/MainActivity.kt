@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,8 +30,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SSEManager
+import com.calypsan.listenup.client.deeplink.DeepLinkParser
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.domain.model.Instance
@@ -51,19 +54,43 @@ import org.koin.compose.viewmodel.koinViewModel
  * - Disconnects SSE when app goes to background (saves battery)
  * - Auto-reconnects on app resume
  *
+ * Handles deep links for invite URLs:
+ * - https://server.com/join/{code} (App Links)
+ * - listenup://join?server=...&code=... (custom scheme)
+ *
  * This ensures real-time updates when actively using the app
  * while preserving battery life in the background.
  */
 class MainActivity : ComponentActivity() {
     private val sseManager: SSEManager by inject()
     private val settingsRepository: SettingsRepository by inject()
+    private val deepLinkManager: DeepLinkManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        // Handle deep link from initial launch
+        handleIntent(intent)
+
         setContent {
             ListenUpApp()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Handle deep link when app is already running (singleTask)
+        handleIntent(intent)
+    }
+
+    /**
+     * Parses and stores deep link data for navigation layer to consume.
+     */
+    private fun handleIntent(intent: Intent?) {
+        DeepLinkParser.parse(intent)?.let { inviteLink ->
+            println("MainActivity: Received invite deep link - server=${inviteLink.serverUrl}, code=${inviteLink.code}")
+            deepLinkManager.setInviteLink(inviteLink.serverUrl, inviteLink.code)
         }
     }
 

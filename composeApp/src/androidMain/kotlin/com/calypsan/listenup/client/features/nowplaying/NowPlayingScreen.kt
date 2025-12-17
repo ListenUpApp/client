@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.features.nowplaying
 
 import android.graphics.Bitmap
@@ -96,6 +98,7 @@ private val logger = KotlinLogging.logger {}
  * - Diverse button shapes (large play, medium skip, small chapter)
  * - Chapter-scoped seek bar
  */
+@Suppress("LongMethod", "LongParameterList")
 @Composable
 fun NowPlayingScreen(
     state: NowPlayingState,
@@ -298,6 +301,7 @@ fun NowPlayingScreen(
     }
 }
 
+@Suppress("CognitiveComplexMethod")
 @Composable
 private fun NowPlayingTopBar(
     state: NowPlayingState,

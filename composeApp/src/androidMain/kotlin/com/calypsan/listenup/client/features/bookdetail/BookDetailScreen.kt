@@ -170,6 +170,7 @@ fun BookDetailScreen(
  * Main content container that handles responsive layout.
  * Uses TwoPaneLayout for tablets, ImmersiveBookDetail for phones.
  */
+@Suppress("LongParameterList")
 @Composable
 fun BookDetailContent(
     state: BookDetailUiState,
@@ -228,6 +229,7 @@ fun BookDetailContent(
  * Immersive book detail following audiobook user psychology.
  * Uses color extraction for dynamic, personalized theming.
  */
+@Suppress("LongParameterList")
 @Composable
 private fun ImmersiveBookDetail(
     state: BookDetailUiState,

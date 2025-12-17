@@ -99,6 +99,7 @@ class ApiClientFactory(
 
             // Install HttpTimeout plugin to allow per-request timeout configuration
             // Default timeouts for regular API calls (SSE uses separate client)
+            @Suppress("MagicNumber")
             install(HttpTimeout) {
                 requestTimeoutMillis = 30_000
                 connectTimeoutMillis = 10_000

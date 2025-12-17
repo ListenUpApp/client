@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.presentation.contributoredit
 
 import androidx.lifecycle.ViewModel

@@ -37,6 +37,7 @@ private val SnackbarHeight = 48.dp
  *
  * Uses spring animations for natural, physical-feeling motion as per M3 Expressive.
  */
+@Suppress("LongMethod")
 @Composable
 fun NowPlayingHost(
     hasBottomNav: Boolean,

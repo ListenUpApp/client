@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -112,15 +114,18 @@ class PlaybackManager(
         var totalDuration = 0L
         audioFiles.forEachIndexed { index, file ->
             logger.debug {
-                "  File[$index]: id=${file.id}, filename=${file.filename}, duration=${file.duration}ms (${file.duration / 1000}s), size=${file.size}, format=${file.format}"
+                "  File[$index]: id=${file.id}, filename=${file.filename}, " +
+                    "duration=${file.duration}ms (${file.duration / 1000}s), " +
+                    "size=${file.size}, format=${file.format}"
             }
             // Check for problematic values
             if (file.duration <= 0) {
                 logger.warn { "  ⚠️ WARNING: File[$index] has invalid duration: ${file.duration}" }
             }
-            if (file.duration > 86400000) { // More than 24 hours - suspicious
+            if (file.duration > 86_400_000) { // More than 24 hours - suspicious
                 logger.warn {
-                    "  ⚠️ WARNING: File[$index] has suspiciously large duration: ${file.duration}ms (${file.duration / 3600000}h)"
+                    "  ⚠️ WARNING: File[$index] has suspiciously large duration: " +
+                        "${file.duration}ms (${file.duration / 3_600_000}h)"
                 }
             }
             totalDuration += file.duration
@@ -163,7 +168,9 @@ class PlaybackManager(
         // Test timeline.resolve() with resume position
         val resolvedPosition = timeline.resolve(resumePositionMs)
         logger.debug {
-            "Resolved resume position: mediaItemIndex=${resolvedPosition.mediaItemIndex}, positionInFileMs=${resolvedPosition.positionInFileMs}"
+            "Resolved resume position: " +
+                "mediaItemIndex=${resolvedPosition.mediaItemIndex}, " +
+                "positionInFileMs=${resolvedPosition.positionInFileMs}"
         }
 
         if (resolvedPosition.mediaItemIndex >= timeline.files.size) {

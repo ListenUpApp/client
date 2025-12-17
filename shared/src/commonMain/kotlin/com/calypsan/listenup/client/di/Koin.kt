@@ -1,7 +1,11 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.di
 
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
+import com.calypsan.listenup.client.data.remote.AdminApi
+import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.AuthApiContract
@@ -9,6 +13,8 @@ import com.calypsan.listenup.client.data.remote.GenreApi
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.ImageApi
 import com.calypsan.listenup.client.data.remote.ImageApiContract
+import com.calypsan.listenup.client.data.remote.InviteApi
+import com.calypsan.listenup.client.data.remote.InviteApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SearchApiContract
@@ -23,6 +29,7 @@ import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.data.repository.ContributorRepository
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
+import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
@@ -32,6 +39,9 @@ import com.calypsan.listenup.client.data.repository.SeriesEditRepository
 import com.calypsan.listenup.client.data.repository.SeriesEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.SeriesRepository
 import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
+import com.calypsan.listenup.client.data.repository.ServerMigrationHelper
+import com.calypsan.listenup.client.data.repository.ServerRepository
+import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.FtsPopulator
@@ -44,7 +54,11 @@ import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
+import com.calypsan.listenup.client.presentation.admin.AdminViewModel
+import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
+import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
+import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
@@ -58,11 +72,21 @@ import org.koin.dsl.module
 expect val platformStorageModule: Module
 
 /**
+ * Platform-specific discovery module.
+ * Each platform provides mDNS/Bonjour discovery implementation.
+ */
+expect val platformDiscoveryModule: Module
+
+/**
  * Data layer dependencies.
  * Provides repositories for settings and domain data.
  */
 val dataModule =
     module {
+        // Deep link manager - singleton for handling invite deep links
+        // Must be initialized before MainActivity handles intents
+        single { DeepLinkManager() }
+
         // Settings repository - single source of truth for app configuration
         // Bind to both concrete type and interface (for ViewModels)
         single {
@@ -90,6 +114,10 @@ val networkModule =
             val settingsRepository: SettingsRepositoryContract = get()
             AuthApi(getServerUrl = { settingsRepository.getServerUrl() })
         } bind AuthApiContract::class
+
+        // InviteApi - handles public invite operations (no auth required)
+        // Server URL comes from deep link, not stored settings
+        single { InviteApi() } bind InviteApiContract::class
 
         // ApiClientFactory - creates authenticated HTTP clients with auto-refresh
         single {
@@ -148,6 +176,29 @@ val repositoryModule =
         single { get<ListenUpDatabase>().pendingListeningEventDao() }
         single { get<ListenUpDatabase>().downloadDao() }
         single { get<ListenUpDatabase>().searchDao() }
+        single { get<ListenUpDatabase>().serverDao() }
+
+        // ServerRepository - bridges mDNS discovery with database persistence
+        single {
+            ServerRepository(
+                serverDao = get(),
+                discoveryService = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        } bind ServerRepositoryContract::class
+
+        // ServerMigrationHelper - migrates legacy single-server data
+        single {
+            ServerMigrationHelper(
+                secureStorage = get(),
+                serverDao = get(),
+            )
+        }
     }
 
 /**
@@ -165,6 +216,7 @@ val useCaseModule =
  */
 val presentationModule =
     module {
+        factory { ServerSelectViewModel(serverRepository = get(), settingsRepository = get()) }
         factory { ServerConnectViewModel(settingsRepository = get()) }
         factory {
             com.calypsan.listenup.client.presentation.auth.SetupViewModel(
@@ -180,6 +232,19 @@ val presentationModule =
                 userDao = get(),
             )
         }
+        // InviteRegistrationViewModel - takes serverUrl and inviteCode as parameters
+        factory { params ->
+            InviteRegistrationViewModel(
+                inviteApi = get(),
+                settingsRepository = get(),
+                userDao = get(),
+                serverUrl = params.get<String>(0),
+                inviteCode = params.get<String>(1),
+            )
+        }
+        // Admin ViewModels
+        factory { AdminViewModel(adminApi = get()) }
+        factory { CreateInviteViewModel(adminApi = get()) }
         factory {
             LibraryViewModel(
                 bookRepository = get(),
@@ -332,6 +397,11 @@ val syncModule =
             GenreApi(clientFactory = get())
         } bind GenreApiContract::class
 
+        // AdminApi for admin operations (user/invite management)
+        single {
+            AdminApi(clientFactory = get())
+        } bind AdminApiContract::class
+
         // FtsPopulator for rebuilding FTS tables after sync
         single {
             FtsPopulator(
@@ -436,6 +506,7 @@ val sharedModules =
     listOf(
         platformStorageModule,
         platformDatabaseModule,
+        platformDiscoveryModule,
         dataModule,
         networkModule,
         repositoryModule,

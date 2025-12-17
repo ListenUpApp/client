@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.playback
 
 import androidx.media3.common.PlaybackException
