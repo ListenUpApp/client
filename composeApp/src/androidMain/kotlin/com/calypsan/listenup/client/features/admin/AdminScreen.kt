@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.features.admin
 
 import android.content.ClipData
@@ -135,7 +137,9 @@ fun AdminScreen(
         ListenUpDestructiveDialog(
             onDismissRequest = { inviteToRevoke = null },
             title = "Revoke Invite",
-            text = "Are you sure you want to revoke the invite for ${invite.name}? They won't be able to use this link anymore.",
+            text =
+                "Are you sure you want to revoke the invite for ${invite.name}? " +
+                    "They won't be able to use this link anymore.",
             confirmText = "Revoke",
             onConfirm = {
                 viewModel.revokeInvite(invite.id)
@@ -146,7 +150,10 @@ fun AdminScreen(
     }
 }
 
-private fun copyToClipboard(context: Context, text: String) {
+private fun copyToClipboard(
+    context: Context,
+    text: String,
+) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val clip = ClipData.newPlainText("Invite Link", text)
     clipboard.setPrimaryClip(clip)
@@ -162,9 +169,10 @@ private fun AdminContent(
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
     ) {
         // Users section header
         item {
@@ -182,19 +190,21 @@ private fun AdminContent(
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = cardShape,
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                ),
+                colors =
+                    CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
             ) {
                 Column {
                     // Table header - clip top corners to match card shape
                     UserTableHeader(
-                        modifier = Modifier.clip(
-                            RoundedCornerShape(
-                                topStart = 28.dp,
-                                topEnd = 28.dp,
+                        modifier =
+                            Modifier.clip(
+                                RoundedCornerShape(
+                                    topStart = 28.dp,
+                                    topEnd = 28.dp,
+                                ),
                             ),
-                        ),
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
@@ -240,9 +250,10 @@ private fun AdminContent(
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    ),
+                    colors =
+                        CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        ),
                 ) {
                     Column {
                         state.pendingInvites.forEachIndexed { index, invite ->
@@ -275,10 +286,11 @@ private fun AdminContent(
 @Composable
 private fun UserTableHeader(modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -312,9 +324,10 @@ private fun UserTableRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Name with admin indicator
@@ -389,9 +402,10 @@ private fun InviteRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -456,14 +470,16 @@ private fun InviteSomeoneCard(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {

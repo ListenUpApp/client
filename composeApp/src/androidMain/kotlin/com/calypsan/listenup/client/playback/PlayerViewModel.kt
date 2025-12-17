@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.playback
 
 import android.util.Log
@@ -123,7 +125,9 @@ class PlayerViewModel(
                 val startPosition = prepareResult.timeline.resolve(prepareResult.resumePositionMs)
                 Log.d(
                     TAG,
-                    "Starting playback: resumePos=${prepareResult.resumePositionMs}ms -> mediaItem=${startPosition.mediaItemIndex}, posInFile=${startPosition.positionInFileMs}ms",
+                    "Starting playback: resumePos=${prepareResult.resumePositionMs}ms -> " +
+                        "mediaItem=${startPosition.mediaItemIndex}, " +
+                        "posInFile=${startPosition.positionInFileMs}ms",
                 )
 
                 // Validate start position before passing to ExoPlayer

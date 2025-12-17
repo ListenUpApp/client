@@ -74,22 +74,24 @@ class ServerEntityTest {
 
     @Test
     fun `isAuthenticated returns false when tokens but no userId`() {
-        val server = createServer(
-            accessToken = "access-token",
-            refreshToken = "refresh-token",
-        )
+        val server =
+            createServer(
+                accessToken = "access-token",
+                refreshToken = "refresh-token",
+            )
 
         assertFalse(server.isAuthenticated())
     }
 
     @Test
     fun `isAuthenticated returns true when all auth fields present`() {
-        val server = createServer(
-            accessToken = "access-token",
-            refreshToken = "refresh-token",
-            sessionId = "session-id",
-            userId = "user-id",
-        )
+        val server =
+            createServer(
+                accessToken = "access-token",
+                refreshToken = "refresh-token",
+                sessionId = "session-id",
+                userId = "user-id",
+            )
 
         assertTrue(server.isAuthenticated())
     }
@@ -116,10 +118,11 @@ class ServerEntityTest {
     fun `isLocalUrlFresh returns false when lastSeenAt is stale`() {
         // Seen 10 minutes ago (threshold is 5 minutes)
         val tenMinutesAgo = currentTime() - (10 * 60 * 1000)
-        val server = createServer(
-            localUrl = "http://192.168.1.100:8080",
-            lastSeenAt = tenMinutesAgo,
-        )
+        val server =
+            createServer(
+                localUrl = "http://192.168.1.100:8080",
+                lastSeenAt = tenMinutesAgo,
+            )
 
         assertFalse(server.isLocalUrlFresh())
     }
@@ -128,10 +131,11 @@ class ServerEntityTest {
     fun `isLocalUrlFresh returns true when lastSeenAt is recent`() {
         // Seen 1 minute ago
         val oneMinuteAgo = currentTime() - (1 * 60 * 1000)
-        val server = createServer(
-            localUrl = "http://192.168.1.100:8080",
-            lastSeenAt = oneMinuteAgo,
-        )
+        val server =
+            createServer(
+                localUrl = "http://192.168.1.100:8080",
+                lastSeenAt = oneMinuteAgo,
+            )
 
         assertTrue(server.isLocalUrlFresh())
     }
@@ -140,10 +144,11 @@ class ServerEntityTest {
     fun `isLocalUrlFresh respects custom threshold`() {
         // Seen 3 minutes ago
         val threeMinutesAgo = currentTime() - (3 * 60 * 1000)
-        val server = createServer(
-            localUrl = "http://192.168.1.100:8080",
-            lastSeenAt = threeMinutesAgo,
-        )
+        val server =
+            createServer(
+                localUrl = "http://192.168.1.100:8080",
+                lastSeenAt = threeMinutesAgo,
+            )
 
         // With 2 minute threshold, should be stale
         assertFalse(server.isLocalUrlFresh(staleThresholdMs = 2 * 60 * 1000))
@@ -166,11 +171,12 @@ class ServerEntityTest {
     @Test
     fun `getBestUrl returns fresh localUrl when available`() {
         val recentTime = currentTime() - (1 * 60 * 1000)
-        val server = createServer(
-            localUrl = "http://192.168.1.100:8080",
-            remoteUrl = "https://example.com",
-            lastSeenAt = recentTime,
-        )
+        val server =
+            createServer(
+                localUrl = "http://192.168.1.100:8080",
+                remoteUrl = "https://example.com",
+                lastSeenAt = recentTime,
+            )
 
         assertEquals("http://192.168.1.100:8080", server.getBestUrl())
     }
@@ -178,21 +184,23 @@ class ServerEntityTest {
     @Test
     fun `getBestUrl returns remoteUrl when localUrl is stale`() {
         val tenMinutesAgo = currentTime() - (10 * 60 * 1000)
-        val server = createServer(
-            localUrl = "http://192.168.1.100:8080",
-            remoteUrl = "https://example.com",
-            lastSeenAt = tenMinutesAgo,
-        )
+        val server =
+            createServer(
+                localUrl = "http://192.168.1.100:8080",
+                remoteUrl = "https://example.com",
+                lastSeenAt = tenMinutesAgo,
+            )
 
         assertEquals("https://example.com", server.getBestUrl())
     }
 
     @Test
     fun `getBestUrl returns remoteUrl when no localUrl`() {
-        val server = createServer(
-            localUrl = null,
-            remoteUrl = "https://example.com",
-        )
+        val server =
+            createServer(
+                localUrl = null,
+                remoteUrl = "https://example.com",
+            )
 
         assertEquals("https://example.com", server.getBestUrl())
     }
@@ -200,11 +208,12 @@ class ServerEntityTest {
     @Test
     fun `getBestUrl returns stale localUrl when no remoteUrl`() {
         val tenMinutesAgo = currentTime() - (10 * 60 * 1000)
-        val server = createServer(
-            localUrl = "http://192.168.1.100:8080",
-            remoteUrl = null,
-            lastSeenAt = tenMinutesAgo,
-        )
+        val server =
+            createServer(
+                localUrl = "http://192.168.1.100:8080",
+                remoteUrl = null,
+                lastSeenAt = tenMinutesAgo,
+            )
 
         // Stale local URL is better than nothing
         assertEquals("http://192.168.1.100:8080", server.getBestUrl())
@@ -214,11 +223,12 @@ class ServerEntityTest {
     fun `getBestUrl respects custom threshold`() {
         // Seen 3 minutes ago
         val threeMinutesAgo = currentTime() - (3 * 60 * 1000)
-        val server = createServer(
-            localUrl = "http://192.168.1.100:8080",
-            remoteUrl = "https://example.com",
-            lastSeenAt = threeMinutesAgo,
-        )
+        val server =
+            createServer(
+                localUrl = "http://192.168.1.100:8080",
+                remoteUrl = "https://example.com",
+                lastSeenAt = threeMinutesAgo,
+            )
 
         // With 2 minute threshold, localUrl is stale -> use remote
         assertEquals("https://example.com", server.getBestUrl(staleThresholdMs = 2 * 60 * 1000))
@@ -240,5 +250,7 @@ class ServerEntityTest {
     // Helper
     // ============================================================
 
-    private fun currentTime(): Long = com.calypsan.listenup.client.core.currentEpochMilliseconds()
+    private fun currentTime(): Long =
+        com.calypsan.listenup.client.core
+            .currentEpochMilliseconds()
 }

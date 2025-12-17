@@ -16,9 +16,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * - NSNetServiceDelegate for callbacks
  */
 class IosDiscoveryService : ServerDiscoveryService {
-    private val _discoveredServers = MutableStateFlow<List<DiscoveredServer>>(emptyList())
+    private val serversFlow = MutableStateFlow<List<DiscoveredServer>>(emptyList())
 
-    override fun discover(): Flow<List<DiscoveredServer>> = _discoveredServers.asStateFlow()
+    override fun discover(): Flow<List<DiscoveredServer>> = serversFlow.asStateFlow()
 
     override fun startDiscovery() {
         // TODO: Implement NSNetServiceBrowser discovery

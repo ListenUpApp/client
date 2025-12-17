@@ -182,6 +182,7 @@ class ServerConnectViewModel(
      * - Maps exception to user-friendly error
      * - Shows error in UI
      */
+    @Suppress("CognitiveComplexMethod")
     private fun verifyServer(url: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }

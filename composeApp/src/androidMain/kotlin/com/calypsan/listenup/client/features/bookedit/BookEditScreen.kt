@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.features.bookedit
 
 import androidx.activity.compose.BackHandler
@@ -8,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -69,6 +70,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * - Floating cards for each editing section
  * - Extended FAB for Save action
  */
+@Suppress("UnusedParameter", "LongMethod", "CognitiveComplexMethod")
 @Composable
 fun BookEditScreen(
     bookId: String,
@@ -249,6 +251,7 @@ fun BookEditScreen(
 // CREATIVE STUDIO LAYOUT
 // =============================================================================
 
+@Suppress("UnusedParameter")
 @Composable
 private fun BookEditContent(
     state: BookEditUiState,
@@ -437,6 +440,7 @@ private fun SingleColumnCardsLayout(
  * Left Column: Publishing, Identifiers, Series
  * Right Column: Classification, Talent
  */
+@Suppress("LongMethod")
 @Composable
 private fun TwoColumnCardsLayout(
     state: BookEditUiState,

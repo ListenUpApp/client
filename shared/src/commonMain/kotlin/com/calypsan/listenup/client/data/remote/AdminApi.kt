@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
@@ -20,13 +22,21 @@ import kotlinx.serialization.Serializable
 interface AdminApiContract {
     // User management
     suspend fun getUsers(): List<AdminUser>
+
     suspend fun getUser(userId: String): AdminUser
-    suspend fun updateUser(userId: String, request: UpdateUserRequest): AdminUser
+
+    suspend fun updateUser(
+        userId: String,
+        request: UpdateUserRequest,
+    ): AdminUser
+
     suspend fun deleteUser(userId: String)
 
     // Invite management
     suspend fun getInvites(): List<AdminInvite>
+
     suspend fun createInvite(request: CreateInviteRequest): AdminInvite
+
     suspend fun deleteInvite(inviteId: String)
 }
 
@@ -39,7 +49,6 @@ interface AdminApiContract {
 class AdminApi(
     private val clientFactory: ApiClientFactory,
 ) : AdminApiContract {
-
     // User Management
 
     override suspend fun getUsers(): List<AdminUser> {
@@ -64,12 +73,16 @@ class AdminApi(
         }
     }
 
-    override suspend fun updateUser(userId: String, request: UpdateUserRequest): AdminUser {
+    override suspend fun updateUser(
+        userId: String,
+        request: UpdateUserRequest,
+    ): AdminUser {
         val client = clientFactory.getClient()
         val response: ApiResponse<AdminUser> =
-            client.patch("/api/v1/admin/users/$userId") {
-                setBody(request)
-            }.body()
+            client
+                .patch("/api/v1/admin/users/$userId") {
+                    setBody(request)
+                }.body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
@@ -86,7 +99,10 @@ class AdminApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
         // 204 No Content - success
@@ -108,9 +124,10 @@ class AdminApi(
     override suspend fun createInvite(request: CreateInviteRequest): AdminInvite {
         val client = clientFactory.getClient()
         val response: ApiResponse<AdminInvite> =
-            client.post("/api/v1/admin/invites") {
-                setBody(request)
-            }.body()
+            client
+                .post("/api/v1/admin/invites") {
+                    setBody(request)
+                }.body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
@@ -127,7 +144,10 @@ class AdminApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
         // 204 No Content - success
@@ -194,11 +214,7 @@ data class AdminInvite(
      * Human-readable status of the invite.
      */
     val status: InviteStatus
-        get() = when {
-            claimedAt != null -> InviteStatus.CLAIMED
-            else -> InviteStatus.PENDING
-            // Note: Expired status would need date comparison
-        }
+        get() = if (claimedAt != null) InviteStatus.CLAIMED else InviteStatus.PENDING
 }
 
 enum class InviteStatus {

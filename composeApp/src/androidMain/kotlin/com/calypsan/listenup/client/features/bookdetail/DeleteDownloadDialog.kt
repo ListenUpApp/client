@@ -18,9 +18,10 @@ fun DeleteDownloadDialog(
     ListenUpDestructiveDialog(
         onDismissRequest = onDismiss,
         title = "Delete Download?",
-        text = "Remove the downloaded files for \"$bookTitle\"? " +
-            "This will free up ${formatFileSize(downloadSize)}. " +
-            "You can re-download anytime by playing the book.",
+        text =
+            "Remove the downloaded files for \"$bookTitle\"? " +
+                "This will free up ${formatFileSize(downloadSize)}. " +
+                "You can re-download anytime by playing the book.",
         confirmText = "Delete",
         onConfirm = onConfirm,
         onDismiss = onDismiss,
@@ -31,6 +32,7 @@ fun DeleteDownloadDialog(
 /**
  * Format bytes to human-readable size.
  */
+@Suppress("MagicNumber")
 fun formatFileSize(bytes: Long): String =
     when {
         bytes < 1024 -> "$bytes B"

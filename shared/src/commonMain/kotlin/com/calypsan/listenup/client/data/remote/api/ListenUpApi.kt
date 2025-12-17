@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.data.remote.api
 
 import com.calypsan.listenup.client.core.Failure

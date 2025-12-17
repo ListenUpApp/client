@@ -49,15 +49,16 @@ fun ListenUpAlertDialog(
                 Text(confirmText, color = confirmColor)
             }
         },
-        dismissButton = if (dismissText != null && onDismiss != null) {
-            {
-                TextButton(onClick = onDismiss) {
-                    Text(dismissText)
+        dismissButton =
+            if (dismissText != null && onDismiss != null) {
+                {
+                    TextButton(onClick = onDismiss) {
+                        Text(dismissText)
+                    }
                 }
-            }
-        } else {
-            null
-        },
+            } else {
+                null
+            },
     )
 }
 

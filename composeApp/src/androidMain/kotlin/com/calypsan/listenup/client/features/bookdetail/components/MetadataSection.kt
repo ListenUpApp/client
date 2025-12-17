@@ -115,7 +115,7 @@ fun StatsRow(
         rating?.takeIf { it > 0 }?.let { r ->
             StatChip(
                 icon = { Icon(Icons.Default.Star, null, Modifier.size(16.dp)) },
-                text = String.format("%.1f", r),
+                text = String.format(java.util.Locale.ROOT, "%.1f", r),
             )
         }
 

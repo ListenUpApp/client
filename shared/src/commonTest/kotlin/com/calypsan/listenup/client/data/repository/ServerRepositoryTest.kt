@@ -48,7 +48,9 @@ class ServerRepositoryTest {
     // Test Fixture
     // ============================================================
 
-    private class TestFixture(scope: CoroutineScope) {
+    private class TestFixture(
+        scope: CoroutineScope,
+    ) {
         val serverDao: ServerDao = mock()
         val discoveryService: ServerDiscoveryService = mock()
         val discoveredServersFlow = MutableStateFlow<List<DiscoveredServer>>(emptyList())
@@ -70,11 +72,12 @@ class ServerRepositoryTest {
             everySuspend { serverDao.deleteById(any()) } returns Unit
         }
 
-        fun build(scope: CoroutineScope): ServerRepository = ServerRepository(
-            serverDao = serverDao,
-            discoveryService = discoveryService,
-            scope = scope,
-        )
+        fun build(scope: CoroutineScope): ServerRepository =
+            ServerRepository(
+                serverDao = serverDao,
+                discoveryService = discoveryService,
+                scope = scope,
+            )
     }
 
     private fun createFixture(): TestFixture = TestFixture(testScope)
@@ -134,263 +137,280 @@ class ServerRepositoryTest {
     // ============================================================
 
     @Test
-    fun `observeServers returns empty list when no servers`() = testScope.runTest {
-        val fixture = createFixture()
-        val repository = fixture.build(this)
+    fun `observeServers returns empty list when no servers`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val repository = fixture.build(this)
 
-        val servers = repository.observeServers().first()
+            val servers = repository.observeServers().first()
 
-        assertTrue(servers.isEmpty())
-    }
-
-    @Test
-    fun `observeServers returns persisted servers with offline status`() = testScope.runTest {
-        val fixture = createFixture()
-        val serverEntity = createServerEntity(id = "server-1", name = "Persisted Server")
-        everySuspend { fixture.serverDao.observeAll() } returns flowOf(listOf(serverEntity))
-
-        val repository = fixture.build(this)
-        val servers = repository.observeServers().first()
-
-        assertEquals(1, servers.size)
-        assertEquals("server-1", servers[0].server.id)
-        assertEquals("Persisted Server", servers[0].server.name)
-        assertFalse(servers[0].isOnline) // Not discovered
-    }
+            assertTrue(servers.isEmpty())
+        }
 
     @Test
-    fun `observeServers marks discovered servers as online`() = testScope.runTest {
-        val fixture = createFixture()
-        val serverEntity = createServerEntity(id = "server-1")
-        val discoveredServer = createDiscoveredServer(id = "server-1")
+    fun `observeServers returns persisted servers with offline status`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val serverEntity = createServerEntity(id = "server-1", name = "Persisted Server")
+            everySuspend { fixture.serverDao.observeAll() } returns flowOf(listOf(serverEntity))
 
-        // Use MutableStateFlow so combine triggers when discovery updates
-        val persistedFlow = MutableStateFlow(listOf(serverEntity))
-        everySuspend { fixture.serverDao.observeAll() } returns persistedFlow
-        fixture.discoveredServersFlow.value = listOf(discoveredServer)
+            val repository = fixture.build(this)
+            val servers = repository.observeServers().first()
 
-        val repository = fixture.build(this)
-        advanceUntilIdle()
+            assertEquals(1, servers.size)
+            assertEquals("server-1", servers[0].server.id)
+            assertEquals("Persisted Server", servers[0].server.name)
+            assertFalse(servers[0].isOnline) // Not discovered
+        }
 
-        // drop(1) skips the initial emission from onStart { emit(emptyList()) }
-        val servers = repository.observeServers().drop(1).first()
+    @Test
+    fun `observeServers marks discovered servers as online`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val serverEntity = createServerEntity(id = "server-1")
+            val discoveredServer = createDiscoveredServer(id = "server-1")
 
-        assertEquals(1, servers.size)
-        assertTrue(servers[0].isOnline)
-    }
+            // Use MutableStateFlow so combine triggers when discovery updates
+            val persistedFlow = MutableStateFlow(listOf(serverEntity))
+            everySuspend { fixture.serverDao.observeAll() } returns persistedFlow
+            fixture.discoveredServersFlow.value = listOf(discoveredServer)
+
+            val repository = fixture.build(this)
+            advanceUntilIdle()
+
+            // drop(1) skips the initial emission from onStart { emit(emptyList()) }
+            val servers = repository.observeServers().drop(1).first()
+
+            assertEquals(1, servers.size)
+            assertTrue(servers[0].isOnline)
+        }
 
     // ============================================================
     // observeActiveServer Tests
     // ============================================================
 
     @Test
-    fun `observeActiveServer returns null when no active server`() = testScope.runTest {
-        val fixture = createFixture()
-        val repository = fixture.build(this)
+    fun `observeActiveServer returns null when no active server`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val repository = fixture.build(this)
 
-        val active = repository.observeActiveServer().first()
+            val active = repository.observeActiveServer().first()
 
-        assertNull(active)
-    }
+            assertNull(active)
+        }
 
     @Test
-    fun `observeActiveServer returns active server`() = testScope.runTest {
-        val fixture = createFixture()
-        val serverEntity = createServerEntity(id = "server-1", isActive = true)
-        everySuspend { fixture.serverDao.observeActive() } returns flowOf(serverEntity)
+    fun `observeActiveServer returns active server`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val serverEntity = createServerEntity(id = "server-1", isActive = true)
+            everySuspend { fixture.serverDao.observeActive() } returns flowOf(serverEntity)
 
-        val repository = fixture.build(this)
-        val active = repository.observeActiveServer().first()
+            val repository = fixture.build(this)
+            val active = repository.observeActiveServer().first()
 
-        assertNotNull(active)
-        assertEquals("server-1", active.id)
-    }
+            assertNotNull(active)
+            assertEquals("server-1", active.id)
+        }
 
     // ============================================================
     // getActiveServer Tests
     // ============================================================
 
     @Test
-    fun `getActiveServer returns null when no active server`() = testScope.runTest {
-        val fixture = createFixture()
-        val repository = fixture.build(this)
+    fun `getActiveServer returns null when no active server`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val repository = fixture.build(this)
 
-        val active = repository.getActiveServer()
+            val active = repository.getActiveServer()
 
-        assertNull(active)
-    }
+            assertNull(active)
+        }
 
     @Test
-    fun `getActiveServer returns active server`() = testScope.runTest {
-        val fixture = createFixture()
-        val serverEntity = createServerEntity(id = "server-1", isActive = true)
-        everySuspend { fixture.serverDao.getActive() } returns serverEntity
+    fun `getActiveServer returns active server`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val serverEntity = createServerEntity(id = "server-1", isActive = true)
+            everySuspend { fixture.serverDao.getActive() } returns serverEntity
 
-        val repository = fixture.build(this)
-        val active = repository.getActiveServer()
+            val repository = fixture.build(this)
+            val active = repository.getActiveServer()
 
-        assertNotNull(active)
-        assertEquals("server-1", active.id)
-    }
+            assertNotNull(active)
+            assertEquals("server-1", active.id)
+        }
 
     // ============================================================
     // setActiveServer Tests
     // ============================================================
 
     @Test
-    fun `setActiveServer by id calls dao setActive`() = testScope.runTest {
-        val fixture = createFixture()
-        val repository = fixture.build(this)
+    fun `setActiveServer by id calls dao setActive`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val repository = fixture.build(this)
 
-        repository.setActiveServer("server-1")
+            repository.setActiveServer("server-1")
 
-        verifySuspend { fixture.serverDao.setActive("server-1") }
-    }
-
-    @Test
-    fun `setActiveServer by discovered creates new server if not exists`() = testScope.runTest {
-        val fixture = createFixture()
-        val discovered = createDiscoveredServer(id = "new-server")
-        everySuspend { fixture.serverDao.getById("new-server") } returns null
-
-        val repository = fixture.build(this)
-        repository.setActiveServer(discovered)
-
-        verifySuspend { fixture.serverDao.upsert(any()) }
-        verifySuspend { fixture.serverDao.setActive("new-server") }
-    }
+            verifySuspend { fixture.serverDao.setActive("server-1") }
+        }
 
     @Test
-    fun `setActiveServer by discovered updates existing server`() = testScope.runTest {
-        val fixture = createFixture()
-        val existing = createServerEntity(id = "existing-server")
-        val discovered = createDiscoveredServer(id = "existing-server", name = "Updated Name")
-        everySuspend { fixture.serverDao.getById("existing-server") } returns existing
+    fun `setActiveServer by discovered creates new server if not exists`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val discovered = createDiscoveredServer(id = "new-server")
+            everySuspend { fixture.serverDao.getById("new-server") } returns null
 
-        val repository = fixture.build(this)
-        repository.setActiveServer(discovered)
+            val repository = fixture.build(this)
+            repository.setActiveServer(discovered)
 
-        verifySuspend { fixture.serverDao.updateFromDiscovery(any(), any(), any(), any(), any(), any(), any()) }
-        verifySuspend { fixture.serverDao.setActive("existing-server") }
-    }
+            verifySuspend { fixture.serverDao.upsert(any()) }
+            verifySuspend { fixture.serverDao.setActive("new-server") }
+        }
+
+    @Test
+    fun `setActiveServer by discovered updates existing server`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val existing = createServerEntity(id = "existing-server")
+            val discovered = createDiscoveredServer(id = "existing-server", name = "Updated Name")
+            everySuspend { fixture.serverDao.getById("existing-server") } returns existing
+
+            val repository = fixture.build(this)
+            repository.setActiveServer(discovered)
+
+            verifySuspend { fixture.serverDao.updateFromDiscovery(any(), any(), any(), any(), any(), any(), any()) }
+            verifySuspend { fixture.serverDao.setActive("existing-server") }
+        }
 
     // ============================================================
     // saveAuthTokens Tests
     // ============================================================
 
     @Test
-    fun `saveAuthTokens saves to active server`() = testScope.runTest {
-        val fixture = createFixture()
-        val activeServer = createServerEntity(id = "active-server", isActive = true)
-        everySuspend { fixture.serverDao.getActive() } returns activeServer
+    fun `saveAuthTokens saves to active server`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val activeServer = createServerEntity(id = "active-server", isActive = true)
+            everySuspend { fixture.serverDao.getActive() } returns activeServer
 
-        val repository = fixture.build(this)
-        repository.saveAuthTokens(
-            accessToken = "access",
-            refreshToken = "refresh",
-            sessionId = "session",
-            userId = "user",
-        )
-
-        verifySuspend {
-            fixture.serverDao.saveAuthTokens(
-                serverId = "active-server",
+            val repository = fixture.build(this)
+            repository.saveAuthTokens(
                 accessToken = "access",
                 refreshToken = "refresh",
                 sessionId = "session",
                 userId = "user",
-                timestamp = any(),
             )
+
+            verifySuspend {
+                fixture.serverDao.saveAuthTokens(
+                    serverId = "active-server",
+                    accessToken = "access",
+                    refreshToken = "refresh",
+                    sessionId = "session",
+                    userId = "user",
+                    timestamp = any(),
+                )
+            }
         }
-    }
 
     // ============================================================
     // updateAccessToken Tests
     // ============================================================
 
     @Test
-    fun `updateAccessToken updates active server token`() = testScope.runTest {
-        val fixture = createFixture()
-        val activeServer = createServerEntity(id = "active-server", isActive = true)
-        everySuspend { fixture.serverDao.getActive() } returns activeServer
+    fun `updateAccessToken updates active server token`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val activeServer = createServerEntity(id = "active-server", isActive = true)
+            everySuspend { fixture.serverDao.getActive() } returns activeServer
 
-        val repository = fixture.build(this)
-        repository.updateAccessToken("new-access-token")
+            val repository = fixture.build(this)
+            repository.updateAccessToken("new-access-token")
 
-        verifySuspend { fixture.serverDao.updateAccessToken("active-server", "new-access-token") }
-    }
+            verifySuspend { fixture.serverDao.updateAccessToken("active-server", "new-access-token") }
+        }
 
     // ============================================================
     // clearAuthTokens Tests
     // ============================================================
 
     @Test
-    fun `clearAuthTokens clears tokens for active server`() = testScope.runTest {
-        val fixture = createFixture()
-        val activeServer = createServerEntity(id = "active-server", isActive = true)
-        everySuspend { fixture.serverDao.getActive() } returns activeServer
+    fun `clearAuthTokens clears tokens for active server`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val activeServer = createServerEntity(id = "active-server", isActive = true)
+            everySuspend { fixture.serverDao.getActive() } returns activeServer
 
-        val repository = fixture.build(this)
-        repository.clearAuthTokens()
+            val repository = fixture.build(this)
+            repository.clearAuthTokens()
 
-        verifySuspend { fixture.serverDao.clearAuthTokens("active-server") }
-    }
+            verifySuspend { fixture.serverDao.clearAuthTokens("active-server") }
+        }
 
     // ============================================================
     // addManualServer Tests
     // ============================================================
 
     @Test
-    fun `addManualServer creates server with remote URL`() = testScope.runTest {
-        val fixture = createFixture()
-        val repository = fixture.build(this)
+    fun `addManualServer creates server with remote URL`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val repository = fixture.build(this)
 
-        repository.addManualServer(
-            id = "manual-server",
-            name = "Manual Server",
-            remoteUrl = "https://example.com",
-        )
+            repository.addManualServer(
+                id = "manual-server",
+                name = "Manual Server",
+                remoteUrl = "https://example.com",
+            )
 
-        verifySuspend { fixture.serverDao.upsert(any()) }
-    }
+            verifySuspend { fixture.serverDao.upsert(any()) }
+        }
 
     // ============================================================
     // deleteServer Tests
     // ============================================================
 
     @Test
-    fun `deleteServer calls dao deleteById`() = testScope.runTest {
-        val fixture = createFixture()
-        val repository = fixture.build(this)
+    fun `deleteServer calls dao deleteById`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            val repository = fixture.build(this)
 
-        repository.deleteServer("server-to-delete")
+            repository.deleteServer("server-to-delete")
 
-        verifySuspend { fixture.serverDao.deleteById("server-to-delete") }
-    }
+            verifySuspend { fixture.serverDao.deleteById("server-to-delete") }
+        }
 
     // ============================================================
     // startDiscovery / stopDiscovery Tests
     // ============================================================
 
     @Test
-    fun `startDiscovery calls discovery service`() = testScope.runTest {
-        val fixture = createFixture()
-        every { fixture.discoveryService.startDiscovery() } returns Unit
+    fun `startDiscovery calls discovery service`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            every { fixture.discoveryService.startDiscovery() } returns Unit
 
-        val repository = fixture.build(this)
-        repository.startDiscovery()
+            val repository = fixture.build(this)
+            repository.startDiscovery()
 
-        // Verify was called (mock default behavior)
-    }
+            // Verify was called (mock default behavior)
+        }
 
     @Test
-    fun `stopDiscovery calls discovery service`() = testScope.runTest {
-        val fixture = createFixture()
-        every { fixture.discoveryService.stopDiscovery() } returns Unit
+    fun `stopDiscovery calls discovery service`() =
+        testScope.runTest {
+            val fixture = createFixture()
+            every { fixture.discoveryService.stopDiscovery() } returns Unit
 
-        val repository = fixture.build(this)
-        repository.stopDiscovery()
+            val repository = fixture.build(this)
+            repository.stopDiscovery()
 
-        // Verify was called (mock default behavior)
-    }
+            // Verify was called (mock default behavior)
+        }
 }

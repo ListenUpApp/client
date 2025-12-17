@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
@@ -281,7 +283,6 @@ class ImageApi(
         suspendRunCatching {
             val client = clientFactory.getClient()
             client.delete("/api/v1/series/$seriesId/cover")
-            Unit
         }
 }
 

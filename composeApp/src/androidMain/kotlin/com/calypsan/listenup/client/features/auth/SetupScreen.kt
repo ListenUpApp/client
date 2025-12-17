@@ -183,6 +183,7 @@ private fun BrandLogo(modifier: Modifier = Modifier) {
 /**
  * Setup form content.
  */
+@Suppress("LongMethod", "CyclomaticComplexMethod", "CognitiveComplexMethod")
 @Composable
 private fun SetupForm(
     state: com.calypsan.listenup.client.presentation.auth.SetupUiState,

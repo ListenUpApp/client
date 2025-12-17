@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.deeplink
 
 import android.content.Intent
@@ -20,7 +22,6 @@ import com.calypsan.listenup.client.data.repository.InviteDeepLink
  *    - Used as fallback when App Links don't work
  */
 object DeepLinkParser {
-
     private const val CUSTOM_SCHEME = "listenup"
     private const val JOIN_HOST = "join"
     private const val JOIN_PATH_PREFIX = "/join/"
@@ -49,13 +50,12 @@ object DeepLinkParser {
      * @param uri The deep link URI
      * @return Parsed invite data, or null if not a valid invite URL
      */
-    fun parseUri(uri: Uri): InviteDeepLink? {
-        return when (uri.scheme?.lowercase()) {
+    fun parseUri(uri: Uri): InviteDeepLink? =
+        when (uri.scheme?.lowercase()) {
             CUSTOM_SCHEME -> parseCustomScheme(uri)
             "https", "http" -> parseHttpsScheme(uri)
             else -> null
         }
-    }
 
     /**
      * Parses custom scheme: listenup://join?server=URL&code=CODE
@@ -122,11 +122,13 @@ object DeepLinkParser {
     /**
      * Checks if the port is the standard port for the scheme.
      */
-    private fun isStandardPort(scheme: String, port: Int): Boolean {
-        return when (scheme.lowercase()) {
+    private fun isStandardPort(
+        scheme: String,
+        port: Int,
+    ): Boolean =
+        when (scheme.lowercase()) {
             "https" -> port == 443
             "http" -> port == 80
             else -> false
         }
-    }
 }

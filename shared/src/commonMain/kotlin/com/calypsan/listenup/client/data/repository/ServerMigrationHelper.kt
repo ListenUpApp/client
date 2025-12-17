@@ -53,21 +53,22 @@ class ServerMigrationHelper(
         // Determine if URL is local or remote
         val isLocalUrl = isLocalUrl(serverUrl)
 
-        val server = ServerEntity(
-            id = legacyServerId,
-            name = "My Server", // Will be updated when discovered via mDNS
-            apiVersion = "v1",
-            serverVersion = "unknown",
-            localUrl = if (isLocalUrl) serverUrl else null,
-            remoteUrl = if (!isLocalUrl) serverUrl else null,
-            accessToken = accessToken,
-            refreshToken = refreshToken,
-            sessionId = sessionId,
-            userId = userId,
-            isActive = true, // This was the only server, so it's active
-            lastSeenAt = 0, // Not discovered via mDNS
-            lastConnectedAt = currentEpochMilliseconds(),
-        )
+        val server =
+            ServerEntity(
+                id = legacyServerId,
+                name = "My Server", // Will be updated when discovered via mDNS
+                apiVersion = "v1",
+                serverVersion = "unknown",
+                localUrl = if (isLocalUrl) serverUrl else null,
+                remoteUrl = if (!isLocalUrl) serverUrl else null,
+                accessToken = accessToken,
+                refreshToken = refreshToken,
+                sessionId = sessionId,
+                userId = userId,
+                isActive = true, // This was the only server, so it's active
+                lastSeenAt = 0, // Not discovered via mDNS
+                lastConnectedAt = currentEpochMilliseconds(),
+            )
 
         serverDao.upsert(server)
 
@@ -85,9 +86,9 @@ class ServerMigrationHelper(
         return lower.contains("localhost") ||
             lower.contains("127.0.0.1") ||
             lower.contains("10.0.2.2") || // Android emulator
-            lower.matches(Regex(".*192\\.168\\.\\d+\\.\\d+.*")) ||
-            lower.matches(Regex(".*10\\.\\d+\\.\\d+\\.\\d+.*")) ||
-            lower.matches(Regex(".*172\\.(1[6-9]|2\\d|3[01])\\.\\d+\\.\\d+.*"))
+            lower.matches(Regex(""".*192\.168\.\d+\.\d+.*""")) ||
+            lower.matches(Regex(""".*10\.\d+\.\d+\.\d+.*""")) ||
+            lower.matches(Regex(""".*172\.(1[6-9]|2\d|3[01])\.\d+\.\d+.*"""))
     }
 
     /**

@@ -250,22 +250,16 @@ data class PendingListeningEventEntity(
 data class ServerEntity(
     /** Server's unique ID from mDNS TXT record (id=srv_xxx) */
     @PrimaryKey val id: String,
-
-    // Server identity
     /** Human-readable server name from mDNS TXT record */
     val name: String,
     /** API version from mDNS TXT record (e.g., "v1") */
     val apiVersion: String,
     /** Server version from mDNS TXT record (e.g., "1.0.0") */
     val serverVersion: String,
-
-    // Connection URLs - at least one required for connection
     /** Local network URL discovered via mDNS (e.g., "http://192.168.1.50:8080") */
     val localUrl: String? = null,
     /** Remote/public URL from mDNS TXT record or manual entry */
     val remoteUrl: String? = null,
-
-    // Per-server authentication (enables multi-server without re-login)
     /** PASETO access token for this server */
     val accessToken: String? = null,
     /** Refresh token for this server */
@@ -274,8 +268,6 @@ data class ServerEntity(
     val sessionId: String? = null,
     /** Authenticated user ID on this server */
     val userId: String? = null,
-
-    // State
     /** Whether this is the currently active server */
     val isActive: Boolean = false,
     /** Last time server was seen on local network (epoch ms), 0 if never discovered */
@@ -288,14 +280,18 @@ data class ServerEntity(
 
     /** Check if local URL is fresh (seen within threshold) */
     fun isLocalUrlFresh(staleThresholdMs: Long = STALE_THRESHOLD_MS): Boolean =
-        localUrl != null && (currentEpochMilliseconds() - lastSeenAt) < staleThresholdMs
+        localUrl != null && currentEpochMilliseconds() - lastSeenAt < staleThresholdMs
 
     /** Get best available URL (prefers fresh local, falls back to remote) */
     fun getBestUrl(staleThresholdMs: Long = STALE_THRESHOLD_MS): String? =
         when {
             isLocalUrlFresh(staleThresholdMs) -> localUrl
+
             remoteUrl != null -> remoteUrl
-            localUrl != null -> localUrl // Stale local better than nothing
+
+            localUrl != null -> localUrl
+
+            // Stale local better than nothing
             else -> null
         }
 

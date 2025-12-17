@@ -127,8 +127,8 @@ class ServerRepository(
     private val discoveryService: ServerDiscoveryService,
     private val scope: CoroutineScope,
 ) : ServerRepositoryContract {
-    override fun observeServers(): Flow<List<ServerWithStatus>> {
-        return combine(
+    override fun observeServers(): Flow<List<ServerWithStatus>> =
+        combine(
             serverDao.observeAll(),
             discoveryService.discover().onStart { emit(emptyList()) },
         ) { persisted, discovered ->
@@ -156,21 +156,22 @@ class ServerRepository(
             }
 
             // Merge persisted servers with online status
-            val merged = persisted.map { server ->
-                ServerWithStatus(
-                    server = server,
-                    isOnline = server.id in discoveredIds,
-                )
-            }
+            val merged =
+                persisted.map { server ->
+                    ServerWithStatus(
+                        server = server,
+                        isOnline = server.id in discoveredIds,
+                    )
+                }
 
             // Add newly discovered servers that aren't persisted yet
-            val newServers = discovered
-                .filter { d -> persisted.none { it.id == d.id } }
-                .map { ServerWithStatus(it.toEntity(), isOnline = true) }
+            val newServers =
+                discovered
+                    .filter { d -> persisted.none { it.id == d.id } }
+                    .map { ServerWithStatus(it.toEntity(), isOnline = true) }
 
             merged + newServers
         }
-    }
 
     override fun observeActiveServer(): Flow<ServerEntity?> = serverDao.observeActive()
 
@@ -205,8 +206,9 @@ class ServerRepository(
         sessionId: String,
         userId: String,
     ) {
-        val active = serverDao.getActive()
-            ?: throw IllegalStateException("No active server to save tokens for")
+        val active =
+            serverDao.getActive()
+                ?: error("No active server to save tokens for")
         serverDao.saveAuthTokens(
             serverId = active.id,
             accessToken = accessToken,
@@ -217,14 +219,16 @@ class ServerRepository(
     }
 
     override suspend fun updateAccessToken(accessToken: String) {
-        val active = serverDao.getActive()
-            ?: throw IllegalStateException("No active server to update token for")
+        val active =
+            serverDao.getActive()
+                ?: error("No active server to update token for")
         serverDao.updateAccessToken(active.id, accessToken)
     }
 
     override suspend fun clearAuthTokens() {
-        val active = serverDao.getActive()
-            ?: throw IllegalStateException("No active server to clear tokens for")
+        val active =
+            serverDao.getActive()
+                ?: error("No active server to clear tokens for")
         serverDao.clearAuthTokens(active.id)
     }
 
@@ -265,13 +269,14 @@ class ServerRepository(
 /**
  * Convert a discovered server to a persistable entity.
  */
-private fun DiscoveredServer.toEntity(): ServerEntity = ServerEntity(
-    id = id,
-    name = name,
-    apiVersion = apiVersion,
-    serverVersion = serverVersion,
-    localUrl = localUrl,
-    remoteUrl = remoteUrl,
-    isActive = false,
-    lastSeenAt = currentEpochMilliseconds(),
-)
+private fun DiscoveredServer.toEntity(): ServerEntity =
+    ServerEntity(
+        id = id,
+        name = name,
+        apiVersion = apiVersion,
+        serverVersion = serverVersion,
+        localUrl = localUrl,
+        remoteUrl = remoteUrl,
+        isActive = false,
+        lastSeenAt = currentEpochMilliseconds(),
+    )

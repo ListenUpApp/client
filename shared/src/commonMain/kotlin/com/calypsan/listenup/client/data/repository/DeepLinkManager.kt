@@ -48,7 +48,10 @@ class DeepLinkManager {
      * @param serverUrl The full server URL (including scheme)
      * @param code The invite code
      */
-    fun setInviteLink(serverUrl: String, code: String) {
+    fun setInviteLink(
+        serverUrl: String,
+        code: String,
+    ) {
         _pendingInvite.value = InviteDeepLink(serverUrl, code)
     }
 

@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.design.components
 
 import android.view.HapticFeedbackConstants
@@ -145,6 +147,7 @@ private fun calculateWeight(
  * - Haptic feedback on letter changes
  * - Popup indicator for selected letter
  */
+@Suppress("LongMethod", "CyclomaticComplexMethod", "CognitiveComplexMethod")
 @Composable
 fun AlphabetScrollbar(
     alphabetIndex: AlphabetIndex,

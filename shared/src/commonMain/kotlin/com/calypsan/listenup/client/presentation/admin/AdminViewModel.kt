@@ -30,30 +30,33 @@ class AdminViewModel(
             _state.value = _state.value.copy(isLoading = true, error = null)
 
             // Load users and invites independently so one failure doesn't block the other
-            val users = try {
-                adminApi.getUsers()
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(error = "Failed to load users: ${e.message}")
-                emptyList()
-            }
-
-            val pendingInvites = try {
-                val invites = adminApi.getInvites()
-                // Only show pending (unclaimed) invites
-                invites.filter { it.claimedAt == null }
-            } catch (e: Exception) {
-                // Don't overwrite user error if already set
-                if (_state.value.error == null) {
-                    _state.value = _state.value.copy(error = "Failed to load invites: ${e.message}")
+            val users =
+                try {
+                    adminApi.getUsers()
+                } catch (e: Exception) {
+                    _state.value = _state.value.copy(error = "Failed to load users: ${e.message}")
+                    emptyList()
                 }
-                emptyList()
-            }
 
-            _state.value = _state.value.copy(
-                isLoading = false,
-                users = users,
-                pendingInvites = pendingInvites,
-            )
+            val pendingInvites =
+                try {
+                    val invites = adminApi.getInvites()
+                    // Only show pending (unclaimed) invites
+                    invites.filter { it.claimedAt == null }
+                } catch (e: Exception) {
+                    // Don't overwrite user error if already set
+                    if (_state.value.error == null) {
+                        _state.value = _state.value.copy(error = "Failed to load invites: ${e.message}")
+                    }
+                    emptyList()
+                }
+
+            _state.value =
+                _state.value.copy(
+                    isLoading = false,
+                    users = users,
+                    pendingInvites = pendingInvites,
+                )
         }
     }
 
@@ -64,15 +67,17 @@ class AdminViewModel(
             try {
                 adminApi.deleteUser(userId)
                 val updatedUsers = _state.value.users.filter { it.id != userId }
-                _state.value = _state.value.copy(
-                    deletingUserId = null,
-                    users = updatedUsers,
-                )
+                _state.value =
+                    _state.value.copy(
+                        deletingUserId = null,
+                        users = updatedUsers,
+                    )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(
-                    deletingUserId = null,
-                    error = e.message ?: "Failed to delete user",
-                )
+                _state.value =
+                    _state.value.copy(
+                        deletingUserId = null,
+                        error = e.message ?: "Failed to delete user",
+                    )
             }
         }
     }
@@ -84,15 +89,17 @@ class AdminViewModel(
             try {
                 adminApi.deleteInvite(inviteId)
                 val updatedInvites = _state.value.pendingInvites.filter { it.id != inviteId }
-                _state.value = _state.value.copy(
-                    revokingInviteId = null,
-                    pendingInvites = updatedInvites,
-                )
+                _state.value =
+                    _state.value.copy(
+                        revokingInviteId = null,
+                        pendingInvites = updatedInvites,
+                    )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(
-                    revokingInviteId = null,
-                    error = e.message ?: "Failed to revoke invite",
-                )
+                _state.value =
+                    _state.value.copy(
+                        revokingInviteId = null,
+                        error = e.message ?: "Failed to revoke invite",
+                    )
             }
         }
     }

@@ -20,13 +20,19 @@ sealed interface InviteLoadingState {
     data object Loading : InviteLoadingState
 
     /** Invite details loaded successfully */
-    data class Loaded(val details: InviteDetails) : InviteLoadingState
+    data class Loaded(
+        val details: InviteDetails,
+    ) : InviteLoadingState
 
     /** Invite is no longer valid (claimed, expired, or not found) */
-    data class Invalid(val reason: String) : InviteLoadingState
+    data class Invalid(
+        val reason: String,
+    ) : InviteLoadingState
 
     /** Failed to load invite (network error) */
-    data class Error(val message: String) : InviteLoadingState
+    data class Error(
+        val message: String,
+    ) : InviteLoadingState
 }
 
 /**
@@ -43,7 +49,9 @@ sealed interface InviteSubmissionStatus {
     data object Success : InviteSubmissionStatus
 
     /** Submission failed with an error */
-    data class Error(val type: InviteErrorType) : InviteSubmissionStatus
+    data class Error(
+        val type: InviteErrorType,
+    ) : InviteSubmissionStatus
 }
 
 /**
@@ -51,16 +59,22 @@ sealed interface InviteSubmissionStatus {
  */
 sealed interface InviteErrorType {
     /** Password doesn't meet requirements */
-    data class ValidationError(val field: InviteField) : InviteErrorType
+    data class ValidationError(
+        val field: InviteField,
+    ) : InviteErrorType
 
     /** Passwords don't match */
     data object PasswordMismatch : InviteErrorType
 
     /** Network connection error */
-    data class NetworkError(val detail: String?) : InviteErrorType
+    data class NetworkError(
+        val detail: String?,
+    ) : InviteErrorType
 
     /** Server returned an error */
-    data class ServerError(val detail: String?) : InviteErrorType
+    data class ServerError(
+        val detail: String?,
+    ) : InviteErrorType
 
     /** Invite is no longer valid */
     data object InviteInvalid : InviteErrorType

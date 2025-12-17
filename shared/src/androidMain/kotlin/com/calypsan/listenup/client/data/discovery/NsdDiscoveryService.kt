@@ -4,11 +4,9 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.util.Log
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.callbackFlow
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -24,10 +22,12 @@ import java.util.concurrent.ConcurrentHashMap
  * - api: API version (required)
  * - remote: Remote URL (optional)
  */
-class NsdDiscoveryService(context: Context) : ServerDiscoveryService {
+class NsdDiscoveryService(
+    context: Context,
+) : ServerDiscoveryService {
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     private val servers = ConcurrentHashMap<String, DiscoveredServer>()
-    private val _discoveredServers = MutableStateFlow<List<DiscoveredServer>>(emptyList())
+    private val serversFlow = MutableStateFlow<List<DiscoveredServer>>(emptyList())
 
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var isDiscovering = false
@@ -37,7 +37,7 @@ class NsdDiscoveryService(context: Context) : ServerDiscoveryService {
         private const val SERVICE_TYPE = "_listenup._tcp."
     }
 
-    override fun discover(): Flow<List<DiscoveredServer>> = _discoveredServers.asStateFlow()
+    override fun discover(): Flow<List<DiscoveredServer>> = serversFlow.asStateFlow()
 
     override fun startDiscovery() {
         if (isDiscovering) {
@@ -47,43 +47,51 @@ class NsdDiscoveryService(context: Context) : ServerDiscoveryService {
 
         Log.i(TAG, "Starting mDNS discovery for $SERVICE_TYPE")
 
-        discoveryListener = object : NsdManager.DiscoveryListener {
-            override fun onDiscoveryStarted(serviceType: String) {
-                Log.i(TAG, "Discovery started for $serviceType")
-                isDiscovering = true
-            }
+        discoveryListener =
+            object : NsdManager.DiscoveryListener {
+                override fun onDiscoveryStarted(serviceType: String) {
+                    Log.i(TAG, "Discovery started for $serviceType")
+                    isDiscovering = true
+                }
 
-            override fun onDiscoveryStopped(serviceType: String) {
-                Log.i(TAG, "Discovery stopped for $serviceType")
-                isDiscovering = false
-            }
+                override fun onDiscoveryStopped(serviceType: String) {
+                    Log.i(TAG, "Discovery stopped for $serviceType")
+                    isDiscovering = false
+                }
 
-            override fun onServiceFound(serviceInfo: NsdServiceInfo) {
-                Log.d(TAG, "Service found: ${serviceInfo.serviceName}")
-                resolveService(serviceInfo)
-            }
+                override fun onServiceFound(serviceInfo: NsdServiceInfo) {
+                    Log.d(TAG, "Service found: ${serviceInfo.serviceName}")
+                    resolveService(serviceInfo)
+                }
 
-            override fun onServiceLost(serviceInfo: NsdServiceInfo) {
-                Log.d(TAG, "Service lost: ${serviceInfo.serviceName}")
-                // Remove by service name since we don't have the ID yet
-                val removedId = servers.entries
-                    .firstOrNull { it.value.name == serviceInfo.serviceName }
-                    ?.key
-                if (removedId != null) {
-                    servers.remove(removedId)
-                    emitUpdate()
+                override fun onServiceLost(serviceInfo: NsdServiceInfo) {
+                    Log.d(TAG, "Service lost: ${serviceInfo.serviceName}")
+                    // Remove by service name since we don't have the ID yet
+                    val removedId =
+                        servers.entries
+                            .firstOrNull { it.value.name == serviceInfo.serviceName }
+                            ?.key
+                    if (removedId != null) {
+                        servers.remove(removedId)
+                        emitUpdate()
+                    }
+                }
+
+                override fun onStartDiscoveryFailed(
+                    serviceType: String,
+                    errorCode: Int,
+                ) {
+                    Log.e(TAG, "Discovery start failed: $errorCode")
+                    isDiscovering = false
+                }
+
+                override fun onStopDiscoveryFailed(
+                    serviceType: String,
+                    errorCode: Int,
+                ) {
+                    Log.e(TAG, "Discovery stop failed: $errorCode")
                 }
             }
-
-            override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
-                Log.e(TAG, "Discovery start failed: $errorCode")
-                isDiscovering = false
-            }
-
-            override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
-                Log.e(TAG, "Discovery stop failed: $errorCode")
-            }
-        }
 
         try {
             nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
@@ -111,23 +119,27 @@ class NsdDiscoveryService(context: Context) : ServerDiscoveryService {
 
     private fun resolveService(serviceInfo: NsdServiceInfo) {
         // Use the callback-based API for Android 13+ compatibility
-        val resolveListener = object : NsdManager.ResolveListener {
-            override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                Log.e(TAG, "Resolve failed for ${serviceInfo.serviceName}: $errorCode")
-            }
+        val resolveListener =
+            object : NsdManager.ResolveListener {
+                override fun onResolveFailed(
+                    serviceInfo: NsdServiceInfo,
+                    errorCode: Int,
+                ) {
+                    Log.e(TAG, "Resolve failed for ${serviceInfo.serviceName}: $errorCode")
+                }
 
-            override fun onServiceResolved(resolvedInfo: NsdServiceInfo) {
-                Log.d(TAG, "Service resolved: ${resolvedInfo.serviceName} at ${resolvedInfo.host}:${resolvedInfo.port}")
-                val server = parseDiscoveredServer(resolvedInfo)
-                if (server != null) {
-                    servers[server.id] = server
-                    emitUpdate()
-                    Log.i(TAG, "Server discovered: ${server.name} (${server.id}) at ${server.localUrl}")
-                } else {
-                    Log.w(TAG, "Failed to parse server info from ${resolvedInfo.serviceName}")
+                override fun onServiceResolved(resolvedInfo: NsdServiceInfo) {
+                    Log.d(TAG, "Resolved: ${resolvedInfo.serviceName} at ${resolvedInfo.host}:${resolvedInfo.port}")
+                    val server = parseDiscoveredServer(resolvedInfo)
+                    if (server != null) {
+                        servers[server.id] = server
+                        emitUpdate()
+                        Log.i(TAG, "Server discovered: ${server.name} (${server.id}) at ${server.localUrl}")
+                    } else {
+                        Log.w(TAG, "Failed to parse server: ${resolvedInfo.serviceName}")
+                    }
                 }
             }
-        }
 
         try {
             nsdManager.resolveService(serviceInfo, resolveListener)
@@ -180,6 +192,6 @@ class NsdDiscoveryService(context: Context) : ServerDiscoveryService {
     }
 
     private fun emitUpdate() {
-        _discoveredServers.value = servers.values.toList()
+        serversFlow.value = servers.values.toList()
     }
 }

@@ -30,6 +30,7 @@ import com.calypsan.listenup.client.presentation.bookedit.EditableSeries
 /**
  * Series editing section with search and sequence editing.
  */
+@Suppress("LongParameterList")
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SeriesSection(

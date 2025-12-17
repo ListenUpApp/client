@@ -194,6 +194,7 @@ private fun ArticleToggleChip(
  * @param onRetry Callback when retry is clicked in error state
  * @param modifier Optional modifier
  */
+@Suppress("LongParameterList")
 @Composable
 fun BooksContent(
     books: List<Book>,
@@ -241,6 +242,7 @@ fun BooksContent(
 /**
  * Grid of book cards with sort split button and alphabet scrollbar.
  */
+@Suppress("LongMethod", "CognitiveComplexMethod")
 @Composable
 private fun BookGrid(
     books: List<Book>,

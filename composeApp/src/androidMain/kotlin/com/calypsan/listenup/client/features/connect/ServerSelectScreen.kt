@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.features.connect
 
 import androidx.compose.animation.AnimatedVisibility
@@ -83,10 +85,12 @@ fun ServerSelectScreen(
                 viewModel.onNavigationHandled()
                 onServerActivated()
             }
+
             ServerSelectViewModel.NavigationEvent.GoToManualEntry -> {
                 viewModel.onNavigationHandled()
                 onManualEntryRequested()
             }
+
             null -> {}
         }
     }
@@ -112,10 +116,11 @@ private fun ServerSelectContent(
         containerColor = MaterialTheme.colorScheme.surface,
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(48.dp))
@@ -127,9 +132,10 @@ private fun ServerSelectContent(
 
             // Title with refresh button
             Row(
-                modifier = Modifier
-                    .widthIn(max = 480.dp)
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .widthIn(max = 480.dp)
+                        .fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -161,10 +167,11 @@ private fun ServerSelectContent(
 
             // Server list
             LazyColumn(
-                modifier = Modifier
-                    .widthIn(max = 480.dp)
-                    .fillMaxWidth()
-                    .weight(1f),
+                modifier =
+                    Modifier
+                        .widthIn(max = 480.dp)
+                        .fillMaxWidth()
+                        .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 // Discovered/saved servers
@@ -206,6 +213,7 @@ private fun ServerSelectContent(
 /**
  * Card displaying a server with its online status.
  */
+@Suppress("CognitiveComplexMethod")
 @Composable
 private fun ServerCard(
     serverWithStatus: ServerWithStatus,
@@ -218,22 +226,26 @@ private fun ServerCard(
     val isOnline = serverWithStatus.isOnline
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(enabled = !isConnecting) { onClick() },
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(enabled = !isConnecting) { onClick() },
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh
-            },
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+            ),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -241,11 +253,12 @@ private fun ServerCard(
                 Text(
                     text = server.name,
                     style = MaterialTheme.typography.titleMedium,
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
+                    color =
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -256,36 +269,39 @@ private fun ServerCard(
                 ) {
                     // Online indicator
                     Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isOnline) {
-                                    MaterialTheme.colorScheme.tertiary
-                                } else {
-                                    MaterialTheme.colorScheme.outline
-                                },
-                            ),
+                        modifier =
+                            Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isOnline) {
+                                        MaterialTheme.colorScheme.tertiary
+                                    } else {
+                                        MaterialTheme.colorScheme.outline
+                                    },
+                                ),
                     )
                     Text(
                         text = if (isOnline) "Online" else "Offline",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        color =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                     )
                     // Server version
                     server.serverVersion.takeIf { it != "unknown" }?.let { version ->
                         Text(
                             text = "v$version",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            },
+                            color =
+                                if (isSelected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                },
                         )
                     }
                 }
@@ -323,18 +339,21 @@ private fun ManualEntryCard(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable { onClick() },
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -363,13 +382,12 @@ private fun ManualEntryCard(
  * Empty state when no servers are discovered.
  */
 @Composable
-private fun EmptyState(
-    modifier: Modifier = Modifier,
-) {
+private fun EmptyState(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -392,11 +410,12 @@ private fun EmptyState(
 @Composable
 private fun BrandLogo(modifier: Modifier = Modifier) {
     val isDarkTheme = LocalDarkTheme.current
-    val logoRes = if (isDarkTheme) {
-        R.drawable.listenup_logo_white
-    } else {
-        R.drawable.listenup_logo_black
-    }
+    val logoRes =
+        if (isDarkTheme) {
+            R.drawable.listenup_logo_white
+        } else {
+            R.drawable.listenup_logo_black
+        }
 
     Image(
         painter = painterResource(logoRes),
@@ -434,41 +453,45 @@ private fun PreviewEmpty() {
 @Preview(name = "With Servers", showSystemUi = true)
 @Composable
 private fun PreviewWithServers() {
-    val servers = listOf(
-        ServerWithStatus(
-            server = ServerEntity(
-                id = "server-1",
-                name = "Living Room Server",
-                apiVersion = "v1",
-                serverVersion = "1.0.0",
-                localUrl = "http://192.168.1.100:8080",
-                remoteUrl = null,
-                isActive = false,
-                lastSeenAt = System.currentTimeMillis(),
+    val servers =
+        listOf(
+            ServerWithStatus(
+                server =
+                    ServerEntity(
+                        id = "server-1",
+                        name = "Living Room Server",
+                        apiVersion = "v1",
+                        serverVersion = "1.0.0",
+                        localUrl = "http://192.168.1.100:8080",
+                        remoteUrl = null,
+                        isActive = false,
+                        lastSeenAt = System.currentTimeMillis(),
+                    ),
+                isOnline = true,
             ),
-            isOnline = true,
-        ),
-        ServerWithStatus(
-            server = ServerEntity(
-                id = "server-2",
-                name = "Office Server",
-                apiVersion = "v1",
-                serverVersion = "0.9.5",
-                localUrl = "http://192.168.1.101:8080",
-                remoteUrl = null,
-                isActive = false,
-                lastSeenAt = 0,
+            ServerWithStatus(
+                server =
+                    ServerEntity(
+                        id = "server-2",
+                        name = "Office Server",
+                        apiVersion = "v1",
+                        serverVersion = "0.9.5",
+                        localUrl = "http://192.168.1.101:8080",
+                        remoteUrl = null,
+                        isActive = false,
+                        lastSeenAt = 0,
+                    ),
+                isOnline = false,
             ),
-            isOnline = false,
-        ),
-    )
+        )
 
     ListenUpTheme {
         ServerSelectContent(
-            state = ServerSelectUiState(
-                servers = servers,
-                isDiscovering = false,
-            ),
+            state =
+                ServerSelectUiState(
+                    servers = servers,
+                    isDiscovering = false,
+                ),
             onEvent = {},
         )
     }
@@ -477,30 +500,33 @@ private fun PreviewWithServers() {
 @Preview(name = "Connecting", showSystemUi = true)
 @Composable
 private fun PreviewConnecting() {
-    val servers = listOf(
-        ServerWithStatus(
-            server = ServerEntity(
-                id = "server-1",
-                name = "Living Room Server",
-                apiVersion = "v1",
-                serverVersion = "1.0.0",
-                localUrl = "http://192.168.1.100:8080",
-                remoteUrl = null,
-                isActive = false,
-                lastSeenAt = System.currentTimeMillis(),
+    val servers =
+        listOf(
+            ServerWithStatus(
+                server =
+                    ServerEntity(
+                        id = "server-1",
+                        name = "Living Room Server",
+                        apiVersion = "v1",
+                        serverVersion = "1.0.0",
+                        localUrl = "http://192.168.1.100:8080",
+                        remoteUrl = null,
+                        isActive = false,
+                        lastSeenAt = System.currentTimeMillis(),
+                    ),
+                isOnline = true,
             ),
-            isOnline = true,
-        ),
-    )
+        )
 
     ListenUpTheme {
         ServerSelectContent(
-            state = ServerSelectUiState(
-                servers = servers,
-                isDiscovering = false,
-                selectedServerId = "server-1",
-                isConnecting = true,
-            ),
+            state =
+                ServerSelectUiState(
+                    servers = servers,
+                    isDiscovering = false,
+                    selectedServerId = "server-1",
+                    isConnecting = true,
+                ),
             onEvent = {},
         )
     }

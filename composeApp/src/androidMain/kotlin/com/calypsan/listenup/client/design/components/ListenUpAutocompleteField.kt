@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber", "StringLiteralDuplication")
+
 package com.calypsan.listenup.client.design.components
 
 import androidx.compose.foundation.clickable
@@ -43,6 +45,7 @@ import com.calypsan.listenup.client.design.theme.ListenUpTheme
  * @param emptyResultsContent Optional content to show when results are empty but query is valid
  */
 @Composable
+@Suppress("UnusedParameter")
 fun <T> ListenUpAutocompleteField(
     value: String,
     onValueChange: (String) -> Unit,

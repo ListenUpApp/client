@@ -42,6 +42,7 @@ import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
  * Identity header showing cover image with edit capability and title/subtitle fields.
  * The visual anchor for the book edit screen.
  */
+@Suppress("LongMethod")
 @Composable
 fun IdentityHeader(
     coverPath: String?,

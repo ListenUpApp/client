@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber", "StringLiteralDuplication")
+
 package com.calypsan.listenup.client.download
 
 import androidx.work.Constraints

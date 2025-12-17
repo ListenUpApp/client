@@ -44,6 +44,7 @@ import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
 /**
  * Identity header with large avatar and name field side by side.
  */
+@Suppress("LongMethod")
 @Composable
 fun ContributorIdentityHeader(
     imagePath: String?,

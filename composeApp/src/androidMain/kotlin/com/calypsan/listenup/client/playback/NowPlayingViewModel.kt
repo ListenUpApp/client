@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.playback
 
 import android.util.Log
@@ -159,7 +161,8 @@ class NowPlayingViewModel(
         chapters.forEachIndexed { index, chapter ->
             Log.d(
                 TAG,
-                "  Chapter[$index]: '${chapter.title}', start=${chapter.startTime}ms, duration=${chapter.duration}ms, end=${chapter.startTime + chapter.duration}ms",
+                "  Chapter[$index]: '${chapter.title}', start=${chapter.startTime}ms, " +
+                    "duration=${chapter.duration}ms, end=${chapter.startTime + chapter.duration}ms",
             )
             // Warn if chapter extends beyond book duration
             if (chapter.startTime + chapter.duration > book.duration) {
@@ -217,6 +220,7 @@ class NowPlayingViewModel(
             }
 
         // Only log errors for invalid progress values
+        @Suppress("ComplexCondition")
         if (bookProgress.isNaN() ||
             bookProgress.isInfinite() ||
             chapterProgress.isNaN() ||
@@ -430,7 +434,9 @@ class NowPlayingViewModel(
         // Log player state for debugging
         Log.d(
             TAG,
-            "$caller: safeSeekTo - mediaItemCount=$mediaItemCount, currentMediaItemIndex=${controller.currentMediaItemIndex}, playbackState=${controller.playbackState}",
+            "$caller: safeSeekTo - mediaItemCount=$mediaItemCount, " +
+                "currentMediaItemIndex=${controller.currentMediaItemIndex}, " +
+                "playbackState=${controller.playbackState}",
         )
 
         try {

@@ -322,6 +322,7 @@ class LibraryViewModel(
 
     // Sorting helper functions
 
+    @Suppress("CyclomaticComplexMethod")
     private fun sortBooks(
         books: List<Book>,
         state: SortState,

@@ -59,6 +59,7 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
  * @param onSignOutClick Callback when sign out is clicked
  * @param scrollBehavior Scroll behavior for collapsing on scroll
  */
+@Suppress("LongParameterList")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppTopBar(

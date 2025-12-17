@@ -28,7 +28,10 @@ interface InviteApiContract {
      * @param code The invite code
      * @return Invite details including name, email, server name, and validity
      */
-    suspend fun getInviteDetails(serverUrl: String, code: String): InviteDetails
+    suspend fun getInviteDetails(
+        serverUrl: String,
+        code: String,
+    ): InviteDetails
 
     /**
      * Claim an invite by creating a new user account.
@@ -38,7 +41,11 @@ interface InviteApiContract {
      * @param password The password for the new account
      * @return Auth response with tokens and user info
      */
-    suspend fun claimInvite(serverUrl: String, code: String, password: String): AuthResponse
+    suspend fun claimInvite(
+        serverUrl: String,
+        code: String,
+        password: String,
+    ): AuthResponse
 }
 
 /**
@@ -52,11 +59,12 @@ interface InviteApiContract {
  * (comes from the invite deep link, not from stored settings).
  */
 class InviteApi : InviteApiContract {
-    private val json = Json {
-        prettyPrint = false
-        isLenient = false
-        ignoreUnknownKeys = true
-    }
+    private val json =
+        Json {
+            prettyPrint = false
+            isLenient = false
+            ignoreUnknownKeys = true
+        }
 
     private fun createClient(serverUrl: String): HttpClient =
         HttpClient {
@@ -70,7 +78,10 @@ class InviteApi : InviteApiContract {
             }
         }
 
-    override suspend fun getInviteDetails(serverUrl: String, code: String): InviteDetails {
+    override suspend fun getInviteDetails(
+        serverUrl: String,
+        code: String,
+    ): InviteDetails {
         val client = createClient(serverUrl)
         try {
             val response: ApiResponse<InviteDetails> =
@@ -92,20 +103,22 @@ class InviteApi : InviteApiContract {
     ): AuthResponse {
         val client = createClient(serverUrl)
         try {
-            val deviceInfo = DeviceInfo(
-                deviceType = "mobile",
-                platform = "Android",
-                platformVersion = "Unknown",
-                clientName = "ListenUp Mobile",
-                clientVersion = "1.0.0",
-                clientBuild = "1",
-                deviceModel = "Unknown",
-            )
+            val deviceInfo =
+                DeviceInfo(
+                    deviceType = "mobile",
+                    platform = "Android",
+                    platformVersion = "Unknown",
+                    clientName = "ListenUp Mobile",
+                    clientVersion = "1.0.0",
+                    clientBuild = "1",
+                    deviceModel = "Unknown",
+                )
 
             val response: ApiResponse<AuthResponse> =
-                client.post("/api/v1/invites/$code/claim") {
-                    setBody(ClaimInviteRequest(password, deviceInfo))
-                }.body()
+                client
+                    .post("/api/v1/invites/$code/claim") {
+                        setBody(ClaimInviteRequest(password, deviceInfo))
+                    }.body()
 
             return when (val result = response.toResult()) {
                 is Success -> result.data

@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.design.components
 
 import androidx.compose.foundation.layout.Arrangement

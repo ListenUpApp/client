@@ -294,6 +294,7 @@ class SeriesEditViewModel(
     /**
      * Save all changes to server and local database.
      */
+    @Suppress("CognitiveComplexMethod")
     private fun saveChanges() {
         val current = _state.value
         if (!current.hasChanges) {

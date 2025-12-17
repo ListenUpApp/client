@@ -33,14 +33,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
 import com.calypsan.listenup.client.design.components.AutocompleteResultItem
-import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.presentation.bookedit.ContributorRole
 import com.calypsan.listenup.client.presentation.bookedit.EditableContributor
 
 /**
  * Talent section for managing contributors by role.
  */
+@Suppress("LongParameterList")
 @Composable
 fun TalentSection(
     visibleRoles: Set<ContributorRole>,
@@ -100,7 +101,10 @@ fun TalentSection(
         ListenUpDestructiveDialog(
             onDismissRequest = { roleToRemove = null },
             title = "Remove ${role.displayName}s?",
-            text = "This will remove $contributorsToRemoveCount ${role.displayName.lowercase()}${if (contributorsToRemoveCount > 1) "s" else ""} from this book.",
+            text =
+                "This will remove $contributorsToRemoveCount " +
+                    "${role.displayName.lowercase()}${if (contributorsToRemoveCount > 1) "s" else ""} " +
+                    "from this book.",
             confirmText = "Remove",
             onConfirm = {
                 onRemoveRoleSection(role)
@@ -111,6 +115,7 @@ fun TalentSection(
     }
 }
 
+@Suppress("LongParameterList", "CognitiveComplexMethod")
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RoleContributorSection(

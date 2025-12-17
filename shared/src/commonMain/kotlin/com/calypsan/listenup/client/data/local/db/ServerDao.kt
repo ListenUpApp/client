@@ -87,7 +87,10 @@ interface ServerDao {
      * Internal helper - use [setActive] instead.
      */
     @Query("UPDATE servers SET isActive = 1, lastConnectedAt = :timestamp WHERE id = :id")
-    suspend fun activate(id: String, timestamp: Long = currentEpochMilliseconds())
+    suspend fun activate(
+        id: String,
+        timestamp: Long = currentEpochMilliseconds(),
+    )
 
     /**
      * Set a server as the active server.
@@ -133,7 +136,10 @@ interface ServerDao {
      * Update only the access token (for token refresh).
      */
     @Query("UPDATE servers SET accessToken = :accessToken WHERE id = :serverId")
-    suspend fun updateAccessToken(serverId: String, accessToken: String)
+    suspend fun updateAccessToken(
+        serverId: String,
+        accessToken: String,
+    )
 
     /**
      * Clear authentication tokens for a server.
@@ -160,7 +166,11 @@ interface ServerDao {
      * Called when server is (re)discovered on local network.
      */
     @Query("UPDATE servers SET localUrl = :localUrl, lastSeenAt = :timestamp WHERE id = :id")
-    suspend fun updateLocalUrl(id: String, localUrl: String, timestamp: Long = currentEpochMilliseconds())
+    suspend fun updateLocalUrl(
+        id: String,
+        localUrl: String,
+        timestamp: Long = currentEpochMilliseconds(),
+    )
 
     /**
      * Update server metadata from mDNS discovery.

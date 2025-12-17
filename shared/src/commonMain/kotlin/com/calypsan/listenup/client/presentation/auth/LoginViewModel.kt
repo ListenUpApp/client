@@ -121,6 +121,7 @@ class LoginViewModel(
 /**
  * Convert exception to semantic error type with helpful details.
  */
+@Suppress("CyclomaticComplexMethod")
 private fun Exception.toLoginErrorType(): LoginErrorType {
     val msg = message?.lowercase() ?: ""
     val causeMsg = cause?.message?.lowercase() ?: ""

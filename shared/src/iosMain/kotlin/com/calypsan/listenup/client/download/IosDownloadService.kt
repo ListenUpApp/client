@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalForeignApi::class)
+@file:Suppress("MagicNumber")
 
 package com.calypsan.listenup.client.download
 
@@ -82,6 +83,7 @@ class IosDownloadService(
      * Downloads files sequentially using URLSession.
      * Progress is tracked in the database.
      */
+    @Suppress("ReturnCount")
     override suspend fun downloadBook(bookId: BookId): DownloadResult {
         // Check if already downloaded
         val existing = downloadDao.getForBook(bookId.value)

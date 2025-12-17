@@ -80,18 +80,25 @@ fun InviteRegistrationScreen(
     LaunchedEffect(state.submissionStatus) {
         when (val status = state.submissionStatus) {
             is InviteSubmissionStatus.Error -> {
-                val message = when (val type = status.type) {
-                    is InviteErrorType.ValidationError -> null // Handled inline
-                    is InviteErrorType.PasswordMismatch -> "Passwords don't match"
-                    is InviteErrorType.NetworkError -> type.detail ?: "Network error"
-                    is InviteErrorType.ServerError -> type.detail ?: "Server error"
-                    is InviteErrorType.InviteInvalid -> "This invite is no longer valid"
-                }
+                val message =
+                    when (val type = status.type) {
+                        is InviteErrorType.ValidationError -> null
+
+                        // Handled inline
+                        is InviteErrorType.PasswordMismatch -> "Passwords don't match"
+
+                        is InviteErrorType.NetworkError -> type.detail ?: "Network error"
+
+                        is InviteErrorType.ServerError -> type.detail ?: "Server error"
+
+                        is InviteErrorType.InviteInvalid -> "This invite is no longer valid"
+                    }
                 message?.let {
                     snackbarHostState.showSnackbar(it)
                     viewModel.clearError()
                 }
             }
+
             else -> {}
         }
     }
@@ -100,6 +107,7 @@ fun InviteRegistrationScreen(
         is InviteLoadingState.Loading -> {
             FullScreenLoadingIndicator()
         }
+
         is InviteLoadingState.Loaded -> {
             InviteRegistrationContent(
                 details = loadingState.details,
@@ -110,6 +118,7 @@ fun InviteRegistrationScreen(
                 modifier = modifier,
             )
         }
+
         is InviteLoadingState.Invalid -> {
             InvalidInviteContent(
                 message = loadingState.reason,
@@ -117,6 +126,7 @@ fun InviteRegistrationScreen(
                 modifier = modifier,
             )
         }
+
         is InviteLoadingState.Error -> {
             ErrorContent(
                 message = loadingState.message,
@@ -143,12 +153,13 @@ private fun InviteRegistrationContent(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(48.dp))
@@ -158,13 +169,15 @@ private fun InviteRegistrationContent(
             Spacer(modifier = Modifier.height(32.dp))
 
             ElevatedCard(
-                modifier = Modifier
-                    .widthIn(max = 480.dp)
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .widthIn(max = 480.dp)
+                        .fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                ),
+                colors =
+                    CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
             ) {
                 RegistrationForm(
                     details = details,
@@ -183,11 +196,12 @@ private fun InviteRegistrationContent(
 @Composable
 private fun BrandLogo(modifier: Modifier = Modifier) {
     val isDarkTheme = LocalDarkTheme.current
-    val logoRes = if (isDarkTheme) {
-        R.drawable.listenup_logo_white
-    } else {
-        R.drawable.listenup_logo_black
-    }
+    val logoRes =
+        if (isDarkTheme) {
+            R.drawable.listenup_logo_white
+        } else {
+            R.drawable.listenup_logo_black
+        }
 
     Image(
         painter = painterResource(logoRes),
@@ -241,24 +255,37 @@ private fun RegistrationForm(
             label = "Password",
             enabled = !isSubmitting,
             visualTransformation = PasswordVisualTransformation(),
-            isError = state.submissionStatus is InviteSubmissionStatus.Error &&
-                (state.submissionStatus as InviteSubmissionStatus.Error).type is InviteErrorType.ValidationError &&
-                ((state.submissionStatus as InviteSubmissionStatus.Error).type as InviteErrorType.ValidationError).field == InviteField.PASSWORD,
-            supportingText = if (state.submissionStatus is InviteSubmissionStatus.Error &&
-                (state.submissionStatus as InviteSubmissionStatus.Error).type is InviteErrorType.ValidationError &&
-                ((state.submissionStatus as InviteSubmissionStatus.Error).type as InviteErrorType.ValidationError).field == InviteField.PASSWORD
-            ) {
-                "Password must be at least 8 characters"
-            } else {
-                "At least 8 characters"
-            },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Next,
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) },
-            ),
+            isError =
+                state.submissionStatus is InviteSubmissionStatus.Error &&
+                    (state.submissionStatus as InviteSubmissionStatus.Error)
+                        .type is InviteErrorType.ValidationError &&
+                    (
+                        (state.submissionStatus as InviteSubmissionStatus.Error)
+                            .type as InviteErrorType.ValidationError
+                    ).field == InviteField.PASSWORD,
+            supportingText =
+                if (
+                    state.submissionStatus is InviteSubmissionStatus.Error &&
+                    (state.submissionStatus as InviteSubmissionStatus.Error)
+                        .type is InviteErrorType.ValidationError &&
+                    (
+                        (state.submissionStatus as InviteSubmissionStatus.Error)
+                            .type as InviteErrorType.ValidationError
+                    ).field == InviteField.PASSWORD
+                ) {
+                    "Password must be at least 8 characters"
+                } else {
+                    "At least 8 characters"
+                },
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Next,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) },
+                ),
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -269,27 +296,31 @@ private fun RegistrationForm(
             label = "Confirm Password",
             enabled = !isSubmitting,
             visualTransformation = PasswordVisualTransformation(),
-            isError = state.submissionStatus is InviteSubmissionStatus.Error &&
-                (state.submissionStatus as InviteSubmissionStatus.Error).type is InviteErrorType.PasswordMismatch,
-            supportingText = if (state.submissionStatus is InviteSubmissionStatus.Error &&
-                (state.submissionStatus as InviteSubmissionStatus.Error).type is InviteErrorType.PasswordMismatch
-            ) {
-                "Passwords don't match"
-            } else {
-                null
-            },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done,
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    focusManager.clearFocus()
-                    if (!isSubmitting) {
-                        onSubmit(password, confirmPassword)
-                    }
+            isError =
+                state.submissionStatus is InviteSubmissionStatus.Error &&
+                    (state.submissionStatus as InviteSubmissionStatus.Error).type is InviteErrorType.PasswordMismatch,
+            supportingText =
+                if (state.submissionStatus is InviteSubmissionStatus.Error &&
+                    (state.submissionStatus as InviteSubmissionStatus.Error).type is InviteErrorType.PasswordMismatch
+                ) {
+                    "Passwords don't match"
+                } else {
+                    null
                 },
-            ),
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onDone = {
+                        focusManager.clearFocus()
+                        if (!isSubmitting) {
+                            onSubmit(password, confirmPassword)
+                        }
+                    },
+                ),
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -322,9 +353,10 @@ private fun InviteDetailsCard(
 ) {
     ElevatedCard(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -399,10 +431,11 @@ private fun InvalidInviteContent(
         containerColor = MaterialTheme.colorScheme.surface,
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(24.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -411,12 +444,14 @@ private fun InvalidInviteContent(
             Spacer(modifier = Modifier.height(32.dp))
 
             ElevatedCard(
-                modifier = Modifier
-                    .widthIn(max = 400.dp)
-                    .fillMaxWidth(),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                ),
+                modifier =
+                    Modifier
+                        .widthIn(max = 400.dp)
+                        .fillMaxWidth(),
+                colors =
+                    CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                    ),
             ) {
                 Column(
                     modifier = Modifier.padding(24.dp),
@@ -457,10 +492,11 @@ private fun ErrorContent(
         containerColor = MaterialTheme.colorScheme.surface,
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(24.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -469,9 +505,10 @@ private fun ErrorContent(
             Spacer(modifier = Modifier.height(32.dp))
 
             ElevatedCard(
-                modifier = Modifier
-                    .widthIn(max = 400.dp)
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .widthIn(max = 400.dp)
+                        .fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier.padding(24.dp),

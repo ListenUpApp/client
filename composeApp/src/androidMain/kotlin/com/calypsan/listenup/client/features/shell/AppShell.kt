@@ -56,6 +56,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * @param onAdminClick Callback when administration is clicked (only shown for admin users)
  * @param onSignOut Callback when sign out is triggered
  */
+@Suppress("LongMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppShell(

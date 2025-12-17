@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalTime::class)
+@file:Suppress("MagicNumber")
 
 package com.calypsan.listenup.client.presentation.invite
 
@@ -55,31 +56,40 @@ class InviteRegistrationViewModel(
                 val details = inviteApi.getInviteDetails(serverUrl, inviteCode)
 
                 if (!details.valid) {
-                    _state.value = InviteRegistrationUiState(
-                        loadingState = InviteLoadingState.Invalid(
-                            "This invite is no longer valid. It may have already been used or expired."
+                    _state.value =
+                        InviteRegistrationUiState(
+                            loadingState =
+                                InviteLoadingState.Invalid(
+                                    "This invite is no longer valid. It may have already been used or expired.",
+                                ),
                         )
-                    )
                 } else {
-                    _state.value = InviteRegistrationUiState(
-                        loadingState = InviteLoadingState.Loaded(details)
-                    )
+                    _state.value =
+                        InviteRegistrationUiState(
+                            loadingState = InviteLoadingState.Loaded(details),
+                        )
                 }
             } catch (e: Exception) {
-                val message = when {
-                    e.message?.contains("404") == true ||
-                    e.message?.contains("not found", ignoreCase = true) == true -> {
-                        "Invite not found. Please check the link and try again."
+                val message =
+                    when {
+                        e.message?.contains("404") == true ||
+                            e.message?.contains("not found", ignoreCase = true) == true -> {
+                            "Invite not found. Please check the link and try again."
+                        }
+
+                        e.message?.contains("connection", ignoreCase = true) == true ||
+                            e.message?.contains("network", ignoreCase = true) == true -> {
+                            "Could not connect to server. Please check your internet connection."
+                        }
+
+                        else -> {
+                            e.message ?: "Failed to load invite details"
+                        }
                     }
-                    e.message?.contains("connection", ignoreCase = true) == true ||
-                    e.message?.contains("network", ignoreCase = true) == true -> {
-                        "Could not connect to server. Please check your internet connection."
-                    }
-                    else -> e.message ?: "Failed to load invite details"
-                }
-                _state.value = InviteRegistrationUiState(
-                    loadingState = InviteLoadingState.Error(message)
-                )
+                _state.value =
+                    InviteRegistrationUiState(
+                        loadingState = InviteLoadingState.Error(message),
+                    )
             }
         }
     }
@@ -90,21 +100,27 @@ class InviteRegistrationViewModel(
      * @param password The user's chosen password
      * @param confirmPassword The password confirmation (must match)
      */
-    fun submitRegistration(password: String, confirmPassword: String) {
+    fun submitRegistration(
+        password: String,
+        confirmPassword: String,
+    ) {
         // Validate passwords
         if (password.length < 8) {
-            _state.value = _state.value.copy(
-                submissionStatus = InviteSubmissionStatus.Error(
-                    InviteErrorType.ValidationError(InviteField.PASSWORD)
+            _state.value =
+                _state.value.copy(
+                    submissionStatus =
+                        InviteSubmissionStatus.Error(
+                            InviteErrorType.ValidationError(InviteField.PASSWORD),
+                        ),
                 )
-            )
             return
         }
 
         if (password != confirmPassword) {
-            _state.value = _state.value.copy(
-                submissionStatus = InviteSubmissionStatus.Error(InviteErrorType.PasswordMismatch)
-            )
+            _state.value =
+                _state.value.copy(
+                    submissionStatus = InviteSubmissionStatus.Error(InviteErrorType.PasswordMismatch),
+                )
             return
         }
 
@@ -131,9 +147,10 @@ class InviteRegistrationViewModel(
                 _state.value = _state.value.copy(submissionStatus = InviteSubmissionStatus.Success)
             } catch (e: Exception) {
                 val errorType = e.toInviteErrorType()
-                _state.value = _state.value.copy(
-                    submissionStatus = InviteSubmissionStatus.Error(errorType)
-                )
+                _state.value =
+                    _state.value.copy(
+                        submissionStatus = InviteSubmissionStatus.Error(errorType),
+                    )
             }
         }
     }
@@ -151,6 +168,7 @@ class InviteRegistrationViewModel(
 /**
  * Convert exception to semantic error type.
  */
+@Suppress("CyclomaticComplexMethod")
 private fun Exception.toInviteErrorType(): InviteErrorType {
     val msg = message?.lowercase() ?: ""
     val causeMsg = cause?.message?.lowercase() ?: ""
@@ -159,34 +177,34 @@ private fun Exception.toInviteErrorType(): InviteErrorType {
     return when {
         // Invite-specific errors
         msg.contains("already claimed") ||
-        msg.contains("claimed") ||
-        msg.contains("expired") ||
-        msg.contains("invalid") && msg.contains("invite") -> {
+            msg.contains("claimed") ||
+            msg.contains("expired") ||
+            (msg.contains("invalid") && msg.contains("invite")) -> {
             InviteErrorType.InviteInvalid
         }
 
         // Connection errors
         fullMsg.contains("connection refused") ||
-        fullMsg.contains("econnrefused") ||
-        fullMsg.contains("timeout") ||
-        fullMsg.contains("timed out") ||
-        fullMsg.contains("unable to resolve host") ||
-        fullMsg.contains("unknown host") -> {
+            fullMsg.contains("econnrefused") ||
+            fullMsg.contains("timeout") ||
+            fullMsg.contains("timed out") ||
+            fullMsg.contains("unable to resolve host") ||
+            fullMsg.contains("unknown host") -> {
             InviteErrorType.NetworkError(cause?.message ?: message)
         }
 
         // Generic network issues
         fullMsg.contains("network") ||
-        fullMsg.contains("connect") ||
-        fullMsg.contains("socket") -> {
+            fullMsg.contains("connect") ||
+            fullMsg.contains("socket") -> {
             InviteErrorType.NetworkError(cause?.message ?: message)
         }
 
         // Server errors
         fullMsg.contains("500") ||
-        fullMsg.contains("502") ||
-        fullMsg.contains("503") ||
-        fullMsg.contains("504") -> {
+            fullMsg.contains("502") ||
+            fullMsg.contains("503") ||
+            fullMsg.contains("504") -> {
             InviteErrorType.ServerError("Server error. Please try again later.")
         }
 

@@ -60,6 +60,7 @@ import com.calypsan.listenup.client.presentation.bookdetail.ChapterUiModel
  * Left pane: Hero section with cover and actions
  * Right pane: Content section with description, metadata, chapters
  */
+@Suppress("LongParameterList")
 @Composable
 fun TwoPaneBookDetail(
     state: BookDetailUiState,
@@ -111,6 +112,7 @@ fun TwoPaneBookDetail(
     }
 }
 
+@Suppress("LongParameterList")
 @Composable
 private fun TwoPaneLeftPane(
     state: BookDetailUiState,

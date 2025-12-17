@@ -32,16 +32,18 @@ class CreateInviteViewModel(
         val trimmedEmail = email.trim()
 
         if (trimmedName.isBlank()) {
-            _state.value = _state.value.copy(
-                status = CreateInviteStatus.Error(CreateInviteErrorType.ValidationError(CreateInviteField.NAME))
-            )
+            _state.value =
+                _state.value.copy(
+                    status = CreateInviteStatus.Error(CreateInviteErrorType.ValidationError(CreateInviteField.NAME)),
+                )
             return
         }
 
         if (!isValidEmail(trimmedEmail)) {
-            _state.value = _state.value.copy(
-                status = CreateInviteStatus.Error(CreateInviteErrorType.ValidationError(CreateInviteField.EMAIL))
-            )
+            _state.value =
+                _state.value.copy(
+                    status = CreateInviteStatus.Error(CreateInviteErrorType.ValidationError(CreateInviteField.EMAIL)),
+                )
             return
         }
 
@@ -49,34 +51,40 @@ class CreateInviteViewModel(
             _state.value = _state.value.copy(status = CreateInviteStatus.Submitting)
 
             try {
-                val invite = adminApi.createInvite(
-                    CreateInviteRequest(
-                        name = trimmedName,
-                        email = trimmedEmail,
-                        role = role,
-                        expiresInDays = expiresInDays,
+                val invite =
+                    adminApi.createInvite(
+                        CreateInviteRequest(
+                            name = trimmedName,
+                            email = trimmedEmail,
+                            role = role,
+                            expiresInDays = expiresInDays,
+                        ),
                     )
-                )
-                _state.value = _state.value.copy(
-                    status = CreateInviteStatus.Success(invite),
-                )
+                _state.value =
+                    _state.value.copy(
+                        status = CreateInviteStatus.Success(invite),
+                    )
             } catch (e: Exception) {
-                val errorType = when {
-                    e.message?.contains("already exists", ignoreCase = true) == true ||
-                    e.message?.contains("conflict", ignoreCase = true) == true -> {
-                        CreateInviteErrorType.EmailInUse
+                val errorType =
+                    when {
+                        e.message?.contains("already exists", ignoreCase = true) == true ||
+                            e.message?.contains("conflict", ignoreCase = true) == true -> {
+                            CreateInviteErrorType.EmailInUse
+                        }
+
+                        e.message?.contains("network", ignoreCase = true) == true ||
+                            e.message?.contains("connection", ignoreCase = true) == true -> {
+                            CreateInviteErrorType.NetworkError(e.message)
+                        }
+
+                        else -> {
+                            CreateInviteErrorType.ServerError(e.message)
+                        }
                     }
-                    e.message?.contains("network", ignoreCase = true) == true ||
-                    e.message?.contains("connection", ignoreCase = true) == true -> {
-                        CreateInviteErrorType.NetworkError(e.message)
-                    }
-                    else -> {
-                        CreateInviteErrorType.ServerError(e.message)
-                    }
-                }
-                _state.value = _state.value.copy(
-                    status = CreateInviteStatus.Error(errorType),
-                )
+                _state.value =
+                    _state.value.copy(
+                        status = CreateInviteStatus.Error(errorType),
+                    )
             }
         }
     }
@@ -91,8 +99,7 @@ class CreateInviteViewModel(
         _state.value = CreateInviteUiState()
     }
 
-    private fun isValidEmail(email: String): Boolean =
-        email.contains("@") && email.contains(".")
+    private fun isValidEmail(email: String): Boolean = email.contains("@") && email.contains(".")
 }
 
 data class CreateInviteUiState(
@@ -101,16 +108,32 @@ data class CreateInviteUiState(
 
 sealed interface CreateInviteStatus {
     data object Idle : CreateInviteStatus
+
     data object Submitting : CreateInviteStatus
-    data class Success(val invite: AdminInvite) : CreateInviteStatus
-    data class Error(val type: CreateInviteErrorType) : CreateInviteStatus
+
+    data class Success(
+        val invite: AdminInvite,
+    ) : CreateInviteStatus
+
+    data class Error(
+        val type: CreateInviteErrorType,
+    ) : CreateInviteStatus
 }
 
 sealed interface CreateInviteErrorType {
-    data class ValidationError(val field: CreateInviteField) : CreateInviteErrorType
+    data class ValidationError(
+        val field: CreateInviteField,
+    ) : CreateInviteErrorType
+
     data object EmailInUse : CreateInviteErrorType
-    data class NetworkError(val detail: String?) : CreateInviteErrorType
-    data class ServerError(val detail: String?) : CreateInviteErrorType
+
+    data class NetworkError(
+        val detail: String?,
+    ) : CreateInviteErrorType
+
+    data class ServerError(
+        val detail: String?,
+    ) : CreateInviteErrorType
 }
 
 enum class CreateInviteField {

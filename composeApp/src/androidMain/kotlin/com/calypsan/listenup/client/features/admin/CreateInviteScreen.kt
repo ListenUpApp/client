@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.features.admin
 
 import android.content.ClipData
@@ -82,18 +84,21 @@ fun CreateInviteScreen(
                 clipboard.setPrimaryClip(clip)
                 snackbarHostState.showSnackbar("Invite created! Link copied to clipboard.")
             }
+
             is CreateInviteStatus.Error -> {
-                val message = when (val type = status.type) {
-                    is CreateInviteErrorType.ValidationError -> null
-                    is CreateInviteErrorType.EmailInUse -> "A user with this email already exists"
-                    is CreateInviteErrorType.NetworkError -> type.detail ?: "Network error"
-                    is CreateInviteErrorType.ServerError -> type.detail ?: "Server error"
-                }
+                val message =
+                    when (val type = status.type) {
+                        is CreateInviteErrorType.ValidationError -> null
+                        is CreateInviteErrorType.EmailInUse -> "A user with this email already exists"
+                        is CreateInviteErrorType.NetworkError -> type.detail ?: "Network error"
+                        is CreateInviteErrorType.ServerError -> type.detail ?: "Server error"
+                    }
                 message?.let {
                     snackbarHostState.showSnackbar(it)
                     viewModel.clearError()
                 }
             }
+
             else -> {}
         }
     }
@@ -132,6 +137,7 @@ fun CreateInviteScreen(
                     modifier = Modifier.padding(innerPadding),
                 )
             }
+
             else -> {
                 CreateInviteForm(
                     state = state,
@@ -143,6 +149,7 @@ fun CreateInviteScreen(
     }
 }
 
+@Suppress("LongMethod")
 @Composable
 private fun CreateInviteForm(
     state: com.calypsan.listenup.client.presentation.admin.CreateInviteUiState,
@@ -158,11 +165,12 @@ private fun CreateInviteForm(
     val isSubmitting = state.status is CreateInviteStatus.Submitting
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
@@ -176,24 +184,30 @@ private fun CreateInviteForm(
             onValueChange = { name = it },
             label = "Name",
             enabled = !isSubmitting,
-            isError = state.status is CreateInviteStatus.Error &&
-                (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
-                ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field == CreateInviteField.NAME,
-            supportingText = if (state.status is CreateInviteStatus.Error &&
-                (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
-                ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field == CreateInviteField.NAME
-            ) {
-                "Name is required"
-            } else {
-                "The person's display name"
-            },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Next,
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) },
-            ),
+            isError =
+                state.status is CreateInviteStatus.Error &&
+                    (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
+                    ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field ==
+                    CreateInviteField.NAME,
+            supportingText =
+                if (state.status is CreateInviteStatus.Error &&
+                    (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
+                    ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field ==
+                    CreateInviteField.NAME
+                ) {
+                    "Name is required"
+                } else {
+                    "The person's display name"
+                },
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) },
+                ),
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -202,29 +216,35 @@ private fun CreateInviteForm(
             onValueChange = { email = it },
             label = "Email",
             enabled = !isSubmitting,
-            isError = state.status is CreateInviteStatus.Error &&
-                (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
-                ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field == CreateInviteField.EMAIL,
-            supportingText = if (state.status is CreateInviteStatus.Error &&
-                (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
-                ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field == CreateInviteField.EMAIL
-            ) {
-                "Valid email is required"
-            } else {
-                "Their email address for login"
-            },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Done,
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    focusManager.clearFocus()
-                    if (!isSubmitting) {
-                        onSubmit(name, email, role, expiresInDays)
-                    }
+            isError =
+                state.status is CreateInviteStatus.Error &&
+                    (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
+                    ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field ==
+                    CreateInviteField.EMAIL,
+            supportingText =
+                if (state.status is CreateInviteStatus.Error &&
+                    (state.status as CreateInviteStatus.Error).type is CreateInviteErrorType.ValidationError &&
+                    ((state.status as CreateInviteStatus.Error).type as CreateInviteErrorType.ValidationError).field ==
+                    CreateInviteField.EMAIL
+                ) {
+                    "Valid email is required"
+                } else {
+                    "Their email address for login"
                 },
-            ),
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Done,
+                ),
+            keyboardActions =
+                KeyboardActions(
+                    onDone = {
+                        focusManager.clearFocus()
+                        if (!isSubmitting) {
+                            onSubmit(name, email, role, expiresInDays)
+                        }
+                    },
+                ),
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -314,17 +334,19 @@ private fun SuccessContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ),
+            colors =
+                CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -347,9 +369,10 @@ private fun SuccessContent(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(

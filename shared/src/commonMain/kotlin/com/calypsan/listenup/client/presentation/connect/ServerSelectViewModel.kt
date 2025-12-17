@@ -32,10 +32,14 @@ data class ServerSelectUiState(
  */
 sealed interface ServerSelectUiEvent {
     /** User selected a server from the list. */
-    data class ServerSelected(val server: ServerWithStatus) : ServerSelectUiEvent
+    data class ServerSelected(
+        val server: ServerWithStatus,
+    ) : ServerSelectUiEvent
 
     /** User selected a discovered server not yet persisted. */
-    data class DiscoveredServerSelected(val server: DiscoveredServer) : ServerSelectUiEvent
+    data class DiscoveredServerSelected(
+        val server: DiscoveredServer,
+    ) : ServerSelectUiEvent
 
     /** User wants to enter server URL manually. */
     data object ManualEntryClicked : ServerSelectUiEvent

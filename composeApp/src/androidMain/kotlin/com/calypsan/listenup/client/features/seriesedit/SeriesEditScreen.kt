@@ -380,6 +380,7 @@ private fun SeriesEditContent(
 // IDENTITY HEADER
 // =============================================================================
 
+@Suppress("LongMethod")
 @Composable
 private fun SeriesIdentityHeader(
     coverPath: String?,

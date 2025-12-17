@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.design.components
 
 import androidx.compose.animation.AnimatedVisibility

@@ -31,6 +31,7 @@ object NanoId {
 
     init {
         // Compile-time guarantee: alphabet must be exactly 64 chars for uniform distribution
+        @Suppress("MagicNumber")
         require(ALPHABET.length == 64) { "Alphabet must be 64 characters for 6-bit encoding" }
     }
 
@@ -43,6 +44,7 @@ object NanoId {
     fun generate(size: Int = DEFAULT_SIZE): String =
         buildString(size) {
             repeat(size) {
+                @Suppress("MagicNumber")
                 append(ALPHABET[Random.nextInt(64)])
             }
         }

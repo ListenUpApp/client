@@ -108,9 +108,11 @@ private fun InviteRegistrationNavigation(
     onComplete: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    val viewModel: InviteRegistrationViewModel = koinInject {
-        org.koin.core.parameter.parametersOf(serverUrl, inviteCode)
-    }
+    val viewModel: InviteRegistrationViewModel =
+        koinInject {
+            org.koin.core.parameter
+                .parametersOf(serverUrl, inviteCode)
+        }
 
     // Watch for successful registration to trigger completion
     val state by viewModel.state.collectAsState()
@@ -247,6 +249,7 @@ private fun LoginNavigation(settingsRepository: SettingsRepository) {
  * When user logs out, SettingsRepository clears auth tokens,
  * triggering automatic switch to UnauthenticatedNavigation.
  */
+@Suppress("LongMethod")
 @Composable
 private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
     val scope = rememberCoroutineScope()
