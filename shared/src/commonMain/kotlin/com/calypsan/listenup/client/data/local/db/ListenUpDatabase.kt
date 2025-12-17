@@ -20,6 +20,7 @@ import androidx.room.TypeConverters
  * - v10: Added book_series junction table for many-to-many book-series relationships
  * - v11: Added publisher, language, isbn, asin, abridged columns to books table
  * - v12: Added website, birthDate, deathDate, aliases columns to contributors; creditedAs to book_contributors
+ * - v13: Added servers table for multi-server support with per-server auth tokens
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -37,8 +38,9 @@ import androidx.room.TypeConverters
         PlaybackPositionEntity::class,
         PendingListeningEventEntity::class,
         DownloadEntity::class,
+        ServerEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -67,6 +69,8 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun downloadDao(): DownloadDao
 
     abstract fun searchDao(): SearchDao
+
+    abstract fun serverDao(): ServerDao
 }
 
 /**

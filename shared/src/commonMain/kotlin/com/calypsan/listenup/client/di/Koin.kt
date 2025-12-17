@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.di
 
+import com.calypsan.listenup.client.data.discovery.ServerDiscoveryService
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
@@ -37,6 +38,9 @@ import com.calypsan.listenup.client.data.repository.SeriesEditRepository
 import com.calypsan.listenup.client.data.repository.SeriesEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.SeriesRepository
 import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
+import com.calypsan.listenup.client.data.repository.ServerMigrationHelper
+import com.calypsan.listenup.client.data.repository.ServerRepository
+import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.FtsPopulator
@@ -52,6 +56,7 @@ import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
+import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import org.koin.core.module.Module
@@ -64,6 +69,12 @@ import org.koin.dsl.module
  * Each platform provides SecureStorage implementation via this module.
  */
 expect val platformStorageModule: Module
+
+/**
+ * Platform-specific discovery module.
+ * Each platform provides mDNS/Bonjour discovery implementation.
+ */
+expect val platformDiscoveryModule: Module
 
 /**
  * Data layer dependencies.
@@ -164,6 +175,29 @@ val repositoryModule =
         single { get<ListenUpDatabase>().pendingListeningEventDao() }
         single { get<ListenUpDatabase>().downloadDao() }
         single { get<ListenUpDatabase>().searchDao() }
+        single { get<ListenUpDatabase>().serverDao() }
+
+        // ServerRepository - bridges mDNS discovery with database persistence
+        single {
+            ServerRepository(
+                serverDao = get(),
+                discoveryService = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        } bind ServerRepositoryContract::class
+
+        // ServerMigrationHelper - migrates legacy single-server data
+        single {
+            ServerMigrationHelper(
+                secureStorage = get(),
+                serverDao = get(),
+            )
+        }
     }
 
 /**
@@ -181,6 +215,7 @@ val useCaseModule =
  */
 val presentationModule =
     module {
+        factory { ServerSelectViewModel(serverRepository = get(), settingsRepository = get()) }
         factory { ServerConnectViewModel(settingsRepository = get()) }
         factory {
             com.calypsan.listenup.client.presentation.auth.SetupViewModel(
@@ -470,6 +505,7 @@ val sharedModules =
     listOf(
         platformStorageModule,
         platformDatabaseModule,
+        platformDiscoveryModule,
         dataModule,
         networkModule,
         repositoryModule,

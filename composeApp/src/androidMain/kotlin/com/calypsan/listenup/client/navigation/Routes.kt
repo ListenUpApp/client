@@ -15,7 +15,14 @@ import kotlinx.serialization.Serializable
 sealed interface Route
 
 /**
- * Server setup screen - initial flow when no server URL configured.
+ * Server selection screen - shows discovered servers via mDNS.
+ * User can select a discovered server or enter URL manually.
+ */
+@Serializable
+data object ServerSelect : Route
+
+/**
+ * Server setup screen - manual URL entry when no servers discovered.
  * User enters and verifies their ListenUp server URL.
  */
 @Serializable

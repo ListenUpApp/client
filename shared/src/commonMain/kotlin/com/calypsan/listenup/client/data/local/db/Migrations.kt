@@ -541,3 +541,48 @@ val MIGRATION_11_12 =
             }
         }
     }
+
+/**
+ * Migration from version 12 to version 13.
+ *
+ * Changes:
+ * - Add servers table for multi-server support
+ *
+ * The servers table stores discovered ListenUp servers and their per-server
+ * authentication state, enabling:
+ * - Zero-config server discovery via mDNS
+ * - Instant context switching between servers without re-authentication
+ * - Offline server persistence (remembered even when not on local network)
+ */
+val MIGRATION_12_13 =
+    object : Migration(12, 13) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create servers table for multi-server support
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS servers (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    name TEXT NOT NULL,
+                    apiVersion TEXT NOT NULL,
+                    serverVersion TEXT NOT NULL,
+                    localUrl TEXT,
+                    remoteUrl TEXT,
+                    accessToken TEXT,
+                    refreshToken TEXT,
+                    sessionId TEXT,
+                    userId TEXT,
+                    isActive INTEGER NOT NULL DEFAULT 0,
+                    lastSeenAt INTEGER NOT NULL DEFAULT 0,
+                    lastConnectedAt INTEGER
+                )
+                """.trimIndent(),
+            )
+
+            // Create index on isActive for efficient active server lookup
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_servers_isActive ON servers(isActive)
+                """.trimIndent(),
+            )
+        }
+    }

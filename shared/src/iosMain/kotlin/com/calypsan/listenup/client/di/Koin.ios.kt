@@ -1,10 +1,14 @@
 package com.calypsan.listenup.client.di
 
+import com.calypsan.listenup.client.data.discovery.IosDiscoveryService
+import com.calypsan.listenup.client.data.discovery.ServerDiscoveryService
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
+import org.koin.dsl.bind
+import org.koin.dsl.module
 
 /**
  * iOS-specific Koin initialization.
@@ -26,6 +30,17 @@ actual fun initializeKoin(additionalModules: List<Module>) {
  * Using explicit IPv4 address instead of localhost to avoid IPv6 resolution issues.
  */
 actual fun getBaseUrl(): String = "http://127.0.0.1:8080"
+
+/**
+ * iOS-specific discovery module.
+ * Provides Bonjour-based mDNS discovery.
+ *
+ * TODO: IosDiscoveryService is a placeholder - implement NSNetServiceBrowser
+ */
+actual val platformDiscoveryModule: Module =
+    module {
+        single { IosDiscoveryService() } bind ServerDiscoveryService::class
+    }
 
 /**
  * Helper object for accessing Koin dependencies from Swift.

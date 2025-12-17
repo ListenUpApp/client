@@ -30,6 +30,7 @@ import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.features.admin.AdminScreen
 import com.calypsan.listenup.client.features.admin.CreateInviteScreen
+import com.calypsan.listenup.client.features.connect.ServerSelectScreen
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
 import com.calypsan.listenup.client.features.invite.InviteRegistrationScreen
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
@@ -88,7 +89,7 @@ fun ListenUpNavigation(
         AuthState.NeedsServerUrl -> ServerSetupNavigation()
         AuthState.CheckingServer -> LoadingScreen("Checking server...")
         AuthState.NeedsSetup -> SetupNavigation()
-        AuthState.NeedsLogin -> LoginNavigation()
+        AuthState.NeedsLogin -> LoginNavigation(settingsRepository)
         is AuthState.Authenticated -> AuthenticatedNavigation(settingsRepository)
     }
 }
@@ -137,21 +138,44 @@ private fun LoadingScreen(message: String = "Loading...") {
 
 /**
  * Server setup navigation - shown when no server URL is configured.
- * After successful verification, AuthState changes trigger automatic navigation.
+ *
+ * Flow:
+ * 1. ServerSelectScreen - shows discovered servers + manual option
+ * 2. ServerSetupScreen - manual URL entry (if user clicks "Add Manually")
+ *
+ * After successful selection/verification, AuthState changes trigger automatic navigation.
  */
 @Composable
 private fun ServerSetupNavigation() {
-    val backStack = remember { mutableStateListOf<Route>(ServerSetup) }
+    val backStack = remember { mutableStateListOf<Route>(ServerSelect) }
 
     NavDisplay(
         backStack = backStack,
+        onBack = {
+            if (backStack.size > 1) {
+                backStack.removeAt(backStack.lastIndex)
+            }
+        },
         entryProvider =
             entryProvider {
+                entry<ServerSelect> {
+                    ServerSelectScreen(
+                        onServerActivated = {
+                            // Server is selected, AuthState will change automatically
+                        },
+                        onManualEntryRequested = {
+                            backStack.add(ServerSetup)
+                        },
+                    )
+                }
                 entry<ServerSetup> {
                     ServerSetupScreen(
                         onServerVerified = {
                             // URL is saved, AuthState will change automatically
-                            // No manual navigation needed
+                            // Pop back to select (will be replaced by auth screen)
+                        },
+                        onBack = {
+                            backStack.removeAt(backStack.lastIndex)
                         },
                     )
                 }
@@ -184,7 +208,8 @@ private fun SetupNavigation() {
  * After successful login, AuthState.Authenticated triggers automatic navigation.
  */
 @Composable
-private fun LoginNavigation() {
+private fun LoginNavigation(settingsRepository: SettingsRepository) {
+    val scope = rememberCoroutineScope()
     val backStack = remember { mutableStateListOf<Route>(Login) }
 
     NavDisplay(
@@ -193,7 +218,14 @@ private fun LoginNavigation() {
             entryProvider {
                 entry<Login> {
                     com.calypsan.listenup.client.features.auth
-                        .LoginScreen()
+                        .LoginScreen(
+                            onChangeServer = {
+                                scope.launch {
+                                    // Clear server URL to go back to server selection
+                                    settingsRepository.disconnectFromServer()
+                                }
+                            },
+                        )
                 }
             },
     )
