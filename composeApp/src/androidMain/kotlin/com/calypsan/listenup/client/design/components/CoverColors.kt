@@ -163,8 +163,8 @@ fun rememberCoverColors(
                     .build(),
         )
 
-    LaunchedEffect(painter.state, cacheKey) {
-        val state = painter.state
+    LaunchedEffect(painter.state.value, cacheKey) {
+        val state = painter.state.value
         if (state is AsyncImagePainter.State.Success) {
             // Run Palette extraction on background thread
             val extracted =
