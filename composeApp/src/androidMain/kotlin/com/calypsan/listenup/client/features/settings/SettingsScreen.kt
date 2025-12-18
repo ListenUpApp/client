@@ -74,6 +74,12 @@ fun SettingsScreen(
                     checked = state.ignoreTitleArticles,
                     onCheckedChange = viewModel::setIgnoreTitleArticles,
                 )
+                SettingsToggleItem(
+                    title = "Hide single-book series",
+                    description = "Hide series with only one book from the Series tab",
+                    checked = state.hideSingleBookSeries,
+                    onCheckedChange = viewModel::setHideSingleBookSeries,
+                )
             }
         }
     }

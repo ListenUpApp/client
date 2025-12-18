@@ -78,6 +78,10 @@ interface SettingsRepositoryContract {
 
     suspend fun setIgnoreTitleArticles(ignore: Boolean)
 
+    suspend fun getHideSingleBookSeries(): Boolean
+
+    suspend fun setHideSingleBookSeries(hide: Boolean)
+
     // Playback preferences
     suspend fun getSpatialPlayback(): Boolean
 
@@ -117,6 +121,9 @@ class SettingsRepository(
 
         // Title sort article handling
         private const val KEY_IGNORE_TITLE_ARTICLES = "ignore_title_articles"
+
+        // Series display preferences
+        private const val KEY_HIDE_SINGLE_BOOK_SERIES = "hide_single_book_series"
 
         // Playback preferences
         private const val KEY_SPATIAL_PLAYBACK = "spatial_playback"
@@ -436,6 +443,22 @@ class SettingsRepository(
      */
     override suspend fun setIgnoreTitleArticles(ignore: Boolean) {
         secureStorage.save(KEY_IGNORE_TITLE_ARTICLES, ignore.toString())
+    }
+
+    // Series display preferences
+
+    /**
+     * Get whether to hide series with only one book.
+     * @return true to hide single-book series (default), false to show all
+     */
+    override suspend fun getHideSingleBookSeries(): Boolean =
+        secureStorage.read(KEY_HIDE_SINGLE_BOOK_SERIES)?.toBooleanStrictOrNull() ?: true
+
+    /**
+     * Set whether to hide series with only one book.
+     */
+    override suspend fun setHideSingleBookSeries(hide: Boolean) {
+        secureStorage.save(KEY_HIDE_SINGLE_BOOK_SERIES, hide.toString())
     }
 
     // Playback preferences

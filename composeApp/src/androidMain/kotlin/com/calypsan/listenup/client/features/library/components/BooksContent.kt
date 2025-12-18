@@ -313,7 +313,7 @@ private fun BookGrid(
     Box(modifier = modifier.fillMaxSize()) {
         LazyVerticalGrid(
             state = gridState,
-            columns = GridCells.Adaptive(minSize = 120.dp),
+            columns = GridCells.Adaptive(minSize = 160.dp),
             contentPadding =
                 PaddingValues(
                     start = 16.dp,

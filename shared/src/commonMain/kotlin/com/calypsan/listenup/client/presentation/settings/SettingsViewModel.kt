@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 data class SettingsUiState(
     val spatialPlayback: Boolean = true,
     val ignoreTitleArticles: Boolean = true,
+    val hideSingleBookSeries: Boolean = true,
     val isLoading: Boolean = true,
 )
 
@@ -31,6 +32,7 @@ class SettingsViewModel(
                 it.copy(
                     spatialPlayback = settingsRepository.getSpatialPlayback(),
                     ignoreTitleArticles = settingsRepository.getIgnoreTitleArticles(),
+                    hideSingleBookSeries = settingsRepository.getHideSingleBookSeries(),
                     isLoading = false,
                 )
             }
@@ -48,6 +50,13 @@ class SettingsViewModel(
         viewModelScope.launch {
             settingsRepository.setIgnoreTitleArticles(ignore)
             _state.update { it.copy(ignoreTitleArticles = ignore) }
+        }
+    }
+
+    fun setHideSingleBookSeries(hide: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setHideSingleBookSeries(hide)
+            _state.update { it.copy(hideSingleBookSeries = hide) }
         }
     }
 }
