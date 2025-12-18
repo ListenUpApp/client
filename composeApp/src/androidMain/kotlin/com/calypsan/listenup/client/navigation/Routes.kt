@@ -170,3 +170,9 @@ data object Admin : Route
  */
 @Serializable
 data object CreateInvite : Route
+
+/**
+ * Settings screen - app preferences and configuration.
+ */
+@Serializable
+data object Settings : Route

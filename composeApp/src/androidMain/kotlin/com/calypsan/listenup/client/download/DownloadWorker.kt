@@ -253,8 +253,11 @@ class DownloadWorker(
     ): String {
         val capabilities = capabilityDetector.getSupportedCodecs()
 
+        // Get spatial audio setting from repository
+        val spatial = settingsRepository.getSpatialPlayback()
+
         // Call prepare endpoint
-        val result = playbackApi.preparePlayback(bookId, audioFileId, capabilities)
+        val result = playbackApi.preparePlayback(bookId, audioFileId, capabilities, spatial)
 
         if (result !is Success) {
             logger.warn { "Prepare call failed, using original URL" }
@@ -282,7 +285,7 @@ class DownloadWorker(
 
                 delay(5000) // Poll every 5 seconds
 
-                val checkResult = playbackApi.preparePlayback(bookId, audioFileId, capabilities)
+                val checkResult = playbackApi.preparePlayback(bookId, audioFileId, capabilities, spatial)
                 if (checkResult is Success) {
                     val checkResponse = checkResult.data
                     if (checkResponse.ready) {

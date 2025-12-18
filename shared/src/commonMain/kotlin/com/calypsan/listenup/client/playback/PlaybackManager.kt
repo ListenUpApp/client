@@ -283,8 +283,11 @@ class PlaybackManager(
         val maxRetries = 120 // ~10 minutes at 5 second intervals
         val retryDelayMs = 5000L
 
+        // Get spatial audio setting from repository
+        val spatial = settingsRepository.getSpatialPlayback()
+
         repeat(maxRetries) { attempt ->
-            when (val result = api.preparePlayback(bookId, audioFileId, capabilities)) {
+            when (val result = api.preparePlayback(bookId, audioFileId, capabilities, spatial)) {
                 is Success -> {
                     val response = result.data
                     logger.debug {

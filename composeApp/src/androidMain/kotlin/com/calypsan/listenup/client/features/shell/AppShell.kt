@@ -54,6 +54,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * @param onSeriesClick Callback when a series is clicked (navigates to detail)
  * @param onContributorClick Callback when a contributor is clicked (author or narrator)
  * @param onAdminClick Callback when administration is clicked (only shown for admin users)
+ * @param onSettingsClick Callback when settings is clicked
  * @param onSignOut Callback when sign out is triggered
  */
 @Suppress("LongMethod")
@@ -66,6 +67,7 @@ fun AppShell(
     onSeriesClick: (String) -> Unit,
     onContributorClick: (String) -> Unit,
     onAdminClick: (() -> Unit)? = null,
+    onSettingsClick: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     // Inject dependencies
@@ -165,7 +167,7 @@ fun AppShell(
             isAvatarMenuExpanded = isAvatarMenuExpanded,
             onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
             onAdminClick = onAdminClick,
-            onSettingsClick = { /* TODO: Navigate to settings */ },
+            onSettingsClick = onSettingsClick,
             onSignOutClick = onSignOut,
             scrollBehavior = scrollBehavior,
             showAvatar = showAvatarInTopBar,
@@ -248,7 +250,7 @@ fun AppShell(
                     isAvatarMenuExpanded = isAvatarMenuExpanded,
                     onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
                     onAdminClick = onAdminClick,
-                    onSettingsClick = { /* TODO: Navigate to settings */ },
+                    onSettingsClick = onSettingsClick,
                     onSignOutClick = onSignOut,
                 )
                 Scaffold(
@@ -271,7 +273,7 @@ fun AppShell(
                 isAvatarMenuExpanded = isAvatarMenuExpanded,
                 onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
                 onAdminClick = onAdminClick,
-                onSettingsClick = { /* TODO: Navigate to settings */ },
+                onSettingsClick = onSettingsClick,
                 onSignOutClick = onSignOut,
             ) {
                 Scaffold(

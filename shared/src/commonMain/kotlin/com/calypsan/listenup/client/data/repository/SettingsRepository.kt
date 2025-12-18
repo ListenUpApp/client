@@ -77,6 +77,11 @@ interface SettingsRepositoryContract {
     suspend fun getIgnoreTitleArticles(): Boolean
 
     suspend fun setIgnoreTitleArticles(ignore: Boolean)
+
+    // Playback preferences
+    suspend fun getSpatialPlayback(): Boolean
+
+    suspend fun setSpatialPlayback(enabled: Boolean)
 }
 
 /**
@@ -112,6 +117,9 @@ class SettingsRepository(
 
         // Title sort article handling
         private const val KEY_IGNORE_TITLE_ARTICLES = "ignore_title_articles"
+
+        // Playback preferences
+        private const val KEY_SPATIAL_PLAYBACK = "spatial_playback"
     }
 
     // Server configuration
@@ -428,5 +436,24 @@ class SettingsRepository(
      */
     override suspend fun setIgnoreTitleArticles(ignore: Boolean) {
         secureStorage.save(KEY_IGNORE_TITLE_ARTICLES, ignore.toString())
+    }
+
+    // Playback preferences
+
+    /**
+     * Get whether spatial (5.1 surround) audio is preferred.
+     * When enabled, transcoded audio uses 5.1 surround for spatial audio support.
+     * When disabled, uses stereo for faster transcoding and universal compatibility.
+     * @return true for 5.1 spatial (default), false for stereo
+     */
+    override suspend fun getSpatialPlayback(): Boolean =
+        secureStorage.read(KEY_SPATIAL_PLAYBACK)?.toBooleanStrictOrNull() ?: true
+
+    /**
+     * Set spatial audio preference.
+     * This is a per-device setting - different devices can have different preferences.
+     */
+    override suspend fun setSpatialPlayback(enabled: Boolean) {
+        secureStorage.save(KEY_SPATIAL_PLAYBACK, enabled.toString())
     }
 }

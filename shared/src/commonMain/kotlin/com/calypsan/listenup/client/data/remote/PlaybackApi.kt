@@ -36,21 +36,24 @@ class PlaybackApi(
      * @param bookId The book ID
      * @param audioFileId The audio file ID
      * @param capabilities List of codecs the client can play (e.g., ["aac", "mp3", "opus"])
+     * @param spatial Whether the client prefers spatial audio
      * @return PreparePlaybackResponse with stream URL and ready status
      */
     suspend fun preparePlayback(
         bookId: String,
         audioFileId: String,
         capabilities: List<String>,
+        spatial: Boolean, // NEW parameter
     ): Result<PreparePlaybackResponse> =
         suspendRunCatching {
-            logger.debug { "Preparing playback: book=$bookId, file=$audioFileId, caps=$capabilities" }
+            logger.debug { "Preparing playback: book=$bookId, file=$audioFileId, caps=$capabilities, spatial=$spatial" }
 
             val client = clientFactory.getClient()
             val request = PreparePlaybackRequest(
                 bookId = bookId,
                 audioFileId = audioFileId,
                 capabilities = capabilities,
+                spatial = spatial,
             )
 
             val response: ApiResponse<PreparePlaybackApiResponse> =
@@ -79,6 +82,7 @@ data class PreparePlaybackRequest(
     @SerialName("audio_file_id")
     val audioFileId: String,
     val capabilities: List<String>,
+    val spatial: Boolean, // NEW: Client's spatial audio preference
 )
 
 /**

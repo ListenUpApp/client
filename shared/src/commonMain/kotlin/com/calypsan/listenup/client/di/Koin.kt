@@ -62,6 +62,7 @@ import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
+import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.bind
@@ -339,6 +340,7 @@ val presentationModule =
                 imageApi = get(),
             )
         }
+        factory { SettingsViewModel(settingsRepository = get()) }
     }
 
 /**

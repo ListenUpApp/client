@@ -48,6 +48,12 @@ class PlaybackErrorHandler(
             val message: String,
         ) : PlaybackError()
 
+        // Stuck player - Media3 1.9.0 detects when playback is stuck
+        // Triggers after 10 min buffering, 10s ready with no progress, etc.
+        data class Stuck(
+            val message: String,
+        ) : PlaybackError()
+
         data class Unknown(
             val cause: Throwable,
         ) : PlaybackError()
@@ -86,6 +92,12 @@ class PlaybackErrorHandler(
             PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
             -> {
                 PlaybackError.Codec("Cannot play this audio format")
+            }
+
+            // Stuck player detection (Media3 1.9.0)
+            // Fires after 10 min buffering, 10s ready with no progress, etc.
+            PlaybackException.ERROR_CODE_TIMEOUT -> {
+                PlaybackError.Stuck("Playback appears to be stuck")
             }
 
             else -> {
@@ -154,6 +166,29 @@ class PlaybackErrorHandler(
                 false
             }
 
+            is PlaybackError.Stuck -> {
+                // Media3 1.9.0 stuck player detection
+                // Player was buffering or ready but not making progress
+                logger.warn { "Stuck player detected: ${error.message}" }
+
+                // For HLS progressive transcoding, this might happen during long
+                // segment waits. Try to recover by re-preparing.
+                val currentPosition = player.currentPosition
+                val currentMediaItemIndex = player.currentMediaItemIndex
+
+                player.stop()
+                player.prepare()
+
+                // Restore position if we had one
+                if (currentPosition > 0) {
+                    player.seekTo(currentMediaItemIndex, currentPosition)
+                }
+
+                player.play()
+                logger.info { "Attempting recovery from stuck state at position $currentPosition" }
+                true // Continue, we're attempting recovery
+            }
+
             is PlaybackError.Unknown -> {
                 logger.error(error.cause) { "Unknown playback error" }
                 onShowError("Playback error. Please try again.")
@@ -172,6 +207,7 @@ class PlaybackErrorHandler(
             is PlaybackError.AuthExpired -> "Session expired. Please sign in."
             is PlaybackError.NotFound -> "File not available."
             is PlaybackError.Codec -> "Cannot play this format."
+            is PlaybackError.Stuck -> "Playback stuck. Retrying..."
             is PlaybackError.Unknown -> "Playback error."
         }
 }

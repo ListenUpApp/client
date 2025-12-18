@@ -34,6 +34,7 @@ import com.calypsan.listenup.client.features.connect.ServerSelectScreen
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
 import com.calypsan.listenup.client.features.invite.InviteRegistrationScreen
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
+import com.calypsan.listenup.client.features.settings.SettingsScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
@@ -301,6 +302,9 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onAdminClick = {
                                     backStack.add(Admin)
                                 },
+                                onSettingsClick = {
+                                    backStack.add(Settings)
+                                },
                                 onSignOut = {
                                     scope.launch {
                                         settingsRepository.clearAuthTokens()
@@ -425,6 +429,13 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                                 onSuccess = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<Settings> {
+                            SettingsScreen(
+                                onNavigateBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                             )
