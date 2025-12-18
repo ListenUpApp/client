@@ -3,6 +3,7 @@
 package com.calypsan.listenup.client.features.nowplaying
 
 import android.graphics.Bitmap
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -121,6 +122,11 @@ fun NowPlayingScreen(
     onCloseBook: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Handle back gesture/button - collapse instead of backgrounding the app
+    BackHandler(enabled = true) {
+        onCollapse()
+    }
+
     // Extract dominant color from cover
     var dominantColor by remember { mutableStateOf(Color.Transparent) }
 

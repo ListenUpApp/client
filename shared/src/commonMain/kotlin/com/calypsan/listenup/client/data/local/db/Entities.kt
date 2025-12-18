@@ -20,12 +20,12 @@ data class UserEntity(
     val isRoot: Boolean,
     /**
      * Creation timestamp in Unix epoch milliseconds.
-     * Use kotlinx.datetime.Instant for domain model conversion.
+     * Use kotlin.time.Instant for domain model conversion.
      */
     val createdAt: Long,
     /**
      * Last update timestamp in Unix epoch milliseconds.
-     * Use kotlinx.datetime.Instant for domain model conversion.
+     * Use kotlin.time.Instant for domain model conversion.
      */
     val updatedAt: Long,
 )

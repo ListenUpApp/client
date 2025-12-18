@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.remote
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
 import com.calypsan.listenup.client.data.remote.model.ContributorResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.data.remote.model.SeriesResponse
@@ -117,6 +118,34 @@ interface SyncApiContract {
      * Submit listening events to the server.
      */
     suspend fun submitListeningEvents(events: List<ListeningEventRequest>): Result<ListeningEventsResponse>
+
+    /**
+     * Get playback progress for a specific book.
+     *
+     * Used for cross-device sync: checks if another device has newer progress.
+     * Returns null if no progress exists for this book.
+     *
+     * Endpoint: GET /api/v1/listening/progress/{bookId}
+     * Auth: Required
+     *
+     * @param bookId Book to get progress for
+     * @return Result containing PlaybackProgressResponse or null if not found
+     */
+    suspend fun getProgress(bookId: String): Result<PlaybackProgressResponse?>
+
+    /**
+     * Get list of books with playback progress (Continue Listening).
+     *
+     * Returns display-ready items with embedded book details.
+     * No client-side joins required - ready for immediate display.
+     *
+     * Endpoint: GET /api/v1/listening/continue
+     * Auth: Required
+     *
+     * @param limit Maximum number of books to return (default 10)
+     * @return Result containing list of ContinueListeningItemResponse
+     */
+    suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningItemResponse>>
 }
 
 /**

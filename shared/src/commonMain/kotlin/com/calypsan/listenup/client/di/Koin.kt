@@ -469,11 +469,12 @@ val syncModule =
             )
         } bind BookRepositoryContract::class
 
-        // HomeRepository for Home screen data (local-first)
+        // HomeRepository for Home screen data (cross-device sync)
         single {
             HomeRepository(
                 bookRepository = get(),
                 playbackPositionDao = get(),
+                syncApi = get(),
                 userDao = get(),
             )
         } bind HomeRepositoryContract::class
