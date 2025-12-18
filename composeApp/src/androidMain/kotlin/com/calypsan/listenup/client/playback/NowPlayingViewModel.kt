@@ -193,6 +193,7 @@ class NowPlayingViewModel(
                 title = book.title,
                 author = book.authorNames,
                 coverUrl = book.coverPath,
+                coverBlurHash = book.coverBlurHash,
                 authors = book.authors,
                 narrators = book.narrators,
                 seriesId = book.seriesId,

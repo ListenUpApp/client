@@ -18,6 +18,7 @@ data class NowPlayingState(
     val title: String = "",
     val author: String = "",
     val coverUrl: String? = null,
+    val coverBlurHash: String? = null,
     // Contributors (for navigation menu)
     val authors: List<Contributor> = emptyList(),
     val narrators: List<Contributor> = emptyList(),

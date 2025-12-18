@@ -31,7 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
@@ -91,12 +90,12 @@ fun NowPlayingBar(
                     // Cover art
                     ListenUpAsyncImage(
                         path = state.coverUrl,
+                        blurHash = state.coverBlurHash,
                         contentDescription = "Book cover",
                         modifier =
                             Modifier
                                 .size(56.dp)
                                 .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop,
                     )
 
                     Spacer(Modifier.width(12.dp))

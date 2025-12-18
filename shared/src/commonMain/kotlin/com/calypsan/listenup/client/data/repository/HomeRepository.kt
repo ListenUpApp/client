@@ -88,7 +88,9 @@ class HomeRepository(
 
     /**
      * Fetch from server - returns display-ready data with book details embedded.
-     * No client-side joins needed.
+     *
+     * Server provides progress data + blurHash, but we need to look up the
+     * local cover path from downloaded covers (server path isn't usable on client).
      */
     private suspend fun fetchFromServer(limit: Int): Result<List<ContinueListeningBook>> =
         try {
@@ -96,7 +98,14 @@ class HomeRepository(
                 is Success -> {
                     val books = result.data
                         .filter { it.progress < 0.99 } // Skip finished books
-                        .map { it.toDomain() }
+                        .map { item ->
+                            // Server gives us progress + blurHash, but we need local cover path
+                            val localBook = bookRepository.getBook(item.bookId)
+                            item.toDomain().copy(
+                                coverPath = localBook?.coverPath,
+                                coverBlurHash = item.coverBlurHash ?: localBook?.coverBlurHash,
+                            )
+                        }
                     Success(books)
                 }
                 is Failure -> result
