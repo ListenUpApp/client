@@ -42,6 +42,8 @@ import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
 import com.calypsan.listenup.client.data.repository.ServerMigrationHelper
 import com.calypsan.listenup.client.data.repository.ServerRepository
 import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
+import com.calypsan.listenup.client.data.repository.ServerUrlChangeListener
+import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.FtsPopulator
@@ -151,15 +153,15 @@ expect fun getBaseUrl(): String
  */
 val repositoryModule =
     module {
-        // InstanceRepository needs unauthenticated API to avoid circular dependency
-        // (SettingsRepository -> InstanceRepository -> ListenUpApi -> ApiClientFactory -> SettingsRepository)
+        // InstanceRepository reads server URL directly from SecureStorage to avoid circular
+        // dependency (SettingsRepository -> InstanceRepository -> SettingsRepository).
+        // The URL is stored before checkServerStatus() is called.
         single<InstanceRepository> {
+            val secureStorage: com.calypsan.listenup.client.core.SecureStorage = get()
             InstanceRepositoryImpl(
-                api =
-                    ListenUpApi(
-                        baseUrl = getBaseUrl(),
-                        apiClientFactory = null, // Public endpoints don't need authentication
-                    ),
+                getServerUrl = {
+                    secureStorage.read("server_url")?.let { ServerUrl(it) }
+                },
             )
         }
 
@@ -179,6 +181,8 @@ val repositoryModule =
         single { get<ListenUpDatabase>().serverDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
+        // When active server's URL changes via mDNS rediscovery, updates SettingsRepository
+        // and invalidates the API client cache to use the new IP address.
         single {
             ServerRepository(
                 serverDao = get(),
@@ -189,6 +193,14 @@ val repositoryModule =
                             org.koin.core.qualifier
                                 .named("appScope"),
                     ),
+                urlChangeListener =
+                    ServerUrlChangeListener { newUrl ->
+                        // Update settings with new URL and invalidate API client
+                        val settings: SettingsRepositoryContract = get()
+                        val apiClientFactory: ApiClientFactory = get()
+                        settings.setServerUrl(newUrl)
+                        apiClientFactory.invalidate()
+                    },
             )
         } bind ServerRepositoryContract::class
 

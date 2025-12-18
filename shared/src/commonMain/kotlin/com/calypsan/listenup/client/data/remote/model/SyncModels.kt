@@ -174,6 +174,8 @@ data class AudioFileResponse(
     val filename: String,
     @SerialName("format")
     val format: String,
+    @SerialName("codec")
+    val codec: String = "", // May be empty for older server versions
     @SerialName("duration")
     val duration: Long,
     @SerialName("size")

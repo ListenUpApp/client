@@ -6,13 +6,17 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadState
+import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.playback.AudioCapabilityDetector
 import com.calypsan.listenup.client.playback.AudioTokenProvider
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -27,6 +31,7 @@ private val logger = KotlinLogging.logger {}
  * WorkManager worker that downloads a single audio file.
  *
  * Features:
+ * - Codec negotiation (downloads transcoded variant if needed)
  * - Resume support (Range headers)
  * - Progress updates
  * - Cancellation handling
@@ -39,6 +44,8 @@ class DownloadWorker(
     private val fileManager: DownloadFileManager,
     private val tokenProvider: AudioTokenProvider,
     private val settingsRepository: SettingsRepository,
+    private val playbackApi: PlaybackApi,
+    private val capabilityDetector: AudioCapabilityDetector,
 ) : CoroutineWorker(context, params) {
     companion object {
         const val KEY_AUDIO_FILE_ID = "audio_file_id"
@@ -126,7 +133,10 @@ class DownloadWorker(
             settingsRepository.getServerUrl()?.value
                 ?: error("No server URL configured")
 
-        val url = "$serverUrl/api/v1/books/$bookId/audio/$audioFileId"
+        // Get the correct download URL via the prepare endpoint
+        // This ensures we download the transcoded version if the device
+        // doesn't support the source codec
+        val url = resolveDownloadUrl(bookId, audioFileId, serverUrl)
 
         // Get paths from file manager and convert to java.io.File for I/O operations
         val destPath = fileManager.getDownloadPath(bookId, audioFileId, filename)
@@ -225,4 +235,92 @@ class DownloadWorker(
             )
         }
     }
+
+    /**
+     * Resolve the correct download URL via the prepare endpoint.
+     *
+     * This negotiates with the server to get the appropriate URL:
+     * - If the device supports the source codec, returns the original URL
+     * - If not, returns the transcoded variant URL
+     * - If transcoding is in progress, waits for it to complete
+     *
+     * Falls back to the original URL on any error.
+     */
+    private suspend fun resolveDownloadUrl(
+        bookId: String,
+        audioFileId: String,
+        serverUrl: String,
+    ): String {
+        val capabilities = capabilityDetector.getSupportedCodecs()
+
+        // Call prepare endpoint
+        val result = playbackApi.preparePlayback(bookId, audioFileId, capabilities)
+
+        if (result !is Success) {
+            logger.warn { "Prepare call failed, using original URL" }
+            return "$serverUrl/api/v1/books/$bookId/audio/$audioFileId"
+        }
+
+        val response = result.data
+
+        // If transcoding is in progress, wait for it to complete
+        if (!response.ready && response.transcodeJobId != null) {
+            logger.info {
+                "Transcoding in progress for $audioFileId, waiting... " +
+                    "(jobId=${response.transcodeJobId}, progress=${response.progress}%)"
+            }
+
+            // Poll until ready or timeout (max 30 minutes for long files)
+            val maxWaitMs = 30 * 60 * 1000L
+            val startTime = System.currentTimeMillis()
+            var lastProgress = response.progress
+
+            while (System.currentTimeMillis() - startTime < maxWaitMs) {
+                if (isStopped) {
+                    throw CancellationException("Download cancelled while waiting for transcode")
+                }
+
+                delay(5000) // Poll every 5 seconds
+
+                val checkResult = playbackApi.preparePlayback(bookId, audioFileId, capabilities)
+                if (checkResult is Success) {
+                    val checkResponse = checkResult.data
+                    if (checkResponse.ready) {
+                        logger.info { "Transcode completed for $audioFileId" }
+                        return buildFullUrl(serverUrl, checkResponse.streamUrl)
+                    }
+                    // Log progress updates
+                    if (checkResponse.progress > lastProgress) {
+                        logger.debug { "Transcode progress: ${checkResponse.progress}%" }
+                        lastProgress = checkResponse.progress
+                    }
+                }
+            }
+
+            // Timeout - fall back to original (will fail if truly unsupported)
+            logger.warn { "Transcode timeout for $audioFileId, using original URL" }
+            return "$serverUrl/api/v1/books/$bookId/audio/$audioFileId"
+        }
+
+        // Transcode is ready or not needed
+        logger.debug {
+            "Using ${response.variant} variant for $audioFileId (codec: ${response.codec})"
+        }
+        return buildFullUrl(serverUrl, response.streamUrl)
+    }
+
+    /**
+     * Build full URL from server URL and possibly relative path.
+     */
+    private fun buildFullUrl(
+        serverUrl: String,
+        streamUrl: String,
+    ): String =
+        if (streamUrl.startsWith("/")) {
+            "$serverUrl$streamUrl"
+        } else if (streamUrl.startsWith("http")) {
+            streamUrl
+        } else {
+            "$serverUrl/$streamUrl"
+        }
 }

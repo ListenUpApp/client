@@ -2,11 +2,15 @@
 
 package com.calypsan.listenup.client.playback
 
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
+import com.calypsan.listenup.client.domain.playback.StreamPrepareResult
 import com.calypsan.listenup.client.download.DownloadService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -28,6 +32,7 @@ private val logger = KotlinLogging.logger {}
  * - Track current playback state (position, playing status)
  * - Provide central control interface for playback
  * - Trigger background downloads for offline availability
+ * - Negotiate audio format with server for transcoding support
  */
 class PlaybackManager(
     private val settingsRepository: SettingsRepository,
@@ -35,6 +40,8 @@ class PlaybackManager(
     private val progressTracker: ProgressTracker,
     private val tokenProvider: AudioTokenProvider,
     private val downloadService: DownloadService,
+    private val playbackApi: PlaybackApi?,
+    private val capabilityDetector: AudioCapabilityDetector?,
     private val scope: CoroutineScope,
 ) {
     private val _currentBookId = MutableStateFlow<BookId?>(null)
@@ -54,6 +61,10 @@ class PlaybackManager(
 
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
+
+    // Transcode preparation progress (0-100, null when not preparing)
+    private val _prepareProgress = MutableStateFlow<PrepareProgress?>(null)
+    val prepareProgress: StateFlow<PrepareProgress?> = _prepareProgress.asStateFlow()
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -134,14 +145,31 @@ class PlaybackManager(
             "=== Total calculated duration: ${totalDuration}ms (${totalDuration / 1000}s / ${totalDuration / 60000}min) ==="
         }
 
-        // 5. Build PlaybackTimeline with local path resolution
+        // 5. Build PlaybackTimeline with codec negotiation (if available) or local path resolution
         val timeline =
-            PlaybackTimeline.buildWithLocalPaths(
-                bookId = bookId,
-                audioFiles = audioFiles,
-                baseUrl = serverUrl,
-                resolveLocalPath = { audioFileId -> downloadService.getLocalPath(audioFileId) },
-            )
+            if (playbackApi != null && capabilityDetector != null) {
+                // Use transcode-aware timeline building
+                val capabilities = capabilityDetector.getSupportedCodecs()
+                logger.debug { "Client codec capabilities: $capabilities" }
+
+                PlaybackTimeline.buildWithTranscodeSupport(
+                    bookId = bookId,
+                    audioFiles = audioFiles,
+                    baseUrl = serverUrl,
+                    resolveLocalPath = { audioFileId -> downloadService.getLocalPath(audioFileId) },
+                    prepareStream = { audioFileId, codec ->
+                        prepareStreamForFile(bookId.value, audioFileId, codec, capabilities, serverUrl)
+                    },
+                )
+            } else {
+                // Fallback to basic local path resolution
+                PlaybackTimeline.buildWithLocalPaths(
+                    bookId = bookId,
+                    audioFiles = audioFiles,
+                    baseUrl = serverUrl,
+                    resolveLocalPath = { audioFileId -> downloadService.getLocalPath(audioFileId) },
+                )
+            }
         _currentTimeline.value = timeline
         _currentBookId.value = bookId
         _totalDurationMs.value = timeline.totalDurationMs
@@ -237,6 +265,89 @@ class PlaybackManager(
     }
 
     /**
+     * Negotiate streaming URL for a single audio file.
+     *
+     * Calls the server's prepare endpoint to get the correct URL
+     * based on client capabilities. If transcoding is in progress,
+     * polls until ready or timeout, emitting progress updates.
+     */
+    private suspend fun prepareStreamForFile(
+        bookId: String,
+        audioFileId: String,
+        codec: String,
+        capabilities: List<String>,
+        baseUrl: String,
+    ): StreamPrepareResult {
+        val api = playbackApi ?: return fallbackStreamResult(bookId, audioFileId, baseUrl)
+
+        val maxRetries = 120 // ~10 minutes at 5 second intervals
+        val retryDelayMs = 5000L
+
+        repeat(maxRetries) { attempt ->
+            when (val result = api.preparePlayback(bookId, audioFileId, capabilities)) {
+                is Success -> {
+                    val response = result.data
+                    logger.debug {
+                        "Prepare result for $audioFileId (attempt ${attempt + 1}): " +
+                            "ready=${response.ready}, variant=${response.variant}, codec=${response.codec}"
+                    }
+
+                    if (response.ready) {
+                        // Clear progress when ready
+                        _prepareProgress.value = null
+                        return StreamPrepareResult(
+                            streamUrl = response.streamUrl,
+                            ready = true,
+                            transcodeJobId = response.transcodeJobId,
+                        )
+                    }
+
+                    // Transcoding in progress - emit progress and retry
+                    _prepareProgress.value = PrepareProgress(
+                        audioFileId = audioFileId,
+                        progress = response.progress,
+                        message = "Preparing audio... ${response.progress}%",
+                    )
+
+                    logger.info {
+                        "Transcoding in progress for $audioFileId: " +
+                            "jobId=${response.transcodeJobId}, progress=${response.progress}%, " +
+                            "waiting ${retryDelayMs}ms before retry..."
+                    }
+                    kotlinx.coroutines.delay(retryDelayMs)
+                }
+                is Failure -> {
+                    _prepareProgress.value = null
+                    logger.warn(result.exception) {
+                        "Failed to prepare stream for $audioFileId (attempt ${attempt + 1}), " +
+                            "using fallback URL"
+                    }
+                    return fallbackStreamResult(bookId, audioFileId, baseUrl)
+                }
+            }
+        }
+
+        // Timeout - return what we have (stream URL that may 202)
+        _prepareProgress.value = null
+        logger.warn { "Transcode polling timeout for $audioFileId after $maxRetries attempts" }
+        return fallbackStreamResult(bookId, audioFileId, baseUrl)
+    }
+
+    /**
+     * Fallback stream result when prepare endpoint fails.
+     */
+    private fun fallbackStreamResult(
+        bookId: String,
+        audioFileId: String,
+        baseUrl: String,
+    ): StreamPrepareResult =
+        StreamPrepareResult(
+            streamUrl = "$baseUrl/api/v1/books/$bookId/audio/$audioFileId",
+            ready = true,
+            transcodeJobId = null,
+        )
+
+    /**
      * Result of preparing for playback.
      */
     data class PrepareResult(
@@ -244,5 +355,14 @@ class PlaybackManager(
         val bookTitle: String,
         val resumePositionMs: Long,
         val resumeSpeed: Float,
+    )
+
+    /**
+     * Progress state during audio preparation (transcoding).
+     */
+    data class PrepareProgress(
+        val audioFileId: String,
+        val progress: Int, // 0-100
+        val message: String = "Preparing audio...",
     )
 }

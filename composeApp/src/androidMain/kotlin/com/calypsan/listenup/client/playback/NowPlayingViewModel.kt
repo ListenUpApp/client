@@ -96,6 +96,19 @@ class NowPlayingViewModel(
                 _state.update { it.copy(bookDurationMs = durationMs) }
             }
         }
+
+        // Observe prepare progress (transcode status)
+        viewModelScope.launch {
+            playbackManager.prepareProgress.collect { progress ->
+                _state.update {
+                    it.copy(
+                        isPreparing = progress != null,
+                        prepareProgress = progress?.progress ?: 0,
+                        prepareMessage = progress?.message,
+                    )
+                }
+            }
+        }
     }
 
     private fun observeSleepTimer() {

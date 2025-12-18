@@ -32,6 +32,10 @@ data class NowPlayingState(
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val playbackSpeed: Float = 1.0f,
+    // Transcode preparation state
+    val isPreparing: Boolean = false,
+    val prepareProgress: Int = 0, // 0-100
+    val prepareMessage: String? = null,
     // Book-level progress (for mini player progress bar)
     val bookProgress: Float = 0f, // 0.0 - 1.0
     val bookPositionMs: Long = 0,

@@ -14,7 +14,10 @@ import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.download.DownloadWorkerFactory
+import com.calypsan.listenup.client.data.remote.PlaybackApi
+import com.calypsan.listenup.client.playback.AndroidAudioCapabilityDetector
 import com.calypsan.listenup.client.playback.AndroidAudioTokenProvider
+import com.calypsan.listenup.client.playback.AudioCapabilityDetector
 import com.calypsan.listenup.client.playback.AudioTokenProvider
 import com.calypsan.listenup.client.playback.MediaControllerHolder
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
@@ -101,6 +104,12 @@ val playbackModule =
             )
         }
 
+        // Playback API - handles codec negotiation for transcoding
+        single { PlaybackApi(clientFactory = get()) }
+
+        // Audio capability detector - detects device codec support
+        single<AudioCapabilityDetector> { AndroidAudioCapabilityDetector() }
+
         // Playback manager - orchestrates playback startup
         single {
             PlaybackManager(
@@ -109,6 +118,8 @@ val playbackModule =
                 progressTracker = get(),
                 tokenProvider = get(),
                 downloadService = get(),
+                playbackApi = get(),
+                capabilityDetector = get(),
                 scope = get(),
             )
         }
@@ -198,6 +209,8 @@ class ListenUp :
                 fileManager = get(),
                 tokenProvider = get<AndroidAudioTokenProvider>(),
                 settingsRepository = get(),
+                playbackApi = get(),
+                capabilityDetector = get(),
             )
 
         val workManagerConfig =
