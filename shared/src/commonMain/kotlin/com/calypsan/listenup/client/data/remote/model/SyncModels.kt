@@ -205,6 +205,9 @@ data class ImageFileInfoResponse(
     // Unix timestamp in milliseconds
     @SerialName("mod_time")
     val modTime: Long,
+    // BlurHash for placeholder display
+    @SerialName("blur_hash")
+    val blurHash: String? = null,
 )
 
 @Serializable
@@ -257,6 +260,8 @@ data class ContributorResponse(
     val biography: String? = null,
     @SerialName("image_url")
     val imageUrl: String? = null,
+    @SerialName("image_blur_hash")
+    val imageBlurHash: String? = null,
     @SerialName("aliases")
     val aliases: List<String>? = null,
     @SerialName("website")

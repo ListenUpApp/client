@@ -134,6 +134,7 @@ class HomeRepository(
                 title = book.title,
                 authorNames = book.authorNames,
                 coverPath = book.coverPath,
+                coverBlurHash = book.coverBlurHash,
                 progress = progress,
                 currentPositionMs = position.positionMs,
                 totalDurationMs = book.duration,

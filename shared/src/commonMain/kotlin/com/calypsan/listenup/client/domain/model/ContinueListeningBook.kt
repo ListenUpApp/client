@@ -13,6 +13,7 @@ data class ContinueListeningBook(
     val title: String,
     val authorNames: String,
     val coverPath: String?,
+    val coverBlurHash: String? = null,
     // 0.0 - 1.0
     val progress: Float,
     val currentPositionMs: Long,

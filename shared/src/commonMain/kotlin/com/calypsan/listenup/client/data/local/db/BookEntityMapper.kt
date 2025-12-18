@@ -36,6 +36,7 @@ fun BookEntity.toDomain(
         narrators = narrators,
         duration = totalDuration,
         coverPath = coverPath,
+        coverBlurHash = coverBlurHash,
         addedAt = createdAt,
         updatedAt = updatedAt,
         description = description,

@@ -28,6 +28,7 @@ androidx-work = "2.11.0"
 coil = "3.3.0"
 media3 = "1.9.0"
 markdown-renderer = "0.38.1"
+blurhash = "0.3.0"
 
 # Quality Tools
 detekt = "1.23.8"
@@ -116,6 +117,9 @@ media3-datasource-okhttp = { module = "androidx.media3:media3-datasource-okhttp"
 
 # Markdown Rendering
 markdown-renderer-m3 = { module = "com.mikepenz:multiplatform-markdown-renderer-m3", version.ref = "markdown-renderer" }
+
+# BlurHash (image placeholders)
+blurhash = { module = "com.vanniktech:blurhash", version.ref = "blurhash" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

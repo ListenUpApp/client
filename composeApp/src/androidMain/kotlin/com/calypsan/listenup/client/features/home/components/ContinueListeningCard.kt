@@ -32,7 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.BookCover
 import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 
@@ -77,6 +77,7 @@ fun ContinueListeningCard(
         // Cover with progress overlay
         CoverWithProgressOverlay(
             coverPath = book.coverPath,
+            blurHash = book.coverBlurHash,
             contentDescription = book.title,
             progress = book.progress,
             timeRemaining = book.timeRemainingFormatted,
@@ -118,6 +119,7 @@ fun ContinueListeningCard(
 @Composable
 private fun CoverWithProgressOverlay(
     coverPath: String?,
+    blurHash: String?,
     contentDescription: String?,
     progress: Float,
     timeRemaining: String,
@@ -133,11 +135,11 @@ private fun CoverWithProgressOverlay(
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         // Cover image
-        if (coverPath != null) {
-            ListenUpAsyncImage(
-                path = coverPath,
+        if (coverPath != null || blurHash != null) {
+            BookCover(
+                coverPath = coverPath,
+                blurHash = blurHash,
                 contentDescription = contentDescription,
-                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {

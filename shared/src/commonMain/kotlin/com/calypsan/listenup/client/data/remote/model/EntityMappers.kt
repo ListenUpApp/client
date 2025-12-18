@@ -59,6 +59,7 @@ fun ContributorResponse.toEntity(): ContributorEntity {
         name = name,
         description = biography,
         imagePath = imageUrl,
+        imageBlurHash = imageBlurHash,
         aliases = aliasesString,
         website = website,
         birthDate = birthDate,

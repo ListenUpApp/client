@@ -61,6 +61,9 @@ kotlin {
 
             // Markdown Rendering
             implementation(libs.markdown.renderer.m3)
+
+            // BlurHash for image placeholders
+            implementation(libs.blurhash)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

@@ -27,6 +27,7 @@ data class Book(
     val allContributors: List<Contributor> = emptyList(), // All contributors with all their roles
     val duration: Long, // Milliseconds
     val coverPath: String?, // Local file path or null if no cover
+    val coverBlurHash: String? = null, // BlurHash for cover placeholder
     val addedAt: Timestamp,
     val updatedAt: Timestamp,
     val description: String? = null,

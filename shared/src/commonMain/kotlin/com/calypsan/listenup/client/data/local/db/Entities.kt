@@ -50,6 +50,7 @@ data class BookEntity(
     val title: String,
     val subtitle: String? = null, // Book subtitle
     val coverUrl: String?, // URL to cover image (local or remote)
+    val coverBlurHash: String? = null, // BlurHash for cover placeholder
     val totalDuration: Long, // Total audiobook duration in milliseconds
     val description: String? = null,
     val genres: String? = null, // Comma-separated genres
@@ -136,6 +137,7 @@ data class ContributorEntity(
     val name: String,
     val description: String?,
     val imagePath: String?,
+    val imageBlurHash: String? = null, // BlurHash placeholder for image
     // Optional fields - will sync when server supports them
     val website: String? = null,
     val birthDate: String? = null, // ISO 8601 date (e.g., "1947-09-21")

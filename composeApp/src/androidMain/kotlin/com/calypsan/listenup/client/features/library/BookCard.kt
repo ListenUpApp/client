@@ -31,7 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.BookCover
 import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.domain.model.Book
 
@@ -78,6 +78,7 @@ fun BookCard(
         // Cover with glow and optional progress overlay
         CoverWithGlow(
             coverPath = book.coverPath,
+            blurHash = book.coverBlurHash,
             contentDescription = book.title,
             progress = progress,
             timeRemaining = timeRemaining,
@@ -126,6 +127,7 @@ fun BookCard(
  * Uses standard elevation shadow to lift the cover off the surface.
  *
  * @param coverPath Local file path to cover image
+ * @param blurHash BlurHash string for placeholder
  * @param contentDescription Accessibility description
  * @param progress Optional progress (0.0-1.0) to show overlay
  * @param timeRemaining Optional formatted time remaining
@@ -134,6 +136,7 @@ fun BookCard(
 @Composable
 private fun CoverWithGlow(
     coverPath: String?,
+    blurHash: String?,
     contentDescription: String?,
     progress: Float? = null,
     timeRemaining: String? = null,
@@ -151,11 +154,11 @@ private fun CoverWithGlow(
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,
     ) {
-        if (coverPath != null) {
-            ListenUpAsyncImage(
-                path = coverPath,
+        if (coverPath != null || blurHash != null) {
+            BookCover(
+                coverPath = coverPath,
+                blurHash = blurHash,
                 contentDescription = contentDescription,
-                contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize(),
             )
         } else {

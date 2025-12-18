@@ -311,6 +311,36 @@ interface ImageApiContract {
      * @return Result with Unit on success or error
      */
     suspend fun deleteSeriesCover(seriesId: String): Result<Unit>
+
+    /**
+     * Download multiple covers in a single request.
+     *
+     * Server returns a TAR stream containing all requested covers.
+     * Missing covers are silently skipped by the server.
+     *
+     * Endpoint: GET /api/v1/covers/batch?ids=book_1,book_2
+     * Auth: Not required (public access)
+     * Response: application/x-tar (TAR archive)
+     *
+     * @param bookIds List of book IDs to download covers for (max 100)
+     * @return Result containing map of bookId to cover bytes for successfully downloaded covers
+     */
+    suspend fun downloadCoverBatch(bookIds: List<String>): Result<Map<String, ByteArray>>
+
+    /**
+     * Download multiple contributor images in a single request.
+     *
+     * Server returns a TAR stream containing all requested images.
+     * Missing images are silently skipped by the server.
+     *
+     * Endpoint: GET /api/v1/contributors/images/batch?ids=contrib_1,contrib_2
+     * Auth: Required (Bearer token)
+     * Response: application/x-tar (TAR archive)
+     *
+     * @param contributorIds List of contributor IDs to download images for (max 100)
+     * @return Result containing map of contributorId to image bytes for successfully downloaded images
+     */
+    suspend fun downloadContributorImageBatch(contributorIds: List<String>): Result<Map<String, ByteArray>>
 }
 
 /**

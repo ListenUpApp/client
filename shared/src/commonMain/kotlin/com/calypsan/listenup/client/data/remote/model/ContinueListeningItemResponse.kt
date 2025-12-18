@@ -26,6 +26,8 @@ data class ContinueListeningItemResponse(
     val authorName: String,
     @SerialName("cover_path")
     val coverPath: String? = null,
+    @SerialName("cover_blur_hash")
+    val coverBlurHash: String? = null,
     @SerialName("total_duration_ms")
     val totalDurationMs: Long,
 ) {
@@ -38,6 +40,7 @@ data class ContinueListeningItemResponse(
             title = title,
             authorNames = authorName,
             coverPath = coverPath,
+            coverBlurHash = coverBlurHash,
             progress = progress.toFloat(),
             currentPositionMs = currentPositionMs,
             totalDurationMs = totalDurationMs,
