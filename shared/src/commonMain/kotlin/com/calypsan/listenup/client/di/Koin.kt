@@ -22,6 +22,8 @@ import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.TagApi
 import com.calypsan.listenup.client.data.remote.TagApiContract
+import com.calypsan.listenup.client.data.remote.UserPreferencesApi
+import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
 import com.calypsan.listenup.client.data.repository.BookEditRepository
 import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
@@ -340,7 +342,7 @@ val presentationModule =
                 imageApi = get(),
             )
         }
-        factory { SettingsViewModel(settingsRepository = get()) }
+        factory { SettingsViewModel(settingsRepository = get(), userPreferencesApi = get()) }
     }
 
 /**
@@ -417,6 +419,11 @@ val syncModule =
             AdminApi(clientFactory = get())
         } bind AdminApiContract::class
 
+        // UserPreferencesApi for syncing user preferences across devices
+        single {
+            UserPreferencesApi(clientFactory = get())
+        } bind UserPreferencesApiContract::class
+
         // FtsPopulator for rebuilding FTS tables after sync
         single {
             FtsPopulator(
@@ -441,6 +448,8 @@ val syncModule =
                 imageDownloader = get(),
                 sseManager = get(),
                 ftsPopulator = get(),
+                userPreferencesApi = get(),
+                settingsRepository = get(),
                 scope =
                     get(
                         qualifier =

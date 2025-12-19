@@ -86,6 +86,19 @@ interface SettingsRepositoryContract {
     suspend fun getSpatialPlayback(): Boolean
 
     suspend fun setSpatialPlayback(enabled: Boolean)
+
+    /**
+     * Get the default playback speed for new books.
+     * @return Playback speed multiplier (e.g., 1.0, 1.25, 1.5). Default is 1.0.
+     */
+    suspend fun getDefaultPlaybackSpeed(): Float
+
+    /**
+     * Set the default playback speed for new books.
+     * This is a synced setting - will be pushed to server.
+     * @param speed Playback speed multiplier (e.g., 1.0, 1.25, 1.5)
+     */
+    suspend fun setDefaultPlaybackSpeed(speed: Float)
 }
 
 /**
@@ -127,6 +140,10 @@ class SettingsRepository(
 
         // Playback preferences
         private const val KEY_SPATIAL_PLAYBACK = "spatial_playback"
+        private const val KEY_DEFAULT_PLAYBACK_SPEED = "default_playback_speed"
+
+        // Default values
+        const val DEFAULT_PLAYBACK_SPEED = 1.0f
     }
 
     // Server configuration
@@ -478,5 +495,24 @@ class SettingsRepository(
      */
     override suspend fun setSpatialPlayback(enabled: Boolean) {
         secureStorage.save(KEY_SPATIAL_PLAYBACK, enabled.toString())
+    }
+
+    // Universal playback speed (synced across devices)
+
+    /**
+     * Get the default playback speed for new books.
+     * This is a synced setting - the value may be updated when preferences sync.
+     * @return Playback speed multiplier (e.g., 1.0, 1.25, 1.5). Default is 1.0.
+     */
+    override suspend fun getDefaultPlaybackSpeed(): Float =
+        secureStorage.read(KEY_DEFAULT_PLAYBACK_SPEED)?.toFloatOrNull() ?: DEFAULT_PLAYBACK_SPEED
+
+    /**
+     * Set the default playback speed for new books.
+     * This is a synced setting - will be pushed to server by SyncManager.
+     * @param speed Playback speed multiplier (e.g., 1.0, 1.25, 1.5)
+     */
+    override suspend fun setDefaultPlaybackSpeed(speed: Float) {
+        secureStorage.save(KEY_DEFAULT_PLAYBACK_SPEED, speed.toString())
     }
 }

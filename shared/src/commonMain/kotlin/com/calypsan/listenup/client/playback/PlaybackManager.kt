@@ -176,12 +176,20 @@ class PlaybackManager(
 
         logger.info { "Built timeline: ${timeline.files.size} files, ${timeline.totalDurationMs}ms total" }
 
-        // 6. Get resume position
+        // 6. Get resume position and speed
         val savedPosition = progressTracker.getResumePosition(bookId)
         val resumePositionMs = savedPosition?.positionMs ?: 0L
-        val resumeSpeed = savedPosition?.playbackSpeed ?: 1.0f
 
-        logger.debug { "Resume position: ${resumePositionMs}ms, speed: ${resumeSpeed}x" }
+        // Determine playback speed: use book's custom speed if set, otherwise use universal default
+        val resumeSpeed = if (savedPosition != null && savedPosition.hasCustomSpeed) {
+            // Book has a custom speed set by user
+            savedPosition.playbackSpeed
+        } else {
+            // Use universal default speed (synced across devices)
+            settingsRepository.getDefaultPlaybackSpeed()
+        }
+
+        logger.debug { "Resume position: ${resumePositionMs}ms, speed: ${resumeSpeed}x (hasCustomSpeed=${savedPosition?.hasCustomSpeed})" }
 
         // Validate resume position
         if (resumePositionMs < 0) {
@@ -249,6 +257,30 @@ class PlaybackManager(
      */
     fun updateSpeed(speed: Float) {
         _playbackSpeed.value = speed
+    }
+
+    /**
+     * Called when user explicitly changes playback speed.
+     * Updates state and marks the book as having a custom speed.
+     */
+    fun onSpeedChanged(speed: Float) {
+        val bookId = _currentBookId.value ?: return
+        val positionMs = _currentPositionMs.value
+        _playbackSpeed.value = speed
+        progressTracker.onSpeedChanged(bookId, positionMs, speed)
+    }
+
+    /**
+     * Reset book's speed to universal default.
+     * Called when user explicitly resets to default speed.
+     *
+     * @param defaultSpeed The universal default speed from settings
+     */
+    fun onSpeedReset(defaultSpeed: Float) {
+        val bookId = _currentBookId.value ?: return
+        val positionMs = _currentPositionMs.value
+        _playbackSpeed.value = defaultSpeed
+        progressTracker.onSpeedReset(bookId, positionMs, defaultSpeed)
     }
 
     /**

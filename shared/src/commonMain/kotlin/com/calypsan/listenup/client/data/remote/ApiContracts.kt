@@ -697,3 +697,52 @@ data class SeriesEditResponse(
     val description: String? = null,
     val updatedAt: String,
 )
+
+/**
+ * Contract interface for user preferences API operations.
+ *
+ * Handles syncing user preferences across devices.
+ * Preferences include playback defaults and other user-specific settings.
+ */
+interface UserPreferencesApiContract {
+    /**
+     * Get user preferences from the server.
+     *
+     * Endpoint: GET /api/v1/user/preferences
+     * Auth: Required
+     *
+     * @return Result containing user preferences or error
+     */
+    suspend fun getPreferences(): Result<UserPreferencesResponse>
+
+    /**
+     * Update user preferences on the server.
+     *
+     * Endpoint: PUT /api/v1/user/preferences
+     * Auth: Required
+     *
+     * @param request The preferences to update
+     * @return Result containing updated preferences or error
+     */
+    suspend fun updatePreferences(request: UserPreferencesRequest): Result<UserPreferencesResponse>
+}
+
+/**
+ * Response from user preferences endpoint.
+ *
+ * Extensible for future preferences (sort settings, theme, etc.)
+ */
+data class UserPreferencesResponse(
+    /** Default playback speed for new books (e.g., 1.0, 1.25, 1.5) */
+    val defaultPlaybackSpeed: Float,
+)
+
+/**
+ * Request to update user preferences.
+ *
+ * All fields are optional - only non-null fields are updated.
+ */
+data class UserPreferencesRequest(
+    /** Default playback speed for new books (e.g., 1.0, 1.25, 1.5) */
+    val defaultPlaybackSpeed: Float? = null,
+)

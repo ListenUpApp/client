@@ -150,6 +150,7 @@ val playbackModule =
                 bookRepository = get(),
                 sleepTimerManager = get(),
                 mediaControllerHolder = get(),
+                settingsRepository = get(),
             )
         }
     }

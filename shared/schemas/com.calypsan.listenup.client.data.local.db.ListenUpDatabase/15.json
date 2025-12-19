@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 15,
-    "identityHash": "a021244c06df7056658aa906e3963516",
+    "identityHash": "56dbc2abeacc0e868b69d99bc775905e",
     "entities": [
       {
         "tableName": "users",
@@ -626,7 +626,7 @@
       },
       {
         "tableName": "playback_positions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`bookId` TEXT NOT NULL, `positionMs` INTEGER NOT NULL, `playbackSpeed` REAL NOT NULL, `updatedAt` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`bookId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`bookId` TEXT NOT NULL, `positionMs` INTEGER NOT NULL, `playbackSpeed` REAL NOT NULL, `hasCustomSpeed` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`bookId`))",
         "fields": [
           {
             "fieldPath": "bookId",
@@ -644,6 +644,12 @@
             "fieldPath": "playbackSpeed",
             "columnName": "playbackSpeed",
             "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasCustomSpeed",
+            "columnName": "hasCustomSpeed",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
@@ -941,7 +947,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a021244c06df7056658aa906e3963516')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '56dbc2abeacc0e868b69d99bc775905e')"
     ]
   }
 }

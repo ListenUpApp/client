@@ -133,22 +133,74 @@ class ProgressTracker(
 
     /**
      * Save position to local database immediately.
+     * Preserves the existing hasCustomSpeed flag.
      */
     private suspend fun savePosition(
         bookId: BookId,
         positionMs: Long,
         speed: Float,
     ) {
+        // Preserve existing hasCustomSpeed value
+        val existing = positionDao.get(bookId)
         positionDao.save(
             PlaybackPositionEntity(
                 bookId = bookId,
                 positionMs = positionMs,
                 playbackSpeed = speed,
+                hasCustomSpeed = existing?.hasCustomSpeed ?: false,
                 updatedAt = Clock.System.now().toEpochMilliseconds(),
                 syncedAt = null,
             ),
         )
         logger.debug { "Position saved: book=${bookId.value}, position=$positionMs" }
+    }
+
+    /**
+     * Called when user explicitly changes playback speed.
+     * Marks this book as having a custom speed (not using universal default).
+     */
+    fun onSpeedChanged(
+        bookId: BookId,
+        positionMs: Long,
+        newSpeed: Float,
+    ) {
+        scope.launch {
+            positionDao.save(
+                PlaybackPositionEntity(
+                    bookId = bookId,
+                    positionMs = positionMs,
+                    playbackSpeed = newSpeed,
+                    hasCustomSpeed = true, // User explicitly set this speed
+                    updatedAt = Clock.System.now().toEpochMilliseconds(),
+                    syncedAt = null,
+                ),
+            )
+            logger.debug { "Speed changed: book=${bookId.value}, speed=$newSpeed, hasCustomSpeed=true" }
+        }
+    }
+
+    /**
+     * Reset a book's speed to use the universal default.
+     * Called when user explicitly resets to default.
+     */
+    fun onSpeedReset(
+        bookId: BookId,
+        positionMs: Long,
+        defaultSpeed: Float,
+    ) {
+        scope.launch {
+            positionDao.save(
+                PlaybackPositionEntity(
+                    bookId = bookId,
+                    positionMs = positionMs,
+                    playbackSpeed = defaultSpeed,
+                    hasCustomSpeed = false, // Now using universal default
+                    updatedAt = Clock.System.now().toEpochMilliseconds(),
+                    syncedAt = null,
+                ),
+            )
+            logger.debug { "Speed reset to default: book=${bookId.value}, speed=$defaultSpeed, hasCustomSpeed=false" }
+        }
     }
 
     /**

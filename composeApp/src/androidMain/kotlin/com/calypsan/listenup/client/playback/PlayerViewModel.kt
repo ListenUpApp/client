@@ -246,11 +246,28 @@ class PlayerViewModel(
 
     /**
      * Set playback speed.
+     * Marks the book as having a custom speed (hasCustomSpeed=true).
      */
     fun setSpeed(speed: Float) {
         val controller = mediaController ?: return
         controller.playbackParameters = PlaybackParameters(speed)
         _state.value = _state.value.copy(playbackSpeed = speed)
+        // Notify PlaybackManager that user explicitly changed speed
+        playbackManager.onSpeedChanged(speed)
+    }
+
+    /**
+     * Reset speed to universal default.
+     * Marks the book as using the universal default (hasCustomSpeed=false).
+     *
+     * @param defaultSpeed The universal default speed from settings
+     */
+    fun resetSpeedToDefault(defaultSpeed: Float) {
+        val controller = mediaController ?: return
+        controller.playbackParameters = PlaybackParameters(defaultSpeed)
+        _state.value = _state.value.copy(playbackSpeed = defaultSpeed)
+        // Notify PlaybackManager that user reset to default
+        playbackManager.onSpeedReset(defaultSpeed)
     }
 
     /**

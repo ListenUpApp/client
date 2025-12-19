@@ -33,6 +33,7 @@ data class NowPlayingState(
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val playbackSpeed: Float = 1.0f,
+    val defaultPlaybackSpeed: Float = 1.0f, // Universal default from settings
     // Transcode preparation state
     val isPreparing: Boolean = false,
     val prepareProgress: Int = 0, // 0-100
