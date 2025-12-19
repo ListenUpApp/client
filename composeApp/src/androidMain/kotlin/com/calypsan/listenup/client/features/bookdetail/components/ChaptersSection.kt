@@ -4,11 +4,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,10 +37,16 @@ fun ChaptersHeader(
 }
 
 /**
- * Individual chapter list item showing title and duration.
+ * Individual chapter list item showing number, title and duration.
+ *
+ * @param chapter The chapter data
+ * @param chapterNumber 1-based chapter number for display
  */
 @Composable
-fun ChapterListItem(chapter: ChapterUiModel) {
+fun ChapterListItem(
+    chapter: ChapterUiModel,
+    chapterNumber: Int,
+) {
     Row(
         modifier =
             Modifier
@@ -51,11 +54,11 @@ fun ChapterListItem(chapter: ChapterUiModel) {
                 .padding(horizontal = 24.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = Icons.Default.PlayArrow,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp),
+        Text(
+            text = chapterNumber.toString(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.widthIn(min = 24.dp),
         )
 
         Spacer(modifier = Modifier.width(12.dp))

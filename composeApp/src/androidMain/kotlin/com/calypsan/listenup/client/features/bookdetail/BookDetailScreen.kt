@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -342,11 +343,11 @@ private fun ImmersiveBookDetail(
         }
 
         val displayedChapters = if (isChaptersExpanded) state.chapters else state.chapters.take(5)
-        items(
+        itemsIndexed(
             items = displayedChapters,
-            key = { it.id },
-        ) { chapter ->
-            ChapterListItem(chapter)
+            key = { _, chapter -> chapter.id },
+        ) { index, chapter ->
+            ChapterListItem(chapter = chapter, chapterNumber = index + 1)
         }
 
         if (state.chapters.size > 5 && !isChaptersExpanded) {
