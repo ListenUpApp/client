@@ -33,6 +33,7 @@ import com.calypsan.listenup.client.features.shell.components.AppNavigationBar
 import com.calypsan.listenup.client.features.shell.components.AppNavigationDrawer
 import com.calypsan.listenup.client.features.shell.components.AppNavigationRail
 import com.calypsan.listenup.client.features.shell.components.AppTopBar
+import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.search.SearchNavAction
 import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
@@ -76,6 +77,12 @@ fun AppShell(
     val settingsRepository: SettingsRepository = koinInject()
     val syncDao: SyncDao = koinInject()
     val searchViewModel: SearchViewModel = koinViewModel()
+
+    // Preload library data by injecting LibraryViewModel (singleton) early.
+    // This starts Room database queries immediately, so Library tab loads instantly.
+    // The @Suppress is needed because we're intentionally not using the value directly.
+    @Suppress("UNUSED_VARIABLE")
+    val libraryViewModel: LibraryViewModel = koinInject()
 
     // Trigger sync on shell entry (not just when Library is visible)
     LaunchedEffect(Unit) {

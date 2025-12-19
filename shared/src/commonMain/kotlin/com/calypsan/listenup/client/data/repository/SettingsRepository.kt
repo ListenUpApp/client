@@ -116,7 +116,7 @@ class SettingsRepository(
     private val secureStorage: SecureStorage,
     private val instanceRepository: InstanceRepository,
 ) : SettingsRepositoryContract {
-    private val _authState = MutableStateFlow<AuthState>(AuthState.NeedsServerUrl)
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Initializing)
     override val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     companion object {

@@ -14,6 +14,8 @@ import com.calypsan.listenup.client.data.local.db.SyncMetadataEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
 import com.calypsan.listenup.client.data.remote.model.SyncContributorsResponse
@@ -80,6 +82,8 @@ class SyncManagerTest {
         val imageDownloader: ImageDownloaderContract = mock()
         val sseManager: SSEManagerContract = mock()
         val ftsPopulator: FtsPopulatorContract = mock()
+        val userPreferencesApi: UserPreferencesApiContract = mock()
+        val settingsRepository: SettingsRepositoryContract = mock()
 
         // Fake SSE event flow for SyncManager's init block
         val sseEventFlow = MutableSharedFlow<SSEEventType>()
@@ -103,6 +107,8 @@ class SyncManagerTest {
                 imageDownloader = imageDownloader,
                 sseManager = sseManager,
                 ftsPopulator = ftsPopulator,
+                userPreferencesApi = userPreferencesApi,
+                settingsRepository = settingsRepository,
                 scope = scope,
             )
     }

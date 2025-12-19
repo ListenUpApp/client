@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,8 +40,9 @@ import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
 
 /**
  * Hero section with color-extracted gradient background.
- * Uses Palette API colors instead of blur for performance.
+ * Uses Palette API colors for a cohesive look that matches the cover art.
  */
+@Suppress("MagicNumber")
 @Composable
 fun HeroSection(
     coverPath: String?,
@@ -54,14 +56,14 @@ fun HeroSection(
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
 
-    // Create gradient from extracted color to surface
-    val gradientColors =
-        listOf(
-            coverColors.darkMuted.copy(alpha = 0.9f),
-            coverColors.darkMuted.copy(alpha = 0.7f),
-            surfaceColor.copy(alpha = 0.9f),
-            surfaceColor,
-        )
+    // Gradient using cover-extracted colors
+    val gradientColors = listOf(
+        coverColors.darkMuted.copy(alpha = 0.9f),
+        coverColors.darkMuted.copy(alpha = 0.7f),
+        surfaceColor.copy(alpha = 0.9f),
+        surfaceColor,
+    )
+
 
     Box(
         modifier =
@@ -89,7 +91,7 @@ fun HeroSection(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Floating cover card (240dp)
+            // Floating cover card
             FloatingCoverCard(
                 coverPath = coverPath,
                 title = title,
@@ -99,7 +101,7 @@ fun HeroSection(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Title - Magazine headline style
+            // Title - Magazine headline style with high contrast for dark mode
             Text(
                 text = title,
                 style =
@@ -131,12 +133,18 @@ fun HeroSection(
     }
 }
 
+/**
+ * Navigation bar with translucent buttons.
+ */
+@Suppress("MagicNumber")
 @Composable
 private fun HeroNavigationBar(
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
-    surfaceColor: androidx.compose.ui.graphics.Color,
+    surfaceColor: Color,
 ) {
+    val buttonBackground = surfaceColor.copy(alpha = 0.5f)
+
     Row(
         modifier =
             Modifier
@@ -150,7 +158,7 @@ private fun HeroNavigationBar(
                 Modifier
                     .size(48.dp)
                     .background(
-                        color = surfaceColor.copy(alpha = 0.5f),
+                        color = buttonBackground,
                         shape = CircleShape,
                     ),
         ) {
@@ -167,7 +175,7 @@ private fun HeroNavigationBar(
                 Modifier
                     .size(48.dp)
                     .background(
-                        color = surfaceColor.copy(alpha = 0.5f),
+                        color = buttonBackground,
                         shape = CircleShape,
                     ),
         ) {
@@ -190,20 +198,22 @@ private fun FloatingCoverCard(
     progress: Float?,
     timeRemaining: String?,
 ) {
-    ElevatedCoverCard(
-        path = coverPath,
-        contentDescription = title,
-        modifier =
-            Modifier
-                .width(240.dp)
-                .aspectRatio(1f),
-    ) {
-        progress?.let { prog ->
-            ProgressOverlay(
-                progress = prog,
-                timeRemaining = timeRemaining,
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
+    Box(contentAlignment = Alignment.Center) {
+        ElevatedCoverCard(
+            path = coverPath,
+            contentDescription = title,
+            modifier =
+                Modifier
+                    .width(240.dp)
+                    .aspectRatio(1f),
+        ) {
+            progress?.let { prog ->
+                ProgressOverlay(
+                    progress = prog,
+                    timeRemaining = timeRemaining,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
         }
     }
 }

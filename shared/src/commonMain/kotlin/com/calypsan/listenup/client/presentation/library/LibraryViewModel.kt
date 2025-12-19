@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -67,8 +68,17 @@ class LibraryViewModel(
     private val _hideSingleBookSeries = MutableStateFlow(true)
     val hideSingleBookSeries: StateFlow<Boolean> = _hideSingleBookSeries.asStateFlow()
 
+    // Tracks whether initial database load has completed
+    // Used to distinguish "loading" from "truly empty" in UI
+    private val _hasLoadedBooks = MutableStateFlow(false)
+    val hasLoadedBooks: StateFlow<Boolean> = _hasLoadedBooks.asStateFlow()
+
     /**
      * Observable list of books, sorted by current sort state.
+     *
+     * Uses SharingStarted.Eagerly so database loading begins immediately when
+     * the ViewModel is created (at AppShell level), not when Library screen
+     * is first displayed. This eliminates the "Loading library..." flash.
      */
     val books: StateFlow<List<Book>> =
         combine(
@@ -77,9 +87,14 @@ class LibraryViewModel(
             _ignoreTitleArticles,
         ) { books, sortState, ignoreArticles ->
             sortBooks(books, sortState, ignoreArticles)
+        }.onEach {
+            // Mark as loaded after first database emission
+            if (!_hasLoadedBooks.value) {
+                _hasLoadedBooks.value = true
+            }
         }.stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.Eagerly,
             initialValue = emptyList(),
         )
 

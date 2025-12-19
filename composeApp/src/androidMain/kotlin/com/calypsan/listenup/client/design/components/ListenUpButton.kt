@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,9 +60,7 @@ fun ListenUpButton(
             label = "ButtonContent",
         ) { loading ->
             if (loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
+                ListenUpLoadingIndicatorSmall(
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
             } else {

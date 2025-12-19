@@ -46,7 +46,7 @@ class SettingsRepositoryTest {
     private fun createMockInstanceRepository(): InstanceRepository = mock<InstanceRepository>()
 
     @Test
-    fun `initial auth state is NeedsServerUrl`() =
+    fun `initial auth state is Initializing`() =
         runTest {
             // Given
             val storage = createMockStorage()
@@ -54,7 +54,8 @@ class SettingsRepositoryTest {
             val repository = SettingsRepository(storage, instanceRepository)
 
             // Then - initial state before initializeAuthState is called
-            assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
+            // Initializing prevents flash of wrong screen on app startup
+            assertIs<AuthState.Initializing>(repository.authState.value)
         }
 
     @Test

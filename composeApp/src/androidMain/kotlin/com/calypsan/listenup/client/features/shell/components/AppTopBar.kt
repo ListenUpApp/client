@@ -13,7 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -203,12 +203,8 @@ private fun SyncIndicator(syncState: SyncStatus) {
         is SyncStatus.Progress,
         is SyncStatus.Retrying,
         -> {
-            CircularProgressIndicator(
-                modifier =
-                    Modifier
-                        .size(24.dp)
-                        .padding(end = 4.dp),
-                strokeWidth = 2.dp,
+            ListenUpLoadingIndicatorSmall(
+                modifier = Modifier.padding(end = 4.dp),
             )
         }
 

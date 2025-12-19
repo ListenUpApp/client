@@ -3,29 +3,59 @@ package com.calypsan.listenup.client.design.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LoadingIndicatorDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Styled loading indicator with Material 3 Expressive-inspired design.
+ * Material 3 Expressive wavy loading indicator.
  *
- * Uses a thicker stroke width and primary color for a more vibrant,
- * modern appearance. When M3 Expressive LoadingIndicator becomes available
- * in Compose Multiplatform, this can be upgraded to use the shape-morphing variant.
+ * Uses the new M3 Expressive LoadingIndicator which animates through
+ * seven unique shape morphs, creating an organic, engaging experience
+ * that feels less static during wait times.
  *
  * @param modifier Optional modifier for the indicator
+ * @param size Size of the indicator (default 48.dp)
+ * @param color Color of the indicator (default primary)
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ListenUpLoadingIndicator(
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    color: Color = MaterialTheme.colorScheme.primary,
+) {
+    LoadingIndicator(
+        modifier = modifier.size(size),
+        color = color,
+        polygons = LoadingIndicatorDefaults.DeterminateIndicatorPolygons,
+    )
+}
+
+/**
+ * Small Material 3 Expressive wavy loading indicator.
+ *
+ * Sized for inline use in buttons, list items, and compact spaces.
+ *
+ * @param modifier Optional modifier for the indicator
+ * @param color Color of the indicator (default primary)
  */
 @Composable
-fun ListenUpLoadingIndicator(modifier: Modifier = Modifier) {
-    CircularProgressIndicator(
-        modifier = modifier.size(48.dp),
-        color = MaterialTheme.colorScheme.primary,
-        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        strokeWidth = 4.dp,
+fun ListenUpLoadingIndicatorSmall(
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+) {
+    ListenUpLoadingIndicator(
+        modifier = modifier,
+        size = 24.dp,
+        color = color,
     )
 }
 

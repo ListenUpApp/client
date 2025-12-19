@@ -20,6 +20,7 @@ package com.calypsan.listenup.client.data.repository
  * ```kotlin
  * settingsRepository.authState.collect { state ->
  *     when (state) {
+ *         AuthState.Initializing -> showBlankScreen()
  *         AuthState.NeedsServerUrl -> showServerSetup()
  *         AuthState.CheckingServer -> showLoading()
  *         AuthState.NeedsSetup -> showRootUserSetup()
@@ -30,6 +31,13 @@ package com.calypsan.listenup.client.data.repository
  * ```
  */
 sealed interface AuthState {
+    /**
+     * App is starting up, auth state not yet determined.
+     * Show a blank/branded screen while initializing.
+     * Prevents flash of wrong screen on startup.
+     */
+    data object Initializing : AuthState
+
     /**
      * No server URL configured.
      * User must enter and validate a server URL before proceeding.

@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -258,7 +258,7 @@ private fun FadingOutDisplay() {
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator()
+            ListenUpLoadingIndicator()
             Spacer(Modifier.height(16.dp))
             Text(
                 text = "Fading out...",

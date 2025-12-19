@@ -3,9 +3,11 @@ package com.calypsan.listenup.client.navigation
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -87,6 +89,15 @@ fun ListenUpNavigation(
 
     // Route to appropriate screen based on auth state
     when (authState) {
+        AuthState.Initializing -> {
+            // Show blank screen while determining auth state
+            // Prevents flash of wrong screen on startup
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+            )
+        }
         AuthState.NeedsServerUrl -> ServerSetupNavigation()
         AuthState.CheckingServer -> LoadingScreen("Checking server...")
         AuthState.NeedsSetup -> SetupNavigation()

@@ -260,7 +260,9 @@ val presentationModule =
         // Admin ViewModels
         factory { AdminViewModel(adminApi = get()) }
         factory { CreateInviteViewModel(adminApi = get()) }
-        factory {
+        // LibraryViewModel as singleton for preloading - starts loading Room data
+        // immediately when injected at AppShell level, making Library instant
+        single {
             LibraryViewModel(
                 bookRepository = get(),
                 seriesDao = get(),
