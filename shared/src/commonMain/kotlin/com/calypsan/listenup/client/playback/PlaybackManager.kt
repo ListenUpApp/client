@@ -181,15 +181,18 @@ class PlaybackManager(
         val resumePositionMs = savedPosition?.positionMs ?: 0L
 
         // Determine playback speed: use book's custom speed if set, otherwise use universal default
-        val resumeSpeed = if (savedPosition != null && savedPosition.hasCustomSpeed) {
-            // Book has a custom speed set by user
-            savedPosition.playbackSpeed
-        } else {
-            // Use universal default speed (synced across devices)
-            settingsRepository.getDefaultPlaybackSpeed()
-        }
+        val resumeSpeed =
+            if (savedPosition != null && savedPosition.hasCustomSpeed) {
+                // Book has a custom speed set by user
+                savedPosition.playbackSpeed
+            } else {
+                // Use universal default speed (synced across devices)
+                settingsRepository.getDefaultPlaybackSpeed()
+            }
 
-        logger.debug { "Resume position: ${resumePositionMs}ms, speed: ${resumeSpeed}x (hasCustomSpeed=${savedPosition?.hasCustomSpeed})" }
+        logger.debug {
+            "Resume position: ${resumePositionMs}ms, speed: ${resumeSpeed}x (hasCustomSpeed=${savedPosition?.hasCustomSpeed})"
+        }
 
         // Validate resume position
         if (resumePositionMs < 0) {
@@ -338,11 +341,12 @@ class PlaybackManager(
                     }
 
                     // Transcoding in progress - emit progress and retry
-                    _prepareProgress.value = PrepareProgress(
-                        audioFileId = audioFileId,
-                        progress = response.progress,
-                        message = "Preparing audio... ${response.progress}%",
-                    )
+                    _prepareProgress.value =
+                        PrepareProgress(
+                            audioFileId = audioFileId,
+                            progress = response.progress,
+                            message = "Preparing audio... ${response.progress}%",
+                        )
 
                     logger.info {
                         "Transcoding in progress for $audioFileId: " +
@@ -351,6 +355,7 @@ class PlaybackManager(
                     }
                     kotlinx.coroutines.delay(retryDelayMs)
                 }
+
                 is Failure -> {
                     _prepareProgress.value = null
                     logger.warn(result.exception) {

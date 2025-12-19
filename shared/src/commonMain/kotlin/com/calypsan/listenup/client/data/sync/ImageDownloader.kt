@@ -122,6 +122,7 @@ class ImageDownloader(
                     }
                     logger.debug { "Downloaded batch of ${result.data.size} covers" }
                 }
+
                 is Result.Failure -> {
                     logger.warn { "Batch download failed: ${result.exception.message}" }
                 }
@@ -216,6 +217,7 @@ class ImageDownloader(
                     }
                     logger.debug { "Downloaded batch of ${result.data.size} contributor images" }
                 }
+
                 is Result.Failure -> {
                     logger.warn { "Batch download failed: ${result.exception.message}" }
                 }

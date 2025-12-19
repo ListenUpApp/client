@@ -173,16 +173,18 @@ class ProgressTrackerTest {
             val bookId = BookId("book-1")
 
             // Local: 30 min at 12:00 (yesterday)
-            val localPosition = createLocalPosition(
-                positionMs = 1_800_000L,
-                updatedAt = 1702900800000L, // 2023-12-18T12:00:00Z
-            )
+            val localPosition =
+                createLocalPosition(
+                    positionMs = 1_800_000L,
+                    updatedAt = 1702900800000L, // 2023-12-18T12:00:00Z
+                )
 
             // Server: 1 hour at 14:00 (today - from tablet)
-            val serverProgress = createServerProgress(
-                positionMs = 3_600_000L,
-                lastPlayedAt = "2023-12-18T14:00:00Z",
-            )
+            val serverProgress =
+                createServerProgress(
+                    positionMs = 3_600_000L,
+                    lastPlayedAt = "2023-12-18T14:00:00Z",
+                )
 
             everySuspend { fixture.positionDao.get(bookId) } returns localPosition
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
@@ -207,16 +209,18 @@ class ProgressTrackerTest {
             val bookId = BookId("book-1")
 
             // Local: 2 hours at 16:00 (newer)
-            val localPosition = createLocalPosition(
-                positionMs = 7_200_000L,
-                updatedAt = 1702915200000L, // 2023-12-18T16:00:00Z
-            )
+            val localPosition =
+                createLocalPosition(
+                    positionMs = 7_200_000L,
+                    updatedAt = 1702915200000L, // 2023-12-18T16:00:00Z
+                )
 
             // Server: 1 hour at 14:00 (older - from tablet)
-            val serverProgress = createServerProgress(
-                positionMs = 3_600_000L,
-                lastPlayedAt = "2023-12-18T14:00:00Z",
-            )
+            val serverProgress =
+                createServerProgress(
+                    positionMs = 3_600_000L,
+                    lastPlayedAt = "2023-12-18T14:00:00Z",
+                )
 
             everySuspend { fixture.positionDao.get(bookId) } returns localPosition
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)
@@ -323,10 +327,11 @@ class ProgressTrackerTest {
             val bookId = BookId("book-1")
             val localPosition = createLocalPosition(positionMs = 1_800_000L)
 
-            val serverProgress = createServerProgress(
-                positionMs = 3_600_000L,
-                lastPlayedAt = "invalid-timestamp",
-            )
+            val serverProgress =
+                createServerProgress(
+                    positionMs = 3_600_000L,
+                    lastPlayedAt = "invalid-timestamp",
+                )
 
             everySuspend { fixture.positionDao.get(bookId) } returns localPosition
             everySuspend { fixture.syncApi.getProgress(bookId.value) } returns Success(serverProgress)

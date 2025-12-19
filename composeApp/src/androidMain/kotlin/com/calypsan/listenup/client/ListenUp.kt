@@ -9,12 +9,12 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import com.calypsan.listenup.client.core.ImageLoaderFactory
+import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.di.sharedModules
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.download.DownloadWorkerFactory
-import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.playback.AndroidAudioCapabilityDetector
 import com.calypsan.listenup.client.playback.AndroidAudioTokenProvider
 import com.calypsan.listenup.client.playback.AudioCapabilityDetector

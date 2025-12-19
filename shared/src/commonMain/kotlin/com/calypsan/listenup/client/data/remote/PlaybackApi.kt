@@ -49,12 +49,13 @@ class PlaybackApi(
             logger.debug { "Preparing playback: book=$bookId, file=$audioFileId, caps=$capabilities, spatial=$spatial" }
 
             val client = clientFactory.getClient()
-            val request = PreparePlaybackRequest(
-                bookId = bookId,
-                audioFileId = audioFileId,
-                capabilities = capabilities,
-                spatial = spatial,
-            )
+            val request =
+                PreparePlaybackRequest(
+                    bookId = bookId,
+                    audioFileId = audioFileId,
+                    capabilities = capabilities,
+                    spatial = spatial,
+                )
 
             val response: ApiResponse<PreparePlaybackApiResponse> =
                 client

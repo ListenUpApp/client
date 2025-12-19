@@ -21,9 +21,10 @@ class InstanceRepositoryImplTest {
     fun `getInstance returns failure when server URL is not configured`() =
         runTest {
             // Given - no server URL configured
-            val repository = InstanceRepositoryImpl(
-                getServerUrl = { null },
-            )
+            val repository =
+                InstanceRepositoryImpl(
+                    getServerUrl = { null },
+                )
 
             // When
             val result = repository.getInstance()
@@ -37,9 +38,10 @@ class InstanceRepositoryImplTest {
     fun `getInstance with forceRefresh returns failure when server URL is not configured`() =
         runTest {
             // Given - no server URL configured
-            val repository = InstanceRepositoryImpl(
-                getServerUrl = { null },
-            )
+            val repository =
+                InstanceRepositoryImpl(
+                    getServerUrl = { null },
+                )
 
             // When
             val result = repository.getInstance(forceRefresh = true)
@@ -54,13 +56,14 @@ class InstanceRepositoryImplTest {
         runTest {
             // Given
             var urlFetchCount = 0
-            val repository = InstanceRepositoryImpl(
-                getServerUrl = {
-                    urlFetchCount++
-                    // Return null to fail immediately without making HTTP call
-                    null
-                },
-            )
+            val repository =
+                InstanceRepositoryImpl(
+                    getServerUrl = {
+                        urlFetchCount++
+                        // Return null to fail immediately without making HTTP call
+                        null
+                    },
+                )
 
             // When
             repository.getInstance()
@@ -78,13 +81,14 @@ class InstanceRepositoryImplTest {
             // Given - this test verifies caching behavior indirectly
             // If caching works, getServerUrl won't be called on subsequent requests
             var urlFetchCount = 0
-            val repository = InstanceRepositoryImpl(
-                getServerUrl = {
-                    urlFetchCount++
-                    // Return null - we're just testing if getServerUrl is called
-                    null
-                },
-            )
+            val repository =
+                InstanceRepositoryImpl(
+                    getServerUrl = {
+                        urlFetchCount++
+                        // Return null - we're just testing if getServerUrl is called
+                        null
+                    },
+                )
 
             // When - first call (no cache)
             repository.getInstance()

@@ -151,9 +151,10 @@ private fun BlurHashPlaceholder(
     blurHash: String,
     modifier: Modifier = Modifier,
 ) {
-    val bitmap: Bitmap? = remember(blurHash) {
-        BlurHash.decode(blurHash, width = 32, height = 32)
-    }
+    val bitmap: Bitmap? =
+        remember(blurHash) {
+            BlurHash.decode(blurHash, width = 32, height = 32)
+        }
 
     if (bitmap != null) {
         Image(

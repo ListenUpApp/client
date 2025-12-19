@@ -93,16 +93,32 @@ fun ListenUpNavigation(
             // Show blank screen while determining auth state
             // Prevents flash of wrong screen on startup
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
             )
         }
-        AuthState.NeedsServerUrl -> ServerSetupNavigation()
-        AuthState.CheckingServer -> LoadingScreen("Checking server...")
-        AuthState.NeedsSetup -> SetupNavigation()
-        AuthState.NeedsLogin -> LoginNavigation(settingsRepository)
-        is AuthState.Authenticated -> AuthenticatedNavigation(settingsRepository)
+
+        AuthState.NeedsServerUrl -> {
+            ServerSetupNavigation()
+        }
+
+        AuthState.CheckingServer -> {
+            LoadingScreen("Checking server...")
+        }
+
+        AuthState.NeedsSetup -> {
+            SetupNavigation()
+        }
+
+        AuthState.NeedsLogin -> {
+            LoginNavigation(settingsRepository)
+        }
+
+        is AuthState.Authenticated -> {
+            AuthenticatedNavigation(settingsRepository)
+        }
     }
 }
 

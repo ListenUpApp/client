@@ -108,11 +108,12 @@ class LibraryViewModel(
             _seriesSortState,
             _hideSingleBookSeries,
         ) { series, sortState, hideSingle ->
-            val filtered = if (hideSingle) {
-                series.filter { it.books.size > 1 }
-            } else {
-                series
-            }
+            val filtered =
+                if (hideSingle) {
+                    series.filter { it.books.size > 1 }
+                } else {
+                    series
+                }
             sortSeries(filtered, sortState)
         }.stateIn(
             scope = viewModelScope,

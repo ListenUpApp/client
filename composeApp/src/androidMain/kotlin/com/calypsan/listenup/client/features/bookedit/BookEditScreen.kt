@@ -109,10 +109,11 @@ fun BookEditScreen(
 
     // Extract colors from cover for immersive backdrop (use displayCoverPath to show staging)
     // Note: Edit screens use staging covers, so we don't have cached colors - use runtime extraction
-    val coverColors = rememberCoverColors(
-        imagePath = state.displayCoverPath,
-        refreshKey = state.pendingCoverData,
-    )
+    val coverColors =
+        rememberCoverColors(
+            imagePath = state.displayCoverPath,
+            refreshKey = state.pendingCoverData,
+        )
     val surfaceColor = MaterialTheme.colorScheme.surface
 
     Scaffold(

@@ -57,9 +57,10 @@ class UserPreferencesApi(
         suspendRunCatching {
             logger.debug { "Updating user preferences: defaultPlaybackSpeed=${request.defaultPlaybackSpeed}" }
             val client = clientFactory.getClient()
-            val apiRequest = UserPreferencesApiRequest(
-                defaultPlaybackSpeed = request.defaultPlaybackSpeed,
-            )
+            val apiRequest =
+                UserPreferencesApiRequest(
+                    defaultPlaybackSpeed = request.defaultPlaybackSpeed,
+                )
             val response: ApiResponse<UserPreferencesApiResponse> =
                 client
                     .put("/api/v1/user/preferences") {

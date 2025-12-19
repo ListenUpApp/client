@@ -59,9 +59,10 @@ class SettingsViewModel(
             _state.update { it.copy(defaultPlaybackSpeed = speed) }
 
             // Sync to server in background (fire-and-forget)
-            val result = userPreferencesApi.updatePreferences(
-                UserPreferencesRequest(defaultPlaybackSpeed = speed),
-            )
+            val result =
+                userPreferencesApi.updatePreferences(
+                    UserPreferencesRequest(defaultPlaybackSpeed = speed),
+                )
             if (result is com.calypsan.listenup.client.core.Failure) {
                 // Log but don't revert - server sync will retry on next app launch
                 logger.warn { "Failed to sync default playback speed: ${result.exception.message}" }

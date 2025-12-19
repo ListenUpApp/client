@@ -79,6 +79,7 @@ class HomeRepository(
                 logger.debug { "Returning ${serverResult.data.size} books from server" }
                 serverResult
             }
+
             is Failure -> {
                 logger.debug { "Server unavailable, using local fallback: ${serverResult.exception.message}" }
                 fetchFromLocal(limit)
@@ -96,19 +97,23 @@ class HomeRepository(
         try {
             when (val result = syncApi.getContinueListening(limit)) {
                 is Success -> {
-                    val books = result.data
-                        .filter { it.progress < 0.99 } // Skip finished books
-                        .map { item ->
-                            // Server gives us progress + blurHash, but we need local cover path
-                            val localBook = bookRepository.getBook(item.bookId)
-                            item.toDomain().copy(
-                                coverPath = localBook?.coverPath,
-                                coverBlurHash = item.coverBlurHash ?: localBook?.coverBlurHash,
-                            )
-                        }
+                    val books =
+                        result.data
+                            .filter { it.progress < 0.99 } // Skip finished books
+                            .map { item ->
+                                // Server gives us progress + blurHash, but we need local cover path
+                                val localBook = bookRepository.getBook(item.bookId)
+                                item.toDomain().copy(
+                                    coverPath = localBook?.coverPath,
+                                    coverBlurHash = item.coverBlurHash ?: localBook?.coverBlurHash,
+                                )
+                            }
                     Success(books)
                 }
-                is Failure -> result
+
+                is Failure -> {
+                    result
+                }
             }
         } catch (e: Exception) {
             Failure(e)
@@ -122,34 +127,37 @@ class HomeRepository(
         val positions = playbackPositionDao.getRecentPositions(limit)
         logger.debug { "Found ${positions.size} local playback positions" }
 
-        val books = positions.mapNotNull { position ->
-            val bookIdStr = position.bookId.value
-            val book = bookRepository.getBook(bookIdStr) ?: run {
-                logger.warn { "Book not found locally: $bookIdStr" }
-                return@mapNotNull null
+        val books =
+            positions.mapNotNull { position ->
+                val bookIdStr = position.bookId.value
+                val book =
+                    bookRepository.getBook(bookIdStr) ?: run {
+                        logger.warn { "Book not found locally: $bookIdStr" }
+                        return@mapNotNull null
+                    }
+
+                val progress =
+                    if (book.duration > 0) {
+                        (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    }
+
+                // Skip finished books
+                if (progress >= 0.99f) return@mapNotNull null
+
+                ContinueListeningBook(
+                    bookId = bookIdStr,
+                    title = book.title,
+                    authorNames = book.authorNames,
+                    coverPath = book.coverPath,
+                    coverBlurHash = book.coverBlurHash,
+                    progress = progress,
+                    currentPositionMs = position.positionMs,
+                    totalDurationMs = book.duration,
+                    lastPlayedAt = position.updatedAt.toString(),
+                )
             }
-
-            val progress = if (book.duration > 0) {
-                (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
-            } else {
-                0f
-            }
-
-            // Skip finished books
-            if (progress >= 0.99f) return@mapNotNull null
-
-            ContinueListeningBook(
-                bookId = bookIdStr,
-                title = book.title,
-                authorNames = book.authorNames,
-                coverPath = book.coverPath,
-                coverBlurHash = book.coverBlurHash,
-                progress = progress,
-                currentPositionMs = position.positionMs,
-                totalDurationMs = book.duration,
-                lastPlayedAt = position.updatedAt.toString(),
-            )
-        }
 
         logger.debug { "Returning ${books.size} continue listening books from local" }
         return Success(books)

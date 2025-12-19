@@ -12,13 +12,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -60,10 +60,11 @@ fun SettingsScreen(
         },
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState()),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState()),
         ) {
             // Playback section
             SettingsSection(title = "Playback") {
@@ -77,8 +78,9 @@ fun SettingsScreen(
                 )
                 SettingsToggleItem(
                     title = "Spatial Audio",
-                    description = "Enable 5.1 surround sound for immersive listening. " +
-                        "Requires longer initial load for incompatible formats.",
+                    description =
+                        "Enable 5.1 surround sound for immersive listening. " +
+                            "Requires longer initial load for incompatible formats.",
                     checked = state.spatialPlayback,
                     onCheckedChange = viewModel::setSpatialPlayback,
                 )
@@ -169,9 +171,10 @@ private fun <T> SettingsDropdownItem(
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                     },
-                    modifier = Modifier
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                        .width(100.dp),
+                    modifier =
+                        Modifier
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                            .width(100.dp),
                     singleLine = true,
                 )
                 ExposedDropdownMenu(

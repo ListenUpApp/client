@@ -20,8 +20,9 @@ class AndroidCoverColorExtractor : CoverColorExtractor {
         withContext(Dispatchers.Default) {
             try {
                 // Decode image bytes to bitmap
-                val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                    ?: return@withContext null
+                val bitmap =
+                    BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                        ?: return@withContext null
 
                 // Generate palette (synchronous, CPU-intensive)
                 val palette = Palette.from(bitmap).generate()
@@ -30,13 +31,15 @@ class AndroidCoverColorExtractor : CoverColorExtractor {
                 val dominantSwatch = palette.dominantSwatch
                 val dominantColor = dominantSwatch?.rgb ?: return@withContext null
 
-                val darkMutedColor = palette.darkMutedSwatch?.rgb
-                    ?: palette.mutedSwatch?.rgb
-                    ?: dominantColor
+                val darkMutedColor =
+                    palette.darkMutedSwatch?.rgb
+                        ?: palette.mutedSwatch?.rgb
+                        ?: dominantColor
 
-                val vibrantColor = palette.vibrantSwatch?.rgb
-                    ?: palette.lightVibrantSwatch?.rgb
-                    ?: dominantColor
+                val vibrantColor =
+                    palette.vibrantSwatch?.rgb
+                        ?: palette.lightVibrantSwatch?.rgb
+                        ?: dominantColor
 
                 // Recycle bitmap to free memory
                 bitmap.recycle()
@@ -46,7 +49,9 @@ class AndroidCoverColorExtractor : CoverColorExtractor {
                     darkMuted = darkMutedColor,
                     vibrant = vibrantColor,
                 )
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
                 null
             }
         }

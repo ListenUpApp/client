@@ -247,7 +247,10 @@ class ProgressTracker(
     private suspend fun fetchServerProgress(bookId: BookId): PlaybackProgressResponse? =
         try {
             when (val result = syncApi.getProgress(bookId.value)) {
-                is Result.Success -> result.data
+                is Result.Success -> {
+                    result.data
+                }
+
                 is Result.Failure -> {
                     logger.debug { "Server progress unavailable: ${result.exception.message}" }
                     null
@@ -268,7 +271,9 @@ class ProgressTracker(
         server: PlaybackProgressResponse?,
     ): PlaybackPositionEntity? =
         when {
-            local == null && server == null -> null
+            local == null && server == null -> {
+                null
+            }
 
             local == null && server != null -> {
                 // Only server has progress - cache it locally
@@ -278,7 +283,9 @@ class ProgressTracker(
                 entity
             }
 
-            server == null -> local
+            server == null -> {
+                local
+            }
 
             else -> {
                 // Both exist - compare timestamps

@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -63,7 +64,8 @@ class HomeRepositoryTest {
         everySuspend { fixture.playbackPositionDao.get(any()) } returns null
         everySuspend { fixture.playbackPositionDao.save(any()) } returns Unit
         everySuspend { fixture.bookRepository.getBook(any()) } returns null
-        everySuspend { fixture.syncApi.getContinueListening(any()) } returns Success(emptyList())
+        // Default: server unavailable, triggering local fallback
+        everySuspend { fixture.syncApi.getContinueListening(any()) } returns Failure(Exception("Offline"))
         every { fixture.userDao.observeCurrentUser() } returns fixture.userFlow
 
         return fixture

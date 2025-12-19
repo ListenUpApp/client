@@ -62,21 +62,24 @@ class PlayerViewModel(
             _state.value = _state.value.copy(isLoading = true, error = null)
 
             // Observe prepare progress during timeline building
-            val progressJob = launch {
-                playbackManager.prepareProgress.collect { progress ->
-                    if (progress != null) {
-                        _state.value = _state.value.copy(
-                            prepareProgress = progress.progress,
-                            prepareMessage = progress.message,
-                        )
-                    } else {
-                        _state.value = _state.value.copy(
-                            prepareProgress = null,
-                            prepareMessage = null,
-                        )
+            val progressJob =
+                launch {
+                    playbackManager.prepareProgress.collect { progress ->
+                        if (progress != null) {
+                            _state.value =
+                                _state.value.copy(
+                                    prepareProgress = progress.progress,
+                                    prepareMessage = progress.message,
+                                )
+                        } else {
+                            _state.value =
+                                _state.value.copy(
+                                    prepareProgress = null,
+                                    prepareMessage = null,
+                                )
+                        }
                     }
                 }
-            }
 
             val result = playbackManager.prepareForPlayback(bookId)
             progressJob.cancel() // Stop observing once prepare is done

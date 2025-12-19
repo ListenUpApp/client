@@ -60,14 +60,14 @@ fun HeroSection(
     // Take a bite, take a bite... (Sleep Token - The Offering)
     // Expressive gradient: saturated cover color -> surfaceContainer -> surface
     // Creates a more dramatic, immersive transition that honors the cover art
-    val gradientColors = listOf(
-        coverColors.darkMuted,
-        coverColors.darkMuted.copy(alpha = 0.85f),
-        surfaceContainerColor.copy(alpha = 0.7f),
-        surfaceContainerColor,
-        surfaceColor,
-    )
-
+    val gradientColors =
+        listOf(
+            coverColors.darkMuted,
+            coverColors.darkMuted.copy(alpha = 0.85f),
+            surfaceContainerColor.copy(alpha = 0.7f),
+            surfaceContainerColor,
+            surfaceColor,
+        )
 
     Box(
         modifier =

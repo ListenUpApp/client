@@ -64,49 +64,75 @@ class AndroidAudioCapabilityDetector : AudioCapabilityDetector {
             // AAC variants
             MediaFormat.MIMETYPE_AUDIO_AAC,
             "audio/mp4a-latm",
-            -> "aac"
+            -> {
+                "aac"
+            }
 
             // MP3
             MediaFormat.MIMETYPE_AUDIO_MPEG,
             "audio/mp3",
-            -> "mp3"
+            -> {
+                "mp3"
+            }
 
             // Opus
-            MediaFormat.MIMETYPE_AUDIO_OPUS -> "opus"
+            MediaFormat.MIMETYPE_AUDIO_OPUS -> {
+                "opus"
+            }
 
             // Vorbis
-            MediaFormat.MIMETYPE_AUDIO_VORBIS -> "vorbis"
+            MediaFormat.MIMETYPE_AUDIO_VORBIS -> {
+                "vorbis"
+            }
 
             // FLAC
-            MediaFormat.MIMETYPE_AUDIO_FLAC -> "flac"
+            MediaFormat.MIMETYPE_AUDIO_FLAC -> {
+                "flac"
+            }
 
             // PCM/RAW
-            MediaFormat.MIMETYPE_AUDIO_RAW -> "pcm"
+            MediaFormat.MIMETYPE_AUDIO_RAW -> {
+                "pcm"
+            }
 
             // Dolby Digital (AC-3)
-            MediaFormat.MIMETYPE_AUDIO_AC3 -> "ac3"
+            MediaFormat.MIMETYPE_AUDIO_AC3 -> {
+                "ac3"
+            }
 
             // Dolby Digital Plus (E-AC-3)
-            MediaFormat.MIMETYPE_AUDIO_EAC3 -> "eac3"
+            MediaFormat.MIMETYPE_AUDIO_EAC3 -> {
+                "eac3"
+            }
 
             // DTS
             "audio/vnd.dts",
             "audio/vnd.dts.hd",
-            -> "dts"
+            -> {
+                "dts"
+            }
 
             // Dolby TrueHD
-            MediaFormat.MIMETYPE_AUDIO_DOLBY_TRUEHD -> "truehd"
+            MediaFormat.MIMETYPE_AUDIO_DOLBY_TRUEHD -> {
+                "truehd"
+            }
 
             // AMR (narrow/wideband) - less common but might be useful
             MediaFormat.MIMETYPE_AUDIO_AMR_NB,
             MediaFormat.MIMETYPE_AUDIO_AMR_WB,
-            -> "amr"
+            -> {
+                "amr"
+            }
 
             // GSM - very old, unlikely to be used
             MediaFormat.MIMETYPE_AUDIO_MSGSM,
             MediaFormat.MIMETYPE_AUDIO_G711_ALAW,
             MediaFormat.MIMETYPE_AUDIO_G711_MLAW,
-            -> null // Don't report these
+            -> {
+                null
+            }
+
+            // Don't report these
 
             // Unknown - don't report
             else -> {

@@ -168,13 +168,14 @@ class ImageDownloaderTest {
             val imageBytes = ByteArray(100)
 
             every { fixture.imageStorage.exists(any()) } returns false
-            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns Success(
-                mapOf(
-                    "book-1" to imageBytes,
-                    "book-2" to imageBytes,
-                    "book-3" to imageBytes,
-                ),
-            )
+            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns
+                Success(
+                    mapOf(
+                        "book-1" to imageBytes,
+                        "book-2" to imageBytes,
+                        "book-3" to imageBytes,
+                    ),
+                )
             everySuspend { fixture.imageStorage.saveCover(any(), any()) } returns Success(Unit)
             everySuspend { fixture.colorExtractor.extractColors(any()) } returns testColors
             val imageDownloader = fixture.build()
@@ -206,9 +207,10 @@ class ImageDownloaderTest {
             // book-1 already exists
             every { fixture.imageStorage.exists(book1) } returns true
             every { fixture.imageStorage.exists(book2) } returns false
-            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns Success(
-                mapOf("book-2" to imageBytes),
-            )
+            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns
+                Success(
+                    mapOf("book-2" to imageBytes),
+                )
             everySuspend { fixture.imageStorage.saveCover(any(), any()) } returns Success(Unit)
             val imageDownloader = fixture.build()
 
@@ -252,12 +254,13 @@ class ImageDownloaderTest {
             val imageBytes = ByteArray(100)
 
             every { fixture.imageStorage.exists(any()) } returns false
-            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns Success(
-                mapOf(
-                    "book-1" to imageBytes,
-                    "book-2" to imageBytes,
-                ),
-            )
+            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns
+                Success(
+                    mapOf(
+                        "book-1" to imageBytes,
+                        "book-2" to imageBytes,
+                    ),
+                )
             // book-1 storage fails, book-2 succeeds
             everySuspend { fixture.imageStorage.saveCover(book1, any()) } returns Failure(Exception("Disk full"))
             everySuspend { fixture.imageStorage.saveCover(book2, any()) } returns Success(Unit)
@@ -316,9 +319,10 @@ class ImageDownloaderTest {
             val imageBytes = ByteArray(100)
 
             every { fixture.imageStorage.exists(any()) } returns false
-            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns Success(
-                mapOf("book-1" to imageBytes),
-            )
+            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns
+                Success(
+                    mapOf("book-1" to imageBytes),
+                )
             everySuspend { fixture.imageStorage.saveCover(any(), any()) } returns Success(Unit)
             everySuspend { fixture.colorExtractor.extractColors(any()) } returns null
             val imageDownloader = fixture.build()

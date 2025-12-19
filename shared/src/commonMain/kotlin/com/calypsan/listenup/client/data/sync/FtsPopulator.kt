@@ -53,7 +53,9 @@ class FtsPopulator(
                     val bookCount = rebuildBooks()
                     val contributorCount = rebuildContributors()
                     val seriesCount = rebuildSeries()
-                    logger.info { "FTS tables populated: $bookCount books, $contributorCount contributors, $seriesCount series" }
+                    logger.info {
+                        "FTS tables populated: $bookCount books, $contributorCount contributors, $seriesCount series"
+                    }
                 }
 
             logger.info { "FTS rebuild completed in ${duration.inWholeMilliseconds}ms" }
