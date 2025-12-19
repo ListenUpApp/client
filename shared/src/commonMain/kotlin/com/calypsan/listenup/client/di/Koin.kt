@@ -58,9 +58,11 @@ import com.calypsan.listenup.client.data.sync.SyncCoordinator
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
+import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
+import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
@@ -450,7 +452,7 @@ val syncModule =
         single { SyncCoordinator() }
 
         // ConflictDetector - timestamp-based conflict detection
-        single { ConflictDetector(bookDao = get()) }
+        single { ConflictDetector(bookDao = get()) } bind ConflictDetectorContract::class
 
         // SSEEventProcessor - processes real-time SSE events
         single {
@@ -469,7 +471,7 @@ val syncModule =
         }
 
         // Entity pullers - fetch data from server with pagination
-        single {
+        single<Puller>(qualifier = org.koin.core.qualifier.named("bookPuller")) {
             BookPuller(
                 syncApi = get(),
                 bookDao = get(),
@@ -487,7 +489,7 @@ val syncModule =
             )
         }
 
-        single {
+        single<Puller>(qualifier = org.koin.core.qualifier.named("seriesPuller")) {
             SeriesPuller(
                 syncApi = get(),
                 seriesDao = get(),
@@ -501,7 +503,7 @@ val syncModule =
             )
         }
 
-        single {
+        single<Puller>(qualifier = org.koin.core.qualifier.named("contributorPuller")) {
             ContributorPuller(
                 syncApi = get(),
                 contributorDao = get(),
@@ -518,9 +520,9 @@ val syncModule =
         // PullSyncOrchestrator - coordinates parallel entity pulls
         single {
             PullSyncOrchestrator(
-                bookPuller = get(),
-                seriesPuller = get(),
-                contributorPuller = get(),
+                bookPuller = get(qualifier = org.koin.core.qualifier.named("bookPuller")),
+                seriesPuller = get(qualifier = org.koin.core.qualifier.named("seriesPuller")),
+                contributorPuller = get(qualifier = org.koin.core.qualifier.named("contributorPuller")),
                 coordinator = get(),
                 syncDao = get(),
             )

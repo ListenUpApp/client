@@ -12,7 +12,7 @@ import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
-import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
+import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -30,17 +30,17 @@ class BookPuller(
     private val chapterDao: ChapterDao,
     private val bookContributorDao: BookContributorDao,
     private val bookSeriesDao: BookSeriesDao,
-    private val conflictDetector: ConflictDetector,
+    private val conflictDetector: ConflictDetectorContract,
     private val imageDownloader: ImageDownloaderContract,
     private val scope: CoroutineScope,
-) {
+) : Puller {
     /**
      * Pull all books from server with pagination.
      *
      * @param updatedAfter ISO timestamp for delta sync, null for full sync
      * @param onProgress Callback for progress updates
      */
-    suspend fun pull(
+    override suspend fun pull(
         updatedAfter: String?,
         onProgress: (SyncStatus) -> Unit,
     ) {

@@ -16,9 +16,9 @@ private val logger = KotlinLogging.logger {}
  * Coordinates parallel entity pulls with retry logic and progress reporting.
  */
 class PullSyncOrchestrator(
-    private val bookPuller: BookPuller,
-    private val seriesPuller: SeriesPuller,
-    private val contributorPuller: ContributorPuller,
+    private val bookPuller: Puller,
+    private val seriesPuller: Puller,
+    private val contributorPuller: Puller,
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
 ) {

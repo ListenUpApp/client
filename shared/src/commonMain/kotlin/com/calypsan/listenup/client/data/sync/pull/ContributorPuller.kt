@@ -21,14 +21,14 @@ class ContributorPuller(
     private val contributorDao: ContributorDao,
     private val imageDownloader: ImageDownloaderContract,
     private val scope: CoroutineScope,
-) {
+) : Puller {
     /**
      * Pull all contributors from server with pagination.
      *
      * @param updatedAfter ISO timestamp for delta sync, null for full sync
      * @param onProgress Callback for progress updates
      */
-    suspend fun pull(
+    override suspend fun pull(
         updatedAfter: String?,
         onProgress: (SyncStatus) -> Unit,
     ) {

@@ -7,6 +7,23 @@ import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
 
 /**
+ * Interface for conflict detection operations.
+ *
+ * Enables testing by allowing mock implementations.
+ */
+interface ConflictDetectorContract {
+    /**
+     * Detect conflicts where server has newer version than local unsynced changes.
+     */
+    suspend fun detectBookConflicts(serverBooks: List<BookEntity>): List<Pair<BookId, Timestamp>>
+
+    /**
+     * Check if local changes should be preserved (local is newer than server).
+     */
+    suspend fun shouldPreserveLocalChanges(serverBook: BookEntity): Boolean
+}
+
+/**
  * Detects conflicts between local and server data using timestamp comparison.
  *
  * Per offline-first-operations-design.md:
@@ -15,14 +32,14 @@ import com.calypsan.listenup.client.data.local.db.Timestamp
  */
 class ConflictDetector(
     private val bookDao: BookDao,
-) {
+) : ConflictDetectorContract {
     /**
      * Detect conflicts where server has newer version than local unsynced changes.
      *
      * @param serverBooks Books fetched from server
      * @return List of (BookId, Timestamp) pairs for books with conflicts
      */
-    suspend fun detectBookConflicts(serverBooks: List<BookEntity>): List<Pair<BookId, Timestamp>> =
+    override suspend fun detectBookConflicts(serverBooks: List<BookEntity>): List<Pair<BookId, Timestamp>> =
         serverBooks.mapNotNull { serverBook ->
             bookDao
                 .getById(serverBook.id)
@@ -37,7 +54,7 @@ class ConflictDetector(
      * @param serverBook Book from server
      * @return true if local version should be kept, false if server should overwrite
      */
-    suspend fun shouldPreserveLocalChanges(serverBook: BookEntity): Boolean =
+    override suspend fun shouldPreserveLocalChanges(serverBook: BookEntity): Boolean =
         bookDao
             .getById(serverBook.id)
             ?.takeIf { it.syncState == SyncState.NOT_SYNCED }

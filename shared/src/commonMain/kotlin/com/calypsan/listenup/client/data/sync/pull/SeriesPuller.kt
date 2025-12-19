@@ -21,14 +21,14 @@ class SeriesPuller(
     private val seriesDao: SeriesDao,
     private val imageDownloader: ImageDownloaderContract,
     private val scope: CoroutineScope,
-) {
+) : Puller {
     /**
      * Pull all series from server with pagination.
      *
      * @param updatedAfter ISO timestamp for delta sync, null for full sync
      * @param onProgress Callback for progress updates
      */
-    suspend fun pull(
+    override suspend fun pull(
         updatedAfter: String?,
         onProgress: (SyncStatus) -> Unit,
     ) {

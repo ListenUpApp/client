@@ -27,7 +27,7 @@ room-sqlite = "2.6.2"
 androidx-work = "2.11.0"
 coil = "3.3.0"
 media3 = "1.9.0"
-markdown-renderer = "0.38.1"
+markdown-renderer = "0.39.0"
 blurhash = "0.3.0"
 
 # Quality Tools
