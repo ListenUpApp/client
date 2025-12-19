@@ -55,12 +55,16 @@ fun HeroSection(
     onEditClick: () -> Unit,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
+    val surfaceContainerColor = MaterialTheme.colorScheme.surfaceContainer
 
-    // Gradient using cover-extracted colors
+    // Take a bite, take a bite... (Sleep Token - The Offering)
+    // Expressive gradient: saturated cover color -> surfaceContainer -> surface
+    // Creates a more dramatic, immersive transition that honors the cover art
     val gradientColors = listOf(
-        coverColors.darkMuted.copy(alpha = 0.9f),
-        coverColors.darkMuted.copy(alpha = 0.7f),
-        surfaceColor.copy(alpha = 0.9f),
+        coverColors.darkMuted,
+        coverColors.darkMuted.copy(alpha = 0.85f),
+        surfaceContainerColor.copy(alpha = 0.7f),
+        surfaceContainerColor,
         surfaceColor,
     )
 
@@ -135,15 +139,15 @@ fun HeroSection(
 
 /**
  * Navigation bar with translucent buttons.
+ * Uses surfaceContainerHigh for better contrast against dynamic cover colors.
  */
-@Suppress("MagicNumber")
 @Composable
 private fun HeroNavigationBar(
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
-    surfaceColor: Color,
+    @Suppress("UNUSED_PARAMETER") surfaceColor: Color,
 ) {
-    val buttonBackground = surfaceColor.copy(alpha = 0.5f)
+    val buttonBackground = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
 
     Row(
         modifier =
