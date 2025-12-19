@@ -40,6 +40,7 @@ fun DescriptionSection(
                     fontFamily = GoogleSansDisplay,
                     fontWeight = FontWeight.Bold,
                 ),
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(bottom = 12.dp),
         )
 

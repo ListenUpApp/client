@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.features.bookdetail
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,9 +11,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
@@ -90,21 +93,29 @@ fun BookDetailScreen(
 
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // The man in black fled across the desert, and the gunslinger followed. (The Dark Tower)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
         when {
             state.isLoading -> {
-                ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                Box(modifier = Modifier.fillMaxSize()) {
+                    ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                }
             }
 
             state.error != null -> {
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = state.error ?: "Unknown error",
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = state.error ?: "Unknown error",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
 
@@ -246,14 +257,20 @@ private fun ImmersiveBookDetail(
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
 
-    // Extract colors from cover art
+    // Use cached colors for instant rendering, fall back to runtime extraction
     val coverColors =
         rememberCoverColors(
             imagePath = state.book?.coverPath,
+            cachedDominantColor = state.book?.dominantColor,
+            cachedDarkMutedColor = state.book?.darkMutedColor,
+            cachedVibrantColor = state.book?.vibrantColor,
         )
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface),
         contentPadding = PaddingValues(bottom = 32.dp),
     ) {
         // 1. HERO SECTION - Identity with color-extracted gradient
@@ -339,11 +356,11 @@ private fun ImmersiveBookDetail(
         }
 
         val displayedChapters = if (isChaptersExpanded) state.chapters else state.chapters.take(5)
-        items(
+        itemsIndexed(
             items = displayedChapters,
-            key = { it.id },
-        ) { chapter ->
-            ChapterListItem(chapter)
+            key = { _, chapter -> chapter.id },
+        ) { index, chapter ->
+            ChapterListItem(chapter = chapter, chapterNumber = index + 1)
         }
 
         if (state.chapters.size > 5 && !isChaptersExpanded) {

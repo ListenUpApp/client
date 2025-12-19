@@ -3,9 +3,11 @@ package com.calypsan.listenup.client.navigation
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -34,6 +36,7 @@ import com.calypsan.listenup.client.features.connect.ServerSelectScreen
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
 import com.calypsan.listenup.client.features.invite.InviteRegistrationScreen
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
+import com.calypsan.listenup.client.features.settings.SettingsScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
@@ -86,11 +89,36 @@ fun ListenUpNavigation(
 
     // Route to appropriate screen based on auth state
     when (authState) {
-        AuthState.NeedsServerUrl -> ServerSetupNavigation()
-        AuthState.CheckingServer -> LoadingScreen("Checking server...")
-        AuthState.NeedsSetup -> SetupNavigation()
-        AuthState.NeedsLogin -> LoginNavigation(settingsRepository)
-        is AuthState.Authenticated -> AuthenticatedNavigation(settingsRepository)
+        AuthState.Initializing -> {
+            // Show blank screen while determining auth state
+            // Prevents flash of wrong screen on startup
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+            )
+        }
+
+        AuthState.NeedsServerUrl -> {
+            ServerSetupNavigation()
+        }
+
+        AuthState.CheckingServer -> {
+            LoadingScreen("Checking server...")
+        }
+
+        AuthState.NeedsSetup -> {
+            SetupNavigation()
+        }
+
+        AuthState.NeedsLogin -> {
+            LoginNavigation(settingsRepository)
+        }
+
+        is AuthState.Authenticated -> {
+            AuthenticatedNavigation(settingsRepository)
+        }
     }
 }
 
@@ -301,6 +329,9 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onAdminClick = {
                                     backStack.add(Admin)
                                 },
+                                onSettingsClick = {
+                                    backStack.add(Settings)
+                                },
                                 onSignOut = {
                                     scope.launch {
                                         settingsRepository.clearAuthTokens()
@@ -425,6 +456,13 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                                 onSuccess = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<Settings> {
+                            SettingsScreen(
+                                onNavigateBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                             )

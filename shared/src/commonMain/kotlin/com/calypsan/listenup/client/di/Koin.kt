@@ -2,6 +2,7 @@
 
 package com.calypsan.listenup.client.di
 
+import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.AdminApi
@@ -22,6 +23,8 @@ import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.TagApi
 import com.calypsan.listenup.client.data.remote.TagApiContract
+import com.calypsan.listenup.client.data.remote.UserPreferencesApi
+import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
 import com.calypsan.listenup.client.data.repository.BookEditRepository
 import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
@@ -42,6 +45,7 @@ import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
 import com.calypsan.listenup.client.data.repository.ServerMigrationHelper
 import com.calypsan.listenup.client.data.repository.ServerRepository
 import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
+import com.calypsan.listenup.client.data.repository.ServerUrlChangeListener
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.FtsPopulator
@@ -60,6 +64,7 @@ import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
+import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.bind
@@ -151,15 +156,15 @@ expect fun getBaseUrl(): String
  */
 val repositoryModule =
     module {
-        // InstanceRepository needs unauthenticated API to avoid circular dependency
-        // (SettingsRepository -> InstanceRepository -> ListenUpApi -> ApiClientFactory -> SettingsRepository)
+        // InstanceRepository reads server URL directly from SecureStorage to avoid circular
+        // dependency (SettingsRepository -> InstanceRepository -> SettingsRepository).
+        // The URL is stored before checkServerStatus() is called.
         single<InstanceRepository> {
+            val secureStorage: com.calypsan.listenup.client.core.SecureStorage = get()
             InstanceRepositoryImpl(
-                api =
-                    ListenUpApi(
-                        baseUrl = getBaseUrl(),
-                        apiClientFactory = null, // Public endpoints don't need authentication
-                    ),
+                getServerUrl = {
+                    secureStorage.read("server_url")?.let { ServerUrl(it) }
+                },
             )
         }
 
@@ -179,6 +184,8 @@ val repositoryModule =
         single { get<ListenUpDatabase>().serverDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
+        // When active server's URL changes via mDNS rediscovery, updates SettingsRepository
+        // and invalidates the API client cache to use the new IP address.
         single {
             ServerRepository(
                 serverDao = get(),
@@ -189,6 +196,14 @@ val repositoryModule =
                             org.koin.core.qualifier
                                 .named("appScope"),
                     ),
+                urlChangeListener =
+                    ServerUrlChangeListener { newUrl ->
+                        // Update settings with new URL and invalidate API client
+                        val settings: SettingsRepositoryContract = get()
+                        val apiClientFactory: ApiClientFactory = get()
+                        settings.setServerUrl(newUrl)
+                        apiClientFactory.invalidate()
+                    },
             )
         } bind ServerRepositoryContract::class
 
@@ -245,7 +260,9 @@ val presentationModule =
         // Admin ViewModels
         factory { AdminViewModel(adminApi = get()) }
         factory { CreateInviteViewModel(adminApi = get()) }
-        factory {
+        // LibraryViewModel as singleton for preloading - starts loading Room data
+        // immediately when injected at AppShell level, making Library instant
+        single {
             LibraryViewModel(
                 bookRepository = get(),
                 seriesDao = get(),
@@ -327,6 +344,7 @@ val presentationModule =
                 imageApi = get(),
             )
         }
+        factory { SettingsViewModel(settingsRepository = get(), userPreferencesApi = get()) }
     }
 
 /**
@@ -365,6 +383,7 @@ val syncModule =
             ImageDownloader(
                 imageApi = get(),
                 imageStorage = get(),
+                colorExtractor = get(),
             )
         } bind ImageDownloaderContract::class
 
@@ -402,6 +421,11 @@ val syncModule =
             AdminApi(clientFactory = get())
         } bind AdminApiContract::class
 
+        // UserPreferencesApi for syncing user preferences across devices
+        single {
+            UserPreferencesApi(clientFactory = get())
+        } bind UserPreferencesApiContract::class
+
         // FtsPopulator for rebuilding FTS tables after sync
         single {
             FtsPopulator(
@@ -426,6 +450,8 @@ val syncModule =
                 imageDownloader = get(),
                 sseManager = get(),
                 ftsPopulator = get(),
+                userPreferencesApi = get(),
+                settingsRepository = get(),
                 scope =
                     get(
                         qualifier =
@@ -455,11 +481,12 @@ val syncModule =
             )
         } bind BookRepositoryContract::class
 
-        // HomeRepository for Home screen data (local-first)
+        // HomeRepository for Home screen data (cross-device sync)
         single {
             HomeRepository(
                 bookRepository = get(),
                 playbackPositionDao = get(),
+                syncApi = get(),
                 userDao = get(),
             )
         } bind HomeRepositoryContract::class

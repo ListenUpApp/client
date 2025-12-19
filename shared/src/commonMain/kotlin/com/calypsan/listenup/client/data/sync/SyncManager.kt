@@ -14,8 +14,10 @@ import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import kotlinx.coroutines.CancellationException
@@ -97,6 +99,8 @@ class SyncManager(
     private val imageDownloader: ImageDownloaderContract,
     private val sseManager: SSEManagerContract,
     private val ftsPopulator: FtsPopulatorContract,
+    private val userPreferencesApi: UserPreferencesApiContract,
+    private val settingsRepository: SettingsRepositoryContract,
     /**
      * Application-scoped CoroutineScope for background tasks.
      *
@@ -150,14 +154,17 @@ class SyncManager(
             // Step 1: Pull changes from server with retry
             pullChangesWithRetry()
 
-            // Step 2: Push local changes (TODO: implement in future version)
+            // Step 2: Pull user preferences (non-blocking, doesn't fail sync if it fails)
+            pullUserPreferences()
+
+            // Step 3: Push local changes (TODO: implement in future version)
             // pushChanges()
 
-            // Step 3: Update last sync time
+            // Step 4: Update last sync time
             val now = Timestamp.now()
             syncDao.setLastSyncTime(now)
 
-            // Step 4: Rebuild FTS tables for offline search
+            // Step 5: Rebuild FTS tables for offline search
             try {
                 ftsPopulator.rebuildAll()
             } catch (e: Exception) {
@@ -165,7 +172,7 @@ class SyncManager(
                 logger.warn(e) { "FTS rebuild failed, offline search may be incomplete" }
             }
 
-            // Step 5: Connect to SSE stream for real-time updates (if not already connected)
+            // Step 6: Connect to SSE stream for real-time updates (if not already connected)
             sseManager.connect()
 
             logger.info { "Sync completed successfully" }
@@ -434,21 +441,34 @@ class SyncManager(
         if (updatedBookIds.isNotEmpty()) {
             scope.launch {
                 logger.info { "Starting cover downloads for ${updatedBookIds.size} books..." }
-                val downloadedBookIds = imageDownloader.downloadCovers(updatedBookIds)
+                val downloadResults = imageDownloader.downloadCovers(updatedBookIds)
 
-                // Touch books that got new covers to trigger UI refresh
-                if (downloadedBookIds is com.calypsan.listenup.client.core.Result.Success) {
+                // Update books with extracted colors and trigger UI refresh
+                if (downloadResults is com.calypsan.listenup.client.core.Result.Success) {
                     val now = Timestamp.now()
-                    downloadedBookIds.data.forEach { bookId ->
+                    downloadResults.data.forEach { result ->
                         try {
-                            bookDao.touchUpdatedAt(bookId, now)
+                            if (result.colors != null) {
+                                // Update colors and touch updatedAt
+                                bookDao.updateCoverColors(
+                                    id = result.bookId,
+                                    dominantColor = result.colors.dominant,
+                                    darkMutedColor = result.colors.darkMuted,
+                                    vibrantColor = result.colors.vibrant,
+                                    timestamp = now,
+                                )
+                            } else {
+                                // Just touch updatedAt to refresh UI (colors not extracted)
+                                bookDao.touchUpdatedAt(result.bookId, now)
+                            }
                         } catch (e: Exception) {
-                            logger.warn(e) { "Failed to touch book $bookId after cover download" }
+                            logger.warn(e) { "Failed to update book ${result.bookId} after cover download" }
                         }
                     }
-                    if (downloadedBookIds.data.isNotEmpty()) {
+                    if (downloadResults.data.isNotEmpty()) {
+                        val withColors = downloadResults.data.count { it.colors != null }
                         logger.debug {
-                            "Touched ${downloadedBookIds.data.size} books to refresh UI after cover downloads"
+                            "Updated ${downloadResults.data.size} books after cover downloads ($withColors with colors)"
                         }
                     }
                 }
@@ -594,6 +614,33 @@ class SyncManager(
                     logger.info { "Updated ${downloadedIds.data.size} contributors with local image paths" }
                 }
             }
+        }
+    }
+
+    /**
+     * Pull user preferences from server and cache locally.
+     *
+     * This is a non-blocking operation - preference sync failure does not fail the overall sync.
+     * Local cached values are preserved if server fetch fails.
+     */
+    private suspend fun pullUserPreferences() {
+        try {
+            logger.debug { "Pulling user preferences from server" }
+            when (val result = userPreferencesApi.getPreferences()) {
+                is Result.Success -> {
+                    val prefs = result.data
+                    settingsRepository.setDefaultPlaybackSpeed(prefs.defaultPlaybackSpeed)
+                    logger.info { "User preferences synced: defaultPlaybackSpeed=${prefs.defaultPlaybackSpeed}" }
+                }
+
+                is Result.Failure -> {
+                    // Non-fatal - use cached local values
+                    logger.warn { "Failed to fetch user preferences: ${result.exception.message}" }
+                }
+            }
+        } catch (e: Exception) {
+            // Non-fatal - preferences sync failure shouldn't break main sync
+            logger.warn(e) { "User preferences sync failed, using cached values" }
         }
     }
 

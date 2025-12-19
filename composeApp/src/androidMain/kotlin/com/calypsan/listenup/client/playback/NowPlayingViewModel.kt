@@ -9,6 +9,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.session.MediaController
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.repository.BookRepository
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.domain.model.Chapter
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
@@ -33,6 +34,7 @@ class NowPlayingViewModel(
     private val bookRepository: BookRepository,
     private val sleepTimerManager: SleepTimerManager,
     private val mediaControllerHolder: MediaControllerHolder,
+    private val settingsRepository: SettingsRepositoryContract,
 ) : ViewModel() {
     private val _state = MutableStateFlow(NowPlayingState())
     val state: StateFlow<NowPlayingState> = _state.asStateFlow()
@@ -54,6 +56,14 @@ class NowPlayingViewModel(
         mediaControllerHolder.acquire()
         observePlayback()
         observeSleepTimer()
+        loadDefaultPlaybackSpeed()
+    }
+
+    private fun loadDefaultPlaybackSpeed() {
+        viewModelScope.launch {
+            val defaultSpeed = settingsRepository.getDefaultPlaybackSpeed()
+            _state.update { it.copy(defaultPlaybackSpeed = defaultSpeed) }
+        }
     }
 
     private fun observePlayback() {
@@ -94,6 +104,19 @@ class NowPlayingViewModel(
         viewModelScope.launch {
             playbackManager.totalDurationMs.collect { durationMs ->
                 _state.update { it.copy(bookDurationMs = durationMs) }
+            }
+        }
+
+        // Observe prepare progress (transcode status)
+        viewModelScope.launch {
+            playbackManager.prepareProgress.collect { progress ->
+                _state.update {
+                    it.copy(
+                        isPreparing = progress != null,
+                        prepareProgress = progress?.progress ?: 0,
+                        prepareMessage = progress?.message,
+                    )
+                }
             }
         }
     }
@@ -180,6 +203,7 @@ class NowPlayingViewModel(
                 title = book.title,
                 author = book.authorNames,
                 coverUrl = book.coverPath,
+                coverBlurHash = book.coverBlurHash,
                 authors = book.authors,
                 narrators = book.narrators,
                 seriesId = book.seriesId,
@@ -526,9 +550,33 @@ class NowPlayingViewModel(
         }
     }
 
+    /**
+     * Set playback speed.
+     * Marks the book as having a custom speed (hasCustomSpeed=true).
+     */
     fun setSpeed(speed: Float) {
         mediaController?.playbackParameters = PlaybackParameters(speed)
+        // Notify PlaybackManager that user explicitly changed speed
+        playbackManager.onSpeedChanged(speed)
     }
+
+    /**
+     * Reset speed to universal default.
+     * Marks the book as using the universal default (hasCustomSpeed=false).
+     */
+    fun resetSpeedToDefault() {
+        viewModelScope.launch {
+            val defaultSpeed = settingsRepository.getDefaultPlaybackSpeed()
+            mediaController?.playbackParameters = PlaybackParameters(defaultSpeed)
+            // Notify PlaybackManager that user reset to default
+            playbackManager.onSpeedReset(defaultSpeed)
+        }
+    }
+
+    /**
+     * Get the universal default playback speed.
+     */
+    suspend fun getDefaultPlaybackSpeed(): Float = settingsRepository.getDefaultPlaybackSpeed()
 
     fun cycleSpeed() {
         val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)

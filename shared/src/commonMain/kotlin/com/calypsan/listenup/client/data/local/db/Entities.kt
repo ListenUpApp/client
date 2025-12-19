@@ -20,12 +20,12 @@ data class UserEntity(
     val isRoot: Boolean,
     /**
      * Creation timestamp in Unix epoch milliseconds.
-     * Use kotlinx.datetime.Instant for domain model conversion.
+     * Use kotlin.time.Instant for domain model conversion.
      */
     val createdAt: Long,
     /**
      * Last update timestamp in Unix epoch milliseconds.
-     * Use kotlinx.datetime.Instant for domain model conversion.
+     * Use kotlin.time.Instant for domain model conversion.
      */
     val updatedAt: Long,
 )
@@ -50,6 +50,11 @@ data class BookEntity(
     val title: String,
     val subtitle: String? = null, // Book subtitle
     val coverUrl: String?, // URL to cover image (local or remote)
+    val coverBlurHash: String? = null, // BlurHash for cover placeholder
+    // Cached palette colors extracted from cover (ARGB ints for instant gradient rendering)
+    val dominantColor: Int? = null,
+    val darkMutedColor: Int? = null,
+    val vibrantColor: Int? = null,
     val totalDuration: Long, // Total audiobook duration in milliseconds
     val description: String? = null,
     val genres: String? = null, // Comma-separated genres
@@ -136,6 +141,7 @@ data class ContributorEntity(
     val name: String,
     val description: String?,
     val imagePath: String?,
+    val imageBlurHash: String? = null, // BlurHash placeholder for image
     // Optional fields - will sync when server supports them
     val website: String? = null,
     val birthDate: String? = null, // ISO 8601 date (e.g., "1947-09-21")
@@ -192,6 +198,8 @@ data class PlaybackPositionEntity(
     val positionMs: Long,
     // Last used speed for this book
     val playbackSpeed: Float,
+    // Whether user explicitly set a custom speed for this book (vs using universal default)
+    val hasCustomSpeed: Boolean = false,
     // Local timestamp (epoch ms)
     val updatedAt: Long,
     // When last synced to server (null if not synced)

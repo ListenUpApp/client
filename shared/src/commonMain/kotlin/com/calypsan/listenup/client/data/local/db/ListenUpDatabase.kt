@@ -40,7 +40,7 @@ import androidx.room.TypeConverters
         DownloadEntity::class,
         ServerEntity::class,
     ],
-    version = 13,
+    version = 15,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

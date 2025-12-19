@@ -61,11 +61,35 @@ class PlayerViewModel(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
 
+            // Observe prepare progress during timeline building
+            val progressJob =
+                launch {
+                    playbackManager.prepareProgress.collect { progress ->
+                        if (progress != null) {
+                            _state.value =
+                                _state.value.copy(
+                                    prepareProgress = progress.progress,
+                                    prepareMessage = progress.message,
+                                )
+                        } else {
+                            _state.value =
+                                _state.value.copy(
+                                    prepareProgress = null,
+                                    prepareMessage = null,
+                                )
+                        }
+                    }
+                }
+
             val result = playbackManager.prepareForPlayback(bookId)
+            progressJob.cancel() // Stop observing once prepare is done
+
             if (result == null) {
                 _state.value =
                     _state.value.copy(
                         isLoading = false,
+                        prepareProgress = null,
+                        prepareMessage = null,
                         error = "Failed to load book",
                     )
                 return@launch
@@ -79,6 +103,8 @@ class PlayerViewModel(
                     totalDurationMs = result.timeline.totalDurationMs,
                     currentPositionMs = result.resumePositionMs,
                     playbackSpeed = result.resumeSpeed,
+                    prepareProgress = null,
+                    prepareMessage = null,
                 )
 
             // Connect to the player and start
@@ -223,11 +249,28 @@ class PlayerViewModel(
 
     /**
      * Set playback speed.
+     * Marks the book as having a custom speed (hasCustomSpeed=true).
      */
     fun setSpeed(speed: Float) {
         val controller = mediaController ?: return
         controller.playbackParameters = PlaybackParameters(speed)
         _state.value = _state.value.copy(playbackSpeed = speed)
+        // Notify PlaybackManager that user explicitly changed speed
+        playbackManager.onSpeedChanged(speed)
+    }
+
+    /**
+     * Reset speed to universal default.
+     * Marks the book as using the universal default (hasCustomSpeed=false).
+     *
+     * @param defaultSpeed The universal default speed from settings
+     */
+    fun resetSpeedToDefault(defaultSpeed: Float) {
+        val controller = mediaController ?: return
+        controller.playbackParameters = PlaybackParameters(defaultSpeed)
+        _state.value = _state.value.copy(playbackSpeed = defaultSpeed)
+        // Notify PlaybackManager that user reset to default
+        playbackManager.onSpeedReset(defaultSpeed)
     }
 
     /**
@@ -378,7 +421,11 @@ data class PlayerUiState(
     val currentPositionMs: Long = 0,
     val totalDurationMs: Long = 0,
     val playbackSpeed: Float = 1.0f,
+    // Transcode preparation progress (null = not preparing, 0-100 = preparing)
+    val prepareProgress: Int? = null,
+    val prepareMessage: String? = null,
 ) {
+    val isPreparing: Boolean get() = prepareProgress != null
     val progress: Float
         get() =
             if (totalDurationMs > 0) {

@@ -18,6 +18,7 @@ data class NowPlayingState(
     val title: String = "",
     val author: String = "",
     val coverUrl: String? = null,
+    val coverBlurHash: String? = null,
     // Contributors (for navigation menu)
     val authors: List<Contributor> = emptyList(),
     val narrators: List<Contributor> = emptyList(),
@@ -32,6 +33,11 @@ data class NowPlayingState(
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val playbackSpeed: Float = 1.0f,
+    val defaultPlaybackSpeed: Float = 1.0f, // Universal default from settings
+    // Transcode preparation state
+    val isPreparing: Boolean = false,
+    val prepareProgress: Int = 0, // 0-100
+    val prepareMessage: String? = null,
     // Book-level progress (for mini player progress bar)
     val bookProgress: Float = 0f, // 0.0 - 1.0
     val bookPositionMs: Long = 0,

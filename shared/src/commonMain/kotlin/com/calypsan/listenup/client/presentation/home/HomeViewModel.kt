@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.currentHourOfDay
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -11,10 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 
 private val logger = KotlinLogging.logger {}
 
@@ -115,7 +112,6 @@ class HomeViewModel(
  *
  * Immutable data class that represents the complete UI state.
  */
-@OptIn(ExperimentalTime::class)
 data class HomeUiState(
     val isLoading: Boolean = true,
     val userName: String = "",
@@ -132,9 +128,7 @@ data class HomeUiState(
      */
     val greeting: String
         get() {
-            val now = Clock.System.now()
-            val localTime = now.toLocalDateTime(TimeZone.currentSystemDefault())
-            val hour = localTime.hour
+            val hour = currentHourOfDay()
 
             val timeGreeting =
                 when (hour) {

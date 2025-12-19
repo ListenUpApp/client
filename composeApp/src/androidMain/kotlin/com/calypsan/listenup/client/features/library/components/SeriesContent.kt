@@ -140,9 +140,7 @@ fun SeriesContent(
                 AlphabetScrollbar(
                     alphabetIndex = alphabetIndex,
                     onLetterSelected = { index ->
-                        scope.launch {
-                            gridState.animateScrollToItem(index)
-                        }
+                        scope.launch { gridState.scrollToItem(index) }
                     },
                     isScrolling = isScrolling,
                     modifier =

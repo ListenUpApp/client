@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
@@ -496,12 +496,7 @@ private fun SeriesSearchResultCard(
 
 @Composable
 private fun LoadingState(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        CircularProgressIndicator()
-    }
+    FullScreenLoadingIndicator(modifier = modifier)
 }
 
 @Composable

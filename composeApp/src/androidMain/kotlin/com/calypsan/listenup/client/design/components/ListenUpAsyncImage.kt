@@ -1,51 +1,57 @@
 package com.calypsan.listenup.client.design.components
 
+import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
+import com.vanniktech.blurhash.BlurHash
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Design system image component with automatic cache invalidation.
+ * Design system image component with BlurHash placeholder support.
  *
- * This component wraps Coil's AsyncImage with intelligent cache-busting
- * for local files. When a file is modified (e.g., a new cover is uploaded),
- * the cache key automatically updates based on the file's last-modified
- * timestamp, ensuring fresh images are displayed without manual version tracking.
+ * When a blurHash is provided:
+ * 1. Shows a gray background immediately
+ * 2. Renders the BlurHash as a blurry placeholder
+ * 3. Fades in the real image when loaded
  *
- * File system access is performed asynchronously to avoid blocking the main thread.
+ * Also includes intelligent cache-busting for local files - when a file is
+ * modified, the cache key automatically updates based on the file's
+ * last-modified timestamp.
  *
  * Usage:
  * ```
  * ListenUpAsyncImage(
  *     path = book.coverPath,
+ *     blurHash = book.coverBlurHash,
  *     contentDescription = "Book cover",
  *     modifier = Modifier.fillMaxSize(),
- * )
- * ```
- *
- * For edit screens where the file may be overwritten at the same path,
- * pass a `refreshKey` that changes when the content changes:
- * ```
- * ListenUpAsyncImage(
- *     path = state.coverPath,
- *     contentDescription = "Book cover",
- *     refreshKey = state.pendingCoverData, // Triggers refresh when new image selected
  * )
  * ```
  *
  * @param path Local file path to the image, or null for no image
  * @param contentDescription Accessibility description
  * @param modifier Optional modifier
+ * @param blurHash BlurHash string for placeholder, or null for no placeholder
  * @param contentScale How to scale the image (default: Crop)
  * @param refreshKey Optional key to force cache refresh (use when file is overwritten at same path)
  * @param onState Optional callback for loading state changes
@@ -55,11 +61,13 @@ fun ListenUpAsyncImage(
     path: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
+    blurHash: String? = null,
     contentScale: ContentScale = ContentScale.Crop,
     refreshKey: Any? = null,
     onState: ((AsyncImagePainter.State) -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    var imageLoaded by remember { mutableStateOf(false) }
 
     // Async file check to avoid blocking main thread
     val cacheKey by produceState<String?>(
@@ -88,13 +96,74 @@ fun ListenUpAsyncImage(
             }
         }
 
-    AsyncImage(
-        model = request,
-        contentDescription = contentDescription,
-        modifier = modifier,
-        contentScale = contentScale,
-        onState = onState,
-    )
+    // When blurHash is provided, use layered rendering with placeholder
+    if (blurHash != null) {
+        Box(modifier = modifier.background(Color(0xFFE0E0E0))) {
+            // Layer 1: BlurHash placeholder (instant, shows until real image loads)
+            if (!imageLoaded) {
+                BlurHashPlaceholder(
+                    blurHash = blurHash,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            // Layer 2: Real image (fades in over BlurHash)
+            if (path != null) {
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn(),
+                ) {
+                    AsyncImage(
+                        model = request,
+                        contentDescription = contentDescription,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = contentScale,
+                        onState = { state ->
+                            if (state is AsyncImagePainter.State.Success) {
+                                imageLoaded = true
+                            }
+                            onState?.invoke(state)
+                        },
+                    )
+                }
+            }
+        }
+    } else {
+        // No blurHash - simple image loading without placeholder
+        AsyncImage(
+            model = request,
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale,
+            onState = onState,
+        )
+    }
+}
+
+/**
+ * Renders a BlurHash as a placeholder image.
+ *
+ * BlurHash is decoded to a small bitmap (32x32) and scaled up by Compose.
+ * Decoding is cached per blurHash string and takes <1ms.
+ */
+@Composable
+private fun BlurHashPlaceholder(
+    blurHash: String,
+    modifier: Modifier = Modifier,
+) {
+    val bitmap: Bitmap? =
+        remember(blurHash) {
+            BlurHash.decode(blurHash, width = 32, height = 32)
+        }
+
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier,
+        )
+    }
 }
 
 /**
@@ -108,6 +177,7 @@ fun ListenUpAsyncImage(
     filePath: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
+    blurHash: String? = null,
     contentScale: ContentScale = ContentScale.Crop,
     stripFilePrefix: Boolean = false,
     onState: ((AsyncImagePainter.State) -> Unit)? = null,
@@ -123,6 +193,7 @@ fun ListenUpAsyncImage(
         path = normalizedPath,
         contentDescription = contentDescription,
         modifier = modifier,
+        blurHash = blurHash,
         contentScale = contentScale,
         onState = onState,
     )

@@ -58,6 +58,8 @@ kotlin {
             implementation(libs.kotlinx.collections.immutable)
             implementation(libs.kotlinx.io.core)
 
+            implementation(libs.blurhash)
+
             api(libs.koin.core)
             implementation(libs.kotlin.logging)
 
@@ -68,6 +70,7 @@ kotlin {
 
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.androidx.palette.ktx)
         }
 
         iosMain.dependencies {

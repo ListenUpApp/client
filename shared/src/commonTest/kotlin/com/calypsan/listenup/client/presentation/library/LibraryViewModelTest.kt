@@ -189,6 +189,7 @@ class LibraryViewModelTest {
         everySuspend { fixture.settingsRepository.getAuthorsSortState() } returns null
         everySuspend { fixture.settingsRepository.getNarratorsSortState() } returns null
         everySuspend { fixture.settingsRepository.getIgnoreTitleArticles() } returns true
+        everySuspend { fixture.settingsRepository.getHideSingleBookSeries() } returns true
 
         return fixture
     }
@@ -680,11 +681,19 @@ class LibraryViewModelTest {
     @Test
     fun `series sorted by name ascending`() =
         runTest {
-            // Given
+            // Given - each series needs 2+ books to avoid filtering by hideSingleBookSeries
             val seriesList =
                 listOf(
-                    SeriesWithBooks(series = createTestSeries(id = "1", name = "Zebra Series"), books = emptyList(), bookSequences = emptyList()),
-                    SeriesWithBooks(series = createTestSeries(id = "2", name = "Apple Series"), books = emptyList(), bookSequences = emptyList()),
+                    SeriesWithBooks(
+                        series = createTestSeries(id = "1", name = "Zebra Series"),
+                        books = listOf(createDummyBookEntity("z1"), createDummyBookEntity("z2")),
+                        bookSequences = emptyList(),
+                    ),
+                    SeriesWithBooks(
+                        series = createTestSeries(id = "2", name = "Apple Series"),
+                        books = listOf(createDummyBookEntity("a1"), createDummyBookEntity("a2")),
+                        bookSequences = emptyList(),
+                    ),
                 )
             val fixture = createFixture()
             every { fixture.seriesDao.observeAllWithBooks() } returns flowOf(seriesList)
@@ -700,12 +709,12 @@ class LibraryViewModelTest {
     @Test
     fun `series sorted by book count descending`() =
         runTest {
-            // Given
+            // Given - each series needs 2+ books to avoid filtering by hideSingleBookSeries
             val seriesList =
                 listOf(
                     SeriesWithBooks(
                         series = createTestSeries(id = "1", name = "Small"),
-                        books = emptyList(),
+                        books = listOf(createDummyBookEntity("s1"), createDummyBookEntity("s2")),
                         bookSequences = emptyList(),
                     ),
                     SeriesWithBooks(

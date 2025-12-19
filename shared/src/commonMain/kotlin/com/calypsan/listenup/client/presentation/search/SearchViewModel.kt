@@ -236,11 +236,15 @@ class SearchViewModel(
                         )
                     }
                     logger.debug { "Search completed: ${result.total} results for '$query'" }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    // Job was cancelled (e.g., new search started) - don't show error
+                    logger.debug { "Search cancelled for '$query'" }
+                    throw e
                 } catch (e: Exception) {
                     logger.error(e) { "Search failed for '$query'" }
                     _state.update {
                         it.copy(
-                            error = "Search failed: ${e.message}",
+                            error = "Search unavailable. Please try again.",
                             isSearching = false,
                         )
                     }

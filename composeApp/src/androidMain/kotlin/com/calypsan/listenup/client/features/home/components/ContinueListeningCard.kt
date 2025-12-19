@@ -77,6 +77,7 @@ fun ContinueListeningCard(
         // Cover with progress overlay
         CoverWithProgressOverlay(
             coverPath = book.coverPath,
+            blurHash = book.coverBlurHash,
             contentDescription = book.title,
             progress = book.progress,
             timeRemaining = book.timeRemainingFormatted,
@@ -118,6 +119,7 @@ fun ContinueListeningCard(
 @Composable
 private fun CoverWithProgressOverlay(
     coverPath: String?,
+    blurHash: String?,
     contentDescription: String?,
     progress: Float,
     timeRemaining: String,
@@ -133,11 +135,11 @@ private fun CoverWithProgressOverlay(
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         // Cover image
-        if (coverPath != null) {
+        if (coverPath != null || blurHash != null) {
             ListenUpAsyncImage(
                 path = coverPath,
+                blurHash = blurHash,
                 contentDescription = contentDescription,
-                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {

@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -7,6 +8,7 @@ import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
+import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Contributor
 import dev.mokkery.answering.returns
@@ -40,6 +42,7 @@ class HomeRepositoryTest {
     private class TestFixture {
         val bookRepository: BookRepositoryContract = mock()
         val playbackPositionDao: PlaybackPositionDao = mock()
+        val syncApi: SyncApiContract = mock()
         val userDao: UserDao = mock()
 
         val userFlow = MutableStateFlow<UserEntity?>(null)
@@ -48,6 +51,7 @@ class HomeRepositoryTest {
             HomeRepository(
                 bookRepository = bookRepository,
                 playbackPositionDao = playbackPositionDao,
+                syncApi = syncApi,
                 userDao = userDao,
             )
     }
@@ -57,7 +61,11 @@ class HomeRepositoryTest {
 
         // Default stubs
         everySuspend { fixture.playbackPositionDao.getRecentPositions(any()) } returns emptyList()
+        everySuspend { fixture.playbackPositionDao.get(any()) } returns null
+        everySuspend { fixture.playbackPositionDao.save(any()) } returns Unit
         everySuspend { fixture.bookRepository.getBook(any()) } returns null
+        // Default: server unavailable, triggering local fallback
+        everySuspend { fixture.syncApi.getContinueListening(any()) } returns Failure(Exception("Offline"))
         every { fixture.userDao.observeCurrentUser() } returns fixture.userFlow
 
         return fixture

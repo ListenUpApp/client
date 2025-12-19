@@ -2,11 +2,14 @@ package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.ImageApiContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
+
+private const val BATCH_SIZE = 10
 
 /**
  * Orchestrates downloading and storing book cover images during sync.
@@ -14,15 +17,18 @@ private val logger = KotlinLogging.logger {}
  * Responsibilities:
  * - Download covers from backend via ImageApi
  * - Save to local storage via ImageStorage
+ * - Extract color palette from covers for instant UI rendering
  * - Handle errors gracefully (missing covers are non-fatal)
  * - Support batch operations for efficient syncing
  *
  * @property imageApi API client for downloading cover images
  * @property imageStorage Local storage for cover images
+ * @property colorExtractor Platform-specific color palette extractor
  */
 class ImageDownloader(
     private val imageApi: ImageApiContract,
     private val imageStorage: ImageStorage,
+    private val colorExtractor: CoverColorExtractor,
 ) : ImageDownloaderContract {
     /**
      * Download and save a single book cover.
@@ -68,36 +74,63 @@ class ImageDownloader(
     }
 
     /**
-     * Download covers for multiple books in batch.
+     * Download covers for multiple books using batch requests.
+     *
+     * Filters to only books missing covers locally, then downloads
+     * in batches of BATCH_SIZE for efficiency. Extracts color palette
+     * from each cover for caching in the database.
      *
      * Continues on individual failures - one failed download doesn't stop the batch.
-     * Returns list of book IDs that had covers successfully downloaded.
+     * Returns list of download results with extracted colors.
      *
      * @param bookIds List of book identifiers to download covers for
-     * @return Result containing list of BookIds that were successfully downloaded
+     * @return Result containing list of download results with extracted colors
      */
-    override suspend fun downloadCovers(bookIds: List<BookId>): Result<List<BookId>> {
-        val successfulDownloads = mutableListOf<BookId>()
+    override suspend fun downloadCovers(bookIds: List<BookId>): Result<List<CoverDownloadResult>> {
+        // Filter to only books missing covers locally
+        val needed = bookIds.filter { !imageStorage.exists(it) }
 
-        bookIds.forEach { bookId ->
-            when (val result = downloadCover(bookId)) {
+        if (needed.isEmpty()) {
+            logger.debug { "All covers already cached" }
+            return Result.Success(emptyList())
+        }
+
+        logger.debug { "Downloading ${needed.size} covers in batches of $BATCH_SIZE" }
+
+        val downloadResults = mutableListOf<CoverDownloadResult>()
+
+        // Download in batches
+        needed.chunked(BATCH_SIZE).forEach { batch ->
+            val bookIdStrings = batch.map { it.value }
+            when (val result = imageApi.downloadCoverBatch(bookIdStrings)) {
                 is Result.Success -> {
-                    if (result.data) {
-                        successfulDownloads.add(bookId)
+                    result.data.forEach { (bookId, bytes) ->
+                        val bookIdObj = BookId(bookId)
+                        val saveResult = imageStorage.saveCover(bookIdObj, bytes)
+                        if (saveResult is Result.Success) {
+                            // Extract colors from the downloaded image
+                            val colors = colorExtractor.extractColors(bytes)
+                            downloadResults.add(CoverDownloadResult(bookIdObj, colors))
+                            if (colors != null) {
+                                logger.debug { "Extracted colors for book $bookId" }
+                            }
+                        } else if (saveResult is Result.Failure) {
+                            logger.warn(saveResult.exception) {
+                                "Failed to save cover for book $bookId"
+                            }
+                        }
                     }
+                    logger.debug { "Downloaded batch of ${result.data.size} covers" }
                 }
 
                 is Result.Failure -> {
-                    // Log and continue - non-fatal
-                    logger.warn(result.exception) {
-                        "Failed to download cover for book ${bookId.value}"
-                    }
+                    logger.warn { "Batch download failed: ${result.exception.message}" }
                 }
             }
         }
 
-        logger.info { "Downloaded ${successfulDownloads.size} covers out of ${bookIds.size} books" }
-        return Result.Success(successfulDownloads)
+        logger.info { "Downloaded ${downloadResults.size} covers out of ${bookIds.size} books" }
+        return Result.Success(downloadResults)
     }
 
     /**
@@ -144,7 +177,10 @@ class ImageDownloader(
     }
 
     /**
-     * Download images for multiple contributors in batch.
+     * Download images for multiple contributors using batch requests.
+     *
+     * Filters to only contributors missing images locally, then downloads
+     * in batches of BATCH_SIZE for efficiency.
      *
      * Continues on individual failures - one failed download doesn't stop the batch.
      * Returns list of contributor IDs that had images successfully downloaded.
@@ -153,21 +189,37 @@ class ImageDownloader(
      * @return Result containing list of contributor IDs that were successfully downloaded
      */
     override suspend fun downloadContributorImages(contributorIds: List<String>): Result<List<String>> {
+        // Filter to only contributors missing images locally
+        val needed = contributorIds.filter { !imageStorage.contributorImageExists(it) }
+
+        if (needed.isEmpty()) {
+            logger.debug { "All contributor images already cached" }
+            return Result.Success(emptyList())
+        }
+
+        logger.debug { "Downloading ${needed.size} contributor images in batches of $BATCH_SIZE" }
+
         val successfulDownloads = mutableListOf<String>()
 
-        contributorIds.forEach { contributorId ->
-            when (val result = downloadContributorImage(contributorId)) {
+        // Download in batches
+        needed.chunked(BATCH_SIZE).forEach { batch ->
+            when (val result = imageApi.downloadContributorImageBatch(batch)) {
                 is Result.Success -> {
-                    if (result.data) {
-                        successfulDownloads.add(contributorId)
+                    result.data.forEach { (contributorId, bytes) ->
+                        val saveResult = imageStorage.saveContributorImage(contributorId, bytes)
+                        if (saveResult is Result.Success) {
+                            successfulDownloads.add(contributorId)
+                        } else if (saveResult is Result.Failure) {
+                            logger.warn(saveResult.exception) {
+                                "Failed to save image for contributor $contributorId"
+                            }
+                        }
                     }
+                    logger.debug { "Downloaded batch of ${result.data.size} contributor images" }
                 }
 
                 is Result.Failure -> {
-                    // Log and continue - non-fatal
-                    logger.warn(result.exception) {
-                        "Failed to download image for contributor $contributorId"
-                    }
+                    logger.warn { "Batch download failed: ${result.exception.message}" }
                 }
             }
         }

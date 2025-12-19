@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 13,
-    "identityHash": "45995e0984e26cef3981905531b04712",
+    "identityHash": "b962d01b67ca499edbef380e7cfc8ab1",
     "entities": [
       {
         "tableName": "users",
@@ -54,7 +54,7 @@
       },
       {
         "tableName": "books",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `subtitle` TEXT, `coverUrl` TEXT, `totalDuration` INTEGER NOT NULL, `description` TEXT, `genres` TEXT, `publishYear` INTEGER, `publisher` TEXT, `language` TEXT, `isbn` TEXT, `asin` TEXT, `abridged` INTEGER NOT NULL, `audioFilesJson` TEXT, `syncState` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `serverVersion` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `subtitle` TEXT, `coverUrl` TEXT, `coverBlurHash` TEXT, `totalDuration` INTEGER NOT NULL, `description` TEXT, `genres` TEXT, `publishYear` INTEGER, `publisher` TEXT, `language` TEXT, `isbn` TEXT, `asin` TEXT, `abridged` INTEGER NOT NULL, `audioFilesJson` TEXT, `syncState` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `serverVersion` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -76,6 +76,11 @@
           {
             "fieldPath": "coverUrl",
             "columnName": "coverUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coverBlurHash",
+            "columnName": "coverBlurHash",
             "affinity": "TEXT"
           },
           {
@@ -352,7 +357,7 @@
       },
       {
         "tableName": "contributors",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `imagePath` TEXT, `website` TEXT, `birthDate` TEXT, `deathDate` TEXT, `aliases` TEXT, `syncState` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `serverVersion` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `imagePath` TEXT, `imageBlurHash` TEXT, `website` TEXT, `birthDate` TEXT, `deathDate` TEXT, `aliases` TEXT, `syncState` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, `serverVersion` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -374,6 +379,11 @@
           {
             "fieldPath": "imagePath",
             "columnName": "imagePath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "imageBlurHash",
+            "columnName": "imageBlurHash",
             "affinity": "TEXT"
           },
           {
@@ -916,7 +926,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '45995e0984e26cef3981905531b04712')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b962d01b67ca499edbef380e7cfc8ab1')"
     ]
   }
 }

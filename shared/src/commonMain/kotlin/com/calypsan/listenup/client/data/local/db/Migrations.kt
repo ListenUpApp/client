@@ -586,3 +586,40 @@ val MIGRATION_12_13 =
             )
         }
     }
+
+/**
+ * Migration from version 14 to version 15.
+ *
+ * Changes:
+ * - Add dominantColor column to books table (cached palette color as ARGB int)
+ * - Add darkMutedColor column to books table (cached palette color for gradients)
+ * - Add vibrantColor column to books table (cached palette color for accents)
+ *
+ * These cached colors enable instant gradient rendering when viewing a book,
+ * eliminating the need to extract colors from the cover image at runtime.
+ */
+val MIGRATION_14_15 =
+    object : Migration(14, 15) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add dominantColor column
+            connection.execSQL(
+                """
+                ALTER TABLE books ADD COLUMN dominantColor INTEGER DEFAULT NULL
+                """.trimIndent(),
+            )
+
+            // Add darkMutedColor column
+            connection.execSQL(
+                """
+                ALTER TABLE books ADD COLUMN darkMutedColor INTEGER DEFAULT NULL
+                """.trimIndent(),
+            )
+
+            // Add vibrantColor column
+            connection.execSQL(
+                """
+                ALTER TABLE books ADD COLUMN vibrantColor INTEGER DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }

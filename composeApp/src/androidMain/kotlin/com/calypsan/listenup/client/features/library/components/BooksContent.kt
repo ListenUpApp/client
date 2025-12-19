@@ -183,6 +183,7 @@ private fun ArticleToggleChip(
  * Content for the Books tab in the Library screen.
  *
  * @param books List of books to display
+ * @param hasLoadedBooks Whether initial database load has completed (distinguishes loading vs empty)
  * @param syncState Current sync status for loading/error states
  * @param sortState Current sort state (category + direction)
  * @param ignoreTitleArticles Whether to ignore articles (A, An, The) when sorting by title
@@ -198,6 +199,7 @@ private fun ArticleToggleChip(
 @Composable
 fun BooksContent(
     books: List<Book>,
+    hasLoadedBooks: Boolean,
     syncState: SyncStatus,
     sortState: SortState,
     ignoreTitleArticles: Boolean,
@@ -211,18 +213,27 @@ fun BooksContent(
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         when {
+            // Haven't loaded from database yet - show loading
+            !hasLoadedBooks -> {
+                BooksLoadingState()
+            }
+
+            // Loaded but empty AND syncing - show loading
             books.isEmpty() && syncState is SyncStatus.Syncing -> {
                 BooksLoadingState()
             }
 
+            // Loaded but empty AND sync error - show error
             books.isEmpty() && syncState is SyncStatus.Error -> {
                 BooksErrorState(error = syncState.exception, onRetry = onRetry)
             }
 
+            // Loaded AND truly empty - show empty state
             books.isEmpty() -> {
                 BooksEmptyState()
             }
 
+            // Loaded with books - show grid
             else -> {
                 BookGrid(
                     books = books,
@@ -313,7 +324,7 @@ private fun BookGrid(
     Box(modifier = modifier.fillMaxSize()) {
         LazyVerticalGrid(
             state = gridState,
-            columns = GridCells.Adaptive(minSize = 120.dp),
+            columns = GridCells.Adaptive(minSize = 160.dp),
             contentPadding =
                 PaddingValues(
                     start = 16.dp,
@@ -390,7 +401,10 @@ private fun BookGrid(
             AlphabetScrollbar(
                 alphabetIndex = alphabetIndex,
                 onLetterSelected = { index ->
-                    scope.launch { gridState.animateScrollToItem(index) }
+                    // Instant scroll - animateScrollToItem causes jank on large lists
+                    // as it composes/disposes hundreds of items during animation.
+                    // Haptic feedback + scrollbar animations provide sufficient feedback.
+                    scope.launch { gridState.scrollToItem(index) }
                 },
                 isScrolling = isScrolling,
                 modifier =

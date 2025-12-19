@@ -2,7 +2,19 @@ package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.images.ExtractedColors
 import kotlinx.coroutines.flow.SharedFlow
+
+/**
+ * Result of downloading a book cover, including extracted palette colors.
+ *
+ * @property bookId The book whose cover was downloaded
+ * @property colors Extracted color palette, or null if extraction failed/unsupported
+ */
+data class CoverDownloadResult(
+    val bookId: BookId,
+    val colors: ExtractedColors?,
+)
 
 /**
  * Contract interface for image downloading operations.
@@ -22,10 +34,12 @@ interface ImageDownloaderContract {
     /**
      * Download covers for multiple books in batch.
      *
+     * Extracts color palette from each downloaded cover for caching.
+     *
      * @param bookIds List of book identifiers to download covers for
-     * @return Result containing list of BookIds that were successfully downloaded
+     * @return Result containing list of download results with extracted colors
      */
-    suspend fun downloadCovers(bookIds: List<BookId>): Result<List<BookId>>
+    suspend fun downloadCovers(bookIds: List<BookId>): Result<List<CoverDownloadResult>>
 
     /**
      * Download and save a single contributor image.

@@ -185,7 +185,9 @@ fun NowPlayingHost(
         if (state.showSpeedPicker) {
             PlaybackSpeedSheet(
                 currentSpeed = state.playbackSpeed,
+                defaultSpeed = state.defaultPlaybackSpeed,
                 onSpeedChange = viewModel::setSpeed,
+                onResetToDefault = viewModel::resetSpeedToDefault,
                 onDismiss = viewModel::hideSpeedPicker,
             )
         }

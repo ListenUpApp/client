@@ -33,6 +33,7 @@ import com.calypsan.listenup.client.features.shell.components.AppNavigationBar
 import com.calypsan.listenup.client.features.shell.components.AppNavigationDrawer
 import com.calypsan.listenup.client.features.shell.components.AppNavigationRail
 import com.calypsan.listenup.client.features.shell.components.AppTopBar
+import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.search.SearchNavAction
 import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
@@ -54,6 +55,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * @param onSeriesClick Callback when a series is clicked (navigates to detail)
  * @param onContributorClick Callback when a contributor is clicked (author or narrator)
  * @param onAdminClick Callback when administration is clicked (only shown for admin users)
+ * @param onSettingsClick Callback when settings is clicked
  * @param onSignOut Callback when sign out is triggered
  */
 @Suppress("LongMethod")
@@ -66,6 +68,7 @@ fun AppShell(
     onSeriesClick: (String) -> Unit,
     onContributorClick: (String) -> Unit,
     onAdminClick: (() -> Unit)? = null,
+    onSettingsClick: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     // Inject dependencies
@@ -74,6 +77,12 @@ fun AppShell(
     val settingsRepository: SettingsRepository = koinInject()
     val syncDao: SyncDao = koinInject()
     val searchViewModel: SearchViewModel = koinViewModel()
+
+    // Preload library data by injecting LibraryViewModel (singleton) early.
+    // This starts Room database queries immediately, so Library tab loads instantly.
+    // The @Suppress is needed because we're intentionally not using the value directly.
+    @Suppress("UNUSED_VARIABLE")
+    val libraryViewModel: LibraryViewModel = koinInject()
 
     // Trigger sync on shell entry (not just when Library is visible)
     LaunchedEffect(Unit) {
@@ -165,7 +174,7 @@ fun AppShell(
             isAvatarMenuExpanded = isAvatarMenuExpanded,
             onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
             onAdminClick = onAdminClick,
-            onSettingsClick = { /* TODO: Navigate to settings */ },
+            onSettingsClick = onSettingsClick,
             onSignOutClick = onSignOut,
             scrollBehavior = scrollBehavior,
             showAvatar = showAvatarInTopBar,
@@ -248,7 +257,7 @@ fun AppShell(
                     isAvatarMenuExpanded = isAvatarMenuExpanded,
                     onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
                     onAdminClick = onAdminClick,
-                    onSettingsClick = { /* TODO: Navigate to settings */ },
+                    onSettingsClick = onSettingsClick,
                     onSignOutClick = onSignOut,
                 )
                 Scaffold(
@@ -271,7 +280,7 @@ fun AppShell(
                 isAvatarMenuExpanded = isAvatarMenuExpanded,
                 onAvatarMenuExpandedChange = { isAvatarMenuExpanded = it },
                 onAdminClick = onAdminClick,
-                onSettingsClick = { /* TODO: Navigate to settings */ },
+                onSettingsClick = onSettingsClick,
                 onSignOutClick = onSignOut,
             ) {
                 Scaffold(

@@ -281,7 +281,8 @@ class SearchViewModelTest {
             val state = viewModel.state.value
             assertFalse(state.isSearching)
             assertNotNull(state.error)
-            assertTrue(state.error!!.contains("Network error"))
+            // Error message is user-friendly, not raw exception message
+            assertEquals("Search unavailable. Please try again.", state.error)
         }
 
     // ========== Type Filtering Tests ==========

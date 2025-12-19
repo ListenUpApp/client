@@ -12,6 +12,7 @@ import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.ListeningEventRequest
 import com.calypsan.listenup.client.data.remote.SyncApiContract
+import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -132,22 +133,74 @@ class ProgressTracker(
 
     /**
      * Save position to local database immediately.
+     * Preserves the existing hasCustomSpeed flag.
      */
     private suspend fun savePosition(
         bookId: BookId,
         positionMs: Long,
         speed: Float,
     ) {
+        // Preserve existing hasCustomSpeed value
+        val existing = positionDao.get(bookId)
         positionDao.save(
             PlaybackPositionEntity(
                 bookId = bookId,
                 positionMs = positionMs,
                 playbackSpeed = speed,
+                hasCustomSpeed = existing?.hasCustomSpeed ?: false,
                 updatedAt = Clock.System.now().toEpochMilliseconds(),
                 syncedAt = null,
             ),
         )
         logger.debug { "Position saved: book=${bookId.value}, position=$positionMs" }
+    }
+
+    /**
+     * Called when user explicitly changes playback speed.
+     * Marks this book as having a custom speed (not using universal default).
+     */
+    fun onSpeedChanged(
+        bookId: BookId,
+        positionMs: Long,
+        newSpeed: Float,
+    ) {
+        scope.launch {
+            positionDao.save(
+                PlaybackPositionEntity(
+                    bookId = bookId,
+                    positionMs = positionMs,
+                    playbackSpeed = newSpeed,
+                    hasCustomSpeed = true, // User explicitly set this speed
+                    updatedAt = Clock.System.now().toEpochMilliseconds(),
+                    syncedAt = null,
+                ),
+            )
+            logger.debug { "Speed changed: book=${bookId.value}, speed=$newSpeed, hasCustomSpeed=true" }
+        }
+    }
+
+    /**
+     * Reset a book's speed to use the universal default.
+     * Called when user explicitly resets to default.
+     */
+    fun onSpeedReset(
+        bookId: BookId,
+        positionMs: Long,
+        defaultSpeed: Float,
+    ) {
+        scope.launch {
+            positionDao.save(
+                PlaybackPositionEntity(
+                    bookId = bookId,
+                    positionMs = positionMs,
+                    playbackSpeed = defaultSpeed,
+                    hasCustomSpeed = false, // Now using universal default
+                    updatedAt = Clock.System.now().toEpochMilliseconds(),
+                    syncedAt = null,
+                ),
+            )
+            logger.debug { "Speed reset to default: book=${bookId.value}, speed=$defaultSpeed, hasCustomSpeed=false" }
+        }
     }
 
     /**
@@ -163,9 +216,95 @@ class ProgressTracker(
     }
 
     /**
-     * Get resume position for a book. Local-first.
+     * Get resume position for a book.
+     *
+     * Cross-device sync: Checks both local and server progress, returns whichever
+     * is more recent. This enables seamless handoff between devices.
+     *
+     * Flow:
+     * 1. Get local position (instant, offline-first)
+     * 2. Try to get server position (best-effort, may fail if offline)
+     * 3. Compare timestamps - use whichever is newer
+     * 4. If server is newer, update local cache
+     *
+     * @param bookId Book to get resume position for
+     * @return Position to resume from, or null if never played
      */
-    suspend fun getResumePosition(bookId: BookId): PlaybackPositionEntity? = positionDao.get(bookId)
+    suspend fun getResumePosition(bookId: BookId): PlaybackPositionEntity? {
+        // 1. Get local position (instant, offline-first)
+        val local = positionDao.get(bookId)
+
+        // 2. Try to get server position (best-effort)
+        val server = fetchServerProgress(bookId)
+
+        // 3. Merge: latest timestamp wins
+        return mergePositions(bookId, local, server)
+    }
+
+    /**
+     * Fetch progress from server. Returns null on any error (offline, auth, etc.)
+     */
+    private suspend fun fetchServerProgress(bookId: BookId): PlaybackProgressResponse? =
+        try {
+            when (val result = syncApi.getProgress(bookId.value)) {
+                is Result.Success -> {
+                    result.data
+                }
+
+                is Result.Failure -> {
+                    logger.debug { "Server progress unavailable: ${result.exception.message}" }
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            logger.debug { "Server progress fetch failed: ${e.message}" }
+            null
+        }
+
+    /**
+     * Merge local and server positions, returning the more recent one.
+     * If server is newer, updates local cache for offline access.
+     */
+    private suspend fun mergePositions(
+        bookId: BookId,
+        local: PlaybackPositionEntity?,
+        server: PlaybackProgressResponse?,
+    ): PlaybackPositionEntity? =
+        when {
+            local == null && server == null -> {
+                null
+            }
+
+            local == null && server != null -> {
+                // Only server has progress - cache it locally
+                val entity = server.toEntity()
+                positionDao.save(entity)
+                logger.info { "Using server position: ${server.currentPositionMs}ms (first sync)" }
+                entity
+            }
+
+            server == null -> {
+                local
+            }
+
+            else -> {
+                // Both exist - compare timestamps
+                val serverTimestamp = server.lastPlayedAtMillis()
+                if (serverTimestamp > local!!.updatedAt) {
+                    // Server is newer (listened on another device)
+                    val entity = server.toEntity()
+                    positionDao.save(entity)
+                    logger.info {
+                        "Using server position: ${server.currentPositionMs}ms " +
+                            "(was ${local.positionMs}ms locally, server is ${(serverTimestamp - local.updatedAt) / 1000}s newer)"
+                    }
+                    entity
+                } else {
+                    // Local is newer or same
+                    local
+                }
+            }
+        }
 
     /**
      * Mark a book as finished.

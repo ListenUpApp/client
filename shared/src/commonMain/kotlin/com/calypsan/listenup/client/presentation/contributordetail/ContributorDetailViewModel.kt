@@ -180,6 +180,7 @@ class ContributorDetailViewModel(
             narrators = narrators,
             duration = book.totalDuration,
             coverPath = if (imageStorage.exists(book.id)) imageStorage.getCoverPath(book.id) else null,
+            coverBlurHash = book.coverBlurHash,
             addedAt = book.createdAt,
             updatedAt = book.updatedAt,
             description = book.description,

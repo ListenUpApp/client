@@ -70,15 +70,23 @@ object PlaybackSpeedPresets {
  * - Large current speed display
  * - Slider for fine control (0.5x - 3.0x, 0.05 increments)
  * - Preset chips for quick selection
- * - Reset to default button
+ * - Reset to universal default button (when using custom speed)
  *
  * Haptic feedback on interactions for tactile response.
+ *
+ * @param currentSpeed Current playback speed
+ * @param defaultSpeed Universal default speed from settings
+ * @param onSpeedChange Called when user selects a new speed (marks as custom)
+ * @param onResetToDefault Called when user taps "Reset to default" (marks as using default)
+ * @param onDismiss Called when sheet is dismissed
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun PlaybackSpeedSheet(
     currentSpeed: Float,
+    defaultSpeed: Float = PlaybackSpeedPresets.DEFAULT_SPEED,
     onSpeedChange: (Float) -> Unit,
+    onResetToDefault: () -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     val view = LocalView.current
@@ -151,17 +159,17 @@ fun PlaybackSpeedSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // Reset button - panel animates smoothly via animateContentSize
-            val showReset = (sliderSpeed - PlaybackSpeedPresets.DEFAULT_SPEED).absoluteValue > 0.01f
+            // Reset to universal default button - shows when not already using default
+            val showReset = (sliderSpeed - defaultSpeed).absoluteValue > 0.01f
             if (showReset) {
                 TextButton(
                     onClick = {
-                        sliderSpeed = PlaybackSpeedPresets.DEFAULT_SPEED
-                        onSpeedChange(PlaybackSpeedPresets.DEFAULT_SPEED)
+                        sliderSpeed = defaultSpeed
+                        onResetToDefault()
                         view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                     },
                 ) {
-                    Text("Reset to ${PlaybackSpeedPresets.format(PlaybackSpeedPresets.DEFAULT_SPEED)}")
+                    Text("Reset to default (${PlaybackSpeedPresets.format(defaultSpeed)})")
                 }
             }
 

@@ -7,6 +7,8 @@ import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
+import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
+import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
 import com.calypsan.listenup.client.data.remote.model.SyncContributorsResponse
 import com.calypsan.listenup.client.data.remote.model.SyncManifestResponse
@@ -16,7 +18,9 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import kotlinx.serialization.Serializable
 
@@ -237,6 +241,55 @@ class SyncApi(
                     .post("/api/v1/listening/events") {
                         contentType(ContentType.Application.Json)
                         setBody(ListeningEventsRequest(events = events))
+                    }.body()
+            response.toResult().getOrThrow()
+        }
+
+    /**
+     * Get playback progress for a specific book.
+     *
+     * Used for cross-device sync: checks if another device has newer progress.
+     * Returns null if no progress exists (404 response).
+     *
+     * Endpoint: GET /api/v1/listening/progress/{bookId}
+     * Auth: Required
+     *
+     * @param bookId Book to get progress for
+     * @return Result containing PlaybackProgressResponse or null if not found
+     */
+    override suspend fun getProgress(bookId: String): Result<PlaybackProgressResponse?> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            val httpResponse: HttpResponse = client.get("/api/v1/listening/progress/$bookId")
+
+            // Handle 404 as null (no progress yet)
+            if (httpResponse.status == HttpStatusCode.NotFound) {
+                return@suspendRunCatching null
+            }
+
+            val response: ApiResponse<PlaybackProgressResponse> = httpResponse.body()
+            response.toResult().getOrThrow()
+        }
+
+    /**
+     * Get list of books with playback progress (Continue Listening).
+     *
+     * Returns display-ready items with embedded book details,
+     * eliminating the need for client-side joins.
+     *
+     * Endpoint: GET /api/v1/listening/continue
+     * Auth: Required
+     *
+     * @param limit Maximum number of books to return
+     * @return Result containing list of ContinueListeningItemResponse
+     */
+    override suspend fun getContinueListening(limit: Int): Result<List<ContinueListeningItemResponse>> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            val response: ApiResponse<List<ContinueListeningItemResponse>> =
+                client
+                    .get("/api/v1/listening/continue") {
+                        parameter("limit", limit)
                     }.body()
             response.toResult().getOrThrow()
         }

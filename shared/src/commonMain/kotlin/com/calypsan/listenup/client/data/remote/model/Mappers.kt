@@ -34,6 +34,7 @@ fun BookResponse.toEntity(): BookEntity =
         title = title,
         subtitle = subtitle,
         coverUrl = coverImage?.path,
+        coverBlurHash = coverImage?.blurHash,
         totalDuration = totalDuration,
         description = description,
         genres = genres?.joinToString(", "),

@@ -2,6 +2,8 @@ package com.calypsan.listenup.client.di
 
 import com.calypsan.listenup.client.core.IosSecureStorage
 import com.calypsan.listenup.client.core.SecureStorage
+import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
+import com.calypsan.listenup.client.data.local.images.IosCoverColorExtractor
 import com.calypsan.listenup.client.data.repository.IosNetworkMonitor
 import com.calypsan.listenup.client.data.repository.NetworkMonitor
 import org.koin.core.module.Module
@@ -19,5 +21,9 @@ actual val platformStorageModule: Module =
 
         single<NetworkMonitor> {
             IosNetworkMonitor()
+        }
+
+        single<CoverColorExtractor> {
+            IosCoverColorExtractor()
         }
     }

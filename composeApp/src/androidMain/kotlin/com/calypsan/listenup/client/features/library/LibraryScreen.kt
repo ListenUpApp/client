@@ -62,6 +62,7 @@ fun LibraryScreen(
 
     // Collect all state flows
     val books by viewModel.books.collectAsStateWithLifecycle()
+    val hasLoadedBooks by viewModel.hasLoadedBooks.collectAsStateWithLifecycle()
     val series by viewModel.series.collectAsStateWithLifecycle()
     val authors by viewModel.authors.collectAsStateWithLifecycle()
     val narrators by viewModel.narrators.collectAsStateWithLifecycle()
@@ -106,6 +107,7 @@ fun LibraryScreen(
                     LibraryTab.Books -> {
                         BooksContent(
                             books = books,
+                            hasLoadedBooks = hasLoadedBooks,
                             syncState = syncState,
                             sortState = booksSortState,
                             ignoreTitleArticles = ignoreTitleArticles,

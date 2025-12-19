@@ -16,6 +16,7 @@ import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.domain.model.SearchResult
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -105,6 +106,9 @@ class SearchRepository(
         if (networkMonitor.isOnline()) {
             try {
                 return searchServer(sanitizedQuery, types, genres, genrePath, limit)
+            } catch (e: CancellationException) {
+                // Preserve structured concurrency - re-throw cancellation
+                throw e
             } catch (e: Exception) {
                 logger.warn(e) { "Server search failed, falling back to local FTS" }
                 // Fall through to local search
@@ -154,7 +158,6 @@ class SearchRepository(
                 measureTimedValue {
                     val ftsQuery = toFtsQuery(query)
                     val searchTypes = types ?: SearchHitType.entries
-
                     val hits = mutableListOf<SearchHit>()
 
                     // Search each type

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -63,8 +64,21 @@ class LibraryViewModel(
     private val _ignoreTitleArticles = MutableStateFlow(true)
     val ignoreTitleArticles: StateFlow<Boolean> = _ignoreTitleArticles.asStateFlow()
 
+    // Series display preferences
+    private val _hideSingleBookSeries = MutableStateFlow(true)
+    val hideSingleBookSeries: StateFlow<Boolean> = _hideSingleBookSeries.asStateFlow()
+
+    // Tracks whether initial database load has completed
+    // Used to distinguish "loading" from "truly empty" in UI
+    private val _hasLoadedBooks = MutableStateFlow(false)
+    val hasLoadedBooks: StateFlow<Boolean> = _hasLoadedBooks.asStateFlow()
+
     /**
      * Observable list of books, sorted by current sort state.
+     *
+     * Uses SharingStarted.Eagerly so database loading begins immediately when
+     * the ViewModel is created (at AppShell level), not when Library screen
+     * is first displayed. This eliminates the "Loading library..." flash.
      */
     val books: StateFlow<List<Book>> =
         combine(
@@ -73,21 +87,34 @@ class LibraryViewModel(
             _ignoreTitleArticles,
         ) { books, sortState, ignoreArticles ->
             sortBooks(books, sortState, ignoreArticles)
+        }.onEach {
+            // Mark as loaded after first database emission
+            if (!_hasLoadedBooks.value) {
+                _hasLoadedBooks.value = true
+            }
         }.stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.Eagerly,
             initialValue = emptyList(),
         )
 
     /**
-     * Observable list of series with their books, sorted by current sort state.
+     * Observable list of series with their books, sorted and filtered by current state.
+     * Filters out single-book series when hideSingleBookSeries is enabled.
      */
     val series: StateFlow<List<SeriesWithBooks>> =
         combine(
             seriesDao.observeAllWithBooks(),
             _seriesSortState,
-        ) { series, sortState ->
-            sortSeries(series, sortState)
+            _hideSingleBookSeries,
+        ) { series, sortState, hideSingle ->
+            val filtered =
+                if (hideSingle) {
+                    series.filter { it.books.size > 1 }
+                } else {
+                    series
+                }
+            sortSeries(filtered, sortState)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -182,6 +209,8 @@ class LibraryViewModel(
             }
             // Load article handling preference
             _ignoreTitleArticles.value = settingsRepository.getIgnoreTitleArticles()
+            // Load series display preference
+            _hideSingleBookSeries.value = settingsRepository.getHideSingleBookSeries()
         }
 
         logger.debug { "Initialized (auto-sync deferred until screen visible)" }
@@ -189,8 +218,15 @@ class LibraryViewModel(
 
     /**
      * Called when the Library screen becomes visible.
+     * Reloads preferences that may have changed in Settings.
      */
     fun onScreenVisible() {
+        // Reload preferences in case user changed them in Settings
+        viewModelScope.launch {
+            _hideSingleBookSeries.value = settingsRepository.getHideSingleBookSeries()
+            _ignoreTitleArticles.value = settingsRepository.getIgnoreTitleArticles()
+        }
+
         if (hasPerformedInitialSync) return
         hasPerformedInitialSync = true
 

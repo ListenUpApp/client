@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.remote
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
 import com.calypsan.listenup.client.data.remote.model.ContributorResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.data.remote.model.SeriesResponse
@@ -117,6 +118,34 @@ interface SyncApiContract {
      * Submit listening events to the server.
      */
     suspend fun submitListeningEvents(events: List<ListeningEventRequest>): Result<ListeningEventsResponse>
+
+    /**
+     * Get playback progress for a specific book.
+     *
+     * Used for cross-device sync: checks if another device has newer progress.
+     * Returns null if no progress exists for this book.
+     *
+     * Endpoint: GET /api/v1/listening/progress/{bookId}
+     * Auth: Required
+     *
+     * @param bookId Book to get progress for
+     * @return Result containing PlaybackProgressResponse or null if not found
+     */
+    suspend fun getProgress(bookId: String): Result<PlaybackProgressResponse?>
+
+    /**
+     * Get list of books with playback progress (Continue Listening).
+     *
+     * Returns display-ready items with embedded book details.
+     * No client-side joins required - ready for immediate display.
+     *
+     * Endpoint: GET /api/v1/listening/continue
+     * Auth: Required
+     *
+     * @param limit Maximum number of books to return (default 10)
+     * @return Result containing list of ContinueListeningItemResponse
+     */
+    suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningItemResponse>>
 }
 
 /**
@@ -282,6 +311,36 @@ interface ImageApiContract {
      * @return Result with Unit on success or error
      */
     suspend fun deleteSeriesCover(seriesId: String): Result<Unit>
+
+    /**
+     * Download multiple covers in a single request.
+     *
+     * Server returns a TAR stream containing all requested covers.
+     * Missing covers are silently skipped by the server.
+     *
+     * Endpoint: GET /api/v1/covers/batch?ids=book_1,book_2
+     * Auth: Not required (public access)
+     * Response: application/x-tar (TAR archive)
+     *
+     * @param bookIds List of book IDs to download covers for (max 100)
+     * @return Result containing map of bookId to cover bytes for successfully downloaded covers
+     */
+    suspend fun downloadCoverBatch(bookIds: List<String>): Result<Map<String, ByteArray>>
+
+    /**
+     * Download multiple contributor images in a single request.
+     *
+     * Server returns a TAR stream containing all requested images.
+     * Missing images are silently skipped by the server.
+     *
+     * Endpoint: GET /api/v1/contributors/images/batch?ids=contrib_1,contrib_2
+     * Auth: Required (Bearer token)
+     * Response: application/x-tar (TAR archive)
+     *
+     * @param contributorIds List of contributor IDs to download images for (max 100)
+     * @return Result containing map of contributorId to image bytes for successfully downloaded images
+     */
+    suspend fun downloadContributorImageBatch(contributorIds: List<String>): Result<Map<String, ByteArray>>
 }
 
 /**
@@ -637,4 +696,53 @@ data class SeriesEditResponse(
     val name: String,
     val description: String? = null,
     val updatedAt: String,
+)
+
+/**
+ * Contract interface for user preferences API operations.
+ *
+ * Handles syncing user preferences across devices.
+ * Preferences include playback defaults and other user-specific settings.
+ */
+interface UserPreferencesApiContract {
+    /**
+     * Get user preferences from the server.
+     *
+     * Endpoint: GET /api/v1/user/preferences
+     * Auth: Required
+     *
+     * @return Result containing user preferences or error
+     */
+    suspend fun getPreferences(): Result<UserPreferencesResponse>
+
+    /**
+     * Update user preferences on the server.
+     *
+     * Endpoint: PUT /api/v1/user/preferences
+     * Auth: Required
+     *
+     * @param request The preferences to update
+     * @return Result containing updated preferences or error
+     */
+    suspend fun updatePreferences(request: UserPreferencesRequest): Result<UserPreferencesResponse>
+}
+
+/**
+ * Response from user preferences endpoint.
+ *
+ * Extensible for future preferences (sort settings, theme, etc.)
+ */
+data class UserPreferencesResponse(
+    /** Default playback speed for new books (e.g., 1.0, 1.25, 1.5) */
+    val defaultPlaybackSpeed: Float,
+)
+
+/**
+ * Request to update user preferences.
+ *
+ * All fields are optional - only non-null fields are updated.
+ */
+data class UserPreferencesRequest(
+    /** Default playback speed for new books (e.g., 1.0, 1.25, 1.5) */
+    val defaultPlaybackSpeed: Float? = null,
 )

@@ -40,6 +40,9 @@ class FtsPopulator(
      *
      * This is a full rebuild that clears and repopulates all FTS tables.
      * Call after sync operations complete to ensure search is up-to-date.
+     *
+     * Note: FTS tables are created by FtsTableCallback in DatabaseModule on database open,
+     * so they will exist by the time this method is called.
      */
     override suspend fun rebuildAll() =
         withContext(Dispatchers.IO) {
@@ -47,9 +50,12 @@ class FtsPopulator(
 
             val duration =
                 measureTime {
-                    rebuildBooks()
-                    rebuildContributors()
-                    rebuildSeries()
+                    val bookCount = rebuildBooks()
+                    val contributorCount = rebuildContributors()
+                    val seriesCount = rebuildSeries()
+                    logger.info {
+                        "FTS tables populated: $bookCount books, $contributorCount contributors, $seriesCount series"
+                    }
                 }
 
             logger.info { "FTS rebuild completed in ${duration.inWholeMilliseconds}ms" }
@@ -60,8 +66,10 @@ class FtsPopulator(
      *
      * Denormalizes author, narrator, and series name into the FTS table
      * for rich search results.
+     *
+     * @return Number of books inserted into FTS
      */
-    private suspend fun rebuildBooks() {
+    private suspend fun rebuildBooks(): Int {
         logger.debug { "Rebuilding books_fts..." }
 
         // Clear existing entries
@@ -96,12 +104,15 @@ class FtsPopulator(
         }
 
         logger.debug { "Rebuilt books_fts: $insertCount entries from ${books.size} books" }
+        return insertCount
     }
 
     /**
      * Rebuild contributor FTS entries.
+     *
+     * @return Number of contributors inserted into FTS
      */
-    private suspend fun rebuildContributors() {
+    private suspend fun rebuildContributors(): Int {
         logger.debug { "Rebuilding contributors_fts..." }
 
         // Clear existing entries
@@ -126,12 +137,15 @@ class FtsPopulator(
         }
 
         logger.debug { "Rebuilt contributors_fts: $insertCount entries" }
+        return insertCount
     }
 
     /**
      * Rebuild series FTS entries.
+     *
+     * @return Number of series inserted into FTS
      */
-    private suspend fun rebuildSeries() {
+    private suspend fun rebuildSeries(): Int {
         logger.debug { "Rebuilding series_fts..." }
 
         // Clear existing entries
@@ -156,5 +170,6 @@ class FtsPopulator(
         }
 
         logger.debug { "Rebuilt series_fts: $insertCount entries" }
+        return insertCount
     }
 }

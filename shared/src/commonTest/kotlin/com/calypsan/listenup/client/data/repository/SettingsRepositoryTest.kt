@@ -46,7 +46,7 @@ class SettingsRepositoryTest {
     private fun createMockInstanceRepository(): InstanceRepository = mock<InstanceRepository>()
 
     @Test
-    fun `initial auth state is NeedsServerUrl`() =
+    fun `initial auth state is Initializing`() =
         runTest {
             // Given
             val storage = createMockStorage()
@@ -54,7 +54,8 @@ class SettingsRepositoryTest {
             val repository = SettingsRepository(storage, instanceRepository)
 
             // Then - initial state before initializeAuthState is called
-            assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
+            // Initializing prevents flash of wrong screen on app startup
+            assertIs<AuthState.Initializing>(repository.authState.value)
         }
 
     @Test
@@ -422,5 +423,104 @@ class SettingsRepositoryTest {
 
             // Then - stays in NeedsLogin, doesn't clear URL (user can retry)
             assertIs<AuthState.NeedsLogin>(repository.authState.value)
+        }
+
+    @Test
+    fun `getSpatialPlayback returns true by default`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("spatial_playback") } returns null
+
+            // When
+            val result = repository.getSpatialPlayback()
+
+            // Then
+            assertTrue(result)
+        }
+
+    @Test
+    fun `getSpatialPlayback returns false when set to false`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("spatial_playback") } returns "false"
+
+            // When
+            val result = repository.getSpatialPlayback()
+
+            // Then
+            assertFalse(result)
+        }
+
+    @Test
+    fun `getSpatialPlayback returns true when set to true`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.read("spatial_playback") } returns "true"
+
+            // When
+            val result = repository.getSpatialPlayback()
+
+            // Then
+            assertTrue(result)
+        }
+
+    @Test
+    fun `setSpatialPlayback stores false correctly`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.save("spatial_playback", "false") } returns Unit
+
+            // When
+            repository.setSpatialPlayback(false)
+
+            // Then
+            verifySuspend { storage.save("spatial_playback", "false") }
+        }
+
+    @Test
+    fun `setSpatialPlayback stores true correctly`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.save("spatial_playback", "true") } returns Unit
+
+            // When
+            repository.setSpatialPlayback(true)
+
+            // Then
+            verifySuspend { storage.save("spatial_playback", "true") }
+        }
+
+    @Test
+    fun `setSpatialPlayback and getSpatialPlayback persist value correctly`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository = SettingsRepository(storage, instanceRepository)
+            everySuspend { storage.save("spatial_playback", "false") } returns Unit
+            everySuspend { storage.read("spatial_playback") } returns "false"
+
+            // When
+            repository.setSpatialPlayback(false)
+            val result = repository.getSpatialPlayback()
+
+            // Then
+            assertFalse(result)
+            verifySuspend { storage.save("spatial_playback", "false") }
         }
 }

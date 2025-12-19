@@ -1,7 +1,14 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.calypsan.listenup.client.data.remote.model
 
+import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 /**
  * Response from GET /api/v1/listening/continue endpoint.
@@ -30,4 +37,26 @@ data class PlaybackProgressResponse(
     // ISO 8601 timestamp
     @SerialName("updated_at")
     val updatedAt: String,
-)
+) {
+    /**
+     * Convert to local PlaybackPositionEntity for caching.
+     */
+    fun toEntity(): PlaybackPositionEntity =
+        PlaybackPositionEntity(
+            bookId = BookId(bookId),
+            positionMs = currentPositionMs,
+            playbackSpeed = 1.0f, // Server doesn't track per-position speed
+            updatedAt = lastPlayedAtMillis(),
+            syncedAt = Clock.System.now().toEpochMilliseconds(),
+        )
+
+    /**
+     * Parse lastPlayedAt ISO 8601 timestamp to epoch milliseconds.
+     */
+    fun lastPlayedAtMillis(): Long =
+        try {
+            Instant.parse(lastPlayedAt).toEpochMilliseconds()
+        } catch (e: Exception) {
+            0L
+        }
+}

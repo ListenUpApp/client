@@ -77,6 +77,28 @@ interface SettingsRepositoryContract {
     suspend fun getIgnoreTitleArticles(): Boolean
 
     suspend fun setIgnoreTitleArticles(ignore: Boolean)
+
+    suspend fun getHideSingleBookSeries(): Boolean
+
+    suspend fun setHideSingleBookSeries(hide: Boolean)
+
+    // Playback preferences
+    suspend fun getSpatialPlayback(): Boolean
+
+    suspend fun setSpatialPlayback(enabled: Boolean)
+
+    /**
+     * Get the default playback speed for new books.
+     * @return Playback speed multiplier (e.g., 1.0, 1.25, 1.5). Default is 1.0.
+     */
+    suspend fun getDefaultPlaybackSpeed(): Float
+
+    /**
+     * Set the default playback speed for new books.
+     * This is a synced setting - will be pushed to server.
+     * @param speed Playback speed multiplier (e.g., 1.0, 1.25, 1.5)
+     */
+    suspend fun setDefaultPlaybackSpeed(speed: Float)
 }
 
 /**
@@ -94,7 +116,7 @@ class SettingsRepository(
     private val secureStorage: SecureStorage,
     private val instanceRepository: InstanceRepository,
 ) : SettingsRepositoryContract {
-    private val _authState = MutableStateFlow<AuthState>(AuthState.NeedsServerUrl)
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Initializing)
     override val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     companion object {
@@ -112,6 +134,16 @@ class SettingsRepository(
 
         // Title sort article handling
         private const val KEY_IGNORE_TITLE_ARTICLES = "ignore_title_articles"
+
+        // Series display preferences
+        private const val KEY_HIDE_SINGLE_BOOK_SERIES = "hide_single_book_series"
+
+        // Playback preferences
+        private const val KEY_SPATIAL_PLAYBACK = "spatial_playback"
+        private const val KEY_DEFAULT_PLAYBACK_SPEED = "default_playback_speed"
+
+        // Default values
+        const val DEFAULT_PLAYBACK_SPEED = 1.0f
     }
 
     // Server configuration
@@ -428,5 +460,59 @@ class SettingsRepository(
      */
     override suspend fun setIgnoreTitleArticles(ignore: Boolean) {
         secureStorage.save(KEY_IGNORE_TITLE_ARTICLES, ignore.toString())
+    }
+
+    // Series display preferences
+
+    /**
+     * Get whether to hide series with only one book.
+     * @return true to hide single-book series (default), false to show all
+     */
+    override suspend fun getHideSingleBookSeries(): Boolean =
+        secureStorage.read(KEY_HIDE_SINGLE_BOOK_SERIES)?.toBooleanStrictOrNull() ?: true
+
+    /**
+     * Set whether to hide series with only one book.
+     */
+    override suspend fun setHideSingleBookSeries(hide: Boolean) {
+        secureStorage.save(KEY_HIDE_SINGLE_BOOK_SERIES, hide.toString())
+    }
+
+    // Playback preferences
+
+    /**
+     * Get whether spatial (5.1 surround) audio is preferred.
+     * When enabled, transcoded audio uses 5.1 surround for spatial audio support.
+     * When disabled, uses stereo for faster transcoding and universal compatibility.
+     * @return true for 5.1 spatial (default), false for stereo
+     */
+    override suspend fun getSpatialPlayback(): Boolean =
+        secureStorage.read(KEY_SPATIAL_PLAYBACK)?.toBooleanStrictOrNull() ?: true
+
+    /**
+     * Set spatial audio preference.
+     * This is a per-device setting - different devices can have different preferences.
+     */
+    override suspend fun setSpatialPlayback(enabled: Boolean) {
+        secureStorage.save(KEY_SPATIAL_PLAYBACK, enabled.toString())
+    }
+
+    // Universal playback speed (synced across devices)
+
+    /**
+     * Get the default playback speed for new books.
+     * This is a synced setting - the value may be updated when preferences sync.
+     * @return Playback speed multiplier (e.g., 1.0, 1.25, 1.5). Default is 1.0.
+     */
+    override suspend fun getDefaultPlaybackSpeed(): Float =
+        secureStorage.read(KEY_DEFAULT_PLAYBACK_SPEED)?.toFloatOrNull() ?: DEFAULT_PLAYBACK_SPEED
+
+    /**
+     * Set the default playback speed for new books.
+     * This is a synced setting - will be pushed to server by SyncManager.
+     * @param speed Playback speed multiplier (e.g., 1.0, 1.25, 1.5)
+     */
+    override suspend fun setDefaultPlaybackSpeed(speed: Float) {
+        secureStorage.save(KEY_DEFAULT_PLAYBACK_SPEED, speed.toString())
     }
 }

@@ -31,7 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
@@ -62,8 +61,9 @@ fun NowPlayingBar(
     onSkipForward: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Show bar when visible (playing) OR when preparing (transcoding)
     AnimatedVisibility(
-        visible = state.isVisible && !state.isExpanded,
+        visible = (state.isVisible || state.isPreparing) && !state.isExpanded,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
         exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
         modifier = modifier,
@@ -90,12 +90,12 @@ fun NowPlayingBar(
                     // Cover art
                     ListenUpAsyncImage(
                         path = state.coverUrl,
+                        blurHash = state.coverBlurHash,
                         contentDescription = "Book cover",
                         modifier =
                             Modifier
                                 .size(56.dp)
                                 .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop,
                     )
 
                     Spacer(Modifier.width(12.dp))
@@ -103,48 +103,74 @@ fun NowPlayingBar(
                     // Text info
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = state.title,
+                            text = state.title.ifEmpty { "Preparing..." },
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            text = state.author,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        state.chapterTitle?.let { chapter ->
+                        if (state.isPreparing) {
+                            // Show prepare message during transcoding
                             Text(
-                                text = chapter,
-                                style = MaterialTheme.typography.labelSmall,
+                                text = state.prepareMessage ?: "Preparing audio...",
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
+                        } else {
+                            Text(
+                                text = state.author,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            state.chapterTitle?.let { chapter ->
+                                Text(
+                                    text = chapter,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
 
-                    // Controls
-                    NowPlayingBarControls(
-                        isPlaying = state.isPlaying,
-                        onPlayPause = onPlayPause,
-                        onSkipBack = onSkipBack,
-                        onSkipForward = onSkipForward,
-                    )
+                    // Controls (hide during preparing)
+                    if (!state.isPreparing) {
+                        NowPlayingBarControls(
+                            isPlaying = state.isPlaying,
+                            onPlayPause = onPlayPause,
+                            onSkipBack = onSkipBack,
+                            onSkipForward = onSkipForward,
+                        )
+                    }
                 }
 
-                // Progress bar
-                LinearProgressIndicator(
-                    progress = { state.bookProgress },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(3.dp),
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    drawStopIndicator = {},
-                )
+                // Progress bar - show transcode progress during preparing, playback progress otherwise
+                if (state.isPreparing) {
+                    LinearProgressIndicator(
+                        progress = { state.prepareProgress / 100f },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(3.dp),
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        color = MaterialTheme.colorScheme.tertiary,
+                        drawStopIndicator = {},
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        progress = { state.bookProgress },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(3.dp),
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        drawStopIndicator = {},
+                    )
+                }
             }
         }
     }

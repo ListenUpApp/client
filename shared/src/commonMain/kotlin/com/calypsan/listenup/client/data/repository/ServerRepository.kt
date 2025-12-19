@@ -1,15 +1,19 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.discovery.DiscoveredServer
 import com.calypsan.listenup.client.data.discovery.ServerDiscoveryService
 import com.calypsan.listenup.client.data.local.db.ServerDao
 import com.calypsan.listenup.client.data.local.db.ServerEntity
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Server with online status, combining persisted data and discovery state.
@@ -111,21 +115,32 @@ interface ServerRepositoryContract {
 }
 
 /**
+ * Callback interface for server URL changes.
+ * Used to notify dependent components when the active server's URL changes.
+ */
+fun interface ServerUrlChangeListener {
+    suspend fun onServerUrlChanged(newUrl: ServerUrl)
+}
+
+/**
  * Repository for managing ListenUp servers.
  *
  * Bridges mDNS discovery with local persistence:
  * - Discovered servers are automatically persisted
  * - Persisted servers show online/offline status based on discovery
  * - Auth tokens are stored per-server for instant switching
+ * - Notifies listeners when active server URL changes (for API client invalidation)
  *
  * @param serverDao Database access for server persistence
  * @param discoveryService Platform-specific mDNS discovery
  * @param scope Coroutine scope for background operations
+ * @param urlChangeListener Optional callback when active server URL changes
  */
 class ServerRepository(
     private val serverDao: ServerDao,
     private val discoveryService: ServerDiscoveryService,
     private val scope: CoroutineScope,
+    private val urlChangeListener: ServerUrlChangeListener? = null,
 ) : ServerRepositoryContract {
     override fun observeServers(): Flow<List<ServerWithStatus>> =
         combine(
@@ -139,6 +154,14 @@ class ServerRepository(
                 for (disc in discovered) {
                     val existing = serverDao.getById(disc.id)
                     if (existing != null) {
+                        // Check if this is the active server and URL changed
+                        val urlChanged = existing.isActive && existing.localUrl != disc.localUrl
+                        if (urlChanged) {
+                            logger.info {
+                                "Active server IP changed: ${existing.localUrl} -> ${disc.localUrl}"
+                            }
+                        }
+
                         // Server exists - update from discovery
                         serverDao.updateFromDiscovery(
                             id = disc.id,
@@ -148,6 +171,11 @@ class ServerRepository(
                             localUrl = disc.localUrl,
                             remoteUrl = disc.remoteUrl,
                         )
+
+                        // Notify listener if active server's URL changed
+                        if (urlChanged) {
+                            urlChangeListener?.onServerUrlChanged(ServerUrl(disc.localUrl))
+                        }
                     } else {
                         // New server - insert it
                         serverDao.upsert(disc.toEntity())

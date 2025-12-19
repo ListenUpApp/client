@@ -5,7 +5,9 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import com.calypsan.listenup.client.data.local.db.DownloadDao
+import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.playback.AudioCapabilityDetector
 import com.calypsan.listenup.client.playback.AudioTokenProvider
 
 /**
@@ -16,6 +18,8 @@ class DownloadWorkerFactory(
     private val fileManager: DownloadFileManager,
     private val tokenProvider: AudioTokenProvider,
     private val settingsRepository: SettingsRepository,
+    private val playbackApi: PlaybackApi,
+    private val capabilityDetector: AudioCapabilityDetector,
 ) : WorkerFactory() {
     override fun createWorker(
         appContext: Context,
@@ -30,6 +34,8 @@ class DownloadWorkerFactory(
                 fileManager,
                 tokenProvider,
                 settingsRepository,
+                playbackApi,
+                capabilityDetector,
             )
         } else {
             null

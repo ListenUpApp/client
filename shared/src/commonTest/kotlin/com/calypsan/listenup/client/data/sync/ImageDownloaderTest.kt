@@ -4,6 +4,8 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
+import com.calypsan.listenup.client.data.local.images.ExtractedColors
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.ImageApiContract
 import dev.mokkery.answering.returns
@@ -24,9 +26,10 @@ import kotlin.test.assertTrue
  * Tests cover:
  * - Single cover download (success, already exists, API failure, storage failure)
  * - Batch cover download
+ * - Color extraction integration
  * - Non-fatal error handling
  *
- * Uses Mokkery for mocking ImageApiContract and ImageStorage.
+ * Uses Mokkery for mocking ImageApiContract, ImageStorage, and CoverColorExtractor.
  */
 class ImageDownloaderTest {
     // ========== Test Fixtures ==========
@@ -34,11 +37,13 @@ class ImageDownloaderTest {
     private class TestFixture {
         val imageApi: ImageApiContract = mock()
         val imageStorage: ImageStorage = mock()
+        val colorExtractor: CoverColorExtractor = mock()
 
         fun build(): ImageDownloader =
             ImageDownloader(
                 imageApi = imageApi,
                 imageStorage = imageStorage,
+                colorExtractor = colorExtractor,
             )
     }
 
@@ -49,6 +54,7 @@ class ImageDownloaderTest {
         every { fixture.imageStorage.exists(any()) } returns false
         everySuspend { fixture.imageApi.downloadCover(any()) } returns Success(ByteArray(100))
         everySuspend { fixture.imageStorage.saveCover(any(), any()) } returns Success(Unit)
+        everySuspend { fixture.colorExtractor.extractColors(any()) } returns null
 
         return fixture
     }
@@ -151,28 +157,42 @@ class ImageDownloaderTest {
     // ========== Batch Download Tests ==========
 
     @Test
-    fun `downloadCovers returns list of successfully downloaded book IDs`() =
+    fun `downloadCovers returns list of download results with extracted colors`() =
         runTest {
             // Given
             val fixture = createFixture()
             val book1 = BookId("book-1")
             val book2 = BookId("book-2")
             val book3 = BookId("book-3")
+            val testColors = ExtractedColors(dominant = 0xFF000000.toInt(), darkMuted = 0xFF333333.toInt(), vibrant = 0xFFFF0000.toInt())
+            val imageBytes = ByteArray(100)
 
             every { fixture.imageStorage.exists(any()) } returns false
-            everySuspend { fixture.imageApi.downloadCover(any()) } returns Success(ByteArray(100))
+            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns
+                Success(
+                    mapOf(
+                        "book-1" to imageBytes,
+                        "book-2" to imageBytes,
+                        "book-3" to imageBytes,
+                    ),
+                )
             everySuspend { fixture.imageStorage.saveCover(any(), any()) } returns Success(Unit)
+            everySuspend { fixture.colorExtractor.extractColors(any()) } returns testColors
             val imageDownloader = fixture.build()
 
             // When
             val result = imageDownloader.downloadCovers(listOf(book1, book2, book3))
 
             // Then
-            assertIs<Success<List<BookId>>>(result)
+            assertIs<Success<List<CoverDownloadResult>>>(result)
             assertEquals(3, result.data.size)
-            assertTrue(result.data.contains(book1))
-            assertTrue(result.data.contains(book2))
-            assertTrue(result.data.contains(book3))
+            assertTrue(result.data.any { it.bookId == book1 })
+            assertTrue(result.data.any { it.bookId == book2 })
+            assertTrue(result.data.any { it.bookId == book3 })
+            // Verify colors were extracted
+            result.data.forEach { downloadResult ->
+                assertEquals(testColors, downloadResult.colors)
+            }
         }
 
     @Test
@@ -182,11 +202,15 @@ class ImageDownloaderTest {
             val fixture = createFixture()
             val book1 = BookId("book-1")
             val book2 = BookId("book-2")
+            val imageBytes = ByteArray(100)
 
             // book-1 already exists
             every { fixture.imageStorage.exists(book1) } returns true
             every { fixture.imageStorage.exists(book2) } returns false
-            everySuspend { fixture.imageApi.downloadCover(book2) } returns Success(ByteArray(100))
+            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns
+                Success(
+                    mapOf("book-2" to imageBytes),
+                )
             everySuspend { fixture.imageStorage.saveCover(any(), any()) } returns Success(Unit)
             val imageDownloader = fixture.build()
 
@@ -194,38 +218,61 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCovers(listOf(book1, book2))
 
             // Then - only book-2 was newly downloaded
-            assertIs<Success<List<BookId>>>(result)
+            assertIs<Success<List<CoverDownloadResult>>>(result)
             assertEquals(1, result.data.size)
-            assertEquals(book2, result.data[0])
+            assertEquals(book2, result.data[0].bookId)
         }
 
     @Test
-    fun `downloadCovers continues on individual failures`() =
+    fun `downloadCovers continues on batch failures`() =
         runTest {
             // Given
             val fixture = createFixture()
             val book1 = BookId("book-1")
             val book2 = BookId("book-2")
-            val book3 = BookId("book-3")
 
             every { fixture.imageStorage.exists(any()) } returns false
-            // book-1 fails (404)
-            everySuspend { fixture.imageApi.downloadCover(book1) } returns Failure(Exception("Not found"))
-            // book-2 succeeds
-            everySuspend { fixture.imageApi.downloadCover(book2) } returns Success(ByteArray(100))
-            // book-3 storage fails
-            everySuspend { fixture.imageApi.downloadCover(book3) } returns Success(ByteArray(100))
-            everySuspend { fixture.imageStorage.saveCover(book2, any()) } returns Success(Unit)
-            everySuspend { fixture.imageStorage.saveCover(book3, any()) } returns Failure(Exception("Disk full"))
+            // Batch download fails entirely
+            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns Failure(Exception("Network error"))
             val imageDownloader = fixture.build()
 
             // When
-            val result = imageDownloader.downloadCovers(listOf(book1, book2, book3))
+            val result = imageDownloader.downloadCovers(listOf(book1, book2))
 
-            // Then - batch continues despite failures, only successful downloads in result
-            assertIs<Success<List<BookId>>>(result)
+            // Then - result is empty but not failure
+            assertIs<Success<List<CoverDownloadResult>>>(result)
+            assertTrue(result.data.isEmpty())
+        }
+
+    @Test
+    fun `downloadCovers handles storage failure for individual books`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book1 = BookId("book-1")
+            val book2 = BookId("book-2")
+            val imageBytes = ByteArray(100)
+
+            every { fixture.imageStorage.exists(any()) } returns false
+            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns
+                Success(
+                    mapOf(
+                        "book-1" to imageBytes,
+                        "book-2" to imageBytes,
+                    ),
+                )
+            // book-1 storage fails, book-2 succeeds
+            everySuspend { fixture.imageStorage.saveCover(book1, any()) } returns Failure(Exception("Disk full"))
+            everySuspend { fixture.imageStorage.saveCover(book2, any()) } returns Success(Unit)
+            val imageDownloader = fixture.build()
+
+            // When
+            val result = imageDownloader.downloadCovers(listOf(book1, book2))
+
+            // Then - only successful saves are included
+            assertIs<Success<List<CoverDownloadResult>>>(result)
             assertEquals(1, result.data.size)
-            assertEquals(book2, result.data[0])
+            assertEquals(book2, result.data[0].bookId)
         }
 
     @Test
@@ -237,14 +284,14 @@ class ImageDownloaderTest {
             val book2 = BookId("book-2")
 
             every { fixture.imageStorage.exists(any()) } returns false
-            everySuspend { fixture.imageApi.downloadCover(any()) } returns Failure(Exception("Network error"))
+            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns Failure(Exception("Network error"))
             val imageDownloader = fixture.build()
 
             // When
             val result = imageDownloader.downloadCovers(listOf(book1, book2))
 
             // Then
-            assertIs<Success<List<BookId>>>(result)
+            assertIs<Success<List<CoverDownloadResult>>>(result)
             assertTrue(result.data.isEmpty())
         }
 
@@ -259,7 +306,34 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCovers(emptyList())
 
             // Then
-            assertIs<Success<List<BookId>>>(result)
+            assertIs<Success<List<CoverDownloadResult>>>(result)
             assertTrue(result.data.isEmpty())
+        }
+
+    @Test
+    fun `downloadCovers returns null colors when extractor fails`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val book1 = BookId("book-1")
+            val imageBytes = ByteArray(100)
+
+            every { fixture.imageStorage.exists(any()) } returns false
+            everySuspend { fixture.imageApi.downloadCoverBatch(any()) } returns
+                Success(
+                    mapOf("book-1" to imageBytes),
+                )
+            everySuspend { fixture.imageStorage.saveCover(any(), any()) } returns Success(Unit)
+            everySuspend { fixture.colorExtractor.extractColors(any()) } returns null
+            val imageDownloader = fixture.build()
+
+            // When
+            val result = imageDownloader.downloadCovers(listOf(book1))
+
+            // Then - download succeeds but colors are null
+            assertIs<Success<List<CoverDownloadResult>>>(result)
+            assertEquals(1, result.data.size)
+            assertEquals(book1, result.data[0].bookId)
+            assertEquals(null, result.data[0].colors)
         }
 }
