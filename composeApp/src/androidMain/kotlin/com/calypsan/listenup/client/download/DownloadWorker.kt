@@ -169,7 +169,7 @@ class DownloadWorker(
                 throw IOException("Download failed: HTTP ${response.code}")
             }
 
-            val body = response.body
+            val body = response.body ?: throw IOException("Empty response body")
 
             val contentLength = body.contentLength()
             val totalSize =

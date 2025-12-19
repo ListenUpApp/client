@@ -14,7 +14,6 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /**
@@ -25,7 +24,6 @@ import kotlin.time.Instant
  * - Success and failure propagation
  * - ForceRefresh parameter forwarding
  */
-@OptIn(ExperimentalTime::class)
 class GetInstanceUseCaseTest {
     // ========== Test Fixtures ==========
 

@@ -2,6 +2,7 @@
 
 package com.calypsan.listenup.client.di
 
+import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.download.IosDownloadService
@@ -13,8 +14,6 @@ import com.calypsan.listenup.client.playback.SleepTimerManager
 import com.calypsan.listenup.client.sync.BackgroundSyncScheduler
 import com.calypsan.listenup.client.sync.IosBackgroundSyncScheduler
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
@@ -34,7 +33,7 @@ val iosPlaybackModule: Module =
     module {
         // Playback-scoped coroutine scope
         single(qualifier = named("playbackScope")) {
-            CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            CoroutineScope(SupervisorJob() + IODispatcher)
         }
 
         // Device ID for listening events
@@ -78,6 +77,7 @@ val iosPlaybackModule: Module =
                 positionDao = get(),
                 eventDao = get(),
                 downloadDao = get(),
+                syncApi = get(),
                 deviceId = get(qualifier = named("deviceId")),
                 scope = get(qualifier = named("playbackScope")),
             )
@@ -98,6 +98,8 @@ val iosPlaybackModule: Module =
                 progressTracker = get(),
                 tokenProvider = get(),
                 downloadService = get(),
+                playbackApi = null, // iOS uses native AVPlayer, no transcoding API needed
+                capabilityDetector = null, // iOS doesn't need codec detection
                 scope = get(qualifier = named("playbackScope")),
             )
         }

@@ -36,6 +36,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 
 /**
  * Tests for ContributorBooksViewModel.
@@ -165,7 +166,7 @@ class ContributorBooksViewModelTest {
             bookId = BookId(bookId),
             positionMs = positionMs,
             playbackSpeed = 1.0f,
-            updatedAt = System.currentTimeMillis(),
+            updatedAt = Clock.System.now().toEpochMilliseconds(),
         )
 
     @BeforeTest

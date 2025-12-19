@@ -3,6 +3,7 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -15,8 +16,6 @@ import com.calypsan.listenup.client.data.remote.ContributorInput
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.SeriesInput
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -108,7 +107,7 @@ class BookEditRepository(
         bookId: String,
         update: BookUpdateRequest,
     ): Result<BookEditResponse> =
-        withContext(Dispatchers.IO) {
+        withContext(IODispatcher) {
             logger.debug { "Updating book: $bookId" }
 
             // Send update to server
@@ -142,7 +141,7 @@ class BookEditRepository(
         bookId: String,
         contributors: List<ContributorInput>,
     ): Result<BookEditResponse> =
-        withContext(Dispatchers.IO) {
+        withContext(IODispatcher) {
             logger.debug { "Setting contributors for book: $bookId, count: ${contributors.size}" }
 
             // Send update to server
@@ -177,7 +176,7 @@ class BookEditRepository(
         bookId: String,
         series: List<SeriesInput>,
     ): Result<BookEditResponse> =
-        withContext(Dispatchers.IO) {
+        withContext(IODispatcher) {
             logger.debug { "Setting series for book: $bookId, count: ${series.size}" }
 
             // Send update to server

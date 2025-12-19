@@ -3,6 +3,7 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.SeriesDao
@@ -12,8 +13,6 @@ import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.SeriesEditResponse
 import com.calypsan.listenup.client.data.remote.SeriesUpdateRequest
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -76,7 +75,7 @@ class SeriesEditRepository(
         name: String?,
         description: String?,
     ): Result<SeriesEditResponse> =
-        withContext(Dispatchers.IO) {
+        withContext(IODispatcher) {
             logger.debug { "Updating series: $seriesId" }
 
             // Create request with only non-null fields

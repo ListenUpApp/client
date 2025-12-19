@@ -27,6 +27,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 
 /**
  * Unit tests for [ServerRepository].
@@ -110,7 +111,7 @@ class ServerRepositoryTest {
         sessionId = sessionId,
         userId = userId,
         isActive = isActive,
-        lastSeenAt = System.currentTimeMillis(),
+        lastSeenAt = Clock.System.now().toEpochMilliseconds(),
         lastConnectedAt = null,
     )
 

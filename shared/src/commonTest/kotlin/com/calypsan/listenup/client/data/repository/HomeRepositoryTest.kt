@@ -24,6 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 
 /**
  * Tests for HomeRepository.
@@ -76,7 +77,7 @@ class HomeRepositoryTest {
     private fun createPlaybackPosition(
         bookId: String,
         positionMs: Long,
-        updatedAt: Long = System.currentTimeMillis(),
+        updatedAt: Long = Clock.System.now().toEpochMilliseconds(),
     ): PlaybackPositionEntity =
         PlaybackPositionEntity(
             bookId = BookId(bookId),
@@ -186,7 +187,7 @@ class HomeRepositoryTest {
         }
 
     @Test
-    fun `getContinueListening filters out completed books (99%+)`() =
+    fun `getContinueListening filters out completed books at 99 percent or more`() =
         runTest {
             // Given
             val fixture = createFixture()
@@ -207,7 +208,7 @@ class HomeRepositoryTest {
         }
 
     @Test
-    fun `getContinueListening includes books at 98% progress`() =
+    fun `getContinueListening includes books at 98 percent progress`() =
         runTest {
             // Given
             val fixture = createFixture()

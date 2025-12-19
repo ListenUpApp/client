@@ -20,14 +20,12 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /**
  * Tests for SettingsRepository.
  * Uses Mokkery for mocking SecureStorage and InstanceRepository.
  */
-@OptIn(ExperimentalTime::class)
 class SettingsRepositoryTest {
     private fun createTestInstance(setupRequired: Boolean): Instance =
         Instance(

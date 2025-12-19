@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
@@ -17,8 +18,6 @@ import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.domain.model.SearchResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlin.time.measureTimedValue
 
@@ -129,7 +128,7 @@ class SearchRepository(
         genrePath: String?,
         limit: Int,
     ): SearchResult =
-        withContext(Dispatchers.IO) {
+        withContext(IODispatcher) {
             val typesParam = types?.joinToString(",") { it.name.lowercase() }
             val genresParam = genres?.joinToString(",")
 
@@ -153,7 +152,7 @@ class SearchRepository(
         types: List<SearchHitType>?,
         limit: Int,
     ): SearchResult =
-        withContext(Dispatchers.IO) {
+        withContext(IODispatcher) {
             val (result, duration) =
                 measureTimedValue {
                     val ftsQuery = toFtsQuery(query)

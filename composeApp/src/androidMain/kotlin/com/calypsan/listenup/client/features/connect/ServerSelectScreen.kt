@@ -45,7 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.R
+import com.calypsan.listenup.client.composeapp.R
 import com.calypsan.listenup.client.data.local.db.ServerEntity
 import com.calypsan.listenup.client.data.repository.ServerWithStatus
 import com.calypsan.listenup.client.design.theme.ListenUpTheme

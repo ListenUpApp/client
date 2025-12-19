@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.androidx.room)
@@ -10,10 +10,38 @@ plugins {
 }
 
 kotlin {
-    androidTarget {
+    // Android target using new AGP 9.0-compatible plugin
+    androidLibrary {
+        namespace = "com.calypsan.listenup.client.shared"
+        compileSdk =
+            libs.versions.android.compileSdk
+                .get()
+                .toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+
+        // Enable Android unit tests (runs on JVM, connected to commonTest)
+        withHostTest {}
+
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
             freeCompilerArgs.add("-Xexpect-actual-classes")
+        }
+
+        lint {
+            warningsAsErrors = false
+            abortOnError = true
+            checkDependencies = false // Avoid KMP dependency double-scanning
+            htmlReport = true
+            xmlReport = true
+            // KMP-specific accommodations
+            disable +=
+                setOf(
+                    "InvalidPackage", // False positives on multiplatform expect/actual
+                    "ObsoleteLintCustomCheck", // Third-party KMP libs may trigger this
+                )
         }
     }
 
@@ -82,38 +110,6 @@ kotlin {
             implementation(libs.mokkery.runtime)
             implementation(libs.kotlinx.coroutines.test)
         }
-    }
-}
-
-android {
-    namespace = "com.calypsan.listenup.client.shared"
-    compileSdk =
-        libs.versions.android.compileSdk
-            .get()
-            .toInt()
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-    defaultConfig {
-        minSdk =
-            libs.versions.android.minSdk
-                .get()
-                .toInt()
-    }
-
-    lint {
-        warningsAsErrors = false
-        abortOnError = true
-        checkDependencies = false // Avoid KMP dependency double-scanning
-        htmlReport = true
-        xmlReport = true
-        // KMP-specific accommodations
-        disable +=
-            setOf(
-                "InvalidPackage", // False positives on multiplatform expect/actual
-                "ObsoleteLintCustomCheck", // Third-party KMP libs may trigger this
-            )
     }
 }
 

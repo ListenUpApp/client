@@ -4,9 +4,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.ExperimentalTime
 
 /**
  * Tests for type-safe value classes: BookId, ChapterId, Timestamp.
@@ -16,7 +16,6 @@ import kotlin.time.ExperimentalTime
  * - toString behavior
  * - Timestamp arithmetic and comparison
  */
-@OptIn(ExperimentalTime::class)
 class ValueClassesTest {
     // ========== BookId Tests ==========
 
@@ -112,9 +111,9 @@ class ValueClassesTest {
 
     @Test
     fun `Timestamp now returns current time`() {
-        val before = System.currentTimeMillis()
+        val before = Clock.System.now().toEpochMilliseconds()
         val ts = Timestamp.now()
-        val after = System.currentTimeMillis()
+        val after = Clock.System.now().toEpochMilliseconds()
 
         assertTrue(ts.epochMillis >= before)
         assertTrue(ts.epochMillis <= after)
