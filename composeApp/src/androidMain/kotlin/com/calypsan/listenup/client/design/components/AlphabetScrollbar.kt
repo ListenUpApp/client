@@ -203,11 +203,11 @@ fun AlphabetScrollbar(
         }
     }
 
-    // Confident bounce spring - perceptible but not performative
-    val expressiveSpring =
+    // Snappy spring - fast and responsive, minimal bounce for polish
+    val snappySpring =
         spring<Float>(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow,
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessHigh,
         )
 
     val alpha by animateFloatAsState(
@@ -217,17 +217,17 @@ fun AlphabetScrollbar(
                 isVisible -> 0.9f
                 else -> 0f
             },
-        animationSpec = expressiveSpring,
+        animationSpec = snappySpring,
         label = "alpha",
     )
 
-    // Slide in/out from right edge with confident bounce
+    // Slide in/out from right edge - fast with subtle bounce
     val slideOffset by animateDpAsState(
         targetValue = if (isVisible || isInteracting) 0.dp else 48.dp,
         animationSpec =
             spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMediumLow,
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessHigh,
             ),
         label = "slide",
     )
@@ -412,13 +412,13 @@ private fun AdaptiveLetterItem(
 ) {
     val density = LocalDensity.current
 
-    // Animate height changes with spring
+    // Animate height changes - fast spring for responsive feel
     val animatedHeight by animateDpAsState(
         targetValue = height,
         animationSpec =
             spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMediumLow,
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessHigh,
             ),
         label = "letterHeight",
     )
@@ -450,8 +450,8 @@ private fun AdaptiveLetterItem(
         targetValue = targetScale,
         animationSpec =
             spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium,
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessHigh,
             ),
         label = "letterScale",
     )
@@ -469,7 +469,7 @@ private fun AdaptiveLetterItem(
         animationSpec =
             spring(
                 dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMedium,
+                stiffness = Spring.StiffnessHigh,
             ),
         label = "letterOpacity",
     )

@@ -401,7 +401,10 @@ private fun BookGrid(
             AlphabetScrollbar(
                 alphabetIndex = alphabetIndex,
                 onLetterSelected = { index ->
-                    scope.launch { gridState.animateScrollToItem(index) }
+                    // Instant scroll - animateScrollToItem causes jank on large lists
+                    // as it composes/disposes hundreds of items during animation.
+                    // Haptic feedback + scrollbar animations provide sufficient feedback.
+                    scope.launch { gridState.scrollToItem(index) }
                 },
                 isScrolling = isScrolling,
                 modifier =

@@ -145,9 +145,7 @@ fun AuthorsContent(
                 AlphabetScrollbar(
                     alphabetIndex = alphabetIndex,
                     onLetterSelected = { index ->
-                        scope.launch {
-                            listState.animateScrollToItem(index)
-                        }
+                        scope.launch { listState.scrollToItem(index) }
                     },
                     isScrolling = isScrolling,
                     modifier =
