@@ -208,6 +208,36 @@ interface BookDao {
     )
 
     /**
+     * Update cached cover colors for a book.
+     *
+     * Called after downloading a cover image and extracting its color palette.
+     * Also touches updatedAt to trigger UI refresh.
+     *
+     * @param id Type-safe book ID
+     * @param dominantColor Dominant color as ARGB int
+     * @param darkMutedColor Dark muted color for gradients
+     * @param vibrantColor Vibrant accent color
+     * @param timestamp Current timestamp to touch updatedAt
+     */
+    @Query(
+        """
+        UPDATE books SET
+            dominantColor = :dominantColor,
+            darkMutedColor = :darkMutedColor,
+            vibrantColor = :vibrantColor,
+            updatedAt = :timestamp
+        WHERE id = :id
+    """,
+    )
+    suspend fun updateCoverColors(
+        id: BookId,
+        dominantColor: Int?,
+        darkMutedColor: Int?,
+        vibrantColor: Int?,
+        timestamp: Timestamp,
+    )
+
+    /**
      * Observe all books belonging to a specific series.
      *
      * Returns books ordered by series sequence (position in series) if available,

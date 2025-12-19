@@ -246,10 +246,13 @@ private fun ImmersiveBookDetail(
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
 
-    // Extract colors from cover art
+    // Use cached colors for instant rendering, fall back to runtime extraction
     val coverColors =
         rememberCoverColors(
             imagePath = state.book?.coverPath,
+            cachedDominantColor = state.book?.dominantColor,
+            cachedDarkMutedColor = state.book?.darkMutedColor,
+            cachedVibrantColor = state.book?.vibrantColor,
         )
 
     LazyColumn(

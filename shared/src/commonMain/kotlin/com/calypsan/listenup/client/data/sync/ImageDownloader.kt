@@ -2,13 +2,14 @@ package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.ImageApiContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
 
-private const val BATCH_SIZE = 20
+private const val BATCH_SIZE = 10
 
 /**
  * Orchestrates downloading and storing book cover images during sync.
@@ -16,15 +17,18 @@ private const val BATCH_SIZE = 20
  * Responsibilities:
  * - Download covers from backend via ImageApi
  * - Save to local storage via ImageStorage
+ * - Extract color palette from covers for instant UI rendering
  * - Handle errors gracefully (missing covers are non-fatal)
  * - Support batch operations for efficient syncing
  *
  * @property imageApi API client for downloading cover images
  * @property imageStorage Local storage for cover images
+ * @property colorExtractor Platform-specific color palette extractor
  */
 class ImageDownloader(
     private val imageApi: ImageApiContract,
     private val imageStorage: ImageStorage,
+    private val colorExtractor: CoverColorExtractor,
 ) : ImageDownloaderContract {
     /**
      * Download and save a single book cover.
@@ -73,15 +77,16 @@ class ImageDownloader(
      * Download covers for multiple books using batch requests.
      *
      * Filters to only books missing covers locally, then downloads
-     * in batches of BATCH_SIZE for efficiency.
+     * in batches of BATCH_SIZE for efficiency. Extracts color palette
+     * from each cover for caching in the database.
      *
      * Continues on individual failures - one failed download doesn't stop the batch.
-     * Returns list of book IDs that had covers successfully downloaded.
+     * Returns list of download results with extracted colors.
      *
      * @param bookIds List of book identifiers to download covers for
-     * @return Result containing list of BookIds that were successfully downloaded
+     * @return Result containing list of download results with extracted colors
      */
-    override suspend fun downloadCovers(bookIds: List<BookId>): Result<List<BookId>> {
+    override suspend fun downloadCovers(bookIds: List<BookId>): Result<List<CoverDownloadResult>> {
         // Filter to only books missing covers locally
         val needed = bookIds.filter { !imageStorage.exists(it) }
 
@@ -92,7 +97,7 @@ class ImageDownloader(
 
         logger.debug { "Downloading ${needed.size} covers in batches of $BATCH_SIZE" }
 
-        val successfulDownloads = mutableListOf<BookId>()
+        val downloadResults = mutableListOf<CoverDownloadResult>()
 
         // Download in batches
         needed.chunked(BATCH_SIZE).forEach { batch ->
@@ -103,7 +108,12 @@ class ImageDownloader(
                         val bookIdObj = BookId(bookId)
                         val saveResult = imageStorage.saveCover(bookIdObj, bytes)
                         if (saveResult is Result.Success) {
-                            successfulDownloads.add(bookIdObj)
+                            // Extract colors from the downloaded image
+                            val colors = colorExtractor.extractColors(bytes)
+                            downloadResults.add(CoverDownloadResult(bookIdObj, colors))
+                            if (colors != null) {
+                                logger.debug { "Extracted colors for book $bookId" }
+                            }
                         } else if (saveResult is Result.Failure) {
                             logger.warn(saveResult.exception) {
                                 "Failed to save cover for book $bookId"
@@ -118,8 +128,8 @@ class ImageDownloader(
             }
         }
 
-        logger.info { "Downloaded ${successfulDownloads.size} covers out of ${bookIds.size} books" }
-        return Result.Success(successfulDownloads)
+        logger.info { "Downloaded ${downloadResults.size} covers out of ${bookIds.size} books" }
+        return Result.Success(downloadResults)
     }
 
     /**

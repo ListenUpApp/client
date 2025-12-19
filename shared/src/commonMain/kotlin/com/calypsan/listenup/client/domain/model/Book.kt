@@ -28,6 +28,10 @@ data class Book(
     val duration: Long, // Milliseconds
     val coverPath: String?, // Local file path or null if no cover
     val coverBlurHash: String? = null, // BlurHash for cover placeholder
+    // Cached palette colors extracted from cover (ARGB ints for instant gradient rendering)
+    val dominantColor: Int? = null,
+    val darkMutedColor: Int? = null,
+    val vibrantColor: Int? = null,
     val addedAt: Timestamp,
     val updatedAt: Timestamp,
     val description: String? = null,

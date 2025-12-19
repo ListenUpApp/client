@@ -434,21 +434,34 @@ class SyncManager(
         if (updatedBookIds.isNotEmpty()) {
             scope.launch {
                 logger.info { "Starting cover downloads for ${updatedBookIds.size} books..." }
-                val downloadedBookIds = imageDownloader.downloadCovers(updatedBookIds)
+                val downloadResults = imageDownloader.downloadCovers(updatedBookIds)
 
-                // Touch books that got new covers to trigger UI refresh
-                if (downloadedBookIds is com.calypsan.listenup.client.core.Result.Success) {
+                // Update books with extracted colors and trigger UI refresh
+                if (downloadResults is com.calypsan.listenup.client.core.Result.Success) {
                     val now = Timestamp.now()
-                    downloadedBookIds.data.forEach { bookId ->
+                    downloadResults.data.forEach { result ->
                         try {
-                            bookDao.touchUpdatedAt(bookId, now)
+                            if (result.colors != null) {
+                                // Update colors and touch updatedAt
+                                bookDao.updateCoverColors(
+                                    id = result.bookId,
+                                    dominantColor = result.colors.dominant,
+                                    darkMutedColor = result.colors.darkMuted,
+                                    vibrantColor = result.colors.vibrant,
+                                    timestamp = now,
+                                )
+                            } else {
+                                // Just touch updatedAt to refresh UI (colors not extracted)
+                                bookDao.touchUpdatedAt(result.bookId, now)
+                            }
                         } catch (e: Exception) {
-                            logger.warn(e) { "Failed to touch book $bookId after cover download" }
+                            logger.warn(e) { "Failed to update book ${result.bookId} after cover download" }
                         }
                     }
-                    if (downloadedBookIds.data.isNotEmpty()) {
+                    if (downloadResults.data.isNotEmpty()) {
+                        val withColors = downloadResults.data.count { it.colors != null }
                         logger.debug {
-                            "Touched ${downloadedBookIds.data.size} books to refresh UI after cover downloads"
+                            "Updated ${downloadResults.data.size} books after cover downloads ($withColors with colors)"
                         }
                     }
                 }

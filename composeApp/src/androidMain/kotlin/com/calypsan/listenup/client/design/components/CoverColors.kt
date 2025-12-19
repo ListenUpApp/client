@@ -104,11 +104,19 @@ fun extractDominantColor(bitmap: Bitmap): Color? =
     }
 
 /**
- * Composable that loads an image and extracts its color palette.
+ * Composable that provides cover colors, using cached values when available.
+ *
+ * Optimization strategy:
+ * 1. If cached colors are provided (from database), use them immediately - no extraction needed
+ * 2. If no cached colors, fall back to runtime Palette extraction (legacy behavior)
+ *
  * Palette extraction runs on background thread to avoid blocking UI.
- * Uses file modification time for automatic cache invalidation.
+ * Uses file modification time for automatic cache invalidation when extracting.
  *
  * @param imagePath Local file path to the cover image
+ * @param cachedDominantColor Cached dominant color as ARGB int (from database)
+ * @param cachedDarkMutedColor Cached dark muted color for gradients
+ * @param cachedVibrantColor Cached vibrant accent color
  * @param refreshKey Optional key to force re-extraction (e.g., staging file changes)
  * @param fallbackColor Color to use when extraction fails
  * @return Extracted color scheme, or default scheme based on fallbackColor
@@ -116,6 +124,9 @@ fun extractDominantColor(bitmap: Bitmap): Color? =
 @Composable
 fun rememberCoverColors(
     imagePath: String?,
+    cachedDominantColor: Int? = null,
+    cachedDarkMutedColor: Int? = null,
+    cachedVibrantColor: Int? = null,
     refreshKey: Any? = null,
     fallbackColor: Color = MaterialTheme.colorScheme.primaryContainer,
 ): CoverColors {
@@ -130,6 +141,25 @@ fun rememberCoverColors(
             darkMuted = fallbackColor,
             onDominant = Color.White,
         )
+
+    // If we have cached colors, use them immediately - no extraction needed
+    if (cachedDominantColor != null && cachedDarkMutedColor != null) {
+        val dominant = Color(cachedDominantColor)
+        val darkMuted = Color(cachedDarkMutedColor)
+        val vibrant = if (cachedVibrantColor != null) Color(cachedVibrantColor) else dominant
+
+        return CoverColors(
+            dominant = dominant,
+            vibrant = vibrant,
+            darkVibrant = darkMuted, // Use darkMuted as darkVibrant fallback
+            lightVibrant = vibrant,
+            muted = darkMuted,
+            darkMuted = darkMuted,
+            onDominant = if (isColorLight(cachedDominantColor)) Color.Black else Color.White,
+        )
+    }
+
+    // No cached colors - fall back to runtime extraction (legacy behavior)
 
     // Build cache key using file modification time for automatic invalidation
     val cacheKey by produceState<String?>(
@@ -188,6 +218,18 @@ fun rememberCoverColors(
     }
 
     return colorScheme
+}
+
+/**
+ * Determines if a color is light (for choosing contrasting text color).
+ */
+private fun isColorLight(color: Int): Boolean {
+    val red = (color shr 16) and 0xFF
+    val green = (color shr 8) and 0xFF
+    val blue = color and 0xFF
+    // Using luminance formula
+    val luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255
+    return luminance > 0.5
 }
 
 /**

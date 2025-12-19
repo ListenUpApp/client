@@ -51,6 +51,10 @@ data class BookEntity(
     val subtitle: String? = null, // Book subtitle
     val coverUrl: String?, // URL to cover image (local or remote)
     val coverBlurHash: String? = null, // BlurHash for cover placeholder
+    // Cached palette colors extracted from cover (ARGB ints for instant gradient rendering)
+    val dominantColor: Int? = null,
+    val darkMutedColor: Int? = null,
+    val vibrantColor: Int? = null,
     val totalDuration: Long, // Total audiobook duration in milliseconds
     val description: String? = null,
     val genres: String? = null, // Comma-separated genres

@@ -77,6 +77,9 @@ fun TwoPaneBookDetail(
     val coverColors =
         rememberCoverColors(
             imagePath = state.book?.coverPath,
+            cachedDominantColor = state.book?.dominantColor,
+            cachedDarkMutedColor = state.book?.darkMutedColor,
+            cachedVibrantColor = state.book?.vibrantColor,
         )
     val surfaceColor = MaterialTheme.colorScheme.surface
 
