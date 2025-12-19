@@ -1,0 +1,83 @@
+package com.calypsan.listenup.client.data.sync.pull
+
+import com.calypsan.listenup.client.data.local.db.SyncDao
+import com.calypsan.listenup.client.data.local.db.getLastSyncTime
+import com.calypsan.listenup.client.data.sync.SyncCoordinator
+import com.calypsan.listenup.client.data.sync.model.SyncPhase
+import com.calypsan.listenup.client.data.sync.model.SyncStatus
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+
+private val logger = KotlinLogging.logger {}
+
+/**
+ * Coordinates parallel entity pulls with retry logic and progress reporting.
+ */
+class PullSyncOrchestrator(
+    private val bookPuller: BookPuller,
+    private val seriesPuller: SeriesPuller,
+    private val contributorPuller: ContributorPuller,
+    private val coordinator: SyncCoordinator,
+    private val syncDao: SyncDao,
+) {
+    /**
+     * Pull all entities from server with retry logic.
+     *
+     * Runs pulls for Books, Series, and Contributors in parallel for performance.
+     * Uses proper cancellation if any job fails.
+     *
+     * @param onProgress Callback for progress updates
+     */
+    suspend fun pull(onProgress: (SyncStatus) -> Unit) = coroutineScope {
+        logger.debug { "Pulling changes from server" }
+
+        // Get last sync time for delta sync
+        val lastSyncTime = syncDao.getLastSyncTime()
+        val updatedAfter = lastSyncTime?.toIsoString()
+
+        val syncType = if (updatedAfter != null) "Delta (since $updatedAfter)" else "Full"
+        logger.info { "Sync strategy: $syncType" }
+
+        onProgress(
+            SyncStatus.Progress(
+                phase = SyncPhase.FETCHING_METADATA,
+                current = 0,
+                total = 3,
+                message = "Preparing sync...",
+            ),
+        )
+
+        // Run with retry logic
+        coordinator.withRetry(
+            onRetry = { attempt, max ->
+                onProgress(SyncStatus.Retrying(attempt = attempt, maxAttempts = max))
+            },
+        ) {
+            // Run independent sync operations in parallel
+            val booksJob = async { bookPuller.pull(updatedAfter, onProgress) }
+            val seriesJob = async { seriesPuller.pull(updatedAfter, onProgress) }
+            val contributorsJob = async { contributorPuller.pull(updatedAfter, onProgress) }
+
+            // Wait for all to complete - if any fails, others will be cancelled
+            try {
+                awaitAll(booksJob, seriesJob, contributorsJob)
+            } catch (e: Exception) {
+                booksJob.cancel()
+                seriesJob.cancel()
+                contributorsJob.cancel()
+                throw e
+            }
+        }
+
+        onProgress(
+            SyncStatus.Progress(
+                phase = SyncPhase.FINALIZING,
+                current = 3,
+                total = 3,
+                message = "Finalizing sync...",
+            ),
+        )
+    }
+}

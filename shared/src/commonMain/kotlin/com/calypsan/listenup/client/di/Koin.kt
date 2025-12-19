@@ -54,8 +54,16 @@ import com.calypsan.listenup.client.data.sync.ImageDownloader
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.data.sync.SSEManagerContract
+import com.calypsan.listenup.client.data.sync.SyncCoordinator
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
+import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
+import com.calypsan.listenup.client.data.sync.pull.BookPuller
+import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
+import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
+import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
+import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
+import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
@@ -436,22 +444,103 @@ val syncModule =
             )
         } bind FtsPopulatorContract::class
 
-        // SyncManager orchestrates sync operations
+        // Sync infrastructure - decomposed components
+
+        // SyncCoordinator - retry logic and error classification
+        single { SyncCoordinator() }
+
+        // ConflictDetector - timestamp-based conflict detection
+        single { ConflictDetector(bookDao = get()) }
+
+        // SSEEventProcessor - processes real-time SSE events
         single {
-            SyncManager(
+            SSEEventProcessor(
+                bookDao = get(),
+                bookContributorDao = get(),
+                bookSeriesDao = get(),
+                imageDownloader = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        }
+
+        // Entity pullers - fetch data from server with pagination
+        single {
+            BookPuller(
                 syncApi = get(),
                 bookDao = get(),
-                seriesDao = get(),
-                contributorDao = get(),
                 chapterDao = get(),
                 bookContributorDao = get(),
                 bookSeriesDao = get(),
-                syncDao = get(),
                 imageDownloader = get(),
+                conflictDetector = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        }
+
+        single {
+            SeriesPuller(
+                syncApi = get(),
+                seriesDao = get(),
+                imageDownloader = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        }
+
+        single {
+            ContributorPuller(
+                syncApi = get(),
+                contributorDao = get(),
+                imageDownloader = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        }
+
+        // PullSyncOrchestrator - coordinates parallel entity pulls
+        single {
+            PullSyncOrchestrator(
+                bookPuller = get(),
+                seriesPuller = get(),
+                contributorPuller = get(),
+                coordinator = get(),
+                syncDao = get(),
+            )
+        }
+
+        // PushSyncOrchestrator - stub for future push sync
+        single { PushSyncOrchestrator() }
+
+        // SyncManager - thin orchestrator coordinating sync phases
+        single {
+            SyncManager(
+                pullOrchestrator = get(),
+                pushOrchestrator = get(),
+                sseEventProcessor = get(),
+                coordinator = get(),
                 sseManager = get(),
-                ftsPopulator = get(),
                 userPreferencesApi = get(),
                 settingsRepository = get(),
+                syncDao = get(),
+                ftsPopulator = get(),
                 scope =
                     get(
                         qualifier =
