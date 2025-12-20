@@ -53,17 +53,18 @@ class SeriesEditViewModelTest {
         updatedAt = Timestamp(1000L),
     )
 
-    private fun createBookEntity(id: String = "book-1") = BookEntity(
-        id = BookId(id),
-        title = "Test Book",
-        coverUrl = null,
-        totalDuration = 3_600_000L,
-        syncState = SyncState.SYNCED,
-        lastModified = Timestamp(1000L),
-        serverVersion = Timestamp(1000L),
-        createdAt = Timestamp(1000L),
-        updatedAt = Timestamp(1000L),
-    )
+    private fun createBookEntity(id: String = "book-1") =
+        BookEntity(
+            id = BookId(id),
+            title = "Test Book",
+            coverUrl = null,
+            totalDuration = 3_600_000L,
+            syncState = SyncState.SYNCED,
+            lastModified = Timestamp(1000L),
+            serverVersion = Timestamp(1000L),
+            createdAt = Timestamp(1000L),
+            updatedAt = Timestamp(1000L),
+        )
 
     private fun createSeriesWithBooks(
         series: SeriesEntity = createSeriesEntity(),
@@ -74,12 +75,13 @@ class SeriesEditViewModelTest {
         bookSequences = books.map { BookSeriesCrossRef(bookId = it.id, seriesId = series.id, sequence = "1") },
     )
 
-    private fun createSeriesEditResponse() = SeriesEditResponse(
-        id = "series-1",
-        name = "Updated Name",
-        description = "A test series",
-        updatedAt = "2024-01-01T00:00:00Z",
-    )
+    private fun createSeriesEditResponse() =
+        SeriesEditResponse(
+            id = "series-1",
+            name = "Updated Name",
+            description = "A test series",
+            updatedAt = "2024-01-01T00:00:00Z",
+        )
 
     @BeforeTest
     fun setup() {
@@ -92,189 +94,199 @@ class SeriesEditViewModelTest {
     }
 
     @Test
-    fun `initial state is loading`() = runTest {
-        val seriesDao: SeriesDao = mock()
-        val seriesEditRepository: SeriesEditRepositoryContract = mock()
-        val imageStorage: ImageStorage = mock()
-        val imageApi: ImageApiContract = mock()
+    fun `initial state is loading`() =
+        runTest {
+            val seriesDao: SeriesDao = mock()
+            val seriesEditRepository: SeriesEditRepositoryContract = mock()
+            val imageStorage: ImageStorage = mock()
+            val imageApi: ImageApiContract = mock()
 
-        val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
 
-        assertTrue(viewModel.state.value.isLoading)
-    }
-
-    @Test
-    fun `loadSeries populates state with series data`() = runTest {
-        val seriesDao: SeriesDao = mock()
-        val seriesEditRepository: SeriesEditRepositoryContract = mock()
-        val imageStorage: ImageStorage = mock()
-        val imageApi: ImageApiContract = mock()
-        val seriesWithBooks = createSeriesWithBooks()
-        everySuspend { seriesDao.getByIdWithBooks("series-1") } returns seriesWithBooks
-        everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
-
-        val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
-        viewModel.loadSeries("series-1")
-        advanceUntilIdle()
-
-        assertFalse(viewModel.state.value.isLoading)
-        assertEquals("Test Series", viewModel.state.value.name)
-        assertEquals("A test series", viewModel.state.value.description)
-        assertEquals(1, viewModel.state.value.bookCount)
-    }
+            assertTrue(viewModel.state.value.isLoading)
+        }
 
     @Test
-    fun `loadSeries shows error for missing series`() = runTest {
-        val seriesDao: SeriesDao = mock()
-        val seriesEditRepository: SeriesEditRepositoryContract = mock()
-        val imageStorage: ImageStorage = mock()
-        val imageApi: ImageApiContract = mock()
-        everySuspend { seriesDao.getByIdWithBooks("missing") } returns null
+    fun `loadSeries populates state with series data`() =
+        runTest {
+            val seriesDao: SeriesDao = mock()
+            val seriesEditRepository: SeriesEditRepositoryContract = mock()
+            val imageStorage: ImageStorage = mock()
+            val imageApi: ImageApiContract = mock()
+            val seriesWithBooks = createSeriesWithBooks()
+            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns seriesWithBooks
+            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
 
-        val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
-        viewModel.loadSeries("missing")
-        advanceUntilIdle()
+            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            viewModel.loadSeries("series-1")
+            advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.isLoading)
-        assertEquals("Series not found", viewModel.state.value.error)
-    }
-
-    @Test
-    fun `NameChanged updates state and tracks changes`() = runTest {
-        val seriesDao: SeriesDao = mock()
-        val seriesEditRepository: SeriesEditRepositoryContract = mock()
-        val imageStorage: ImageStorage = mock()
-        val imageApi: ImageApiContract = mock()
-        everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-        everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
-
-        val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
-        viewModel.loadSeries("series-1")
-        advanceUntilIdle()
-        assertFalse(viewModel.state.value.hasChanges)
-
-        viewModel.onEvent(SeriesEditUiEvent.NameChanged("New Name"))
-
-        assertEquals("New Name", viewModel.state.value.name)
-        assertTrue(viewModel.state.value.hasChanges)
-    }
+            assertFalse(viewModel.state.value.isLoading)
+            assertEquals("Test Series", viewModel.state.value.name)
+            assertEquals("A test series", viewModel.state.value.description)
+            assertEquals(1, viewModel.state.value.bookCount)
+        }
 
     @Test
-    fun `DescriptionChanged updates state and tracks changes`() = runTest {
-        val seriesDao: SeriesDao = mock()
-        val seriesEditRepository: SeriesEditRepositoryContract = mock()
-        val imageStorage: ImageStorage = mock()
-        val imageApi: ImageApiContract = mock()
-        everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-        everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
+    fun `loadSeries shows error for missing series`() =
+        runTest {
+            val seriesDao: SeriesDao = mock()
+            val seriesEditRepository: SeriesEditRepositoryContract = mock()
+            val imageStorage: ImageStorage = mock()
+            val imageApi: ImageApiContract = mock()
+            everySuspend { seriesDao.getByIdWithBooks("missing") } returns null
 
-        val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
-        viewModel.loadSeries("series-1")
-        advanceUntilIdle()
+            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            viewModel.loadSeries("missing")
+            advanceUntilIdle()
 
-        viewModel.onEvent(SeriesEditUiEvent.DescriptionChanged("New description"))
-
-        assertEquals("New description", viewModel.state.value.description)
-        assertTrue(viewModel.state.value.hasChanges)
-    }
+            assertFalse(viewModel.state.value.isLoading)
+            assertEquals("Series not found", viewModel.state.value.error)
+        }
 
     @Test
-    fun `SaveClicked with no changes navigates back immediately`() = runTest {
-        val seriesDao: SeriesDao = mock()
-        val seriesEditRepository: SeriesEditRepositoryContract = mock()
-        val imageStorage: ImageStorage = mock()
-        val imageApi: ImageApiContract = mock()
-        everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-        everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
+    fun `NameChanged updates state and tracks changes`() =
+        runTest {
+            val seriesDao: SeriesDao = mock()
+            val seriesEditRepository: SeriesEditRepositoryContract = mock()
+            val imageStorage: ImageStorage = mock()
+            val imageApi: ImageApiContract = mock()
+            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
+            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
 
-        val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
-        viewModel.loadSeries("series-1")
-        advanceUntilIdle()
+            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            viewModel.loadSeries("series-1")
+            advanceUntilIdle()
+            assertFalse(viewModel.state.value.hasChanges)
 
-        viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
-        advanceUntilIdle()
+            viewModel.onEvent(SeriesEditUiEvent.NameChanged("New Name"))
 
-        assertIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
-    }
-
-    @Test
-    fun `SaveClicked with changes calls repository`() = runTest {
-        val seriesDao: SeriesDao = mock()
-        val seriesEditRepository: SeriesEditRepositoryContract = mock()
-        val imageStorage: ImageStorage = mock()
-        val imageApi: ImageApiContract = mock()
-        everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-        everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
-        everySuspend { seriesEditRepository.updateSeries(any(), any(), any()) } returns Result.Success(createSeriesEditResponse())
-
-        val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
-        viewModel.loadSeries("series-1")
-        advanceUntilIdle()
-        viewModel.onEvent(SeriesEditUiEvent.NameChanged("Updated Name"))
-
-        viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
-        advanceUntilIdle()
-
-        verifySuspend { seriesEditRepository.updateSeries("series-1", "Updated Name", any()) }
-        assertIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
-    }
+            assertEquals("New Name", viewModel.state.value.name)
+            assertTrue(viewModel.state.value.hasChanges)
+        }
 
     @Test
-    fun `CancelClicked navigates back`() = runTest {
-        val seriesDao: SeriesDao = mock()
-        val seriesEditRepository: SeriesEditRepositoryContract = mock()
-        val imageStorage: ImageStorage = mock()
-        val imageApi: ImageApiContract = mock()
-        everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-        everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
-        everySuspend { imageStorage.deleteSeriesCoverStaging(any()) } returns Result.Success(Unit)
+    fun `DescriptionChanged updates state and tracks changes`() =
+        runTest {
+            val seriesDao: SeriesDao = mock()
+            val seriesEditRepository: SeriesEditRepositoryContract = mock()
+            val imageStorage: ImageStorage = mock()
+            val imageApi: ImageApiContract = mock()
+            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
+            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
 
-        val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
-        viewModel.loadSeries("series-1")
-        advanceUntilIdle()
+            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            viewModel.loadSeries("series-1")
+            advanceUntilIdle()
 
-        viewModel.onEvent(SeriesEditUiEvent.CancelClicked)
-        advanceUntilIdle()
+            viewModel.onEvent(SeriesEditUiEvent.DescriptionChanged("New description"))
 
-        assertIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
-    }
-
-    @Test
-    fun `ErrorDismissed clears error`() = runTest {
-        val seriesDao: SeriesDao = mock()
-        val seriesEditRepository: SeriesEditRepositoryContract = mock()
-        val imageStorage: ImageStorage = mock()
-        val imageApi: ImageApiContract = mock()
-        everySuspend { seriesDao.getByIdWithBooks("missing") } returns null
-
-        val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
-        viewModel.loadSeries("missing")
-        advanceUntilIdle()
-        assertTrue(viewModel.state.value.error != null)
-
-        viewModel.onEvent(SeriesEditUiEvent.ErrorDismissed)
-
-        assertNull(viewModel.state.value.error)
-    }
+            assertEquals("New description", viewModel.state.value.description)
+            assertTrue(viewModel.state.value.hasChanges)
+        }
 
     @Test
-    fun `consumeNavAction clears navigation action`() = runTest {
-        val seriesDao: SeriesDao = mock()
-        val seriesEditRepository: SeriesEditRepositoryContract = mock()
-        val imageStorage: ImageStorage = mock()
-        val imageApi: ImageApiContract = mock()
-        everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-        everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
+    fun `SaveClicked with no changes navigates back immediately`() =
+        runTest {
+            val seriesDao: SeriesDao = mock()
+            val seriesEditRepository: SeriesEditRepositoryContract = mock()
+            val imageStorage: ImageStorage = mock()
+            val imageApi: ImageApiContract = mock()
+            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
+            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
 
-        val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
-        viewModel.loadSeries("series-1")
-        advanceUntilIdle()
-        viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
-        advanceUntilIdle()
-        assertTrue(viewModel.navActions.value != null)
+            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            viewModel.loadSeries("series-1")
+            advanceUntilIdle()
 
-        viewModel.consumeNavAction()
+            viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
+            advanceUntilIdle()
 
-        assertNull(viewModel.navActions.value)
-    }
+            assertIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
+        }
+
+    @Test
+    fun `SaveClicked with changes calls repository`() =
+        runTest {
+            val seriesDao: SeriesDao = mock()
+            val seriesEditRepository: SeriesEditRepositoryContract = mock()
+            val imageStorage: ImageStorage = mock()
+            val imageApi: ImageApiContract = mock()
+            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
+            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
+            everySuspend { seriesEditRepository.updateSeries(any(), any(), any()) } returns Result.Success(Unit)
+
+            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            viewModel.loadSeries("series-1")
+            advanceUntilIdle()
+            viewModel.onEvent(SeriesEditUiEvent.NameChanged("Updated Name"))
+
+            viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
+            advanceUntilIdle()
+
+            verifySuspend { seriesEditRepository.updateSeries("series-1", "Updated Name", any()) }
+            assertIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
+        }
+
+    @Test
+    fun `CancelClicked navigates back`() =
+        runTest {
+            val seriesDao: SeriesDao = mock()
+            val seriesEditRepository: SeriesEditRepositoryContract = mock()
+            val imageStorage: ImageStorage = mock()
+            val imageApi: ImageApiContract = mock()
+            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
+            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
+            everySuspend { imageStorage.deleteSeriesCoverStaging(any()) } returns Result.Success(Unit)
+
+            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            viewModel.loadSeries("series-1")
+            advanceUntilIdle()
+
+            viewModel.onEvent(SeriesEditUiEvent.CancelClicked)
+            advanceUntilIdle()
+
+            assertIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
+        }
+
+    @Test
+    fun `ErrorDismissed clears error`() =
+        runTest {
+            val seriesDao: SeriesDao = mock()
+            val seriesEditRepository: SeriesEditRepositoryContract = mock()
+            val imageStorage: ImageStorage = mock()
+            val imageApi: ImageApiContract = mock()
+            everySuspend { seriesDao.getByIdWithBooks("missing") } returns null
+
+            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            viewModel.loadSeries("missing")
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value.error != null)
+
+            viewModel.onEvent(SeriesEditUiEvent.ErrorDismissed)
+
+            assertNull(viewModel.state.value.error)
+        }
+
+    @Test
+    fun `consumeNavAction clears navigation action`() =
+        runTest {
+            val seriesDao: SeriesDao = mock()
+            val seriesEditRepository: SeriesEditRepositoryContract = mock()
+            val imageStorage: ImageStorage = mock()
+            val imageApi: ImageApiContract = mock()
+            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
+            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
+
+            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            viewModel.loadSeries("series-1")
+            advanceUntilIdle()
+            viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
+            advanceUntilIdle()
+            assertTrue(viewModel.navActions.value != null)
+
+            viewModel.consumeNavAction()
+
+            assertNull(viewModel.navActions.value)
+        }
 }

@@ -23,202 +23,214 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SyncCoordinatorTest {
-
     // ========== withRetry Success Cases ==========
 
     @Test
-    fun `withRetry returns immediately on success`() = runTest {
-        // Given
-        val coordinator = SyncCoordinator()
-        var callCount = 0
+    fun `withRetry returns immediately on success`() =
+        runTest {
+            // Given
+            val coordinator = SyncCoordinator()
+            var callCount = 0
 
-        // When
-        val result = coordinator.withRetry(
-            maxRetries = 3,
-            initialDelay = 10.milliseconds,
-        ) {
-            callCount++
-            "success"
+            // When
+            val result =
+                coordinator.withRetry(
+                    maxRetries = 3,
+                    initialDelay = 10.milliseconds,
+                ) {
+                    callCount++
+                    "success"
+                }
+
+            // Then
+            assertEquals("success", result)
+            assertEquals(1, callCount)
         }
-
-        // Then
-        assertEquals("success", result)
-        assertEquals(1, callCount)
-    }
 
     @Test
-    fun `withRetry succeeds on second attempt`() = runTest {
-        // Given
-        val coordinator = SyncCoordinator()
-        var callCount = 0
+    fun `withRetry succeeds on second attempt`() =
+        runTest {
+            // Given
+            val coordinator = SyncCoordinator()
+            var callCount = 0
 
-        // When
-        val result = coordinator.withRetry(
-            maxRetries = 3,
-            initialDelay = 10.milliseconds,
-        ) {
-            callCount++
-            if (callCount == 1) throw RuntimeException("First attempt fails")
-            "success on retry"
+            // When
+            val result =
+                coordinator.withRetry(
+                    maxRetries = 3,
+                    initialDelay = 10.milliseconds,
+                ) {
+                    callCount++
+                    if (callCount == 1) throw RuntimeException("First attempt fails")
+                    "success on retry"
+                }
+
+            // Then
+            assertEquals("success on retry", result)
+            assertEquals(2, callCount)
         }
-
-        // Then
-        assertEquals("success on retry", result)
-        assertEquals(2, callCount)
-    }
 
     @Test
-    fun `withRetry succeeds on last attempt`() = runTest {
-        // Given
-        val coordinator = SyncCoordinator()
-        var callCount = 0
+    fun `withRetry succeeds on last attempt`() =
+        runTest {
+            // Given
+            val coordinator = SyncCoordinator()
+            var callCount = 0
 
-        // When
-        val result = coordinator.withRetry(
-            maxRetries = 3,
-            initialDelay = 10.milliseconds,
-        ) {
-            callCount++
-            if (callCount < 3) throw RuntimeException("Attempt $callCount fails")
-            "success on final attempt"
+            // When
+            val result =
+                coordinator.withRetry(
+                    maxRetries = 3,
+                    initialDelay = 10.milliseconds,
+                ) {
+                    callCount++
+                    if (callCount < 3) throw RuntimeException("Attempt $callCount fails")
+                    "success on final attempt"
+                }
+
+            // Then
+            assertEquals("success on final attempt", result)
+            assertEquals(3, callCount)
         }
-
-        // Then
-        assertEquals("success on final attempt", result)
-        assertEquals(3, callCount)
-    }
 
     // ========== withRetry Failure Cases ==========
 
     @Test
-    fun `withRetry throws after all retries exhausted`() = runTest {
-        // Given
-        val coordinator = SyncCoordinator()
-        var callCount = 0
+    fun `withRetry throws after all retries exhausted`() =
+        runTest {
+            // Given
+            val coordinator = SyncCoordinator()
+            var callCount = 0
 
-        // When/Then
-        val exception = assertFailsWith<RuntimeException> {
-            coordinator.withRetry(
-                maxRetries = 3,
-                initialDelay = 10.milliseconds,
-            ) {
-                callCount++
-                throw RuntimeException("Always fails: attempt $callCount")
-            }
+            // When/Then
+            val exception =
+                assertFailsWith<RuntimeException> {
+                    coordinator.withRetry(
+                        maxRetries = 3,
+                        initialDelay = 10.milliseconds,
+                    ) {
+                        callCount++
+                        throw RuntimeException("Always fails: attempt $callCount")
+                    }
+                }
+
+            assertEquals(3, callCount)
+            assertTrue(exception.message!!.contains("attempt 3"))
         }
-
-        assertEquals(3, callCount)
-        assertTrue(exception.message!!.contains("attempt 3"))
-    }
 
     @Test
-    fun `withRetry does not retry on CancellationException`() = runTest {
-        // Given
-        val coordinator = SyncCoordinator()
-        var callCount = 0
+    fun `withRetry does not retry on CancellationException`() =
+        runTest {
+            // Given
+            val coordinator = SyncCoordinator()
+            var callCount = 0
 
-        // When/Then
-        assertFailsWith<CancellationException> {
-            coordinator.withRetry(
-                maxRetries = 3,
-                initialDelay = 10.milliseconds,
-            ) {
-                callCount++
-                throw CancellationException("Cancelled")
+            // When/Then
+            assertFailsWith<CancellationException> {
+                coordinator.withRetry(
+                    maxRetries = 3,
+                    initialDelay = 10.milliseconds,
+                ) {
+                    callCount++
+                    throw CancellationException("Cancelled")
+                }
             }
-        }
 
-        // Only called once - no retries
-        assertEquals(1, callCount)
-    }
+            // Only called once - no retries
+            assertEquals(1, callCount)
+        }
 
     // ========== withRetry Callback Tests ==========
 
     @Test
-    fun `withRetry invokes onRetry callback before each retry`() = runTest {
-        // Given
-        val coordinator = SyncCoordinator()
-        val retryAttempts = mutableListOf<Pair<Int, Int>>()
+    fun `withRetry invokes onRetry callback before each retry`() =
+        runTest {
+            // Given
+            val coordinator = SyncCoordinator()
+            val retryAttempts = mutableListOf<Pair<Int, Int>>()
 
-        // When
-        assertFailsWith<RuntimeException> {
+            // When
+            assertFailsWith<RuntimeException> {
+                coordinator.withRetry(
+                    maxRetries = 3,
+                    initialDelay = 10.milliseconds,
+                    onRetry = { attempt, max -> retryAttempts.add(attempt to max) },
+                ) {
+                    throw RuntimeException("Always fails")
+                }
+            }
+
+            // Then - onRetry called before attempts 2 and 3 (not before first attempt)
+            assertEquals(2, retryAttempts.size)
+            assertEquals(2 to 3, retryAttempts[0]) // Before 2nd attempt
+            assertEquals(3 to 3, retryAttempts[1]) // Before 3rd attempt
+        }
+
+    @Test
+    fun `withRetry does not invoke onRetry when succeeds first time`() =
+        runTest {
+            // Given
+            val coordinator = SyncCoordinator()
+            var onRetryCalled = false
+
+            // When
             coordinator.withRetry(
                 maxRetries = 3,
                 initialDelay = 10.milliseconds,
-                onRetry = { attempt, max -> retryAttempts.add(attempt to max) },
+                onRetry = { _, _ -> onRetryCalled = true },
             ) {
-                throw RuntimeException("Always fails")
+                "success"
             }
+
+            // Then
+            assertFalse(onRetryCalled)
         }
-
-        // Then - onRetry called before attempts 2 and 3 (not before first attempt)
-        assertEquals(2, retryAttempts.size)
-        assertEquals(2 to 3, retryAttempts[0]) // Before 2nd attempt
-        assertEquals(3 to 3, retryAttempts[1]) // Before 3rd attempt
-    }
-
-    @Test
-    fun `withRetry does not invoke onRetry when succeeds first time`() = runTest {
-        // Given
-        val coordinator = SyncCoordinator()
-        var onRetryCalled = false
-
-        // When
-        coordinator.withRetry(
-            maxRetries = 3,
-            initialDelay = 10.milliseconds,
-            onRetry = { _, _ -> onRetryCalled = true },
-        ) {
-            "success"
-        }
-
-        // Then
-        assertFalse(onRetryCalled)
-    }
 
     // ========== withRetry Custom Parameters ==========
 
     @Test
-    fun `withRetry respects custom maxRetries`() = runTest {
-        // Given
-        val coordinator = SyncCoordinator()
-        var callCount = 0
+    fun `withRetry respects custom maxRetries`() =
+        runTest {
+            // Given
+            val coordinator = SyncCoordinator()
+            var callCount = 0
 
-        // When
-        assertFailsWith<RuntimeException> {
-            coordinator.withRetry(
-                maxRetries = 5,
-                initialDelay = 10.milliseconds,
-            ) {
-                callCount++
-                throw RuntimeException("Always fails")
+            // When
+            assertFailsWith<RuntimeException> {
+                coordinator.withRetry(
+                    maxRetries = 5,
+                    initialDelay = 10.milliseconds,
+                ) {
+                    callCount++
+                    throw RuntimeException("Always fails")
+                }
             }
-        }
 
-        // Then
-        assertEquals(5, callCount)
-    }
+            // Then
+            assertEquals(5, callCount)
+        }
 
     @Test
-    fun `withRetry with maxRetries of 1 does not retry`() = runTest {
-        // Given
-        val coordinator = SyncCoordinator()
-        var callCount = 0
+    fun `withRetry with maxRetries of 1 does not retry`() =
+        runTest {
+            // Given
+            val coordinator = SyncCoordinator()
+            var callCount = 0
 
-        // When
-        assertFailsWith<RuntimeException> {
-            coordinator.withRetry(
-                maxRetries = 1,
-                initialDelay = 10.milliseconds,
-            ) {
-                callCount++
-                throw RuntimeException("Always fails")
+            // When
+            assertFailsWith<RuntimeException> {
+                coordinator.withRetry(
+                    maxRetries = 1,
+                    initialDelay = 10.milliseconds,
+                ) {
+                    callCount++
+                    throw RuntimeException("Always fails")
+                }
             }
-        }
 
-        // Then
-        assertEquals(1, callCount)
-    }
+            // Then
+            assertEquals(1, callCount)
+        }
 
     // ========== isServerUnreachableError Tests ==========
 

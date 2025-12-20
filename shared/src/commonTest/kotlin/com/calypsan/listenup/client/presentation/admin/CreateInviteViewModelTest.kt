@@ -52,125 +52,133 @@ class CreateInviteViewModelTest {
     }
 
     @Test
-    fun `initial state is Idle`() = runTest {
-        val adminApi: AdminApiContract = mock()
-        val viewModel = CreateInviteViewModel(adminApi)
+    fun `initial state is Idle`() =
+        runTest {
+            val adminApi: AdminApiContract = mock()
+            val viewModel = CreateInviteViewModel(adminApi)
 
-        assertIs<CreateInviteStatus.Idle>(viewModel.state.value.status)
-    }
-
-    @Test
-    fun `createInvite validates empty name`() = runTest {
-        val adminApi: AdminApiContract = mock()
-        val viewModel = CreateInviteViewModel(adminApi)
-
-        viewModel.createInvite(name = "", email = "test@example.com", role = "user", expiresInDays = 7)
-        advanceUntilIdle()
-
-        val status = viewModel.state.value.status
-        assertIs<CreateInviteStatus.Error>(status)
-        val errorType = status.type
-        assertIs<CreateInviteErrorType.ValidationError>(errorType)
-        assertEquals(CreateInviteField.NAME, errorType.field)
-    }
+            assertIs<CreateInviteStatus.Idle>(viewModel.state.value.status)
+        }
 
     @Test
-    fun `createInvite validates invalid email`() = runTest {
-        val adminApi: AdminApiContract = mock()
-        val viewModel = CreateInviteViewModel(adminApi)
+    fun `createInvite validates empty name`() =
+        runTest {
+            val adminApi: AdminApiContract = mock()
+            val viewModel = CreateInviteViewModel(adminApi)
 
-        viewModel.createInvite(name = "Test User", email = "invalid-email", role = "user", expiresInDays = 7)
-        advanceUntilIdle()
+            viewModel.createInvite(name = "", email = "test@example.com", role = "user", expiresInDays = 7)
+            advanceUntilIdle()
 
-        val status = viewModel.state.value.status
-        assertIs<CreateInviteStatus.Error>(status)
-        val errorType = status.type
-        assertIs<CreateInviteErrorType.ValidationError>(errorType)
-        assertEquals(CreateInviteField.EMAIL, errorType.field)
-    }
-
-    @Test
-    fun `createInvite trims whitespace from inputs`() = runTest {
-        val adminApi: AdminApiContract = mock()
-        everySuspend { adminApi.createInvite(any()) } returns createInviteResponse()
-        val viewModel = CreateInviteViewModel(adminApi)
-
-        viewModel.createInvite(name = "  Test User  ", email = "  test@example.com  ", role = "user", expiresInDays = 7)
-        advanceUntilIdle()
-
-        assertIs<CreateInviteStatus.Success>(viewModel.state.value.status)
-    }
-
+            val status = viewModel.state.value.status
+            assertIs<CreateInviteStatus.Error>(status)
+            val errorType = status.type
+            assertIs<CreateInviteErrorType.ValidationError>(errorType)
+            assertEquals(CreateInviteField.NAME, errorType.field)
+        }
 
     @Test
-    fun `createInvite returns Success with invite on success`() = runTest {
-        val adminApi: AdminApiContract = mock()
-        val invite = createInviteResponse()
-        everySuspend { adminApi.createInvite(any()) } returns invite
-        val viewModel = CreateInviteViewModel(adminApi)
+    fun `createInvite validates invalid email`() =
+        runTest {
+            val adminApi: AdminApiContract = mock()
+            val viewModel = CreateInviteViewModel(adminApi)
 
-        viewModel.createInvite(name = "New User", email = "new@example.com", role = "user", expiresInDays = 7)
-        advanceUntilIdle()
+            viewModel.createInvite(name = "Test User", email = "invalid-email", role = "user", expiresInDays = 7)
+            advanceUntilIdle()
 
-        val status = viewModel.state.value.status
-        assertIs<CreateInviteStatus.Success>(status)
-        assertEquals(invite.id, status.invite.id)
-    }
-
-    @Test
-    fun `createInvite handles email already exists error`() = runTest {
-        val adminApi: AdminApiContract = mock()
-        everySuspend { adminApi.createInvite(any()) } throws RuntimeException("Email already exists")
-        val viewModel = CreateInviteViewModel(adminApi)
-
-        viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
-        advanceUntilIdle()
-
-        val status = viewModel.state.value.status
-        assertIs<CreateInviteStatus.Error>(status)
-        assertIs<CreateInviteErrorType.EmailInUse>(status.type)
-    }
+            val status = viewModel.state.value.status
+            assertIs<CreateInviteStatus.Error>(status)
+            val errorType = status.type
+            assertIs<CreateInviteErrorType.ValidationError>(errorType)
+            assertEquals(CreateInviteField.EMAIL, errorType.field)
+        }
 
     @Test
-    fun `createInvite handles network error`() = runTest {
-        val adminApi: AdminApiContract = mock()
-        everySuspend { adminApi.createInvite(any()) } throws RuntimeException("Network connection failed")
-        val viewModel = CreateInviteViewModel(adminApi)
+    fun `createInvite trims whitespace from inputs`() =
+        runTest {
+            val adminApi: AdminApiContract = mock()
+            everySuspend { adminApi.createInvite(any()) } returns createInviteResponse()
+            val viewModel = CreateInviteViewModel(adminApi)
 
-        viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
-        advanceUntilIdle()
+            viewModel.createInvite(name = "  Test User  ", email = "  test@example.com  ", role = "user", expiresInDays = 7)
+            advanceUntilIdle()
 
-        val status = viewModel.state.value.status
-        assertIs<CreateInviteStatus.Error>(status)
-        assertIs<CreateInviteErrorType.NetworkError>(status.type)
-    }
-
-    @Test
-    fun `clearError resets to Idle`() = runTest {
-        val adminApi: AdminApiContract = mock()
-        val viewModel = CreateInviteViewModel(adminApi)
-
-        viewModel.createInvite(name = "", email = "test@example.com", role = "user", expiresInDays = 7)
-        advanceUntilIdle()
-        assertIs<CreateInviteStatus.Error>(viewModel.state.value.status)
-
-        viewModel.clearError()
-
-        assertIs<CreateInviteStatus.Idle>(viewModel.state.value.status)
-    }
+            assertIs<CreateInviteStatus.Success>(viewModel.state.value.status)
+        }
 
     @Test
-    fun `reset returns to initial state`() = runTest {
-        val adminApi: AdminApiContract = mock()
-        everySuspend { adminApi.createInvite(any()) } returns createInviteResponse()
-        val viewModel = CreateInviteViewModel(adminApi)
+    fun `createInvite returns Success with invite on success`() =
+        runTest {
+            val adminApi: AdminApiContract = mock()
+            val invite = createInviteResponse()
+            everySuspend { adminApi.createInvite(any()) } returns invite
+            val viewModel = CreateInviteViewModel(adminApi)
 
-        viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
-        advanceUntilIdle()
-        assertIs<CreateInviteStatus.Success>(viewModel.state.value.status)
+            viewModel.createInvite(name = "New User", email = "new@example.com", role = "user", expiresInDays = 7)
+            advanceUntilIdle()
 
-        viewModel.reset()
+            val status = viewModel.state.value.status
+            assertIs<CreateInviteStatus.Success>(status)
+            assertEquals(invite.id, status.invite.id)
+        }
 
-        assertIs<CreateInviteStatus.Idle>(viewModel.state.value.status)
-    }
+    @Test
+    fun `createInvite handles email already exists error`() =
+        runTest {
+            val adminApi: AdminApiContract = mock()
+            everySuspend { adminApi.createInvite(any()) } throws RuntimeException("Email already exists")
+            val viewModel = CreateInviteViewModel(adminApi)
+
+            viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
+            advanceUntilIdle()
+
+            val status = viewModel.state.value.status
+            assertIs<CreateInviteStatus.Error>(status)
+            assertIs<CreateInviteErrorType.EmailInUse>(status.type)
+        }
+
+    @Test
+    fun `createInvite handles network error`() =
+        runTest {
+            val adminApi: AdminApiContract = mock()
+            everySuspend { adminApi.createInvite(any()) } throws RuntimeException("Network connection failed")
+            val viewModel = CreateInviteViewModel(adminApi)
+
+            viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
+            advanceUntilIdle()
+
+            val status = viewModel.state.value.status
+            assertIs<CreateInviteStatus.Error>(status)
+            assertIs<CreateInviteErrorType.NetworkError>(status.type)
+        }
+
+    @Test
+    fun `clearError resets to Idle`() =
+        runTest {
+            val adminApi: AdminApiContract = mock()
+            val viewModel = CreateInviteViewModel(adminApi)
+
+            viewModel.createInvite(name = "", email = "test@example.com", role = "user", expiresInDays = 7)
+            advanceUntilIdle()
+            assertIs<CreateInviteStatus.Error>(viewModel.state.value.status)
+
+            viewModel.clearError()
+
+            assertIs<CreateInviteStatus.Idle>(viewModel.state.value.status)
+        }
+
+    @Test
+    fun `reset returns to initial state`() =
+        runTest {
+            val adminApi: AdminApiContract = mock()
+            everySuspend { adminApi.createInvite(any()) } returns createInviteResponse()
+            val viewModel = CreateInviteViewModel(adminApi)
+
+            viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
+            advanceUntilIdle()
+            assertIs<CreateInviteStatus.Success>(viewModel.state.value.status)
+
+            viewModel.reset()
+
+            assertIs<CreateInviteStatus.Idle>(viewModel.state.value.status)
+        }
 }

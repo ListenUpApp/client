@@ -70,7 +70,6 @@ class SyncManager(
     private val ftsPopulator: FtsPopulatorContract,
     private val scope: CoroutineScope,
 ) : SyncManagerContract {
-
     private val _syncState = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
 
     init {

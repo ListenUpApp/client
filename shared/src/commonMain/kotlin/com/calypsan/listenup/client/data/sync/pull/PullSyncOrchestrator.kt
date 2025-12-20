@@ -30,54 +30,55 @@ class PullSyncOrchestrator(
      *
      * @param onProgress Callback for progress updates
      */
-    suspend fun pull(onProgress: (SyncStatus) -> Unit) = coroutineScope {
-        logger.debug { "Pulling changes from server" }
+    suspend fun pull(onProgress: (SyncStatus) -> Unit) =
+        coroutineScope {
+            logger.debug { "Pulling changes from server" }
 
-        // Get last sync time for delta sync
-        val lastSyncTime = syncDao.getLastSyncTime()
-        val updatedAfter = lastSyncTime?.toIsoString()
+            // Get last sync time for delta sync
+            val lastSyncTime = syncDao.getLastSyncTime()
+            val updatedAfter = lastSyncTime?.toIsoString()
 
-        val syncType = if (updatedAfter != null) "Delta (since $updatedAfter)" else "Full"
-        logger.info { "Sync strategy: $syncType" }
+            val syncType = if (updatedAfter != null) "Delta (since $updatedAfter)" else "Full"
+            logger.info { "Sync strategy: $syncType" }
 
-        onProgress(
-            SyncStatus.Progress(
-                phase = SyncPhase.FETCHING_METADATA,
-                current = 0,
-                total = 3,
-                message = "Preparing sync...",
-            ),
-        )
+            onProgress(
+                SyncStatus.Progress(
+                    phase = SyncPhase.FETCHING_METADATA,
+                    current = 0,
+                    total = 3,
+                    message = "Preparing sync...",
+                ),
+            )
 
-        // Run with retry logic
-        coordinator.withRetry(
-            onRetry = { attempt, max ->
-                onProgress(SyncStatus.Retrying(attempt = attempt, maxAttempts = max))
-            },
-        ) {
-            // Run independent sync operations in parallel
-            val booksJob = async { bookPuller.pull(updatedAfter, onProgress) }
-            val seriesJob = async { seriesPuller.pull(updatedAfter, onProgress) }
-            val contributorsJob = async { contributorPuller.pull(updatedAfter, onProgress) }
+            // Run with retry logic
+            coordinator.withRetry(
+                onRetry = { attempt, max ->
+                    onProgress(SyncStatus.Retrying(attempt = attempt, maxAttempts = max))
+                },
+            ) {
+                // Run independent sync operations in parallel
+                val booksJob = async { bookPuller.pull(updatedAfter, onProgress) }
+                val seriesJob = async { seriesPuller.pull(updatedAfter, onProgress) }
+                val contributorsJob = async { contributorPuller.pull(updatedAfter, onProgress) }
 
-            // Wait for all to complete - if any fails, others will be cancelled
-            try {
-                awaitAll(booksJob, seriesJob, contributorsJob)
-            } catch (e: Exception) {
-                booksJob.cancel()
-                seriesJob.cancel()
-                contributorsJob.cancel()
-                throw e
+                // Wait for all to complete - if any fails, others will be cancelled
+                try {
+                    awaitAll(booksJob, seriesJob, contributorsJob)
+                } catch (e: Exception) {
+                    booksJob.cancel()
+                    seriesJob.cancel()
+                    contributorsJob.cancel()
+                    throw e
+                }
             }
-        }
 
-        onProgress(
-            SyncStatus.Progress(
-                phase = SyncPhase.FINALIZING,
-                current = 3,
-                total = 3,
-                message = "Finalizing sync...",
-            ),
-        )
-    }
+            onProgress(
+                SyncStatus.Progress(
+                    phase = SyncPhase.FINALIZING,
+                    current = 3,
+                    total = 3,
+                    message = "Finalizing sync...",
+                ),
+            )
+        }
 }

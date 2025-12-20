@@ -109,6 +109,7 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.mokkery.runtime)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.koin.test)
         }
     }
 }
@@ -118,11 +119,11 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
-// Wire KSP for Room - platform-specific targets required
+// Wire KSP for Room - platform-specific targets only
+// Note: kspCommonMainMetadata is intentionally omitted to avoid generating
+// an actual object that conflicts with the expect declaration.
+// Platform-specific KSP tasks generate the actual implementations.
 dependencies {
-    // Common metadata (required for Room KMP expect/actual generation)
-    add("kspCommonMainMetadata", libs.androidx.room.compiler)
-
     // Android target
     add("kspAndroid", libs.androidx.room.compiler)
 

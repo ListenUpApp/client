@@ -30,7 +30,6 @@ import kotlin.test.assertTrue
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PullSyncOrchestratorTest {
-
     private class TestFixture {
         val bookPuller: Puller = mock()
         val seriesPuller: Puller = mock()
@@ -61,129 +60,136 @@ class PullSyncOrchestratorTest {
     // ========== Successful Pull Tests ==========
 
     @Test
-    fun `pull calls all three pullers`() = runTest {
-        // Given
-        val fixture = TestFixture()
-        val orchestrator = fixture.build()
+    fun `pull calls all three pullers`() =
+        runTest {
+            // Given
+            val fixture = TestFixture()
+            val orchestrator = fixture.build()
 
-        // When
-        orchestrator.pull {}
+            // When
+            orchestrator.pull {}
 
-        // Then - all pullers called
-        verifySuspend { fixture.bookPuller.pull(any(), any()) }
-        verifySuspend { fixture.seriesPuller.pull(any(), any()) }
-        verifySuspend { fixture.contributorPuller.pull(any(), any()) }
-    }
-
-    @Test
-    fun `pull passes null updatedAfter for full sync`() = runTest {
-        // Given - no previous sync
-        val fixture = TestFixture()
-        everySuspend { fixture.syncDao.getValue(SyncDao.KEY_LAST_SYNC_BOOKS) } returns null
-        val orchestrator = fixture.build()
-
-        // When
-        orchestrator.pull {}
-
-        // Then - null passed for full sync
-        verifySuspend { fixture.bookPuller.pull(null, any()) }
-        verifySuspend { fixture.seriesPuller.pull(null, any()) }
-        verifySuspend { fixture.contributorPuller.pull(null, any()) }
-    }
+            // Then - all pullers called
+            verifySuspend { fixture.bookPuller.pull(any(), any()) }
+            verifySuspend { fixture.seriesPuller.pull(any(), any()) }
+            verifySuspend { fixture.contributorPuller.pull(any(), any()) }
+        }
 
     @Test
-    fun `pull passes timestamp for delta sync`() = runTest {
-        // Given - previous sync exists
-        val fixture = TestFixture()
-        val lastSync = Timestamp(1704067200000L) // 2024-01-01T00:00:00Z
-        everySuspend { fixture.syncDao.getValue(SyncDao.KEY_LAST_SYNC_BOOKS) } returns
-            lastSync.epochMillis.toString()
-        val orchestrator = fixture.build()
+    fun `pull passes null updatedAfter for full sync`() =
+        runTest {
+            // Given - no previous sync
+            val fixture = TestFixture()
+            everySuspend { fixture.syncDao.getValue(SyncDao.KEY_LAST_SYNC_BOOKS) } returns null
+            val orchestrator = fixture.build()
 
-        // When
-        orchestrator.pull {}
+            // When
+            orchestrator.pull {}
 
-        // Then - ISO timestamp passed for delta sync
-        verifySuspend { fixture.bookPuller.pull(lastSync.toIsoString(), any()) }
-        verifySuspend { fixture.seriesPuller.pull(lastSync.toIsoString(), any()) }
-        verifySuspend { fixture.contributorPuller.pull(lastSync.toIsoString(), any()) }
-    }
+            // Then - null passed for full sync
+            verifySuspend { fixture.bookPuller.pull(null, any()) }
+            verifySuspend { fixture.seriesPuller.pull(null, any()) }
+            verifySuspend { fixture.contributorPuller.pull(null, any()) }
+        }
+
+    @Test
+    fun `pull passes timestamp for delta sync`() =
+        runTest {
+            // Given - previous sync exists
+            val fixture = TestFixture()
+            val lastSync = Timestamp(1704067200000L) // 2024-01-01T00:00:00Z
+            everySuspend { fixture.syncDao.getValue(SyncDao.KEY_LAST_SYNC_BOOKS) } returns
+                lastSync.epochMillis.toString()
+            val orchestrator = fixture.build()
+
+            // When
+            orchestrator.pull {}
+
+            // Then - ISO timestamp passed for delta sync
+            verifySuspend { fixture.bookPuller.pull(lastSync.toIsoString(), any()) }
+            verifySuspend { fixture.seriesPuller.pull(lastSync.toIsoString(), any()) }
+            verifySuspend { fixture.contributorPuller.pull(lastSync.toIsoString(), any()) }
+        }
 
     // ========== Progress Reporting Tests ==========
 
     @Test
-    fun `pull reports initial progress`() = runTest {
-        // Given
-        val fixture = TestFixture()
-        val orchestrator = fixture.build()
-        val progressUpdates = mutableListOf<SyncStatus>()
+    fun `pull reports initial progress`() =
+        runTest {
+            // Given
+            val fixture = TestFixture()
+            val orchestrator = fixture.build()
+            val progressUpdates = mutableListOf<SyncStatus>()
 
-        // When
-        orchestrator.pull { progressUpdates.add(it) }
+            // When
+            orchestrator.pull { progressUpdates.add(it) }
 
-        // Then - first update is FETCHING_METADATA
-        assertTrue(progressUpdates.isNotEmpty())
-        val first = progressUpdates.first()
-        assertTrue(first is SyncStatus.Progress)
-        assertEquals(SyncPhase.FETCHING_METADATA, (first as SyncStatus.Progress).phase)
-    }
+            // Then - first update is FETCHING_METADATA
+            assertTrue(progressUpdates.isNotEmpty())
+            val first = progressUpdates.first()
+            assertTrue(first is SyncStatus.Progress)
+            assertEquals(SyncPhase.FETCHING_METADATA, (first as SyncStatus.Progress).phase)
+        }
 
     @Test
-    fun `pull reports finalizing progress`() = runTest {
-        // Given
-        val fixture = TestFixture()
-        val orchestrator = fixture.build()
-        val progressUpdates = mutableListOf<SyncStatus>()
+    fun `pull reports finalizing progress`() =
+        runTest {
+            // Given
+            val fixture = TestFixture()
+            val orchestrator = fixture.build()
+            val progressUpdates = mutableListOf<SyncStatus>()
 
-        // When
-        orchestrator.pull { progressUpdates.add(it) }
+            // When
+            orchestrator.pull { progressUpdates.add(it) }
 
-        // Then - last update is FINALIZING
-        assertTrue(progressUpdates.isNotEmpty())
-        val last = progressUpdates.last()
-        assertTrue(last is SyncStatus.Progress)
-        assertEquals(SyncPhase.FINALIZING, (last as SyncStatus.Progress).phase)
-    }
+            // Then - last update is FINALIZING
+            assertTrue(progressUpdates.isNotEmpty())
+            val last = progressUpdates.last()
+            assertTrue(last is SyncStatus.Progress)
+            assertEquals(SyncPhase.FINALIZING, (last as SyncStatus.Progress).phase)
+        }
 
     // ========== Failure Handling Tests ==========
 
     @Test
-    fun `pull throws when book puller fails after retries`() = runTest {
-        // Given
-        val fixture = TestFixture()
-        everySuspend { fixture.bookPuller.pull(any(), any()) } throws RuntimeException("Book sync failed")
-        val orchestrator = fixture.build()
+    fun `pull throws when book puller fails after retries`() =
+        runTest {
+            // Given
+            val fixture = TestFixture()
+            everySuspend { fixture.bookPuller.pull(any(), any()) } throws RuntimeException("Book sync failed")
+            val orchestrator = fixture.build()
 
-        // When/Then
-        assertFailsWith<RuntimeException> {
-            orchestrator.pull {}
+            // When/Then
+            assertFailsWith<RuntimeException> {
+                orchestrator.pull {}
+            }
         }
-    }
 
     @Test
-    fun `pull throws when series puller fails after retries`() = runTest {
-        // Given
-        val fixture = TestFixture()
-        everySuspend { fixture.seriesPuller.pull(any(), any()) } throws RuntimeException("Series sync failed")
-        val orchestrator = fixture.build()
+    fun `pull throws when series puller fails after retries`() =
+        runTest {
+            // Given
+            val fixture = TestFixture()
+            everySuspend { fixture.seriesPuller.pull(any(), any()) } throws RuntimeException("Series sync failed")
+            val orchestrator = fixture.build()
 
-        // When/Then
-        assertFailsWith<RuntimeException> {
-            orchestrator.pull {}
+            // When/Then
+            assertFailsWith<RuntimeException> {
+                orchestrator.pull {}
+            }
         }
-    }
 
     @Test
-    fun `pull throws when contributor puller fails after retries`() = runTest {
-        // Given
-        val fixture = TestFixture()
-        everySuspend { fixture.contributorPuller.pull(any(), any()) } throws RuntimeException("Contributor sync failed")
-        val orchestrator = fixture.build()
+    fun `pull throws when contributor puller fails after retries`() =
+        runTest {
+            // Given
+            val fixture = TestFixture()
+            everySuspend { fixture.contributorPuller.pull(any(), any()) } throws RuntimeException("Contributor sync failed")
+            val orchestrator = fixture.build()
 
-        // When/Then
-        assertFailsWith<RuntimeException> {
-            orchestrator.pull {}
+            // When/Then
+            assertFailsWith<RuntimeException> {
+                orchestrator.pull {}
+            }
         }
-    }
-
 }

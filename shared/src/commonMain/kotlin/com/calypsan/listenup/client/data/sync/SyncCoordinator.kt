@@ -19,7 +19,6 @@ private val logger = KotlinLogging.logger {}
  * - Progress reporting callbacks
  */
 class SyncCoordinator {
-
     /**
      * Execute a block with retry logic and exponential backoff.
      *

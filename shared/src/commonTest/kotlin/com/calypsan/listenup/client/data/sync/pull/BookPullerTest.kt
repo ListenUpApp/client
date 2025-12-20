@@ -52,7 +52,6 @@ import kotlin.test.assertTrue
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class BookPullerTest {
-
     private fun createBookResponse(
         id: String = "book-1",
         title: String = "Test Book",
@@ -153,378 +152,400 @@ class BookPullerTest {
     // ========== Basic Pull Tests ==========
 
     @Test
-    fun `pull with empty response completes successfully`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = emptyList(),
-                    deletedBookIds = emptyList(),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        val puller = fixture.build()
-
-        // When
-        puller.pull(null) {}
-
-        // Then - no upserts for empty response
-        verifySuspend(VerifyMode.not) { fixture.bookDao.upsertAll(any<List<BookEntity>>()) }
-    }
-
-    @Test
-    fun `pull upserts books from server`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = listOf(createBookResponse(id = "book-1", title = "Test Book")),
-                    deletedBookIds = emptyList(),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        val puller = fixture.build()
-
-        // When
-        puller.pull(null) {}
-        advanceUntilIdle()
-
-        // Then
-        verifySuspend { fixture.bookDao.upsertAll(any<List<BookEntity>>()) }
-    }
-
-    @Test
-    fun `pull throws on API failure`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-            Result.Failure(exception = RuntimeException("API error"), message = "API error")
-        val puller = fixture.build()
-
-        // When/Then
-        assertFailsWith<RuntimeException> {
-            puller.pull(null) {}
-        }
-    }
-
-    // ========== Pagination Tests ==========
-
-    @Test
-    fun `pull handles pagination correctly`() = runTest {
-        // Given - two pages of results
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } sequentially {
-            returns(
+    fun `pull with empty response completes successfully`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
                 Result.Success(
                     SyncBooksResponse(
-                        books = listOf(createBookResponse(id = "book-1")),
-                        deletedBookIds = emptyList(),
-                        nextCursor = "cursor-1",
-                        hasMore = true,
-                    ),
-                ),
-            )
-            returns(
-                Result.Success(
-                    SyncBooksResponse(
-                        books = listOf(createBookResponse(id = "book-2")),
+                        books = emptyList(),
                         deletedBookIds = emptyList(),
                         nextCursor = null,
                         hasMore = false,
                     ),
-                ),
-            )
+                )
+            val puller = fixture.build()
+
+            // When
+            puller.pull(null) {}
+
+            // Then - no upserts for empty response
+            verifySuspend(VerifyMode.not) { fixture.bookDao.upsertAll(any<List<BookEntity>>()) }
         }
-        val puller = fixture.build()
-        val progressUpdates = mutableListOf<SyncStatus>()
 
-        // When
-        puller.pull(null) { progressUpdates.add(it) }
-        advanceUntilIdle()
+    @Test
+    fun `pull upserts books from server`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Result.Success(
+                    SyncBooksResponse(
+                        books = listOf(createBookResponse(id = "book-1", title = "Test Book")),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            val puller = fixture.build()
 
-        // Then - should have progress updates for both pages
-        val bookSyncProgress = progressUpdates.filterIsInstance<SyncStatus.Progress>()
-            .filter { it.phase == SyncPhase.SYNCING_BOOKS }
-        assertEquals(2, bookSyncProgress.size)
-    }
+            // When
+            puller.pull(null) {}
+            advanceUntilIdle()
+
+            // Then
+            verifySuspend { fixture.bookDao.upsertAll(any<List<BookEntity>>()) }
+        }
+
+    @Test
+    fun `pull throws on API failure`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Result.Failure(exception = RuntimeException("API error"), message = "API error")
+            val puller = fixture.build()
+
+            // When/Then
+            assertFailsWith<RuntimeException> {
+                puller.pull(null) {}
+            }
+        }
+
+    // ========== Pagination Tests ==========
+
+    @Test
+    fun `pull handles pagination correctly`() =
+        runTest {
+            // Given - two pages of results
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } sequentially {
+                returns(
+                    Result.Success(
+                        SyncBooksResponse(
+                            books = listOf(createBookResponse(id = "book-1")),
+                            deletedBookIds = emptyList(),
+                            nextCursor = "cursor-1",
+                            hasMore = true,
+                        ),
+                    ),
+                )
+                returns(
+                    Result.Success(
+                        SyncBooksResponse(
+                            books = listOf(createBookResponse(id = "book-2")),
+                            deletedBookIds = emptyList(),
+                            nextCursor = null,
+                            hasMore = false,
+                        ),
+                    ),
+                )
+            }
+            val puller = fixture.build()
+            val progressUpdates = mutableListOf<SyncStatus>()
+
+            // When
+            puller.pull(null) { progressUpdates.add(it) }
+            advanceUntilIdle()
+
+            // Then - should have progress updates for both pages
+            val bookSyncProgress =
+                progressUpdates
+                    .filterIsInstance<SyncStatus.Progress>()
+                    .filter { it.phase == SyncPhase.SYNCING_BOOKS }
+            assertEquals(2, bookSyncProgress.size)
+        }
 
     // ========== Deletion Tests ==========
 
     @Test
-    fun `pull handles book deletions`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = emptyList(),
-                    deletedBookIds = listOf("deleted-1", "deleted-2"),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        val puller = fixture.build()
+    fun `pull handles book deletions`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Result.Success(
+                    SyncBooksResponse(
+                        books = emptyList(),
+                        deletedBookIds = listOf("deleted-1", "deleted-2"),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            val puller = fixture.build()
 
-        // When
-        puller.pull(null) {}
+            // When
+            puller.pull(null) {}
 
-        // Then
-        verifySuspend { fixture.bookDao.deleteByIds(any()) }
-    }
+            // Then
+            verifySuspend { fixture.bookDao.deleteByIds(any()) }
+        }
 
     // ========== Conflict Detection Tests ==========
 
     @Test
-    fun `pull detects and marks conflicts`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val serverTimestamp = Timestamp(5000L)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = listOf(createBookResponse(id = "book-1")),
-                    deletedBookIds = emptyList(),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        everySuspend { fixture.conflictDetector.detectBookConflicts(any()) } returns
-            listOf(BookId("book-1") to serverTimestamp)
-        val puller = fixture.build()
+    fun `pull detects and marks conflicts`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val serverTimestamp = Timestamp(5000L)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Result.Success(
+                    SyncBooksResponse(
+                        books = listOf(createBookResponse(id = "book-1")),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            everySuspend { fixture.conflictDetector.detectBookConflicts(any()) } returns
+                listOf(BookId("book-1") to serverTimestamp)
+            val puller = fixture.build()
 
-        // When
-        puller.pull(null) {}
-        advanceUntilIdle()
+            // When
+            puller.pull(null) {}
+            advanceUntilIdle()
 
-        // Then
-        verifySuspend { fixture.bookDao.markConflict(BookId("book-1"), serverTimestamp) }
-    }
+            // Then
+            verifySuspend { fixture.bookDao.markConflict(BookId("book-1"), serverTimestamp) }
+        }
 
     @Test
-    fun `pull skips books with newer local changes`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = listOf(createBookResponse(id = "book-1")),
-                    deletedBookIds = emptyList(),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        // All books should be preserved (local is newer)
-        everySuspend { fixture.conflictDetector.shouldPreserveLocalChanges(any()) } returns true
-        val puller = fixture.build()
+    fun `pull skips books with newer local changes`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Result.Success(
+                    SyncBooksResponse(
+                        books = listOf(createBookResponse(id = "book-1")),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            // All books should be preserved (local is newer)
+            everySuspend { fixture.conflictDetector.shouldPreserveLocalChanges(any()) } returns true
+            val puller = fixture.build()
 
-        // When
-        puller.pull(null) {}
-        advanceUntilIdle()
+            // When
+            puller.pull(null) {}
+            advanceUntilIdle()
 
-        // Then - no upsert because local changes are newer
-        verifySuspend(VerifyMode.not) { fixture.bookDao.upsertAll(any<List<BookEntity>>()) }
-    }
+            // Then - no upsert because local changes are newer
+            verifySuspend(VerifyMode.not) { fixture.bookDao.upsertAll(any<List<BookEntity>>()) }
+        }
 
     // ========== Chapter Sync Tests ==========
 
     @Test
-    fun `pull syncs chapters for books`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = listOf(
-                        createBookResponse(
-                            id = "book-1",
-                            chapters = listOf(
-                                createChapterResponse(title = "Chapter 1"),
-                                createChapterResponse(title = "Chapter 2"),
+    fun `pull syncs chapters for books`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Result.Success(
+                    SyncBooksResponse(
+                        books =
+                            listOf(
+                                createBookResponse(
+                                    id = "book-1",
+                                    chapters =
+                                        listOf(
+                                            createChapterResponse(title = "Chapter 1"),
+                                            createChapterResponse(title = "Chapter 2"),
+                                        ),
+                                ),
                             ),
-                        ),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
                     ),
-                    deletedBookIds = emptyList(),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        val puller = fixture.build()
+                )
+            val puller = fixture.build()
 
-        // When
-        puller.pull(null) {}
-        advanceUntilIdle()
+            // When
+            puller.pull(null) {}
+            advanceUntilIdle()
 
-        // Then
-        verifySuspend { fixture.chapterDao.upsertAll(any<List<ChapterEntity>>()) }
-    }
+            // Then
+            verifySuspend { fixture.chapterDao.upsertAll(any<List<ChapterEntity>>()) }
+        }
 
     // ========== Contributor Relationship Tests ==========
 
     @Test
-    fun `pull syncs book contributors`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = listOf(
-                        createBookResponse(
-                            id = "book-1",
-                            contributors = listOf(
-                                createContributorResponse(id = "author-1", roles = listOf("author")),
+    fun `pull syncs book contributors`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Result.Success(
+                    SyncBooksResponse(
+                        books =
+                            listOf(
+                                createBookResponse(
+                                    id = "book-1",
+                                    contributors =
+                                        listOf(
+                                            createContributorResponse(id = "author-1", roles = listOf("author")),
+                                        ),
+                                ),
                             ),
-                        ),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
                     ),
-                    deletedBookIds = emptyList(),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        val puller = fixture.build()
+                )
+            val puller = fixture.build()
 
-        // When
-        puller.pull(null) {}
-        advanceUntilIdle()
+            // When
+            puller.pull(null) {}
+            advanceUntilIdle()
 
-        // Then - delete old, insert new
-        verifySuspend { fixture.bookContributorDao.deleteContributorsForBook(BookId("book-1")) }
-        verifySuspend { fixture.bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) }
-    }
+            // Then - delete old, insert new
+            verifySuspend { fixture.bookContributorDao.deleteContributorsForBook(BookId("book-1")) }
+            verifySuspend { fixture.bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) }
+        }
 
     // ========== Series Relationship Tests ==========
 
     @Test
-    fun `pull syncs book series relationships`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = listOf(
-                        createBookResponse(
-                            id = "book-1",
-                            seriesInfo = listOf(
-                                createSeriesInfoResponse(seriesId = "series-1"),
+    fun `pull syncs book series relationships`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Result.Success(
+                    SyncBooksResponse(
+                        books =
+                            listOf(
+                                createBookResponse(
+                                    id = "book-1",
+                                    seriesInfo =
+                                        listOf(
+                                            createSeriesInfoResponse(seriesId = "series-1"),
+                                        ),
+                                ),
                             ),
-                        ),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
                     ),
-                    deletedBookIds = emptyList(),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        val puller = fixture.build()
+                )
+            val puller = fixture.build()
 
-        // When
-        puller.pull(null) {}
-        advanceUntilIdle()
+            // When
+            puller.pull(null) {}
+            advanceUntilIdle()
 
-        // Then - delete old, insert new
-        verifySuspend { fixture.bookSeriesDao.deleteSeriesForBook(BookId("book-1")) }
-        verifySuspend { fixture.bookSeriesDao.insertAll(any<List<BookSeriesCrossRef>>()) }
-    }
+            // Then - delete old, insert new
+            verifySuspend { fixture.bookSeriesDao.deleteSeriesForBook(BookId("book-1")) }
+            verifySuspend { fixture.bookSeriesDao.insertAll(any<List<BookSeriesCrossRef>>()) }
+        }
 
     // ========== Cover Download Tests ==========
 
     @Test
-    fun `pull triggers cover downloads in background`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = listOf(createBookResponse(id = "book-1")),
-                    deletedBookIds = emptyList(),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        val puller = fixture.build()
+    fun `pull triggers cover downloads in background`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Result.Success(
+                    SyncBooksResponse(
+                        books = listOf(createBookResponse(id = "book-1")),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            val puller = fixture.build()
 
-        // When
-        puller.pull(null) {}
-        advanceUntilIdle()
+            // When
+            puller.pull(null) {}
+            advanceUntilIdle()
 
-        // Then
-        verifySuspend { fixture.imageDownloader.downloadCovers(any()) }
-    }
+            // Then
+            verifySuspend { fixture.imageDownloader.downloadCovers(any()) }
+        }
 
     // ========== Progress Reporting Tests ==========
 
     @Test
-    fun `pull reports progress for each page`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = listOf(createBookResponse(id = "book-1")),
-                    deletedBookIds = emptyList(),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        val puller = fixture.build()
-        val progressUpdates = mutableListOf<SyncStatus>()
+    fun `pull reports progress for each page`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), any()) } returns
+                Result.Success(
+                    SyncBooksResponse(
+                        books = listOf(createBookResponse(id = "book-1")),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            val puller = fixture.build()
+            val progressUpdates = mutableListOf<SyncStatus>()
 
-        // When
-        puller.pull(null) { progressUpdates.add(it) }
-        advanceUntilIdle()
+            // When
+            puller.pull(null) { progressUpdates.add(it) }
+            advanceUntilIdle()
 
-        // Then
-        assertTrue(progressUpdates.isNotEmpty())
-        val bookProgress = progressUpdates.first { it is SyncStatus.Progress }
-        assertEquals(SyncPhase.SYNCING_BOOKS, (bookProgress as SyncStatus.Progress).phase)
-    }
+            // Then
+            assertTrue(progressUpdates.isNotEmpty())
+            val bookProgress = progressUpdates.first { it is SyncStatus.Progress }
+            assertEquals(SyncPhase.SYNCING_BOOKS, (bookProgress as SyncStatus.Progress).phase)
+        }
 
     // ========== Delta Sync Tests ==========
 
     @Test
-    fun `pull passes updatedAfter for delta sync`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val timestamp = "2024-01-01T00:00:00Z"
-        everySuspend { fixture.syncApi.getBooks(any(), any(), timestamp) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = emptyList(),
-                    deletedBookIds = emptyList(),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        val puller = fixture.build()
+    fun `pull passes updatedAfter for delta sync`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val timestamp = "2024-01-01T00:00:00Z"
+            everySuspend { fixture.syncApi.getBooks(any(), any(), timestamp) } returns
+                Result.Success(
+                    SyncBooksResponse(
+                        books = emptyList(),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            val puller = fixture.build()
 
-        // When
-        puller.pull(timestamp) {}
+            // When
+            puller.pull(timestamp) {}
 
-        // Then - API called with timestamp
-        verifySuspend { fixture.syncApi.getBooks(any(), any(), timestamp) }
-    }
+            // Then - API called with timestamp
+            verifySuspend { fixture.syncApi.getBooks(any(), any(), timestamp) }
+        }
 
     @Test
-    fun `pull passes null for full sync`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.syncApi.getBooks(any(), any(), null) } returns
-            Result.Success(
-                SyncBooksResponse(
-                    books = emptyList(),
-                    deletedBookIds = emptyList(),
-                    nextCursor = null,
-                    hasMore = false,
-                ),
-            )
-        val puller = fixture.build()
+    fun `pull passes null for full sync`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.syncApi.getBooks(any(), any(), null) } returns
+                Result.Success(
+                    SyncBooksResponse(
+                        books = emptyList(),
+                        deletedBookIds = emptyList(),
+                        nextCursor = null,
+                        hasMore = false,
+                    ),
+                )
+            val puller = fixture.build()
 
-        // When
-        puller.pull(null) {}
+            // When
+            puller.pull(null) {}
 
-        // Then - API called with null (full sync)
-        verifySuspend { fixture.syncApi.getBooks(any(), any(), null) }
-    }
+            // Then - API called with null (full sync)
+            verifySuspend { fixture.syncApi.getBooks(any(), any(), null) }
+        }
 }

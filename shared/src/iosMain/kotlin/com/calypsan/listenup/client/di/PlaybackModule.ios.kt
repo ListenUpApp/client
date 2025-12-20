@@ -75,9 +75,11 @@ val iosPlaybackModule: Module =
         single {
             ProgressTracker(
                 positionDao = get(),
-                eventDao = get(),
                 downloadDao = get(),
                 syncApi = get(),
+                pendingOperationRepository = get(),
+                listeningEventHandler = get(),
+                pushSyncOrchestrator = get(),
                 deviceId = get(qualifier = named("deviceId")),
                 scope = get(qualifier = named("playbackScope")),
             )

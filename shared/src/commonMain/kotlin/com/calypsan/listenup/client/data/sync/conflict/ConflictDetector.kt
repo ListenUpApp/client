@@ -3,8 +3,20 @@ package com.calypsan.listenup.client.data.sync.conflict
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.ContributorDao
+import com.calypsan.listenup.client.data.local.db.EntityType
+import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
+import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
+
+/**
+ * Result of a push conflict check.
+ */
+data class PushConflict(
+    val operationId: String,
+    val reason: String,
+)
 
 /**
  * Interface for conflict detection operations.
@@ -21,6 +33,14 @@ interface ConflictDetectorContract {
      * Check if local changes should be preserved (local is newer than server).
      */
     suspend fun shouldPreserveLocalChanges(serverBook: BookEntity): Boolean
+
+    /**
+     * Check if a pending push operation conflicts with server state.
+     *
+     * Returns a PushConflict if the server has newer changes than when
+     * the operation was created.
+     */
+    suspend fun checkPushConflict(operation: PendingOperationEntity): PushConflict?
 }
 
 /**
@@ -32,6 +52,8 @@ interface ConflictDetectorContract {
  */
 class ConflictDetector(
     private val bookDao: BookDao,
+    private val contributorDao: ContributorDao,
+    private val seriesDao: SeriesDao,
 ) : ConflictDetectorContract {
     /**
      * Detect conflicts where server has newer version than local unsynced changes.
@@ -60,4 +82,44 @@ class ConflictDetector(
             ?.takeIf { it.syncState == SyncState.NOT_SYNCED }
             ?.let { it.lastModified >= serverBook.updatedAt }
             ?: false
+
+    /**
+     * Check if a pending push operation conflicts with server state.
+     *
+     * Compares the operation's creation time against the entity's updatedAt
+     * timestamp (which reflects the last known server state).
+     *
+     * @return PushConflict if server has been updated since operation was created
+     */
+    override suspend fun checkPushConflict(operation: PendingOperationEntity): PushConflict? {
+        // Only entity operations can conflict
+        if (operation.entityId == null || operation.entityType == null) {
+            return null
+        }
+
+        val serverTimestamp =
+            when (operation.entityType) {
+                EntityType.BOOK -> {
+                    bookDao.getById(BookId(operation.entityId))?.updatedAt?.epochMillis
+                }
+
+                EntityType.CONTRIBUTOR -> {
+                    contributorDao.getById(operation.entityId)?.updatedAt?.epochMillis
+                }
+
+                EntityType.SERIES -> {
+                    seriesDao.getById(operation.entityId)?.updatedAt?.epochMillis
+                }
+            } ?: return null // Entity not found - no conflict, but might fail on push
+
+        // If server was updated after we queued our change, it's a conflict
+        return if (serverTimestamp > operation.createdAt) {
+            PushConflict(
+                operationId = operation.id,
+                reason = "Server has newer changes",
+            )
+        } else {
+            null
+        }
+    }
 }

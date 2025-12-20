@@ -67,172 +67,182 @@ class ServerSelectViewModelTest {
     }
 
     @Test
-    fun `initial state has isDiscovering true`() = runTest {
-        val serverRepository: ServerRepositoryContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
-        every { serverRepository.startDiscovery() } returns Unit
+    fun `initial state has isDiscovering true`() =
+        runTest {
+            val serverRepository: ServerRepositoryContract = mock()
+            val settingsRepository: SettingsRepositoryContract = mock()
+            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
+            every { serverRepository.startDiscovery() } returns Unit
 
-        val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
 
-        assertTrue(viewModel.state.value.isDiscovering)
-    }
-
-    @Test
-    fun `init starts server discovery`() = runTest {
-        val serverRepository: ServerRepositoryContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
-        every { serverRepository.startDiscovery() } returns Unit
-
-        ServerSelectViewModel(serverRepository, settingsRepository)
-
-        verify { serverRepository.startDiscovery() }
-    }
+            assertTrue(viewModel.state.value.isDiscovering)
+        }
 
     @Test
-    fun `observeServers updates state with discovered servers`() = runTest {
-        val serverRepository: ServerRepositoryContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        val serversFlow = MutableStateFlow<List<ServerWithStatus>>(emptyList())
-        every { serverRepository.observeServers() } returns serversFlow
-        every { serverRepository.startDiscovery() } returns Unit
+    fun `init starts server discovery`() =
+        runTest {
+            val serverRepository: ServerRepositoryContract = mock()
+            val settingsRepository: SettingsRepositoryContract = mock()
+            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
+            every { serverRepository.startDiscovery() } returns Unit
 
-        val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
-        advanceUntilIdle()
+            ServerSelectViewModel(serverRepository, settingsRepository)
 
-        val servers = listOf(createServerWithStatus())
-        serversFlow.value = servers
-        advanceUntilIdle()
-
-        assertEquals(1, viewModel.state.value.servers.size)
-        assertFalse(viewModel.state.value.isDiscovering)
-    }
+            verify { serverRepository.startDiscovery() }
+        }
 
     @Test
-    fun `ManualEntryClicked emits GoToManualEntry navigation event`() = runTest {
-        val serverRepository: ServerRepositoryContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
-        every { serverRepository.startDiscovery() } returns Unit
+    fun `observeServers updates state with discovered servers`() =
+        runTest {
+            val serverRepository: ServerRepositoryContract = mock()
+            val settingsRepository: SettingsRepositoryContract = mock()
+            val serversFlow = MutableStateFlow<List<ServerWithStatus>>(emptyList())
+            every { serverRepository.observeServers() } returns serversFlow
+            every { serverRepository.startDiscovery() } returns Unit
 
-        val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
-        advanceUntilIdle()
+            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            advanceUntilIdle()
 
-        viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
-        advanceUntilIdle()
+            val servers = listOf(createServerWithStatus())
+            serversFlow.value = servers
+            advanceUntilIdle()
 
-        assertIs<ServerSelectViewModel.NavigationEvent.GoToManualEntry>(viewModel.navigationEvents.value)
-    }
-
-    @Test
-    fun `RefreshClicked restarts discovery`() = runTest {
-        val serverRepository: ServerRepositoryContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
-        every { serverRepository.startDiscovery() } returns Unit
-        every { serverRepository.stopDiscovery() } returns Unit
-
-        val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
-        advanceUntilIdle()
-
-        viewModel.onEvent(ServerSelectUiEvent.RefreshClicked)
-        advanceUntilIdle()
-
-        verify { serverRepository.stopDiscovery() }
-        // startDiscovery called twice: once in init, once on refresh
-    }
+            assertEquals(1, viewModel.state.value.servers.size)
+            assertFalse(viewModel.state.value.isDiscovering)
+        }
 
     @Test
-    fun `ServerSelected activates server and navigates`() = runTest {
-        val serverRepository: ServerRepositoryContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        val server = createServerEntity()
-        every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
-        every { serverRepository.startDiscovery() } returns Unit
-        everySuspend { serverRepository.setActiveServer(server.id) } returns Unit
-        everySuspend { settingsRepository.setServerUrl(any()) } returns Unit
+    fun `ManualEntryClicked emits GoToManualEntry navigation event`() =
+        runTest {
+            val serverRepository: ServerRepositoryContract = mock()
+            val settingsRepository: SettingsRepositoryContract = mock()
+            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
+            every { serverRepository.startDiscovery() } returns Unit
 
-        val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
-        advanceUntilIdle()
+            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            advanceUntilIdle()
 
-        viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
-        advanceUntilIdle()
+            viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
+            advanceUntilIdle()
 
-        verifySuspend { serverRepository.setActiveServer(server.id) }
-        verifySuspend { settingsRepository.setServerUrl(ServerUrl(server.localUrl!!)) }
-        assertIs<ServerSelectViewModel.NavigationEvent.ServerActivated>(viewModel.navigationEvents.value)
-    }
+            assertIs<ServerSelectViewModel.NavigationEvent.GoToManualEntry>(viewModel.navigationEvents.value)
+        }
 
     @Test
-    fun `ServerSelected handles error`() = runTest {
-        val serverRepository: ServerRepositoryContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        val server = createServerEntity()
-        every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
-        every { serverRepository.startDiscovery() } returns Unit
-        everySuspend { serverRepository.setActiveServer(any<String>()) } throws RuntimeException("Failed")
+    fun `RefreshClicked restarts discovery`() =
+        runTest {
+            val serverRepository: ServerRepositoryContract = mock()
+            val settingsRepository: SettingsRepositoryContract = mock()
+            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
+            every { serverRepository.startDiscovery() } returns Unit
+            every { serverRepository.stopDiscovery() } returns Unit
 
-        val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
-        advanceUntilIdle()
+            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            advanceUntilIdle()
 
-        viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
-        advanceUntilIdle()
+            viewModel.onEvent(ServerSelectUiEvent.RefreshClicked)
+            advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.error != null)
-        assertFalse(viewModel.state.value.isConnecting)
-    }
-
-    @Test
-    fun `ErrorDismissed clears error`() = runTest {
-        val serverRepository: ServerRepositoryContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        val server = createServerEntity()
-        every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
-        every { serverRepository.startDiscovery() } returns Unit
-        everySuspend { serverRepository.setActiveServer(any<String>()) } throws RuntimeException("Failed")
-
-        val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
-        advanceUntilIdle()
-        viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
-        advanceUntilIdle()
-        assertTrue(viewModel.state.value.error != null)
-
-        viewModel.onEvent(ServerSelectUiEvent.ErrorDismissed)
-
-        assertNull(viewModel.state.value.error)
-    }
+            verify { serverRepository.stopDiscovery() }
+            // startDiscovery called twice: once in init, once on refresh
+        }
 
     @Test
-    fun `onNavigationHandled clears navigation event`() = runTest {
-        val serverRepository: ServerRepositoryContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
-        every { serverRepository.startDiscovery() } returns Unit
+    fun `ServerSelected activates server and navigates`() =
+        runTest {
+            val serverRepository: ServerRepositoryContract = mock()
+            val settingsRepository: SettingsRepositoryContract = mock()
+            val server = createServerEntity()
+            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
+            every { serverRepository.startDiscovery() } returns Unit
+            everySuspend { serverRepository.setActiveServer(server.id) } returns Unit
+            everySuspend { settingsRepository.setServerUrl(any()) } returns Unit
 
-        val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
-        advanceUntilIdle()
-        viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
-        advanceUntilIdle()
-        assertTrue(viewModel.navigationEvents.value != null)
+            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            advanceUntilIdle()
 
-        viewModel.onNavigationHandled()
+            viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
+            advanceUntilIdle()
 
-        assertNull(viewModel.navigationEvents.value)
-    }
+            verifySuspend { serverRepository.setActiveServer(server.id) }
+            verifySuspend { settingsRepository.setServerUrl(ServerUrl(server.localUrl!!)) }
+            assertIs<ServerSelectViewModel.NavigationEvent.ServerActivated>(viewModel.navigationEvents.value)
+        }
 
     @Test
-    fun `onCleared stops discovery`() = runTest {
-        val serverRepository: ServerRepositoryContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
-        every { serverRepository.startDiscovery() } returns Unit
-        every { serverRepository.stopDiscovery() } returns Unit
+    fun `ServerSelected handles error`() =
+        runTest {
+            val serverRepository: ServerRepositoryContract = mock()
+            val settingsRepository: SettingsRepositoryContract = mock()
+            val server = createServerEntity()
+            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
+            every { serverRepository.startDiscovery() } returns Unit
+            everySuspend { serverRepository.setActiveServer(any<String>()) } throws RuntimeException("Failed")
 
-        val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
-        advanceUntilIdle()
+            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            advanceUntilIdle()
 
-        // Simulate onCleared by calling the method directly (it's protected but we test behavior)
-        // In practice, we verify stopDiscovery is called when appropriate
-    }
+            viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
+            advanceUntilIdle()
+
+            assertTrue(viewModel.state.value.error != null)
+            assertFalse(viewModel.state.value.isConnecting)
+        }
+
+    @Test
+    fun `ErrorDismissed clears error`() =
+        runTest {
+            val serverRepository: ServerRepositoryContract = mock()
+            val settingsRepository: SettingsRepositoryContract = mock()
+            val server = createServerEntity()
+            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
+            every { serverRepository.startDiscovery() } returns Unit
+            everySuspend { serverRepository.setActiveServer(any<String>()) } throws RuntimeException("Failed")
+
+            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            advanceUntilIdle()
+            viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value.error != null)
+
+            viewModel.onEvent(ServerSelectUiEvent.ErrorDismissed)
+
+            assertNull(viewModel.state.value.error)
+        }
+
+    @Test
+    fun `onNavigationHandled clears navigation event`() =
+        runTest {
+            val serverRepository: ServerRepositoryContract = mock()
+            val settingsRepository: SettingsRepositoryContract = mock()
+            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
+            every { serverRepository.startDiscovery() } returns Unit
+
+            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            advanceUntilIdle()
+            viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
+            advanceUntilIdle()
+            assertTrue(viewModel.navigationEvents.value != null)
+
+            viewModel.onNavigationHandled()
+
+            assertNull(viewModel.navigationEvents.value)
+        }
+
+    @Test
+    fun `onCleared stops discovery`() =
+        runTest {
+            val serverRepository: ServerRepositoryContract = mock()
+            val settingsRepository: SettingsRepositoryContract = mock()
+            every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
+            every { serverRepository.startDiscovery() } returns Unit
+            every { serverRepository.stopDiscovery() } returns Unit
+
+            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            advanceUntilIdle()
+
+            // Simulate onCleared by calling the method directly (it's protected but we test behavior)
+            // In practice, we verify stopDiscovery is called when appropriate
+        }
 }

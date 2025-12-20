@@ -1,21 +1,19 @@
-@file:OptIn(ExperimentalTime::class)
-
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.local.db.EntityType
+import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.remote.ListenUpApiContract
-import com.calypsan.listenup.client.data.remote.SeriesEditResponse
-import com.calypsan.listenup.client.data.remote.SeriesUpdateRequest
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.SeriesUpdateHandler
+import com.calypsan.listenup.client.data.sync.push.SeriesUpdatePayload
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.withContext
-import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
@@ -23,120 +21,97 @@ private val logger = KotlinLogging.logger {}
  * Contract for series editing operations.
  *
  * Provides methods for modifying series metadata.
- * Changes are sent to the server and then applied to the local database.
+ * Uses offline-first pattern: changes are applied locally immediately
+ * and queued for sync to server.
  */
 interface SeriesEditRepositoryContract {
     /**
      * Update series metadata.
      *
-     * Sends update to server, then updates local database on success.
-     * Only non-null fields in the request are updated (PATCH semantics).
+     * Applies update locally and queues for server sync.
+     * Only non-null fields are updated (PATCH semantics).
      *
      * @param seriesId ID of the series to update
      * @param name New name (null = don't change)
      * @param description New description (null = don't change)
-     * @return Result containing the updated series response
+     * @return Result indicating success or failure
      */
     suspend fun updateSeries(
         seriesId: String,
         name: String?,
         description: String?,
-    ): Result<SeriesEditResponse>
+    ): Result<Unit>
 }
 
 /**
- * Repository for series editing operations.
+ * Repository for series editing operations using offline-first pattern.
  *
  * Handles the edit flow:
- * 1. Send changes to server via API
- * 2. On success, update local database to reflect changes
- * 3. Return result to caller
+ * 1. Apply optimistic update to local database (syncState = PENDING)
+ * 2. Queue operation for server sync via PendingOperationRepository
+ * 3. Return success immediately
  *
- * Local database is updated immediately after successful server response,
- * ensuring the UI reflects changes without waiting for next sync.
+ * The PushSyncOrchestrator will later:
+ * - Send changes to server
+ * - Handle conflicts if server version is newer
+ * - Mark entity as SYNCED on success
  *
- * @property api ListenUp API client
  * @property seriesDao Room DAO for series operations
+ * @property pendingOperationRepository Repository for queuing sync operations
+ * @property seriesUpdateHandler Handler for series update operations
  */
 class SeriesEditRepository(
-    private val api: ListenUpApiContract,
     private val seriesDao: SeriesDao,
+    private val pendingOperationRepository: PendingOperationRepositoryContract,
+    private val seriesUpdateHandler: SeriesUpdateHandler,
 ) : SeriesEditRepositoryContract {
     /**
      * Update series metadata.
      *
      * Flow:
-     * 1. Send PATCH request to server
-     * 2. On success, update local SeriesEntity with new values
-     * 3. Return the server response
+     * 1. Get existing series from local database
+     * 2. Apply optimistic update with syncState = PENDING
+     * 3. Queue operation (coalesces with any pending update)
+     * 4. Return success immediately
      */
     override suspend fun updateSeries(
         seriesId: String,
         name: String?,
         description: String?,
-    ): Result<SeriesEditResponse> =
+    ): Result<Unit> =
         withContext(IODispatcher) {
-            logger.debug { "Updating series: $seriesId" }
+            logger.debug { "Updating series (offline-first): $seriesId" }
 
-            // Create request with only non-null fields
-            val request =
-                SeriesUpdateRequest(
-                    name = name,
-                    description = description,
-                )
-
-            // Send update to server
-            when (val result = api.updateSeries(seriesId, request)) {
-                is Success -> {
-                    // Update local database
-                    updateLocalSeries(seriesId, result.data)
-                    logger.info { "Series updated successfully: $seriesId" }
-                    result
-                }
-
-                is Failure -> {
-                    logger.error(result.exception) { "Failed to update series: $seriesId" }
-                    result
-                }
-            }
-        }
-
-    /**
-     * Update local SeriesEntity with server response data.
-     *
-     * Updates fields that are present in both SeriesEntity and SeriesEditResponse.
-     */
-    private suspend fun updateLocalSeries(
-        seriesId: String,
-        response: SeriesEditResponse,
-    ) {
-        val existing =
-            seriesDao.getById(seriesId) ?: run {
-                logger.warn { "Series not found in local database: $seriesId" }
-                return
+            // Get existing series
+            val existing = seriesDao.getById(seriesId)
+            if (existing == null) {
+                logger.error { "Series not found: $seriesId" }
+                return@withContext Failure(Exception("Series not found: $seriesId"))
             }
 
-        // Parse the ISO 8601 timestamp from server
-        val serverUpdatedAt =
-            try {
-                Timestamp.fromEpochMillis(Instant.parse(response.updatedAt).toEpochMilliseconds())
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to parse timestamp: ${response.updatedAt}" }
-                Timestamp.now()
-            }
-
-        // Update fields that SeriesEntity supports
-        val updated =
-            existing.copy(
-                name = response.name,
-                description = response.description,
-                // Update sync metadata
-                updatedAt = serverUpdatedAt,
+            // Apply optimistic update
+            val updated = existing.copy(
+                name = name ?: existing.name,
+                description = description ?: existing.description,
+                syncState = SyncState.NOT_SYNCED,
                 lastModified = Timestamp.now(),
-                syncState = SyncState.SYNCED, // We just synced with server
+            )
+            seriesDao.upsert(updated)
+
+            // Queue operation (coalesces if pending update exists for this series)
+            val payload = SeriesUpdatePayload(
+                name = name,
+                description = description,
+            )
+            pendingOperationRepository.queue(
+                type = OperationType.SERIES_UPDATE,
+                entityType = EntityType.SERIES,
+                entityId = seriesId,
+                payload = payload,
+                handler = seriesUpdateHandler,
             )
 
-        seriesDao.upsert(updated)
-        logger.debug { "Local series updated: $seriesId" }
-    }
+            logger.info { "Series update queued: $seriesId" }
+            Success(Unit)
+        }
 }

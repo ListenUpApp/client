@@ -38,11 +38,26 @@ class SSEEventProcessor(
     suspend fun process(event: SSEEventType) {
         try {
             when (event) {
-                is SSEEventType.BookCreated -> handleBookCreated(event)
-                is SSEEventType.BookUpdated -> handleBookUpdated(event)
-                is SSEEventType.BookDeleted -> handleBookDeleted(event)
-                is SSEEventType.ScanStarted -> handleScanStarted(event)
-                is SSEEventType.ScanCompleted -> handleScanCompleted(event)
+                is SSEEventType.BookCreated -> {
+                    handleBookCreated(event)
+                }
+
+                is SSEEventType.BookUpdated -> {
+                    handleBookUpdated(event)
+                }
+
+                is SSEEventType.BookDeleted -> {
+                    handleBookDeleted(event)
+                }
+
+                is SSEEventType.ScanStarted -> {
+                    handleScanStarted(event)
+                }
+
+                is SSEEventType.ScanCompleted -> {
+                    handleScanCompleted(event)
+                }
+
                 is SSEEventType.Heartbeat -> { /* Keep-alive, no action */ }
             }
         } catch (e: Exception) {
@@ -103,11 +118,12 @@ class SSEEventProcessor(
 
         bookContributorDao.deleteContributorsForBook(bookId)
 
-        val crossRefs = book.contributors.flatMap { contributor ->
-            contributor.roles.map { role ->
-                contributor.toEntity(bookId, role)
+        val crossRefs =
+            book.contributors.flatMap { contributor ->
+                contributor.roles.map { role ->
+                    contributor.toEntity(bookId, role)
+                }
             }
-        }
 
         if (crossRefs.isNotEmpty()) {
             bookContributorDao.insertAll(crossRefs)
@@ -124,9 +140,10 @@ class SSEEventProcessor(
 
         bookSeriesDao.deleteSeriesForBook(bookId)
 
-        val crossRefs = book.seriesInfo.map { seriesInfo ->
-            seriesInfo.toEntity(bookId)
-        }
+        val crossRefs =
+            book.seriesInfo.map { seriesInfo ->
+                seriesInfo.toEntity(bookId)
+            }
 
         if (crossRefs.isNotEmpty()) {
             bookSeriesDao.insertAll(crossRefs)

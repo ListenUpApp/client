@@ -30,6 +30,8 @@ import com.calypsan.listenup.client.data.repository.BookEditRepository
 import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
+import com.calypsan.listenup.client.data.repository.ContributorEditRepository
+import com.calypsan.listenup.client.data.repository.ContributorEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.ContributorRepository
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
@@ -64,7 +66,23 @@ import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
+import com.calypsan.listenup.client.data.sync.push.BookUpdateHandler
+import com.calypsan.listenup.client.data.sync.push.ContributorUpdateHandler
+import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
+import com.calypsan.listenup.client.data.sync.push.MergeContributorHandler
+import com.calypsan.listenup.client.data.sync.push.OperationExecutor
+import com.calypsan.listenup.client.data.sync.push.OperationExecutorContract
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepository
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.PlaybackPositionHandler
+import com.calypsan.listenup.client.data.sync.push.PreferencesSyncObserver
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
+import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
+import com.calypsan.listenup.client.data.sync.push.SeriesUpdateHandler
+import com.calypsan.listenup.client.data.sync.push.SetBookContributorsHandler
+import com.calypsan.listenup.client.data.sync.push.SetBookSeriesHandler
+import com.calypsan.listenup.client.data.sync.push.UnmergeContributorHandler
+import com.calypsan.listenup.client.data.sync.push.UserPreferencesHandler
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
@@ -75,6 +93,7 @@ import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
+import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.bind
@@ -104,6 +123,8 @@ val dataModule =
 
         // Settings repository - single source of truth for app configuration
         // Bind to both concrete type and interface (for ViewModels)
+        // Note: SettingsRepository has no sync dependencies - it emits preference change events
+        // that are observed by PreferencesSyncObserver (in syncModule) to avoid circular deps.
         single {
             SettingsRepository(
                 secureStorage = get(),
@@ -188,7 +209,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().bookContributorDao() }
         single { get<ListenUpDatabase>().bookSeriesDao() }
         single { get<ListenUpDatabase>().playbackPositionDao() }
-        single { get<ListenUpDatabase>().pendingListeningEventDao() }
+        single { get<ListenUpDatabase>().pendingOperationDao() }
         single { get<ListenUpDatabase>().downloadDao() }
         single { get<ListenUpDatabase>().searchDao() }
         single { get<ListenUpDatabase>().serverDao() }
@@ -339,9 +360,8 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.contributoredit.ContributorEditViewModel(
                 contributorDao = get(),
-                bookContributorDao = get(),
                 contributorRepository = get(),
-                api = get(),
+                contributorEditRepository = get(),
                 imageApi = get(),
                 imageStorage = get(),
             )
@@ -355,6 +375,8 @@ val presentationModule =
             )
         }
         factory { SettingsViewModel(settingsRepository = get(), userPreferencesApi = get()) }
+        // SyncIndicatorViewModel as singleton for app-wide sync status
+        single { SyncIndicatorViewModel(pendingOperationRepository = get()) }
     }
 
 /**
@@ -452,7 +474,13 @@ val syncModule =
         single { SyncCoordinator() }
 
         // ConflictDetector - timestamp-based conflict detection
-        single { ConflictDetector(bookDao = get()) } bind ConflictDetectorContract::class
+        single {
+            ConflictDetector(
+                bookDao = get(),
+                contributorDao = get(),
+                seriesDao = get(),
+            )
+        } bind ConflictDetectorContract::class
 
         // SSEEventProcessor - processes real-time SSE events
         single {
@@ -471,7 +499,11 @@ val syncModule =
         }
 
         // Entity pullers - fetch data from server with pagination
-        single<Puller>(qualifier = org.koin.core.qualifier.named("bookPuller")) {
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("bookPuller"),
+        ) {
             BookPuller(
                 syncApi = get(),
                 bookDao = get(),
@@ -489,7 +521,11 @@ val syncModule =
             )
         }
 
-        single<Puller>(qualifier = org.koin.core.qualifier.named("seriesPuller")) {
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("seriesPuller"),
+        ) {
             SeriesPuller(
                 syncApi = get(),
                 seriesDao = get(),
@@ -503,7 +539,11 @@ val syncModule =
             )
         }
 
-        single<Puller>(qualifier = org.koin.core.qualifier.named("contributorPuller")) {
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("contributorPuller"),
+        ) {
             ContributorPuller(
                 syncApi = get(),
                 contributorDao = get(),
@@ -520,16 +560,99 @@ val syncModule =
         // PullSyncOrchestrator - coordinates parallel entity pulls
         single {
             PullSyncOrchestrator(
-                bookPuller = get(qualifier = org.koin.core.qualifier.named("bookPuller")),
-                seriesPuller = get(qualifier = org.koin.core.qualifier.named("seriesPuller")),
-                contributorPuller = get(qualifier = org.koin.core.qualifier.named("contributorPuller")),
+                bookPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("bookPuller"),
+                    ),
+                seriesPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("seriesPuller"),
+                    ),
+                contributorPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("contributorPuller"),
+                    ),
                 coordinator = get(),
                 syncDao = get(),
             )
         }
 
-        // PushSyncOrchestrator - stub for future push sync
-        single { PushSyncOrchestrator() }
+        // Push sync handlers
+        single { BookUpdateHandler(api = get()) }
+        single { ContributorUpdateHandler(api = get()) }
+        single { SeriesUpdateHandler(api = get()) }
+        single { SetBookContributorsHandler(api = get()) }
+        single { SetBookSeriesHandler(api = get()) }
+        single { MergeContributorHandler(api = get()) }
+        single { UnmergeContributorHandler(api = get()) }
+        single { ListeningEventHandler(api = get()) }
+        single { PlaybackPositionHandler(api = get()) }
+        single { UserPreferencesHandler(api = get()) }
+
+        // PreferencesSyncObserver - observes SettingsRepository.preferenceChanges and queues sync operations.
+        // This breaks the circular dependency between SettingsRepository and the sync layer.
+        // Started automatically on creation via the appScope.
+        single {
+            PreferencesSyncObserver(
+                settingsRepository = get(),
+                pendingOperationRepository = get(),
+                userPreferencesHandler = get(),
+            ).also { observer ->
+                observer.start(
+                    scope = get(
+                        qualifier = org.koin.core.qualifier.named("appScope"),
+                    ),
+                )
+            }
+        }
+
+        // OperationExecutor - dispatches to handlers
+        single {
+            OperationExecutor.create(
+                bookUpdateHandler = get(),
+                contributorUpdateHandler = get(),
+                seriesUpdateHandler = get(),
+                setBookContributorsHandler = get(),
+                setBookSeriesHandler = get(),
+                mergeContributorHandler = get(),
+                unmergeContributorHandler = get(),
+                listeningEventHandler = get(),
+                playbackPositionHandler = get(),
+                userPreferencesHandler = get(),
+            )
+        } bind OperationExecutorContract::class
+
+        // PendingOperationRepository - queue and coalesce operations
+        single {
+            PendingOperationRepository(
+                dao = get(),
+                bookDao = get(),
+                contributorDao = get(),
+                seriesDao = get(),
+            )
+        } bind PendingOperationRepositoryContract::class
+
+        // PushSyncOrchestrator - flush pending operations
+        single {
+            PushSyncOrchestrator(
+                repository = get(),
+                executor = get(),
+                conflictDetector = get(),
+                networkMonitor = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        } bind PushSyncOrchestratorContract::class
 
         // SyncManager - thin orchestrator coordinating sync phases
         single {
@@ -600,21 +723,37 @@ val syncModule =
             )
         } bind SeriesRepositoryContract::class
 
-        // BookEditRepository for book editing operations
+        // BookEditRepository for book editing operations (offline-first)
         single {
             BookEditRepository(
-                api = get(),
                 bookDao = get(),
+                pendingOperationRepository = get(),
+                bookUpdateHandler = get(),
+                setBookContributorsHandler = get(),
+                setBookSeriesHandler = get(),
             )
         } bind BookEditRepositoryContract::class
 
-        // SeriesEditRepository for series editing operations
+        // SeriesEditRepository for series editing operations (offline-first)
         single {
             SeriesEditRepository(
-                api = get(),
                 seriesDao = get(),
+                pendingOperationRepository = get(),
+                seriesUpdateHandler = get(),
             )
         } bind SeriesEditRepositoryContract::class
+
+        // ContributorEditRepository for contributor editing operations (offline-first)
+        single {
+            ContributorEditRepository(
+                contributorDao = get(),
+                bookContributorDao = get(),
+                pendingOperationRepository = get(),
+                contributorUpdateHandler = get(),
+                mergeContributorHandler = get(),
+                unmergeContributorHandler = get(),
+            )
+        } bind ContributorEditRepositoryContract::class
     }
 
 /**

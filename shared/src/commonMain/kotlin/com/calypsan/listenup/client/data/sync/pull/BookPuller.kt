@@ -136,13 +136,14 @@ class BookPuller(
         response: SyncBooksResponse,
         upsertedBooks: List<BookEntity>,
     ) {
-        val chaptersToUpsert = response.books
-            .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
-            .flatMap { bookResponse ->
-                bookResponse.chapters.mapIndexed { index, chapter ->
-                    chapter.toEntity(BookId(bookResponse.id), index)
+        val chaptersToUpsert =
+            response.books
+                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
+                .flatMap { bookResponse ->
+                    bookResponse.chapters.mapIndexed { index, chapter ->
+                        chapter.toEntity(BookId(bookResponse.id), index)
+                    }
                 }
-            }
 
         logger.debug { "Upserting ${chaptersToUpsert.size} chapters total" }
         if (chaptersToUpsert.isNotEmpty()) {
@@ -154,17 +155,18 @@ class BookPuller(
         response: SyncBooksResponse,
         upsertedBooks: List<BookEntity>,
     ) {
-        val bookContributorsToUpsert = response.books
-            .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
-            .flatMap { bookResponse ->
-                bookContributorDao.deleteContributorsForBook(BookId(bookResponse.id))
+        val bookContributorsToUpsert =
+            response.books
+                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
+                .flatMap { bookResponse ->
+                    bookContributorDao.deleteContributorsForBook(BookId(bookResponse.id))
 
-                bookResponse.contributors.flatMap { contributorResponse ->
-                    contributorResponse.roles.map { role ->
-                        contributorResponse.toEntity(BookId(bookResponse.id), role)
+                    bookResponse.contributors.flatMap { contributorResponse ->
+                        contributorResponse.roles.map { role ->
+                            contributorResponse.toEntity(BookId(bookResponse.id), role)
+                        }
                     }
                 }
-            }
 
         if (bookContributorsToUpsert.isNotEmpty()) {
             bookContributorDao.insertAll(bookContributorsToUpsert)
@@ -175,15 +177,16 @@ class BookPuller(
         response: SyncBooksResponse,
         upsertedBooks: List<BookEntity>,
     ) {
-        val bookSeriesToUpsert = response.books
-            .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
-            .flatMap { bookResponse ->
-                bookSeriesDao.deleteSeriesForBook(BookId(bookResponse.id))
+        val bookSeriesToUpsert =
+            response.books
+                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
+                .flatMap { bookResponse ->
+                    bookSeriesDao.deleteSeriesForBook(BookId(bookResponse.id))
 
-                bookResponse.seriesInfo.map { seriesInfo ->
-                    seriesInfo.toEntity(BookId(bookResponse.id))
+                    bookResponse.seriesInfo.map { seriesInfo ->
+                        seriesInfo.toEntity(BookId(bookResponse.id))
+                    }
                 }
-            }
 
         if (bookSeriesToUpsert.isNotEmpty()) {
             bookSeriesDao.insertAll(bookSeriesToUpsert)

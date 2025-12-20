@@ -4,11 +4,15 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.DownloadDao
-import com.calypsan.listenup.client.data.local.db.PendingListeningEventDao
+import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
+import com.calypsan.listenup.client.data.sync.push.ListeningEventPayload
+import com.calypsan.listenup.client.data.sync.push.OperationHandler
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
@@ -43,16 +47,20 @@ class ProgressTrackerTest {
         val testScope = TestScope(testDispatcher)
 
         val positionDao: PlaybackPositionDao = mock()
-        val eventDao: PendingListeningEventDao = mock()
         val downloadDao: DownloadDao = mock()
         val syncApi: SyncApiContract = mock()
+        val pendingOperationRepository: PendingOperationRepositoryContract = mock()
+        val listeningEventHandler: OperationHandler<ListeningEventPayload> = mock()
+        val pushSyncOrchestrator: PushSyncOrchestratorContract = mock()
 
         fun build(): ProgressTracker =
             ProgressTracker(
                 positionDao = positionDao,
-                eventDao = eventDao,
                 downloadDao = downloadDao,
                 syncApi = syncApi,
+                pendingOperationRepository = pendingOperationRepository,
+                listeningEventHandler = listeningEventHandler,
+                pushSyncOrchestrator = pushSyncOrchestrator,
                 deviceId = "test-device-123",
                 scope = testScope,
             )
@@ -65,6 +73,8 @@ class ProgressTrackerTest {
         everySuspend { fixture.positionDao.get(any()) } returns null
         everySuspend { fixture.positionDao.save(any()) } returns Unit
         everySuspend { fixture.syncApi.getProgress(any()) } returns Success(null)
+        everySuspend { fixture.pendingOperationRepository.queue<Any>(any(), any(), any(), any(), any()) } returns Unit
+        everySuspend { fixture.pushSyncOrchestrator.flush() } returns Unit
 
         return fixture
     }

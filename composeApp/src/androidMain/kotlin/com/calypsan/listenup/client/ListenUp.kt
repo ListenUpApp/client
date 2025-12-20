@@ -10,6 +10,7 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import com.calypsan.listenup.client.core.ImageLoaderFactory
 import com.calypsan.listenup.client.data.remote.PlaybackApi
+import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
 import com.calypsan.listenup.client.di.sharedModules
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadManager
@@ -85,12 +86,16 @@ val playbackModule =
         single { get<AudioTokenProvider>() as AndroidAudioTokenProvider }
 
         // Progress tracker for position persistence and event recording
+        // Note: get<ListeningEventHandler>() is required because the parameter type is
+        // OperationHandler<ListeningEventPayload> but Koin can't resolve generic types.
         single {
             ProgressTracker(
                 positionDao = get(),
-                eventDao = get(),
                 downloadDao = get(),
                 syncApi = get(),
+                pendingOperationRepository = get(),
+                listeningEventHandler = get<ListeningEventHandler>(),
+                pushSyncOrchestrator = get(),
                 deviceId = get(),
                 scope = get(),
             )
@@ -203,7 +208,8 @@ class ListenUp :
             modules(sharedModules + androidModule + playbackModule + downloadModule)
         }
 
-        // Configure WorkManager with custom factory for dependency injection
+        // Configure WorkManager with custom factory for dependency injection.
+        // Must be done before verifyCriticalKoinBindings() because DownloadManager needs WorkManager.
         val workerFactory =
             DownloadWorkerFactory(
                 downloadDao = get(),
@@ -222,6 +228,10 @@ class ListenUp :
 
         WorkManager.initialize(this, workManagerConfig)
 
+        // Verify critical Koin bindings at startup to fail fast.
+        // This catches DI misconfigurations before UI loads, providing clear error messages.
+        verifyCriticalKoinBindings()
+
         // Schedule periodic background sync
         // TODO: Only schedule after user authentication
         get<BackgroundSyncScheduler>().schedule()
@@ -238,4 +248,32 @@ class ListenUp :
             context = this,
             debug = false, // TODO: Enable in debug builds when BuildConfig is available
         )
+
+    /**
+     * Verify that all critical Koin singletons can be resolved.
+     *
+     * This catches DI misconfigurations at startup, before any UI or background workers
+     * try to use them. Issues are logged with clear error messages.
+     */
+    private fun verifyCriticalKoinBindings() {
+        val criticalTypes = listOf(
+            "SettingsRepository" to { get<com.calypsan.listenup.client.data.repository.SettingsRepository>() },
+            "SyncManager" to { get<com.calypsan.listenup.client.data.sync.SyncManagerContract>() },
+            "ProgressTracker" to { get<ProgressTracker>() },
+            "PlaybackManager" to { get<PlaybackManager>() },
+            "PushSyncOrchestrator" to { get<com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract>() },
+        )
+
+        criticalTypes.forEach { (name, resolver) ->
+            try {
+                resolver()
+            } catch (e: Exception) {
+                throw IllegalStateException(
+                    "Koin verification failed for $name. Check your module configuration.\n" +
+                        "Error: ${e.message}",
+                    e,
+                )
+            }
+        }
+    }
 }

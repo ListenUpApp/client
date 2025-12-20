@@ -6,13 +6,15 @@ package com.calypsan.listenup.client.playback
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.DownloadDao
-import com.calypsan.listenup.client.data.local.db.PendingListeningEventDao
-import com.calypsan.listenup.client.data.local.db.PendingListeningEventEntity
+import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
-import com.calypsan.listenup.client.data.remote.ListeningEventRequest
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
+import com.calypsan.listenup.client.data.sync.push.ListeningEventPayload
+import com.calypsan.listenup.client.data.sync.push.OperationHandler
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -22,8 +24,6 @@ import kotlin.time.ExperimentalTime
 
 private val logger = KotlinLogging.logger {}
 
-private const val MAX_SYNC_BATCH_SIZE = 50
-
 /**
  * Coordinates position persistence and event recording.
  *
@@ -32,13 +32,15 @@ private const val MAX_SYNC_BATCH_SIZE = 50
  * 2. Event recording (append-only, eventually consistent) - listening history
  *
  * Position is sacred: saves immediately on every pause/seek.
- * Events are queued locally and synced when network is available.
+ * Events are queued locally via the unified push sync system.
  */
 class ProgressTracker(
     private val positionDao: PlaybackPositionDao,
-    private val eventDao: PendingListeningEventDao,
     private val downloadDao: DownloadDao,
     private val syncApi: SyncApiContract,
+    private val pendingOperationRepository: PendingOperationRepositoryContract,
+    private val listeningEventHandler: OperationHandler<ListeningEventPayload>,
+    private val pushSyncOrchestrator: PushSyncOrchestratorContract,
     private val deviceId: String,
     private val scope: CoroutineScope,
 ) {
@@ -93,19 +95,15 @@ class ProgressTracker(
 
                     // Only record if listened for at least 10 seconds
                     if (durationMs >= 10_000) {
-                        val event =
-                            PendingListeningEventEntity(
-                                id = NanoId.generate("evt"),
-                                bookId = bookId,
-                                startPositionMs = session.startPositionMs,
-                                endPositionMs = positionMs,
-                                startedAt = session.startedAt,
-                                endedAt = Clock.System.now().toEpochMilliseconds(),
-                                playbackSpeed = session.playbackSpeed,
-                                deviceId = deviceId,
-                            )
-                        eventDao.insert(event)
-                        logger.debug { "Listening event queued: ${event.id}, duration=${durationMs}ms" }
+                        queueListeningEvent(
+                            bookId = bookId,
+                            startPositionMs = session.startPositionMs,
+                            endPositionMs = positionMs,
+                            startedAt = session.startedAt,
+                            endedAt = Clock.System.now().toEpochMilliseconds(),
+                            playbackSpeed = session.playbackSpeed,
+                        )
+                        logger.debug { "Listening event queued: duration=${durationMs}ms" }
 
                         // Fire-and-forget sync attempt
                         trySyncEvents()
@@ -317,18 +315,14 @@ class ProgressTracker(
             // Record completion event
             currentSession?.let { session ->
                 if (session.bookId == bookId) {
-                    val event =
-                        PendingListeningEventEntity(
-                            id = NanoId.generate("evt"),
-                            bookId = bookId,
-                            startPositionMs = session.startPositionMs,
-                            endPositionMs = Long.MAX_VALUE, // Indicates completion
-                            startedAt = session.startedAt,
-                            endedAt = Clock.System.now().toEpochMilliseconds(),
-                            playbackSpeed = session.playbackSpeed,
-                            deviceId = deviceId,
-                        )
-                    eventDao.insert(event)
+                    queueListeningEvent(
+                        bookId = bookId,
+                        startPositionMs = session.startPositionMs,
+                        endPositionMs = Long.MAX_VALUE, // Indicates completion
+                        startedAt = session.startedAt,
+                        endedAt = Clock.System.now().toEpochMilliseconds(),
+                        playbackSpeed = session.playbackSpeed,
+                    )
                 }
             }
             currentSession = null
@@ -356,47 +350,43 @@ class ProgressTracker(
     fun getCurrentSpeed(): Float = currentSession?.playbackSpeed ?: 1.0f
 
     /**
-     * Fire-and-forget sync of pending listening events.
-     * Called after recording new events; failures are silent (events stay queued).
+     * Queue a listening event via the unified push sync system.
+     */
+    private suspend fun queueListeningEvent(
+        bookId: BookId,
+        startPositionMs: Long,
+        endPositionMs: Long,
+        startedAt: Long,
+        endedAt: Long,
+        playbackSpeed: Float,
+    ) {
+        val payload =
+            ListeningEventPayload(
+                id = NanoId.generate("evt"),
+                bookId = bookId.value,
+                startPositionMs = startPositionMs,
+                endPositionMs = endPositionMs,
+                startedAt = startedAt,
+                endedAt = endedAt,
+                playbackSpeed = playbackSpeed,
+                deviceId = deviceId,
+            )
+
+        pendingOperationRepository.queue(
+            type = OperationType.LISTENING_EVENT,
+            entityType = null, // Events don't target a specific entity type
+            entityId = null, // Events batch together, not by entity
+            payload = payload,
+            handler = listeningEventHandler,
+        )
+    }
+
+    /**
+     * Fire-and-forget sync attempt via the push sync orchestrator.
      */
     private fun trySyncEvents() {
         scope.launch {
-            try {
-                val pending = eventDao.getPending(MAX_SYNC_BATCH_SIZE)
-                if (pending.isEmpty()) return@launch
-
-                val requests =
-                    pending.map { event ->
-                        ListeningEventRequest(
-                            id = event.id,
-                            book_id = event.bookId.value,
-                            start_position_ms = event.startPositionMs,
-                            end_position_ms = event.endPositionMs,
-                            started_at = event.startedAt,
-                            ended_at = event.endedAt,
-                            playback_speed = event.playbackSpeed,
-                            device_id = event.deviceId,
-                        )
-                    }
-
-                when (val result = syncApi.submitListeningEvents(requests)) {
-                    is Result.Success -> {
-                        // Delete acknowledged events
-                        result.data.acknowledged.forEach { id ->
-                            eventDao.deleteById(id)
-                        }
-                        logger.debug { "Synced ${result.data.acknowledged.size} events" }
-                    }
-
-                    is Result.Failure -> {
-                        // Silent failure - events stay queued for next attempt
-                        logger.debug { "Event sync failed: ${result.exception.message}" }
-                    }
-                }
-            } catch (e: Exception) {
-                // Network errors, auth errors, etc. - events stay queued
-                logger.debug { "Event sync error: ${e.message}" }
-            }
+            pushSyncOrchestrator.flush()
         }
     }
 }

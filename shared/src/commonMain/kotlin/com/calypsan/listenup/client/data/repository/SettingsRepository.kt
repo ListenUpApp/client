@@ -6,9 +6,23 @@ import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * Events emitted when user preferences change.
+ * Observed by the sync layer to queue operations without creating circular dependencies.
+ */
+sealed interface PreferenceChangeEvent {
+    /**
+     * Default playback speed was changed.
+     */
+    data class PlaybackSpeedChanged(val speed: Float) : PreferenceChangeEvent
+}
 
 /**
  * Contract for application settings and authentication state.
@@ -19,6 +33,12 @@ import kotlinx.coroutines.flow.asStateFlow
 @Suppress("TooManyFunctions")
 interface SettingsRepositoryContract {
     val authState: StateFlow<AuthState>
+
+    /**
+     * Flow of preference change events.
+     * Observed by the sync layer to queue operations for server synchronization.
+     */
+    val preferenceChanges: SharedFlow<PreferenceChangeEvent>
 
     // Server configuration
     suspend fun setServerUrl(url: ServerUrl)
@@ -118,6 +138,12 @@ class SettingsRepository(
 ) : SettingsRepositoryContract {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initializing)
     override val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
+    // Buffer of 1 ensures emit() doesn't suspend when no collectors are active.
+    // This is appropriate for preference sync since we don't want settings changes
+    // to block waiting for the sync layer.
+    private val _preferenceChanges = MutableSharedFlow<PreferenceChangeEvent>(extraBufferCapacity = 1)
+    override val preferenceChanges: SharedFlow<PreferenceChangeEvent> = _preferenceChanges.asSharedFlow()
 
     companion object {
         private const val KEY_SERVER_URL = "server_url"
@@ -509,10 +535,14 @@ class SettingsRepository(
 
     /**
      * Set the default playback speed for new books.
-     * This is a synced setting - will be pushed to server by SyncManager.
+     * This is a synced setting - emits an event for the sync layer to queue.
      * @param speed Playback speed multiplier (e.g., 1.0, 1.25, 1.5)
      */
     override suspend fun setDefaultPlaybackSpeed(speed: Float) {
+        // Save locally
         secureStorage.save(KEY_DEFAULT_PLAYBACK_SPEED, speed.toString())
+
+        // Emit event for sync layer to observe and queue
+        _preferenceChanges.emit(PreferenceChangeEvent.PlaybackSpeedChanged(speed))
     }
 }

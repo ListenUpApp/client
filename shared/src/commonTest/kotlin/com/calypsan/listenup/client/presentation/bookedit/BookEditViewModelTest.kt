@@ -587,24 +587,7 @@ class BookEditViewModelTest {
             val book = TestData.book(id = "book-1", title = "Original")
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             everySuspend { fixture.bookEditRepository.updateBook(any(), any()) } returns
-                Success(
-                    BookEditResponse(
-                        id = "book-1",
-                        title = "Updated",
-                        subtitle = null,
-                        description = null,
-                        publisher = null,
-                        publishYear = null,
-                        language = null,
-                        isbn = null,
-                        asin = null,
-                        abridged = false,
-                        seriesId = null,
-                        seriesName = null,
-                        sequence = null,
-                        updatedAt = "2024-01-01T00:00:00Z",
-                    ),
-                )
+                Success(Unit)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()

@@ -40,7 +40,6 @@ import kotlin.test.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SSEEventProcessorTest {
-
     private fun createBookResponse(
         id: String = "book-1",
         title: String = "Test Book",
@@ -120,308 +119,332 @@ class SSEEventProcessorTest {
     // ========== BookCreated Tests ==========
 
     @Test
-    fun `BookCreated event upserts book to database`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(id = "book-1", title = "New Book")
+    fun `BookCreated event upserts book to database`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+            val bookResponse = createBookResponse(id = "book-1", title = "New Book")
 
-        // When
-        processor.process(SSEEventType.BookCreated(bookResponse))
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.BookCreated(bookResponse))
+            advanceUntilIdle()
 
-        // Then
-        verifySuspend { fixture.bookDao.upsert(any<BookEntity>()) }
-    }
-
-    @Test
-    fun `BookCreated event saves contributor relationships`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(
-            id = "book-1",
-            contributors = listOf(
-                createContributor(id = "author-1", name = "Jane Doe", roles = listOf("author")),
-                createContributor(id = "narrator-1", name = "John Smith", roles = listOf("narrator")),
-            ),
-        )
-
-        // When
-        processor.process(SSEEventType.BookCreated(bookResponse))
-        advanceUntilIdle()
-
-        // Then - should delete old and insert new relationships
-        verifySuspend { fixture.bookContributorDao.deleteContributorsForBook(BookId("book-1")) }
-        verifySuspend { fixture.bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) }
-    }
+            // Then
+            verifySuspend { fixture.bookDao.upsert(any<BookEntity>()) }
+        }
 
     @Test
-    fun `BookCreated event saves series relationships`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(
-            id = "book-1",
-            seriesInfo = listOf(
-                createSeriesInfo(seriesId = "series-1", name = "Epic Fantasy", sequence = "1"),
-            ),
-        )
+    fun `BookCreated event saves contributor relationships`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+            val bookResponse =
+                createBookResponse(
+                    id = "book-1",
+                    contributors =
+                        listOf(
+                            createContributor(id = "author-1", name = "Jane Doe", roles = listOf("author")),
+                            createContributor(id = "narrator-1", name = "John Smith", roles = listOf("narrator")),
+                        ),
+                )
 
-        // When
-        processor.process(SSEEventType.BookCreated(bookResponse))
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.BookCreated(bookResponse))
+            advanceUntilIdle()
 
-        // Then - should delete old and insert new relationships
-        verifySuspend { fixture.bookSeriesDao.deleteSeriesForBook(BookId("book-1")) }
-        verifySuspend { fixture.bookSeriesDao.insertAll(any<List<BookSeriesCrossRef>>()) }
-    }
-
-    @Test
-    fun `BookCreated event triggers cover download`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(id = "book-1")
-
-        // When
-        processor.process(SSEEventType.BookCreated(bookResponse))
-        advanceUntilIdle()
-
-        // Then
-        verifySuspend { fixture.imageDownloader.downloadCover(BookId("book-1")) }
-    }
+            // Then - should delete old and insert new relationships
+            verifySuspend { fixture.bookContributorDao.deleteContributorsForBook(BookId("book-1")) }
+            verifySuspend { fixture.bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) }
+        }
 
     @Test
-    fun `BookCreated event with no contributors skips contributor insert`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(id = "book-1", contributors = emptyList())
+    fun `BookCreated event saves series relationships`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+            val bookResponse =
+                createBookResponse(
+                    id = "book-1",
+                    seriesInfo =
+                        listOf(
+                            createSeriesInfo(seriesId = "series-1", name = "Epic Fantasy", sequence = "1"),
+                        ),
+                )
 
-        // When
-        processor.process(SSEEventType.BookCreated(bookResponse))
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.BookCreated(bookResponse))
+            advanceUntilIdle()
 
-        // Then - should delete but NOT insert (empty list)
-        verifySuspend { fixture.bookContributorDao.deleteContributorsForBook(BookId("book-1")) }
-        verifySuspend(VerifyMode.not) { fixture.bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) }
-    }
+            // Then - should delete old and insert new relationships
+            verifySuspend { fixture.bookSeriesDao.deleteSeriesForBook(BookId("book-1")) }
+            verifySuspend { fixture.bookSeriesDao.insertAll(any<List<BookSeriesCrossRef>>()) }
+        }
+
+    @Test
+    fun `BookCreated event triggers cover download`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+            val bookResponse = createBookResponse(id = "book-1")
+
+            // When
+            processor.process(SSEEventType.BookCreated(bookResponse))
+            advanceUntilIdle()
+
+            // Then
+            verifySuspend { fixture.imageDownloader.downloadCover(BookId("book-1")) }
+        }
+
+    @Test
+    fun `BookCreated event with no contributors skips contributor insert`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+            val bookResponse = createBookResponse(id = "book-1", contributors = emptyList())
+
+            // When
+            processor.process(SSEEventType.BookCreated(bookResponse))
+            advanceUntilIdle()
+
+            // Then - should delete but NOT insert (empty list)
+            verifySuspend { fixture.bookContributorDao.deleteContributorsForBook(BookId("book-1")) }
+            verifySuspend(VerifyMode.not) { fixture.bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) }
+        }
 
     // ========== BookUpdated Tests ==========
 
     @Test
-    fun `BookUpdated event upserts book to database`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(id = "book-1", title = "Updated Title")
+    fun `BookUpdated event upserts book to database`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+            val bookResponse = createBookResponse(id = "book-1", title = "Updated Title")
 
-        // When
-        processor.process(SSEEventType.BookUpdated(bookResponse))
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.BookUpdated(bookResponse))
+            advanceUntilIdle()
 
-        // Then
-        verifySuspend { fixture.bookDao.upsert(any<BookEntity>()) }
-    }
-
-    @Test
-    fun `BookUpdated event replaces contributor relationships`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(
-            id = "book-1",
-            contributors = listOf(createContributor(id = "new-author")),
-        )
-
-        // When
-        processor.process(SSEEventType.BookUpdated(bookResponse))
-        advanceUntilIdle()
-
-        // Then - old relationships deleted, new ones inserted
-        verifySuspend { fixture.bookContributorDao.deleteContributorsForBook(BookId("book-1")) }
-        verifySuspend { fixture.bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) }
-    }
+            // Then
+            verifySuspend { fixture.bookDao.upsert(any<BookEntity>()) }
+        }
 
     @Test
-    fun `BookUpdated event triggers cover download`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(id = "book-1")
+    fun `BookUpdated event replaces contributor relationships`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+            val bookResponse =
+                createBookResponse(
+                    id = "book-1",
+                    contributors = listOf(createContributor(id = "new-author")),
+                )
 
-        // When
-        processor.process(SSEEventType.BookUpdated(bookResponse))
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.BookUpdated(bookResponse))
+            advanceUntilIdle()
 
-        // Then
-        verifySuspend { fixture.imageDownloader.downloadCover(BookId("book-1")) }
-    }
+            // Then - old relationships deleted, new ones inserted
+            verifySuspend { fixture.bookContributorDao.deleteContributorsForBook(BookId("book-1")) }
+            verifySuspend { fixture.bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) }
+        }
+
+    @Test
+    fun `BookUpdated event triggers cover download`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+            val bookResponse = createBookResponse(id = "book-1")
+
+            // When
+            processor.process(SSEEventType.BookUpdated(bookResponse))
+            advanceUntilIdle()
+
+            // Then
+            verifySuspend { fixture.imageDownloader.downloadCover(BookId("book-1")) }
+        }
 
     // ========== BookDeleted Tests ==========
 
     @Test
-    fun `BookDeleted event deletes book from database`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
+    fun `BookDeleted event deletes book from database`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
 
-        // When
-        processor.process(SSEEventType.BookDeleted(bookId = "book-1", deletedAt = "2024-01-01T00:00:00Z"))
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.BookDeleted(bookId = "book-1", deletedAt = "2024-01-01T00:00:00Z"))
+            advanceUntilIdle()
 
-        // Then
-        verifySuspend { fixture.bookDao.deleteById(BookId("book-1")) }
-    }
+            // Then
+            verifySuspend { fixture.bookDao.deleteById(BookId("book-1")) }
+        }
 
     @Test
-    fun `BookDeleted event does not trigger cover download`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
+    fun `BookDeleted event does not trigger cover download`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
 
-        // When
-        processor.process(SSEEventType.BookDeleted(bookId = "book-1", deletedAt = "2024-01-01T00:00:00Z"))
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.BookDeleted(bookId = "book-1", deletedAt = "2024-01-01T00:00:00Z"))
+            advanceUntilIdle()
 
-        // Then - no cover download for deleted books
-        verifySuspend(VerifyMode.not) { fixture.imageDownloader.downloadCover(any()) }
-    }
+            // Then - no cover download for deleted books
+            verifySuspend(VerifyMode.not) { fixture.imageDownloader.downloadCover(any()) }
+        }
 
     // ========== ScanStarted / ScanCompleted Tests ==========
 
     @Test
-    fun `ScanStarted event does not modify database`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
+    fun `ScanStarted event does not modify database`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
 
-        // When
-        processor.process(SSEEventType.ScanStarted(libraryId = "lib-1", startedAt = "2024-01-01T00:00:00Z"))
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.ScanStarted(libraryId = "lib-1", startedAt = "2024-01-01T00:00:00Z"))
+            advanceUntilIdle()
 
-        // Then - no database operations
-        verifySuspend(VerifyMode.not) { fixture.bookDao.upsert(any<BookEntity>()) }
-        verifySuspend(VerifyMode.not) { fixture.bookDao.deleteById(any()) }
-    }
+            // Then - no database operations
+            verifySuspend(VerifyMode.not) { fixture.bookDao.upsert(any<BookEntity>()) }
+            verifySuspend(VerifyMode.not) { fixture.bookDao.deleteById(any()) }
+        }
 
     @Test
-    fun `ScanCompleted event does not modify database`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
+    fun `ScanCompleted event does not modify database`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
 
-        // When
-        processor.process(
-            SSEEventType.ScanCompleted(
-                libraryId = "lib-1",
-                booksAdded = 5,
-                booksUpdated = 3,
-                booksRemoved = 1,
-            ),
-        )
-        advanceUntilIdle()
+            // When
+            processor.process(
+                SSEEventType.ScanCompleted(
+                    libraryId = "lib-1",
+                    booksAdded = 5,
+                    booksUpdated = 3,
+                    booksRemoved = 1,
+                ),
+            )
+            advanceUntilIdle()
 
-        // Then - no database operations (just logging)
-        verifySuspend(VerifyMode.not) { fixture.bookDao.upsert(any<BookEntity>()) }
-        verifySuspend(VerifyMode.not) { fixture.bookDao.deleteById(any()) }
-    }
+            // Then - no database operations (just logging)
+            verifySuspend(VerifyMode.not) { fixture.bookDao.upsert(any<BookEntity>()) }
+            verifySuspend(VerifyMode.not) { fixture.bookDao.deleteById(any()) }
+        }
 
     // ========== Heartbeat Tests ==========
 
     @Test
-    fun `Heartbeat event does nothing`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
+    fun `Heartbeat event does nothing`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
 
-        // When
-        processor.process(SSEEventType.Heartbeat)
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.Heartbeat)
+            advanceUntilIdle()
 
-        // Then - no operations
-        verifySuspend(VerifyMode.not) { fixture.bookDao.upsert(any<BookEntity>()) }
-        verifySuspend(VerifyMode.not) { fixture.bookDao.deleteById(any()) }
-        verifySuspend(VerifyMode.not) { fixture.imageDownloader.downloadCover(any()) }
-    }
+            // Then - no operations
+            verifySuspend(VerifyMode.not) { fixture.bookDao.upsert(any<BookEntity>()) }
+            verifySuspend(VerifyMode.not) { fixture.bookDao.deleteById(any()) }
+            verifySuspend(VerifyMode.not) { fixture.imageDownloader.downloadCover(any()) }
+        }
 
     // ========== Cover Download Success Tests ==========
 
     @Test
-    fun `successful cover download triggers book touch for UI refresh`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.imageDownloader.downloadCover(any()) } returns Result.Success(true)
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(id = "book-1")
+    fun `successful cover download triggers book touch for UI refresh`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.imageDownloader.downloadCover(any()) } returns Result.Success(true)
+            val processor = fixture.build()
+            val bookResponse = createBookResponse(id = "book-1")
 
-        // When
-        processor.process(SSEEventType.BookCreated(bookResponse))
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.BookCreated(bookResponse))
+            advanceUntilIdle()
 
-        // Then - book's updatedAt is touched to trigger UI refresh
-        verifySuspend { fixture.bookDao.touchUpdatedAt(BookId("book-1"), any()) }
-    }
+            // Then - book's updatedAt is touched to trigger UI refresh
+            verifySuspend { fixture.bookDao.touchUpdatedAt(BookId("book-1"), any()) }
+        }
 
     @Test
-    fun `failed cover download does not touch book`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.imageDownloader.downloadCover(any()) } returns
-            Result.Failure(exception = Exception("Network error"), message = "Failed")
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(id = "book-1")
+    fun `failed cover download does not touch book`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.imageDownloader.downloadCover(any()) } returns
+                Result.Failure(exception = Exception("Network error"), message = "Failed")
+            val processor = fixture.build()
+            val bookResponse = createBookResponse(id = "book-1")
 
-        // When
-        processor.process(SSEEventType.BookCreated(bookResponse))
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.BookCreated(bookResponse))
+            advanceUntilIdle()
 
-        // Then - book not touched on failure
-        verifySuspend(VerifyMode.not) { fixture.bookDao.touchUpdatedAt(any(), any()) }
-    }
+            // Then - book not touched on failure
+            verifySuspend(VerifyMode.not) { fixture.bookDao.touchUpdatedAt(any(), any()) }
+        }
 
     // ========== Error Handling Tests ==========
 
     @Test
-    fun `exception during processing does not crash`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        everySuspend { fixture.bookDao.upsert(any<BookEntity>()) } throws RuntimeException("Database error")
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(id = "book-1")
+    fun `exception during processing does not crash`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            everySuspend { fixture.bookDao.upsert(any<BookEntity>()) } throws RuntimeException("Database error")
+            val processor = fixture.build()
+            val bookResponse = createBookResponse(id = "book-1")
 
-        // When - should not throw
-        processor.process(SSEEventType.BookCreated(bookResponse))
-        advanceUntilIdle()
+            // When - should not throw
+            processor.process(SSEEventType.BookCreated(bookResponse))
+            advanceUntilIdle()
 
-        // Then - no exception thrown (error is logged)
-    }
+            // Then - no exception thrown (error is logged)
+        }
 
     // ========== Multiple Roles Tests ==========
 
     @Test
-    fun `contributor with multiple roles creates multiple cross refs`() = runTest {
-        // Given
-        val fixture = TestFixture(this)
-        val processor = fixture.build()
-        val bookResponse = createBookResponse(
-            id = "book-1",
-            contributors = listOf(
-                // Single person with multiple roles
-                createContributor(
-                    id = "person-1",
-                    name = "Multi-Talented",
-                    roles = listOf("author", "narrator"),
-                ),
-            ),
-        )
+    fun `contributor with multiple roles creates multiple cross refs`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+            val bookResponse =
+                createBookResponse(
+                    id = "book-1",
+                    contributors =
+                        listOf(
+                            // Single person with multiple roles
+                            createContributor(
+                                id = "person-1",
+                                name = "Multi-Talented",
+                                roles = listOf("author", "narrator"),
+                            ),
+                        ),
+                )
 
-        // When
-        processor.process(SSEEventType.BookCreated(bookResponse))
-        advanceUntilIdle()
+            // When
+            processor.process(SSEEventType.BookCreated(bookResponse))
+            advanceUntilIdle()
 
-        // Then - insertAll is called (with 2 cross refs for 2 roles)
-        verifySuspend { fixture.bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) }
-    }
+            // Then - insertAll is called (with 2 cross refs for 2 roles)
+            verifySuspend { fixture.bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) }
+        }
 }
