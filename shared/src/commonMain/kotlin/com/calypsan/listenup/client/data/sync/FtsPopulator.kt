@@ -1,12 +1,11 @@
 package com.calypsan.listenup.client.data.sync
 
+import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlin.time.measureTime
 
@@ -45,7 +44,7 @@ class FtsPopulator(
      * so they will exist by the time this method is called.
      */
     override suspend fun rebuildAll() =
-        withContext(Dispatchers.IO) {
+        withContext(IODispatcher) {
             logger.info { "Starting FTS rebuild..." }
 
             val duration =

@@ -10,15 +10,19 @@ import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.AuthApiContract
+import com.calypsan.listenup.client.data.remote.BookApiContract
+import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.GenreApi
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.ImageApi
 import com.calypsan.listenup.client.data.remote.ImageApiContract
+import com.calypsan.listenup.client.data.remote.InstanceApiContract
 import com.calypsan.listenup.client.data.remote.InviteApi
 import com.calypsan.listenup.client.data.remote.InviteApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SearchApiContract
+import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.TagApi
@@ -26,22 +30,28 @@ import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesApi
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
+import com.calypsan.listenup.client.data.repository.AuthSessionContract
 import com.calypsan.listenup.client.data.repository.BookEditRepository
 import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.BookRepository
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
+import com.calypsan.listenup.client.data.repository.ContributorEditRepository
+import com.calypsan.listenup.client.data.repository.ContributorEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.ContributorRepository
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
+import com.calypsan.listenup.client.data.repository.LibraryPreferencesContract
+import com.calypsan.listenup.client.data.repository.PlaybackPreferencesContract
 import com.calypsan.listenup.client.data.repository.SearchRepository
 import com.calypsan.listenup.client.data.repository.SearchRepositoryContract
 import com.calypsan.listenup.client.data.repository.SeriesEditRepository
 import com.calypsan.listenup.client.data.repository.SeriesEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.SeriesRepository
 import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
+import com.calypsan.listenup.client.data.repository.ServerConfigContract
 import com.calypsan.listenup.client.data.repository.ServerMigrationHelper
 import com.calypsan.listenup.client.data.repository.ServerRepository
 import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
@@ -54,8 +64,34 @@ import com.calypsan.listenup.client.data.sync.ImageDownloader
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.data.sync.SSEManagerContract
+import com.calypsan.listenup.client.data.sync.SyncCoordinator
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
+import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
+import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
+import com.calypsan.listenup.client.data.sync.pull.BookPuller
+import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
+import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
+import com.calypsan.listenup.client.data.sync.pull.Puller
+import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
+import com.calypsan.listenup.client.data.sync.push.BookUpdateHandler
+import com.calypsan.listenup.client.data.sync.push.ContributorUpdateHandler
+import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
+import com.calypsan.listenup.client.data.sync.push.MergeContributorHandler
+import com.calypsan.listenup.client.data.sync.push.OperationExecutor
+import com.calypsan.listenup.client.data.sync.push.OperationExecutorContract
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepository
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.PlaybackPositionHandler
+import com.calypsan.listenup.client.data.sync.push.PreferencesSyncObserver
+import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
+import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
+import com.calypsan.listenup.client.data.sync.push.SeriesUpdateHandler
+import com.calypsan.listenup.client.data.sync.push.SetBookContributorsHandler
+import com.calypsan.listenup.client.data.sync.push.SetBookSeriesHandler
+import com.calypsan.listenup.client.data.sync.push.UnmergeContributorHandler
+import com.calypsan.listenup.client.data.sync.push.UserPreferencesHandler
+import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
@@ -65,6 +101,7 @@ import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
+import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.bind
@@ -93,13 +130,21 @@ val dataModule =
         single { DeepLinkManager() }
 
         // Settings repository - single source of truth for app configuration
-        // Bind to both concrete type and interface (for ViewModels)
+        // Note: SettingsRepository has no sync dependencies - it emits preference change events
+        // that are observed by PreferencesSyncObserver (in syncModule) to avoid circular deps.
         single {
             SettingsRepository(
                 secureStorage = get(),
                 instanceRepository = get(),
             )
-        } bind SettingsRepositoryContract::class
+        }
+
+        // Bind segregated interfaces to the same SettingsRepository instance (ISP compliance)
+        single<SettingsRepositoryContract> { get<SettingsRepository>() }
+        single<AuthSessionContract> { get<SettingsRepository>() }
+        single<ServerConfigContract> { get<SettingsRepository>() }
+        single<LibraryPreferencesContract> { get<SettingsRepository>() }
+        single<PlaybackPreferencesContract> { get<SettingsRepository>() }
     }
 
 /**
@@ -134,12 +179,19 @@ val networkModule =
 
         // ListenUpApi - main API for server communication
         // Uses default base URL initially; can be recreated when server URL changes
-        single<ListenUpApiContract> {
+        single {
             ListenUpApi(
                 baseUrl = getBaseUrl(),
                 apiClientFactory = get(),
             )
         }
+
+        // Bind segregated interfaces to the same ListenUpApi instance (ISP compliance)
+        single<ListenUpApiContract> { get<ListenUpApi>() }
+        single<InstanceApiContract> { get<ListenUpApi>() }
+        single<BookApiContract> { get<ListenUpApi>() }
+        single<ContributorApiContract> { get<ListenUpApi>() }
+        single<SeriesApiContract> { get<ListenUpApi>() }
     }
 
 /**
@@ -178,7 +230,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().bookContributorDao() }
         single { get<ListenUpDatabase>().bookSeriesDao() }
         single { get<ListenUpDatabase>().playbackPositionDao() }
-        single { get<ListenUpDatabase>().pendingListeningEventDao() }
+        single { get<ListenUpDatabase>().pendingOperationDao() }
         single { get<ListenUpDatabase>().downloadDao() }
         single { get<ListenUpDatabase>().searchDao() }
         single { get<ListenUpDatabase>().serverDao() }
@@ -329,9 +381,8 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.contributoredit.ContributorEditViewModel(
                 contributorDao = get(),
-                bookContributorDao = get(),
                 contributorRepository = get(),
-                api = get(),
+                contributorEditRepository = get(),
                 imageApi = get(),
                 imageStorage = get(),
             )
@@ -345,6 +396,8 @@ val presentationModule =
             )
         }
         factory { SettingsViewModel(settingsRepository = get(), userPreferencesApi = get()) }
+        // SyncIndicatorViewModel as singleton for app-wide sync status
+        single { SyncIndicatorViewModel(pendingOperationRepository = get()) }
     }
 
 /**
@@ -436,22 +489,207 @@ val syncModule =
             )
         } bind FtsPopulatorContract::class
 
-        // SyncManager orchestrates sync operations
+        // Sync infrastructure - decomposed components
+
+        // SyncCoordinator - retry logic and error classification
+        single { SyncCoordinator() }
+
+        // ConflictDetector - timestamp-based conflict detection
         single {
-            SyncManager(
+            ConflictDetector(
+                bookDao = get(),
+                contributorDao = get(),
+                seriesDao = get(),
+            )
+        } bind ConflictDetectorContract::class
+
+        // SSEEventProcessor - processes real-time SSE events
+        single {
+            SSEEventProcessor(
+                bookDao = get(),
+                bookContributorDao = get(),
+                bookSeriesDao = get(),
+                imageDownloader = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        }
+
+        // Entity pullers - fetch data from server with pagination
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("bookPuller"),
+        ) {
+            BookPuller(
                 syncApi = get(),
                 bookDao = get(),
-                seriesDao = get(),
-                contributorDao = get(),
                 chapterDao = get(),
                 bookContributorDao = get(),
                 bookSeriesDao = get(),
-                syncDao = get(),
                 imageDownloader = get(),
+                conflictDetector = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        }
+
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("seriesPuller"),
+        ) {
+            SeriesPuller(
+                syncApi = get(),
+                seriesDao = get(),
+                imageDownloader = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        }
+
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("contributorPuller"),
+        ) {
+            ContributorPuller(
+                syncApi = get(),
+                contributorDao = get(),
+                imageDownloader = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        }
+
+        // PullSyncOrchestrator - coordinates parallel entity pulls
+        single {
+            PullSyncOrchestrator(
+                bookPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("bookPuller"),
+                    ),
+                seriesPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("seriesPuller"),
+                    ),
+                contributorPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("contributorPuller"),
+                    ),
+                coordinator = get(),
+                syncDao = get(),
+            )
+        }
+
+        // Push sync handlers
+        single { BookUpdateHandler(api = get()) }
+        single { ContributorUpdateHandler(api = get()) }
+        single { SeriesUpdateHandler(api = get()) }
+        single { SetBookContributorsHandler(api = get()) }
+        single { SetBookSeriesHandler(api = get()) }
+        single { MergeContributorHandler(api = get()) }
+        single { UnmergeContributorHandler(api = get()) }
+        single { ListeningEventHandler(api = get()) }
+        single { PlaybackPositionHandler(api = get()) }
+        single { UserPreferencesHandler(api = get()) }
+
+        // PreferencesSyncObserver - observes SettingsRepository.preferenceChanges and queues sync operations.
+        // This breaks the circular dependency between SettingsRepository and the sync layer.
+        // Started automatically on creation via the appScope.
+        single {
+            PreferencesSyncObserver(
+                settingsRepository = get(),
+                pendingOperationRepository = get(),
+                userPreferencesHandler = get(),
+            ).also { observer ->
+                observer.start(
+                    scope =
+                        get(
+                            qualifier =
+                                org.koin.core.qualifier
+                                    .named("appScope"),
+                        ),
+                )
+            }
+        }
+
+        // OperationExecutor - dispatches to handlers
+        single {
+            OperationExecutor.create(
+                bookUpdateHandler = get(),
+                contributorUpdateHandler = get(),
+                seriesUpdateHandler = get(),
+                setBookContributorsHandler = get(),
+                setBookSeriesHandler = get(),
+                mergeContributorHandler = get(),
+                unmergeContributorHandler = get(),
+                listeningEventHandler = get(),
+                playbackPositionHandler = get(),
+                userPreferencesHandler = get(),
+            )
+        } bind OperationExecutorContract::class
+
+        // PendingOperationRepository - queue and coalesce operations
+        single {
+            PendingOperationRepository(
+                dao = get(),
+                bookDao = get(),
+                contributorDao = get(),
+                seriesDao = get(),
+            )
+        } bind PendingOperationRepositoryContract::class
+
+        // PushSyncOrchestrator - flush pending operations
+        single {
+            PushSyncOrchestrator(
+                repository = get(),
+                executor = get(),
+                conflictDetector = get(),
+                networkMonitor = get(),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
+            )
+        } bind PushSyncOrchestratorContract::class
+
+        // SyncManager - thin orchestrator coordinating sync phases
+        single {
+            SyncManager(
+                pullOrchestrator = get(),
+                pushOrchestrator = get(),
+                sseEventProcessor = get(),
+                coordinator = get(),
                 sseManager = get(),
-                ftsPopulator = get(),
                 userPreferencesApi = get(),
                 settingsRepository = get(),
+                syncDao = get(),
+                ftsPopulator = get(),
                 scope =
                     get(
                         qualifier =
@@ -509,21 +747,37 @@ val syncModule =
             )
         } bind SeriesRepositoryContract::class
 
-        // BookEditRepository for book editing operations
+        // BookEditRepository for book editing operations (offline-first)
         single {
             BookEditRepository(
-                api = get(),
                 bookDao = get(),
+                pendingOperationRepository = get(),
+                bookUpdateHandler = get(),
+                setBookContributorsHandler = get(),
+                setBookSeriesHandler = get(),
             )
         } bind BookEditRepositoryContract::class
 
-        // SeriesEditRepository for series editing operations
+        // SeriesEditRepository for series editing operations (offline-first)
         single {
             SeriesEditRepository(
-                api = get(),
                 seriesDao = get(),
+                pendingOperationRepository = get(),
+                seriesUpdateHandler = get(),
             )
         } bind SeriesEditRepositoryContract::class
+
+        // ContributorEditRepository for contributor editing operations (offline-first)
+        single {
+            ContributorEditRepository(
+                contributorDao = get(),
+                bookContributorDao = get(),
+                pendingOperationRepository = get(),
+                contributorUpdateHandler = get(),
+                mergeContributorHandler = get(),
+                unmergeContributorHandler = get(),
+            )
+        } bind ContributorEditRepositoryContract::class
     }
 
 /**

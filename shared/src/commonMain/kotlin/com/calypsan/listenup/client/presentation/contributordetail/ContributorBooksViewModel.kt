@@ -15,7 +15,6 @@ import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Contributor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -32,8 +31,8 @@ class ContributorBooksViewModel(
     private val imageStorage: ImageStorage,
     private val playbackPositionDao: PlaybackPositionDao,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(ContributorBooksUiState())
-    val state: StateFlow<ContributorBooksUiState> = _state.asStateFlow()
+    val state: StateFlow<ContributorBooksUiState>
+        field = MutableStateFlow(ContributorBooksUiState())
 
     /**
      * Load all books for a contributor in a specific role.
@@ -45,19 +44,19 @@ class ContributorBooksViewModel(
         contributorId: String,
         role: String,
     ) {
-        _state.value = _state.value.copy(isLoading = true)
+        state.value = state.value.copy(isLoading = true)
 
         viewModelScope.launch {
             // Load contributor name for the title
             contributorDao.observeById(contributorId).filterNotNull().collectLatest { contributor ->
-                _state.value = _state.value.copy(contributorName = contributor.name)
+                state.value = state.value.copy(contributorName = contributor.name)
             }
         }
 
         viewModelScope.launch {
             bookDao.observeByContributorAndRole(contributorId, role).collectLatest { booksWithContributors ->
                 val books = booksWithContributors.map { it.toDomain() }
-                val contributorName = _state.value.contributorName
+                val contributorName = state.value.contributorName
 
                 // Load progress for all books
                 val bookProgress = loadProgressForBooks(books)
@@ -99,7 +98,7 @@ class ContributorBooksViewModel(
                         .filter { it.seriesName == null }
                         .sortedBy { it.title }
 
-                _state.value =
+                state.value =
                     ContributorBooksUiState(
                         isLoading = false,
                         contributorName = contributorName,

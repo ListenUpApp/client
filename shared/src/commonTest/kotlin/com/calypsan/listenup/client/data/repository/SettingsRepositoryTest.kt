@@ -13,6 +13,10 @@ import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import dev.mokkery.verifySuspend
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,14 +24,12 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /**
  * Tests for SettingsRepository.
  * Uses Mokkery for mocking SecureStorage and InstanceRepository.
  */
-@OptIn(ExperimentalTime::class)
 class SettingsRepositoryTest {
     private fun createTestInstance(setupRequired: Boolean): Instance =
         Instance(
@@ -51,7 +53,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
 
             // Then - initial state before initializeAuthState is called
             // Initializing prevents flash of wrong screen on app startup
@@ -64,7 +70,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             val url = ServerUrl("https://api.example.com")
             everySuspend { storage.save("server_url", "https://api.example.com") } returns Unit
             // Mock deriveAuthState calls
@@ -86,7 +96,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("server_url") } returns "https://api.example.com"
 
             // When
@@ -102,7 +116,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("server_url") } returns null
 
             // When
@@ -118,7 +136,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.save(any(), any()) } returns Unit
 
             // When
@@ -147,7 +169,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("access_token") } returns "access123"
 
             // When
@@ -163,7 +189,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("refresh_token") } returns "refresh456"
 
             // When
@@ -179,7 +209,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("session_id") } returns "session789"
 
             // When
@@ -195,7 +229,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("user_id") } returns "user001"
 
             // When
@@ -211,7 +249,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.save("access_token", "newAccess") } returns Unit
 
             // When
@@ -227,7 +269,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.delete(any()) } returns Unit
 
             // When
@@ -248,7 +294,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.clear() } returns Unit
 
             // When
@@ -265,7 +315,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("access_token") } returns "access123"
 
             // When
@@ -281,7 +335,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("access_token") } returns null
 
             // When
@@ -297,7 +355,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("server_url") } returns "https://api.example.com"
 
             // When
@@ -313,7 +375,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("server_url") } returns null
 
             // When
@@ -329,7 +395,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("server_url") } returns null
 
             // When
@@ -345,7 +415,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("server_url") } returns "https://api.example.com"
             everySuspend { storage.read("access_token") } returns "access123"
             everySuspend { storage.read("user_id") } returns "user001"
@@ -367,7 +441,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("server_url") } returns "https://api.example.com"
             everySuspend { storage.read("access_token") } returns null
             everySuspend { storage.read("user_id") } returns null
@@ -391,7 +469,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             // Server returns setup required
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
                 Result.Success(
@@ -411,7 +493,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             // Server unreachable
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
                 Result.Failure(
@@ -431,7 +517,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("spatial_playback") } returns null
 
             // When
@@ -447,7 +537,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("spatial_playback") } returns "false"
 
             // When
@@ -463,7 +557,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.read("spatial_playback") } returns "true"
 
             // When
@@ -479,7 +577,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.save("spatial_playback", "false") } returns Unit
 
             // When
@@ -495,7 +597,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.save("spatial_playback", "true") } returns Unit
 
             // When
@@ -511,7 +617,11 @@ class SettingsRepositoryTest {
             // Given
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
-            val repository = SettingsRepository(storage, instanceRepository)
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
             everySuspend { storage.save("spatial_playback", "false") } returns Unit
             everySuspend { storage.read("spatial_playback") } returns "false"
 
@@ -522,5 +632,75 @@ class SettingsRepositoryTest {
             // Then
             assertFalse(result)
             verifySuspend { storage.save("spatial_playback", "false") }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `setDefaultPlaybackSpeed saves speed and emits preference change event`() =
+        runTest(UnconfinedTestDispatcher()) {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
+            everySuspend { storage.save("default_playback_speed", "1.5") } returns Unit
+
+            // Start collecting before emitting (async starts immediately with UnconfinedTestDispatcher)
+            val eventDeferred =
+                async {
+                    repository.preferenceChanges.first()
+                }
+
+            // When
+            repository.setDefaultPlaybackSpeed(1.5f)
+
+            // Then
+            val receivedEvent = eventDeferred.await()
+            verifySuspend { storage.save("default_playback_speed", "1.5") }
+            assertIs<PreferenceChangeEvent.PlaybackSpeedChanged>(receivedEvent)
+            assertEquals(1.5f, receivedEvent.speed)
+        }
+
+    @Test
+    fun `getDefaultPlaybackSpeed returns default when not set`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
+            everySuspend { storage.read("default_playback_speed") } returns null
+
+            // When
+            val result = repository.getDefaultPlaybackSpeed()
+
+            // Then
+            assertEquals(1.0f, result)
+        }
+
+    @Test
+    fun `getDefaultPlaybackSpeed returns stored speed`() =
+        runTest {
+            // Given
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
+            everySuspend { storage.read("default_playback_speed") } returns "1.25"
+
+            // When
+            val result = repository.getDefaultPlaybackSpeed()
+
+            // Then
+            assertEquals(1.25f, result)
         }
 }

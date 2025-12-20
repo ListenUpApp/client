@@ -6,8 +6,8 @@ import android.net.nsd.NsdServiceInfo
 import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 
 /**
  * Android implementation of [ServerDiscoveryService] using NsdManager.
@@ -26,8 +26,7 @@ class NsdDiscoveryService(
     context: Context,
 ) : ServerDiscoveryService {
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
-    private val servers = ConcurrentHashMap<String, DiscoveredServer>()
-    private val serversFlow = MutableStateFlow<List<DiscoveredServer>>(emptyList())
+    private val serversState = MutableStateFlow<Map<String, DiscoveredServer>>(emptyMap())
 
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var isDiscovering = false
@@ -37,7 +36,7 @@ class NsdDiscoveryService(
         private const val SERVICE_TYPE = "_listenup._tcp."
     }
 
-    override fun discover(): Flow<List<DiscoveredServer>> = serversFlow.asStateFlow()
+    override fun discover(): Flow<List<DiscoveredServer>> = serversState.map { it.values.toList() }
 
     override fun startDiscovery() {
         if (isDiscovering) {
@@ -67,13 +66,12 @@ class NsdDiscoveryService(
                 override fun onServiceLost(serviceInfo: NsdServiceInfo) {
                     Log.d(TAG, "Service lost: ${serviceInfo.serviceName}")
                     // Remove by service name since we don't have the ID yet
-                    val removedId =
-                        servers.entries
-                            .firstOrNull { it.value.name == serviceInfo.serviceName }
-                            ?.key
-                    if (removedId != null) {
-                        servers.remove(removedId)
-                        emitUpdate()
+                    serversState.update { current ->
+                        val removedId =
+                            current.entries
+                                .firstOrNull { it.value.name == serviceInfo.serviceName }
+                                ?.key
+                        if (removedId != null) current - removedId else current
                     }
                 }
 
@@ -132,8 +130,7 @@ class NsdDiscoveryService(
                     Log.d(TAG, "Resolved: ${resolvedInfo.serviceName} at ${resolvedInfo.host}:${resolvedInfo.port}")
                     val server = parseDiscoveredServer(resolvedInfo)
                     if (server != null) {
-                        servers[server.id] = server
-                        emitUpdate()
+                        serversState.update { it + (server.id to server) }
                         Log.i(TAG, "Server discovered: ${server.name} (${server.id}) at ${server.localUrl}")
                     } else {
                         Log.w(TAG, "Failed to parse server: ${resolvedInfo.serviceName}")
@@ -189,9 +186,5 @@ class NsdDiscoveryService(
         }
 
         return result
-    }
-
-    private fun emitUpdate() {
-        serversFlow.value = servers.values.toList()
     }
 }

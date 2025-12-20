@@ -16,7 +16,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
@@ -44,27 +43,27 @@ class PlaybackManager(
     private val capabilityDetector: AudioCapabilityDetector?,
     private val scope: CoroutineScope,
 ) {
-    private val _currentBookId = MutableStateFlow<BookId?>(null)
-    val currentBookId: StateFlow<BookId?> = _currentBookId.asStateFlow()
+    val currentBookId: StateFlow<BookId?>
+        field = MutableStateFlow<BookId?>(null)
 
-    private val _currentTimeline = MutableStateFlow<PlaybackTimeline?>(null)
-    val currentTimeline: StateFlow<PlaybackTimeline?> = _currentTimeline.asStateFlow()
+    val currentTimeline: StateFlow<PlaybackTimeline?>
+        field = MutableStateFlow<PlaybackTimeline?>(null)
 
-    private val _isPlaying = MutableStateFlow(false)
-    val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
+    val isPlaying: StateFlow<Boolean>
+        field = MutableStateFlow(false)
 
-    private val _currentPositionMs = MutableStateFlow(0L)
-    val currentPositionMs: StateFlow<Long> = _currentPositionMs.asStateFlow()
+    val currentPositionMs: StateFlow<Long>
+        field = MutableStateFlow(0L)
 
-    private val _totalDurationMs = MutableStateFlow(0L)
-    val totalDurationMs: StateFlow<Long> = _totalDurationMs.asStateFlow()
+    val totalDurationMs: StateFlow<Long>
+        field = MutableStateFlow(0L)
 
-    private val _playbackSpeed = MutableStateFlow(1.0f)
-    val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
+    val playbackSpeed: StateFlow<Float>
+        field = MutableStateFlow(1.0f)
 
     // Transcode preparation progress (0-100, null when not preparing)
-    private val _prepareProgress = MutableStateFlow<PrepareProgress?>(null)
-    val prepareProgress: StateFlow<PrepareProgress?> = _prepareProgress.asStateFlow()
+    val prepareProgress: StateFlow<PrepareProgress?>
+        field = MutableStateFlow<PrepareProgress?>(null)
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -170,9 +169,9 @@ class PlaybackManager(
                     resolveLocalPath = { audioFileId -> downloadService.getLocalPath(audioFileId) },
                 )
             }
-        _currentTimeline.value = timeline
-        _currentBookId.value = bookId
-        _totalDurationMs.value = timeline.totalDurationMs
+        currentTimeline.value = timeline
+        currentBookId.value = bookId
+        totalDurationMs.value = timeline.totalDurationMs
 
         logger.info { "Built timeline: ${timeline.files.size} files, ${timeline.totalDurationMs}ms total" }
 
@@ -243,7 +242,7 @@ class PlaybackManager(
      * Called by PlayerViewModel when state changes.
      */
     fun setPlaying(playing: Boolean) {
-        _isPlaying.value = playing
+        isPlaying.value = playing
     }
 
     /**
@@ -251,7 +250,7 @@ class PlaybackManager(
      * Called by PlayerViewModel during position update loop.
      */
     fun updatePosition(positionMs: Long) {
-        _currentPositionMs.value = positionMs
+        currentPositionMs.value = positionMs
     }
 
     /**
@@ -259,7 +258,7 @@ class PlaybackManager(
      * Called by PlayerViewModel when speed changes.
      */
     fun updateSpeed(speed: Float) {
-        _playbackSpeed.value = speed
+        playbackSpeed.value = speed
     }
 
     /**
@@ -267,9 +266,9 @@ class PlaybackManager(
      * Updates state and marks the book as having a custom speed.
      */
     fun onSpeedChanged(speed: Float) {
-        val bookId = _currentBookId.value ?: return
-        val positionMs = _currentPositionMs.value
-        _playbackSpeed.value = speed
+        val bookId = currentBookId.value ?: return
+        val positionMs = currentPositionMs.value
+        playbackSpeed.value = speed
         progressTracker.onSpeedChanged(bookId, positionMs, speed)
     }
 
@@ -280,9 +279,9 @@ class PlaybackManager(
      * @param defaultSpeed The universal default speed from settings
      */
     fun onSpeedReset(defaultSpeed: Float) {
-        val bookId = _currentBookId.value ?: return
-        val positionMs = _currentPositionMs.value
-        _playbackSpeed.value = defaultSpeed
+        val bookId = currentBookId.value ?: return
+        val positionMs = currentPositionMs.value
+        playbackSpeed.value = defaultSpeed
         progressTracker.onSpeedReset(bookId, positionMs, defaultSpeed)
     }
 
@@ -291,12 +290,12 @@ class PlaybackManager(
      * Called when playback stops.
      */
     fun clearPlayback() {
-        _currentBookId.value = null
-        _currentTimeline.value = null
-        _isPlaying.value = false
-        _currentPositionMs.value = 0L
-        _totalDurationMs.value = 0L
-        _playbackSpeed.value = 1.0f
+        currentBookId.value = null
+        currentTimeline.value = null
+        isPlaying.value = false
+        currentPositionMs.value = 0L
+        totalDurationMs.value = 0L
+        playbackSpeed.value = 1.0f
     }
 
     /**
@@ -332,7 +331,7 @@ class PlaybackManager(
 
                     if (response.ready) {
                         // Clear progress when ready
-                        _prepareProgress.value = null
+                        prepareProgress.value = null
                         return StreamPrepareResult(
                             streamUrl = response.streamUrl,
                             ready = true,
@@ -341,7 +340,7 @@ class PlaybackManager(
                     }
 
                     // Transcoding in progress - emit progress and retry
-                    _prepareProgress.value =
+                    prepareProgress.value =
                         PrepareProgress(
                             audioFileId = audioFileId,
                             progress = response.progress,
@@ -357,7 +356,7 @@ class PlaybackManager(
                 }
 
                 is Failure -> {
-                    _prepareProgress.value = null
+                    prepareProgress.value = null
                     logger.warn(result.exception) {
                         "Failed to prepare stream for $audioFileId (attempt ${attempt + 1}), " +
                             "using fallback URL"
@@ -368,7 +367,7 @@ class PlaybackManager(
         }
 
         // Timeout - return what we have (stream URL that may 202)
-        _prepareProgress.value = null
+        prepareProgress.value = null
         logger.warn { "Transcode polling timeout for $audioFileId after $maxRetries attempts" }
         return fallbackStreamResult(bookId, audioFileId, baseUrl)
     }

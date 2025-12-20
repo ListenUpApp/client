@@ -350,13 +350,16 @@ data class ImageUploadResponse(
     val imageUrl: String,
 )
 
+// =============================================================================
+// Segregated API Interfaces (ISP - Interface Segregation Principle)
+// =============================================================================
+
 /**
- * Contract interface for ListenUp API operations.
+ * Contract interface for instance-level API operations.
  *
- * Extracted to enable mocking in tests. Production implementation
- * is [ListenUpApi], test implementation can be a mock or fake.
+ * Handles server instance information and user-specific listening data.
  */
-interface ListenUpApiContract {
+interface InstanceApiContract {
     /**
      * Fetch the server instance information.
      *
@@ -376,24 +379,14 @@ interface ListenUpApiContract {
      * @return Result containing list of PlaybackProgressResponse on success
      */
     suspend fun getContinueListening(limit: Int = 10): Result<List<PlaybackProgressResponse>>
+}
 
-    /**
-     * Search contributors for autocomplete during book editing.
-     *
-     * Uses server-side Bleve search for O(log n) performance with:
-     * - Prefix matching ("bran" → "Brandon Sanderson")
-     * - Word matching ("sanderson" in "Brandon Sanderson")
-     * - Fuzzy matching for typo tolerance
-     *
-     * @param query Search query (min 2 characters recommended)
-     * @param limit Maximum results to return (default 10, max 50)
-     * @return Result containing list of matching contributors
-     */
-    suspend fun searchContributors(
-        query: String,
-        limit: Int = 10,
-    ): Result<List<ContributorSearchResult>>
-
+/**
+ * Contract interface for book editing API operations.
+ *
+ * Handles book metadata updates and relationship management.
+ */
+interface BookApiContract {
     /**
      * Update book metadata (PATCH semantics).
      *
@@ -429,23 +422,6 @@ interface ListenUpApiContract {
     ): Result<BookEditResponse>
 
     /**
-     * Search series for autocomplete during book editing.
-     *
-     * Uses server-side Bleve search for O(log n) performance with:
-     * - Prefix matching ("mist" → "Mistborn")
-     * - Word matching
-     * - Fuzzy matching for typo tolerance
-     *
-     * @param query Search query (min 2 characters recommended)
-     * @param limit Maximum results to return (default 10, max 50)
-     * @return Result containing list of matching series
-     */
-    suspend fun searchSeries(
-        query: String,
-        limit: Int = 10,
-    ): Result<List<SeriesSearchResult>>
-
-    /**
      * Set book series (replaces all existing series relationships).
      *
      * Series are matched by name:
@@ -462,6 +438,30 @@ interface ListenUpApiContract {
         bookId: String,
         series: List<SeriesInput>,
     ): Result<BookEditResponse>
+}
+
+/**
+ * Contract interface for contributor API operations.
+ *
+ * Handles contributor search, updates, and merge/unmerge operations.
+ */
+interface ContributorApiContract {
+    /**
+     * Search contributors for autocomplete during book editing.
+     *
+     * Uses server-side Bleve search for O(log n) performance with:
+     * - Prefix matching ("bran" → "Brandon Sanderson")
+     * - Word matching ("sanderson" in "Brandon Sanderson")
+     * - Fuzzy matching for typo tolerance
+     *
+     * @param query Search query (min 2 characters recommended)
+     * @param limit Maximum results to return (default 10, max 50)
+     * @return Result containing list of matching contributors
+     */
+    suspend fun searchContributors(
+        query: String,
+        limit: Int = 10,
+    ): Result<List<ContributorSearchResult>>
 
     /**
      * Merge a source contributor into a target contributor.
@@ -519,6 +519,30 @@ interface ListenUpApiContract {
         contributorId: String,
         request: UpdateContributorRequest,
     ): Result<UpdateContributorResponse>
+}
+
+/**
+ * Contract interface for series API operations.
+ *
+ * Handles series search and updates.
+ */
+interface SeriesApiContract {
+    /**
+     * Search series for autocomplete during book editing.
+     *
+     * Uses server-side Bleve search for O(log n) performance with:
+     * - Prefix matching ("mist" → "Mistborn")
+     * - Word matching
+     * - Fuzzy matching for typo tolerance
+     *
+     * @param query Search query (min 2 characters recommended)
+     * @param limit Maximum results to return (default 10, max 50)
+     * @return Result containing list of matching series
+     */
+    suspend fun searchSeries(
+        query: String,
+        limit: Int = 10,
+    ): Result<List<SeriesSearchResult>>
 
     /**
      * Update series metadata (PATCH semantics).
@@ -536,6 +560,25 @@ interface ListenUpApiContract {
         request: SeriesUpdateRequest,
     ): Result<SeriesEditResponse>
 }
+
+// =============================================================================
+// Aggregate Interface (for backward compatibility)
+// =============================================================================
+
+/**
+ * Aggregate contract interface for ListenUp API operations.
+ *
+ * Extends all domain-specific API contracts for backward compatibility.
+ * New code should prefer using the specific contracts (BookApiContract,
+ * ContributorApiContract, etc.) following ISP.
+ *
+ * Production implementation is [ListenUpApi].
+ */
+interface ListenUpApiContract :
+    InstanceApiContract,
+    BookApiContract,
+    ContributorApiContract,
+    SeriesApiContract
 
 /**
  * Contributor search result for autocomplete.

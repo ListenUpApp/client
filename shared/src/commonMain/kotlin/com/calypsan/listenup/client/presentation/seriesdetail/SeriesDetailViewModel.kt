@@ -8,7 +8,6 @@ import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
@@ -28,8 +27,8 @@ class SeriesDetailViewModel(
     private val bookRepository: BookRepositoryContract,
     private val imageStorage: ImageStorage,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(SeriesDetailUiState())
-    val state: StateFlow<SeriesDetailUiState> = _state.asStateFlow()
+    val state: StateFlow<SeriesDetailUiState>
+        field = MutableStateFlow(SeriesDetailUiState())
 
     /**
      * Load series details by ID.
@@ -40,7 +39,7 @@ class SeriesDetailViewModel(
      * @param seriesId The ID of the series to load
      */
     fun loadSeries(seriesId: String) {
-        _state.value = _state.value.copy(isLoading = true)
+        state.value = state.value.copy(isLoading = true)
 
         viewModelScope.launch {
             seriesDao.observeByIdWithBooks(seriesId).collectLatest { seriesWithBooks ->
@@ -63,7 +62,7 @@ class SeriesDetailViewModel(
                     // Resolve cover path: series cover first, then fallback to first book's cover
                     val coverPath = resolveCoverPath(seriesId, books)
 
-                    _state.value =
+                    state.value =
                         SeriesDetailUiState(
                             isLoading = false,
                             seriesId = seriesId,
@@ -75,7 +74,7 @@ class SeriesDetailViewModel(
                             error = null,
                         )
                 } else {
-                    _state.value =
+                    state.value =
                         SeriesDetailUiState(
                             isLoading = false,
                             error = "Series not found",

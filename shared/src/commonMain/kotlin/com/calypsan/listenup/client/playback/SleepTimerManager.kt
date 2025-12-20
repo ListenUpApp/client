@@ -11,8 +11,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -34,12 +32,12 @@ private val logger = KotlinLogging.logger {}
 class SleepTimerManager(
     private val scope: CoroutineScope,
 ) {
-    private val _state = MutableStateFlow<SleepTimerState>(SleepTimerState.Inactive)
-    val state: StateFlow<SleepTimerState> = _state.asStateFlow()
+    val state: StateFlow<SleepTimerState>
+        field = MutableStateFlow<SleepTimerState>(SleepTimerState.Inactive)
 
     // Event emitted when timer fires - consumer performs fade and pause
-    private val _sleepEvent = MutableSharedFlow<Unit>(replay = 0)
-    val sleepEvent: SharedFlow<Unit> = _sleepEvent.asSharedFlow()
+    val sleepEvent: SharedFlow<Unit>
+        field = MutableSharedFlow<Unit>(replay = 0)
 
     private var timerJob: Job? = null
     private var endOfChapterJob: Job? = null
@@ -74,14 +72,14 @@ class SleepTimerManager(
         endOfChapterJob?.cancel()
         endOfChapterJob = null
         lastKnownChapterIndex = -1
-        _state.value = SleepTimerState.Inactive
+        state.value = SleepTimerState.Inactive
     }
 
     /**
      * Add time to an active duration timer.
      */
     fun extendTimer(additionalMinutes: Int) {
-        val current = _state.value
+        val current = state.value
         if (current is SleepTimerState.Active && current.mode is SleepTimerMode.Duration) {
             val additionalMs = additionalMinutes * 60_000L
             val newRemaining = current.remainingMs + additionalMs
@@ -89,7 +87,7 @@ class SleepTimerManager(
 
             logger.info { "Extending timer by $additionalMinutes min, new remaining: ${newRemaining / 60000} min" }
 
-            _state.value =
+            state.value =
                 current.copy(
                     remainingMs = newRemaining,
                     totalMs = newTotal,
@@ -103,7 +101,7 @@ class SleepTimerManager(
      */
     @Suppress("CollapsibleIfStatements") // Nested if improves readability here
     fun onChapterChanged(newChapterIndex: Int) {
-        val current = _state.value
+        val current = state.value
         if (current is SleepTimerState.Active && current.mode is SleepTimerMode.EndOfChapter) {
             // Chapter moved forward - previous chapter ended naturally
             if (lastKnownChapterIndex >= 0 && newChapterIndex > lastKnownChapterIndex) {
@@ -119,7 +117,7 @@ class SleepTimerManager(
      * Resets state to Inactive.
      */
     fun onFadeCompleted() {
-        _state.value = SleepTimerState.Inactive
+        state.value = SleepTimerState.Inactive
         timerJob = null
         endOfChapterJob = null
         lastKnownChapterIndex = -1
@@ -130,7 +128,7 @@ class SleepTimerManager(
         val totalMs = minutes * 60_000L
         val startedAt = Clock.System.now().toEpochMilliseconds()
 
-        _state.value =
+        state.value =
             SleepTimerState.Active(
                 mode = SleepTimerMode.Duration(minutes),
                 remainingMs = totalMs,
@@ -145,13 +143,13 @@ class SleepTimerManager(
                 while (isActive) {
                     delay(TICK_INTERVAL_MS)
 
-                    val current = _state.value
+                    val current = state.value
                     if (current !is SleepTimerState.Active) break
 
                     val elapsed = Clock.System.now().toEpochMilliseconds() - current.startedAt
                     val remaining = (current.totalMs - elapsed).coerceAtLeast(0)
 
-                    _state.value = current.copy(remainingMs = remaining)
+                    state.value = current.copy(remainingMs = remaining)
 
                     if (remaining <= 0) {
                         logger.info { "Duration timer completed" }
@@ -163,7 +161,7 @@ class SleepTimerManager(
     }
 
     private fun startEndOfChapterTimer() {
-        _state.value =
+        state.value =
             SleepTimerState.Active(
                 mode = SleepTimerMode.EndOfChapter,
                 remainingMs = 0,
@@ -174,9 +172,9 @@ class SleepTimerManager(
     }
 
     private fun triggerSleep() {
-        _state.value = SleepTimerState.FadingOut
+        state.value = SleepTimerState.FadingOut
         scope.launch {
-            _sleepEvent.emit(Unit)
+            sleepEvent.emit(Unit)
         }
     }
 }

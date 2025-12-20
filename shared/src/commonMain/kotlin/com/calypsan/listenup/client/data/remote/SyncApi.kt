@@ -108,23 +108,25 @@ class SyncApi(
         updatedAfter: String?,
     ): Result<SyncBooksResponse> =
         suspendRunCatching {
-            val allBooks = mutableListOf<BookResponse>()
-            val allDeletedIds = mutableListOf<String>()
             var cursor: String? = null
+            val allDeletedIds = mutableListOf<String>()
 
-            do {
-                when (val result = getBooks(limit, cursor, updatedAfter)) {
-                    is Result.Success -> {
-                        allBooks.addAll(result.data.books)
-                        allDeletedIds.addAll(result.data.deletedBookIds)
-                        cursor = result.data.nextCursor
-                    }
+            val allBooks =
+                buildList {
+                    do {
+                        when (val result = getBooks(limit, cursor, updatedAfter)) {
+                            is Result.Success -> {
+                                addAll(result.data.books)
+                                allDeletedIds.addAll(result.data.deletedBookIds)
+                                cursor = result.data.nextCursor
+                            }
 
-                    is Result.Failure -> {
-                        throw result.exception
-                    }
+                            is Result.Failure -> {
+                                throw result.exception
+                            }
+                        }
+                    } while (cursor != null)
                 }
-            } while (cursor != null)
 
             SyncBooksResponse(
                 books = allBooks,
@@ -158,23 +160,22 @@ class SyncApi(
         updatedAfter: String?,
     ): Result<List<com.calypsan.listenup.client.data.remote.model.SeriesResponse>> =
         suspendRunCatching {
-            val allItems = mutableListOf<com.calypsan.listenup.client.data.remote.model.SeriesResponse>()
             var cursor: String? = null
 
-            do {
-                when (val result = getSeries(limit, cursor, updatedAfter)) {
-                    is Result.Success -> {
-                        allItems.addAll(result.data.series)
-                        cursor = result.data.nextCursor
-                    }
+            buildList {
+                do {
+                    when (val result = getSeries(limit, cursor, updatedAfter)) {
+                        is Result.Success -> {
+                            addAll(result.data.series)
+                            cursor = result.data.nextCursor
+                        }
 
-                    is Result.Failure -> {
-                        throw result.exception
+                        is Result.Failure -> {
+                            throw result.exception
+                        }
                     }
-                }
-            } while (cursor != null)
-
-            allItems
+                } while (cursor != null)
+            }
         }
 
     /**
@@ -202,23 +203,22 @@ class SyncApi(
         updatedAfter: String?,
     ): Result<List<com.calypsan.listenup.client.data.remote.model.ContributorResponse>> =
         suspendRunCatching {
-            val allItems = mutableListOf<com.calypsan.listenup.client.data.remote.model.ContributorResponse>()
             var cursor: String? = null
 
-            do {
-                when (val result = getContributors(limit, cursor, updatedAfter)) {
-                    is Result.Success -> {
-                        allItems.addAll(result.data.contributors)
-                        cursor = result.data.nextCursor
-                    }
+            buildList {
+                do {
+                    when (val result = getContributors(limit, cursor, updatedAfter)) {
+                        is Result.Success -> {
+                            addAll(result.data.contributors)
+                            cursor = result.data.nextCursor
+                        }
 
-                    is Result.Failure -> {
-                        throw result.exception
+                        is Result.Failure -> {
+                            throw result.exception
+                        }
                     }
-                }
-            } while (cursor != null)
-
-            allItems
+                } while (cursor != null)
+            }
         }
 
     /**

@@ -33,6 +33,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 
 /**
  * Tests for BookDetailViewModel.
@@ -168,7 +169,7 @@ class BookDetailViewModelTest {
         bookId: String = "book-1",
         positionMs: Long = 1_800_000L, // 30 min in
         playbackSpeed: Float = 1.0f,
-        updatedAt: Long = System.currentTimeMillis(),
+        updatedAt: Long = Clock.System.now().toEpochMilliseconds(),
     ): PlaybackPositionEntity =
         PlaybackPositionEntity(
             bookId = BookId(bookId),

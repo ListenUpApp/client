@@ -31,11 +31,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.format
+import kotlinx.datetime.format.MonthNames
+import kotlinx.datetime.format.char
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Material 3 date picker field with calendar dialog.
@@ -67,7 +70,7 @@ fun ListenUpDatePicker(
     // Initial selection for the date picker (in millis since epoch)
     val initialSelectionMillis =
         currentDate?.let {
-            it.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+            it.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
         }
 
     Box(modifier = modifier.fillMaxWidth()) {
@@ -120,11 +123,7 @@ fun ListenUpDatePicker(
                 TextButton(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            val selectedDate =
-                                Instant
-                                    .ofEpochMilli(millis)
-                                    .atZone(ZoneId.of("UTC"))
-                                    .toLocalDate()
+                            val selectedDate = epochMillisToLocalDate(millis)
                             onValueChange(formatIsoDate(selectedDate))
                         }
                         showDialog = false
@@ -146,14 +145,23 @@ fun ListenUpDatePicker(
 }
 
 /**
+ * Convert epoch milliseconds (UTC) to LocalDate.
+ */
+private fun epochMillisToLocalDate(millis: Long): LocalDate =
+    Instant
+        .fromEpochMilliseconds(millis)
+        .toLocalDateTime(TimeZone.UTC)
+        .date
+
+/**
  * Parse an ISO 8601 date string (YYYY-MM-DD) to LocalDate.
  * Returns null if the string is empty or invalid.
  */
 private fun parseIsoDate(isoDate: String): LocalDate? {
     if (isoDate.isBlank()) return null
     return try {
-        LocalDate.parse(isoDate, DateTimeFormatter.ISO_LOCAL_DATE)
-    } catch (e: DateTimeParseException) {
+        LocalDate.parse(isoDate)
+    } catch (e: IllegalArgumentException) {
         null
     }
 }
@@ -161,16 +169,23 @@ private fun parseIsoDate(isoDate: String): LocalDate? {
 /**
  * Format a LocalDate to ISO 8601 format (YYYY-MM-DD).
  */
-private fun formatIsoDate(date: LocalDate): String = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+private fun formatIsoDate(date: LocalDate): String = date.toString()
+
+// Display format: "September 21, 1947"
+private val displayFormat =
+    LocalDate.Format {
+        monthName(MonthNames.ENGLISH_FULL)
+        char(' ')
+        dayOfMonth()
+        chars(", ")
+        year()
+    }
 
 /**
  * Format a LocalDate for user-friendly display.
  * Uses a readable format like "September 21, 1947".
  */
-private fun formatForDisplay(date: LocalDate): String {
-    val formatter = DateTimeFormatter.ofPattern("MMMM d, yyyy")
-    return date.format(formatter)
-}
+private fun formatForDisplay(date: LocalDate): String = date.format(displayFormat)
 
 @Preview(name = "Empty Date Picker")
 @Composable

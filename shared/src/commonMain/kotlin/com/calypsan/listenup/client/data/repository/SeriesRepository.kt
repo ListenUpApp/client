@@ -1,14 +1,13 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
-import com.calypsan.listenup.client.data.remote.ListenUpApiContract
+import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.SeriesSearchResult
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlin.time.measureTimedValue
 
@@ -63,7 +62,7 @@ data class SeriesSearchResponse(
  * @property networkMonitor For checking online/offline status
  */
 class SeriesRepository(
-    private val api: ListenUpApiContract,
+    private val api: SeriesApiContract,
     private val searchDao: SearchDao,
     private val networkMonitor: NetworkMonitor,
 ) : SeriesRepositoryContract {
@@ -108,7 +107,7 @@ class SeriesRepository(
         query: String,
         limit: Int,
     ): SeriesSearchResponse =
-        withContext(Dispatchers.IO) {
+        withContext(IODispatcher) {
             val (series, duration) =
                 measureTimedValue {
                     when (val result = api.searchSeries(query, limit)) {
@@ -135,7 +134,7 @@ class SeriesRepository(
         query: String,
         limit: Int,
     ): SeriesSearchResponse =
-        withContext(Dispatchers.IO) {
+        withContext(IODispatcher) {
             val (entities, duration) =
                 measureTimedValue {
                     val ftsQuery = toFtsQuery(query)

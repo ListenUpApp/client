@@ -27,9 +27,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 
 private val logger = KotlinLogging.logger {}
 
@@ -106,9 +107,9 @@ class PlaybackService : MediaSessionService() {
             OkHttpClient
                 .Builder()
                 .addInterceptor(tokenProvider.createInterceptor())
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(0, TimeUnit.SECONDS) // No read timeout for streaming
-                .writeTimeout(30, TimeUnit.SECONDS)
+                .connectTimeout(30.seconds.toJavaDuration())
+                .readTimeout(0.seconds.toJavaDuration()) // No read timeout for streaming
+                .writeTimeout(30.seconds.toJavaDuration())
                 .build()
 
         // Create DataSource factory that uses OkHttp

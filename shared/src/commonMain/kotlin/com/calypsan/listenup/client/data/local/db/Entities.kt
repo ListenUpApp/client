@@ -207,37 +207,6 @@ data class PlaybackPositionEntity(
 )
 
 /**
- * Pending listening event for eventual sync to server.
- *
- * Events are append-only facts: "User listened to book X from position A to B".
- * Queued locally, synced when network is available. Fire-and-forget with retries.
- *
- * Only created for meaningful sessions (≥10 seconds of listening).
- */
-@Entity(
-    tableName = "pending_listening_events",
-    indices = [Index(value = ["bookId"])],
-)
-data class PendingListeningEventEntity(
-    @PrimaryKey val id: String, // Client-generated UUID
-    val bookId: BookId,
-    // Book-relative start position
-    val startPositionMs: Long,
-    // Book-relative end position
-    val endPositionMs: Long,
-    // Epoch ms when playback started
-    val startedAt: Long,
-    // Epoch ms when playback ended
-    val endedAt: Long,
-    val playbackSpeed: Float,
-    val deviceId: String,
-    // Retry count
-    val attempts: Int = 0,
-    // For exponential backoff
-    val lastAttemptAt: Long? = null,
-)
-
-/**
  * Local database entity for ListenUp servers.
  *
  * Client-only data - stores discovered servers and their authentication state.

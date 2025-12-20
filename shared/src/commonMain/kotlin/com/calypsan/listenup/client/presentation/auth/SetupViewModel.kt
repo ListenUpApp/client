@@ -14,7 +14,6 @@ import com.calypsan.listenup.client.data.remote.AuthUser
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -31,8 +30,8 @@ class SetupViewModel(
     private val settingsRepository: SettingsRepositoryContract,
     private val userDao: UserDao,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(SetupUiState())
-    val state: StateFlow<SetupUiState> = _state.asStateFlow()
+    val state: StateFlow<SetupUiState>
+        field = MutableStateFlow(SetupUiState())
 
     /**
      * Submit the setup form to create the root user.
@@ -53,7 +52,7 @@ class SetupViewModel(
         val trimmedEmail = email.trim()
 
         if (trimmedFirstName.isBlank()) {
-            _state.value =
+            state.value =
                 SetupUiState(
                     status =
                         SetupStatus.Error(
@@ -64,7 +63,7 @@ class SetupViewModel(
         }
 
         if (trimmedLastName.isBlank()) {
-            _state.value =
+            state.value =
                 SetupUiState(
                     status =
                         SetupStatus.Error(
@@ -75,7 +74,7 @@ class SetupViewModel(
         }
 
         if (!isValidEmail(trimmedEmail)) {
-            _state.value =
+            state.value =
                 SetupUiState(
                     status =
                         SetupStatus.Error(
@@ -86,7 +85,7 @@ class SetupViewModel(
         }
 
         if (password.length < 8) {
-            _state.value =
+            state.value =
                 SetupUiState(
                     status =
                         SetupStatus.Error(
@@ -97,7 +96,7 @@ class SetupViewModel(
         }
 
         if (password != passwordConfirm) {
-            _state.value =
+            state.value =
                 SetupUiState(
                     status =
                         SetupStatus.Error(
@@ -109,7 +108,7 @@ class SetupViewModel(
 
         // Submit to server
         viewModelScope.launch {
-            _state.value = SetupUiState(status = SetupStatus.Loading)
+            state.value = SetupUiState(status = SetupStatus.Loading)
 
             try {
                 val response =
@@ -131,9 +130,9 @@ class SetupViewModel(
                 // Save user data to local database for avatar display
                 userDao.upsert(response.user.toEntity())
 
-                _state.value = SetupUiState(status = SetupStatus.Success)
+                state.value = SetupUiState(status = SetupStatus.Success)
             } catch (e: Exception) {
-                _state.value =
+                state.value =
                     SetupUiState(
                         status = SetupStatus.Error(e.toSetupErrorType()),
                     )
@@ -145,8 +144,8 @@ class SetupViewModel(
      * Clear the error state to allow retry.
      */
     fun clearError() {
-        if (_state.value.status is SetupStatus.Error) {
-            _state.value = SetupUiState(status = SetupStatus.Idle)
+        if (state.value.status is SetupStatus.Error) {
+            state.value = SetupUiState(status = SetupStatus.Idle)
         }
     }
 

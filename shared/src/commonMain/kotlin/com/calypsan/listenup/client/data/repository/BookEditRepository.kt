@@ -1,25 +1,29 @@
-@file:OptIn(ExperimentalTime::class)
-
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.EntityType
+import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.remote.BookEditResponse
 import com.calypsan.listenup.client.data.remote.BookUpdateRequest
 import com.calypsan.listenup.client.data.remote.ContributorInput
-import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.SeriesInput
+import com.calypsan.listenup.client.data.sync.push.BookUpdateHandler
+import com.calypsan.listenup.client.data.sync.push.BookUpdatePayload
+import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.data.sync.push.SetBookContributorsHandler
+import com.calypsan.listenup.client.data.sync.push.SetBookContributorsPayload
+import com.calypsan.listenup.client.data.sync.push.SetBookSeriesHandler
+import com.calypsan.listenup.client.data.sync.push.SetBookSeriesPayload
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
-import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
+import com.calypsan.listenup.client.data.sync.push.ContributorInput as PayloadContributorInput
+import com.calypsan.listenup.client.data.sync.push.SeriesInput as PayloadSeriesInput
 
 private val logger = KotlinLogging.logger {}
 
@@ -27,223 +31,254 @@ private val logger = KotlinLogging.logger {}
  * Contract for book editing operations.
  *
  * Provides methods for modifying book metadata and contributors.
- * Changes are sent to the server and then applied to the local database.
+ * Uses offline-first pattern: changes are applied locally immediately
+ * and queued for sync to server.
  */
 interface BookEditRepositoryContract {
     /**
      * Update book metadata.
      *
-     * Sends update to server, then updates local database on success.
+     * Applies update locally and queues for server sync.
      * Only non-null fields in the request are updated (PATCH semantics).
      *
      * @param bookId ID of the book to update
      * @param update Fields to update
-     * @return Result containing the updated book response
+     * @return Result indicating success or failure
      */
     suspend fun updateBook(
         bookId: String,
         update: BookUpdateRequest,
-    ): Result<BookEditResponse>
+    ): Result<Unit>
 
     /**
      * Set book contributors (replaces all existing contributors).
      *
-     * Sends update to server, then triggers sync to update local database.
-     * Contributors are matched by name - existing contributors are linked,
-     * new names create new contributors.
+     * Queues operation for server sync. On sync, contributors are matched
+     * by name - existing contributors are linked, new names create new contributors.
      *
      * @param bookId ID of the book to update
      * @param contributors New list of contributors with roles
-     * @return Result containing the updated book response
+     * @return Result indicating success or failure
      */
     suspend fun setBookContributors(
         bookId: String,
         contributors: List<ContributorInput>,
-    ): Result<BookEditResponse>
+    ): Result<Unit>
 
     /**
      * Set book series (replaces all existing series relationships).
      *
-     * Sends update to server, then triggers sync to update local database.
-     * Series are matched by name - existing series are linked,
-     * new names create new series.
+     * Queues operation for server sync. On sync, series are matched
+     * by name - existing series are linked, new names create new series.
      *
      * @param bookId ID of the book to update
      * @param series New list of series with sequence numbers
-     * @return Result containing the updated book response
+     * @return Result indicating success or failure
      */
     suspend fun setBookSeries(
         bookId: String,
         series: List<SeriesInput>,
-    ): Result<BookEditResponse>
+    ): Result<Unit>
 }
 
 /**
- * Repository for book editing operations.
+ * Repository for book editing operations using offline-first pattern.
  *
  * Handles the edit flow:
- * 1. Send changes to server via API
- * 2. On success, update local database to reflect changes
- * 3. Return result to caller
+ * 1. Apply optimistic update to local database (syncState = PENDING)
+ * 2. Queue operation for server sync via PendingOperationRepository
+ * 3. Return success immediately
  *
- * Local database is updated immediately after successful server response,
- * ensuring the UI reflects changes without waiting for next sync.
+ * The PushSyncOrchestrator will later:
+ * - Send changes to server
+ * - Handle conflicts if server version is newer
+ * - Mark entity as SYNCED on success
  *
- * @property api ListenUp API client
  * @property bookDao Room DAO for book operations
+ * @property pendingOperationRepository Repository for queuing sync operations
+ * @property bookUpdateHandler Handler for book update operations
+ * @property setBookContributorsHandler Handler for set contributors operations
+ * @property setBookSeriesHandler Handler for set series operations
  */
 class BookEditRepository(
-    private val api: ListenUpApiContract,
     private val bookDao: BookDao,
+    private val pendingOperationRepository: PendingOperationRepositoryContract,
+    private val bookUpdateHandler: BookUpdateHandler,
+    private val setBookContributorsHandler: SetBookContributorsHandler,
+    private val setBookSeriesHandler: SetBookSeriesHandler,
 ) : BookEditRepositoryContract {
     /**
      * Update book metadata.
      *
      * Flow:
-     * 1. Send PATCH request to server
-     * 2. On success, update local BookEntity with new values
-     * 3. Return the server response
+     * 1. Get existing book from local database
+     * 2. Apply optimistic update with syncState = PENDING
+     * 3. Queue operation (coalesces with any pending update)
+     * 4. Return success immediately
      */
     override suspend fun updateBook(
         bookId: String,
         update: BookUpdateRequest,
-    ): Result<BookEditResponse> =
-        withContext(Dispatchers.IO) {
-            logger.debug { "Updating book: $bookId" }
+    ): Result<Unit> =
+        withContext(IODispatcher) {
+            logger.debug { "Updating book (offline-first): $bookId" }
 
-            // Send update to server
-            when (val result = api.updateBook(bookId, update)) {
-                is Success -> {
-                    // Update local database
-                    updateLocalBook(bookId, result.data)
-                    logger.info { "Book updated successfully: $bookId" }
-                    result
-                }
-
-                is Failure -> {
-                    logger.error(result.exception) { "Failed to update book: $bookId" }
-                    result
-                }
+            // Get existing book
+            val existing = bookDao.getById(BookId(bookId))
+            if (existing == null) {
+                logger.error { "Book not found: $bookId" }
+                return@withContext Failure(Exception("Book not found: $bookId"))
             }
+
+            // Apply optimistic update
+            val updated =
+                existing.copy(
+                    title = update.title ?: existing.title,
+                    subtitle = update.subtitle ?: existing.subtitle,
+                    description = update.description ?: existing.description,
+                    publisher = update.publisher ?: existing.publisher,
+                    publishYear = update.publishYear?.toIntOrNull() ?: existing.publishYear,
+                    language = update.language ?: existing.language,
+                    isbn = update.isbn ?: existing.isbn,
+                    asin = update.asin ?: existing.asin,
+                    abridged = update.abridged ?: existing.abridged,
+                    syncState = SyncState.NOT_SYNCED,
+                    lastModified = Timestamp.now(),
+                )
+            bookDao.upsert(updated)
+
+            // Queue operation (coalesces if pending update exists for this book)
+            val payload =
+                BookUpdatePayload(
+                    title = update.title,
+                    subtitle = update.subtitle,
+                    description = update.description,
+                    publisher = update.publisher,
+                    publishYear = update.publishYear,
+                    language = update.language,
+                    isbn = update.isbn,
+                    asin = update.asin,
+                    abridged = update.abridged,
+                )
+            pendingOperationRepository.queue(
+                type = OperationType.BOOK_UPDATE,
+                entityType = EntityType.BOOK,
+                entityId = bookId,
+                payload = payload,
+                handler = bookUpdateHandler,
+            )
+
+            logger.info { "Book update queued: $bookId" }
+            Success(Unit)
         }
 
     /**
      * Set book contributors.
      *
      * Flow:
-     * 1. Send PUT request to server
-     * 2. On success, the server response contains updated book
-     * 3. Update local book entity with new timestamp
+     * 1. Mark book as pending sync
+     * 2. Queue operation with full contributor list
+     * 3. Return success immediately
      *
-     * Note: Contributors are synced separately - the book's updatedAt
-     * timestamp change will trigger a full sync that brings in contributor changes.
+     * Note: Local book-contributor relationships are not updated here.
+     * The pull sync after successful push will bring in the correct relationships.
      */
     override suspend fun setBookContributors(
         bookId: String,
         contributors: List<ContributorInput>,
-    ): Result<BookEditResponse> =
-        withContext(Dispatchers.IO) {
-            logger.debug { "Setting contributors for book: $bookId, count: ${contributors.size}" }
+    ): Result<Unit> =
+        withContext(IODispatcher) {
+            logger.debug { "Setting contributors for book (offline-first): $bookId, count: ${contributors.size}" }
 
-            // Send update to server
-            when (val result = api.setBookContributors(bookId, contributors)) {
-                is Success -> {
-                    // Update local database timestamp
-                    // Full contributor sync will happen on next sync cycle
-                    updateLocalBook(bookId, result.data)
-                    logger.info { "Contributors updated for book: $bookId" }
-                    result
-                }
-
-                is Failure -> {
-                    logger.error(result.exception) { "Failed to set contributors for book: $bookId" }
-                    result
-                }
+            // Mark book as pending sync
+            val existing = bookDao.getById(BookId(bookId))
+            if (existing == null) {
+                logger.error { "Book not found: $bookId" }
+                return@withContext Failure(Exception("Book not found: $bookId"))
             }
+
+            val updated =
+                existing.copy(
+                    syncState = SyncState.NOT_SYNCED,
+                    lastModified = Timestamp.now(),
+                )
+            bookDao.upsert(updated)
+
+            // Queue operation
+            val payload =
+                SetBookContributorsPayload(
+                    contributors =
+                        contributors.map { c ->
+                            PayloadContributorInput(
+                                name = c.name,
+                                roles = c.roles,
+                            )
+                        },
+                )
+            pendingOperationRepository.queue(
+                type = OperationType.SET_BOOK_CONTRIBUTORS,
+                entityType = EntityType.BOOK,
+                entityId = bookId,
+                payload = payload,
+                handler = setBookContributorsHandler,
+            )
+
+            logger.info { "Set book contributors queued: $bookId, ${contributors.size} contributor(s)" }
+            Success(Unit)
         }
 
     /**
      * Set book series.
      *
      * Flow:
-     * 1. Send PUT request to server
-     * 2. On success, the server response contains updated book
-     * 3. Update local book entity with new timestamp
+     * 1. Mark book as pending sync
+     * 2. Queue operation with full series list
+     * 3. Return success immediately
      *
-     * Note: Series relationships are synced separately - the book's updatedAt
-     * timestamp change will trigger a full sync that brings in series changes.
+     * Note: Local book-series relationships are not updated here.
+     * The pull sync after successful push will bring in the correct relationships.
      */
     override suspend fun setBookSeries(
         bookId: String,
         series: List<SeriesInput>,
-    ): Result<BookEditResponse> =
-        withContext(Dispatchers.IO) {
-            logger.debug { "Setting series for book: $bookId, count: ${series.size}" }
+    ): Result<Unit> =
+        withContext(IODispatcher) {
+            logger.debug { "Setting series for book (offline-first): $bookId, count: ${series.size}" }
 
-            // Send update to server
-            when (val result = api.setBookSeries(bookId, series)) {
-                is Success -> {
-                    // Update local database timestamp
-                    // Full series sync will happen on next sync cycle
-                    updateLocalBook(bookId, result.data)
-                    logger.info { "Series updated for book: $bookId" }
-                    result
-                }
-
-                is Failure -> {
-                    logger.error(result.exception) { "Failed to set series for book: $bookId" }
-                    result
-                }
-            }
-        }
-
-    /**
-     * Update local BookEntity with server response data.
-     *
-     * Only updates fields that are present in both BookEntity and BookEditResponse.
-     * Some fields (isbn, asin, abridged) are not currently stored in
-     * BookEntity and will be ignored.
-     */
-    private suspend fun updateLocalBook(
-        bookId: String,
-        response: BookEditResponse,
-    ) {
-        val id = BookId(bookId)
-        val existing =
-            bookDao.getById(id) ?: run {
-                logger.warn { "Book not found in local database: $bookId" }
-                return
+            // Mark book as pending sync
+            val existing = bookDao.getById(BookId(bookId))
+            if (existing == null) {
+                logger.error { "Book not found: $bookId" }
+                return@withContext Failure(Exception("Book not found: $bookId"))
             }
 
-        // Parse the ISO 8601 timestamp from server
-        val serverUpdatedAt =
-            try {
-                Timestamp.fromEpochMillis(Instant.parse(response.updatedAt).toEpochMilliseconds())
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to parse timestamp: ${response.updatedAt}" }
-                Timestamp.now()
-            }
+            val updated =
+                existing.copy(
+                    syncState = SyncState.NOT_SYNCED,
+                    lastModified = Timestamp.now(),
+                )
+            bookDao.upsert(updated)
 
-        // Update fields that BookEntity supports
-        // Note: Series is now managed via book_series junction table and separate API endpoint
-        val updated =
-            existing.copy(
-                title = response.title,
-                subtitle = response.subtitle,
-                description = response.description,
-                publishYear = response.publishYear?.toIntOrNull(),
-                publisher = response.publisher,
-                language = response.language,
-                isbn = response.isbn,
-                asin = response.asin,
-                abridged = response.abridged,
-                // Update sync metadata
-                updatedAt = serverUpdatedAt,
-                lastModified = Timestamp.now(),
-                syncState = SyncState.SYNCED, // We just synced with server
+            // Queue operation
+            val payload =
+                SetBookSeriesPayload(
+                    series =
+                        series.map { s ->
+                            PayloadSeriesInput(
+                                name = s.name,
+                                sequence = s.sequence,
+                            )
+                        },
+                )
+            pendingOperationRepository.queue(
+                type = OperationType.SET_BOOK_SERIES,
+                entityType = EntityType.BOOK,
+                entityId = bookId,
+                payload = payload,
+                handler = setBookSeriesHandler,
             )
 
-        bookDao.upsert(updated)
-        logger.debug { "Local book updated: $bookId" }
-    }
+            logger.info { "Set book series queued: $bookId, ${series.size} series" }
+            Success(Unit)
+        }
 }

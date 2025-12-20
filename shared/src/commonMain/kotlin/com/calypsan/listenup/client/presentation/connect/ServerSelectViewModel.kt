@@ -10,7 +10,6 @@ import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -67,11 +66,11 @@ class ServerSelectViewModel(
     private val serverRepository: ServerRepositoryContract,
     private val settingsRepository: SettingsRepositoryContract,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(ServerSelectUiState())
-    val state: StateFlow<ServerSelectUiState> = _state.asStateFlow()
+    val state: StateFlow<ServerSelectUiState>
+        field = MutableStateFlow(ServerSelectUiState())
 
-    private val _navigationEvents = MutableStateFlow<NavigationEvent?>(null)
-    val navigationEvents: StateFlow<NavigationEvent?> = _navigationEvents.asStateFlow()
+    val navigationEvents: StateFlow<NavigationEvent?>
+        field = MutableStateFlow<NavigationEvent?>(null)
 
     /**
      * Navigation events that the UI should handle.
@@ -98,7 +97,7 @@ class ServerSelectViewModel(
             is ServerSelectUiEvent.DiscoveredServerSelected -> handleDiscoveredServerSelected(event.server)
             ServerSelectUiEvent.ManualEntryClicked -> handleManualEntryClicked()
             ServerSelectUiEvent.RefreshClicked -> handleRefreshClicked()
-            ServerSelectUiEvent.ErrorDismissed -> _state.update { it.copy(error = null) }
+            ServerSelectUiEvent.ErrorDismissed -> state.update { it.copy(error = null) }
         }
     }
 
@@ -106,20 +105,20 @@ class ServerSelectViewModel(
      * Clear navigation event after UI has handled it.
      */
     fun onNavigationHandled() {
-        _navigationEvents.value = null
+        navigationEvents.value = null
     }
 
     private fun startDiscovery() {
         logger.info { "Starting server discovery" }
         serverRepository.startDiscovery()
-        _state.update { it.copy(isDiscovering = true) }
+        state.update { it.copy(isDiscovering = true) }
     }
 
     private fun observeServers() {
         viewModelScope.launch {
             serverRepository.observeServers().collect { servers ->
                 logger.debug { "Received ${servers.size} servers from repository" }
-                _state.update {
+                state.update {
                     it.copy(
                         servers = servers,
                         isDiscovering = false,
@@ -137,11 +136,11 @@ class ServerSelectViewModel(
         val serverUrl = server.getBestUrl()
         if (serverUrl == null) {
             logger.error { "Server has no URL configured" }
-            _state.update { it.copy(error = "Server has no URL configured") }
+            state.update { it.copy(error = "Server has no URL configured") }
             return
         }
 
-        _state.update {
+        state.update {
             it.copy(
                 selectedServerId = server.id,
                 isConnecting = true,
@@ -155,11 +154,11 @@ class ServerSelectViewModel(
                 // Also update SettingsRepository to trigger AuthState change
                 settingsRepository.setServerUrl(ServerUrl(serverUrl))
                 logger.info { "Server activated: ${server.id} at $serverUrl" }
-                _state.update { it.copy(isConnecting = false) }
-                _navigationEvents.value = NavigationEvent.ServerActivated
+                state.update { it.copy(isConnecting = false) }
+                navigationEvents.value = NavigationEvent.ServerActivated
             } catch (e: Exception) {
                 logger.error(e) { "Failed to activate server" }
-                _state.update {
+                state.update {
                     it.copy(
                         isConnecting = false,
                         error = "Failed to connect: ${e.message}",
@@ -175,7 +174,7 @@ class ServerSelectViewModel(
         // Get the URL from the discovered server
         val serverUrl = discovered.localUrl
 
-        _state.update {
+        state.update {
             it.copy(
                 selectedServerId = discovered.id,
                 isConnecting = true,
@@ -189,11 +188,11 @@ class ServerSelectViewModel(
                 // Also update SettingsRepository to trigger AuthState change
                 settingsRepository.setServerUrl(ServerUrl(serverUrl))
                 logger.info { "Server activated from discovery: ${discovered.id} at $serverUrl" }
-                _state.update { it.copy(isConnecting = false) }
-                _navigationEvents.value = NavigationEvent.ServerActivated
+                state.update { it.copy(isConnecting = false) }
+                navigationEvents.value = NavigationEvent.ServerActivated
             } catch (e: Exception) {
                 logger.error(e) { "Failed to activate discovered server" }
-                _state.update {
+                state.update {
                     it.copy(
                         isConnecting = false,
                         error = "Failed to connect: ${e.message}",
@@ -205,13 +204,13 @@ class ServerSelectViewModel(
 
     private fun handleManualEntryClicked() {
         logger.info { "Manual entry requested" }
-        _navigationEvents.value = NavigationEvent.GoToManualEntry
+        navigationEvents.value = NavigationEvent.GoToManualEntry
     }
 
     private fun handleRefreshClicked() {
         logger.info { "Refresh discovery requested" }
         serverRepository.stopDiscovery()
-        _state.update { it.copy(isDiscovering = true, servers = emptyList()) }
+        state.update { it.copy(isDiscovering = true, servers = emptyList()) }
         serverRepository.startDiscovery()
     }
 

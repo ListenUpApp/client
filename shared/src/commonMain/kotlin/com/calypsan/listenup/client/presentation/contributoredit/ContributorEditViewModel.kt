@@ -6,23 +6,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
-import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
 import com.calypsan.listenup.client.data.remote.ImageApiContract
-import com.calypsan.listenup.client.data.remote.ListenUpApiContract
-import com.calypsan.listenup.client.data.remote.UpdateContributorRequest
+import com.calypsan.listenup.client.data.repository.ContributorEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
+import com.calypsan.listenup.client.data.repository.ContributorUpdateRequest
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -131,34 +126,36 @@ sealed interface ContributorEditNavAction {
  * Handles:
  * - Loading contributor data for editing
  * - Managing aliases with merge logic (absorbing other contributors)
- * - Saving changes to local database
+ * - Saving changes via offline-first repository
  * - Tracking unsaved changes
  *
- * Alias Merge Flow:
+ * Alias Merge Flow (offline-first):
  * When user adds "Richard Bachman" as an alias to Stephen King:
  * 1. If a ContributorEntity named "Richard Bachman" exists:
- *    - Re-link all BookContributorCrossRef to Stephen King (with creditedAs = "Richard Bachman")
- *    - Delete the Richard Bachman entity
- * 2. Add "Richard Bachman" to Stephen King's aliases field
+ *    - Calls ContributorEditRepository.mergeContributor()
+ *    - Repository re-links book relationships and deletes source locally
+ *    - Operation is queued for server sync
+ * 2. Alias is added to the UI state
  *
- * @property contributorDao DAO for contributor operations
- * @property bookContributorDao DAO for book-contributor relationships
+ * @property contributorDao DAO for reading contributor data
  * @property contributorRepository Repository for contributor search
+ * @property contributorEditRepository Repository for editing (offline-first)
+ * @property imageApi API for image upload
+ * @property imageStorage Local image storage
  */
 @OptIn(FlowPreview::class)
 class ContributorEditViewModel(
     private val contributorDao: ContributorDao,
-    private val bookContributorDao: BookContributorDao,
     private val contributorRepository: ContributorRepositoryContract,
-    private val api: ListenUpApiContract,
+    private val contributorEditRepository: ContributorEditRepositoryContract,
     private val imageApi: ImageApiContract,
     private val imageStorage: ImageStorage,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(ContributorEditUiState())
-    val state: StateFlow<ContributorEditUiState> = _state.asStateFlow()
+    val state: StateFlow<ContributorEditUiState>
+        field = MutableStateFlow(ContributorEditUiState())
 
-    private val _navActions = MutableStateFlow<ContributorEditNavAction?>(null)
-    val navActions: StateFlow<ContributorEditNavAction?> = _navActions.asStateFlow()
+    val navActions: StateFlow<ContributorEditNavAction?>
+        field = MutableStateFlow<ContributorEditNavAction?>(null)
 
     // Alias search
     private val aliasQueryFlow = MutableStateFlow("")
@@ -190,7 +187,7 @@ class ContributorEditViewModel(
             .filter { it.length >= 2 || it.isEmpty() }
             .onEach { query ->
                 if (query.isBlank()) {
-                    _state.update {
+                    state.update {
                         it.copy(
                             aliasSearchResults = emptyList(),
                             aliasSearchLoading = false,
@@ -207,11 +204,11 @@ class ContributorEditViewModel(
      */
     fun loadContributor(contributorId: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, contributorId = contributorId) }
+            state.update { it.copy(isLoading = true, contributorId = contributorId) }
 
             val contributor = contributorDao.getById(contributorId)
             if (contributor == null) {
-                _state.update { it.copy(isLoading = false, error = "Contributor not found") }
+                state.update { it.copy(isLoading = false, error = "Contributor not found") }
                 return@launch
             }
 
@@ -227,7 +224,7 @@ class ContributorEditViewModel(
             originalAliases = aliases
             originalImagePath = contributor.imagePath
 
-            _state.update {
+            state.update {
                 it.copy(
                     isLoading = false,
                     imagePath = contributor.imagePath,
@@ -251,32 +248,32 @@ class ContributorEditViewModel(
     fun onEvent(event: ContributorEditUiEvent) {
         when (event) {
             is ContributorEditUiEvent.NameChanged -> {
-                _state.update { it.copy(name = event.name) }
+                state.update { it.copy(name = event.name) }
                 updateHasChanges()
             }
 
             is ContributorEditUiEvent.DescriptionChanged -> {
-                _state.update { it.copy(description = event.description) }
+                state.update { it.copy(description = event.description) }
                 updateHasChanges()
             }
 
             is ContributorEditUiEvent.WebsiteChanged -> {
-                _state.update { it.copy(website = event.website) }
+                state.update { it.copy(website = event.website) }
                 updateHasChanges()
             }
 
             is ContributorEditUiEvent.BirthDateChanged -> {
-                _state.update { it.copy(birthDate = event.date) }
+                state.update { it.copy(birthDate = event.date) }
                 updateHasChanges()
             }
 
             is ContributorEditUiEvent.DeathDateChanged -> {
-                _state.update { it.copy(deathDate = event.date) }
+                state.update { it.copy(deathDate = event.date) }
                 updateHasChanges()
             }
 
             is ContributorEditUiEvent.AliasSearchQueryChanged -> {
-                _state.update { it.copy(aliasSearchQuery = event.query) }
+                state.update { it.copy(aliasSearchQuery = event.query) }
                 aliasQueryFlow.value = event.query
             }
 
@@ -301,11 +298,11 @@ class ContributorEditViewModel(
             }
 
             is ContributorEditUiEvent.Cancel -> {
-                _navActions.value = ContributorEditNavAction.NavigateBack
+                navActions.value = ContributorEditNavAction.NavigateBack
             }
 
             is ContributorEditUiEvent.DismissError -> {
-                _state.update { it.copy(error = null) }
+                state.update { it.copy(error = null) }
             }
         }
     }
@@ -314,23 +311,23 @@ class ContributorEditViewModel(
      * Clear navigation action after handling.
      */
     fun clearNavAction() {
-        _navActions.value = null
+        navActions.value = null
     }
 
     private fun performAliasSearch(query: String) {
         aliasSearchJob?.cancel()
         aliasSearchJob =
             viewModelScope.launch {
-                _state.update { it.copy(aliasSearchLoading = true) }
+                state.update { it.copy(aliasSearchLoading = true) }
 
                 val response = contributorRepository.searchContributors(query, limit = 10)
 
                 // Filter out:
                 // - The current contributor (can't be an alias of itself)
                 // - Contributors already in aliases list
-                val currentId = _state.value.contributorId
+                val currentId = state.value.contributorId
                 val currentAliases =
-                    _state.value.aliases
+                    state.value.aliases
                         .map { it.lowercase() }
                         .toSet()
 
@@ -339,7 +336,7 @@ class ContributorEditViewModel(
                         result.id != currentId && result.name.lowercase() !in currentAliases
                     }
 
-                _state.update {
+                state.update {
                     it.copy(
                         aliasSearchResults = filteredResults,
                         aliasSearchLoading = false,
@@ -356,7 +353,7 @@ class ContributorEditViewModel(
     private fun selectAlias(result: ContributorSearchResult) {
         val aliasName = result.name
 
-        _state.update { current ->
+        state.update { current ->
             // Check if already added
             if (current.aliases.any { it.equals(aliasName, ignoreCase = true) }) {
                 return@update current.copy(
@@ -387,7 +384,7 @@ class ContributorEditViewModel(
 
         val trimmedName = name.trim()
 
-        _state.update { current ->
+        state.update { current ->
             // Check if already added
             if (current.aliases.any { it.equals(trimmedName, ignoreCase = true) }) {
                 return@update current.copy(
@@ -413,14 +410,14 @@ class ContributorEditViewModel(
         imageData: ByteArray,
         filename: String,
     ) {
-        val contributorId = _state.value.contributorId
+        val contributorId = state.value.contributorId
         if (contributorId.isBlank()) {
             logger.error { "Cannot upload image: contributor ID is empty" }
             return
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isUploadingImage = true, error = null) }
+            state.update { it.copy(isUploadingImage = true, error = null) }
 
             when (val result = imageApi.uploadContributorImage(contributorId, imageData, filename)) {
                 is Success -> {
@@ -431,7 +428,7 @@ class ContributorEditViewModel(
                         is Success -> {
                             val localPath = imageStorage.getContributorImagePath(contributorId)
                             logger.info { "Contributor image saved locally: $localPath" }
-                            _state.update {
+                            state.update {
                                 it.copy(
                                     isUploadingImage = false,
                                     imagePath = localPath,
@@ -443,7 +440,7 @@ class ContributorEditViewModel(
                         is Failure -> {
                             logger.error { "Failed to save contributor image locally: ${saveResult.message}" }
                             // Still mark upload as successful since server has the image
-                            _state.update {
+                            state.update {
                                 it.copy(
                                     isUploadingImage = false,
                                     error = "Image uploaded but failed to save locally",
@@ -455,7 +452,7 @@ class ContributorEditViewModel(
 
                 is Failure -> {
                     logger.error { "Failed to upload contributor image: ${result.message}" }
-                    _state.update {
+                    state.update {
                         it.copy(
                             isUploadingImage = false,
                             error = "Failed to upload image: ${result.message}",
@@ -466,17 +463,23 @@ class ContributorEditViewModel(
         }
     }
 
+    /**
+     * Remove an alias from the contributor.
+     *
+     * If this was an original alias (existed when loading), calls unmerge to split it out.
+     * If it was newly added, just removes from the local list.
+     */
     private fun removeAlias(alias: String) {
         val isOriginalAlias = originalAliases.any { it.equals(alias, ignoreCase = true) }
 
         if (isOriginalAlias) {
-            // This was an existing alias - need to call unmerge to split it back out
+            // This was an existing alias - call unmerge via repository
             viewModelScope.launch {
-                unmergeAliasViaServer(alias)
+                unmergeAlias(alias)
             }
         } else {
             // This was a newly added alias - just remove it from the list
-            _state.update { current ->
+            state.update { current ->
                 current.copy(aliases = current.aliases.filter { !it.equals(alias, ignoreCase = true) })
             }
             // Remove from merge tracking
@@ -486,29 +489,21 @@ class ContributorEditViewModel(
     }
 
     /**
-     * Unmerge an alias via the server API, creating a new contributor.
-     *
-     * Called when removing an original alias (one that existed when loading).
-     * The server will:
-     * 1. Create a new contributor with the alias name
-     * 2. Re-link books that were credited to that alias to the new contributor
-     * 3. Remove the alias from this contributor
+     * Unmerge an alias via the offline-first repository.
      */
-    private suspend fun unmergeAliasViaServer(aliasName: String) {
-        val contributorId = _state.value.contributorId
+    private suspend fun unmergeAlias(aliasName: String) {
+        val contributorId = state.value.contributorId
 
-        logger.info { "Unmerging alias '$aliasName' from contributor $contributorId via server" }
+        logger.info { "Unmerging alias '$aliasName' from contributor $contributorId" }
 
-        _state.update { it.copy(isSaving = true) } // Show loading state
+        state.update { it.copy(isSaving = true) }
 
-        when (val result = api.unmergeContributor(contributorId, aliasName)) {
+        when (val result = contributorEditRepository.unmergeContributor(contributorId, aliasName)) {
             is Success -> {
-                logger.info {
-                    "Server unmerge successful: created contributor ${result.data.id} with name '${result.data.name}'"
-                }
+                logger.info { "Unmerge queued successfully" }
 
                 // Update local state to remove the alias
-                _state.update { current ->
+                state.update { current ->
                     current.copy(
                         aliases = current.aliases.filter { !it.equals(aliasName, ignoreCase = true) },
                         isSaving = false,
@@ -522,8 +517,8 @@ class ContributorEditViewModel(
             }
 
             is Failure -> {
-                logger.error(result.exception) { "Server unmerge failed for alias '$aliasName'" }
-                _state.update {
+                logger.error(result.exception) { "Unmerge failed for alias '$aliasName'" }
+                state.update {
                     it.copy(
                         isSaving = false,
                         error = "Failed to remove alias: ${result.exception.message}",
@@ -534,7 +529,7 @@ class ContributorEditViewModel(
     }
 
     private fun updateHasChanges() {
-        val current = _state.value
+        val current = state.value
         val hasChanges =
             current.name != originalName ||
                 current.description != originalDescription ||
@@ -544,166 +539,91 @@ class ContributorEditViewModel(
                 current.aliases.toSet() != originalAliases.toSet() ||
                 current.imagePath != originalImagePath
 
-        _state.update { it.copy(hasChanges = hasChanges) }
+        state.update { it.copy(hasChanges = hasChanges) }
     }
 
+    /**
+     * Save all changes via the offline-first repository.
+     *
+     * Flow:
+     * 1. Handle new aliases by merging contributors
+     * 2. Update contributor metadata
+     * 3. Changes are applied locally and queued for sync
+     */
     private fun saveChanges() {
-        val current = _state.value
+        val current = state.value
         if (!current.hasChanges) {
-            _navActions.value = ContributorEditNavAction.NavigateBack
+            navActions.value = ContributorEditNavAction.NavigateBack
             return
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isSaving = true, error = null) }
+            state.update { it.copy(isSaving = true, error = null) }
 
             try {
-                // Get the existing contributor to preserve sync fields
-                val existing = contributorDao.getById(current.contributorId)
-                if (existing == null) {
-                    _state.update { it.copy(isSaving = false, error = "Contributor not found") }
-                    return@launch
-                }
-
-                // Handle new aliases - merge contributors via server API
+                // 1. Handle new aliases - merge contributors
                 val newAliases = current.aliases.toSet() - originalAliases.toSet()
-                var serverAliases: List<String>? = null
-
                 for (newAlias in newAliases) {
-                    val mergeResult = mergeContributorViaServer(newAlias, current.contributorId)
-                    if (mergeResult != null) {
-                        // Server returned updated aliases list
-                        serverAliases = mergeResult
+                    val tracked = contributorsToMerge[newAlias.lowercase()]
+                    if (tracked != null && tracked.id != current.contributorId) {
+                        // This alias corresponds to an existing contributor - merge it
+                        when (
+                            val result =
+                                contributorEditRepository.mergeContributor(
+                                    targetId = current.contributorId,
+                                    sourceId = tracked.id,
+                                )
+                        ) {
+                            is Success -> {
+                                logger.info { "Merged contributor ${tracked.id} into ${current.contributorId}" }
+                            }
+
+                            is Failure -> {
+                                logger.warn { "Merge failed for ${tracked.id}: ${result.exception.message}" }
+                                // Continue - alias will still be added via update
+                            }
+                        }
                     }
                 }
 
-                // Use server aliases if we got them, otherwise use local state
-                val finalAliases = serverAliases ?: current.aliases
-
-                // Update contributor on server
+                // 2. Update contributor metadata
                 val updateRequest =
-                    UpdateContributorRequest(
+                    ContributorUpdateRequest(
                         name = current.name,
                         biography = current.description.ifBlank { null },
                         website = current.website.ifBlank { null },
                         birthDate = current.birthDate.ifBlank { null },
                         deathDate = current.deathDate.ifBlank { null },
-                        aliases = finalAliases,
+                        aliases = current.aliases,
+                        imagePath = current.imagePath,
                     )
 
-                val serverResponse = api.updateContributor(current.contributorId, updateRequest)
-
-                val (finalSyncState, aliasesString) =
-                    when (serverResponse) {
-                        is Success -> {
-                            logger.info { "Server update successful" }
-                            // Use server's response as source of truth
-                            val responseAliases = serverResponse.data.aliases
-                            SyncState.SYNCED to responseAliases.takeIf { it.isNotEmpty() }?.joinToString(", ")
-                        }
-
-                        is Failure -> {
-                            logger.warn { "Server update failed, saving locally: ${serverResponse.exception.message}" }
-                            // Save locally for later sync
-                            SyncState.NOT_SYNCED to finalAliases.takeIf { it.isNotEmpty() }?.joinToString(", ")
-                        }
+                when (
+                    val result =
+                        contributorEditRepository.updateContributor(
+                            current.contributorId,
+                            updateRequest,
+                        )
+                ) {
+                    is Success -> {
+                        logger.info { "Contributor update queued: ${current.name}" }
+                        state.update { it.copy(isSaving = false, hasChanges = false) }
+                        navActions.value = ContributorEditNavAction.SaveSuccess
                     }
 
-                // Update local database
-                val updated =
-                    existing.copy(
-                        name = current.name,
-                        description = current.description.ifBlank { null },
-                        website = current.website.ifBlank { null },
-                        birthDate = current.birthDate.ifBlank { null },
-                        deathDate = current.deathDate.ifBlank { null },
-                        aliases = aliasesString,
-                        imagePath = current.imagePath,
-                        syncState = finalSyncState,
-                        lastModified = Timestamp.now(),
-                        updatedAt = Timestamp.now(),
-                    )
-                contributorDao.upsert(updated)
-
-                logger.info { "Contributor saved: ${current.name}, aliases: $finalAliases" }
-
-                _state.update { it.copy(isSaving = false, hasChanges = false) }
-                _navActions.value = ContributorEditNavAction.SaveSuccess
+                    is Failure -> {
+                        logger.error(result.exception) { "Failed to update contributor" }
+                        state.update {
+                            it.copy(
+                                isSaving = false,
+                                error = "Failed to save: ${result.exception.message}",
+                            )
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save contributor changes" }
-                _state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }
-            }
-        }
-    }
-
-    /**
-     * Merge a contributor via the server API.
-     *
-     * If a contributor named [aliasName] exists (tracked from autocomplete):
-     * 1. Call server merge endpoint
-     * 2. Server re-links all book relationships with creditedAs
-     * 3. Server soft-deletes the merged contributor
-     * 4. Delete merged contributor from local database
-     *
-     * @return The updated aliases list from server, or null if no merge was performed
-     */
-    private suspend fun mergeContributorViaServer(
-        aliasName: String,
-        targetContributorId: String,
-    ): List<String>? {
-        // Check if we tracked a contributor to merge from autocomplete
-        val tracked = contributorsToMerge[aliasName.lowercase()] ?: return null
-
-        if (tracked.id == targetContributorId) {
-            return null // Can't merge into itself
-        }
-
-        logger.info { "Merging contributor '${tracked.name}' (${tracked.id}) into $targetContributorId via server" }
-
-        // Call server merge endpoint
-        return when (val result = api.mergeContributor(targetContributorId, tracked.id)) {
-            is Success -> {
-                logger.info { "Server merge successful: ${result.data.aliases}" }
-
-                // Re-link local book-contributor relationships from source to target
-                // Set creditedAs to preserve the original attribution display name
-                val localRelations = bookContributorDao.getByContributorId(tracked.id)
-                for (relation in localRelations) {
-                    // Check if target already has a relationship for this book/role
-                    val existingTargetRelation =
-                        bookContributorDao.get(
-                            relation.bookId,
-                            targetContributorId,
-                            relation.role,
-                        )
-
-                    if (existingTargetRelation == null) {
-                        // Create new relationship pointing to target, with creditedAs preserving original name
-                        val newRelation =
-                            BookContributorCrossRef(
-                                bookId = relation.bookId,
-                                contributorId = targetContributorId,
-                                role = relation.role,
-                                creditedAs = relation.creditedAs ?: tracked.name,
-                            )
-                        bookContributorDao.insert(newRelation)
-                    }
-                    // Either way, delete the old relationship
-                    bookContributorDao.delete(relation.bookId, relation.contributorId, relation.role)
-                }
-
-                // Delete the merged contributor from local database
-                // (server soft-deleted it, we can hard-delete locally)
-                contributorDao.deleteById(tracked.id)
-
-                result.data.aliases
-            }
-
-            is Failure -> {
-                logger.error(result.exception) { "Server merge failed for ${tracked.id}" }
-                // Don't fail the entire save - the alias is still added locally
-                // and will sync eventually
-                null
+                state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }
             }
         }
     }

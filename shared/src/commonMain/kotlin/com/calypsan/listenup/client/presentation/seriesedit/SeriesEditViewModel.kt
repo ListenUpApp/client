@@ -11,7 +11,6 @@ import com.calypsan.listenup.client.data.repository.SeriesEditRepositoryContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -100,11 +99,11 @@ class SeriesEditViewModel(
     private val imageStorage: ImageStorage,
     private val imageApi: ImageApiContract,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(SeriesEditUiState())
-    val state: StateFlow<SeriesEditUiState> = _state.asStateFlow()
+    val state: StateFlow<SeriesEditUiState>
+        field = MutableStateFlow(SeriesEditUiState())
 
-    private val _navActions = MutableStateFlow<SeriesEditNavAction?>(null)
-    val navActions: StateFlow<SeriesEditNavAction?> = _navActions.asStateFlow()
+    val navActions: StateFlow<SeriesEditNavAction?>
+        field = MutableStateFlow<SeriesEditNavAction?>(null)
 
     // Track original values for change detection
     private var originalName: String = ""
@@ -116,11 +115,11 @@ class SeriesEditViewModel(
      */
     fun loadSeries(seriesId: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, seriesId = seriesId) }
+            state.update { it.copy(isLoading = true, seriesId = seriesId) }
 
             val seriesWithBooks = seriesDao.getByIdWithBooks(seriesId)
             if (seriesWithBooks == null) {
-                _state.update { it.copy(isLoading = false, error = "Series not found") }
+                state.update { it.copy(isLoading = false, error = "Series not found") }
                 return@launch
             }
 
@@ -140,7 +139,7 @@ class SeriesEditViewModel(
             originalDescription = series.description ?: ""
             originalCoverPath = coverPath
 
-            _state.update {
+            state.update {
                 it.copy(
                     isLoading = false,
                     name = series.name,
@@ -161,12 +160,12 @@ class SeriesEditViewModel(
     fun onEvent(event: SeriesEditUiEvent) {
         when (event) {
             is SeriesEditUiEvent.NameChanged -> {
-                _state.update { it.copy(name = event.name) }
+                state.update { it.copy(name = event.name) }
                 updateHasChanges()
             }
 
             is SeriesEditUiEvent.DescriptionChanged -> {
-                _state.update { it.copy(description = event.description) }
+                state.update { it.copy(description = event.description) }
                 updateHasChanges()
             }
 
@@ -187,7 +186,7 @@ class SeriesEditViewModel(
             }
 
             is SeriesEditUiEvent.ErrorDismissed -> {
-                _state.update { it.copy(error = null) }
+                state.update { it.copy(error = null) }
             }
         }
     }
@@ -196,20 +195,20 @@ class SeriesEditViewModel(
      * Clear navigation action after handling.
      */
     fun consumeNavAction() {
-        _navActions.value = null
+        navActions.value = null
     }
 
     /**
      * Update hasChanges flag based on current vs original values.
      */
     private fun updateHasChanges() {
-        val current = _state.value
+        val current = state.value
         val hasChanges =
             current.name != originalName ||
                 current.description != originalDescription ||
                 current.pendingCoverData != null // Cover changed if we have pending data
 
-        _state.update { it.copy(hasChanges = hasChanges) }
+        state.update { it.copy(hasChanges = hasChanges) }
     }
 
     /**
@@ -221,14 +220,14 @@ class SeriesEditViewModel(
         imageData: ByteArray,
         filename: String,
     ) {
-        val seriesId = _state.value.seriesId
+        val seriesId = state.value.seriesId
         if (seriesId.isBlank()) {
             logger.error { "Cannot set cover: series ID is empty" }
             return
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isUploadingCover = true, error = null) }
+            state.update { it.copy(isUploadingCover = true, error = null) }
 
             // Save to staging location for preview (doesn't overwrite original)
             when (val saveResult = imageStorage.saveSeriesCoverStaging(seriesId, imageData)) {
@@ -237,7 +236,7 @@ class SeriesEditViewModel(
                     logger.info { "Cover saved to staging for preview: $stagingPath" }
 
                     // Store pending data for upload when Save Changes is clicked
-                    _state.update {
+                    state.update {
                         it.copy(
                             isUploadingCover = false,
                             stagingCoverPath = stagingPath,
@@ -250,7 +249,7 @@ class SeriesEditViewModel(
 
                 is Failure -> {
                     logger.error { "Failed to save cover to staging: ${saveResult.message}" }
-                    _state.update {
+                    state.update {
                         it.copy(
                             isUploadingCover = false,
                             error = "Failed to save cover: ${saveResult.message}",
@@ -266,7 +265,7 @@ class SeriesEditViewModel(
      * Deletes the staging cover and clears pending data.
      */
     private fun handleCoverRemoved() {
-        val seriesId = _state.value.seriesId
+        val seriesId = state.value.seriesId
         if (seriesId.isBlank()) {
             logger.error { "Cannot remove cover: series ID is empty" }
             return
@@ -274,11 +273,11 @@ class SeriesEditViewModel(
 
         viewModelScope.launch {
             // Delete staging cover if it exists
-            if (_state.value.stagingCoverPath != null) {
+            if (state.value.stagingCoverPath != null) {
                 imageStorage.deleteSeriesCoverStaging(seriesId)
             }
 
-            _state.update {
+            state.update {
                 it.copy(
                     stagingCoverPath = null,
                     pendingCoverData = null,
@@ -296,14 +295,14 @@ class SeriesEditViewModel(
      */
     @Suppress("CognitiveComplexMethod")
     private fun saveChanges() {
-        val current = _state.value
+        val current = state.value
         if (!current.hasChanges) {
-            _navActions.value = SeriesEditNavAction.NavigateBack
+            navActions.value = SeriesEditNavAction.NavigateBack
             return
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isSaving = true, error = null) }
+            state.update { it.copy(isSaving = true, error = null) }
 
             try {
                 // Update metadata if changed
@@ -326,7 +325,7 @@ class SeriesEditViewModel(
                         }
 
                         is Failure -> {
-                            _state.update { it.copy(isSaving = false, error = "Failed to save: ${result.message}") }
+                            state.update { it.copy(isSaving = false, error = "Failed to save: ${result.message}") }
                             return@launch
                         }
                     }
@@ -369,7 +368,7 @@ class SeriesEditViewModel(
                     }
                 }
 
-                _state.update {
+                state.update {
                     it.copy(
                         isSaving = false,
                         hasChanges = false,
@@ -378,10 +377,10 @@ class SeriesEditViewModel(
                         stagingCoverPath = null,
                     )
                 }
-                _navActions.value = SeriesEditNavAction.NavigateBack
+                navActions.value = SeriesEditNavAction.NavigateBack
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save series changes" }
-                _state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }
+                state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }
             }
         }
     }
@@ -390,14 +389,14 @@ class SeriesEditViewModel(
      * Cancel editing and clean up any staging files.
      */
     private fun cancelAndCleanup() {
-        val seriesId = _state.value.seriesId
-        if (seriesId.isNotBlank() && _state.value.stagingCoverPath != null) {
+        val seriesId = state.value.seriesId
+        if (seriesId.isNotBlank() && state.value.stagingCoverPath != null) {
             viewModelScope.launch {
                 imageStorage.deleteSeriesCoverStaging(seriesId)
                 logger.debug { "Staging cover cleaned up on cancel" }
             }
         }
-        _navActions.value = SeriesEditNavAction.NavigateBack
+        navActions.value = SeriesEditNavAction.NavigateBack
     }
 
     /**
@@ -406,11 +405,11 @@ class SeriesEditViewModel(
      */
     override fun onCleared() {
         super.onCleared()
-        val seriesId = _state.value.seriesId
-        if (seriesId.isNotBlank() && _state.value.stagingCoverPath != null) {
+        val seriesId = state.value.seriesId
+        if (seriesId.isNotBlank() && state.value.stagingCoverPath != null) {
             // viewModelScope is cancelled by this point, use GlobalScope for cleanup
             @Suppress("OPT_IN_USAGE")
-            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            kotlinx.coroutines.GlobalScope.launch(com.calypsan.listenup.client.core.IODispatcher) {
                 imageStorage.deleteSeriesCoverStaging(seriesId)
                 logger.debug { "Staging cover cleaned up on ViewModel cleared" }
             }

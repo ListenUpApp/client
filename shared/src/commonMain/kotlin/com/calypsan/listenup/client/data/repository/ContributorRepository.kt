@@ -1,14 +1,13 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SearchDao
+import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
-import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlin.time.measureTimedValue
 
@@ -67,7 +66,7 @@ data class ContributorSearchResponse(
  * @property networkMonitor For checking online/offline status
  */
 class ContributorRepository(
-    private val api: ListenUpApiContract,
+    private val api: ContributorApiContract,
     private val searchDao: SearchDao,
     private val networkMonitor: NetworkMonitor,
 ) : ContributorRepositoryContract {
@@ -121,7 +120,7 @@ class ContributorRepository(
         query: String,
         limit: Int,
     ): ContributorSearchResponse =
-        withContext(Dispatchers.IO) {
+        withContext(IODispatcher) {
             val (contributors, duration) =
                 measureTimedValue {
                     when (val result = api.searchContributors(query, limit)) {
@@ -152,7 +151,7 @@ class ContributorRepository(
         query: String,
         limit: Int,
     ): ContributorSearchResponse =
-        withContext(Dispatchers.IO) {
+        withContext(IODispatcher) {
             val (entities, duration) =
                 measureTimedValue {
                     val ftsQuery = toFtsQuery(query)

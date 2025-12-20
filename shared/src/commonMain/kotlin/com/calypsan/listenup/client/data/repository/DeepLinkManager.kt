@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.data.repository
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Represents a pending invite deep link that needs to be processed.
@@ -31,13 +30,12 @@ data class InviteDeepLink(
  * Thread-safe via StateFlow - can be observed from any coroutine context.
  */
 class DeepLinkManager {
-    private val _pendingInvite = MutableStateFlow<InviteDeepLink?>(null)
-
     /**
      * Observable flow of pending invite deep link.
      * Null when no invite is pending.
      */
-    val pendingInvite: StateFlow<InviteDeepLink?> = _pendingInvite.asStateFlow()
+    val pendingInvite: StateFlow<InviteDeepLink?>
+        field = MutableStateFlow<InviteDeepLink?>(null)
 
     /**
      * Sets a pending invite link to be processed by navigation.
@@ -52,7 +50,7 @@ class DeepLinkManager {
         serverUrl: String,
         code: String,
     ) {
-        _pendingInvite.value = InviteDeepLink(serverUrl, code)
+        pendingInvite.value = InviteDeepLink(serverUrl, code)
     }
 
     /**
@@ -64,11 +62,11 @@ class DeepLinkManager {
      * - Invite is determined to be invalid
      */
     fun consumeInvite() {
-        _pendingInvite.value = null
+        pendingInvite.value = null
     }
 
     /**
      * Checks if there's a pending invite without consuming it.
      */
-    fun hasPendingInvite(): Boolean = _pendingInvite.value != null
+    fun hasPendingInvite(): Boolean = pendingInvite.value != null
 }

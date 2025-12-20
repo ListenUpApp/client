@@ -34,7 +34,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.sync.SyncStatus
+import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.UserAvatar
 import com.calypsan.listenup.client.features.shell.ShellDestination

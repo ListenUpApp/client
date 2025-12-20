@@ -2,17 +2,47 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
 }
 
 kotlin {
-    androidTarget {
+    // Android target using new AGP 9.0-compatible plugin
+    androidLibrary {
+        namespace = "com.calypsan.listenup.client.composeapp"
+        compileSdk =
+            libs.versions.android.compileSdk
+                .get()
+                .toInt()
+        minSdk =
+            libs.versions.android.minSdk
+                .get()
+                .toInt()
+
+        // Enable Android resources (opt-in required with new KMP plugin)
+        androidResources { enable = true }
+
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
+            freeCompilerArgs.addAll(
+                "-Xexpect-actual-classes",
+                "-Xreturn-value-checker=check",
+                "-Xexplicit-backing-fields",
+            )
+        }
+
+        lint {
+            warningsAsErrors = false
+            abortOnError = true
+            checkDependencies = true
+            htmlReport = true
+            xmlReport = true
         }
     }
+
+    // Future: Add desktop target here when ready
+    // jvm("desktop")
 
     sourceSets {
         androidMain.dependencies {
@@ -76,57 +106,12 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(projects.shared)
         }
-        commonTest.dependencies {
-            implementation(libs.kotlin.test)
-        }
+        // Note: Android tests use androidHostTest/androidDeviceTest source sets
+        // with the new KMP plugin. Add test dependencies there when needed.
     }
 }
 
-android {
-    namespace = "com.calypsan.listenup.client"
-    compileSdk =
-        libs.versions.android.compileSdk
-            .get()
-            .toInt()
-
-    defaultConfig {
-        applicationId = "com.calypsan.listenup.client"
-        minSdk =
-            libs.versions.android.minSdk
-                .get()
-                .toInt()
-        targetSdk =
-            libs.versions.android.targetSdk
-                .get()
-                .toInt()
-        versionCode = 1
-        versionName = "1.0"
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-    buildTypes {
-        getByName("release") {
-            isMinifyEnabled = false
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    lint {
-        warningsAsErrors = false
-        abortOnError = true
-        checkDependencies = true
-        htmlReport = true
-        xmlReport = true
-        sarifReport = true
-    }
-}
-
+// Compose UI tooling for Android preview support
 dependencies {
-    debugImplementation(libs.compose.ui.tooling)
+    "androidRuntimeClasspath"(libs.compose.ui.tooling)
 }

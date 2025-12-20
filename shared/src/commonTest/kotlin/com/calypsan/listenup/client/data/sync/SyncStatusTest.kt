@@ -1,6 +1,8 @@
 package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.sync.model.SyncPhase
+import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

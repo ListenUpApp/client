@@ -9,8 +9,8 @@ import com.google.common.util.concurrent.MoreExecutors
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 private val logger = KotlinLogging.logger {}
 
@@ -29,16 +29,17 @@ private val logger = KotlinLogging.logger {}
  * - Connection is established on first acquire
  * - Connection is released when refCount hits 0
  */
+@OptIn(ExperimentalAtomicApi::class)
 class MediaControllerHolder(
     private val context: Context,
 ) {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var _controller: MediaController? = null
 
-    private val _isConnected = MutableStateFlow(false)
-    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+    val isConnected: StateFlow<Boolean>
+        field = MutableStateFlow(false)
 
-    private val refCount = AtomicInteger(0)
+    private val refCount = AtomicInt(0)
 
     /**
      * Get the current MediaController, or null if not connected.
@@ -53,7 +54,7 @@ class MediaControllerHolder(
      */
     @Synchronized
     fun acquire() {
-        val count = refCount.incrementAndGet()
+        val count = refCount.addAndFetch(1)
         logger.debug { "MediaControllerHolder.acquire: refCount=$count" }
 
         if (count == 1) {
@@ -67,11 +68,11 @@ class MediaControllerHolder(
      */
     @Synchronized
     fun release() {
-        val count = refCount.decrementAndGet()
+        val count = refCount.addAndFetch(-1)
         logger.debug { "MediaControllerHolder.release: refCount=$count" }
 
         if (count <= 0) {
-            refCount.set(0) // Prevent negative
+            refCount.store(0) // Prevent negative
             disconnect()
         }
     }
@@ -112,11 +113,11 @@ class MediaControllerHolder(
         controllerFuture?.addListener({
             try {
                 _controller = controllerFuture?.get()
-                _isConnected.value = true
+                isConnected.value = true
                 logger.info { "MediaControllerHolder: connected" }
             } catch (e: Exception) {
                 logger.error(e) { "MediaControllerHolder: connection failed" }
-                _isConnected.value = false
+                isConnected.value = false
             }
         }, MoreExecutors.directExecutor())
     }
@@ -130,6 +131,6 @@ class MediaControllerHolder(
         controllerFuture?.let { MediaController.releaseFuture(it) }
         controllerFuture = null
 
-        _isConnected.value = false
+        isConnected.value = false
     }
 }

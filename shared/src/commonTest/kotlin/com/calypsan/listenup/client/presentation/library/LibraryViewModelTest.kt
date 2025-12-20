@@ -18,7 +18,7 @@ import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
-import com.calypsan.listenup.client.data.sync.SyncStatus
+import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Contributor
@@ -45,6 +45,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Clock
 
 /**
  * Tests for LibraryViewModel.
@@ -133,7 +134,7 @@ class LibraryViewModelTest {
         )
 
     private fun createDummyBookEntity(id: String): com.calypsan.listenup.client.data.local.db.BookEntity {
-        val now = Timestamp(System.currentTimeMillis())
+        val now = Timestamp(Clock.System.now().toEpochMilliseconds())
         return com.calypsan.listenup.client.data.local.db.BookEntity(
             id = BookId(id),
             title = "Book $id",

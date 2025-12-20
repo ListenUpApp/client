@@ -41,7 +41,6 @@ import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.navigation.ListenUpNavigation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.koin.compose.viewmodel.koinViewModel
@@ -292,8 +291,8 @@ data class InstanceUiState(
 class InstanceViewModel(
     private val getInstanceUseCase: GetInstanceUseCase,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(InstanceUiState())
-    val state: StateFlow<InstanceUiState> = _state.asStateFlow()
+    val state: StateFlow<InstanceUiState>
+        field = MutableStateFlow(InstanceUiState())
 
     init {
         loadInstance()
@@ -301,11 +300,11 @@ class InstanceViewModel(
 
     fun loadInstance() {
         viewModelScope.launch {
-            _state.value = InstanceUiState(isLoading = true)
+            state.value = InstanceUiState(isLoading = true)
 
             when (val result = getInstanceUseCase()) {
                 is Result.Success -> {
-                    _state.value =
+                    state.value =
                         InstanceUiState(
                             isLoading = false,
                             instance = result.data,
@@ -313,7 +312,7 @@ class InstanceViewModel(
                 }
 
                 is Result.Failure -> {
-                    _state.value =
+                    state.value =
                         InstanceUiState(
                             isLoading = false,
                             error = result.message,

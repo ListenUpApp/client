@@ -1,37 +1,24 @@
 package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.BookEntity
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
-import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Syncable
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
-import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
-import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
-import com.calypsan.listenup.client.data.remote.model.BookResponse
-import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.data.sync.model.SyncStatus
+import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
+import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
+import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.client.network.sockets.ConnectTimeoutException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.io.IOException
-import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
 
@@ -56,123 +43,75 @@ interface SyncManagerContract {
 /**
  * Orchestrates synchronization between local Room database and server.
  *
- * Responsibilities:
- * - Pull changes from server (delta sync)
- * - Merge into local database (detect conflicts)
- * - Download cover images for books
- * - Rebuild FTS tables for offline search
- * - Push local changes to server (future)
- * - Handle real-time SSE events for live updates
- * - Expose sync state to UI with progress reporting
+ * This is a thin orchestrator that coordinates:
+ * - Pull sync via [PullSyncOrchestrator]
+ * - Push sync via [PushSyncOrchestrator]
+ * - SSE event processing via [SSEEventProcessor]
+ * - User preferences sync
  *
- * Sync strategy (v1 - pull only):
- * 1. Fetch all books from server via paginated API
- * 2. Upsert into Room database (conflict detection on serverVersion)
- * 3. Download cover images for new/updated books
+ * Sync strategy:
+ * 1. Pull changes from server (books, series, contributors in parallel)
+ * 2. Pull user preferences (non-blocking)
+ * 3. Push local changes (future)
  * 4. Update last sync timestamp
  * 5. Rebuild FTS tables for offline search
- * 6. Listen for SSE events and apply updates in real-time
- *
- * Reliability features:
- * - Retry with exponential backoff on transient failures
- * - Progress reporting during sync
- * - Proper cancellation handling
- * - Graceful error recovery
- *
- * @property syncApi HTTP client for sync endpoints
- * @property bookDao Room DAO for book operations
- * @property syncDao Room DAO for sync metadata
- * @property imageDownloader Downloads and caches book cover images
- * @property sseManager Handles real-time Server-Sent Events
- * @property ftsPopulator Populates FTS5 tables for offline search
+ * 6. Connect to SSE stream for real-time updates
  */
 @Suppress("LongParameterList")
 class SyncManager(
-    private val syncApi: SyncApiContract,
-    private val bookDao: BookDao,
-    private val seriesDao: SeriesDao,
-    private val contributorDao: ContributorDao,
-    private val chapterDao: com.calypsan.listenup.client.data.local.db.ChapterDao,
-    private val bookContributorDao: com.calypsan.listenup.client.data.local.db.BookContributorDao,
-    private val bookSeriesDao: com.calypsan.listenup.client.data.local.db.BookSeriesDao,
-    private val syncDao: SyncDao,
-    private val imageDownloader: ImageDownloaderContract,
+    private val pullOrchestrator: PullSyncOrchestrator,
+    private val pushOrchestrator: PushSyncOrchestrator,
+    private val sseEventProcessor: SSEEventProcessor,
+    private val coordinator: SyncCoordinator,
     private val sseManager: SSEManagerContract,
-    private val ftsPopulator: FtsPopulatorContract,
     private val userPreferencesApi: UserPreferencesApiContract,
     private val settingsRepository: SettingsRepositoryContract,
-    /**
-     * Application-scoped CoroutineScope for background tasks.
-     *
-     * This scope is intentionally long-lived (app lifetime) because SyncManager is a singleton
-     * that handles SSE events and background image downloads throughout the app's lifecycle.
-     * The scope should use SupervisorJob to prevent child failures from cancelling siblings.
-     *
-     * Injected from Koin for testability and consistency with SSEManager.
-     */
+    private val syncDao: SyncDao,
+    private val ftsPopulator: FtsPopulatorContract,
     private val scope: CoroutineScope,
 ) : SyncManagerContract {
+    // Override properties can't use explicit backing fields - must use traditional pattern
     private val _syncState = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
+    override val syncState: StateFlow<SyncStatus> = _syncState.asStateFlow()
 
     init {
-        // Start collecting SSE events (connection will be established after first sync)
+        // Route SSE events to processor
         scope.launch {
             sseManager.eventFlow.collect { event ->
-                handleSSEEvent(event)
+                sseEventProcessor.process(event)
             }
         }
     }
 
     /**
-     * Current synchronization status.
-     *
-     * Exposed as StateFlow for reactive UI updates. Transitions:
-     * - Idle -> Syncing (when sync() called)
-     * - Syncing -> Progress (during sync with progress info)
-     * - Syncing/Progress -> Success (on successful completion)
-     * - Syncing/Progress -> Error (on failure)
-     * - Success/Error -> Idle (ready for next sync)
-     */
-    override val syncState: StateFlow<SyncStatus> = _syncState.asStateFlow()
-
-    /**
      * Perform full synchronization with server.
-     *
-     * Features:
-     * - Delta sync (only fetch changes since last sync)
-     * - Retry with exponential backoff on transient failures
-     * - Progress reporting during sync
-     * - Proper cancellation handling
-     *
-     * @return Result indicating success or failure
      */
     override suspend fun sync(): Result<Unit> {
         logger.debug { "Starting sync operation" }
         _syncState.value = SyncStatus.Syncing
 
         return try {
-            // Step 1: Pull changes from server with retry
-            pullChangesWithRetry()
+            // Phase 1: Pull changes from server
+            pullOrchestrator.pull { updateSyncState(it) }
 
-            // Step 2: Pull user preferences (non-blocking, doesn't fail sync if it fails)
+            // Phase 2: Pull user preferences (non-blocking)
             pullUserPreferences()
 
-            // Step 3: Push local changes (TODO: implement in future version)
-            // pushChanges()
+            // Phase 3: Push local changes
+            pushOrchestrator.flush()
 
-            // Step 4: Update last sync time
+            // Phase 4: Update last sync time
             val now = Timestamp.now()
             syncDao.setLastSyncTime(now)
 
-            // Step 5: Rebuild FTS tables for offline search
+            // Phase 5: Rebuild FTS tables for offline search
             try {
                 ftsPopulator.rebuildAll()
             } catch (e: Exception) {
-                // FTS rebuild failure is non-fatal - offline search may be stale but app works
                 logger.warn(e) { "FTS rebuild failed, offline search may be incomplete" }
             }
 
-            // Step 6: Connect to SSE stream for real-time updates (if not already connected)
+            // Phase 6: Connect to SSE stream for real-time updates
             sseManager.connect()
 
             logger.info { "Sync completed successfully" }
@@ -181,14 +120,12 @@ class SyncManager(
         } catch (e: CancellationException) {
             logger.debug { "Sync was cancelled" }
             _syncState.value = SyncStatus.Idle
-            throw e // Re-throw cancellation
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "Sync failed after retries" }
             _syncState.value = SyncStatus.Error(exception = e)
 
-            // Offline-first: Don't redirect to server setup on network errors.
-            // The user can continue using cached data. Sync will retry later.
-            if (isServerUnreachableError(e)) {
+            if (coordinator.isServerUnreachableError(e)) {
                 logger.warn { "Server unreachable - continuing with local data" }
             }
 
@@ -198,16 +135,6 @@ class SyncManager(
 
     /**
      * Force a full sync by clearing the sync checkpoint and re-syncing.
-     *
-     * This is useful when:
-     * - Books are missing audioFilesJson (playback shows 0:00 duration)
-     * - Database corruption is suspected
-     * - User wants to refresh all data from server
-     *
-     * Unlike regular sync(), this always fetches ALL data from server,
-     * not just changes since the last sync.
-     *
-     * @return Result indicating sync success or failure
      */
     suspend fun forceFullSync(): Result<Unit> {
         logger.info { "Forcing full sync - clearing sync checkpoint" }
@@ -216,412 +143,15 @@ class SyncManager(
     }
 
     /**
-     * Pull changes with retry logic and exponential backoff.
+     * Queue an entity for synchronization with server.
      */
-    private suspend fun pullChangesWithRetry() {
-        var lastException: Exception? = null
-        var retryDelay = INITIAL_RETRY_DELAY
-
-        repeat(MAX_RETRIES) { attempt ->
-            try {
-                if (attempt > 0) {
-                    logger.info {
-                        "Retry attempt ${attempt + 1}/$MAX_RETRIES after ${retryDelay.inWholeMilliseconds}ms"
-                    }
-                    _syncState.value = SyncStatus.Retrying(attempt = attempt + 1, maxAttempts = MAX_RETRIES)
-                    delay(retryDelay)
-                    retryDelay = (retryDelay * RETRY_BACKOFF_MULTIPLIER).coerceAtMost(MAX_RETRY_DELAY)
-                }
-
-                pullChanges()
-                return // Success, exit retry loop
-            } catch (e: CancellationException) {
-                throw e // Don't retry on cancellation
-            } catch (e: Exception) {
-                lastException = e
-                logger.warn(e) { "Sync attempt ${attempt + 1} failed" }
-            }
-        }
-
-        // All retries exhausted
-        throw lastException ?: error("Sync failed with unknown error")
-    }
-
-    /**
-     * Pull changes from server and merge into local database.
-     *
-     * Performs smart sync:
-     * - If last sync time exists, performs delta sync (fetching only changes)
-     * - If no last sync time, performs full sync
-     * - Detects conflicts by comparing timestamps
-     * - Handles deletions propagated from server
-     *
-     * Runs syncs for Books, Series, and Contributors in parallel for performance.
-     * Uses supervisorScope to ensure proper cancellation if any job fails.
-     *
-     * @throws Exception if network request fails
-     */
-    private suspend fun pullChanges() =
-        coroutineScope {
-            logger.debug { "Pulling changes from server" }
-
-            // Get last sync time for delta sync
-            val lastSyncTime = syncDao.getLastSyncTime()
-            val updatedAfter = lastSyncTime?.toIsoString()
-
-            val syncType = if (updatedAfter != null) "Delta (since $updatedAfter)" else "Full"
-            logger.info { "Sync strategy: $syncType" }
-
-            _syncState.value =
-                SyncStatus.Progress(
-                    phase = SyncPhase.FETCHING_METADATA,
-                    current = 0,
-                    total = 3,
-                    message = "Preparing sync...",
-                )
-
-            // Run independent sync operations in parallel with proper error handling
-            val booksJob = async { pullBooks(updatedAfter) }
-            val seriesJob = async { pullSeries(updatedAfter) }
-            val contributorsJob = async { pullContributors(updatedAfter) }
-
-            // Wait for all to complete - if any fails, others will be cancelled
-            try {
-                awaitAll(booksJob, seriesJob, contributorsJob)
-            } catch (e: Exception) {
-                // Cancel any remaining jobs
-                booksJob.cancel()
-                seriesJob.cancel()
-                contributorsJob.cancel()
-                throw e
-            }
-
-            _syncState.value =
-                SyncStatus.Progress(
-                    phase = SyncPhase.FINALIZING,
-                    current = 3,
-                    total = 3,
-                    message = "Finalizing sync...",
-                )
-        }
-
-    private suspend fun pullBooks(updatedAfter: String?) {
-        var cursor: String? = null
-        var hasMore = true
-        val limit = 100
-        var pageCount = 0
-
-        while (hasMore) {
-            _syncState.value =
-                SyncStatus.Progress(
-                    phase = SyncPhase.SYNCING_BOOKS,
-                    current = pageCount,
-                    total = -1, // Unknown total
-                    message = "Syncing books (page ${pageCount + 1})...",
-                )
-
-            when (val result = syncApi.getBooks(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
-                is Result.Success -> {
-                    val response = result.data
-                    cursor = response.nextCursor
-                    hasMore = response.hasMore
-                    pageCount++
-
-                    val serverBooks = response.books.map { it.toEntity() }
-                    val deletedBookIds = response.deletedBookIds
-
-                    logger.debug {
-                        "Fetched page $pageCount: ${serverBooks.size} books, ${deletedBookIds.size} deletions"
-                    }
-
-                    // Handle deletions (batch operation for efficiency)
-                    if (deletedBookIds.isNotEmpty()) {
-                        bookDao.deleteByIds(deletedBookIds.map { BookId(it) })
-                        logger.info { "Removed ${deletedBookIds.size} books deleted on server" }
-                    }
-
-                    if (serverBooks.isNotEmpty()) {
-                        processServerBooks(serverBooks, response)
-                    }
-                }
-
-                is Result.Failure -> {
-                    throw result.exception
-                }
-            }
-        }
-
-        logger.info { "Books sync complete: $pageCount pages processed" }
-    }
-
-    /**
-     * Process server books: detect conflicts, upsert, sync related entities.
-     */
-    private suspend fun processServerBooks(
-        serverBooks: List<BookEntity>,
-        response: com.calypsan.listenup.client.data.remote.model.SyncBooksResponse,
-    ) {
-        logger.info { "processServerBooks: received ${serverBooks.size} books from server" }
-
-        // Detect and mark conflicts (server newer than local changes)
-        val conflicts = detectConflicts(serverBooks)
-        conflicts.forEach { (bookId, serverVersion) ->
-            bookDao.markConflict(bookId, serverVersion)
-            logger.warn { "Conflict detected for book $bookId - server version is newer" }
-        }
-
-        // Filter out books with local changes that are newer than server
-        val booksToUpsert = serverBooks.filterNot { shouldPreserveLocalChanges(it) }
-        logger.info { "processServerBooks: ${booksToUpsert.size} books to upsert (after filtering)" }
-
-        if (booksToUpsert.isEmpty()) {
-            logger.info { "processServerBooks: no books to upsert, skipping cover downloads" }
-            return
-        }
-
-        // Upsert books
-        bookDao.upsertAll(booksToUpsert)
-
-        // Sync chapters for upserted books
-        val chaptersToUpsert =
-            response.books
-                .filter { bookResponse -> booksToUpsert.any { it.id.value == bookResponse.id } }
-                .flatMap { bookResponse ->
-                    bookResponse.chapters.mapIndexed { index, chapter ->
-                        chapter.toEntity(BookId(bookResponse.id), index)
-                    }
-                }
-
-        logger.debug { "Upserting ${chaptersToUpsert.size} chapters total" }
-        if (chaptersToUpsert.isNotEmpty()) {
-            chapterDao.upsertAll(chaptersToUpsert)
-        }
-
-        // Sync book-contributor relationships for upserted books
-        val bookContributorsToUpsert =
-            response.books
-                .filter { bookResponse -> booksToUpsert.any { it.id.value == bookResponse.id } }
-                .flatMap { bookResponse ->
-                    // First, delete existing relationships for this book
-                    bookContributorDao.deleteContributorsForBook(BookId(bookResponse.id))
-
-                    // Then create new relationships
-                    bookResponse.contributors.flatMap { contributorResponse ->
-                        contributorResponse.roles.map { role ->
-                            contributorResponse.toEntity(BookId(bookResponse.id), role)
-                        }
-                    }
-                }
-
-        if (bookContributorsToUpsert.isNotEmpty()) {
-            bookContributorDao.insertAll(bookContributorsToUpsert)
-        }
-
-        // Sync book-series relationships for upserted books
-        val bookSeriesToUpsert =
-            response.books
-                .filter { bookResponse -> booksToUpsert.any { it.id.value == bookResponse.id } }
-                .flatMap { bookResponse ->
-                    // First, delete existing relationships for this book
-                    bookSeriesDao.deleteSeriesForBook(BookId(bookResponse.id))
-
-                    // Then create new relationships from seriesInfo array
-                    bookResponse.seriesInfo.map { seriesInfo ->
-                        seriesInfo.toEntity(BookId(bookResponse.id))
-                    }
-                }
-
-        if (bookSeriesToUpsert.isNotEmpty()) {
-            bookSeriesDao.insertAll(bookSeriesToUpsert)
-        }
-
-        // Download cover images for updated books (background/parallel)
-        val updatedBookIds = booksToUpsert.map { it.id }
-        logger.info { "processServerBooks: scheduling cover downloads for ${updatedBookIds.size} books" }
-        if (updatedBookIds.isNotEmpty()) {
-            scope.launch {
-                logger.info { "Starting cover downloads for ${updatedBookIds.size} books..." }
-                val downloadResults = imageDownloader.downloadCovers(updatedBookIds)
-
-                // Update books with extracted colors and trigger UI refresh
-                if (downloadResults is com.calypsan.listenup.client.core.Result.Success) {
-                    val now = Timestamp.now()
-                    downloadResults.data.forEach { result ->
-                        try {
-                            if (result.colors != null) {
-                                // Update colors and touch updatedAt
-                                bookDao.updateCoverColors(
-                                    id = result.bookId,
-                                    dominantColor = result.colors.dominant,
-                                    darkMutedColor = result.colors.darkMuted,
-                                    vibrantColor = result.colors.vibrant,
-                                    timestamp = now,
-                                )
-                            } else {
-                                // Just touch updatedAt to refresh UI (colors not extracted)
-                                bookDao.touchUpdatedAt(result.bookId, now)
-                            }
-                        } catch (e: Exception) {
-                            logger.warn(e) { "Failed to update book ${result.bookId} after cover download" }
-                        }
-                    }
-                    if (downloadResults.data.isNotEmpty()) {
-                        val withColors = downloadResults.data.count { it.colors != null }
-                        logger.debug {
-                            "Updated ${downloadResults.data.size} books after cover downloads ($withColors with colors)"
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private suspend fun pullSeries(updatedAfter: String?) {
-        var cursor: String? = null
-        var hasMore = true
-        val limit = 100
-        var pageCount = 0
-        var totalDeleted = 0
-        val seriesWithCovers = mutableListOf<String>()
-
-        while (hasMore) {
-            _syncState.value =
-                SyncStatus.Progress(
-                    phase = SyncPhase.SYNCING_SERIES,
-                    current = pageCount,
-                    total = -1,
-                    message = "Syncing series (page ${pageCount + 1})...",
-                )
-
-            when (val result = syncApi.getSeries(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
-                is Result.Success -> {
-                    val response = result.data
-                    cursor = response.nextCursor
-                    hasMore = response.hasMore
-                    pageCount++
-
-                    val serverSeries = response.series.map { it.toEntity() }
-                    val deletedSeriesIds = response.deletedSeriesIds
-
-                    // Track series with cover images for later download
-                    response.series
-                        .filter { it.coverImage != null }
-                        .forEach { seriesWithCovers.add(it.id) }
-
-                    logger.debug {
-                        "Fetched page $pageCount: ${serverSeries.size} series, ${deletedSeriesIds.size} deletions"
-                    }
-
-                    // Handle deletions (batch operation for efficiency)
-                    if (deletedSeriesIds.isNotEmpty()) {
-                        seriesDao.deleteByIds(deletedSeriesIds)
-                        totalDeleted += deletedSeriesIds.size
-                        logger.info { "Removed ${deletedSeriesIds.size} series deleted on server" }
-                    }
-
-                    if (serverSeries.isNotEmpty()) {
-                        seriesDao.upsertAll(serverSeries)
-                    }
-                }
-
-                is Result.Failure -> {
-                    throw result.exception
-                }
-            }
-        }
-
-        logger.info { "Series sync complete: $pageCount pages processed, $totalDeleted deleted" }
-
-        // Download series covers in background (non-blocking)
-        if (seriesWithCovers.isNotEmpty()) {
-            scope.launch {
-                logger.info { "Starting cover downloads for ${seriesWithCovers.size} series..." }
-                imageDownloader.downloadSeriesCovers(seriesWithCovers)
-            }
-        }
-    }
-
-    private suspend fun pullContributors(updatedAfter: String?) {
-        var cursor: String? = null
-        var hasMore = true
-        val limit = 100
-        var pageCount = 0
-        var totalDeleted = 0
-        val contributorsWithImages = mutableListOf<String>()
-
-        while (hasMore) {
-            _syncState.value =
-                SyncStatus.Progress(
-                    phase = SyncPhase.SYNCING_CONTRIBUTORS,
-                    current = pageCount,
-                    total = -1,
-                    message = "Syncing contributors (page ${pageCount + 1})...",
-                )
-
-            when (val result = syncApi.getContributors(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
-                is Result.Success -> {
-                    val response = result.data
-                    cursor = response.nextCursor
-                    hasMore = response.hasMore
-                    pageCount++
-
-                    val serverContributors = response.contributors.map { it.toEntity() }
-                    val deletedContributorIds = response.deletedContributorIds
-
-                    // Track contributors with images for later download
-                    response.contributors
-                        .filter { !it.imageUrl.isNullOrBlank() }
-                        .forEach { contributorsWithImages.add(it.id) }
-
-                    logger.debug {
-                        "Fetched page $pageCount: ${serverContributors.size} contributors, ${deletedContributorIds.size} deletions"
-                    }
-
-                    // Handle deletions (batch operation for efficiency)
-                    if (deletedContributorIds.isNotEmpty()) {
-                        contributorDao.deleteByIds(deletedContributorIds)
-                        totalDeleted += deletedContributorIds.size
-                        logger.info { "Removed ${deletedContributorIds.size} contributors deleted on server" }
-                    }
-
-                    if (serverContributors.isNotEmpty()) {
-                        contributorDao.upsertAll(serverContributors)
-                    }
-                }
-
-                is Result.Failure -> {
-                    throw result.exception
-                }
-            }
-        }
-
-        logger.info { "Contributors sync complete: $pageCount pages processed, $totalDeleted deleted" }
-
-        // Download contributor images in background (non-blocking)
-        if (contributorsWithImages.isNotEmpty()) {
-            scope.launch {
-                logger.info { "Starting image downloads for ${contributorsWithImages.size} contributors..." }
-                val downloadedIds = imageDownloader.downloadContributorImages(contributorsWithImages)
-
-                // Update local database with local image paths for successfully downloaded images
-                if (downloadedIds is Result.Success && downloadedIds.data.isNotEmpty()) {
-                    downloadedIds.data.forEach { contributorId ->
-                        val localPath = imageDownloader.getContributorImagePath(contributorId)
-                        if (localPath != null) {
-                            contributorDao.updateImagePath(contributorId, localPath)
-                        }
-                    }
-                    logger.info { "Updated ${downloadedIds.data.size} contributors with local image paths" }
-                }
-            }
-        }
+    suspend fun queueUpdate(entity: Syncable) {
+        // TODO: Implement via PendingOperationRepository
+        logger.debug { "Queued update for entity: $entity" }
     }
 
     /**
      * Pull user preferences from server and cache locally.
-     *
-     * This is a non-blocking operation - preference sync failure does not fail the overall sync.
-     * Local cached values are preserved if server fetch fails.
      */
     private suspend fun pullUserPreferences() {
         try {
@@ -634,322 +164,19 @@ class SyncManager(
                 }
 
                 is Result.Failure -> {
-                    // Non-fatal - use cached local values
                     logger.warn { "Failed to fetch user preferences: ${result.exception.message}" }
                 }
             }
         } catch (e: Exception) {
-            // Non-fatal - preferences sync failure shouldn't break main sync
             logger.warn(e) { "User preferences sync failed, using cached values" }
         }
     }
 
     /**
-     * Detect conflicts where server has newer version than local unsynced changes.
-     *
-     * @param serverBooks Books fetched from server
-     * @return List of (BookId, Timestamp) pairs for books with conflicts
+     * Internal function to update sync state.
+     * Called by PullSyncOrchestrator for progress updates.
      */
-    private suspend fun detectConflicts(serverBooks: List<BookEntity>): List<Pair<BookId, Timestamp>> =
-        serverBooks.mapNotNull { serverBook ->
-            bookDao
-                .getById(serverBook.id)
-                ?.takeIf { it.syncState == SyncState.NOT_SYNCED }
-                ?.takeIf { serverBook.updatedAt > it.lastModified }
-                ?.let { serverBook.id to serverBook.updatedAt }
-        }
-
-    /**
-     * Check if local changes should be preserved (local is newer than server).
-     *
-     * @param serverBook Book from server
-     * @return true if local version should be kept, false if server should overwrite
-     */
-    private suspend fun shouldPreserveLocalChanges(serverBook: BookEntity): Boolean =
-        bookDao
-            .getById(serverBook.id)
-            ?.takeIf { it.syncState == SyncState.NOT_SYNCED }
-            ?.let { it.lastModified >= serverBook.updatedAt }
-            ?: false
-
-    /**
-     * Queue an entity for synchronization with server.
-     *
-     * Marks entity as NOT_SYNCED so it will be included in next
-     * push operation.
-     *
-     * @param entity The entity to queue (currently only BookEntity supported)
-     */
-    suspend fun queueUpdate(entity: Syncable) {
-        // TODO: Implement push sync in future version
-        logger.debug { "Queued update for entity: $entity" }
+    internal fun updateSyncState(status: SyncStatus) {
+        _syncState.value = status
     }
-
-    /**
-     * Handle incoming SSE events for real-time updates.
-     *
-     * Processes server-sent events and applies changes to local database:
-     * - BookCreated/BookUpdated: Upsert book into database
-     * - BookDeleted: Remove book from database
-     * - ScanStarted/ScanCompleted: Log events (future: trigger UI notifications)
-     */
-    private suspend fun handleSSEEvent(event: SSEEventType) {
-        try {
-            when (event) {
-                is SSEEventType.BookCreated -> {
-                    logger.debug { "SSE: Book created - ${event.book.title}" }
-                    val entity = event.book.toEntity()
-                    bookDao.upsert(entity)
-
-                    // Save book-contributor and book-series relationships
-                    saveBookContributors(event.book)
-                    saveBookSeries(event.book)
-
-                    // Download cover image in background
-                    scope.launch {
-                        downloadCoverForBook(event.book.id)
-                    }
-                }
-
-                is SSEEventType.BookUpdated -> {
-                    logger.debug { "SSE: Book updated - ${event.book.title}" }
-                    val entity = event.book.toEntity()
-                    bookDao.upsert(entity)
-
-                    // Save book-contributor and book-series relationships
-                    saveBookContributors(event.book)
-                    saveBookSeries(event.book)
-
-                    // Download updated cover image if changed
-                    scope.launch {
-                        downloadCoverForBook(event.book.id)
-                    }
-                }
-
-                is SSEEventType.BookDeleted -> {
-                    logger.debug { "SSE: Book deleted - ${event.bookId}" }
-                    bookDao.deleteById(BookId(event.bookId))
-                }
-
-                is SSEEventType.ScanStarted -> {
-                    logger.debug { "SSE: Library scan started - ${event.libraryId}" }
-                }
-
-                is SSEEventType.ScanCompleted -> {
-                    logger.info {
-                        "SSE: Library scan completed - " +
-                            "Added: ${event.booksAdded}, " +
-                            "Updated: ${event.booksUpdated}, " +
-                            "Removed: ${event.booksRemoved}"
-                    }
-                }
-
-                is SSEEventType.Heartbeat -> {
-                    // Heartbeat keeps connection alive, no action needed
-                }
-            }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to handle SSE event: $event" }
-        }
-    }
-
-    /**
-     * Save book-contributor relationships from an SSE event.
-     * Replaces existing relationships for the book.
-     */
-    private suspend fun saveBookContributors(book: BookResponse) {
-        val bookId = BookId(book.id)
-
-        // Delete existing relationships for this book
-        bookContributorDao.deleteContributorsForBook(bookId)
-
-        // Create new relationships
-        val crossRefs =
-            book.contributors.flatMap { contributor ->
-                contributor.roles.map { role ->
-                    contributor.toEntity(bookId, role)
-                }
-            }
-
-        if (crossRefs.isNotEmpty()) {
-            bookContributorDao.insertAll(crossRefs)
-            logger.debug { "SSE: Saved ${crossRefs.size} contributor relationships for book ${book.id}" }
-        }
-    }
-
-    /**
-     * Save book-series relationships from an SSE event.
-     * Replaces existing relationships for the book.
-     */
-    private suspend fun saveBookSeries(book: BookResponse) {
-        val bookId = BookId(book.id)
-
-        // Delete existing relationships for this book
-        bookSeriesDao.deleteSeriesForBook(bookId)
-
-        // Create new relationships from seriesInfo array
-        val crossRefs =
-            book.seriesInfo.map { seriesInfo ->
-                seriesInfo.toEntity(bookId)
-            }
-
-        if (crossRefs.isNotEmpty()) {
-            bookSeriesDao.insertAll(crossRefs)
-            logger.debug { "SSE: Saved ${crossRefs.size} series relationships for book ${book.id}" }
-        }
-    }
-
-    /**
-     * Download cover for a book and trigger UI refresh if successful.
-     */
-    private suspend fun downloadCoverForBook(bookId: String) {
-        try {
-            val result = imageDownloader.downloadCover(BookId(bookId))
-            if (result is Result.Success && result.data) {
-                // Touch database to trigger Flow re-emission so UI picks up new cover
-                try {
-                    bookDao.touchUpdatedAt(BookId(bookId), Timestamp.now())
-                    logger.debug { "Touched book $bookId to trigger UI refresh" }
-                } catch (e: Exception) {
-                    logger.warn(e) { "Failed to touch updatedAt for book $bookId" }
-                }
-            }
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to download cover for book $bookId" }
-        }
-    }
-
-    /**
-     * Check if an exception indicates the server is unreachable.
-     *
-     * This detects connection errors that suggest the server is not running
-     * or the URL is incorrect, such as:
-     * - Connection refused (ECONNREFUSED)
-     * - Connection timeout
-     * - Host unreachable
-     *
-     * @param e The exception to check
-     * @return true if the error indicates server is unreachable
-     */
-    private fun isServerUnreachableError(e: Exception): Boolean {
-        // Check the exception and its cause chain for connection errors
-        var current: Throwable? = e
-        while (current != null) {
-            when {
-                // Ktor connect timeout
-                current is ConnectTimeoutException -> {
-                    return true
-                }
-
-                // General IO error - check message for connection refused
-                current is IOException -> {
-                    val message = current.message?.lowercase() ?: ""
-                    @Suppress("ComplexCondition")
-                    if (message.contains("econnrefused") ||
-                        message.contains("connection refused") ||
-                        message.contains("failed to connect") ||
-                        message.contains("no route to host") ||
-                        message.contains("host unreachable") ||
-                        message.contains("network is unreachable")
-                    ) {
-                        return true
-                    }
-                }
-
-                // Java ConnectException (Android/JVM) - check class name since we're in common code
-                current::class.simpleName == "ConnectException" -> {
-                    val message = current.message?.lowercase() ?: ""
-                    if (message.contains("econnrefused") ||
-                        message.contains("connection refused") ||
-                        message.contains("failed to connect")
-                    ) {
-                        return true
-                    }
-                }
-            }
-            current = current.cause
-        }
-        return false
-    }
-
-    // Retry configuration
-    private companion object {
-        const val MAX_RETRIES = 3
-        val INITIAL_RETRY_DELAY = 1.seconds
-        val MAX_RETRY_DELAY = 30.seconds
-        const val RETRY_BACKOFF_MULTIPLIER = 2.0
-    }
-}
-
-/**
- * Phases of the sync operation for progress reporting.
- */
-enum class SyncPhase {
-    FETCHING_METADATA,
-    SYNCING_BOOKS,
-    SYNCING_SERIES,
-    SYNCING_CONTRIBUTORS,
-    FINALIZING,
-}
-
-/**
- * Synchronization status with progress information.
- *
- * Sealed interface for type-safe state management. UI can observe
- * this via StateFlow to show sync progress, errors, etc.
- */
-sealed interface SyncStatus {
-    /**
-     * Idle state - no sync in progress.
-     */
-    data object Idle : SyncStatus
-
-    /**
-     * Sync operation starting.
-     */
-    data object Syncing : SyncStatus
-
-    /**
-     * Sync in progress with detailed progress information.
-     *
-     * @property phase Current sync phase
-     * @property current Current progress within phase
-     * @property total Total items in phase (-1 if unknown)
-     * @property message Human-readable progress message
-     */
-    data class Progress(
-        val phase: SyncPhase,
-        val current: Int,
-        val total: Int,
-        val message: String,
-    ) : SyncStatus
-
-    /**
-     * Retrying after a transient failure.
-     *
-     * @property attempt Current retry attempt number (1-based)
-     * @property maxAttempts Maximum retry attempts
-     */
-    data class Retrying(
-        val attempt: Int,
-        val maxAttempts: Int,
-    ) : SyncStatus
-
-    /**
-     * Sync completed successfully.
-     *
-     * @property timestamp Type-safe timestamp of completion
-     */
-    data class Success(
-        val timestamp: Timestamp,
-    ) : SyncStatus
-
-    /**
-     * Sync failed with error.
-     *
-     * @property exception The exception that caused failure
-     */
-    data class Error(
-        val exception: Exception,
-    ) : SyncStatus
 }

@@ -17,7 +17,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -40,8 +39,8 @@ class PlayerViewModel(
     private var positionUpdateJob: Job? = null
     private var playerListener: Player.Listener? = null
 
-    private val _state = MutableStateFlow(PlayerUiState())
-    val state: StateFlow<PlayerUiState> = _state.asStateFlow()
+    val state: StateFlow<PlayerUiState>
+        field = MutableStateFlow(PlayerUiState())
 
     private var currentTimeline: PlaybackTimeline? = null
 
@@ -59,21 +58,21 @@ class PlayerViewModel(
      */
     fun playBook(bookId: BookId) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            state.value = state.value.copy(isLoading = true, error = null)
 
             // Observe prepare progress during timeline building
             val progressJob =
                 launch {
                     playbackManager.prepareProgress.collect { progress ->
                         if (progress != null) {
-                            _state.value =
-                                _state.value.copy(
+                            state.value =
+                                state.value.copy(
                                     prepareProgress = progress.progress,
                                     prepareMessage = progress.message,
                                 )
                         } else {
-                            _state.value =
-                                _state.value.copy(
+                            state.value =
+                                state.value.copy(
                                     prepareProgress = null,
                                     prepareMessage = null,
                                 )
@@ -85,8 +84,8 @@ class PlayerViewModel(
             progressJob.cancel() // Stop observing once prepare is done
 
             if (result == null) {
-                _state.value =
-                    _state.value.copy(
+                state.value =
+                    state.value.copy(
                         isLoading = false,
                         prepareProgress = null,
                         prepareMessage = null,
@@ -97,8 +96,8 @@ class PlayerViewModel(
 
             currentTimeline = result.timeline
 
-            _state.value =
-                _state.value.copy(
+            state.value =
+                state.value.copy(
                     bookTitle = result.bookTitle,
                     totalDurationMs = result.timeline.totalDurationMs,
                     currentPositionMs = result.resumePositionMs,
@@ -162,12 +161,12 @@ class PlayerViewModel(
                         TAG,
                         "⚠️ INVALID startPosition.mediaItemIndex: ${startPosition.mediaItemIndex}, mediaItems.size=${mediaItems.size}",
                     )
-                    _state.value = _state.value.copy(isLoading = false, error = "Invalid start position")
+                    state.value = state.value.copy(isLoading = false, error = "Invalid start position")
                     return@withController
                 }
                 if (startPosition.positionInFileMs < 0) {
                     Log.e(TAG, "⚠️ INVALID startPosition.positionInFileMs: ${startPosition.positionInFileMs}")
-                    _state.value = _state.value.copy(isLoading = false, error = "Invalid start position")
+                    state.value = state.value.copy(isLoading = false, error = "Invalid start position")
                     return@withController
                 }
 
@@ -181,8 +180,8 @@ class PlayerViewModel(
 
                 playbackManager.setPlaying(true)
 
-                _state.value =
-                    _state.value.copy(
+                state.value =
+                    state.value.copy(
                         isLoading = false,
                         isPlaying = true,
                     )
@@ -193,8 +192,8 @@ class PlayerViewModel(
                 logger.info { "Playback started for: ${prepareResult.bookTitle}" }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to start playback" }
-                _state.value =
-                    _state.value.copy(
+                state.value =
+                    state.value.copy(
                         isLoading = false,
                         error = "Failed to start playback",
                     )
@@ -223,7 +222,7 @@ class PlayerViewModel(
 
         val position = timeline.resolve(bookPositionMs)
         controller.seekTo(position.mediaItemIndex, position.positionInFileMs)
-        _state.value = _state.value.copy(currentPositionMs = bookPositionMs)
+        state.value = state.value.copy(currentPositionMs = bookPositionMs)
 
         // Notify PlaybackManager so NowPlayingViewModel updates immediately (even when paused)
         playbackManager.updatePosition(bookPositionMs)
@@ -233,8 +232,8 @@ class PlayerViewModel(
      * Skip forward by milliseconds.
      */
     fun skipForward(ms: Long = 30_000) {
-        val currentPos = _state.value.currentPositionMs
-        val newPos = (currentPos + ms).coerceAtMost(_state.value.totalDurationMs)
+        val currentPos = state.value.currentPositionMs
+        val newPos = (currentPos + ms).coerceAtMost(state.value.totalDurationMs)
         seekTo(newPos)
     }
 
@@ -242,7 +241,7 @@ class PlayerViewModel(
      * Skip backward by milliseconds.
      */
     fun skipBackward(ms: Long = 10_000) {
-        val currentPos = _state.value.currentPositionMs
+        val currentPos = state.value.currentPositionMs
         val newPos = (currentPos - ms).coerceAtLeast(0)
         seekTo(newPos)
     }
@@ -254,7 +253,7 @@ class PlayerViewModel(
     fun setSpeed(speed: Float) {
         val controller = mediaController ?: return
         controller.playbackParameters = PlaybackParameters(speed)
-        _state.value = _state.value.copy(playbackSpeed = speed)
+        state.value = state.value.copy(playbackSpeed = speed)
         // Notify PlaybackManager that user explicitly changed speed
         playbackManager.onSpeedChanged(speed)
     }
@@ -268,7 +267,7 @@ class PlayerViewModel(
     fun resetSpeedToDefault(defaultSpeed: Float) {
         val controller = mediaController ?: return
         controller.playbackParameters = PlaybackParameters(defaultSpeed)
-        _state.value = _state.value.copy(playbackSpeed = defaultSpeed)
+        state.value = state.value.copy(playbackSpeed = defaultSpeed)
         // Notify PlaybackManager that user reset to default
         playbackManager.onSpeedReset(defaultSpeed)
     }
@@ -278,7 +277,7 @@ class PlayerViewModel(
      */
     fun cycleSpeed() {
         val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
-        val currentSpeed = _state.value.playbackSpeed
+        val currentSpeed = state.value.playbackSpeed
         val currentIndex = speeds.indexOfFirst { it >= currentSpeed - 0.01f }
         val nextIndex = if (currentIndex == -1 || currentIndex >= speeds.lastIndex) 0 else currentIndex + 1
         setSpeed(speeds[nextIndex])
@@ -291,7 +290,7 @@ class PlayerViewModel(
         mediaController?.stop()
         playbackManager.setPlaying(false)
         playbackManager.clearPlayback()
-        _state.value = PlayerUiState()
+        state.value = PlayerUiState()
     }
 
     private fun startPositionUpdates() {
@@ -342,7 +341,7 @@ class PlayerViewModel(
         }
 
         // Debounce: only update state if position changed significantly (>100ms) or playback state changed
-        val currentState = _state.value
+        val currentState = state.value
         val positionDelta = kotlin.math.abs(bookPosition - currentState.currentPositionMs)
         val stateChanged = isPlaying != currentState.isPlaying || isBuffering != currentState.isBuffering
 
@@ -350,7 +349,7 @@ class PlayerViewModel(
             return // Skip very minor position updates to reduce recomposition
         }
 
-        _state.value =
+        state.value =
             currentState.copy(
                 currentPositionMs = bookPosition,
                 isPlaying = isPlaying,
@@ -363,7 +362,7 @@ class PlayerViewModel(
 
     private inner class PlayerListener : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            _state.value = _state.value.copy(isPlaying = isPlaying)
+            state.value = state.value.copy(isPlaying = isPlaying)
             playbackManager.setPlaying(isPlaying)
 
             if (isPlaying) {
@@ -376,11 +375,11 @@ class PlayerViewModel(
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             val isBuffering = playbackState == Player.STATE_BUFFERING
-            _state.value = _state.value.copy(isBuffering = isBuffering)
+            state.value = state.value.copy(isBuffering = isBuffering)
 
             if (playbackState == Player.STATE_ENDED) {
-                _state.value =
-                    _state.value.copy(
+                state.value =
+                    state.value.copy(
                         isPlaying = false,
                         isFinished = true,
                     )
@@ -388,7 +387,7 @@ class PlayerViewModel(
         }
 
         override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
-            _state.value = _state.value.copy(playbackSpeed = playbackParameters.speed)
+            state.value = state.value.copy(playbackSpeed = playbackParameters.speed)
             playbackManager.updateSpeed(playbackParameters.speed)
         }
     }

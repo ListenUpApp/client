@@ -7,7 +7,6 @@ import com.calypsan.listenup.client.data.remote.AdminInvite
 import com.calypsan.listenup.client.data.remote.AdminUser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -18,8 +17,8 @@ import kotlinx.coroutines.launch
 class AdminViewModel(
     private val adminApi: AdminApiContract,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(AdminUiState())
-    val state: StateFlow<AdminUiState> = _state.asStateFlow()
+    val state: StateFlow<AdminUiState>
+        field = MutableStateFlow(AdminUiState())
 
     init {
         loadData()
@@ -27,14 +26,14 @@ class AdminViewModel(
 
     fun loadData() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            state.value = state.value.copy(isLoading = true, error = null)
 
             // Load users and invites independently so one failure doesn't block the other
             val users =
                 try {
                     adminApi.getUsers()
                 } catch (e: Exception) {
-                    _state.value = _state.value.copy(error = "Failed to load users: ${e.message}")
+                    state.value = state.value.copy(error = "Failed to load users: ${e.message}")
                     emptyList()
                 }
 
@@ -45,14 +44,14 @@ class AdminViewModel(
                     invites.filter { it.claimedAt == null }
                 } catch (e: Exception) {
                     // Don't overwrite user error if already set
-                    if (_state.value.error == null) {
-                        _state.value = _state.value.copy(error = "Failed to load invites: ${e.message}")
+                    if (state.value.error == null) {
+                        state.value = state.value.copy(error = "Failed to load invites: ${e.message}")
                     }
                     emptyList()
                 }
 
-            _state.value =
-                _state.value.copy(
+            state.value =
+                state.value.copy(
                     isLoading = false,
                     users = users,
                     pendingInvites = pendingInvites,
@@ -62,19 +61,19 @@ class AdminViewModel(
 
     fun deleteUser(userId: String) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(deletingUserId = userId)
+            state.value = state.value.copy(deletingUserId = userId)
 
             try {
                 adminApi.deleteUser(userId)
-                val updatedUsers = _state.value.users.filter { it.id != userId }
-                _state.value =
-                    _state.value.copy(
+                val updatedUsers = state.value.users.filter { it.id != userId }
+                state.value =
+                    state.value.copy(
                         deletingUserId = null,
                         users = updatedUsers,
                     )
             } catch (e: Exception) {
-                _state.value =
-                    _state.value.copy(
+                state.value =
+                    state.value.copy(
                         deletingUserId = null,
                         error = e.message ?: "Failed to delete user",
                     )
@@ -84,19 +83,19 @@ class AdminViewModel(
 
     fun revokeInvite(inviteId: String) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(revokingInviteId = inviteId)
+            state.value = state.value.copy(revokingInviteId = inviteId)
 
             try {
                 adminApi.deleteInvite(inviteId)
-                val updatedInvites = _state.value.pendingInvites.filter { it.id != inviteId }
-                _state.value =
-                    _state.value.copy(
+                val updatedInvites = state.value.pendingInvites.filter { it.id != inviteId }
+                state.value =
+                    state.value.copy(
                         revokingInviteId = null,
                         pendingInvites = updatedInvites,
                     )
             } catch (e: Exception) {
-                _state.value =
-                    _state.value.copy(
+                state.value =
+                    state.value.copy(
                         revokingInviteId = null,
                         error = e.message ?: "Failed to revoke invite",
                     )
@@ -105,7 +104,7 @@ class AdminViewModel(
     }
 
     fun clearError() {
-        _state.value = _state.value.copy(error = null)
+        state.value = state.value.copy(error = null)
     }
 }
 

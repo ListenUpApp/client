@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.core
 
 import kotlinx.coroutines.CancellationException
+import kotlin.MustUseReturnValues
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -8,7 +9,11 @@ import kotlin.contracts.contract
 /**
  * A discriminated union representing either success or failure.
  * Using sealed interface instead of sealed class for maximum flexibility with Kotlin 2.2.
+ *
+ * Annotated with @MustUseReturnValues to ensure callers handle the result.
+ * When the return value is intentionally ignored, use: val _ = functionReturningResult()
  */
+@MustUseReturnValues
 sealed interface Result<out T> {
     /**
      * Represents a successful result containing data

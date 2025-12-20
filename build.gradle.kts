@@ -3,6 +3,7 @@ plugins {
     // in each subproject's classloader
     alias(libs.plugins.androidApplication) apply false
     alias(libs.plugins.androidLibrary) apply false
+    alias(libs.plugins.androidKmpLibrary) apply false
     alias(libs.plugins.composeMultiplatform) apply false
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
@@ -10,7 +11,9 @@ plugins {
     // Quality Tools
     alias(libs.plugins.detekt)
     alias(libs.plugins.spotless)
-    alias(libs.plugins.kover)
+    // Note: Kover code coverage is temporarily disabled due to incompatibility
+    // with the new androidKmpLibrary plugin. Can be re-enabled when Kover
+    // supports the new KMP configuration.
 }
 
 // Configure Java toolchain for all subprojects
@@ -61,34 +64,5 @@ spotless {
         target("**/*.gradle.kts")
         targetExclude("**/build/**")
         ktlint(libs.versions.ktlint.get())
-    }
-}
-
-// =============================================================================
-// KOVER - Code Coverage
-// =============================================================================
-dependencies {
-    kover(project(":shared"))
-    kover(project(":composeApp"))
-}
-
-kover {
-    reports {
-        filters {
-            excludes {
-                classes(
-                    "*_Factory",
-                    "*_HiltModules*",
-                    "*BuildConfig",
-                    "*_Impl",
-                    "*_Impl\$*",
-                    "*.databinding.*",
-                    "*.di.*Module*",
-                )
-                packages(
-                    "*.generated.*",
-                )
-            }
-        }
     }
 }

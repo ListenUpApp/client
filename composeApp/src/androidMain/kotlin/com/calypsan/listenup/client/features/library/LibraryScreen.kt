@@ -12,7 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.data.sync.SyncStatus
+import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.features.library.components.AuthorsContent
 import com.calypsan.listenup.client.features.library.components.BooksContent
 import com.calypsan.listenup.client.features.library.components.LibraryTabRow

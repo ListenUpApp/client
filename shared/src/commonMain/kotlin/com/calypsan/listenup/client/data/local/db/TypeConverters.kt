@@ -93,3 +93,26 @@ enum class DownloadState {
     FAILED, // Error occurred
     DELETED, // User explicitly deleted - files removed, don't auto-download
 }
+
+/**
+ * Room type converters for pending operation enums.
+ */
+class PendingOperationConverters {
+    @TypeConverter
+    fun fromOperationType(value: OperationType): Int = value.ordinal
+
+    @TypeConverter
+    fun toOperationType(value: Int): OperationType = OperationType.entries[value]
+
+    @TypeConverter
+    fun fromNullableEntityType(value: EntityType?): Int? = value?.ordinal
+
+    @TypeConverter
+    fun toNullableEntityType(value: Int?): EntityType? = value?.let { EntityType.entries[it] }
+
+    @TypeConverter
+    fun fromOperationStatus(value: OperationStatus): Int = value.ordinal
+
+    @TypeConverter
+    fun toOperationStatus(value: Int): OperationStatus = OperationStatus.entries[value]
+}
