@@ -27,7 +27,11 @@ kotlin {
 
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
-            freeCompilerArgs.add("-Xexpect-actual-classes")
+            freeCompilerArgs.addAll(
+                "-Xexpect-actual-classes",
+                "-Xreturn-value-checker=check",
+                "-Xexplicit-backing-fields",
+            )
         }
 
         lint {
@@ -49,7 +53,11 @@ kotlin {
         compilations.all {
             compileTaskProvider.configure {
                 compilerOptions {
-                    freeCompilerArgs.add("-Xexpect-actual-classes")
+                    freeCompilerArgs.addAll(
+                        "-Xexpect-actual-classes",
+                        "-Xreturn-value-checker=check",
+                        "-Xexplicit-backing-fields",
+                    )
                 }
             }
         }

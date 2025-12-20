@@ -27,7 +27,6 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -380,11 +379,11 @@ class BookEditViewModel(
     private val imageApi: ImageApiContract,
     private val imageStorage: ImageStorage,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(BookEditUiState())
-    val state: StateFlow<BookEditUiState> = _state.asStateFlow()
+    val state: StateFlow<BookEditUiState>
+        field = MutableStateFlow(BookEditUiState())
 
-    private val _navActions = MutableStateFlow<BookEditNavAction?>(null)
-    val navActions: StateFlow<BookEditNavAction?> = _navActions.asStateFlow()
+    val navActions: StateFlow<BookEditNavAction?>
+        field = MutableStateFlow<BookEditNavAction?>(null)
 
     // Per-role query flows for debounced search
     private val roleQueryFlows = mutableMapOf<ContributorRole, MutableStateFlow<String>>()
@@ -429,7 +428,7 @@ class BookEditViewModel(
             .filter { it.length >= 2 || it.isEmpty() }
             .onEach { query ->
                 if (query.isBlank()) {
-                    _state.update {
+                    state.update {
                         it.copy(
                             roleSearchResults = it.roleSearchResults - role,
                             roleSearchLoading = it.roleSearchLoading - role,
@@ -456,7 +455,7 @@ class BookEditViewModel(
             .filter { it.length >= 2 || it.isEmpty() }
             .onEach { query ->
                 if (query.isBlank()) {
-                    _state.update {
+                    state.update {
                         it.copy(
                             tagSearchResults = emptyList(),
                             tagSearchLoading = false,
@@ -478,7 +477,7 @@ class BookEditViewModel(
             .filter { it.length >= 2 || it.isEmpty() }
             .onEach { query ->
                 if (query.isBlank()) {
-                    _state.update {
+                    state.update {
                         it.copy(
                             seriesSearchResults = emptyList(),
                             seriesSearchLoading = false,
@@ -495,11 +494,11 @@ class BookEditViewModel(
      */
     fun loadBook(bookId: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, bookId = bookId) }
+            state.update { it.copy(isLoading = true, bookId = bookId) }
 
             val book = bookRepository.getBook(bookId)
             if (book == null) {
-                _state.update { it.copy(isLoading = false, error = "Book not found") }
+                state.update { it.copy(isLoading = false, error = "Book not found") }
                 return@launch
             }
 
@@ -560,7 +559,7 @@ class BookEditViewModel(
             originalTags = bookTags
             originalCoverPath = book.coverPath
 
-            _state.update {
+            state.update {
                 it.copy(
                     isLoading = false,
                     coverPath = book.coverPath,
@@ -655,55 +654,55 @@ class BookEditViewModel(
     fun onEvent(event: BookEditUiEvent) {
         when (event) {
             is BookEditUiEvent.TitleChanged -> {
-                _state.update { it.copy(title = event.title) }
+                state.update { it.copy(title = event.title) }
                 updateHasChanges()
             }
 
             is BookEditUiEvent.SubtitleChanged -> {
-                _state.update { it.copy(subtitle = event.subtitle) }
+                state.update { it.copy(subtitle = event.subtitle) }
                 updateHasChanges()
             }
 
             is BookEditUiEvent.DescriptionChanged -> {
-                _state.update { it.copy(description = event.description) }
+                state.update { it.copy(description = event.description) }
                 updateHasChanges()
             }
 
             is BookEditUiEvent.PublishYearChanged -> {
                 // Only allow numeric input
                 val filtered = event.year.filter { it.isDigit() }.take(4)
-                _state.update { it.copy(publishYear = filtered) }
+                state.update { it.copy(publishYear = filtered) }
                 updateHasChanges()
             }
 
             is BookEditUiEvent.PublisherChanged -> {
-                _state.update { it.copy(publisher = event.publisher) }
+                state.update { it.copy(publisher = event.publisher) }
                 updateHasChanges()
             }
 
             is BookEditUiEvent.LanguageChanged -> {
-                _state.update { it.copy(language = event.code) }
+                state.update { it.copy(language = event.code) }
                 updateHasChanges()
             }
 
             is BookEditUiEvent.IsbnChanged -> {
-                _state.update { it.copy(isbn = event.isbn) }
+                state.update { it.copy(isbn = event.isbn) }
                 updateHasChanges()
             }
 
             is BookEditUiEvent.AsinChanged -> {
-                _state.update { it.copy(asin = event.asin) }
+                state.update { it.copy(asin = event.asin) }
                 updateHasChanges()
             }
 
             is BookEditUiEvent.AbridgedChanged -> {
-                _state.update { it.copy(abridged = event.abridged) }
+                state.update { it.copy(abridged = event.abridged) }
                 updateHasChanges()
             }
 
             // Series events
             is BookEditUiEvent.SeriesSearchQueryChanged -> {
-                _state.update { it.copy(seriesSearchQuery = event.query) }
+                state.update { it.copy(seriesSearchQuery = event.query) }
                 seriesQueryFlow.value = event.query
             }
 
@@ -724,7 +723,7 @@ class BookEditViewModel(
             }
 
             is BookEditUiEvent.ClearSeriesSearch -> {
-                _state.update {
+                state.update {
                     it.copy(
                         seriesSearchQuery = "",
                         seriesSearchResults = emptyList(),
@@ -734,7 +733,7 @@ class BookEditViewModel(
             }
 
             is BookEditUiEvent.RoleSearchQueryChanged -> {
-                _state.update {
+                state.update {
                     it.copy(roleSearchQueries = it.roleSearchQueries + (event.role to event.query))
                 }
                 roleQueryFlows[event.role]?.value = event.query
@@ -749,7 +748,7 @@ class BookEditViewModel(
             }
 
             is BookEditUiEvent.ClearRoleSearch -> {
-                _state.update {
+                state.update {
                     it.copy(
                         roleSearchQueries = it.roleSearchQueries + (event.role to ""),
                         roleSearchResults = it.roleSearchResults - event.role,
@@ -760,7 +759,7 @@ class BookEditViewModel(
 
             is BookEditUiEvent.AddRoleSection -> {
                 setupRoleSearch(event.role)
-                _state.update {
+                state.update {
                     it.copy(visibleRoles = it.visibleRoles + event.role)
                 }
             }
@@ -776,7 +775,7 @@ class BookEditViewModel(
             // Genre events
             is BookEditUiEvent.GenreSearchQueryChanged -> {
                 val query = event.query
-                _state.update { it.copy(genreSearchQuery = query) }
+                state.update { it.copy(genreSearchQuery = query) }
                 // Filter locally from allGenres
                 filterGenres(query)
             }
@@ -791,7 +790,7 @@ class BookEditViewModel(
 
             // Tag events
             is BookEditUiEvent.TagSearchQueryChanged -> {
-                _state.update { it.copy(tagSearchQuery = event.query) }
+                state.update { it.copy(tagSearchQuery = event.query) }
                 tagQueryFlow.value = event.query
             }
 
@@ -820,7 +819,7 @@ class BookEditViewModel(
             }
 
             is BookEditUiEvent.DismissError -> {
-                _state.update { it.copy(error = null) }
+                state.update { it.copy(error = null) }
             }
         }
     }
@@ -829,7 +828,7 @@ class BookEditViewModel(
      * Clear navigation action after handling.
      */
     fun clearNavAction() {
-        _navActions.value = null
+        navActions.value = null
     }
 
     private fun performRoleSearch(
@@ -839,7 +838,7 @@ class BookEditViewModel(
         roleSearchJobs[role]?.cancel()
         roleSearchJobs[role] =
             viewModelScope.launch {
-                _state.update {
+                state.update {
                     it.copy(roleSearchLoading = it.roleSearchLoading + (role to true))
                 }
 
@@ -847,13 +846,13 @@ class BookEditViewModel(
 
                 // Filter out contributors already added for this role
                 val currentContributorIds =
-                    _state.value
+                    state.value
                         .contributorsForRole(role)
                         .mapNotNull { it.id }
                         .toSet()
                 val filteredResults = response.contributors.filter { it.id !in currentContributorIds }
 
-                _state.update {
+                state.update {
                     it.copy(
                         roleSearchResults = it.roleSearchResults + (role to filteredResults),
                         roleSearchLoading = it.roleSearchLoading + (role to false),
@@ -873,7 +872,7 @@ class BookEditViewModel(
 
         val trimmedName = name.trim()
 
-        _state.update { current ->
+        state.update { current ->
             // Check if contributor already exists (by name)
             val existing =
                 current.contributors.find {
@@ -923,7 +922,7 @@ class BookEditViewModel(
         role: ContributorRole,
         result: ContributorSearchResult,
     ) {
-        _state.update { current ->
+        state.update { current ->
             // Check if contributor already exists (by ID)
             val existing = current.contributors.find { it.id == result.id }
 
@@ -970,7 +969,7 @@ class BookEditViewModel(
         contributor: EditableContributor,
         role: ContributorRole,
     ) {
-        _state.update { current ->
+        state.update { current ->
             val updatedRoles = contributor.roles - role
 
             val updatedContributors =
@@ -1004,7 +1003,7 @@ class BookEditViewModel(
     }
 
     private fun removeRoleSection(role: ContributorRole) {
-        _state.update { current ->
+        state.update { current ->
             // Remove role from all contributors
             val updatedContributors =
                 current.contributors.mapNotNull { contributor ->
@@ -1041,18 +1040,18 @@ class BookEditViewModel(
         seriesSearchJob?.cancel()
         seriesSearchJob =
             viewModelScope.launch {
-                _state.update { it.copy(seriesSearchLoading = true) }
+                state.update { it.copy(seriesSearchLoading = true) }
 
                 val response = seriesRepository.searchSeries(query, limit = 10)
 
                 // Filter out series already added to this book
                 val currentSeriesIds =
-                    _state.value.series
+                    state.value.series
                         .mapNotNull { it.id }
                         .toSet()
                 val filteredResults = response.series.filter { it.id !in currentSeriesIds }
 
-                _state.update {
+                state.update {
                     it.copy(
                         seriesSearchResults = filteredResults,
                         seriesSearchLoading = false,
@@ -1065,7 +1064,7 @@ class BookEditViewModel(
     }
 
     private fun selectSeries(result: SeriesSearchResult) {
-        _state.update { current ->
+        state.update { current ->
             // Check if series already exists
             val existing = current.series.find { it.id == result.id }
             if (existing != null) {
@@ -1099,7 +1098,7 @@ class BookEditViewModel(
 
         val trimmedName = name.trim()
 
-        _state.update { current ->
+        state.update { current ->
             // Check if series already exists (by name)
             val existing =
                 current.series.find {
@@ -1135,7 +1134,7 @@ class BookEditViewModel(
         targetSeries: EditableSeries,
         sequence: String,
     ) {
-        _state.update { current ->
+        state.update { current ->
             current.copy(
                 series =
                     current.series.map {
@@ -1147,7 +1146,7 @@ class BookEditViewModel(
     }
 
     private fun removeSeries(targetSeries: EditableSeries) {
-        _state.update { current ->
+        state.update { current ->
             current.copy(series = current.series - targetSeries)
         }
         updateHasChanges()
@@ -1160,18 +1159,18 @@ class BookEditViewModel(
      */
     private fun filterGenres(query: String) {
         if (query.isBlank()) {
-            _state.update { it.copy(genreSearchResults = emptyList()) }
+            state.update { it.copy(genreSearchResults = emptyList()) }
             return
         }
 
         val lowerQuery = query.lowercase()
         val currentGenreIds =
-            _state.value.genres
+            state.value.genres
                 .map { it.id }
                 .toSet()
 
         val filtered =
-            _state.value.allGenres
+            state.value.allGenres
                 .filter { genre ->
                     genre.id !in currentGenreIds &&
                         (
@@ -1180,11 +1179,11 @@ class BookEditViewModel(
                         )
                 }.take(10)
 
-        _state.update { it.copy(genreSearchResults = filtered) }
+        state.update { it.copy(genreSearchResults = filtered) }
     }
 
     private fun selectGenre(genre: EditableGenre) {
-        _state.update { current ->
+        state.update { current ->
             // Check if already added
             if (current.genres.any { it.id == genre.id }) {
                 return@update current.copy(
@@ -1203,7 +1202,7 @@ class BookEditViewModel(
     }
 
     private fun removeGenre(genre: EditableGenre) {
-        _state.update { current ->
+        state.update { current ->
             current.copy(genres = current.genres.filter { it.id != genre.id })
         }
         updateHasChanges()
@@ -1218,23 +1217,23 @@ class BookEditViewModel(
         tagSearchJob?.cancel()
         tagSearchJob =
             viewModelScope.launch {
-                _state.update { it.copy(tagSearchLoading = true) }
+                state.update { it.copy(tagSearchLoading = true) }
 
                 // Filter from allTags (already loaded)
                 val lowerQuery = query.lowercase()
                 val currentTagIds =
-                    _state.value.tags
+                    state.value.tags
                         .map { it.id }
                         .toSet()
 
                 val filtered =
-                    _state.value.allTags
+                    state.value.allTags
                         .filter { tag ->
                             tag.id !in currentTagIds &&
                                 tag.name.lowercase().contains(lowerQuery)
                         }.take(10)
 
-                _state.update {
+                state.update {
                     it.copy(
                         tagSearchResults = filtered,
                         tagSearchLoading = false,
@@ -1244,7 +1243,7 @@ class BookEditViewModel(
     }
 
     private fun selectTag(tag: EditableTag) {
-        _state.update { current ->
+        state.update { current ->
             // Check if already added
             if (current.tags.any { it.id == tag.id }) {
                 return@update current.copy(
@@ -1273,7 +1272,7 @@ class BookEditViewModel(
 
         // Check if tag with same name already exists in allTags
         val existingTag =
-            _state.value.allTags.find {
+            state.value.allTags.find {
                 it.name.equals(trimmedName, ignoreCase = true)
             }
 
@@ -1285,13 +1284,13 @@ class BookEditViewModel(
 
         // Create new tag via API
         viewModelScope.launch {
-            _state.update { it.copy(tagCreating = true) }
+            state.update { it.copy(tagCreating = true) }
 
             try {
                 val newTag = tagApi.createTag(trimmedName)
                 val editableTag = newTag.toEditable()
 
-                _state.update { current ->
+                state.update { current ->
                     current.copy(
                         tags = current.tags + editableTag,
                         allTags = current.allTags + editableTag, // Add to available tags
@@ -1306,7 +1305,7 @@ class BookEditViewModel(
                 logger.info { "Created new tag: ${newTag.name}" }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to create tag: $trimmedName" }
-                _state.update {
+                state.update {
                     it.copy(
                         tagCreating = false,
                         error = "Failed to create tag: ${e.message}",
@@ -1317,7 +1316,7 @@ class BookEditViewModel(
     }
 
     private fun removeTag(tag: EditableTag) {
-        _state.update { current ->
+        state.update { current ->
             current.copy(tags = current.tags.filter { it.id != tag.id })
         }
         updateHasChanges()
@@ -1334,14 +1333,14 @@ class BookEditViewModel(
         imageData: ByteArray,
         filename: String,
     ) {
-        val bookId = _state.value.bookId
+        val bookId = state.value.bookId
         if (bookId.isBlank()) {
             logger.error { "Cannot set cover: book ID is empty" }
             return
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isUploadingCover = true, error = null) }
+            state.update { it.copy(isUploadingCover = true, error = null) }
 
             // Save to staging location for preview (doesn't overwrite original)
             when (val saveResult = imageStorage.saveCoverStaging(BookId(bookId), imageData)) {
@@ -1350,7 +1349,7 @@ class BookEditViewModel(
                     logger.info { "Cover saved to staging for preview: $stagingPath" }
 
                     // Store pending data for upload when Save Changes is clicked
-                    _state.update {
+                    state.update {
                         it.copy(
                             isUploadingCover = false,
                             stagingCoverPath = stagingPath,
@@ -1363,7 +1362,7 @@ class BookEditViewModel(
 
                 is Failure -> {
                     logger.error { "Failed to save cover to staging: ${saveResult.message}" }
-                    _state.update {
+                    state.update {
                         it.copy(
                             isUploadingCover = false,
                             error = "Failed to save cover: ${saveResult.message}",
@@ -1378,14 +1377,14 @@ class BookEditViewModel(
      * Cancel editing and clean up any staging files.
      */
     private fun cancelAndCleanup() {
-        val bookId = _state.value.bookId
-        if (bookId.isNotBlank() && _state.value.stagingCoverPath != null) {
+        val bookId = state.value.bookId
+        if (bookId.isNotBlank() && state.value.stagingCoverPath != null) {
             viewModelScope.launch {
                 imageStorage.deleteCoverStaging(BookId(bookId))
                 logger.debug { "Staging cover cleaned up on cancel" }
             }
         }
-        _navActions.value = BookEditNavAction.NavigateBack
+        navActions.value = BookEditNavAction.NavigateBack
     }
 
     /**
@@ -1394,8 +1393,8 @@ class BookEditViewModel(
      */
     override fun onCleared() {
         super.onCleared()
-        val bookId = _state.value.bookId
-        if (bookId.isNotBlank() && _state.value.stagingCoverPath != null) {
+        val bookId = state.value.bookId
+        if (bookId.isNotBlank() && state.value.stagingCoverPath != null) {
             // viewModelScope is cancelled by this point, use GlobalScope for cleanup
             @Suppress("OPT_IN_USAGE")
             kotlinx.coroutines.GlobalScope.launch(com.calypsan.listenup.client.core.IODispatcher) {
@@ -1406,7 +1405,7 @@ class BookEditViewModel(
     }
 
     private fun updateHasChanges() {
-        val current = _state.value
+        val current = state.value
         val hasChanges =
             current.title != originalTitle ||
                 current.subtitle != originalSubtitle ||
@@ -1423,19 +1422,19 @@ class BookEditViewModel(
                 current.tags != originalTags ||
                 current.pendingCoverData != null // Cover changed if we have pending data
 
-        _state.update { it.copy(hasChanges = hasChanges) }
+        state.update { it.copy(hasChanges = hasChanges) }
     }
 
     @Suppress("CyclomaticComplexMethod", "CognitiveComplexMethod", "LongMethod")
     private fun saveChanges() {
-        val current = _state.value
+        val current = state.value
         if (!current.hasChanges) {
-            _navActions.value = BookEditNavAction.NavigateBack
+            navActions.value = BookEditNavAction.NavigateBack
             return
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isSaving = true, error = null) }
+            state.update { it.copy(isSaving = true, error = null) }
 
             try {
                 // Update metadata
@@ -1484,7 +1483,7 @@ class BookEditViewModel(
                         }
 
                         is Failure -> {
-                            _state.update { it.copy(isSaving = false, error = "Failed to save: ${result.message}") }
+                            state.update { it.copy(isSaving = false, error = "Failed to save: ${result.message}") }
                             return@launch
                         }
                     }
@@ -1507,7 +1506,7 @@ class BookEditViewModel(
                         }
 
                         is Failure -> {
-                            _state.update {
+                            state.update {
                                 it.copy(
                                     isSaving = false,
                                     error = "Failed to save contributors: ${result.message}",
@@ -1535,7 +1534,7 @@ class BookEditViewModel(
                         }
 
                         is Failure -> {
-                            _state.update {
+                            state.update {
                                 it.copy(
                                     isSaving = false,
                                     error = "Failed to save series: ${result.message}",
@@ -1554,7 +1553,7 @@ class BookEditViewModel(
                         logger.info { "Book genres updated" }
                     } catch (e: Exception) {
                         logger.error(e) { "Failed to save genres" }
-                        _state.update { it.copy(isSaving = false, error = "Failed to save genres: ${e.message}") }
+                        state.update { it.copy(isSaving = false, error = "Failed to save genres: ${e.message}") }
                         return@launch
                     }
                 }
@@ -1623,7 +1622,7 @@ class BookEditViewModel(
                     }
                 }
 
-                _state.update {
+                state.update {
                     it.copy(
                         isSaving = false,
                         hasChanges = false,
@@ -1632,10 +1631,10 @@ class BookEditViewModel(
                         stagingCoverPath = null,
                     )
                 }
-                _navActions.value = BookEditNavAction.NavigateBack
+                navActions.value = BookEditNavAction.NavigateBack
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save book changes" }
-                _state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }
+                state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }
             }
         }
     }

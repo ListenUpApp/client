@@ -9,7 +9,6 @@ import com.google.common.util.concurrent.MoreExecutors
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.atomic.AtomicInteger
 
 private val logger = KotlinLogging.logger {}
@@ -35,8 +34,8 @@ class MediaControllerHolder(
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var _controller: MediaController? = null
 
-    private val _isConnected = MutableStateFlow(false)
-    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+    val isConnected: StateFlow<Boolean>
+        field = MutableStateFlow(false)
 
     private val refCount = AtomicInteger(0)
 
@@ -112,11 +111,11 @@ class MediaControllerHolder(
         controllerFuture?.addListener({
             try {
                 _controller = controllerFuture?.get()
-                _isConnected.value = true
+                isConnected.value = true
                 logger.info { "MediaControllerHolder: connected" }
             } catch (e: Exception) {
                 logger.error(e) { "MediaControllerHolder: connection failed" }
-                _isConnected.value = false
+                isConnected.value = false
             }
         }, MoreExecutors.directExecutor())
     }
@@ -130,6 +129,6 @@ class MediaControllerHolder(
         controllerFuture?.let { MediaController.releaseFuture(it) }
         controllerFuture = null
 
-        _isConnected.value = false
+        isConnected.value = false
     }
 }

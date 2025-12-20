@@ -15,7 +15,6 @@ import com.calypsan.listenup.client.data.remote.InviteApiContract
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -38,8 +37,8 @@ class InviteRegistrationViewModel(
     private val serverUrl: String,
     private val inviteCode: String,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(InviteRegistrationUiState())
-    val state: StateFlow<InviteRegistrationUiState> = _state.asStateFlow()
+    val state: StateFlow<InviteRegistrationUiState>
+        field = MutableStateFlow(InviteRegistrationUiState())
 
     init {
         loadInviteDetails()
@@ -50,13 +49,13 @@ class InviteRegistrationViewModel(
      */
     fun loadInviteDetails() {
         viewModelScope.launch {
-            _state.value = InviteRegistrationUiState(loadingState = InviteLoadingState.Loading)
+            state.value = InviteRegistrationUiState(loadingState = InviteLoadingState.Loading)
 
             try {
                 val details = inviteApi.getInviteDetails(serverUrl, inviteCode)
 
                 if (!details.valid) {
-                    _state.value =
+                    state.value =
                         InviteRegistrationUiState(
                             loadingState =
                                 InviteLoadingState.Invalid(
@@ -64,7 +63,7 @@ class InviteRegistrationViewModel(
                                 ),
                         )
                 } else {
-                    _state.value =
+                    state.value =
                         InviteRegistrationUiState(
                             loadingState = InviteLoadingState.Loaded(details),
                         )
@@ -86,7 +85,7 @@ class InviteRegistrationViewModel(
                             e.message ?: "Failed to load invite details"
                         }
                     }
-                _state.value =
+                state.value =
                     InviteRegistrationUiState(
                         loadingState = InviteLoadingState.Error(message),
                     )
@@ -106,8 +105,8 @@ class InviteRegistrationViewModel(
     ) {
         // Validate passwords
         if (password.length < 8) {
-            _state.value =
-                _state.value.copy(
+            state.value =
+                state.value.copy(
                     submissionStatus =
                         InviteSubmissionStatus.Error(
                             InviteErrorType.ValidationError(InviteField.PASSWORD),
@@ -117,15 +116,15 @@ class InviteRegistrationViewModel(
         }
 
         if (password != confirmPassword) {
-            _state.value =
-                _state.value.copy(
+            state.value =
+                state.value.copy(
                     submissionStatus = InviteSubmissionStatus.Error(InviteErrorType.PasswordMismatch),
                 )
             return
         }
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(submissionStatus = InviteSubmissionStatus.Submitting)
+            state.value = state.value.copy(submissionStatus = InviteSubmissionStatus.Submitting)
 
             try {
                 val response = inviteApi.claimInvite(serverUrl, inviteCode, password)
@@ -144,11 +143,11 @@ class InviteRegistrationViewModel(
                 // Save user data to local database for avatar display
                 userDao.upsert(response.user.toEntity())
 
-                _state.value = _state.value.copy(submissionStatus = InviteSubmissionStatus.Success)
+                state.value = state.value.copy(submissionStatus = InviteSubmissionStatus.Success)
             } catch (e: Exception) {
                 val errorType = e.toInviteErrorType()
-                _state.value =
-                    _state.value.copy(
+                state.value =
+                    state.value.copy(
                         submissionStatus = InviteSubmissionStatus.Error(errorType),
                     )
             }
@@ -159,8 +158,8 @@ class InviteRegistrationViewModel(
      * Clear the error state to allow retry.
      */
     fun clearError() {
-        if (_state.value.submissionStatus is InviteSubmissionStatus.Error) {
-            _state.value = _state.value.copy(submissionStatus = InviteSubmissionStatus.Idle)
+        if (state.value.submissionStatus is InviteSubmissionStatus.Error) {
+            state.value = state.value.copy(submissionStatus = InviteSubmissionStatus.Idle)
         }
     }
 }

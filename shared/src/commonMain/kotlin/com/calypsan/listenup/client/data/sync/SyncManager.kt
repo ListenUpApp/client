@@ -70,7 +70,9 @@ class SyncManager(
     private val ftsPopulator: FtsPopulatorContract,
     private val scope: CoroutineScope,
 ) : SyncManagerContract {
+    // Override properties can't use explicit backing fields - must use traditional pattern
     private val _syncState = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
+    override val syncState: StateFlow<SyncStatus> = _syncState.asStateFlow()
 
     init {
         // Route SSE events to processor
@@ -81,10 +83,6 @@ class SyncManager(
         }
     }
 
-    /**
-     * Current synchronization status.
-     */
-    override val syncState: StateFlow<SyncStatus> = _syncState.asStateFlow()
 
     /**
      * Perform full synchronization with server.

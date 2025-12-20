@@ -14,7 +14,6 @@ import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Contributor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -33,8 +32,8 @@ class ContributorDetailViewModel(
     private val imageStorage: ImageStorage,
     private val playbackPositionDao: PlaybackPositionDao,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(ContributorDetailUiState())
-    val state: StateFlow<ContributorDetailUiState> = _state.asStateFlow()
+    val state: StateFlow<ContributorDetailUiState>
+        field = MutableStateFlow(ContributorDetailUiState())
 
     /**
      * Load contributor details and their books grouped by role.
@@ -42,7 +41,7 @@ class ContributorDetailViewModel(
      * @param contributorId The ID of the contributor to load
      */
     fun loadContributor(contributorId: String) {
-        _state.value = _state.value.copy(isLoading = true)
+        state.value = state.value.copy(isLoading = true)
 
         viewModelScope.launch {
             // Observe contributor and their roles together
@@ -72,7 +71,7 @@ class ContributorDetailViewModel(
                 val allPreviewBooks = roleSections.flatMap { it.previewBooks }
                 val bookProgress = loadProgressForBooks(allPreviewBooks)
 
-                _state.value =
+                state.value =
                     ContributorDetailUiState(
                         isLoading = false,
                         contributor = contributor,

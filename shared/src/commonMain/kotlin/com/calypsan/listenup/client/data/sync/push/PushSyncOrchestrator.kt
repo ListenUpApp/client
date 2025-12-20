@@ -40,6 +40,7 @@ class PushSyncOrchestrator(
     private val networkMonitor: NetworkMonitor,
     private val scope: CoroutineScope,
 ) : PushSyncOrchestratorContract {
+    // Override properties can't use explicit backing fields - must use traditional pattern
     private val _isFlushing = MutableStateFlow(false)
     override val isFlushing: StateFlow<Boolean> = _isFlushing.asStateFlow()
 

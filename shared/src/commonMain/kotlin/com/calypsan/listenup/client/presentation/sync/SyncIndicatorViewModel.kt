@@ -8,7 +8,6 @@ import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryCon
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -31,23 +30,19 @@ data class SyncIndicatorUiState(
      * Whether a sync operation is currently in progress.
      */
     val isSyncing: Boolean = false,
-
     /**
      * Description of current operation (if syncing).
      */
     val currentOperationDescription: String? = null,
-
     /**
      * Number of pending operations waiting to sync.
      * Excludes silent operations (listening events, playback position, preferences).
      */
     val pendingCount: Int = 0,
-
     /**
      * Failed operations that need user attention.
      */
     val failedOperations: List<PendingOperationUi> = emptyList(),
-
     /**
      * Whether there are any failed operations.
      */
@@ -61,13 +56,17 @@ sealed interface SyncIndicatorUiEvent {
     /**
      * User requested to retry a failed operation.
      */
-    data class RetryOperation(val operationId: String) : SyncIndicatorUiEvent
+    data class RetryOperation(
+        val operationId: String,
+    ) : SyncIndicatorUiEvent
 
     /**
      * User requested to dismiss a failed operation.
      * This discards local changes and marks the entity for re-sync.
      */
-    data class DismissOperation(val operationId: String) : SyncIndicatorUiEvent
+    data class DismissOperation(
+        val operationId: String,
+    ) : SyncIndicatorUiEvent
 
     /**
      * User requested to retry all failed operations.
@@ -96,36 +95,42 @@ sealed interface SyncIndicatorUiEvent {
 class SyncIndicatorViewModel(
     private val pendingOperationRepository: PendingOperationRepositoryContract,
 ) : ViewModel() {
-    private val _isExpanded = MutableStateFlow(false)
-    val isExpanded: StateFlow<Boolean> = _isExpanded.asStateFlow()
+    val isExpanded: StateFlow<Boolean>
+        field = MutableStateFlow(false)
 
-    val state: StateFlow<SyncIndicatorUiState> = combine(
-        pendingOperationRepository.observeVisibleOperations(),
-        pendingOperationRepository.observeInProgressOperation(),
-        pendingOperationRepository.observeFailedOperations(),
-    ) { visibleOps, inProgress, failedOps ->
-        val pendingCount = visibleOps.count { it.status == com.calypsan.listenup.client.data.local.db.OperationStatus.PENDING }
-        val failedUi = failedOps.map { op ->
-            PendingOperationUi(
-                id = op.id,
-                description = describeOperation(op),
-                isFailed = true,
-                error = op.lastError,
+    val state: StateFlow<SyncIndicatorUiState> =
+        combine(
+            pendingOperationRepository.observeVisibleOperations(),
+            pendingOperationRepository.observeInProgressOperation(),
+            pendingOperationRepository.observeFailedOperations(),
+        ) { visibleOps, inProgress, failedOps ->
+            val pendingCount =
+                visibleOps.count {
+                    it.status ==
+                        com.calypsan.listenup.client.data.local.db.OperationStatus.PENDING
+                }
+            val failedUi =
+                failedOps.map { op ->
+                    PendingOperationUi(
+                        id = op.id,
+                        description = describeOperation(op),
+                        isFailed = true,
+                        error = op.lastError,
+                    )
+                }
+
+            SyncIndicatorUiState(
+                isSyncing = inProgress != null,
+                currentOperationDescription = inProgress?.let { describeOperation(it) },
+                pendingCount = pendingCount,
+                failedOperations = failedUi,
+                hasErrors = failedOps.isNotEmpty(),
             )
-        }
-
-        SyncIndicatorUiState(
-            isSyncing = inProgress != null,
-            currentOperationDescription = inProgress?.let { describeOperation(it) },
-            pendingCount = pendingCount,
-            failedOperations = failedUi,
-            hasErrors = failedOps.isNotEmpty(),
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = SyncIndicatorUiState(),
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = SyncIndicatorUiState(),
-    )
 
     fun onEvent(event: SyncIndicatorUiEvent) {
         when (event) {
@@ -137,7 +142,7 @@ class SyncIndicatorViewModel(
     }
 
     fun toggleExpanded() {
-        _isExpanded.value = !_isExpanded.value
+        isExpanded.value = !isExpanded.value
     }
 
     private fun retryOperation(id: String) {

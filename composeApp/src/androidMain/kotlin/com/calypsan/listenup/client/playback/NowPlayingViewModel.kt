@@ -15,7 +15,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -36,8 +35,8 @@ class NowPlayingViewModel(
     private val mediaControllerHolder: MediaControllerHolder,
     private val settingsRepository: SettingsRepositoryContract,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(NowPlayingState())
-    val state: StateFlow<NowPlayingState> = _state.asStateFlow()
+    val state: StateFlow<NowPlayingState>
+        field = MutableStateFlow(NowPlayingState())
 
     val sleepTimerState: StateFlow<SleepTimerState> = sleepTimerManager.state
 
@@ -62,7 +61,7 @@ class NowPlayingViewModel(
     private fun loadDefaultPlaybackSpeed() {
         viewModelScope.launch {
             val defaultSpeed = settingsRepository.getDefaultPlaybackSpeed()
-            _state.update { it.copy(defaultPlaybackSpeed = defaultSpeed) }
+            state.update { it.copy(defaultPlaybackSpeed = defaultSpeed) }
         }
     }
 
@@ -73,7 +72,7 @@ class NowPlayingViewModel(
                 if (bookId != null) {
                     loadBookInfo(bookId)
                 } else {
-                    _state.update { it.copy(isVisible = false, isExpanded = false) }
+                    state.update { it.copy(isVisible = false, isExpanded = false) }
                     chapters = emptyList()
                 }
             }
@@ -82,7 +81,7 @@ class NowPlayingViewModel(
         // Observe playback state (playing/paused)
         viewModelScope.launch {
             playbackManager.isPlaying.collect { isPlaying ->
-                _state.update { it.copy(isPlaying = isPlaying) }
+                state.update { it.copy(isPlaying = isPlaying) }
             }
         }
 
@@ -96,21 +95,21 @@ class NowPlayingViewModel(
         // Observe playback speed
         viewModelScope.launch {
             playbackManager.playbackSpeed.collect { speed ->
-                _state.update { it.copy(playbackSpeed = speed) }
+                state.update { it.copy(playbackSpeed = speed) }
             }
         }
 
         // Observe total duration
         viewModelScope.launch {
             playbackManager.totalDurationMs.collect { durationMs ->
-                _state.update { it.copy(bookDurationMs = durationMs) }
+                state.update { it.copy(bookDurationMs = durationMs) }
             }
         }
 
         // Observe prepare progress (transcode status)
         viewModelScope.launch {
             playbackManager.prepareProgress.collect { progress ->
-                _state.update {
+                state.update {
                     it.copy(
                         isPreparing = progress != null,
                         prepareProgress = progress?.progress ?: 0,
@@ -196,7 +195,7 @@ class NowPlayingViewModel(
             }
         }
 
-        _state.update {
+        state.update {
             it.copy(
                 isVisible = true,
                 bookId = bookId.value,
@@ -221,7 +220,7 @@ class NowPlayingViewModel(
         val currentChapter = findChapterAtPosition(bookPositionMs)
         val chapterIndex = chapters.indexOf(currentChapter).coerceAtLeast(0)
 
-        val bookDurationMs = _state.value.bookDurationMs
+        val bookDurationMs = state.value.bookDurationMs
         val bookProgress =
             if (bookDurationMs > 0) {
                 bookPositionMs.toFloat() / bookDurationMs
@@ -255,7 +254,7 @@ class NowPlayingViewModel(
         }
 
         // Debounce: only update if position changed by >200ms to prevent excessive recomposition
-        val currentState = _state.value
+        val currentState = state.value
         val positionDeltaMs = kotlin.math.abs(bookPositionMs - currentState.bookPositionMs)
         val chapterChanged = chapterIndex != currentState.chapterIndex
 
@@ -270,7 +269,7 @@ class NowPlayingViewModel(
             return
         }
 
-        _state.update {
+        state.update {
             it.copy(
                 bookProgress = bookProgress.coerceIn(0f, 1f),
                 bookPositionMs = bookPositionMs,
@@ -288,35 +287,35 @@ class NowPlayingViewModel(
     // UI Actions
 
     fun expand() {
-        _state.update { it.copy(isExpanded = true) }
+        state.update { it.copy(isExpanded = true) }
     }
 
     fun collapse() {
-        _state.update { it.copy(isExpanded = false) }
+        state.update { it.copy(isExpanded = false) }
     }
 
     fun showChapterPicker() {
-        _state.update { it.copy(showChapterPicker = true) }
+        state.update { it.copy(showChapterPicker = true) }
     }
 
     fun hideChapterPicker() {
-        _state.update { it.copy(showChapterPicker = false) }
+        state.update { it.copy(showChapterPicker = false) }
     }
 
     fun showSpeedPicker() {
-        _state.update { it.copy(showSpeedPicker = true) }
+        state.update { it.copy(showSpeedPicker = true) }
     }
 
     fun hideSpeedPicker() {
-        _state.update { it.copy(showSpeedPicker = false) }
+        state.update { it.copy(showSpeedPicker = false) }
     }
 
     fun showSleepTimer() {
-        _state.update { it.copy(showSleepTimer = true) }
+        state.update { it.copy(showSleepTimer = true) }
     }
 
     fun hideSleepTimer() {
-        _state.update { it.copy(showSleepTimer = false) }
+        state.update { it.copy(showSleepTimer = false) }
     }
 
     // Sleep Timer Actions
@@ -337,11 +336,11 @@ class NowPlayingViewModel(
     // Contributor Picker Actions
 
     fun showContributorPicker(type: ContributorPickerType) {
-        _state.update { it.copy(showContributorPicker = type) }
+        state.update { it.copy(showContributorPicker = type) }
     }
 
     fun hideContributorPicker() {
-        _state.update { it.copy(showContributorPicker = null) }
+        state.update { it.copy(showContributorPicker = null) }
     }
 
     // Book Actions
@@ -474,14 +473,14 @@ class NowPlayingViewModel(
     }
 
     fun previousChapter() {
-        Log.d(TAG, "previousChapter called: current=${_state.value.chapterIndex}")
-        val newIndex = (_state.value.chapterIndex - 1).coerceAtLeast(0)
+        Log.d(TAG, "previousChapter called: current=${state.value.chapterIndex}")
+        val newIndex = (state.value.chapterIndex - 1).coerceAtLeast(0)
         seekToChapter(newIndex)
     }
 
     fun nextChapter() {
-        Log.d(TAG, "nextChapter called: current=${_state.value.chapterIndex}, total=${chapters.size}")
-        val newIndex = (_state.value.chapterIndex + 1).coerceAtMost(chapters.lastIndex.coerceAtLeast(0))
+        Log.d(TAG, "nextChapter called: current=${state.value.chapterIndex}, total=${chapters.size}")
+        val newIndex = (state.value.chapterIndex + 1).coerceAtMost(chapters.lastIndex.coerceAtLeast(0))
         seekToChapter(newIndex)
     }
 
@@ -519,7 +518,7 @@ class NowPlayingViewModel(
 
     fun seekWithinChapter(progress: Float) {
         Log.d(TAG, "seekWithinChapter called: progress=$progress")
-        val currentChapter = chapters.getOrNull(_state.value.chapterIndex)
+        val currentChapter = chapters.getOrNull(state.value.chapterIndex)
         if (currentChapter == null) {
             Log.w(TAG, "seekWithinChapter: no current chapter")
             return
@@ -580,7 +579,7 @@ class NowPlayingViewModel(
 
     fun cycleSpeed() {
         val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
-        val currentSpeed = _state.value.playbackSpeed
+        val currentSpeed = state.value.playbackSpeed
         val currentIndex = speeds.indexOfFirst { it >= currentSpeed - 0.01f }
         val nextIndex = if (currentIndex == -1 || currentIndex >= speeds.lastIndex) 0 else currentIndex + 1
         setSpeed(speeds[nextIndex])

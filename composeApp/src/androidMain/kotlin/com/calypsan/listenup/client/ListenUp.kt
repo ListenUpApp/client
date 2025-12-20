@@ -256,13 +256,15 @@ class ListenUp :
      * try to use them. Issues are logged with clear error messages.
      */
     private fun verifyCriticalKoinBindings() {
-        val criticalTypes = listOf(
-            "SettingsRepository" to { get<com.calypsan.listenup.client.data.repository.SettingsRepository>() },
-            "SyncManager" to { get<com.calypsan.listenup.client.data.sync.SyncManagerContract>() },
-            "ProgressTracker" to { get<ProgressTracker>() },
-            "PlaybackManager" to { get<PlaybackManager>() },
-            "PushSyncOrchestrator" to { get<com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract>() },
-        )
+        val criticalTypes =
+            listOf(
+                "SettingsRepository" to { get<com.calypsan.listenup.client.data.repository.SettingsRepository>() },
+                "SyncManager" to { get<com.calypsan.listenup.client.data.sync.SyncManagerContract>() },
+                "ProgressTracker" to { get<ProgressTracker>() },
+                "PlaybackManager" to { get<PlaybackManager>() },
+                "PushSyncOrchestrator" to
+                    { get<com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract>() },
+            )
 
         criticalTypes.forEach { (name, resolver) ->
             try {

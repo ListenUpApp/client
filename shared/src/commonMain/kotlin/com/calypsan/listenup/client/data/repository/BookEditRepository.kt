@@ -131,33 +131,35 @@ class BookEditRepository(
             }
 
             // Apply optimistic update
-            val updated = existing.copy(
-                title = update.title ?: existing.title,
-                subtitle = update.subtitle ?: existing.subtitle,
-                description = update.description ?: existing.description,
-                publisher = update.publisher ?: existing.publisher,
-                publishYear = update.publishYear?.toIntOrNull() ?: existing.publishYear,
-                language = update.language ?: existing.language,
-                isbn = update.isbn ?: existing.isbn,
-                asin = update.asin ?: existing.asin,
-                abridged = update.abridged ?: existing.abridged,
-                syncState = SyncState.NOT_SYNCED,
-                lastModified = Timestamp.now(),
-            )
+            val updated =
+                existing.copy(
+                    title = update.title ?: existing.title,
+                    subtitle = update.subtitle ?: existing.subtitle,
+                    description = update.description ?: existing.description,
+                    publisher = update.publisher ?: existing.publisher,
+                    publishYear = update.publishYear?.toIntOrNull() ?: existing.publishYear,
+                    language = update.language ?: existing.language,
+                    isbn = update.isbn ?: existing.isbn,
+                    asin = update.asin ?: existing.asin,
+                    abridged = update.abridged ?: existing.abridged,
+                    syncState = SyncState.NOT_SYNCED,
+                    lastModified = Timestamp.now(),
+                )
             bookDao.upsert(updated)
 
             // Queue operation (coalesces if pending update exists for this book)
-            val payload = BookUpdatePayload(
-                title = update.title,
-                subtitle = update.subtitle,
-                description = update.description,
-                publisher = update.publisher,
-                publishYear = update.publishYear,
-                language = update.language,
-                isbn = update.isbn,
-                asin = update.asin,
-                abridged = update.abridged,
-            )
+            val payload =
+                BookUpdatePayload(
+                    title = update.title,
+                    subtitle = update.subtitle,
+                    description = update.description,
+                    publisher = update.publisher,
+                    publishYear = update.publishYear,
+                    language = update.language,
+                    isbn = update.isbn,
+                    asin = update.asin,
+                    abridged = update.abridged,
+                )
             pendingOperationRepository.queue(
                 type = OperationType.BOOK_UPDATE,
                 entityType = EntityType.BOOK,
@@ -195,21 +197,24 @@ class BookEditRepository(
                 return@withContext Failure(Exception("Book not found: $bookId"))
             }
 
-            val updated = existing.copy(
-                syncState = SyncState.NOT_SYNCED,
-                lastModified = Timestamp.now(),
-            )
+            val updated =
+                existing.copy(
+                    syncState = SyncState.NOT_SYNCED,
+                    lastModified = Timestamp.now(),
+                )
             bookDao.upsert(updated)
 
             // Queue operation
-            val payload = SetBookContributorsPayload(
-                contributors = contributors.map { c ->
-                    PayloadContributorInput(
-                        name = c.name,
-                        roles = c.roles,
-                    )
-                },
-            )
+            val payload =
+                SetBookContributorsPayload(
+                    contributors =
+                        contributors.map { c ->
+                            PayloadContributorInput(
+                                name = c.name,
+                                roles = c.roles,
+                            )
+                        },
+                )
             pendingOperationRepository.queue(
                 type = OperationType.SET_BOOK_CONTRIBUTORS,
                 entityType = EntityType.BOOK,
@@ -247,21 +252,24 @@ class BookEditRepository(
                 return@withContext Failure(Exception("Book not found: $bookId"))
             }
 
-            val updated = existing.copy(
-                syncState = SyncState.NOT_SYNCED,
-                lastModified = Timestamp.now(),
-            )
+            val updated =
+                existing.copy(
+                    syncState = SyncState.NOT_SYNCED,
+                    lastModified = Timestamp.now(),
+                )
             bookDao.upsert(updated)
 
             // Queue operation
-            val payload = SetBookSeriesPayload(
-                series = series.map { s ->
-                    PayloadSeriesInput(
-                        name = s.name,
-                        sequence = s.sequence,
-                    )
-                },
-            )
+            val payload =
+                SetBookSeriesPayload(
+                    series =
+                        series.map { s ->
+                            PayloadSeriesInput(
+                                name = s.name,
+                                sequence = s.sequence,
+                            )
+                        },
+                )
             pendingOperationRepository.queue(
                 type = OperationType.SET_BOOK_SERIES,
                 entityType = EntityType.BOOK,

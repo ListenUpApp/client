@@ -141,28 +141,30 @@ class ContributorEditRepository(
             }
 
             // Apply optimistic update
-            val updated = existing.copy(
-                name = update.name ?: existing.name,
-                description = update.biography ?: existing.description,
-                website = update.website ?: existing.website,
-                birthDate = update.birthDate ?: existing.birthDate,
-                deathDate = update.deathDate ?: existing.deathDate,
-                aliases = update.aliases?.joinToString(", ") ?: existing.aliases,
-                imagePath = update.imagePath ?: existing.imagePath,
-                syncState = SyncState.NOT_SYNCED,
-                lastModified = Timestamp.now(),
-            )
+            val updated =
+                existing.copy(
+                    name = update.name ?: existing.name,
+                    description = update.biography ?: existing.description,
+                    website = update.website ?: existing.website,
+                    birthDate = update.birthDate ?: existing.birthDate,
+                    deathDate = update.deathDate ?: existing.deathDate,
+                    aliases = update.aliases?.joinToString(", ") ?: existing.aliases,
+                    imagePath = update.imagePath ?: existing.imagePath,
+                    syncState = SyncState.NOT_SYNCED,
+                    lastModified = Timestamp.now(),
+                )
             contributorDao.upsert(updated)
 
             // Queue operation
-            val payload = ContributorUpdatePayload(
-                name = update.name,
-                biography = update.biography,
-                website = update.website,
-                birthDate = update.birthDate,
-                deathDate = update.deathDate,
-                aliases = update.aliases,
-            )
+            val payload =
+                ContributorUpdatePayload(
+                    name = update.name,
+                    biography = update.biography,
+                    website = update.website,
+                    birthDate = update.birthDate,
+                    deathDate = update.deathDate,
+                    aliases = update.aliases,
+                )
             pendingOperationRepository.queue(
                 type = OperationType.CONTRIBUTOR_UPDATE,
                 entityType = EntityType.CONTRIBUTOR,
@@ -206,19 +208,21 @@ class ContributorEditRepository(
             val sourceRelations = bookContributorDao.getByContributorId(sourceId)
             for (relation in sourceRelations) {
                 // Check if target already has this book/role
-                val existingTarget = bookContributorDao.get(
-                    relation.bookId,
-                    targetId,
-                    relation.role,
-                )
+                val existingTarget =
+                    bookContributorDao.get(
+                        relation.bookId,
+                        targetId,
+                        relation.role,
+                    )
                 if (existingTarget == null) {
                     // Create new relationship with creditedAs preserving original name
-                    val newRelation = BookContributorCrossRef(
-                        bookId = relation.bookId,
-                        contributorId = targetId,
-                        role = relation.role,
-                        creditedAs = relation.creditedAs ?: source.name,
-                    )
+                    val newRelation =
+                        BookContributorCrossRef(
+                            bookId = relation.bookId,
+                            contributorId = targetId,
+                            role = relation.role,
+                            creditedAs = relation.creditedAs ?: source.name,
+                        )
                     bookContributorDao.insert(newRelation)
                 }
                 // Delete old relationship
@@ -228,21 +232,23 @@ class ContributorEditRepository(
             // 2. Update target's aliases to include source name
             val currentAliases = target.aliasList()
             val newAliases = (currentAliases + source.name).distinct()
-            val updatedTarget = target.copy(
-                aliases = newAliases.joinToString(", "),
-                syncState = SyncState.NOT_SYNCED,
-                lastModified = Timestamp.now(),
-            )
+            val updatedTarget =
+                target.copy(
+                    aliases = newAliases.joinToString(", "),
+                    syncState = SyncState.NOT_SYNCED,
+                    lastModified = Timestamp.now(),
+                )
             contributorDao.upsert(updatedTarget)
 
             // 3. Delete source contributor locally
             contributorDao.deleteById(sourceId)
 
             // 4. Queue merge operation
-            val payload = MergeContributorPayload(
-                targetId = targetId,
-                sourceId = sourceId,
-            )
+            val payload =
+                MergeContributorPayload(
+                    targetId = targetId,
+                    sourceId = sourceId,
+                )
             pendingOperationRepository.queue(
                 type = OperationType.MERGE_CONTRIBUTOR,
                 entityType = EntityType.CONTRIBUTOR,
@@ -280,21 +286,22 @@ class ContributorEditRepository(
 
             // 1. Create placeholder contributor with temporary ID
             val tempId = NanoId.generate("temp")
-            val newContributor = ContributorEntity(
-                id = tempId,
-                name = aliasName,
-                description = null,
-                imagePath = null,
-                syncState = SyncState.NOT_SYNCED,
-                lastModified = Timestamp.now(),
-                serverVersion = null,
-                createdAt = Timestamp.now(),
-                updatedAt = Timestamp.now(),
-                website = null,
-                birthDate = null,
-                deathDate = null,
-                aliases = null,
-            )
+            val newContributor =
+                ContributorEntity(
+                    id = tempId,
+                    name = aliasName,
+                    description = null,
+                    imagePath = null,
+                    syncState = SyncState.NOT_SYNCED,
+                    lastModified = Timestamp.now(),
+                    serverVersion = null,
+                    createdAt = Timestamp.now(),
+                    updatedAt = Timestamp.now(),
+                    website = null,
+                    birthDate = null,
+                    deathDate = null,
+                    aliases = null,
+                )
             contributorDao.upsert(newContributor)
 
             // 2. Re-link book relationships where creditedAs matches aliasName
@@ -302,12 +309,13 @@ class ContributorEditRepository(
             for (relation in relations) {
                 if (relation.creditedAs?.equals(aliasName, ignoreCase = true) == true) {
                     // Create new relationship pointing to new contributor
-                    val newRelation = BookContributorCrossRef(
-                        bookId = relation.bookId,
-                        contributorId = tempId,
-                        role = relation.role,
-                        creditedAs = null, // New contributor's name matches creditedAs
-                    )
+                    val newRelation =
+                        BookContributorCrossRef(
+                            bookId = relation.bookId,
+                            contributorId = tempId,
+                            role = relation.role,
+                            creditedAs = null, // New contributor's name matches creditedAs
+                        )
                     bookContributorDao.insert(newRelation)
                     // Delete old relationship
                     bookContributorDao.delete(relation.bookId, contributorId, relation.role)
@@ -316,18 +324,20 @@ class ContributorEditRepository(
 
             // 3. Remove alias from original contributor
             val updatedAliases = aliases.filter { !it.equals(aliasName, ignoreCase = true) }
-            val updatedContributor = contributor.copy(
-                aliases = updatedAliases.takeIf { it.isNotEmpty() }?.joinToString(", "),
-                syncState = SyncState.NOT_SYNCED,
-                lastModified = Timestamp.now(),
-            )
+            val updatedContributor =
+                contributor.copy(
+                    aliases = updatedAliases.takeIf { it.isNotEmpty() }?.joinToString(", "),
+                    syncState = SyncState.NOT_SYNCED,
+                    lastModified = Timestamp.now(),
+                )
             contributorDao.upsert(updatedContributor)
 
             // 4. Queue unmerge operation
-            val payload = UnmergeContributorPayload(
-                contributorId = contributorId,
-                aliasName = aliasName,
-            )
+            val payload =
+                UnmergeContributorPayload(
+                    contributorId = contributorId,
+                    aliasName = aliasName,
+                )
             pendingOperationRepository.queue(
                 type = OperationType.UNMERGE_CONTRIBUTOR,
                 entityType = EntityType.CONTRIBUTOR,

@@ -19,7 +19,6 @@ import io.ktor.http.Url
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerializationException
@@ -49,8 +48,8 @@ private val logger = KotlinLogging.logger {}
 class ServerConnectViewModel(
     private val settingsRepository: SettingsRepositoryContract,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(ServerConnectUiState())
-    val state: StateFlow<ServerConnectUiState> = _state.asStateFlow()
+    val state: StateFlow<ServerConnectUiState>
+        field = MutableStateFlow(ServerConnectUiState())
 
     // Simple HTTP client for unauthenticated server verification
     // (separate from authenticated client used elsewhere in app)
@@ -85,7 +84,7 @@ class ServerConnectViewModel(
      * Clears error when user starts typing (fresh start).
      */
     private fun handleUrlChanged(newUrl: String) {
-        _state.update {
+        state.update {
             it.copy(
                 serverUrl = newUrl,
                 error = null, // Clear error on new input
@@ -98,12 +97,12 @@ class ServerConnectViewModel(
      * Validates URL locally, then verifies server if valid.
      */
     private fun handleConnectClicked() {
-        val url = _state.value.serverUrl.trim()
+        val url = state.value.serverUrl.trim()
 
         // Phase 1: Local validation (instant feedback)
         val validationError = validateUrl(url)
         if (validationError != null) {
-            _state.update { it.copy(error = validationError) }
+            state.update { it.copy(error = validationError) }
             return
         }
 
@@ -185,7 +184,7 @@ class ServerConnectViewModel(
     @Suppress("CognitiveComplexMethod")
     private fun verifyServer(url: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            state.update { it.copy(isLoading = true, error = null) }
 
             val urlsToTry = normalizeUrl(url)
             var lastException: Exception? = null
@@ -209,7 +208,7 @@ class ServerConnectViewModel(
                                     "Unable to read response body"
                                 }
 
-                            _state.update {
+                            state.update {
                                 it.copy(
                                     isLoading = false,
                                     error =
@@ -236,7 +235,7 @@ class ServerConnectViewModel(
                                     "Unable to read response body"
                                 }
 
-                            _state.update {
+                            state.update {
                                 it.copy(
                                     isLoading = false,
                                     error =
@@ -259,7 +258,7 @@ class ServerConnectViewModel(
                     // Verify response has data
                     val instance = response.data
                     if (instance == null) {
-                        _state.update {
+                        state.update {
                             it.copy(
                                 isLoading = false,
                                 error =
@@ -280,7 +279,7 @@ class ServerConnectViewModel(
                     settingsRepository.setServerUrl(ServerUrl(currentUrl))
 
                     // Set verified flag (UI will observe and navigate)
-                    _state.update { it.copy(isLoading = false, isVerified = true) }
+                    state.update { it.copy(isLoading = false, isVerified = true) }
                     return@launch
                 } catch (e: Exception) {
                     val errorMessage = e.message?.lowercase() ?: ""
@@ -320,7 +319,7 @@ class ServerConnectViewModel(
                         ServerConnectError.VerificationFailed(appError)
                     }
 
-                _state.update { it.copy(isLoading = false, error = error) }
+                state.update { it.copy(isLoading = false, error = error) }
             }
         }
     }

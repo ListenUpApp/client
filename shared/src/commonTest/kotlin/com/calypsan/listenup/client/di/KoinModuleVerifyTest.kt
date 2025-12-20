@@ -59,46 +59,45 @@ class KoinModuleVerifyTest {
     @Test
     fun verifySyncModule() {
         syncModule.verify(
-            extraTypes = listOf(
-                // Platform-specific types provided by other modules
-                CoroutineScope::class,
-                SecureStorage::class,
-                ImageStorage::class,
-                CoverColorExtractor::class,
-                NetworkMonitor::class,
-                Map::class, // For OperationExecutor constructor (uses factory method in reality)
-                OperationHandler::class,
-
-                // DAOs from database module
-                UserDao::class,
-                BookDao::class,
-                SyncDao::class,
-                ChapterDao::class,
-                SeriesDao::class,
-                ContributorDao::class,
-                BookContributorDao::class,
-                BookSeriesDao::class,
-                PlaybackPositionDao::class,
-                PendingOperationDao::class,
-                DownloadDao::class,
-                SearchDao::class,
-                ServerDao::class,
-
-                // Repositories and APIs from other modules
-                SettingsRepository::class,
-                SettingsRepositoryContract::class,
-                InstanceRepository::class,
-                AuthApiContract::class,
-                ApiClientFactory::class,
-                ListenUpApiContract::class,
-                SyncApiContract::class,
-                SearchApiContract::class,
-                ImageApiContract::class,
-                GenreApiContract::class,
-                TagApiContract::class,
-                UserPreferencesApiContract::class,
-                ServerDiscoveryService::class,
-            ),
+            extraTypes =
+                listOf(
+                    // Platform-specific types provided by other modules
+                    CoroutineScope::class,
+                    SecureStorage::class,
+                    ImageStorage::class,
+                    CoverColorExtractor::class,
+                    NetworkMonitor::class,
+                    Map::class, // For OperationExecutor constructor (uses factory method in reality)
+                    OperationHandler::class,
+                    // DAOs from database module
+                    UserDao::class,
+                    BookDao::class,
+                    SyncDao::class,
+                    ChapterDao::class,
+                    SeriesDao::class,
+                    ContributorDao::class,
+                    BookContributorDao::class,
+                    BookSeriesDao::class,
+                    PlaybackPositionDao::class,
+                    PendingOperationDao::class,
+                    DownloadDao::class,
+                    SearchDao::class,
+                    ServerDao::class,
+                    // Repositories and APIs from other modules
+                    SettingsRepository::class,
+                    SettingsRepositoryContract::class,
+                    InstanceRepository::class,
+                    AuthApiContract::class,
+                    ApiClientFactory::class,
+                    ListenUpApiContract::class,
+                    SyncApiContract::class,
+                    SearchApiContract::class,
+                    ImageApiContract::class,
+                    GenreApiContract::class,
+                    TagApiContract::class,
+                    UserPreferencesApiContract::class,
+                    ServerDiscoveryService::class,
+                ),
         )
     }
 }

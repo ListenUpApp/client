@@ -21,7 +21,9 @@ sealed interface PreferenceChangeEvent {
     /**
      * Default playback speed was changed.
      */
-    data class PlaybackSpeedChanged(val speed: Float) : PreferenceChangeEvent
+    data class PlaybackSpeedChanged(
+        val speed: Float,
+    ) : PreferenceChangeEvent
 }
 
 /**
@@ -136,6 +138,7 @@ class SettingsRepository(
     private val secureStorage: SecureStorage,
     private val instanceRepository: InstanceRepository,
 ) : SettingsRepositoryContract {
+    // Override properties can't use explicit backing fields - must use traditional pattern
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initializing)
     override val authState: StateFlow<AuthState> = _authState.asStateFlow()
 

@@ -13,7 +13,6 @@ import com.calypsan.listenup.client.data.remote.AuthUser
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -32,8 +31,8 @@ class LoginViewModel(
     private val settingsRepository: SettingsRepositoryContract,
     private val userDao: UserDao,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(LoginUiState())
-    val state: StateFlow<LoginUiState> = _state.asStateFlow()
+    val state: StateFlow<LoginUiState>
+        field = MutableStateFlow(LoginUiState())
 
     /**
      * Submit the login form with user credentials.
@@ -49,7 +48,7 @@ class LoginViewModel(
         val trimmedEmail = email.trim()
 
         if (!isValidEmail(trimmedEmail)) {
-            _state.value =
+            state.value =
                 LoginUiState(
                     status =
                         LoginStatus.Error(
@@ -60,7 +59,7 @@ class LoginViewModel(
         }
 
         if (password.isEmpty()) {
-            _state.value =
+            state.value =
                 LoginUiState(
                     status =
                         LoginStatus.Error(
@@ -72,7 +71,7 @@ class LoginViewModel(
 
         // Submit to server
         viewModelScope.launch {
-            _state.value = LoginUiState(status = LoginStatus.Loading)
+            state.value = LoginUiState(status = LoginStatus.Loading)
 
             try {
                 val response =
@@ -93,9 +92,9 @@ class LoginViewModel(
                 // Save user data to local database for avatar display
                 userDao.upsert(response.user.toEntity())
 
-                _state.value = LoginUiState(status = LoginStatus.Success)
+                state.value = LoginUiState(status = LoginStatus.Success)
             } catch (e: Exception) {
-                _state.value =
+                state.value =
                     LoginUiState(
                         status = LoginStatus.Error(e.toLoginErrorType()),
                     )
@@ -107,8 +106,8 @@ class LoginViewModel(
      * Clear the error state to allow retry.
      */
     fun clearError() {
-        if (_state.value.status is LoginStatus.Error) {
-            _state.value = LoginUiState(status = LoginStatus.Idle)
+        if (state.value.status is LoginStatus.Error) {
+            state.value = LoginUiState(status = LoginStatus.Idle)
         }
     }
 

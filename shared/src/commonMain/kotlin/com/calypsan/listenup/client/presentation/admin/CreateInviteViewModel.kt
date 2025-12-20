@@ -7,7 +7,6 @@ import com.calypsan.listenup.client.data.remote.AdminInvite
 import com.calypsan.listenup.client.data.remote.CreateInviteRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -18,8 +17,8 @@ import kotlinx.coroutines.launch
 class CreateInviteViewModel(
     private val adminApi: AdminApiContract,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(CreateInviteUiState())
-    val state: StateFlow<CreateInviteUiState> = _state.asStateFlow()
+    val state: StateFlow<CreateInviteUiState>
+        field = MutableStateFlow(CreateInviteUiState())
 
     fun createInvite(
         name: String,
@@ -32,23 +31,23 @@ class CreateInviteViewModel(
         val trimmedEmail = email.trim()
 
         if (trimmedName.isBlank()) {
-            _state.value =
-                _state.value.copy(
+            state.value =
+                state.value.copy(
                     status = CreateInviteStatus.Error(CreateInviteErrorType.ValidationError(CreateInviteField.NAME)),
                 )
             return
         }
 
         if (!isValidEmail(trimmedEmail)) {
-            _state.value =
-                _state.value.copy(
+            state.value =
+                state.value.copy(
                     status = CreateInviteStatus.Error(CreateInviteErrorType.ValidationError(CreateInviteField.EMAIL)),
                 )
             return
         }
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(status = CreateInviteStatus.Submitting)
+            state.value = state.value.copy(status = CreateInviteStatus.Submitting)
 
             try {
                 val invite =
@@ -60,8 +59,8 @@ class CreateInviteViewModel(
                             expiresInDays = expiresInDays,
                         ),
                     )
-                _state.value =
-                    _state.value.copy(
+                state.value =
+                    state.value.copy(
                         status = CreateInviteStatus.Success(invite),
                     )
             } catch (e: Exception) {
@@ -81,8 +80,8 @@ class CreateInviteViewModel(
                             CreateInviteErrorType.ServerError(e.message)
                         }
                     }
-                _state.value =
-                    _state.value.copy(
+                state.value =
+                    state.value.copy(
                         status = CreateInviteStatus.Error(errorType),
                     )
             }
@@ -90,13 +89,13 @@ class CreateInviteViewModel(
     }
 
     fun clearError() {
-        if (_state.value.status is CreateInviteStatus.Error) {
-            _state.value = _state.value.copy(status = CreateInviteStatus.Idle)
+        if (state.value.status is CreateInviteStatus.Error) {
+            state.value = state.value.copy(status = CreateInviteStatus.Idle)
         }
     }
 
     fun reset() {
-        _state.value = CreateInviteUiState()
+        state.value = CreateInviteUiState()
     }
 
     private fun isValidEmail(email: String): Boolean = email.contains("@") && email.contains(".")

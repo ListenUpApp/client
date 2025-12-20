@@ -13,7 +13,6 @@ import com.calypsan.listenup.client.domain.model.Tag
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -28,12 +27,12 @@ class BookDetailViewModel(
     private val tagApi: TagApiContract,
     private val playbackPositionDao: PlaybackPositionDao,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(BookDetailUiState())
-    val state: StateFlow<BookDetailUiState> = _state.asStateFlow()
+    val state: StateFlow<BookDetailUiState>
+        field = MutableStateFlow(BookDetailUiState())
 
     fun loadBook(bookId: String) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true)
+            state.value = state.value.copy(isLoading = true)
             val book = bookRepository.getBook(bookId)
 
             if (book != null) {
@@ -75,7 +74,7 @@ class BookDetailViewModel(
                         null
                     }
 
-                _state.value =
+                state.value =
                     BookDetailUiState(
                         isLoading = false,
                         book = book,
@@ -94,7 +93,7 @@ class BookDetailViewModel(
                 loadGenres(bookId)
                 loadTags(bookId)
             } else {
-                _state.value =
+                state.value =
                     BookDetailUiState(
                         isLoading = false,
                         error = "Book not found",
@@ -111,7 +110,7 @@ class BookDetailViewModel(
         viewModelScope.launch {
             try {
                 val bookGenres = genreApi.getBookGenres(bookId)
-                _state.update {
+                state.update {
                     it.copy(
                         genres = bookGenres,
                         genresList = bookGenres.map { g -> g.name },
@@ -130,11 +129,11 @@ class BookDetailViewModel(
      */
     private fun loadTags(bookId: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoadingTags = true) }
+            state.update { it.copy(isLoadingTags = true) }
             try {
                 val bookTags = tagApi.getBookTags(bookId)
                 val allTags = tagApi.getUserTags()
-                _state.update {
+                state.update {
                     it.copy(
                         tags = bookTags,
                         allUserTags = allTags,
@@ -144,7 +143,7 @@ class BookDetailViewModel(
             } catch (e: Exception) {
                 // Tags are optional - don't fail the whole screen
                 logger.warn(e) { "Failed to load tags" }
-                _state.update { it.copy(isLoadingTags = false) }
+                state.update { it.copy(isLoadingTags = false) }
             }
         }
     }
@@ -153,14 +152,14 @@ class BookDetailViewModel(
      * Show the tag picker sheet.
      */
     fun showTagPicker() {
-        _state.update { it.copy(showTagPicker = true) }
+        state.update { it.copy(showTagPicker = true) }
     }
 
     /**
      * Hide the tag picker sheet.
      */
     fun hideTagPicker() {
-        _state.update { it.copy(showTagPicker = false) }
+        state.update { it.copy(showTagPicker = false) }
     }
 
     /**
@@ -168,7 +167,7 @@ class BookDetailViewModel(
      */
     fun addTag(tagId: String) {
         val bookId =
-            _state.value.book
+            state.value.book
                 ?.id
                 ?.value ?: return
         viewModelScope.launch {
@@ -186,7 +185,7 @@ class BookDetailViewModel(
      */
     fun removeTag(tagId: String) {
         val bookId =
-            _state.value.book
+            state.value.book
                 ?.id
                 ?.value ?: return
         viewModelScope.launch {
@@ -204,7 +203,7 @@ class BookDetailViewModel(
      */
     fun createAndAddTag(name: String) {
         val bookId =
-            _state.value.book
+            state.value.book
                 ?.id
                 ?.value ?: return
         viewModelScope.launch {

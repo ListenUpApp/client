@@ -605,9 +605,12 @@ val syncModule =
                 userPreferencesHandler = get(),
             ).also { observer ->
                 observer.start(
-                    scope = get(
-                        qualifier = org.koin.core.qualifier.named("appScope"),
-                    ),
+                    scope =
+                        get(
+                            qualifier =
+                                org.koin.core.qualifier
+                                    .named("appScope"),
+                        ),
                 )
             }
         }

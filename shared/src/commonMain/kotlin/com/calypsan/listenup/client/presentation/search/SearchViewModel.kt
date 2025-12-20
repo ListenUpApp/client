@@ -13,7 +13,6 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -125,11 +124,11 @@ sealed interface SearchNavAction {
 class SearchViewModel(
     private val searchRepository: SearchRepositoryContract,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(SearchUiState())
-    val state: StateFlow<SearchUiState> = _state.asStateFlow()
+    val state: StateFlow<SearchUiState>
+        field = MutableStateFlow(SearchUiState())
 
-    private val _navActions = MutableStateFlow<SearchNavAction?>(null)
-    val navActions: StateFlow<SearchNavAction?> = _navActions.asStateFlow()
+    val navActions: StateFlow<SearchNavAction?>
+        field = MutableStateFlow<SearchNavAction?>(null)
 
     private var searchJob: Job? = null
 
@@ -144,7 +143,7 @@ class SearchViewModel(
             .filter { it.length >= 2 || it.isEmpty() } // Min 2 chars
             .onEach { query ->
                 if (query.isBlank()) {
-                    _state.update { it.copy(results = null, isSearching = false, error = null) }
+                    state.update { it.copy(results = null, isSearching = false, error = null) }
                 } else {
                     performSearch(query)
                 }
@@ -157,16 +156,16 @@ class SearchViewModel(
     fun onEvent(event: SearchUiEvent) {
         when (event) {
             is SearchUiEvent.QueryChanged -> {
-                _state.update { it.copy(query = event.query, error = null) }
+                state.update { it.copy(query = event.query, error = null) }
                 queryFlow.value = event.query
             }
 
             is SearchUiEvent.ExpandSearch -> {
-                _state.update { it.copy(isExpanded = true) }
+                state.update { it.copy(isExpanded = true) }
             }
 
             is SearchUiEvent.CollapseSearch -> {
-                _state.update {
+                state.update {
                     it.copy(
                         isExpanded = false,
                         query = "",
@@ -178,12 +177,12 @@ class SearchViewModel(
             }
 
             is SearchUiEvent.ClearQuery -> {
-                _state.update { it.copy(query = "", results = null, error = null) }
+                state.update { it.copy(query = "", results = null, error = null) }
                 queryFlow.value = ""
             }
 
             is SearchUiEvent.ToggleTypeFilter -> {
-                _state.update { current ->
+                state.update { current ->
                     val newTypes =
                         if (event.type in current.selectedTypes) {
                             current.selectedTypes - event.type
@@ -193,8 +192,8 @@ class SearchViewModel(
                     current.copy(selectedTypes = newTypes)
                 }
                 // Re-search with new filters
-                if (_state.value.query.isNotBlank()) {
-                    performSearch(_state.value.query)
+                if (state.value.query.isNotBlank()) {
+                    performSearch(state.value.query)
                 }
             }
 
@@ -208,18 +207,18 @@ class SearchViewModel(
      * Clear navigation action after handling.
      */
     fun clearNavAction() {
-        _navActions.value = null
+        navActions.value = null
     }
 
     private fun performSearch(query: String) {
         searchJob?.cancel()
         searchJob =
             viewModelScope.launch {
-                _state.update { it.copy(isSearching = true, error = null) }
+                state.update { it.copy(isSearching = true, error = null) }
 
                 try {
                     val types =
-                        _state.value.selectedTypes
+                        state.value.selectedTypes
                             .takeIf { it.isNotEmpty() }
                             ?.toList()
                     val result =
@@ -229,7 +228,7 @@ class SearchViewModel(
                             limit = 30,
                         )
 
-                    _state.update {
+                    state.update {
                         it.copy(
                             results = result,
                             isSearching = false,
@@ -242,7 +241,7 @@ class SearchViewModel(
                     throw e
                 } catch (e: Exception) {
                     logger.error(e) { "Search failed for '$query'" }
-                    _state.update {
+                    state.update {
                         it.copy(
                             error = "Search unavailable. Please try again.",
                             isSearching = false,
@@ -259,9 +258,9 @@ class SearchViewModel(
                 SearchHitType.CONTRIBUTOR -> SearchNavAction.NavigateToContributor(hit.id)
                 SearchHitType.SERIES -> SearchNavAction.NavigateToSeries(hit.id)
             }
-        _navActions.value = action
+        navActions.value = action
 
         // Collapse search after navigation
-        _state.update { it.copy(isExpanded = false) }
+        state.update { it.copy(isExpanded = false) }
     }
 }

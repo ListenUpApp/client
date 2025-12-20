@@ -9,7 +9,6 @@ import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -28,8 +27,8 @@ private val logger = KotlinLogging.logger {}
 class HomeViewModel(
     private val homeRepository: HomeRepositoryContract,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(HomeUiState())
-    val state: StateFlow<HomeUiState> = _state.asStateFlow()
+    val state: StateFlow<HomeUiState>
+        field = MutableStateFlow(HomeUiState())
 
     init {
         observeUser()
@@ -47,7 +46,7 @@ class HomeViewModel(
             homeRepository.observeCurrentUser().collect { user ->
                 val firstName = extractFirstName(user?.displayName) ?: ""
 
-                _state.update { it.copy(userName = firstName) }
+                state.update { it.copy(userName = firstName) }
                 logger.debug { "User first name updated: $firstName" }
             }
         }
@@ -60,11 +59,11 @@ class HomeViewModel(
      */
     fun loadHomeData() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            state.update { it.copy(isLoading = true, error = null) }
 
             when (val result = homeRepository.getContinueListening(10)) {
                 is Success -> {
-                    _state.update {
+                    state.update {
                         it.copy(
                             isLoading = false,
                             continueListening = result.data,
@@ -76,7 +75,7 @@ class HomeViewModel(
 
                 else -> {
                     val errorMessage = "Failed to load continue listening"
-                    _state.update {
+                    state.update {
                         it.copy(
                             isLoading = false,
                             error = errorMessage,

@@ -90,19 +90,21 @@ class SeriesEditRepository(
             }
 
             // Apply optimistic update
-            val updated = existing.copy(
-                name = name ?: existing.name,
-                description = description ?: existing.description,
-                syncState = SyncState.NOT_SYNCED,
-                lastModified = Timestamp.now(),
-            )
+            val updated =
+                existing.copy(
+                    name = name ?: existing.name,
+                    description = description ?: existing.description,
+                    syncState = SyncState.NOT_SYNCED,
+                    lastModified = Timestamp.now(),
+                )
             seriesDao.upsert(updated)
 
             // Queue operation (coalesces if pending update exists for this series)
-            val payload = SeriesUpdatePayload(
-                name = name,
-                description = description,
-            )
+            val payload =
+                SeriesUpdatePayload(
+                    name = name,
+                    description = description,
+                )
             pendingOperationRepository.queue(
                 type = OperationType.SERIES_UPDATE,
                 entityType = EntityType.SERIES,
