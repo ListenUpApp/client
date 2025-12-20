@@ -9,7 +9,8 @@ import com.google.common.util.concurrent.MoreExecutors
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 private val logger = KotlinLogging.logger {}
 
@@ -28,6 +29,7 @@ private val logger = KotlinLogging.logger {}
  * - Connection is established on first acquire
  * - Connection is released when refCount hits 0
  */
+@OptIn(ExperimentalAtomicApi::class)
 class MediaControllerHolder(
     private val context: Context,
 ) {
@@ -37,7 +39,7 @@ class MediaControllerHolder(
     val isConnected: StateFlow<Boolean>
         field = MutableStateFlow(false)
 
-    private val refCount = AtomicInteger(0)
+    private val refCount = AtomicInt(0)
 
     /**
      * Get the current MediaController, or null if not connected.
@@ -52,7 +54,7 @@ class MediaControllerHolder(
      */
     @Synchronized
     fun acquire() {
-        val count = refCount.incrementAndGet()
+        val count = refCount.addAndFetch(1)
         logger.debug { "MediaControllerHolder.acquire: refCount=$count" }
 
         if (count == 1) {
@@ -66,11 +68,11 @@ class MediaControllerHolder(
      */
     @Synchronized
     fun release() {
-        val count = refCount.decrementAndGet()
+        val count = refCount.addAndFetch(-1)
         logger.debug { "MediaControllerHolder.release: refCount=$count" }
 
         if (count <= 0) {
-            refCount.set(0) // Prevent negative
+            refCount.store(0) // Prevent negative
             disconnect()
         }
     }

@@ -2,11 +2,17 @@ package com.calypsan.listenup.client.download
 
 import android.content.Context
 import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
 import java.io.File
 
 /**
  * Android implementation of DownloadFileManager.
  * Uses Context.filesDir for app-private storage.
+ *
+ * Uses kotlinx-io for most file operations, with java.io.File only for:
+ * - Recursive deletion (no kotlinx-io equivalent)
+ * - Storage calculation with walkTopDown (no kotlinx-io equivalent)
+ * - Available space query (platform-specific)
  */
 actual class DownloadFileManager(
     private val context: Context,
@@ -14,10 +20,9 @@ actual class DownloadFileManager(
     private val downloadDir: Path
         get() {
             val dir = Path(context.filesDir.absolutePath, "audiobooks")
-            // Ensure directory exists
-            val file = File(dir.toString())
-            if (!file.exists()) {
-                file.mkdirs()
+            // Ensure directory exists using kotlinx-io
+            if (!SystemFileSystem.exists(dir)) {
+                SystemFileSystem.createDirectories(dir)
             }
             return dir
         }
@@ -27,13 +32,12 @@ actual class DownloadFileManager(
         audioFileId: String,
         filename: String,
     ): Path {
-        val bookDir = Path(downloadDir, bookId)
-        // Ensure book directory exists
-        val file = File(bookDir.toString())
-        if (!file.exists()) {
-            file.mkdirs()
+        val bookDir = Path(downloadDir.toString(), bookId)
+        // Ensure book directory exists using kotlinx-io
+        if (!SystemFileSystem.exists(bookDir)) {
+            SystemFileSystem.createDirectories(bookDir)
         }
-        return Path(bookDir, "${audioFileId}_$filename")
+        return Path(bookDir.toString(), "${audioFileId}_$filename")
     }
 
     actual fun getTempPath(
@@ -42,10 +46,11 @@ actual class DownloadFileManager(
         filename: String,
     ): Path {
         val destFile = getDownloadPath(bookId, audioFileId, filename)
-        return Path(destFile.parent!!, "${destFile.name}.tmp")
+        return Path(destFile.parent!!.toString(), "${destFile.name}.tmp")
     }
 
     actual fun deleteBookFiles(bookId: String) {
+        // java.io.File needed for recursive deletion
         val bookDir = File(downloadDir.toString(), bookId)
         if (bookDir.exists()) {
             bookDir.deleteRecursively()
@@ -53,6 +58,7 @@ actual class DownloadFileManager(
     }
 
     actual fun deleteAllFiles() {
+        // java.io.File needed for recursive deletion
         val dir = File(downloadDir.toString())
         if (dir.exists()) {
             dir.deleteRecursively()
@@ -60,6 +66,7 @@ actual class DownloadFileManager(
     }
 
     actual fun calculateStorageUsed(): Long {
+        // java.io.File needed for walkTopDown
         val dir = File(downloadDir.toString())
         return if (dir.exists()) {
             dir
@@ -71,21 +78,23 @@ actual class DownloadFileManager(
         }
     }
 
-    actual fun fileExists(path: String): Boolean = File(path).exists()
+    actual fun fileExists(path: String): Boolean = SystemFileSystem.exists(Path(path))
 
     actual fun getFileSize(path: String): Long {
-        val file = File(path)
-        return if (file.exists()) file.length() else 0L
+        val filePath = Path(path)
+        return SystemFileSystem.metadataOrNull(filePath)?.size ?: 0L
     }
 
     actual fun moveFile(
         source: Path,
         destination: Path,
-    ): Boolean {
-        val sourceFile = File(source.toString())
-        val destFile = File(destination.toString())
-        return sourceFile.renameTo(destFile)
-    }
+    ): Boolean =
+        try {
+            SystemFileSystem.atomicMove(source, destination)
+            true
+        } catch (e: Exception) {
+            false
+        }
 
     actual fun getAvailableSpace(): Long = context.filesDir.usableSpace
 }

@@ -4,9 +4,11 @@ import android.content.Context
 import com.calypsan.listenup.client.core.AndroidSecureStorage
 import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.data.local.images.AndroidCoverColorExtractor
-import com.calypsan.listenup.client.data.local.images.AndroidImageStorage
+import com.calypsan.listenup.client.data.local.images.AndroidStoragePaths
+import com.calypsan.listenup.client.data.local.images.CommonImageStorage
 import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
 import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.data.local.images.StoragePaths
 import com.calypsan.listenup.client.data.repository.AndroidNetworkMonitor
 import com.calypsan.listenup.client.data.repository.NetworkMonitor
 import org.koin.core.module.Module
@@ -23,9 +25,13 @@ actual val platformStorageModule: Module =
             AndroidSecureStorage(context)
         }
 
-        single<ImageStorage> {
+        single<StoragePaths> {
             val context: Context = get()
-            AndroidImageStorage(context)
+            AndroidStoragePaths(context)
+        }
+
+        single<ImageStorage> {
+            CommonImageStorage(get())
         }
 
         single<NetworkMonitor> {

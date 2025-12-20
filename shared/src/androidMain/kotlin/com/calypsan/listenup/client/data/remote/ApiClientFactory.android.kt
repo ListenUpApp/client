@@ -16,7 +16,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
 
@@ -40,9 +40,9 @@ internal actual suspend fun createStreamingHttpClient(
         engine {
             config {
                 // 0 = infinite timeout in OkHttp
-                connectTimeout(0, TimeUnit.SECONDS)
-                readTimeout(0, TimeUnit.SECONDS)
-                writeTimeout(0, TimeUnit.SECONDS)
+                connectTimeout(0.seconds)
+                readTimeout(0.seconds)
+                writeTimeout(0.seconds)
             }
         }
 

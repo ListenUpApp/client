@@ -8,7 +8,8 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.calypsan.listenup.client.workers.SyncWorker
 import io.github.oshai.kotlinlogging.KotlinLogging
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.toJavaDuration
 
 private val logger = KotlinLogging.logger {}
 
@@ -27,7 +28,7 @@ class AndroidBackgroundSyncScheduler(
 ) : BackgroundSyncScheduler {
     companion object {
         private const val WORK_NAME = "periodic_sync"
-        private const val SYNC_INTERVAL_MINUTES = 15L
+        private val SYNC_INTERVAL = 15.minutes
     }
 
     /**
@@ -37,7 +38,7 @@ class AndroidBackgroundSyncScheduler(
      * Requires network connectivity but allows any network type.
      */
     override fun schedule() {
-        logger.info { "Scheduling periodic sync every $SYNC_INTERVAL_MINUTES minutes" }
+        logger.info { "Scheduling periodic sync every $SYNC_INTERVAL" }
 
         val constraints =
             Constraints
@@ -47,8 +48,7 @@ class AndroidBackgroundSyncScheduler(
 
         val syncRequest =
             PeriodicWorkRequestBuilder<SyncWorker>(
-                repeatInterval = SYNC_INTERVAL_MINUTES,
-                repeatIntervalTimeUnit = TimeUnit.MINUTES,
+                repeatInterval = SYNC_INTERVAL.toJavaDuration(),
             ).setConstraints(constraints)
                 .build()
 

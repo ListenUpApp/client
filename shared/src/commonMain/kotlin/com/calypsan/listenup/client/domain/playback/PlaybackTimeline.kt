@@ -217,47 +217,48 @@ data class PlaybackTimeline(
         ): PlaybackTimeline {
             var cumulativeOffset = 0L
             var firstNonLocalPrepared = false
-            val segments = mutableListOf<FileSegment>()
 
-            for ((index, file) in audioFiles.withIndex()) {
-                val localPath = resolveLocalPath(file.id)
+            val segments = buildList {
+                for ((index, file) in audioFiles.withIndex()) {
+                    val localPath = resolveLocalPath(file.id)
 
-                // For downloaded files, use local path directly
-                // For streaming, negotiate the correct URL
-                val streamingUrl =
-                    if (localPath != null) {
-                        // Not used when local, but keep for fallback
-                        "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}"
-                    } else if (!firstNonLocalPrepared) {
-                        // First non-local file: prepare with polling (blocks until ready)
-                        firstNonLocalPrepared = true
-                        val prepareResult = prepareStream(file.id, file.codec)
-                        // Use full URL from server or construct from relative path
-                        if (prepareResult.streamUrl.startsWith("/")) {
-                            "$baseUrl${prepareResult.streamUrl}"
+                    // For downloaded files, use local path directly
+                    // For streaming, negotiate the correct URL
+                    val streamingUrl =
+                        if (localPath != null) {
+                            // Not used when local, but keep for fallback
+                            "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}"
+                        } else if (!firstNonLocalPrepared) {
+                            // First non-local file: prepare with polling (blocks until ready)
+                            firstNonLocalPrepared = true
+                            val prepareResult = prepareStream(file.id, file.codec)
+                            // Use full URL from server or construct from relative path
+                            if (prepareResult.streamUrl.startsWith("/")) {
+                                "$baseUrl${prepareResult.streamUrl}"
+                            } else {
+                                prepareResult.streamUrl
+                            }
                         } else {
-                            prepareResult.streamUrl
+                            // Subsequent non-local files: use default URL, don't block
+                            // These will trigger their own transcode jobs when accessed
+                            "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}?variant=transcoded"
                         }
-                    } else {
-                        // Subsequent non-local files: use default URL, don't block
-                        // These will trigger their own transcode jobs when accessed
-                        "$baseUrl/api/v1/books/${bookId.value}/audio/${file.id}?variant=transcoded"
-                    }
 
-                val segment =
-                    FileSegment(
-                        audioFileId = file.id,
-                        filename = file.filename,
-                        format = file.format,
-                        startOffsetMs = cumulativeOffset,
-                        durationMs = file.duration,
-                        size = file.size,
-                        streamingUrl = streamingUrl,
-                        localPath = localPath,
-                        mediaItemIndex = index,
+                    add(
+                        FileSegment(
+                            audioFileId = file.id,
+                            filename = file.filename,
+                            format = file.format,
+                            startOffsetMs = cumulativeOffset,
+                            durationMs = file.duration,
+                            size = file.size,
+                            streamingUrl = streamingUrl,
+                            localPath = localPath,
+                            mediaItemIndex = index,
+                        ),
                     )
-                cumulativeOffset += file.duration
-                segments.add(segment)
+                    cumulativeOffset += file.duration
+                }
             }
 
             return PlaybackTimeline(

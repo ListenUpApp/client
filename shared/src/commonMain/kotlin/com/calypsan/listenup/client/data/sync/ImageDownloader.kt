@@ -97,34 +97,34 @@ class ImageDownloader(
 
         logger.debug { "Downloading ${needed.size} covers in batches of $BATCH_SIZE" }
 
-        val downloadResults = mutableListOf<CoverDownloadResult>()
-
-        // Download in batches
-        needed.chunked(BATCH_SIZE).forEach { batch ->
-            val bookIdStrings = batch.map { it.value }
-            when (val result = imageApi.downloadCoverBatch(bookIdStrings)) {
-                is Result.Success -> {
-                    result.data.forEach { (bookId, bytes) ->
-                        val bookIdObj = BookId(bookId)
-                        val saveResult = imageStorage.saveCover(bookIdObj, bytes)
-                        if (saveResult is Result.Success) {
-                            // Extract colors from the downloaded image
-                            val colors = colorExtractor.extractColors(bytes)
-                            downloadResults.add(CoverDownloadResult(bookIdObj, colors))
-                            if (colors != null) {
-                                logger.debug { "Extracted colors for book $bookId" }
-                            }
-                        } else if (saveResult is Result.Failure) {
-                            logger.warn(saveResult.exception) {
-                                "Failed to save cover for book $bookId"
+        val downloadResults = buildList {
+            // Download in batches
+            needed.chunked(BATCH_SIZE).forEach { batch ->
+                val bookIdStrings = batch.map { it.value }
+                when (val result = imageApi.downloadCoverBatch(bookIdStrings)) {
+                    is Result.Success -> {
+                        result.data.forEach { (bookId, bytes) ->
+                            val bookIdObj = BookId(bookId)
+                            val saveResult = imageStorage.saveCover(bookIdObj, bytes)
+                            if (saveResult is Result.Success) {
+                                // Extract colors from the downloaded image
+                                val colors = colorExtractor.extractColors(bytes)
+                                add(CoverDownloadResult(bookIdObj, colors))
+                                if (colors != null) {
+                                    logger.debug { "Extracted colors for book $bookId" }
+                                }
+                            } else if (saveResult is Result.Failure) {
+                                logger.warn(saveResult.exception) {
+                                    "Failed to save cover for book $bookId"
+                                }
                             }
                         }
+                        logger.debug { "Downloaded batch of ${result.data.size} covers" }
                     }
-                    logger.debug { "Downloaded batch of ${result.data.size} covers" }
-                }
 
-                is Result.Failure -> {
-                    logger.warn { "Batch download failed: ${result.exception.message}" }
+                    is Result.Failure -> {
+                        logger.warn { "Batch download failed: ${result.exception.message}" }
+                    }
                 }
             }
         }
@@ -199,27 +199,27 @@ class ImageDownloader(
 
         logger.debug { "Downloading ${needed.size} contributor images in batches of $BATCH_SIZE" }
 
-        val successfulDownloads = mutableListOf<String>()
-
-        // Download in batches
-        needed.chunked(BATCH_SIZE).forEach { batch ->
-            when (val result = imageApi.downloadContributorImageBatch(batch)) {
-                is Result.Success -> {
-                    result.data.forEach { (contributorId, bytes) ->
-                        val saveResult = imageStorage.saveContributorImage(contributorId, bytes)
-                        if (saveResult is Result.Success) {
-                            successfulDownloads.add(contributorId)
-                        } else if (saveResult is Result.Failure) {
-                            logger.warn(saveResult.exception) {
-                                "Failed to save image for contributor $contributorId"
+        val successfulDownloads = buildList {
+            // Download in batches
+            needed.chunked(BATCH_SIZE).forEach { batch ->
+                when (val result = imageApi.downloadContributorImageBatch(batch)) {
+                    is Result.Success -> {
+                        result.data.forEach { (contributorId, bytes) ->
+                            val saveResult = imageStorage.saveContributorImage(contributorId, bytes)
+                            if (saveResult is Result.Success) {
+                                add(contributorId)
+                            } else if (saveResult is Result.Failure) {
+                                logger.warn(saveResult.exception) {
+                                    "Failed to save image for contributor $contributorId"
+                                }
                             }
                         }
+                        logger.debug { "Downloaded batch of ${result.data.size} contributor images" }
                     }
-                    logger.debug { "Downloaded batch of ${result.data.size} contributor images" }
-                }
 
-                is Result.Failure -> {
-                    logger.warn { "Batch download failed: ${result.exception.message}" }
+                    is Result.Failure -> {
+                        logger.warn { "Batch download failed: ${result.exception.message}" }
+                    }
                 }
             }
         }
@@ -294,20 +294,20 @@ class ImageDownloader(
      * @return Result containing list of series IDs that were successfully downloaded
      */
     override suspend fun downloadSeriesCovers(seriesIds: List<String>): Result<List<String>> {
-        val successfulDownloads = mutableListOf<String>()
-
-        seriesIds.forEach { seriesId ->
-            when (val result = downloadSeriesCover(seriesId)) {
-                is Result.Success -> {
-                    if (result.data) {
-                        successfulDownloads.add(seriesId)
+        val successfulDownloads = buildList {
+            seriesIds.forEach { seriesId ->
+                when (val result = downloadSeriesCover(seriesId)) {
+                    is Result.Success -> {
+                        if (result.data) {
+                            add(seriesId)
+                        }
                     }
-                }
 
-                is Result.Failure -> {
-                    // Log and continue - non-fatal
-                    logger.warn(result.exception) {
-                        "Failed to download cover for series $seriesId"
+                    is Result.Failure -> {
+                        // Log and continue - non-fatal
+                        logger.warn(result.exception) {
+                            "Failed to download cover for series $seriesId"
+                        }
                     }
                 }
             }

@@ -157,37 +157,36 @@ class SearchRepository(
                 measureTimedValue {
                     val ftsQuery = toFtsQuery(query)
                     val searchTypes = types ?: SearchHitType.entries
-                    val hits = mutableListOf<SearchHit>()
 
-                    // Search each type
-                    if (SearchHitType.BOOK in searchTypes) {
-                        try {
-                            val books = searchDao.searchBooks(ftsQuery, limit)
-                            hits.addAll(books.map { it.toSearchHit(imageStorage) })
-                        } catch (e: Exception) {
-                            logger.warn(e) { "Book FTS search failed" }
+                    buildList {
+                        // Search each type
+                        if (SearchHitType.BOOK in searchTypes) {
+                            try {
+                                val books = searchDao.searchBooks(ftsQuery, limit)
+                                addAll(books.map { it.toSearchHit(imageStorage) })
+                            } catch (e: Exception) {
+                                logger.warn(e) { "Book FTS search failed" }
+                            }
+                        }
+
+                        if (SearchHitType.CONTRIBUTOR in searchTypes) {
+                            try {
+                                val contributors = searchDao.searchContributors(ftsQuery, limit / 2)
+                                addAll(contributors.map { it.toSearchHit() })
+                            } catch (e: Exception) {
+                                logger.warn(e) { "Contributor FTS search failed" }
+                            }
+                        }
+
+                        if (SearchHitType.SERIES in searchTypes) {
+                            try {
+                                val series = searchDao.searchSeries(ftsQuery, limit / 2)
+                                addAll(series.map { it.toSearchHit() })
+                            } catch (e: Exception) {
+                                logger.warn(e) { "Series FTS search failed" }
+                            }
                         }
                     }
-
-                    if (SearchHitType.CONTRIBUTOR in searchTypes) {
-                        try {
-                            val contributors = searchDao.searchContributors(ftsQuery, limit / 2)
-                            hits.addAll(contributors.map { it.toSearchHit() })
-                        } catch (e: Exception) {
-                            logger.warn(e) { "Contributor FTS search failed" }
-                        }
-                    }
-
-                    if (SearchHitType.SERIES in searchTypes) {
-                        try {
-                            val series = searchDao.searchSeries(ftsQuery, limit / 2)
-                            hits.addAll(series.map { it.toSearchHit() })
-                        } catch (e: Exception) {
-                            logger.warn(e) { "Series FTS search failed" }
-                        }
-                    }
-
-                    hits
                 }
 
             SearchResult(

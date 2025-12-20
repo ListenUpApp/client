@@ -1,45 +1,37 @@
 package com.calypsan.listenup.client.data.local.images
 
-import android.content.Context
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.IOException
+import kotlinx.io.IOException
+import kotlinx.io.buffered
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
+import kotlinx.io.readByteArray
+import kotlinx.io.write
 
 /**
- * Android implementation of [ImageStorage] using app-private file storage.
- * Stores cover images in {filesDir}/covers/{bookId}.jpg
- * Stores contributor images in {filesDir}/contributors/{contributorId}.jpg
- * Stores series cover images in {filesDir}/covers/series/{seriesId}.jpg
+ * Shared implementation of [ImageStorage] using kotlinx-io.
+ *
+ * This implementation works across all platforms (Android, iOS, Desktop).
+ * Platform-specific code only needs to provide [StoragePaths] with the base directory.
+ *
+ * Storage structure:
+ * - {filesDir}/covers/{bookId}.jpg - Book cover images
+ * - {filesDir}/covers/{bookId}_staging.jpg - Staging covers for edit preview
+ * - {filesDir}/contributors/{contributorId}.jpg - Contributor profile images
+ * - {filesDir}/covers/series/{seriesId}.jpg - Series cover images
+ * - {filesDir}/covers/series/{seriesId}_staging.jpg - Staging series covers
  */
-class AndroidImageStorage(
-    private val context: Context,
+class CommonImageStorage(
+    storagePaths: StoragePaths,
 ) : ImageStorage {
-    private val coversDir: File by lazy {
-        File(context.filesDir, COVERS_DIR_NAME).apply {
-            if (!exists()) {
-                mkdirs()
-            }
-        }
-    }
-
-    private val contributorsDir: File by lazy {
-        File(context.filesDir, CONTRIBUTORS_DIR_NAME).apply {
-            if (!exists()) {
-                mkdirs()
-            }
-        }
-    }
-
-    private val seriesCoversDir: File by lazy {
-        File(context.filesDir, SERIES_COVERS_DIR_NAME).apply {
-            if (!exists()) {
-                mkdirs()
-            }
-        }
-    }
+    private val filesDir: Path = storagePaths.filesDir
+    private val coversDir: Path = Path(filesDir.toString(), COVERS_DIR_NAME)
+    private val contributorsDir: Path = Path(filesDir.toString(), CONTRIBUTORS_DIR_NAME)
+    private val seriesCoversDir: Path = Path(filesDir.toString(), SERIES_COVERS_DIR_NAME)
 
     // ========== Book Cover Methods ==========
 
@@ -50,24 +42,22 @@ class AndroidImageStorage(
         withContext(Dispatchers.IO) {
             try {
                 val file = getCoverFile(bookId)
-                file.writeBytes(imageData)
+                writeBytes(file, imageData)
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(IOException("Failed to save cover for book ${bookId.value}", e))
             }
         }
 
-    override fun getCoverPath(bookId: BookId): String = getCoverFile(bookId).absolutePath
+    override fun getCoverPath(bookId: BookId): String = getCoverFile(bookId).toString()
 
-    override fun exists(bookId: BookId): Boolean = getCoverFile(bookId).exists()
+    override fun exists(bookId: BookId): Boolean = SystemFileSystem.exists(getCoverFile(bookId))
 
     override suspend fun deleteCover(bookId: BookId): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 val file = getCoverFile(bookId)
-                if (file.exists()) {
-                    file.delete()
-                }
+                deleteIfExists(file)
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(IOException("Failed to delete cover for book ${bookId.value}", e))
@@ -83,14 +73,14 @@ class AndroidImageStorage(
         withContext(Dispatchers.IO) {
             try {
                 val file = getCoverStagingFile(bookId)
-                file.writeBytes(imageData)
+                writeBytes(file, imageData)
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(IOException("Failed to save staging cover for book ${bookId.value}", e))
             }
         }
 
-    override fun getCoverStagingPath(bookId: BookId): String = getCoverStagingFile(bookId).absolutePath
+    override fun getCoverStagingPath(bookId: BookId): String = getCoverStagingFile(bookId).toString()
 
     override suspend fun commitCoverStaging(bookId: BookId): Result<Unit> =
         withContext(Dispatchers.IO) {
@@ -98,15 +88,16 @@ class AndroidImageStorage(
                 val stagingFile = getCoverStagingFile(bookId)
                 val targetFile = getCoverFile(bookId)
 
-                if (!stagingFile.exists()) {
+                if (!SystemFileSystem.exists(stagingFile)) {
                     return@withContext Result.Failure(
                         IOException("No staging cover to commit for book ${bookId.value}"),
                     )
                 }
 
-                // Copy staging to target, then delete staging
-                stagingFile.copyTo(targetFile, overwrite = true)
-                stagingFile.delete()
+                // Read staging, write to target, delete staging
+                val data = readBytes(stagingFile)
+                writeBytes(targetFile, data)
+                SystemFileSystem.delete(stagingFile)
 
                 Result.Success(Unit)
             } catch (e: Exception) {
@@ -117,10 +108,7 @@ class AndroidImageStorage(
     override suspend fun deleteCoverStaging(bookId: BookId): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val file = getCoverStagingFile(bookId)
-                if (file.exists()) {
-                    file.delete()
-                }
+                deleteIfExists(getCoverStagingFile(bookId))
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(IOException("Failed to delete staging cover for book ${bookId.value}", e))
@@ -131,24 +119,14 @@ class AndroidImageStorage(
         withContext(Dispatchers.IO) {
             try {
                 var deletedCount = 0
+
                 // Clear covers
-                coversDir.listFiles()?.forEach { file ->
-                    if (file.isFile && file.extension == FILE_EXTENSION && file.delete()) {
-                        deletedCount++
-                    }
-                }
+                deletedCount += clearDirectory(coversDir)
                 // Clear contributor images
-                contributorsDir.listFiles()?.forEach { file ->
-                    if (file.isFile && file.extension == FILE_EXTENSION && file.delete()) {
-                        deletedCount++
-                    }
-                }
+                deletedCount += clearDirectory(contributorsDir)
                 // Clear series covers
-                seriesCoversDir.listFiles()?.forEach { file ->
-                    if (file.isFile && file.extension == FILE_EXTENSION && file.delete()) {
-                        deletedCount++
-                    }
-                }
+                deletedCount += clearDirectory(seriesCoversDir)
+
                 Result.Success(deletedCount)
             } catch (e: Exception) {
                 Result.Failure(IOException("Failed to clear image cache", e))
@@ -164,24 +142,22 @@ class AndroidImageStorage(
         withContext(Dispatchers.IO) {
             try {
                 val file = getContributorFile(contributorId)
-                file.writeBytes(imageData)
+                writeBytes(file, imageData)
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(IOException("Failed to save image for contributor $contributorId", e))
             }
         }
 
-    override fun getContributorImagePath(contributorId: String): String = getContributorFile(contributorId).absolutePath
+    override fun getContributorImagePath(contributorId: String): String = getContributorFile(contributorId).toString()
 
-    override fun contributorImageExists(contributorId: String): Boolean = getContributorFile(contributorId).exists()
+    override fun contributorImageExists(contributorId: String): Boolean =
+        SystemFileSystem.exists(getContributorFile(contributorId))
 
     override suspend fun deleteContributorImage(contributorId: String): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val file = getContributorFile(contributorId)
-                if (file.exists()) {
-                    file.delete()
-                }
+                deleteIfExists(getContributorFile(contributorId))
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(IOException("Failed to delete image for contributor $contributorId", e))
@@ -197,24 +173,21 @@ class AndroidImageStorage(
         withContext(Dispatchers.IO) {
             try {
                 val file = getSeriesCoverFile(seriesId)
-                file.writeBytes(imageData)
+                writeBytes(file, imageData)
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(IOException("Failed to save cover for series $seriesId", e))
             }
         }
 
-    override fun getSeriesCoverPath(seriesId: String): String = getSeriesCoverFile(seriesId).absolutePath
+    override fun getSeriesCoverPath(seriesId: String): String = getSeriesCoverFile(seriesId).toString()
 
-    override fun seriesCoverExists(seriesId: String): Boolean = getSeriesCoverFile(seriesId).exists()
+    override fun seriesCoverExists(seriesId: String): Boolean = SystemFileSystem.exists(getSeriesCoverFile(seriesId))
 
     override suspend fun deleteSeriesCover(seriesId: String): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val file = getSeriesCoverFile(seriesId)
-                if (file.exists()) {
-                    file.delete()
-                }
+                deleteIfExists(getSeriesCoverFile(seriesId))
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(IOException("Failed to delete cover for series $seriesId", e))
@@ -230,14 +203,14 @@ class AndroidImageStorage(
         withContext(Dispatchers.IO) {
             try {
                 val file = getSeriesCoverStagingFile(seriesId)
-                file.writeBytes(imageData)
+                writeBytes(file, imageData)
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(IOException("Failed to save staging cover for series $seriesId", e))
             }
         }
 
-    override fun getSeriesCoverStagingPath(seriesId: String): String = getSeriesCoverStagingFile(seriesId).absolutePath
+    override fun getSeriesCoverStagingPath(seriesId: String): String = getSeriesCoverStagingFile(seriesId).toString()
 
     override suspend fun commitSeriesCoverStaging(seriesId: String): Result<Unit> =
         withContext(Dispatchers.IO) {
@@ -245,15 +218,16 @@ class AndroidImageStorage(
                 val stagingFile = getSeriesCoverStagingFile(seriesId)
                 val targetFile = getSeriesCoverFile(seriesId)
 
-                if (!stagingFile.exists()) {
+                if (!SystemFileSystem.exists(stagingFile)) {
                     return@withContext Result.Failure(
                         IOException("No staging cover to commit for series $seriesId"),
                     )
                 }
 
-                // Copy staging to target, then delete staging
-                stagingFile.copyTo(targetFile, overwrite = true)
-                stagingFile.delete()
+                // Read staging, write to target, delete staging
+                val data = readBytes(stagingFile)
+                writeBytes(targetFile, data)
+                SystemFileSystem.delete(stagingFile)
 
                 Result.Success(Unit)
             } catch (e: Exception) {
@@ -264,10 +238,7 @@ class AndroidImageStorage(
     override suspend fun deleteSeriesCoverStaging(seriesId: String): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val file = getSeriesCoverStagingFile(seriesId)
-                if (file.exists()) {
-                    file.delete()
-                }
+                deleteIfExists(getSeriesCoverStagingFile(seriesId))
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(IOException("Failed to delete staging cover for series $seriesId", e))
@@ -276,17 +247,69 @@ class AndroidImageStorage(
 
     // ========== Private Helpers ==========
 
-    private fun getCoverFile(bookId: BookId): File = File(coversDir, "${bookId.value}.$FILE_EXTENSION")
+    private fun getCoverFile(bookId: BookId): Path = Path(coversDir.toString(), "${bookId.value}.$FILE_EXTENSION")
 
-    private fun getCoverStagingFile(bookId: BookId): File = File(coversDir, "${bookId.value}_staging.$FILE_EXTENSION")
+    private fun getCoverStagingFile(bookId: BookId): Path =
+        Path(coversDir.toString(), "${bookId.value}_staging.$FILE_EXTENSION")
 
-    private fun getContributorFile(contributorId: String): File =
-        File(contributorsDir, "$contributorId.$FILE_EXTENSION")
+    private fun getContributorFile(contributorId: String): Path =
+        Path(contributorsDir.toString(), "$contributorId.$FILE_EXTENSION")
 
-    private fun getSeriesCoverFile(seriesId: String): File = File(seriesCoversDir, "$seriesId.$FILE_EXTENSION")
+    private fun getSeriesCoverFile(seriesId: String): Path =
+        Path(seriesCoversDir.toString(), "$seriesId.$FILE_EXTENSION")
 
-    private fun getSeriesCoverStagingFile(seriesId: String): File =
-        File(seriesCoversDir, "${seriesId}_staging.$FILE_EXTENSION")
+    private fun getSeriesCoverStagingFile(seriesId: String): Path =
+        Path(seriesCoversDir.toString(), "${seriesId}_staging.$FILE_EXTENSION")
+
+    /**
+     * Write bytes to a file, creating parent directories if needed.
+     */
+    private fun writeBytes(
+        path: Path,
+        data: ByteArray,
+    ) {
+        // Ensure parent directory exists
+        val parent = path.parent
+        if (parent != null && !SystemFileSystem.exists(parent)) {
+            SystemFileSystem.createDirectories(parent)
+        }
+        SystemFileSystem.sink(path).buffered().use { sink ->
+            sink.write(data)
+        }
+    }
+
+    /**
+     * Read all bytes from a file.
+     */
+    private fun readBytes(path: Path): ByteArray =
+        SystemFileSystem.source(path).buffered().use { source ->
+            source.readByteArray()
+        }
+
+    /**
+     * Delete a file if it exists.
+     */
+    private fun deleteIfExists(path: Path) {
+        if (SystemFileSystem.exists(path)) {
+            SystemFileSystem.delete(path)
+        }
+    }
+
+    /**
+     * Delete all .jpg files in a directory.
+     */
+    private fun clearDirectory(dir: Path): Int {
+        if (!SystemFileSystem.exists(dir)) return 0
+
+        var count = 0
+        SystemFileSystem.list(dir).forEach { path ->
+            if (path.name.endsWith(".$FILE_EXTENSION")) {
+                SystemFileSystem.delete(path)
+                count++
+            }
+        }
+        return count
+    }
 
     companion object {
         private const val COVERS_DIR_NAME = "covers"

@@ -37,51 +37,52 @@ class ContributorPuller(
         val limit = 100
         var pageCount = 0
         var totalDeleted = 0
-        val contributorsWithImages = mutableListOf<String>()
 
-        while (hasMore) {
-            onProgress(
-                SyncStatus.Progress(
-                    phase = SyncPhase.SYNCING_CONTRIBUTORS,
-                    current = pageCount,
-                    total = -1,
-                    message = "Syncing contributors (page ${pageCount + 1})...",
-                ),
-            )
+        val contributorsWithImages = buildList {
+            while (hasMore) {
+                onProgress(
+                    SyncStatus.Progress(
+                        phase = SyncPhase.SYNCING_CONTRIBUTORS,
+                        current = pageCount,
+                        total = -1,
+                        message = "Syncing contributors (page ${pageCount + 1})...",
+                    ),
+                )
 
-            when (val result = syncApi.getContributors(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
-                is Result.Success -> {
-                    val response = result.data
-                    cursor = response.nextCursor
-                    hasMore = response.hasMore
-                    pageCount++
+                when (val result = syncApi.getContributors(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
+                    is Result.Success -> {
+                        val response = result.data
+                        cursor = response.nextCursor
+                        hasMore = response.hasMore
+                        pageCount++
 
-                    val serverContributors = response.contributors.map { it.toEntity() }
-                    val deletedContributorIds = response.deletedContributorIds
+                        val serverContributors = response.contributors.map { it.toEntity() }
+                        val deletedContributorIds = response.deletedContributorIds
 
-                    // Track contributors with images for later download
-                    response.contributors
-                        .filter { !it.imageUrl.isNullOrBlank() }
-                        .forEach { contributorsWithImages.add(it.id) }
+                        // Track contributors with images for later download
+                        response.contributors
+                            .filter { !it.imageUrl.isNullOrBlank() }
+                            .forEach { add(it.id) }
 
-                    logger.debug {
-                        "Fetched page $pageCount: ${serverContributors.size} contributors, ${deletedContributorIds.size} deletions"
+                        logger.debug {
+                            "Fetched page $pageCount: ${serverContributors.size} contributors, ${deletedContributorIds.size} deletions"
+                        }
+
+                        // Handle deletions
+                        if (deletedContributorIds.isNotEmpty()) {
+                            contributorDao.deleteByIds(deletedContributorIds)
+                            totalDeleted += deletedContributorIds.size
+                            logger.info { "Removed ${deletedContributorIds.size} contributors deleted on server" }
+                        }
+
+                        if (serverContributors.isNotEmpty()) {
+                            contributorDao.upsertAll(serverContributors)
+                        }
                     }
 
-                    // Handle deletions
-                    if (deletedContributorIds.isNotEmpty()) {
-                        contributorDao.deleteByIds(deletedContributorIds)
-                        totalDeleted += deletedContributorIds.size
-                        logger.info { "Removed ${deletedContributorIds.size} contributors deleted on server" }
+                    is Result.Failure -> {
+                        throw result.exception
                     }
-
-                    if (serverContributors.isNotEmpty()) {
-                        contributorDao.upsertAll(serverContributors)
-                    }
-                }
-
-                is Result.Failure -> {
-                    throw result.exception
                 }
             }
         }

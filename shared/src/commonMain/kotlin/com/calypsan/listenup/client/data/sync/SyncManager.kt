@@ -83,7 +83,6 @@ class SyncManager(
         }
     }
 
-
     /**
      * Perform full synchronization with server.
      */

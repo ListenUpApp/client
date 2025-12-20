@@ -37,51 +37,52 @@ class SeriesPuller(
         val limit = 100
         var pageCount = 0
         var totalDeleted = 0
-        val seriesWithCovers = mutableListOf<String>()
 
-        while (hasMore) {
-            onProgress(
-                SyncStatus.Progress(
-                    phase = SyncPhase.SYNCING_SERIES,
-                    current = pageCount,
-                    total = -1,
-                    message = "Syncing series (page ${pageCount + 1})...",
-                ),
-            )
+        val seriesWithCovers = buildList {
+            while (hasMore) {
+                onProgress(
+                    SyncStatus.Progress(
+                        phase = SyncPhase.SYNCING_SERIES,
+                        current = pageCount,
+                        total = -1,
+                        message = "Syncing series (page ${pageCount + 1})...",
+                    ),
+                )
 
-            when (val result = syncApi.getSeries(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
-                is Result.Success -> {
-                    val response = result.data
-                    cursor = response.nextCursor
-                    hasMore = response.hasMore
-                    pageCount++
+                when (val result = syncApi.getSeries(limit = limit, cursor = cursor, updatedAfter = updatedAfter)) {
+                    is Result.Success -> {
+                        val response = result.data
+                        cursor = response.nextCursor
+                        hasMore = response.hasMore
+                        pageCount++
 
-                    val serverSeries = response.series.map { it.toEntity() }
-                    val deletedSeriesIds = response.deletedSeriesIds
+                        val serverSeries = response.series.map { it.toEntity() }
+                        val deletedSeriesIds = response.deletedSeriesIds
 
-                    // Track series with cover images for later download
-                    response.series
-                        .filter { it.coverImage != null }
-                        .forEach { seriesWithCovers.add(it.id) }
+                        // Track series with cover images for later download
+                        response.series
+                            .filter { it.coverImage != null }
+                            .forEach { add(it.id) }
 
-                    logger.debug {
-                        "Fetched page $pageCount: ${serverSeries.size} series, ${deletedSeriesIds.size} deletions"
+                        logger.debug {
+                            "Fetched page $pageCount: ${serverSeries.size} series, ${deletedSeriesIds.size} deletions"
+                        }
+
+                        // Handle deletions
+                        if (deletedSeriesIds.isNotEmpty()) {
+                            seriesDao.deleteByIds(deletedSeriesIds)
+                            totalDeleted += deletedSeriesIds.size
+                            logger.info { "Removed ${deletedSeriesIds.size} series deleted on server" }
+                        }
+
+                        if (serverSeries.isNotEmpty()) {
+                            seriesDao.upsertAll(serverSeries)
+                        }
                     }
 
-                    // Handle deletions
-                    if (deletedSeriesIds.isNotEmpty()) {
-                        seriesDao.deleteByIds(deletedSeriesIds)
-                        totalDeleted += deletedSeriesIds.size
-                        logger.info { "Removed ${deletedSeriesIds.size} series deleted on server" }
+                    is Result.Failure -> {
+                        throw result.exception
                     }
-
-                    if (serverSeries.isNotEmpty()) {
-                        seriesDao.upsertAll(serverSeries)
-                    }
-                }
-
-                is Result.Failure -> {
-                    throw result.exception
                 }
             }
         }

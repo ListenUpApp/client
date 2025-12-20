@@ -89,41 +89,40 @@ private fun groupBooksWithHeaders(
         return books.map { BookGridItem.BookItem(it) }
     }
 
-    val result = mutableListOf<BookGridItem>()
     var currentLetter: Char? = null
 
-    for (book in books) {
-        val letter =
-            when (sortState.category) {
-                // Title sort uses article-aware letter extraction
-                SortCategory.TITLE -> {
-                    book.title.sortLetter(ignoreArticles)
+    return buildList {
+        for (book in books) {
+            val letter =
+                when (sortState.category) {
+                    // Title sort uses article-aware letter extraction
+                    SortCategory.TITLE -> {
+                        book.title.sortLetter(ignoreArticles)
+                    }
+
+                    // Other text sorts use literal first letter
+                    SortCategory.AUTHOR -> {
+                        val first = book.authorNames.firstOrNull()?.uppercaseChar() ?: '#'
+                        if (first.isLetter()) first else '#'
+                    }
+
+                    SortCategory.SERIES -> {
+                        val first = book.seriesName?.firstOrNull()?.uppercaseChar() ?: '#'
+                        if (first.isLetter()) first else '#'
+                    }
+
+                    else -> {
+                        '#'
+                    }
                 }
 
-                // Other text sorts use literal first letter
-                SortCategory.AUTHOR -> {
-                    val first = book.authorNames.firstOrNull()?.uppercaseChar() ?: '#'
-                    if (first.isLetter()) first else '#'
-                }
-
-                SortCategory.SERIES -> {
-                    val first = book.seriesName?.firstOrNull()?.uppercaseChar() ?: '#'
-                    if (first.isLetter()) first else '#'
-                }
-
-                else -> {
-                    '#'
-                }
+            if (letter != currentLetter) {
+                add(BookGridItem.Header(letter))
+                currentLetter = letter
             }
-
-        if (letter != currentLetter) {
-            result.add(BookGridItem.Header(letter))
-            currentLetter = letter
+            add(BookGridItem.BookItem(book))
         }
-        result.add(BookGridItem.BookItem(book))
     }
-
-    return result
 }
 
 /**
