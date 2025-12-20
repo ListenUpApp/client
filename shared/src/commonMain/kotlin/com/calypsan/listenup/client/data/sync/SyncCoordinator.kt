@@ -2,6 +2,9 @@ package com.calypsan.listenup.client.data.sync
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.client.plugins.ClientRequestException
+import io.ktor.client.plugins.ResponseException
+import io.ktor.client.plugins.ServerResponseException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.io.IOException
@@ -53,11 +56,78 @@ class SyncCoordinator {
                 throw e // Don't retry on cancellation
             } catch (e: Exception) {
                 lastException = e
-                logger.warn(e) { "Attempt ${attempt + 1} failed" }
+
+                // Don't retry non-retryable errors (4xx client errors, etc.)
+                if (!isRetryable(e)) {
+                    logger.warn(e) { "Non-retryable error, failing immediately" }
+                    throw e
+                }
+
+                logger.warn(e) { "Attempt ${attempt + 1} failed (retryable)" }
             }
         }
 
         throw lastException ?: error("Retry failed with unknown error")
+    }
+
+    /**
+     * Determine if an exception is worth retrying.
+     *
+     * Retryable errors:
+     * - Network errors (timeout, connection refused, IO errors)
+     * - Server errors (5xx)
+     *
+     * Non-retryable errors:
+     * - Client errors (4xx) - bad request, unauthorized, forbidden, not found
+     * - These indicate a problem with the request itself, not transient issues
+     */
+    fun isRetryable(e: Exception): Boolean {
+        var current: Throwable? = e
+        while (current != null) {
+            val throwable = current // Capture to immutable for smart cast
+            when (throwable) {
+                // Client errors (4xx) are not retryable - the request is wrong
+                is ClientRequestException -> {
+                    val status = throwable.response.status
+                    logger.debug { "Client error ${status.value}: not retrying" }
+                    return false
+                }
+
+                // Server errors (5xx) are retryable - server might recover
+                is ServerResponseException -> {
+                    logger.debug { "Server error ${throwable.response.status.value}: will retry" }
+                    return true
+                }
+
+                // Generic response exception - check status code
+                is ResponseException -> {
+                    val status = throwable.response.status
+                    return when {
+                        status.value in 400..499 -> {
+                            logger.debug { "Client error ${status.value}: not retrying" }
+                            false
+                        }
+
+                        status.value in 500..599 -> {
+                            logger.debug { "Server error ${status.value}: will retry" }
+                            true
+                        }
+
+                        else -> {
+                            true
+                        } // Unexpected status, try again
+                    }
+                }
+
+                // Network errors are retryable
+                is ConnectTimeoutException, is IOException -> {
+                    return true
+                }
+            }
+            current = current.cause
+        }
+        // Unknown errors - default to retryable (conservative)
+        return true
     }
 
     /**

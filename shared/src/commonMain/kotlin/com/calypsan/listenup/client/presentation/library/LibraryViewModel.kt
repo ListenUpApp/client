@@ -165,24 +165,23 @@ class LibraryViewModel(
             playbackPositionDao.observeAll(),
             books,
         ) { positions, booksList ->
-            // Create a map of book durations for progress calculation
+            // Create a map of book durations for O(1) lookup
             val bookDurations = booksList.associate { it.id.value to it.duration }
 
-            // Convert positions to progress percentages
-            positions
-                .mapNotNull { position ->
+            // Build progress map with capacity hint to avoid resizing
+            buildMap(positions.size) {
+                for (position in positions) {
                     val bookId = position.bookId.value
-                    val duration = bookDurations[bookId] ?: return@mapNotNull null
-                    if (duration <= 0) return@mapNotNull null
+                    val duration = bookDurations[bookId] ?: continue
+                    if (duration <= 0) continue
 
                     val progress = (position.positionMs.toFloat() / duration).coerceIn(0f, 1f)
                     // Only include books with meaningful progress (> 0% and < 99%)
-                    if (progress > 0f && progress < 0.99f) {
-                        bookId to progress
-                    } else {
-                        null
+                    if (progress > 0f && progress < PROGRESS_COMPLETE_THRESHOLD) {
+                        put(bookId, progress)
                     }
-                }.toMap()
+                }
+            }
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -507,6 +506,11 @@ class LibraryViewModel(
                 contributors.sortedBy { it.contributor.name.lowercase() }
             }
         }
+    }
+
+    companion object {
+        /** Progress threshold above which a book is considered complete (99%). */
+        private const val PROGRESS_COMPLETE_THRESHOLD = 0.99f
     }
 }
 

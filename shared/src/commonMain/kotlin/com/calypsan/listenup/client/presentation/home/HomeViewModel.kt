@@ -26,14 +26,28 @@ private val logger = KotlinLogging.logger {}
  */
 class HomeViewModel(
     private val homeRepository: HomeRepositoryContract,
+    private val currentHour: () -> Int = { currentHourOfDay() },
 ) : ViewModel() {
     val state: StateFlow<HomeUiState>
-        field = MutableStateFlow(HomeUiState())
+        field = MutableStateFlow(HomeUiState(timeGreeting = computeTimeGreeting()))
 
     init {
         observeUser()
         loadHomeData()
     }
+
+    /**
+     * Compute time-based greeting from current hour.
+     *
+     * Separated from state to enable testing with mocked time.
+     */
+    private fun computeTimeGreeting(): String =
+        when (currentHour()) {
+            in 5..11 -> "Good morning"
+            in 12..16 -> "Good afternoon"
+            in 17..20 -> "Good evening"
+            else -> "Good night"
+        }
 
     /**
      * Observe current user for greeting.
@@ -114,35 +128,26 @@ class HomeViewModel(
 data class HomeUiState(
     val isLoading: Boolean = true,
     val userName: String = "",
+    val timeGreeting: String = "Good morning",
     val continueListening: List<ContinueListeningBook> = emptyList(),
     val error: String? = null,
 ) {
     /**
-     * Time-aware greeting based on current hour.
+     * Full greeting combining time-based greeting with user name.
      *
+     * Time greeting is computed by ViewModel (enables testing with mocked time).
      * - 5-11: "Good morning"
      * - 12-16: "Good afternoon"
      * - 17-20: "Good evening"
      * - 21-4: "Good night"
      */
     val greeting: String
-        get() {
-            val hour = currentHourOfDay()
-
-            val timeGreeting =
-                when (hour) {
-                    in 5..11 -> "Good morning"
-                    in 12..16 -> "Good afternoon"
-                    in 17..20 -> "Good evening"
-                    else -> "Good night"
-                }
-
-            return if (userName.isNotBlank()) {
+        get() =
+            if (userName.isNotBlank()) {
                 "$timeGreeting, $userName"
             } else {
                 timeGreeting
             }
-        }
 
     /**
      * Whether there are books to continue listening to.

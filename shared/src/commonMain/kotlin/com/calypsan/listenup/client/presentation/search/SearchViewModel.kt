@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package com.calypsan.listenup.client.presentation.search
 
 import androidx.lifecycle.ViewModel
@@ -138,9 +136,9 @@ class SearchViewModel(
     init {
         // Set up debounced search
         queryFlow
-            .debounce(300) // Wait 300ms after last keystroke
+            .debounce(SEARCH_DEBOUNCE_MS)
             .distinctUntilChanged()
-            .filter { it.length >= 2 || it.isEmpty() } // Min 2 chars
+            .filter { it.length >= MIN_QUERY_LENGTH || it.isEmpty() }
             .onEach { query ->
                 if (query.isBlank()) {
                     state.update { it.copy(results = null, isSearching = false, error = null) }
@@ -148,6 +146,17 @@ class SearchViewModel(
                     performSearch(query)
                 }
             }.launchIn(viewModelScope)
+    }
+
+    companion object {
+        /** Debounce delay in milliseconds before triggering search. */
+        private const val SEARCH_DEBOUNCE_MS = 300L
+
+        /** Minimum query length to trigger search. */
+        private const val MIN_QUERY_LENGTH = 2
+
+        /** Maximum number of results to return per search. */
+        private const val DEFAULT_RESULT_LIMIT = 30
     }
 
     /**
@@ -225,7 +234,7 @@ class SearchViewModel(
                         searchRepository.search(
                             query = query,
                             types = types,
-                            limit = 30,
+                            limit = DEFAULT_RESULT_LIMIT,
                         )
 
                     state.update {

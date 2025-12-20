@@ -49,10 +49,12 @@ class HomeViewModelTest {
     private class TestFixture {
         val homeRepository: HomeRepositoryContract = mock()
         val userFlow = MutableStateFlow<UserEntity?>(null)
+        var currentHour: Int = 10 // Default to morning
 
         fun build(): HomeViewModel =
             HomeViewModel(
                 homeRepository = homeRepository,
+                currentHour = { currentHour },
             )
     }
 
@@ -339,15 +341,13 @@ class HomeViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
+            fixture.currentHour = 10 // Morning
             fixture.userFlow.value = createUser(displayName = "Alice")
             val viewModel = fixture.build()
             advanceUntilIdle()
 
-            // Then - greeting should include name (exact text depends on time of day)
-            assertTrue(
-                viewModel.state.value.greeting
-                    .contains("Alice"),
-            )
+            // Then
+            assertEquals("Good morning, Alice", viewModel.state.value.greeting)
         }
 
     @Test
@@ -355,16 +355,78 @@ class HomeViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
+            fixture.currentHour = 14 // Afternoon
             val viewModel = fixture.build()
             advanceUntilIdle()
 
-            // Then - greeting should be time-based without name
-            val greeting = viewModel.state.value.greeting
-            assertTrue(
-                greeting == "Good morning" ||
-                    greeting == "Good afternoon" ||
-                    greeting == "Good evening" ||
-                    greeting == "Good night",
-            )
+            // Then
+            assertEquals("Good afternoon", viewModel.state.value.greeting)
+        }
+
+    // ========== Time-Based Greeting Tests ==========
+
+    @Test
+    fun `greeting is morning between 5 and 11`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            fixture.currentHour = 8
+            val viewModel = fixture.build()
+            advanceUntilIdle()
+
+            // Then
+            assertEquals("Good morning", viewModel.state.value.greeting)
+        }
+
+    @Test
+    fun `greeting is afternoon between 12 and 16`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            fixture.currentHour = 14
+            val viewModel = fixture.build()
+            advanceUntilIdle()
+
+            // Then
+            assertEquals("Good afternoon", viewModel.state.value.greeting)
+        }
+
+    @Test
+    fun `greeting is evening between 17 and 20`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            fixture.currentHour = 19
+            val viewModel = fixture.build()
+            advanceUntilIdle()
+
+            // Then
+            assertEquals("Good evening", viewModel.state.value.greeting)
+        }
+
+    @Test
+    fun `greeting is night after 21`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            fixture.currentHour = 23
+            val viewModel = fixture.build()
+            advanceUntilIdle()
+
+            // Then
+            assertEquals("Good night", viewModel.state.value.greeting)
+        }
+
+    @Test
+    fun `greeting is night before 5`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            fixture.currentHour = 3
+            val viewModel = fixture.build()
+            advanceUntilIdle()
+
+            // Then
+            assertEquals("Good night", viewModel.state.value.greeting)
         }
 }

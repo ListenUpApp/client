@@ -112,9 +112,23 @@ class LoginViewModel(
     }
 
     /**
-     * Basic email validation.
+     * Email validation using a practical regex pattern.
+     *
+     * Validates:
+     * - Has local part before @
+     * - Has domain part after @
+     * - Domain has at least one dot with TLD
+     * - Reasonable length limit (RFC 5321)
      */
-    private fun isValidEmail(email: String): Boolean = email.contains("@") && email.contains(".")
+    private fun isValidEmail(email: String): Boolean {
+        if (email.length > MAX_EMAIL_LENGTH) return false
+        return EMAIL_REGEX.matches(email)
+    }
+
+    companion object {
+        private const val MAX_EMAIL_LENGTH = 254
+        private val EMAIL_REGEX = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
+    }
 }
 
 /**
