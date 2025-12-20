@@ -5,9 +5,11 @@ import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
+import com.calypsan.listenup.client.data.remote.BookApiContract
 import com.calypsan.listenup.client.data.remote.BookUpdateRequest
-import com.calypsan.listenup.client.data.remote.ListenUpApiContract
+import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.ListeningEventRequest
+import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.SeriesUpdateRequest
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.UpdateContributorRequest
@@ -22,7 +24,7 @@ private val json = Json { ignoreUnknownKeys = true }
  * Coalesces updates to the same book, merging fields.
  */
 class BookUpdateHandler(
-    private val api: ListenUpApiContract,
+    private val api: BookApiContract,
 ) : OperationHandler<BookUpdatePayload> {
     override val operationType = OperationType.BOOK_UPDATE
 
@@ -30,24 +32,24 @@ class BookUpdateHandler(
 
     override fun serializePayload(payload: BookUpdatePayload): String = Json.encodeToString(payload)
 
-    override fun shouldCoalesce(existing: PendingOperationEntity): Boolean =
-        existing.operationType == OperationType.BOOK_UPDATE
-
-    override fun coalesce(
-        existing: BookUpdatePayload,
-        new: BookUpdatePayload,
-    ): BookUpdatePayload =
-        BookUpdatePayload(
-            title = new.title ?: existing.title,
-            subtitle = new.subtitle ?: existing.subtitle,
-            description = new.description ?: existing.description,
-            publisher = new.publisher ?: existing.publisher,
-            publishYear = new.publishYear ?: existing.publishYear,
-            language = new.language ?: existing.language,
-            isbn = new.isbn ?: existing.isbn,
-            asin = new.asin ?: existing.asin,
-            abridged = new.abridged ?: existing.abridged,
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: BookUpdatePayload,
+        newPayload: BookUpdatePayload,
+    ): BookUpdatePayload? {
+        if (existing.operationType != OperationType.BOOK_UPDATE) return null
+        return BookUpdatePayload(
+            title = newPayload.title ?: existingPayload.title,
+            subtitle = newPayload.subtitle ?: existingPayload.subtitle,
+            description = newPayload.description ?: existingPayload.description,
+            publisher = newPayload.publisher ?: existingPayload.publisher,
+            publishYear = newPayload.publishYear ?: existingPayload.publishYear,
+            language = newPayload.language ?: existingPayload.language,
+            isbn = newPayload.isbn ?: existingPayload.isbn,
+            asin = newPayload.asin ?: existingPayload.asin,
+            abridged = newPayload.abridged ?: existingPayload.abridged,
         )
+    }
 
     override suspend fun execute(
         operation: PendingOperationEntity,
@@ -77,7 +79,7 @@ class BookUpdateHandler(
  * Coalesces updates to the same contributor.
  */
 class ContributorUpdateHandler(
-    private val api: ListenUpApiContract,
+    private val api: ContributorApiContract,
 ) : OperationHandler<ContributorUpdatePayload> {
     override val operationType = OperationType.CONTRIBUTOR_UPDATE
 
@@ -85,21 +87,21 @@ class ContributorUpdateHandler(
 
     override fun serializePayload(payload: ContributorUpdatePayload): String = Json.encodeToString(payload)
 
-    override fun shouldCoalesce(existing: PendingOperationEntity): Boolean =
-        existing.operationType == OperationType.CONTRIBUTOR_UPDATE
-
-    override fun coalesce(
-        existing: ContributorUpdatePayload,
-        new: ContributorUpdatePayload,
-    ): ContributorUpdatePayload =
-        ContributorUpdatePayload(
-            name = new.name ?: existing.name,
-            biography = new.biography ?: existing.biography,
-            website = new.website ?: existing.website,
-            birthDate = new.birthDate ?: existing.birthDate,
-            deathDate = new.deathDate ?: existing.deathDate,
-            aliases = new.aliases ?: existing.aliases,
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: ContributorUpdatePayload,
+        newPayload: ContributorUpdatePayload,
+    ): ContributorUpdatePayload? {
+        if (existing.operationType != OperationType.CONTRIBUTOR_UPDATE) return null
+        return ContributorUpdatePayload(
+            name = newPayload.name ?: existingPayload.name,
+            biography = newPayload.biography ?: existingPayload.biography,
+            website = newPayload.website ?: existingPayload.website,
+            birthDate = newPayload.birthDate ?: existingPayload.birthDate,
+            deathDate = newPayload.deathDate ?: existingPayload.deathDate,
+            aliases = newPayload.aliases ?: existingPayload.aliases,
         )
+    }
 
     override suspend fun execute(
         operation: PendingOperationEntity,
@@ -127,7 +129,7 @@ class ContributorUpdateHandler(
  * Coalesces updates to the same series.
  */
 class SeriesUpdateHandler(
-    private val api: ListenUpApiContract,
+    private val api: SeriesApiContract,
 ) : OperationHandler<SeriesUpdatePayload> {
     override val operationType = OperationType.SERIES_UPDATE
 
@@ -135,17 +137,17 @@ class SeriesUpdateHandler(
 
     override fun serializePayload(payload: SeriesUpdatePayload): String = Json.encodeToString(payload)
 
-    override fun shouldCoalesce(existing: PendingOperationEntity): Boolean =
-        existing.operationType == OperationType.SERIES_UPDATE
-
-    override fun coalesce(
-        existing: SeriesUpdatePayload,
-        new: SeriesUpdatePayload,
-    ): SeriesUpdatePayload =
-        SeriesUpdatePayload(
-            name = new.name ?: existing.name,
-            description = new.description ?: existing.description,
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: SeriesUpdatePayload,
+        newPayload: SeriesUpdatePayload,
+    ): SeriesUpdatePayload? {
+        if (existing.operationType != OperationType.SERIES_UPDATE) return null
+        return SeriesUpdatePayload(
+            name = newPayload.name ?: existingPayload.name,
+            description = newPayload.description ?: existingPayload.description,
         )
+    }
 
     override suspend fun execute(
         operation: PendingOperationEntity,
@@ -168,7 +170,7 @@ class SeriesUpdateHandler(
  * Replaces entirely - newer operation wins.
  */
 class SetBookContributorsHandler(
-    private val api: ListenUpApiContract,
+    private val api: BookApiContract,
 ) : OperationHandler<SetBookContributorsPayload> {
     override val operationType = OperationType.SET_BOOK_CONTRIBUTORS
 
@@ -176,13 +178,14 @@ class SetBookContributorsHandler(
 
     override fun serializePayload(payload: SetBookContributorsPayload): String = Json.encodeToString(payload)
 
-    override fun shouldCoalesce(existing: PendingOperationEntity): Boolean =
-        existing.operationType == OperationType.SET_BOOK_CONTRIBUTORS
-
-    override fun coalesce(
-        existing: SetBookContributorsPayload,
-        new: SetBookContributorsPayload,
-    ): SetBookContributorsPayload = new // Full replacement
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: SetBookContributorsPayload,
+        newPayload: SetBookContributorsPayload,
+    ): SetBookContributorsPayload? {
+        if (existing.operationType != OperationType.SET_BOOK_CONTRIBUTORS) return null
+        return newPayload // Full replacement - new wins
+    }
 
     override suspend fun execute(
         operation: PendingOperationEntity,
@@ -207,7 +210,7 @@ class SetBookContributorsHandler(
  * Replaces entirely - newer operation wins.
  */
 class SetBookSeriesHandler(
-    private val api: ListenUpApiContract,
+    private val api: BookApiContract,
 ) : OperationHandler<SetBookSeriesPayload> {
     override val operationType = OperationType.SET_BOOK_SERIES
 
@@ -215,13 +218,14 @@ class SetBookSeriesHandler(
 
     override fun serializePayload(payload: SetBookSeriesPayload): String = Json.encodeToString(payload)
 
-    override fun shouldCoalesce(existing: PendingOperationEntity): Boolean =
-        existing.operationType == OperationType.SET_BOOK_SERIES
-
-    override fun coalesce(
-        existing: SetBookSeriesPayload,
-        new: SetBookSeriesPayload,
-    ): SetBookSeriesPayload = new // Full replacement
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: SetBookSeriesPayload,
+        newPayload: SetBookSeriesPayload,
+    ): SetBookSeriesPayload? {
+        if (existing.operationType != OperationType.SET_BOOK_SERIES) return null
+        return newPayload // Full replacement - new wins
+    }
 
     override suspend fun execute(
         operation: PendingOperationEntity,
@@ -246,7 +250,7 @@ class SetBookSeriesHandler(
  * Never coalesces - each merge is unique and order matters.
  */
 class MergeContributorHandler(
-    private val api: ListenUpApiContract,
+    private val api: ContributorApiContract,
 ) : OperationHandler<MergeContributorPayload> {
     override val operationType = OperationType.MERGE_CONTRIBUTOR
 
@@ -254,12 +258,11 @@ class MergeContributorHandler(
 
     override fun serializePayload(payload: MergeContributorPayload): String = Json.encodeToString(payload)
 
-    override fun shouldCoalesce(existing: PendingOperationEntity): Boolean = false
-
-    override fun coalesce(
-        existing: MergeContributorPayload,
-        new: MergeContributorPayload,
-    ): MergeContributorPayload = throw UnsupportedOperationException("Merge operations don't coalesce")
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: MergeContributorPayload,
+        newPayload: MergeContributorPayload,
+    ): MergeContributorPayload? = null // Merge operations never coalesce
 
     override suspend fun execute(
         operation: PendingOperationEntity,
@@ -276,7 +279,7 @@ class MergeContributorHandler(
  * Never coalesces - each unmerge is unique and order matters.
  */
 class UnmergeContributorHandler(
-    private val api: ListenUpApiContract,
+    private val api: ContributorApiContract,
 ) : OperationHandler<UnmergeContributorPayload> {
     override val operationType = OperationType.UNMERGE_CONTRIBUTOR
 
@@ -284,12 +287,11 @@ class UnmergeContributorHandler(
 
     override fun serializePayload(payload: UnmergeContributorPayload): String = Json.encodeToString(payload)
 
-    override fun shouldCoalesce(existing: PendingOperationEntity): Boolean = false
-
-    override fun coalesce(
-        existing: UnmergeContributorPayload,
-        new: UnmergeContributorPayload,
-    ): UnmergeContributorPayload = throw UnsupportedOperationException("Unmerge operations don't coalesce")
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: UnmergeContributorPayload,
+        newPayload: UnmergeContributorPayload,
+    ): UnmergeContributorPayload? = null // Unmerge operations never coalesce
 
     override suspend fun execute(
         operation: PendingOperationEntity,
@@ -315,12 +317,11 @@ class ListeningEventHandler(
 
     override fun serializePayload(payload: ListeningEventPayload): String = Json.encodeToString(payload)
 
-    override fun shouldCoalesce(existing: PendingOperationEntity): Boolean = false
-
-    override fun coalesce(
-        existing: ListeningEventPayload,
-        new: ListeningEventPayload,
-    ): ListeningEventPayload = throw UnsupportedOperationException("Listening events don't coalesce")
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: ListeningEventPayload,
+        newPayload: ListeningEventPayload,
+    ): ListeningEventPayload? = null // Listening events never coalesce
 
     override fun batchKey(payload: ListeningEventPayload): String = "listening_events"
 
@@ -395,13 +396,14 @@ class PlaybackPositionHandler(
 
     override fun serializePayload(payload: PlaybackPositionPayload): String = Json.encodeToString(payload)
 
-    override fun shouldCoalesce(existing: PendingOperationEntity): Boolean =
-        existing.operationType == OperationType.PLAYBACK_POSITION
-
-    override fun coalesce(
-        existing: PlaybackPositionPayload,
-        new: PlaybackPositionPayload,
-    ): PlaybackPositionPayload = new // Latest position wins
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: PlaybackPositionPayload,
+        newPayload: PlaybackPositionPayload,
+    ): PlaybackPositionPayload? {
+        if (existing.operationType != OperationType.PLAYBACK_POSITION) return null
+        return newPayload // Latest position wins
+    }
 
     override suspend fun execute(
         operation: PendingOperationEntity,
@@ -441,14 +443,14 @@ class UserPreferencesHandler(
 
     override fun serializePayload(payload: UserPreferencesPayload): String = Json.encodeToString(payload)
 
-    override fun shouldCoalesce(existing: PendingOperationEntity): Boolean = true
-
-    override fun coalesce(
-        existing: UserPreferencesPayload,
-        new: UserPreferencesPayload,
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: UserPreferencesPayload,
+        newPayload: UserPreferencesPayload,
     ): UserPreferencesPayload =
+        // Always coalesces - only care about final state
         UserPreferencesPayload(
-            defaultPlaybackSpeed = new.defaultPlaybackSpeed ?: existing.defaultPlaybackSpeed,
+            defaultPlaybackSpeed = newPayload.defaultPlaybackSpeed ?: existingPayload.defaultPlaybackSpeed,
         )
 
     override suspend fun execute(

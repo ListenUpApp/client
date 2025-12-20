@@ -19,14 +19,22 @@ import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApiContract
+import com.calypsan.listenup.client.data.remote.BookApiContract
+import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.ImageApiContract
+import com.calypsan.listenup.client.data.remote.InstanceApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.SearchApiContract
+import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
+import com.calypsan.listenup.client.data.repository.AuthSessionContract
+import com.calypsan.listenup.client.data.repository.LibraryPreferencesContract
 import com.calypsan.listenup.client.data.repository.NetworkMonitor
+import com.calypsan.listenup.client.data.repository.PlaybackPreferencesContract
+import com.calypsan.listenup.client.data.repository.ServerConfigContract
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.OperationHandler
@@ -86,10 +94,18 @@ class KoinModuleVerifyTest {
                     // Repositories and APIs from other modules
                     SettingsRepository::class,
                     SettingsRepositoryContract::class,
+                    AuthSessionContract::class,
+                    ServerConfigContract::class,
+                    LibraryPreferencesContract::class,
+                    PlaybackPreferencesContract::class,
                     InstanceRepository::class,
                     AuthApiContract::class,
                     ApiClientFactory::class,
                     ListenUpApiContract::class,
+                    InstanceApiContract::class,
+                    BookApiContract::class,
+                    ContributorApiContract::class,
+                    SeriesApiContract::class,
                     SyncApiContract::class,
                     SearchApiContract::class,
                     ImageApiContract::class,

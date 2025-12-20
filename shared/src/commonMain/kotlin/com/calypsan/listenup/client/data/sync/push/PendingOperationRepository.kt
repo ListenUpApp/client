@@ -125,11 +125,15 @@ class PendingOperationRepository(
         // Check for existing operation to coalesce with
         val existing = findExistingForCoalesce(type, entityId)
 
-        if (existing != null && handler.shouldCoalesce(existing)) {
-            // Merge payloads
-            val oldPayload = handler.parsePayload(existing.payload)
-            val merged = handler.coalesce(oldPayload, payload)
+        // Try to coalesce if there's an existing operation
+        val merged =
+            existing?.let {
+                val existingPayload = handler.parsePayload(it.payload)
+                handler.tryCoalesce(it, existingPayload, payload)
+            }
 
+        if (existing != null && merged != null) {
+            // Coalesce succeeded - update existing operation with merged payload
             val updated =
                 existing.copy(
                     payload = handler.serializePayload(merged),
@@ -141,7 +145,7 @@ class PendingOperationRepository(
             dao.update(updated)
             logger.debug { "Coalesced operation: ${type.name} for entity $entityId" }
         } else {
-            // Insert new operation
+            // No existing operation or coalesce not possible - insert new
             val batchKey = handler.batchKey(payload)
             val operation =
                 PendingOperationEntity(

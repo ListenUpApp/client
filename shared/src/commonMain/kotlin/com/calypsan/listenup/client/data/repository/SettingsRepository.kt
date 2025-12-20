@@ -26,28 +26,19 @@ sealed interface PreferenceChangeEvent {
     ) : PreferenceChangeEvent
 }
 
+// region Segregated Interfaces (ISP)
+
 /**
- * Contract for application settings and authentication state.
+ * Contract for authentication and session management.
  *
- * Defines the public API for managing server configuration, authentication,
- * and library preferences. Used by ViewModels and enables testing.
+ * Used by components that need to manage auth tokens, session state,
+ * or observe authentication changes (ApiClientFactory, navigation, token providers).
  */
-@Suppress("TooManyFunctions")
-interface SettingsRepositoryContract {
+interface AuthSessionContract {
+    /** Reactive authentication state. */
     val authState: StateFlow<AuthState>
 
-    /**
-     * Flow of preference change events.
-     * Observed by the sync layer to queue operations for server synchronization.
-     */
-    val preferenceChanges: SharedFlow<PreferenceChangeEvent>
-
-    // Server configuration
-    suspend fun setServerUrl(url: ServerUrl)
-
-    suspend fun getServerUrl(): ServerUrl?
-
-    // Authentication
+    /** Save authentication tokens after successful login or token refresh. */
     suspend fun saveAuthTokens(
         access: AccessToken,
         refresh: RefreshToken,
@@ -63,23 +54,50 @@ interface SettingsRepositoryContract {
 
     suspend fun getUserId(): String?
 
+    /** Update only the access token (used during automatic token refresh). */
     suspend fun updateAccessToken(token: AccessToken)
 
+    /** Clear authentication tokens (soft logout). */
     suspend fun clearAuthTokens()
 
-    suspend fun clearAll()
-
+    /** Check if user has stored authentication tokens. */
     suspend fun isAuthenticated(): Boolean
+
+    /** Initialize authentication state on app startup. */
+    suspend fun initializeAuthState()
+
+    /** Check server status to determine if setup is required. */
+    suspend fun checkServerStatus(): AuthState
+}
+
+/**
+ * Contract for server URL configuration.
+ *
+ * Used by components that need to know the server URL
+ * (SSEManager, DownloadWorker, ImageApi, API clients).
+ */
+interface ServerConfigContract {
+    suspend fun setServerUrl(url: ServerUrl)
+
+    suspend fun getServerUrl(): ServerUrl?
 
     suspend fun hasServerConfigured(): Boolean
 
-    suspend fun initializeAuthState()
-
-    suspend fun checkServerStatus(): AuthState
-
+    /** Disconnect from current server (clears URL and auth data). */
     suspend fun disconnectFromServer()
 
-    // Library sort preferences
+    /** Clear all settings including server URL (complete reset). */
+    suspend fun clearAll()
+}
+
+/**
+ * Contract for library display and sort preferences.
+ *
+ * Used by LibraryViewModel and SettingsViewModel for managing
+ * how books, series, and contributors are displayed and sorted.
+ */
+interface LibraryPreferencesContract {
+    // Sort state per tab
     suspend fun getBooksSortState(): String?
 
     suspend fun setBooksSortState(persistenceKey: String)
@@ -96,6 +114,7 @@ interface SettingsRepositoryContract {
 
     suspend fun setNarratorsSortState(persistenceKey: String)
 
+    // Display options
     suspend fun getIgnoreTitleArticles(): Boolean
 
     suspend fun setIgnoreTitleArticles(ignore: Boolean)
@@ -103,11 +122,17 @@ interface SettingsRepositoryContract {
     suspend fun getHideSingleBookSeries(): Boolean
 
     suspend fun setHideSingleBookSeries(hide: Boolean)
+}
 
-    // Playback preferences
-    suspend fun getSpatialPlayback(): Boolean
-
-    suspend fun setSpatialPlayback(enabled: Boolean)
+/**
+ * Contract for playback preferences.
+ *
+ * Used by SettingsViewModel, NowPlayingViewModel, DownloadWorker,
+ * and SyncManager for managing playback-related settings.
+ */
+interface PlaybackPreferencesContract {
+    /** Flow of preference change events for sync layer. */
+    val preferenceChanges: SharedFlow<PreferenceChangeEvent>
 
     /**
      * Get the default playback speed for new books.
@@ -118,10 +143,29 @@ interface SettingsRepositoryContract {
     /**
      * Set the default playback speed for new books.
      * This is a synced setting - will be pushed to server.
-     * @param speed Playback speed multiplier (e.g., 1.0, 1.25, 1.5)
      */
     suspend fun setDefaultPlaybackSpeed(speed: Float)
+
+    /** Get whether spatial (5.1 surround) audio is preferred. */
+    suspend fun getSpatialPlayback(): Boolean
+
+    /** Set spatial audio preference (per-device setting). */
+    suspend fun setSpatialPlayback(enabled: Boolean)
 }
+
+// endregion
+
+/**
+ * Aggregate contract for backward compatibility.
+ *
+ * New code should depend on specific interfaces (AuthSessionContract,
+ * ServerConfigContract, etc.) rather than this aggregate.
+ */
+interface SettingsRepositoryContract :
+    AuthSessionContract,
+    ServerConfigContract,
+    LibraryPreferencesContract,
+    PlaybackPreferencesContract
 
 /**
  * Repository for managing application settings and authentication state.

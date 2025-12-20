@@ -10,15 +10,19 @@ import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.AuthApiContract
+import com.calypsan.listenup.client.data.remote.BookApiContract
+import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.GenreApi
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.ImageApi
 import com.calypsan.listenup.client.data.remote.ImageApiContract
+import com.calypsan.listenup.client.data.remote.InstanceApiContract
 import com.calypsan.listenup.client.data.remote.InviteApi
 import com.calypsan.listenup.client.data.remote.InviteApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SearchApiContract
+import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.TagApi
@@ -26,6 +30,7 @@ import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesApi
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
+import com.calypsan.listenup.client.data.repository.AuthSessionContract
 import com.calypsan.listenup.client.data.repository.BookEditRepository
 import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.BookRepository
@@ -38,12 +43,15 @@ import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
+import com.calypsan.listenup.client.data.repository.LibraryPreferencesContract
+import com.calypsan.listenup.client.data.repository.PlaybackPreferencesContract
 import com.calypsan.listenup.client.data.repository.SearchRepository
 import com.calypsan.listenup.client.data.repository.SearchRepositoryContract
 import com.calypsan.listenup.client.data.repository.SeriesEditRepository
 import com.calypsan.listenup.client.data.repository.SeriesEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.SeriesRepository
 import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
+import com.calypsan.listenup.client.data.repository.ServerConfigContract
 import com.calypsan.listenup.client.data.repository.ServerMigrationHelper
 import com.calypsan.listenup.client.data.repository.ServerRepository
 import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
@@ -122,7 +130,6 @@ val dataModule =
         single { DeepLinkManager() }
 
         // Settings repository - single source of truth for app configuration
-        // Bind to both concrete type and interface (for ViewModels)
         // Note: SettingsRepository has no sync dependencies - it emits preference change events
         // that are observed by PreferencesSyncObserver (in syncModule) to avoid circular deps.
         single {
@@ -130,7 +137,14 @@ val dataModule =
                 secureStorage = get(),
                 instanceRepository = get(),
             )
-        } bind SettingsRepositoryContract::class
+        }
+
+        // Bind segregated interfaces to the same SettingsRepository instance (ISP compliance)
+        single<SettingsRepositoryContract> { get<SettingsRepository>() }
+        single<AuthSessionContract> { get<SettingsRepository>() }
+        single<ServerConfigContract> { get<SettingsRepository>() }
+        single<LibraryPreferencesContract> { get<SettingsRepository>() }
+        single<PlaybackPreferencesContract> { get<SettingsRepository>() }
     }
 
 /**
@@ -165,12 +179,19 @@ val networkModule =
 
         // ListenUpApi - main API for server communication
         // Uses default base URL initially; can be recreated when server URL changes
-        single<ListenUpApiContract> {
+        single {
             ListenUpApi(
                 baseUrl = getBaseUrl(),
                 apiClientFactory = get(),
             )
         }
+
+        // Bind segregated interfaces to the same ListenUpApi instance (ISP compliance)
+        single<ListenUpApiContract> { get<ListenUpApi>() }
+        single<InstanceApiContract> { get<ListenUpApi>() }
+        single<BookApiContract> { get<ListenUpApi>() }
+        single<ContributorApiContract> { get<ListenUpApi>() }
+        single<SeriesApiContract> { get<ListenUpApi>() }
     }
 
 /**

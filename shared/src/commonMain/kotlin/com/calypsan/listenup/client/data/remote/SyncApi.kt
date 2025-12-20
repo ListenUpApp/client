@@ -111,21 +111,22 @@ class SyncApi(
             var cursor: String? = null
             val allDeletedIds = mutableListOf<String>()
 
-            val allBooks = buildList {
-                do {
-                    when (val result = getBooks(limit, cursor, updatedAfter)) {
-                        is Result.Success -> {
-                            addAll(result.data.books)
-                            allDeletedIds.addAll(result.data.deletedBookIds)
-                            cursor = result.data.nextCursor
-                        }
+            val allBooks =
+                buildList {
+                    do {
+                        when (val result = getBooks(limit, cursor, updatedAfter)) {
+                            is Result.Success -> {
+                                addAll(result.data.books)
+                                allDeletedIds.addAll(result.data.deletedBookIds)
+                                cursor = result.data.nextCursor
+                            }
 
-                        is Result.Failure -> {
-                            throw result.exception
+                            is Result.Failure -> {
+                                throw result.exception
+                            }
                         }
-                    }
-                } while (cursor != null)
-            }
+                    } while (cursor != null)
+                }
 
             SyncBooksResponse(
                 books = allBooks,

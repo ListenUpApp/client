@@ -5,7 +5,7 @@ import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
-import com.calypsan.listenup.client.data.remote.ListenUpApiContract
+import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.SeriesSearchResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.withContext
@@ -62,7 +62,7 @@ data class SeriesSearchResponse(
  * @property networkMonitor For checking online/offline status
  */
 class SeriesRepository(
-    private val api: ListenUpApiContract,
+    private val api: SeriesApiContract,
     private val searchDao: SearchDao,
     private val networkMonitor: NetworkMonitor,
 ) : SeriesRepositoryContract {

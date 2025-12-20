@@ -9,8 +9,7 @@ import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
  *
  * Each operation type has its own handler that knows how to:
  * - Parse/serialize its payload
- * - Determine if operations should coalesce
- * - Merge payloads when coalescing
+ * - Attempt to coalesce operations (returning merged payload or null)
  * - Execute the operation against the server
  * - Optionally batch operations together
  *
@@ -30,23 +29,25 @@ interface OperationHandler<P : Any> {
     fun serializePayload(payload: P): String
 
     /**
-     * Should this operation coalesce with an existing pending one?
+     * Attempt to coalesce a new operation with an existing pending one.
      *
      * Called when queuing a new operation that targets the same entity.
-     * Return true to merge the payloads, false to queue separately.
-     */
-    fun shouldCoalesce(existing: PendingOperationEntity): Boolean
-
-    /**
-     * Merge new payload into existing (for coalescing).
+     * Returns the merged payload if coalescing succeeded, null if operations
+     * cannot be coalesced and should be queued separately.
      *
-     * Only called when shouldCoalesce returns true.
-     * The result replaces the existing operation's payload.
+     * This design follows LSP - all handlers can be called uniformly without
+     * throwing exceptions for unsupported operations.
+     *
+     * @param existing The existing pending operation entity
+     * @param existingPayload The parsed payload of the existing operation
+     * @param newPayload The new payload to potentially merge
+     * @return Merged payload if coalescing succeeded, null otherwise
      */
-    fun coalesce(
-        existing: P,
-        new: P,
-    ): P
+    fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: P,
+        newPayload: P,
+    ): P?
 
     /**
      * Execute the operation against the server.

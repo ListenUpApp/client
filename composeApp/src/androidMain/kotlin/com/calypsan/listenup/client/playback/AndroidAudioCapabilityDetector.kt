@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.playback
 
 import android.media.MediaCodecList
 import android.media.MediaFormat
-import android.os.Build
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
