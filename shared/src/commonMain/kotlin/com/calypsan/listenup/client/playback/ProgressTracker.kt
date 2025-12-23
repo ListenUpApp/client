@@ -138,19 +138,23 @@ class ProgressTracker(
         positionMs: Long,
         speed: Float,
     ) {
-        // Preserve existing hasCustomSpeed value
-        val existing = positionDao.get(bookId)
-        positionDao.save(
-            PlaybackPositionEntity(
-                bookId = bookId,
-                positionMs = positionMs,
-                playbackSpeed = speed,
-                hasCustomSpeed = existing?.hasCustomSpeed ?: false,
-                updatedAt = Clock.System.now().toEpochMilliseconds(),
-                syncedAt = null,
-            ),
-        )
-        logger.debug { "Position saved: book=${bookId.value}, position=$positionMs" }
+        try {
+            // Preserve existing hasCustomSpeed value
+            val existing = positionDao.get(bookId)
+            positionDao.save(
+                PlaybackPositionEntity(
+                    bookId = bookId,
+                    positionMs = positionMs,
+                    playbackSpeed = speed,
+                    hasCustomSpeed = existing?.hasCustomSpeed ?: false,
+                    updatedAt = Clock.System.now().toEpochMilliseconds(),
+                    syncedAt = null,
+                ),
+            )
+            logger.debug { "Position saved: book=${bookId.value}, position=$positionMs" }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to save position: book=${bookId.value}, position=$positionMs" }
+        }
     }
 
     /**

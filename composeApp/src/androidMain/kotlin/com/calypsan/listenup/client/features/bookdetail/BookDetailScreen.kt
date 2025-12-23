@@ -10,14 +10,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,9 +31,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.model.BookDownloadStatus
+import com.calypsan.listenup.client.data.remote.model.MetadataSearchResult
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.design.components.rememberCoverColors
@@ -46,9 +50,11 @@ import com.calypsan.listenup.client.features.bookdetail.components.HeroSection
 import com.calypsan.listenup.client.features.bookdetail.components.PrimaryActionsSection
 import com.calypsan.listenup.client.features.bookdetail.components.TalentSection
 import com.calypsan.listenup.client.features.bookdetail.components.TwoPaneBookDetail
+import com.calypsan.listenup.client.features.metadata.MetadataSearchSheet
 import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.presentation.bookdetail.BookDetailUiState
 import com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel
+import com.calypsan.listenup.client.presentation.metadata.MetadataViewModel
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -68,17 +74,21 @@ import org.koin.compose.viewmodel.koinViewModel
  * 6. Tags - User categorization
  * 7. Chapters - Deep dive content
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookDetailScreen(
     bookId: String,
     onBackClick: () -> Unit,
     onEditClick: (bookId: String) -> Unit,
+    onMatchPreviewClick: (bookId: String, asin: String) -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     viewModel: BookDetailViewModel = koinViewModel(),
     playerViewModel: PlayerViewModel = koinViewModel(),
+    metadataViewModel: MetadataViewModel = koinViewModel(),
 ) {
     val downloadManager: DownloadManager = koinInject()
+    val userDao: UserDao = koinInject()
     val scope = rememberCoroutineScope()
     val snackbarHostState = LocalSnackbarHostState.current
 
@@ -87,11 +97,52 @@ fun BookDetailScreen(
     }
 
     val state by viewModel.state.collectAsState()
+    val metadataState by metadataViewModel.state.collectAsState()
+    val currentUser by userDao.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
     val downloadStatus by downloadManager
         .observeBookStatus(BookId(bookId))
         .collectAsState(initial = BookDownloadStatus.notDownloaded(bookId))
 
+    val isAdmin = currentUser?.isRoot == true
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showMetadataSheet by remember { mutableStateOf(false) }
+    val metadataSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Handle metadata apply success - refresh book data
+    LaunchedEffect(metadataState.applySuccess) {
+        if (metadataState.applySuccess) {
+            showMetadataSheet = false
+            metadataViewModel.reset()
+            viewModel.loadBook(bookId) // Refresh
+            snackbarHostState.showSnackbar("Metadata applied successfully")
+        }
+    }
+
+    // Callback for opening metadata search (or direct lookup if ASIN exists)
+    val onFindMetadataClick: () -> Unit = onFindMetadataClick@{
+        val book = state.book ?: return@onFindMetadataClick
+        val existingAsin = book.asin
+
+        // If book has ASIN, skip search and go directly to preview
+        // MatchPreviewRoute will handle loading the metadata
+        if (existingAsin != null) {
+            onMatchPreviewClick(bookId, existingAsin)
+        } else {
+            metadataViewModel.initForBook(
+                bookId = bookId,
+                title = book.title,
+                author = book.authors.firstOrNull()?.name ?: "",
+            )
+            showMetadataSheet = true
+        }
+    }
+
+    // Callback for when a metadata search result is clicked
+    val onMetadataResultClick: (MetadataSearchResult) -> Unit = { result ->
+        metadataViewModel.selectMatch(result)
+        showMetadataSheet = false
+        onMatchPreviewClick(bookId, result.asin)
+    }
 
     // The man in black fled across the desert, and the gunslinger followed. (The Dark Tower)
     Surface(
@@ -123,8 +174,14 @@ fun BookDetailScreen(
                 BookDetailContent(
                     state = state,
                     downloadStatus = downloadStatus,
+                    isComplete = false, // TODO: Add completion tracking
+                    isAdmin = isAdmin,
                     onBackClick = onBackClick,
                     onEditClick = { onEditClick(bookId) },
+                    onFindMetadataClick = onFindMetadataClick,
+                    onMarkCompleteClick = { /* TODO: Implement */ },
+                    onAddToCollectionClick = { /* TODO: Implement */ },
+                    onDeleteBookClick = { /* TODO: Implement */ },
                     onPlayClick = { playerViewModel.playBook(BookId(bookId)) },
                     onDownloadClick = {
                         scope.launch {
@@ -162,6 +219,21 @@ fun BookDetailScreen(
         }
     }
 
+    // Metadata search bottom sheet
+    if (showMetadataSheet) {
+        MetadataSearchSheet(
+            state = metadataState,
+            onQueryChange = metadataViewModel::updateQuery,
+            onSearch = metadataViewModel::search,
+            onResultClick = onMetadataResultClick,
+            onDismiss = {
+                showMetadataSheet = false
+                metadataViewModel.reset()
+            },
+            sheetState = metadataSheetState,
+        )
+    }
+
     if (showDeleteDialog) {
         DeleteDownloadDialog(
             bookTitle = state.book?.title ?: "",
@@ -186,8 +258,14 @@ fun BookDetailScreen(
 fun BookDetailContent(
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
+    isComplete: Boolean,
+    isAdmin: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
+    onFindMetadataClick: () -> Unit,
+    onMarkCompleteClick: () -> Unit,
+    onAddToCollectionClick: () -> Unit,
+    onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
@@ -207,8 +285,14 @@ fun BookDetailContent(
         TwoPaneBookDetail(
             state = state,
             downloadStatus = downloadStatus,
+            isComplete = isComplete,
+            isAdmin = isAdmin,
             onBackClick = onBackClick,
             onEditClick = onEditClick,
+            onFindMetadataClick = onFindMetadataClick,
+            onMarkCompleteClick = onMarkCompleteClick,
+            onAddToCollectionClick = onAddToCollectionClick,
+            onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
@@ -220,8 +304,14 @@ fun BookDetailContent(
         ImmersiveBookDetail(
             state = state,
             downloadStatus = downloadStatus,
+            isComplete = isComplete,
+            isAdmin = isAdmin,
             onBackClick = onBackClick,
             onEditClick = onEditClick,
+            onFindMetadataClick = onFindMetadataClick,
+            onMarkCompleteClick = onMarkCompleteClick,
+            onAddToCollectionClick = onAddToCollectionClick,
+            onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
@@ -245,8 +335,14 @@ fun BookDetailContent(
 private fun ImmersiveBookDetail(
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
+    isComplete: Boolean,
+    isAdmin: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
+    onFindMetadataClick: () -> Unit,
+    onMarkCompleteClick: () -> Unit,
+    onAddToCollectionClick: () -> Unit,
+    onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
@@ -282,8 +378,14 @@ private fun ImmersiveBookDetail(
                 progress = state.progress,
                 timeRemaining = state.timeRemainingFormatted,
                 coverColors = coverColors,
+                isComplete = isComplete,
+                isAdmin = isAdmin,
                 onBackClick = onBackClick,
                 onEditClick = onEditClick,
+                onFindMetadataClick = onFindMetadataClick,
+                onMarkCompleteClick = onMarkCompleteClick,
+                onAddToCollectionClick = onAddToCollectionClick,
+                onDeleteClick = onDeleteBookClick,
             )
         }
 

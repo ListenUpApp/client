@@ -1,0 +1,171 @@
+package com.calypsan.listenup.client.data.remote.model
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * Contributor from Audible metadata (author, narrator).
+ */
+@Serializable
+data class MetadataContributor(
+    @SerialName("asin")
+    val asin: String? = null,
+    @SerialName("name")
+    val name: String,
+)
+
+/**
+ * Series entry from Audible metadata.
+ */
+@Serializable
+data class MetadataSeriesEntry(
+    @SerialName("asin")
+    val asin: String? = null,
+    @SerialName("name")
+    val name: String,
+    @SerialName("position")
+    val position: String? = null,
+)
+
+/**
+ * Search result from Audible metadata search.
+ * Contains basic information for display in search results list.
+ */
+@Serializable
+data class MetadataSearchResult(
+    @SerialName("asin")
+    val asin: String,
+    @SerialName("title")
+    val title: String,
+    @SerialName("subtitle")
+    val subtitle: String? = null,
+    @SerialName("authors")
+    val authors: List<MetadataContributor> = emptyList(),
+    @SerialName("narrators")
+    val narrators: List<MetadataContributor> = emptyList(),
+    @SerialName("series")
+    val series: List<MetadataSeriesEntry> = emptyList(),
+    @SerialName("cover_url")
+    val coverUrl: String? = null,
+    @SerialName("runtime_minutes")
+    val runtimeMinutes: Int = 0,
+    @SerialName("release_date")
+    val releaseDate: String? = null,
+    @SerialName("rating")
+    val rating: Double = 0.0,
+    @SerialName("rating_count")
+    val ratingCount: Int = 0,
+    @SerialName("language")
+    val language: String? = null,
+)
+
+/**
+ * Response wrapper for metadata search.
+ */
+@Serializable
+data class MetadataSearchResponse(
+    @SerialName("matches")
+    val matches: List<MetadataSearchResult> = emptyList(),
+)
+
+/**
+ * Full book details from Audible metadata.
+ * Contains complete information for the preview screen.
+ */
+@Serializable
+data class MetadataBook(
+    @SerialName("asin")
+    val asin: String,
+    @SerialName("title")
+    val title: String,
+    @SerialName("subtitle")
+    val subtitle: String? = null,
+    @SerialName("authors")
+    val authors: List<MetadataContributor> = emptyList(),
+    @SerialName("narrators")
+    val narrators: List<MetadataContributor> = emptyList(),
+    @SerialName("series")
+    val series: List<MetadataSeriesEntry> = emptyList(),
+    @SerialName("genres")
+    val genres: List<String> = emptyList(),
+    @SerialName("description")
+    val description: String? = null,
+    @SerialName("publisher")
+    val publisher: String? = null,
+    @SerialName("cover_url")
+    val coverUrl: String? = null,
+    @SerialName("runtime_minutes")
+    val runtimeMinutes: Int = 0,
+    @SerialName("release_date")
+    val releaseDate: String? = null,
+    @SerialName("rating")
+    val rating: Double = 0.0,
+    @SerialName("rating_count")
+    val ratingCount: Int = 0,
+    @SerialName("language")
+    val language: String? = null,
+)
+
+/**
+ * Response wrapper for single book metadata fetch.
+ */
+@Serializable
+data class MetadataBookResponse(
+    @SerialName("book")
+    val book: MetadataBook,
+)
+
+/**
+ * Field selection flags for metadata match.
+ */
+@Serializable
+data class MatchFields(
+    @SerialName("title")
+    val title: Boolean = false,
+    @SerialName("subtitle")
+    val subtitle: Boolean = false,
+    @SerialName("description")
+    val description: Boolean = false,
+    @SerialName("publisher")
+    val publisher: Boolean = false,
+    @SerialName("releaseDate")
+    val releaseDate: Boolean = false,
+    @SerialName("language")
+    val language: Boolean = false,
+    @SerialName("cover")
+    val cover: Boolean = false,
+)
+
+/**
+ * Series match entry with granular control.
+ */
+@Serializable
+data class SeriesMatchEntry(
+    @SerialName("asin")
+    val asin: String,
+    @SerialName("applyName")
+    val applyName: Boolean = true,
+    @SerialName("applySequence")
+    val applySequence: Boolean = true,
+)
+
+/**
+ * Request body for applying metadata match to a book.
+ */
+@Serializable
+data class ApplyMatchRequest(
+    @SerialName("asin")
+    val asin: String,
+    @SerialName("region")
+    val region: String = "us",
+    @SerialName("fields")
+    val fields: MatchFields = MatchFields(),
+    @SerialName("authors")
+    val authors: List<String> = emptyList(), // ASINs of selected authors
+    @SerialName("narrators")
+    val narrators: List<String> = emptyList(), // ASINs of selected narrators
+    @SerialName("series")
+    val series: List<SeriesMatchEntry> = emptyList(),
+    @SerialName("genres")
+    val genres: List<String> = emptyList(),
+)

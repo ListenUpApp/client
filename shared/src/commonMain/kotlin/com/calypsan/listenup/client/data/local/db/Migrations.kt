@@ -588,6 +588,19 @@ val MIGRATION_12_13 =
     }
 
 /**
+ * Migration from version 13 to version 14.
+ *
+ * Bridge migration - no schema changes.
+ * Required to maintain sequential migration path.
+ */
+val MIGRATION_13_14 =
+    object : Migration(13, 14) {
+        override fun migrate(connection: SQLiteConnection) {
+            // No schema changes - bridge migration only
+        }
+    }
+
+/**
  * Migration from version 14 to version 15.
  *
  * Changes:
@@ -619,6 +632,28 @@ val MIGRATION_14_15 =
             connection.execSQL(
                 """
                 ALTER TABLE books ADD COLUMN vibrantColor INTEGER DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 15 to version 16.
+ *
+ * Changes:
+ * - Add hasCustomSpeed column to playback_positions table (whether user set custom speed)
+ *
+ * This enables per-book speed preference tracking - distinguishing between a book
+ * that was played at 1.0x because that's the global default vs one where the user
+ * explicitly set 1.0x for that specific book.
+ */
+val MIGRATION_15_16 =
+    object : Migration(15, 16) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add hasCustomSpeed column to playback_positions table
+            connection.execSQL(
+                """
+                ALTER TABLE playback_positions ADD COLUMN hasCustomSpeed INTEGER NOT NULL DEFAULT 0
                 """.trimIndent(),
             )
         }

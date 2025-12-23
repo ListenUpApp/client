@@ -75,6 +75,21 @@ data class BookEdit(
 ) : Route
 
 /**
+ * Match preview screen - preview Audible metadata before applying.
+ *
+ * Shows side-by-side comparison of current book metadata vs metadata
+ * from Audible. User can confirm to apply the changes.
+ *
+ * @property bookId The unique ID of the book to update.
+ * @property asin The Audible ASIN of the matched book.
+ */
+@Serializable
+data class MatchPreview(
+    val bookId: String,
+    val asin: String,
+) : Route
+
+/**
  * Series detail screen - displays series info and its books.
  *
  * @property seriesId The unique ID of the series to display.

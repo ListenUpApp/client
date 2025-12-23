@@ -35,9 +35,6 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.format
-import kotlinx.datetime.format.MonthNames
-import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
 
 /**
@@ -171,21 +168,21 @@ private fun parseIsoDate(isoDate: String): LocalDate? {
  */
 private fun formatIsoDate(date: LocalDate): String = date.toString()
 
-// Display format: "September 21, 1947"
-private val displayFormat =
-    LocalDate.Format {
-        monthName(MonthNames.ENGLISH_FULL)
-        char(' ')
-        dayOfMonth()
-        chars(", ")
-        year()
-    }
+// Month names for display formatting
+private val monthNames = arrayOf(
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+)
 
 /**
  * Format a LocalDate for user-friendly display.
  * Uses a readable format like "September 21, 1947".
  */
-private fun formatForDisplay(date: LocalDate): String = date.format(displayFormat)
+@Suppress("DEPRECATION")
+private fun formatForDisplay(date: LocalDate): String {
+    val monthName = monthNames[date.monthNumber - 1]
+    return "$monthName ${date.dayOfMonth}, ${date.year}"
+}
 
 @Preview(name = "Empty Date Picker")
 @Composable

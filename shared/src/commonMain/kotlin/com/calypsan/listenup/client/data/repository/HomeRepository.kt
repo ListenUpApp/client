@@ -39,33 +39,36 @@ interface HomeRepositoryContract {
  *
  * Handles fetching continue listening books and user data for the greeting.
  *
- * Architecture: Server-first with local fallback.
+ * Architecture: Local-first when offline, server-first when online.
+ * - Checks network status before attempting server call
  * - Server returns display-ready data with embedded book details
- * - No client-side joins required (works on fresh installs)
- * - Falls back to local data when offline
+ * - Falls back to local data when offline or server unavailable
  *
  * @property bookRepository Repository for fetching book details (fallback only)
  * @property playbackPositionDao DAO for playback positions (fallback only)
  * @property syncApi API for fetching server progress
  * @property userDao DAO for user data
+ * @property networkMonitor Monitor for checking network connectivity
  */
 class HomeRepository(
     private val bookRepository: BookRepositoryContract,
     private val playbackPositionDao: PlaybackPositionDao,
     private val syncApi: SyncApiContract,
     private val userDao: UserDao,
+    private val networkMonitor: NetworkMonitor,
 ) : HomeRepositoryContract {
     private val logger = KotlinLogging.logger {}
 
     /**
      * Fetch books the user is currently listening to.
      *
-     * Server-first approach:
-     * 1. Try server - returns display-ready data with book details embedded
-     * 2. If offline, fall back to local positions + local book lookup
+     * Network-aware approach:
+     * 1. Check network status first - use local data immediately when offline
+     * 2. When online, try server - returns display-ready data with book details embedded
+     * 3. If server fails, fall back to local positions + local book lookup
      *
-     * This ensures fresh installs work (server has all data) while
-     * maintaining offline capability.
+     * This ensures offline access works instantly without waiting for timeouts,
+     * while still using fresh server data when available.
      *
      * @param limit Maximum number of books to return
      * @return Result containing list of ContinueListeningBook on success
@@ -73,7 +76,13 @@ class HomeRepository(
     override suspend fun getContinueListening(limit: Int): Result<List<ContinueListeningBook>> {
         logger.debug { "Fetching continue listening books, limit=$limit" }
 
-        // Try server first - returns display-ready data
+        // Check network status first - go directly to local when offline
+        if (!networkMonitor.isOnline()) {
+            logger.debug { "Offline - using local data" }
+            return fetchFromLocal(limit)
+        }
+
+        // Online - try server first, fall back to local on failure
         return when (val serverResult = fetchFromServer(limit)) {
             is Success -> {
                 logger.debug { "Returning ${serverResult.data.size} books from server" }
@@ -125,14 +134,23 @@ class HomeRepository(
      */
     private suspend fun fetchFromLocal(limit: Int): Result<List<ContinueListeningBook>> {
         val positions = playbackPositionDao.getRecentPositions(limit)
-        logger.debug { "Found ${positions.size} local playback positions" }
+        logger.debug { "Local fallback: found ${positions.size} playback positions" }
+
+        if (positions.isEmpty()) {
+            logger.debug { "Local fallback: no positions in database - user hasn't played any books yet" }
+            return Success(emptyList())
+        }
+
+        var booksNotFound = 0
+        var booksFiltered = 0
 
         val books =
             positions.mapNotNull { position ->
                 val bookIdStr = position.bookId.value
                 val book =
                     bookRepository.getBook(bookIdStr) ?: run {
-                        logger.warn { "Book not found locally: $bookIdStr" }
+                        booksNotFound++
+                        logger.warn { "Local fallback: book not found - id=$bookIdStr" }
                         return@mapNotNull null
                     }
 
@@ -144,7 +162,11 @@ class HomeRepository(
                     }
 
                 // Skip finished books
-                if (progress >= 0.99f) return@mapNotNull null
+                if (progress >= 0.99f) {
+                    booksFiltered++
+                    logger.debug { "Local fallback: skipping finished book - id=$bookIdStr, progress=$progress" }
+                    return@mapNotNull null
+                }
 
                 ContinueListeningBook(
                     bookId = bookIdStr,
@@ -159,7 +181,10 @@ class HomeRepository(
                 )
             }
 
-        logger.debug { "Returning ${books.size} continue listening books from local" }
+        logger.debug {
+            "Local fallback: returning ${books.size} books " +
+                "(positions=${positions.size}, notFound=$booksNotFound, filtered=$booksFiltered)"
+        }
         return Success(books)
     }
 

@@ -348,6 +348,9 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onEditClick = { bookId ->
                                     backStack.add(BookEdit(bookId))
                                 },
+                                onMatchPreviewClick = { bookId, asin ->
+                                    backStack.add(MatchPreview(bookId, asin))
+                                },
                                 onSeriesClick = { seriesId ->
                                     backStack.add(SeriesDetail(seriesId))
                                 },
@@ -364,6 +367,19 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                                 onSaveSuccess = {
                                     // Navigate back after successful save
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<MatchPreview> { args ->
+                            com.calypsan.listenup.client.features.metadata.MatchPreviewRoute(
+                                bookId = args.bookId,
+                                asin = args.asin,
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onApplySuccess = {
+                                    // Navigate back to book detail after successful apply
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                             )
