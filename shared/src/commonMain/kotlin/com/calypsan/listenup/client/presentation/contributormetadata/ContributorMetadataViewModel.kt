@@ -96,26 +96,22 @@ class ContributorMetadataViewModel(
     /**
      * Initialize the ViewModel for a specific contributor.
      *
-     * Loads the contributor data and pre-fills the search query.
+     * Performs a synchronous state reset first to prevent stale state from being
+     * visible during navigation transitions, then loads contributor data async.
      */
     fun init(contributorId: String) {
+        // Synchronous reset - prevents stale state (e.g., applySuccess=true from
+        // a previous contributor) from triggering side effects before async load
+        state.value = ContributorMetadataUiState(contributorId = contributorId)
+
         viewModelScope.launch {
             // Load current contributor
             val contributor = contributorDao.observeById(contributorId).first()
 
             state.update {
                 it.copy(
-                    contributorId = contributorId,
                     currentContributor = contributor,
                     searchQuery = contributor?.name ?: "",
-                    // Reset other state
-                    searchResults = emptyList(),
-                    searchError = null,
-                    selectedCandidate = null,
-                    previewProfile = null,
-                    previewError = null,
-                    applySuccess = false,
-                    applyError = null,
                 )
             }
 
