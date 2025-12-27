@@ -153,6 +153,34 @@ data class ContributorEdit(
 ) : Route
 
 /**
+ * Contributor metadata search screen - search Audible for contributor.
+ *
+ * Shows search field, region selector, and results list.
+ * Selecting a result navigates to the preview screen.
+ *
+ * @property contributorId The unique ID of the contributor to match.
+ */
+@Serializable
+data class ContributorMetadataSearch(
+    val contributorId: String,
+) : Route
+
+/**
+ * Contributor metadata preview screen - preview Audible metadata before applying.
+ *
+ * Shows side-by-side comparison of current contributor data vs Audible data.
+ * User can toggle which fields to apply (name, biography, image).
+ *
+ * @property contributorId The unique ID of the contributor to update.
+ * @property asin The Audible ASIN of the matched contributor.
+ */
+@Serializable
+data class ContributorMetadataPreview(
+    val contributorId: String,
+    val asin: String,
+) : Route
+
+/**
  * Invite registration screen - claim an invite and create account.
  *
  * Shown when the app is opened via an invite deep link.

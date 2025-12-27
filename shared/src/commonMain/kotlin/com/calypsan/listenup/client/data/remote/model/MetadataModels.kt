@@ -169,3 +169,70 @@ data class ApplyMatchRequest(
     @SerialName("genres")
     val genres: List<String> = emptyList(),
 )
+
+// =============================================================================
+// CONTRIBUTOR METADATA
+// =============================================================================
+
+/**
+ * Search result from Audible contributor search.
+ * Contains basic information for display in disambiguation list.
+ */
+@Serializable
+data class ContributorMetadataSearchResult(
+    @SerialName("asin")
+    val asin: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("image_url")
+    val imageUrl: String? = null,
+    @SerialName("description")
+    val description: String? = null, // e.g., "142 titles"
+)
+
+/**
+ * Full contributor profile from Audible.
+ */
+@Serializable
+data class ContributorMetadataProfile(
+    @SerialName("asin")
+    val asin: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("biography")
+    val biography: String? = null,
+    @SerialName("image_url")
+    val imageUrl: String? = null,
+)
+
+/**
+ * Response wrapper for contributor metadata search.
+ */
+@Serializable
+data class ContributorMetadataSearchResponse(
+    @SerialName("results")
+    val results: List<ContributorMetadataSearchResult> = emptyList(),
+    @SerialName("region")
+    val region: String = "us",
+)
+
+/**
+ * Error response with candidates for 409 Conflict.
+ */
+@Serializable
+data class ContributorMetadataConflictError(
+    @SerialName("code")
+    val code: String,
+    @SerialName("message")
+    val message: String,
+    @SerialName("details")
+    val details: ContributorMetadataConflictDetails? = null,
+)
+
+@Serializable
+data class ContributorMetadataConflictDetails(
+    @SerialName("candidates")
+    val candidates: List<ContributorMetadataSearchResult> = emptyList(),
+    @SerialName("searched_name")
+    val searchedName: String? = null,
+)

@@ -350,6 +350,7 @@ val presentationModule =
                 bookDao = get(),
                 imageStorage = get(),
                 playbackPositionDao = get(),
+                contributorRepository = get(),
             )
         }
         factory {
@@ -358,6 +359,14 @@ val presentationModule =
                 bookDao = get(),
                 imageStorage = get(),
                 playbackPositionDao = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataViewModel(
+                contributorDao = get(),
+                metadataApi = get(),
+                imageApi = get(),
+                imageStorage = get(),
             )
         }
         factory {
@@ -754,6 +763,7 @@ val syncModule =
         single {
             ContributorRepository(
                 api = get(),
+                metadataApi = get(),
                 searchDao = get(),
                 networkMonitor = get(),
             )

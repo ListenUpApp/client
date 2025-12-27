@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
+import com.calypsan.listenup.client.data.remote.MetadataApiContract
 import dev.mokkery.MockMode
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -36,6 +37,8 @@ class ContributorRepositoryTest {
     private fun createMockSearchDao(): SearchDao = mock<SearchDao>(MockMode.autoUnit)
 
     private fun createMockNetworkMonitor(): NetworkMonitor = mock<NetworkMonitor>()
+
+    private fun createMockMetadataApi(): MetadataApiContract = mock<MetadataApiContract>()
 
     private fun createTestContributorEntity(
         id: String = "contrib-1",
@@ -73,7 +76,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             // When
             val result = repository.searchContributors("")
@@ -90,7 +93,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             // When
             val result = repository.searchContributors("b")
@@ -106,7 +109,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             // When
             val result = repository.searchContributors("   ")
@@ -124,7 +127,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             every { networkMonitor.isOnline() } returns true
 
@@ -152,7 +155,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             every { networkMonitor.isOnline() } returns true
             everySuspend { api.searchContributors(any(), any()) } returns Success(emptyList())
@@ -171,7 +174,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             every { networkMonitor.isOnline() } returns true
 
@@ -197,7 +200,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             every { networkMonitor.isOnline() } returns false
             everySuspend { searchDao.searchContributors(any(), any()) } returns
@@ -219,7 +222,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             every { networkMonitor.isOnline() } returns false
             everySuspend { searchDao.searchContributors(any(), any()) } returns
@@ -239,7 +242,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             every { networkMonitor.isOnline() } returns true
             everySuspend { api.searchContributors(any(), any()) } returns
@@ -265,7 +268,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             every { networkMonitor.isOnline() } returns true
             everySuspend { api.searchContributors(any(), any()) } returns Success(emptyList())
@@ -284,7 +287,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             every { networkMonitor.isOnline() } returns true
             everySuspend { api.searchContributors(any(), any()) } returns Success(emptyList())
@@ -306,7 +309,7 @@ class ContributorRepositoryTest {
             val api = createMockApi()
             val searchDao = createMockSearchDao()
             val networkMonitor = createMockNetworkMonitor()
-            val repository = ContributorRepository(api, searchDao, networkMonitor)
+            val repository = ContributorRepository(api, createMockMetadataApi(), searchDao, networkMonitor)
 
             every { networkMonitor.isOnline() } returns false
             everySuspend { searchDao.searchContributors(any(), any()) } returns emptyList()

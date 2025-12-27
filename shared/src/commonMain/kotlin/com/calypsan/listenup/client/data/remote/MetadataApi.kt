@@ -2,6 +2,11 @@ package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.ApplyMatchRequest
+import com.calypsan.listenup.client.data.remote.model.ContributorMetadataConflictError
+import com.calypsan.listenup.client.data.remote.model.ContributorMetadataProfile
+import com.calypsan.listenup.client.data.remote.model.ContributorMetadataSearchResponse
+import com.calypsan.listenup.client.data.remote.model.ContributorMetadataSearchResult
+import com.calypsan.listenup.client.data.remote.model.ContributorResponse
 import com.calypsan.listenup.client.data.remote.model.MetadataBook
 import com.calypsan.listenup.client.data.remote.model.MetadataBookResponse
 import com.calypsan.listenup.client.data.remote.model.MetadataSearchResponse
@@ -11,8 +16,11 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import kotlinx.serialization.json.Json
 
 /**
  * Contract interface for metadata API operations.
@@ -58,6 +66,69 @@ interface MetadataApiContract {
         bookId: String,
         request: ApplyMatchRequest,
     )
+
+    // === Contributor Metadata ===
+
+    /**
+     * Search Audible for contributors by name.
+     *
+     * @param query Contributor name to search
+     * @param region Optional Audible region to search
+     * @return List of matching contributors
+     */
+    suspend fun searchContributors(query: String, region: String? = null): List<ContributorMetadataSearchResult>
+
+    /**
+     * Get contributor profile from Audible.
+     *
+     * @param asin Audible ASIN
+     * @return Contributor profile with biography and image
+     */
+    suspend fun getContributorProfile(asin: String): ContributorMetadataProfile
+
+    /**
+     * Apply Audible metadata to a contributor.
+     *
+     * If no ASIN provided and contributor has no ASIN, searches by name
+     * and may return 409 Conflict with candidates for disambiguation.
+     *
+     * @param contributorId Local contributor ID
+     * @param asin Optional Audible ASIN (required if multiple matches)
+     * @param name Optional contributor name (fallback for search if contributor not found on server)
+     * @param imageUrl Optional image URL from search results (Audible API no longer returns images)
+     * @return Result with either success or candidates for disambiguation
+     */
+    suspend fun applyContributorMetadata(
+        contributorId: String,
+        asin: String? = null,
+        name: String? = null,
+        imageUrl: String? = null,
+    ): ApplyContributorMetadataResult
+}
+
+/**
+ * Result of applying contributor metadata.
+ */
+sealed class ApplyContributorMetadataResult {
+    /** Metadata applied successfully, includes updated contributor data */
+    data class Success(val contributor: ContributorResponse) : ApplyContributorMetadataResult()
+
+    /**
+     * Disambiguation required - either multiple matches found or no matches found.
+     * If candidates is empty, the user should be prompted to search with a different name.
+     *
+     * @param candidates List of matching contributors from Audible (may be empty)
+     * @param searchedName The name that was searched on Audible
+     * @param message Server message explaining the situation
+     */
+    data class NeedsDisambiguation(
+        val candidates: List<ContributorMetadataSearchResult>,
+        val searchedName: String? = null,
+        val message: String? = null,
+    ) : ApplyContributorMetadataResult()
+
+    /** Error occurred */
+    data class Error(val message: String) : ApplyContributorMetadataResult()
 }
 
 /**
@@ -135,6 +206,101 @@ class MetadataApi(
         client.post("/api/v1/books/$bookId/match") {
             contentType(ContentType.Application.Json)
             setBody(request)
+        }
+    }
+
+    // === Contributor Metadata ===
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    /**
+     * Search Audible for contributors by name.
+     *
+     * Endpoint: GET /api/v1/metadata/contributors/search
+     */
+    override suspend fun searchContributors(query: String, region: String?): List<ContributorMetadataSearchResult> {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<ContributorMetadataSearchResponse> =
+            client
+                .get("/api/v1/metadata/contributors/search") {
+                    parameter("q", query)
+                    if (region != null) {
+                        parameter("region", region)
+                    }
+                }.body()
+
+        return response.data?.results ?: emptyList()
+    }
+
+    /**
+     * Get contributor profile from Audible.
+     *
+     * Endpoint: GET /api/v1/metadata/contributors/{asin}
+     */
+    override suspend fun getContributorProfile(asin: String): ContributorMetadataProfile {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<ContributorMetadataProfile> =
+            client.get("/api/v1/metadata/contributors/$asin").body()
+        return response.data ?: throw Exception("No contributor profile in response")
+    }
+
+    /**
+     * Apply Audible metadata to a contributor.
+     *
+     * Endpoint: POST /api/v1/contributors/{id}/metadata
+     *
+     * Handles 409 Conflict response containing candidates for disambiguation.
+     */
+    override suspend fun applyContributorMetadata(
+        contributorId: String,
+        asin: String?,
+        name: String?,
+        imageUrl: String?,
+    ): ApplyContributorMetadataResult {
+        val client = clientFactory.getClient()
+        val response =
+            client.post("/api/v1/contributors/$contributorId/metadata") {
+                contentType(ContentType.Application.Json)
+                asin?.let { parameter("asin", it) }
+                name?.let { parameter("name", it) }
+                imageUrl?.let { parameter("imageUrl", it) }
+            }
+
+        return when (response.status) {
+            HttpStatusCode.OK -> {
+                // Parse the updated contributor from response
+                val body = response.bodyAsText()
+                val apiResponse = json.decodeFromString<ApiResponse<ContributorResponse>>(body)
+                val contributor = apiResponse.data
+                    ?: throw Exception("No contributor data in success response")
+                ApplyContributorMetadataResult.Success(contributor)
+            }
+
+            HttpStatusCode.Conflict -> {
+                // Parse candidates from error response
+                val errorBody = response.bodyAsText()
+                val error = json.decodeFromString<ContributorMetadataConflictError>(errorBody)
+                val candidates = error.details?.candidates ?: emptyList()
+                val searchedName = error.details?.searchedName
+                ApplyContributorMetadataResult.NeedsDisambiguation(
+                    candidates = candidates,
+                    searchedName = searchedName,
+                    message = error.message,
+                )
+            }
+
+            else -> {
+                val errorBody = response.bodyAsText()
+                // Try to extract error message from API response envelope
+                val errorMessage = try {
+                    val errorResponse = json.decodeFromString<ApiResponse<Unit>>(errorBody)
+                    errorResponse.error ?: "Request failed with status ${response.status}"
+                } catch (_: Exception) {
+                    // Fallback if parsing fails
+                    "Request failed with status ${response.status}"
+                }
+                ApplyContributorMetadataResult.Error(errorMessage)
+            }
         }
     }
 }

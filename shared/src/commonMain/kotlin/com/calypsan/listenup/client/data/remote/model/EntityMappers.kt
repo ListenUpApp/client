@@ -54,11 +54,14 @@ fun ContributorResponse.toEntity(): ContributorEntity {
     // Convert aliases list to comma-separated string for storage
     val aliasesString = aliases?.takeIf { it.isNotEmpty() }?.joinToString(", ")
 
+    // Note: imagePath is intentionally null here. The server returns a relative URL
+    // (e.g., "/api/v1/contributors/{id}/image") which is not a local file path.
+    // Images must be downloaded separately and the local path set afterward.
     return ContributorEntity(
         id = id,
         name = name,
         description = biography,
-        imagePath = imageUrl,
+        imagePath = null,
         imageBlurHash = imageBlurHash,
         aliases = aliasesString,
         website = website,

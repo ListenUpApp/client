@@ -27,13 +27,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,8 +51,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -82,6 +94,7 @@ fun ContributorDetailScreen(
     onBookClick: (String) -> Unit,
     onEditClick: (String) -> Unit,
     onViewAllClick: (contributorId: String, role: String) -> Unit,
+    onMetadataClick: (String) -> Unit,
     viewModel: ContributorDetailViewModel = koinViewModel(),
 ) {
     LaunchedEffect(contributorId) {
@@ -89,6 +102,24 @@ fun ContributorDetailScreen(
     }
 
     val state by viewModel.state.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Show errors via snackbar
+    LaunchedEffect(state.error) {
+        state.error?.let { error ->
+            // Make the error message user-friendly
+            val friendlyMessage = when {
+                error.contains("not found", ignoreCase = true) ->
+                    "Could not find metadata for this contributor on Audible"
+                error.contains("network", ignoreCase = true) ||
+                    error.contains("connection", ignoreCase = true) ->
+                    "Network error. Please check your connection and try again."
+                else -> error
+            }
+            snackbarHostState.showSnackbar(friendlyMessage)
+            viewModel.onClearError()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
@@ -96,7 +127,8 @@ fun ContributorDetailScreen(
                 ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
             }
 
-            state.error != null -> {
+            state.contributor == null && state.error != null -> {
+                // Only show full-screen error when contributor failed to load initially
                 Text(
                     text = state.error ?: "Unknown error",
                     color = MaterialTheme.colorScheme.error,
@@ -104,15 +136,46 @@ fun ContributorDetailScreen(
                 )
             }
 
-            else -> {
+            state.contributor != null -> {
                 ContributorPortfolio(
                     contributorId = contributorId,
                     state = state,
                     onBackClick = onBackClick,
                     onEditClick = { onEditClick(contributorId) },
+                    onDownloadMetadata = { onMetadataClick(contributorId) },
+                    onDeleteClick = viewModel::onDeleteContributor,
                     onBookClick = onBookClick,
                     onViewAllClick = { role -> onViewAllClick(contributorId, role) },
                 )
+            }
+        }
+
+        // Snackbar for transient errors (metadata fetch failures, etc.)
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+
+        // Show delete confirmation dialog
+        if (state.showDeleteConfirmation) {
+            ListenUpDestructiveDialog(
+                onDismissRequest = viewModel::onDismissDelete,
+                title = "Delete Contributor?",
+                text = "This will remove ${state.contributor?.name ?: "this contributor"} from your library. This action cannot be undone.",
+                confirmText = "Delete",
+                onConfirm = { viewModel.onConfirmDelete(onBackClick) },
+            )
+        }
+
+        // Show loading overlay for delete operation
+        if (state.isDeleting) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
             }
         }
     }
@@ -128,6 +191,8 @@ private fun ContributorPortfolio(
     state: ContributorDetailUiState,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
+    onDownloadMetadata: () -> Unit,
+    onDeleteClick: () -> Unit,
     onBookClick: (String) -> Unit,
     onViewAllClick: (role: String) -> Unit,
 ) {
@@ -152,6 +217,8 @@ private fun ContributorPortfolio(
                 surfaceColor = surfaceColor,
                 onBackClick = onBackClick,
                 onEditClick = onEditClick,
+                onDownloadMetadata = onDownloadMetadata,
+                onDeleteClick = onDeleteClick,
             )
         }
 
@@ -212,6 +279,8 @@ private fun HeroHeader(
     surfaceColor: Color,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
+    onDownloadMetadata: () -> Unit,
+    onDeleteClick: () -> Unit,
 ) {
     // Create a smooth gradient from rich color to surface
     val gradientColors =
@@ -241,6 +310,8 @@ private fun HeroHeader(
             NavigationBar(
                 onBackClick = onBackClick,
                 onEditClick = onEditClick,
+                onDownloadMetadata = onDownloadMetadata,
+                onDeleteClick = onDeleteClick,
                 surfaceColor = surfaceColor,
             )
 
@@ -289,14 +360,18 @@ private fun HeroHeader(
 }
 
 /**
- * Floating back and edit buttons with semi-transparent surface.
+ * Floating back button and overflow menu with semi-transparent surface.
  */
 @Composable
 private fun NavigationBar(
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
+    onDownloadMetadata: () -> Unit,
+    onDeleteClick: () -> Unit,
     surfaceColor: Color,
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier =
             Modifier
@@ -321,21 +396,65 @@ private fun NavigationBar(
             )
         }
 
-        IconButton(
-            onClick = onEditClick,
-            modifier =
-                Modifier
-                    .size(48.dp)
-                    .background(
-                        color = surfaceColor.copy(alpha = 0.5f),
-                        shape = CircleShape,
-                    ),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = "Edit contributor",
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
+        Box {
+            IconButton(
+                onClick = { showMenu = true },
+                modifier =
+                    Modifier
+                        .size(48.dp)
+                        .background(
+                            color = surfaceColor.copy(alpha = 0.5f),
+                            shape = CircleShape,
+                        ),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More options",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Edit") },
+                    leadingIcon = { Icon(Icons.Default.Edit, null) },
+                    onClick = {
+                        showMenu = false
+                        onEditClick()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Download Metadata") },
+                    leadingIcon = { Icon(Icons.Default.CloudDownload, null) },
+                    onClick = {
+                        showMenu = false
+                        onDownloadMetadata()
+                    },
+                )
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            "Delete",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Delete,
+                            null,
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    },
+                    onClick = {
+                        showMenu = false
+                        onDeleteClick()
+                    },
+                )
+            }
         }
     }
 }

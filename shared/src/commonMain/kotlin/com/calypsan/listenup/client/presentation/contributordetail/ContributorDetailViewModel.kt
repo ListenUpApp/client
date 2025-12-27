@@ -4,20 +4,26 @@ package com.calypsan.listenup.client.presentation.contributordetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Contributor
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * ViewModel for the Contributor Detail screen.
@@ -31,9 +37,12 @@ class ContributorDetailViewModel(
     private val bookDao: BookDao,
     private val imageStorage: ImageStorage,
     private val playbackPositionDao: PlaybackPositionDao,
+    private val contributorRepository: ContributorRepositoryContract,
 ) : ViewModel() {
     val state: StateFlow<ContributorDetailUiState>
         field = MutableStateFlow(ContributorDetailUiState())
+
+    private var currentContributorId: String? = null
 
     /**
      * Load contributor details and their books grouped by role.
@@ -41,6 +50,7 @@ class ContributorDetailViewModel(
      * @param contributorId The ID of the contributor to load
      */
     fun loadContributor(contributorId: String) {
+        currentContributorId = contributorId
         state.value = state.value.copy(isLoading = true)
 
         viewModelScope.launch {
@@ -192,6 +202,60 @@ class ContributorDetailViewModel(
         )
     }
 
+    // === Delete Operations ===
+
+    /**
+     * Request to delete this contributor. Shows confirmation dialog.
+     */
+    fun onDeleteContributor() {
+        state.value = state.value.copy(showDeleteConfirmation = true)
+    }
+
+    /**
+     * Confirm deletion of the contributor.
+     *
+     * @return true if deletion was initiated (caller should navigate away)
+     */
+    fun onConfirmDelete(onDeleted: () -> Unit) {
+        val contributorId = currentContributorId ?: return
+        state.value = state.value.copy(
+            showDeleteConfirmation = false,
+            isDeleting = true,
+        )
+
+        viewModelScope.launch {
+            when (val result = contributorRepository.deleteContributor(contributorId)) {
+                is Success -> {
+                    logger.info { "Contributor deleted successfully" }
+                    state.value = state.value.copy(isDeleting = false)
+                    onDeleted()
+                }
+
+                is Failure -> {
+                    logger.warn { "Failed to delete contributor: ${result.message}" }
+                    state.value = state.value.copy(
+                        isDeleting = false,
+                        error = result.message,
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Cancel deletion.
+     */
+    fun onDismissDelete() {
+        state.value = state.value.copy(showDeleteConfirmation = false)
+    }
+
+    /**
+     * Clear any displayed error.
+     */
+    fun onClearError() {
+        state.value = state.value.copy(error = null)
+    }
+
     companion object {
         /** Number of books to show in the horizontal preview */
         private const val PREVIEW_BOOK_COUNT = 10
@@ -212,7 +276,6 @@ class ContributorDetailViewModel(
             }
     }
 }
-
 /**
  * UI state for the Contributor Detail screen.
  */
@@ -225,6 +288,9 @@ data class ContributorDetailUiState(
     /** Maps bookId to creditedAs name when different from contributor's name */
     val bookCreditedAs: Map<String, String> = emptyMap(),
     val error: String? = null,
+    // Delete state
+    val showDeleteConfirmation: Boolean = false,
+    val isDeleting: Boolean = false,
 )
 
 /**
