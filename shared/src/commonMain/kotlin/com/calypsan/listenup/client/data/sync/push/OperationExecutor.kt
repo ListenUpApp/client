@@ -1,3 +1,5 @@
+@file:Suppress("LongParameterList")
+
 package com.calypsan.listenup.client.data.sync.push
 
 import com.calypsan.listenup.client.core.Failure

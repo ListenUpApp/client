@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.domain.playback
 
 import com.calypsan.listenup.client.data.local.db.BookId

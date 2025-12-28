@@ -45,18 +45,23 @@ interface ContributorRepositoryContract {
      * Apply Audible metadata to a contributor.
      *
      * Fetches contributor profile (biography, image) from Audible and applies
-     * it to the local contributor. If no ASIN is provided and the contributor
-     * has no ASIN, searches by name and may return candidates for disambiguation.
+     * selected fields to the local contributor.
      *
      * @param contributorId Local contributor ID
-     * @param asin Optional Audible ASIN (required if multiple matches found)
-     * @param name Optional contributor name (fallback for search if contributor not found on server)
+     * @param asin Audible ASIN for the contributor
+     * @param imageUrl Optional image URL to apply
+     * @param applyName Whether to apply the name from Audible
+     * @param applyBiography Whether to apply the biography from Audible
+     * @param applyImage Whether to download and apply the image
      * @return Result indicating success, need for disambiguation, or error
      */
     suspend fun applyMetadataFromAudible(
         contributorId: String,
-        asin: String? = null,
-        name: String? = null,
+        asin: String,
+        imageUrl: String? = null,
+        applyName: Boolean = true,
+        applyBiography: Boolean = true,
+        applyImage: Boolean = true,
     ): ContributorMetadataResult
 
     /**
@@ -266,12 +271,22 @@ class ContributorRepository(
      */
     override suspend fun applyMetadataFromAudible(
         contributorId: String,
-        asin: String?,
-        name: String?,
+        asin: String,
+        imageUrl: String?,
+        applyName: Boolean,
+        applyBiography: Boolean,
+        applyImage: Boolean,
     ): ContributorMetadataResult =
         withContext(IODispatcher) {
             try {
-                when (val result = metadataApi.applyContributorMetadata(contributorId, asin, name)) {
+                when (val result = metadataApi.applyContributorMetadata(
+                    contributorId = contributorId,
+                    asin = asin,
+                    imageUrl = imageUrl,
+                    applyName = applyName,
+                    applyBiography = applyBiography,
+                    applyImage = applyImage,
+                )) {
                     is ApplyContributorMetadataResult.Success -> {
                         logger.info { "Applied Audible metadata to contributor $contributorId" }
                         ContributorMetadataResult.Success

@@ -7,9 +7,7 @@ import com.calypsan.listenup.client.data.remote.model.CoverOption
 import com.calypsan.listenup.client.data.remote.model.MatchFields
 import com.calypsan.listenup.client.data.remote.model.MetadataBook
 import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.remote.model.MetadataContributor
 import com.calypsan.listenup.client.data.remote.model.MetadataSearchResult
-import com.calypsan.listenup.client.data.remote.model.MetadataSeriesEntry
 import com.calypsan.listenup.client.data.remote.model.SeriesMatchEntry
 import com.calypsan.listenup.client.data.repository.MetadataRepositoryContract
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract

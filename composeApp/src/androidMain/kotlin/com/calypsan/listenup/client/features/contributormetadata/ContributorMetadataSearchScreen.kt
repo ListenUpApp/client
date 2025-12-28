@@ -1,6 +1,5 @@
 package com.calypsan.listenup.client.features.contributormetadata
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

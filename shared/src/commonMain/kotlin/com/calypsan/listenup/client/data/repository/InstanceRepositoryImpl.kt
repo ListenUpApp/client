@@ -20,6 +20,10 @@ import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
 
+private const val REQUEST_TIMEOUT_MS = 30_000L
+private const val CONNECT_TIMEOUT_MS = 10_000L
+private const val SOCKET_TIMEOUT_MS = 30_000L
+
 /**
  * Implementation of InstanceRepository that fetches data from the ListenUp API.
  *
@@ -59,9 +63,9 @@ class InstanceRepositoryImpl(
             }
 
             install(HttpTimeout) {
-                requestTimeoutMillis = 30_000
-                connectTimeoutMillis = 10_000
-                socketTimeoutMillis = 30_000
+                requestTimeoutMillis = REQUEST_TIMEOUT_MS
+                connectTimeoutMillis = CONNECT_TIMEOUT_MS
+                socketTimeoutMillis = SOCKET_TIMEOUT_MS
             }
 
             defaultRequest {

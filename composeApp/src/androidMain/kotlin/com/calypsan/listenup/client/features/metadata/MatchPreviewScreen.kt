@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod", "LongParameterList", "CyclomaticComplexMethod", "CognitiveComplexMethod")
+
 package com.calypsan.listenup.client.features.metadata
 
 import androidx.compose.foundation.BorderStroke
@@ -11,7 +13,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,7 +25,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -755,7 +755,8 @@ private fun NoMetadataAvailableMessage(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "This book exists on Audible (${selectedRegion.displayName}) but has minimal metadata. Try selecting a different region above.",
+            text = "This book exists on Audible (${selectedRegion.displayName}) but has minimal metadata. " +
+                "Try selecting a different region above.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

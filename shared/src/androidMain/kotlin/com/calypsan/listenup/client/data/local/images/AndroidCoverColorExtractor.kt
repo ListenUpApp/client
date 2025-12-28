@@ -50,7 +50,7 @@ class AndroidCoverColorExtractor : CoverColorExtractor {
                     vibrant = vibrantColor,
                 )
             } catch (
-                @Suppress("TooGenericExceptionCaught") e: Exception,
+                @Suppress("TooGenericExceptionCaught") _: Exception,
             ) {
                 null
             }

@@ -452,7 +452,6 @@ private fun CoverArt(
     onColorExtracted: (Color) -> Unit,
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     // Track if color has been extracted for this URL to prevent repeated extraction
     var colorExtracted by remember(coverUrl) { mutableStateOf(false) }

@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod")
+
 package com.calypsan.listenup.client.features.bookdetail.components
 
 import androidx.compose.foundation.background

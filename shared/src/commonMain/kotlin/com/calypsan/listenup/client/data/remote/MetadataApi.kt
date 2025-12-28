@@ -1,3 +1,5 @@
+@file:Suppress("TooGenericExceptionThrown", "StringLiteralDuplication")
+
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
@@ -312,28 +314,24 @@ class MetadataApi(
                 setBody(request)
             }
 
-        return when (response.status) {
-            HttpStatusCode.OK -> {
-                // Parse the updated contributor from response
-                val body = response.bodyAsText()
-                val apiResponse = json.decodeFromString<ApiResponse<ContributorResponse>>(body)
-                val contributor = apiResponse.data
-                    ?: throw Exception("No contributor data in success response")
-                ApplyContributorMetadataResult.Success(contributor)
+        return if (response.status == HttpStatusCode.OK) {
+            // Parse the updated contributor from response
+            val body = response.bodyAsText()
+            val apiResponse = json.decodeFromString<ApiResponse<ContributorResponse>>(body)
+            val contributor = apiResponse.data
+                ?: throw Exception("No contributor data in success response")
+            ApplyContributorMetadataResult.Success(contributor)
+        } else {
+            val errorBody = response.bodyAsText()
+            // Try to extract error message from API response envelope
+            val errorMessage = try {
+                val errorResponse = json.decodeFromString<ApiResponse<Unit>>(errorBody)
+                errorResponse.error ?: "Request failed with status ${response.status}"
+            } catch (_: Exception) {
+                // Fallback if parsing fails
+                "Request failed with status ${response.status}"
             }
-
-            else -> {
-                val errorBody = response.bodyAsText()
-                // Try to extract error message from API response envelope
-                val errorMessage = try {
-                    val errorResponse = json.decodeFromString<ApiResponse<Unit>>(errorBody)
-                    errorResponse.error ?: "Request failed with status ${response.status}"
-                } catch (_: Exception) {
-                    // Fallback if parsing fails
-                    "Request failed with status ${response.status}"
-                }
-                ApplyContributorMetadataResult.Error(errorMessage)
-            }
+            ApplyContributorMetadataResult.Error(errorMessage)
         }
     }
 }

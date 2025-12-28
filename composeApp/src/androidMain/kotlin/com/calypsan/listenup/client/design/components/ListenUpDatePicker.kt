@@ -158,7 +158,7 @@ private fun parseIsoDate(isoDate: String): LocalDate? {
     if (isoDate.isBlank()) return null
     return try {
         LocalDate.parse(isoDate)
-    } catch (e: IllegalArgumentException) {
+    } catch (_: IllegalArgumentException) {
         null
     }
 }

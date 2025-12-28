@@ -1,8 +1,6 @@
 package com.calypsan.listenup.client.design.components
 
 import android.graphics.Bitmap
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -98,7 +96,8 @@ fun ListenUpAsyncImage(
 
     // When blurHash is provided, use layered rendering with placeholder
     if (blurHash != null) {
-        Box(modifier = modifier.background(Color(0xFFE0E0E0))) {
+        @Suppress("MagicNumber")
+        Box(modifier = modifier.background(Color(0xFFE0E0E0))) { // Light gray placeholder
             // Layer 1: BlurHash placeholder (instant, shows until real image loads)
             if (!imageLoaded) {
                 BlurHashPlaceholder(
@@ -107,25 +106,20 @@ fun ListenUpAsyncImage(
                 )
             }
 
-            // Layer 2: Real image (fades in over BlurHash)
+            // Layer 2: Real image (loads on top of BlurHash, which fades out when loaded)
             if (path != null) {
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn(),
-                ) {
-                    AsyncImage(
-                        model = request,
-                        contentDescription = contentDescription,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = contentScale,
-                        onState = { state ->
-                            if (state is AsyncImagePainter.State.Success) {
-                                imageLoaded = true
-                            }
-                            onState?.invoke(state)
-                        },
-                    )
-                }
+                AsyncImage(
+                    model = request,
+                    contentDescription = contentDescription,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = contentScale,
+                    onState = { state ->
+                        if (state is AsyncImagePainter.State.Success) {
+                            imageLoaded = true
+                        }
+                        onState?.invoke(state)
+                    },
+                )
             }
         }
     } else {

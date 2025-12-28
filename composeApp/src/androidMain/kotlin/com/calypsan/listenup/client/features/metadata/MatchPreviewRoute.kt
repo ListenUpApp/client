@@ -28,8 +28,6 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
-import com.calypsan.listenup.client.presentation.metadata.MetadataField
-import com.calypsan.listenup.client.presentation.metadata.MetadataSelections
 import com.calypsan.listenup.client.presentation.metadata.MetadataViewModel
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel

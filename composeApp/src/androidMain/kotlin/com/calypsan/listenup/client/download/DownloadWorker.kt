@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "NestedBlockDepth")
 
 package com.calypsan.listenup.client.download
 

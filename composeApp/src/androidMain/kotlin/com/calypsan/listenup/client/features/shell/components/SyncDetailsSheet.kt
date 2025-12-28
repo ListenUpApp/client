@@ -250,6 +250,7 @@ private fun FailedOperationsSection(
     Spacer(Modifier.height(8.dp))
 
     // List of failed operations
+    @Suppress("MagicNumber") // Max 4 items visible, 72dp per item
     LazyColumn(
         modifier = Modifier.height((failedOperations.size.coerceAtMost(4) * 72).dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),

@@ -56,7 +56,7 @@ data class PlaybackProgressResponse(
     fun lastPlayedAtMillis(): Long =
         try {
             Instant.parse(lastPlayedAt).toEpochMilliseconds()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             0L
         }
 }

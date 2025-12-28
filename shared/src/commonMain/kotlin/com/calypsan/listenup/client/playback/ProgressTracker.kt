@@ -267,6 +267,7 @@ class ProgressTracker(
      * Merge local and server positions, returning the more recent one.
      * If server is newer, updates local cache for offline access.
      */
+    @Suppress("UnusedParameter") // bookId reserved for future logging/debugging
     private suspend fun mergePositions(
         bookId: BookId,
         local: PlaybackPositionEntity?,

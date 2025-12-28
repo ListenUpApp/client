@@ -279,6 +279,7 @@ private fun MetadataSearchResultItem(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Cover thumbnail
+            @Suppress("MagicNumber") // Standard book cover aspect ratio
             AsyncImage(
                 model = result.coverUrl,
                 contentDescription = null,

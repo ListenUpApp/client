@@ -127,7 +127,7 @@ class LoginViewModel(
 
     companion object {
         private const val MAX_EMAIL_LENGTH = 254
-        private val EMAIL_REGEX = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
+        private val EMAIL_REGEX = Regex("""^[^@\s]+@[^@\s]+\.[^@\s]+$""")
     }
 }
 

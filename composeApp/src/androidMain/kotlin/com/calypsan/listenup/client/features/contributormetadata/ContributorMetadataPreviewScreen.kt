@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod", "CognitiveComplexMethod", "StringLiteralDuplication")
+
 package com.calypsan.listenup.client.features.contributormetadata
 
 import androidx.compose.foundation.layout.Arrangement
@@ -38,11 +40,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.calypsan.listenup.client.data.local.db.ContributorEntity
-import com.calypsan.listenup.client.data.remote.model.ContributorMetadataProfile
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataField
-import com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataSelections
 import com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataUiState
 
 /**
