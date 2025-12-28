@@ -175,7 +175,9 @@ private fun NotFoundErrorScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "This book couldn't be found in the ${selectedRegion.displayName} Audible catalog. Try a different region:",
+                text =
+                    "This book couldn't be found in the ${selectedRegion.displayName} " +
+                        "Audible catalog. Try a different region:",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

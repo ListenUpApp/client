@@ -94,17 +94,18 @@ fun MatchPreviewScreen(
     onBack: () -> Unit,
 ) {
     // Check if any field is selected
-    val hasAnySelected = selections.cover ||
-        selections.title ||
-        selections.subtitle ||
-        selections.description ||
-        selections.publisher ||
-        selections.releaseDate ||
-        selections.language ||
-        selections.selectedAuthors.isNotEmpty() ||
-        selections.selectedNarrators.isNotEmpty() ||
-        selections.selectedSeries.isNotEmpty() ||
-        selections.selectedGenres.isNotEmpty()
+    val hasAnySelected =
+        selections.cover ||
+            selections.title ||
+            selections.subtitle ||
+            selections.description ||
+            selections.publisher ||
+            selections.releaseDate ||
+            selections.language ||
+            selections.selectedAuthors.isNotEmpty() ||
+            selections.selectedNarrators.isNotEmpty() ||
+            selections.selectedSeries.isNotEmpty() ||
+            selections.selectedGenres.isNotEmpty()
 
     Scaffold(
         topBar = {
@@ -125,9 +126,10 @@ fun MatchPreviewScreen(
                 tonalElevation = 3.dp,
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                 ) {
                     applyError?.let { error ->
                         Text(
@@ -158,9 +160,10 @@ fun MatchPreviewScreen(
         },
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -175,17 +178,18 @@ fun MatchPreviewScreen(
             }
 
             // Check if there's any metadata available
-            val hasAnyData = newMetadata.coverUrl != null ||
-                newMetadata.title.isNotBlank() ||
-                !newMetadata.subtitle.isNullOrBlank() ||
-                newMetadata.authors.isNotEmpty() ||
-                newMetadata.narrators.isNotEmpty() ||
-                newMetadata.series.isNotEmpty() ||
-                newMetadata.genres.isNotEmpty() ||
-                !newMetadata.description.isNullOrBlank() ||
-                !newMetadata.publisher.isNullOrBlank() ||
-                !newMetadata.language.isNullOrBlank() ||
-                !newMetadata.releaseDate.isNullOrBlank()
+            val hasAnyData =
+                newMetadata.coverUrl != null ||
+                    newMetadata.title.isNotBlank() ||
+                    !newMetadata.subtitle.isNullOrBlank() ||
+                    newMetadata.authors.isNotEmpty() ||
+                    newMetadata.narrators.isNotEmpty() ||
+                    newMetadata.series.isNotEmpty() ||
+                    newMetadata.genres.isNotEmpty() ||
+                    !newMetadata.description.isNullOrBlank() ||
+                    !newMetadata.publisher.isNullOrBlank() ||
+                    !newMetadata.language.isNullOrBlank() ||
+                    !newMetadata.releaseDate.isNullOrBlank()
 
             if (!hasAnyData) {
                 item {
@@ -282,11 +286,12 @@ fun MatchPreviewScreen(
                 // Description
                 newMetadata.description?.takeIf { it.isNotBlank() }?.let { description ->
                     item {
-                        val displayText = if (description.length > 200) {
-                            description.take(200) + "..."
-                        } else {
-                            description
-                        }
+                        val displayText =
+                            if (description.length > 200) {
+                                description.take(200) + "..."
+                            } else {
+                                description
+                            }
                         SimpleFieldItem(
                             label = "Description",
                             value = displayText,
@@ -471,18 +476,21 @@ private fun CoverOptionCard(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Card(
-            modifier = Modifier
-                .size(100.dp)
-                .clickable(onClick = onClick),
+            modifier =
+                Modifier
+                    .size(100.dp)
+                    .clickable(onClick = onClick),
             shape = MaterialTheme.shapes.medium,
-            border = if (isSelected) {
-                BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
-            } else {
-                null
-            },
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = if (isSelected) 4.dp else 1.dp,
-            ),
+            border =
+                if (isSelected) {
+                    BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
+                } else {
+                    null
+                },
+            elevation =
+                CardDefaults.cardElevation(
+                    defaultElevation = if (isSelected) 4.dp else 1.dp,
+                ),
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 content()
@@ -490,9 +498,10 @@ private fun CoverOptionCard(
                 // Source badge
                 if (source != null) {
                     Surface(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(4.dp),
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopStart)
+                                .padding(4.dp),
                         shape = RoundedCornerShape(4.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
                     ) {
@@ -507,12 +516,13 @@ private fun CoverOptionCard(
                 // Selected indicator
                 if (isSelected) {
                     Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(4.dp)
-                            .size(20.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.primary),
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(4.dp)
+                                .size(20.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -530,13 +540,14 @@ private fun CoverOptionCard(
 
         // Dimensions or label
         Text(
-            text = if (width != null && height != null) "${width}×${height}" else label,
+            text = if (width != null && height != null) "$width×$height" else label,
             style = MaterialTheme.typography.labelSmall,
-            color = if (isSelected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color =
+                if (isSelected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
         )
     }
 }
@@ -552,9 +563,10 @@ private fun CoverOptionPlaceholder() {
         Card(
             modifier = Modifier.size(100.dp),
             shape = MaterialTheme.shapes.medium,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -667,11 +679,12 @@ private fun SeriesListItem(
         )
         series.forEach { seriesEntry ->
             val asin = seriesEntry.asin ?: seriesEntry.name // Fallback to name if no ASIN
-            val displayText = if (seriesEntry.position != null) {
-                "${seriesEntry.name} #${seriesEntry.position}"
-            } else {
-                seriesEntry.name
-            }
+            val displayText =
+                if (seriesEntry.position != null) {
+                    "${seriesEntry.name} #${seriesEntry.position}"
+                } else {
+                    seriesEntry.name
+                }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -732,13 +745,12 @@ private fun GenreListItem(
  * Message shown when the book is found on Audible but has no/minimal metadata.
  */
 @Composable
-private fun NoMetadataAvailableMessage(
-    selectedRegion: AudibleRegion,
-) {
+private fun NoMetadataAvailableMessage(selectedRegion: AudibleRegion) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
@@ -755,8 +767,9 @@ private fun NoMetadataAvailableMessage(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "This book exists on Audible (${selectedRegion.displayName}) but has minimal metadata. " +
-                "Try selecting a different region above.",
+            text =
+                "This book exists on Audible (${selectedRegion.displayName}) but has minimal metadata. " +
+                    "Try selecting a different region above.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -770,9 +783,10 @@ private fun NoMetadataAvailableMessage(
 @Composable
 private fun AlreadyUpToDateMessage() {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(

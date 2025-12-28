@@ -93,7 +93,10 @@ interface MetadataApiContract {
      * @param region Optional Audible region to search
      * @return List of matching contributors
      */
-    suspend fun searchContributors(query: String, region: String? = null): List<ContributorMetadataSearchResult>
+    suspend fun searchContributors(
+        query: String,
+        region: String? = null,
+    ): List<ContributorMetadataSearchResult>
 
     /**
      * Get contributor profile from Audible.
@@ -129,7 +132,9 @@ interface MetadataApiContract {
  */
 sealed class ApplyContributorMetadataResult {
     /** Metadata applied successfully, includes updated contributor data */
-    data class Success(val contributor: ContributorResponse) : ApplyContributorMetadataResult()
+    data class Success(
+        val contributor: ContributorResponse,
+    ) : ApplyContributorMetadataResult()
 
     /**
      * Disambiguation required - either multiple matches found or no matches found.
@@ -146,7 +151,9 @@ sealed class ApplyContributorMetadataResult {
     ) : ApplyContributorMetadataResult()
 
     /** Error occurred */
-    data class Error(val message: String) : ApplyContributorMetadataResult()
+    data class Error(
+        val message: String,
+    ) : ApplyContributorMetadataResult()
 }
 
 /**
@@ -259,7 +266,10 @@ class MetadataApi(
      *
      * Endpoint: GET /api/v1/metadata/contributors/search
      */
-    override suspend fun searchContributors(query: String, region: String?): List<ContributorMetadataSearchResult> {
+    override suspend fun searchContributors(
+        query: String,
+        region: String?,
+    ): List<ContributorMetadataSearchResult> {
         val client = clientFactory.getClient()
         val response: ApiResponse<ContributorMetadataSearchResponse> =
             client
@@ -299,15 +309,17 @@ class MetadataApi(
         applyImage: Boolean,
     ): ApplyContributorMetadataResult {
         val client = clientFactory.getClient()
-        val request = ApplyContributorMetadataRequest(
-            asin = asin,
-            imageUrl = imageUrl,
-            fields = ContributorMetadataFieldsSelection(
-                name = applyName,
-                biography = applyBiography,
-                image = applyImage,
-            ),
-        )
+        val request =
+            ApplyContributorMetadataRequest(
+                asin = asin,
+                imageUrl = imageUrl,
+                fields =
+                    ContributorMetadataFieldsSelection(
+                        name = applyName,
+                        biography = applyBiography,
+                        image = applyImage,
+                    ),
+            )
         val response =
             client.post("/api/v1/contributors/$contributorId/metadata") {
                 contentType(ContentType.Application.Json)
@@ -318,19 +330,21 @@ class MetadataApi(
             // Parse the updated contributor from response
             val body = response.bodyAsText()
             val apiResponse = json.decodeFromString<ApiResponse<ContributorResponse>>(body)
-            val contributor = apiResponse.data
-                ?: throw Exception("No contributor data in success response")
+            val contributor =
+                apiResponse.data
+                    ?: throw Exception("No contributor data in success response")
             ApplyContributorMetadataResult.Success(contributor)
         } else {
             val errorBody = response.bodyAsText()
             // Try to extract error message from API response envelope
-            val errorMessage = try {
-                val errorResponse = json.decodeFromString<ApiResponse<Unit>>(errorBody)
-                errorResponse.error ?: "Request failed with status ${response.status}"
-            } catch (_: Exception) {
-                // Fallback if parsing fails
-                "Request failed with status ${response.status}"
-            }
+            val errorMessage =
+                try {
+                    val errorResponse = json.decodeFromString<ApiResponse<Unit>>(errorBody)
+                    errorResponse.error ?: "Request failed with status ${response.status}"
+                } catch (_: Exception) {
+                    // Fallback if parsing fails
+                    "Request failed with status ${response.status}"
+                }
             ApplyContributorMetadataResult.Error(errorMessage)
         }
     }

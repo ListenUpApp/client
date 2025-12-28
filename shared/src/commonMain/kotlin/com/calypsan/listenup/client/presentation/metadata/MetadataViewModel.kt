@@ -2,11 +2,11 @@ package com.calypsan.listenup.client.presentation.metadata
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.remote.model.ApplyMatchRequest
 import com.calypsan.listenup.client.data.remote.model.CoverOption
 import com.calypsan.listenup.client.data.remote.model.MatchFields
 import com.calypsan.listenup.client.data.remote.model.MetadataBook
-import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.remote.model.MetadataSearchResult
 import com.calypsan.listenup.client.data.remote.model.SeriesMatchEntry
 import com.calypsan.listenup.client.data.repository.MetadataRepositoryContract
@@ -23,7 +23,10 @@ private val logger = KotlinLogging.logger {}
 /**
  * Available Audible regions for metadata lookup.
  */
-enum class AudibleRegion(val code: String, val displayName: String) {
+enum class AudibleRegion(
+    val code: String,
+    val displayName: String,
+) {
     US("us", "United States"),
     UK("uk", "United Kingdom"),
     DE("de", "Germany"),
@@ -64,31 +67,25 @@ data class MetadataUiState(
     val currentTitle: String = "",
     val currentAuthor: String = "",
     val existingAsin: String? = null, // Pre-existing ASIN from embedded metadata
-
     // Region selection
     val selectedRegion: AudibleRegion = AudibleRegion.US,
-
     // Search state
     val searchQuery: String = "",
     val searchResults: List<MetadataSearchResult> = emptyList(),
     val isSearching: Boolean = false,
     val searchError: String? = null,
-
     // Preview state
     val selectedMatch: MetadataSearchResult? = null,
     val previewBook: MetadataBook? = null,
     val isLoadingPreview: Boolean = false,
     val previewError: String? = null, // API/network error - book not found
     val previewNotFound: Boolean = false, // Book exists but has no/minimal data
-
     // Field selections - what to apply
     val selections: MetadataSelections = MetadataSelections(),
-
     // Cover selection - multi-source covers
     val coverOptions: List<CoverOption> = emptyList(),
     val isLoadingCovers: Boolean = false,
     val selectedCoverUrl: String? = null, // null = use Audible default from preview
-
     // Apply state
     val isApplying: Boolean = false,
     val applySuccess: Boolean = false,
@@ -165,10 +162,11 @@ class MetadataViewModel(
         state.update { it.copy(selectedRegion = region) }
 
         // Re-fetch with new region
-        val result = MetadataSearchResult(
-            asin = currentAsin,
-            title = state.value.previewBook?.title ?: "",
-        )
+        val result =
+            MetadataSearchResult(
+                asin = currentAsin,
+                title = state.value.previewBook?.title ?: "",
+            )
         selectMatch(result)
     }
 
@@ -243,12 +241,13 @@ class MetadataViewModel(
                 val preview = metadataRepository.getMetadataPreview(result.asin, region)
 
                 // Check if the response has essentially no data
-                val hasNoData = preview.authors.isEmpty() &&
-                    preview.narrators.isEmpty() &&
-                    preview.series.isEmpty() &&
-                    preview.genres.isEmpty() &&
-                    preview.coverUrl == null &&
-                    preview.description == null
+                val hasNoData =
+                    preview.authors.isEmpty() &&
+                        preview.narrators.isEmpty() &&
+                        preview.series.isEmpty() &&
+                        preview.genres.isEmpty() &&
+                        preview.coverUrl == null &&
+                        preview.description == null
 
                 // Initialize selections with all available data selected
                 val selections = initializeSelections(preview)
@@ -323,15 +322,16 @@ class MetadataViewModel(
     fun toggleField(field: MetadataField) {
         state.update { currentState ->
             val selections = currentState.selections
-            val newSelections = when (field) {
-                MetadataField.COVER -> selections.copy(cover = !selections.cover)
-                MetadataField.TITLE -> selections.copy(title = !selections.title)
-                MetadataField.SUBTITLE -> selections.copy(subtitle = !selections.subtitle)
-                MetadataField.DESCRIPTION -> selections.copy(description = !selections.description)
-                MetadataField.PUBLISHER -> selections.copy(publisher = !selections.publisher)
-                MetadataField.RELEASE_DATE -> selections.copy(releaseDate = !selections.releaseDate)
-                MetadataField.LANGUAGE -> selections.copy(language = !selections.language)
-            }
+            val newSelections =
+                when (field) {
+                    MetadataField.COVER -> selections.copy(cover = !selections.cover)
+                    MetadataField.TITLE -> selections.copy(title = !selections.title)
+                    MetadataField.SUBTITLE -> selections.copy(subtitle = !selections.subtitle)
+                    MetadataField.DESCRIPTION -> selections.copy(description = !selections.description)
+                    MetadataField.PUBLISHER -> selections.copy(publisher = !selections.publisher)
+                    MetadataField.RELEASE_DATE -> selections.copy(releaseDate = !selections.releaseDate)
+                    MetadataField.LANGUAGE -> selections.copy(language = !selections.language)
+                }
             currentState.copy(selections = newSelections)
         }
     }
@@ -344,7 +344,7 @@ class MetadataViewModel(
             val current = currentState.selections.selectedAuthors
             val newAuthors = if (asin in current) current - asin else current + asin
             currentState.copy(
-                selections = currentState.selections.copy(selectedAuthors = newAuthors)
+                selections = currentState.selections.copy(selectedAuthors = newAuthors),
             )
         }
     }
@@ -357,7 +357,7 @@ class MetadataViewModel(
             val current = currentState.selections.selectedNarrators
             val newNarrators = if (asin in current) current - asin else current + asin
             currentState.copy(
-                selections = currentState.selections.copy(selectedNarrators = newNarrators)
+                selections = currentState.selections.copy(selectedNarrators = newNarrators),
             )
         }
     }
@@ -370,7 +370,7 @@ class MetadataViewModel(
             val current = currentState.selections.selectedSeries
             val newSeries = if (asin in current) current - asin else current + asin
             currentState.copy(
-                selections = currentState.selections.copy(selectedSeries = newSeries)
+                selections = currentState.selections.copy(selectedSeries = newSeries),
             )
         }
     }
@@ -383,7 +383,7 @@ class MetadataViewModel(
             val current = currentState.selections.selectedGenres
             val newGenres = if (genre in current) current - genre else current + genre
             currentState.copy(
-                selections = currentState.selections.copy(selectedGenres = newGenres)
+                selections = currentState.selections.copy(selectedGenres = newGenres),
             )
         }
     }
@@ -452,13 +452,14 @@ class MetadataViewModel(
             }
 
             try {
-                val request = buildMatchRequest(
-                    asin = asin,
-                    region = currentState.selectedRegion.code,
-                    selections = selections,
-                    previewBook = previewBook,
-                    coverUrl = currentState.selectedCoverUrl,
-                )
+                val request =
+                    buildMatchRequest(
+                        asin = asin,
+                        region = currentState.selectedRegion.code,
+                        selections = selections,
+                        previewBook = previewBook,
+                        coverUrl = currentState.selectedCoverUrl,
+                    )
                 metadataRepository.applyMatch(bookId, request)
 
                 // Download cover from server if cover was selected
@@ -476,8 +477,11 @@ class MetadataViewModel(
                                 logger.info { "No cover available on server for book $bookId" }
                             }
                         }
+
                         is com.calypsan.listenup.client.core.Result.Failure -> {
-                            logger.warn { "Failed to download cover for book $bookId: ${downloadResult.exception.message}" }
+                            logger.warn {
+                                "Failed to download cover for book $bookId: ${downloadResult.exception.message}"
+                            }
                         }
                     }
                 }
@@ -512,8 +516,8 @@ class MetadataViewModel(
     /**
      * Initialize selections with all available metadata fields selected.
      */
-    private fun initializeSelections(preview: MetadataBook): MetadataSelections {
-        return MetadataSelections(
+    private fun initializeSelections(preview: MetadataBook): MetadataSelections =
+        MetadataSelections(
             cover = preview.coverUrl != null,
             title = preview.title.isNotBlank(),
             subtitle = !preview.subtitle.isNullOrBlank(),
@@ -526,7 +530,6 @@ class MetadataViewModel(
             selectedSeries = preview.series.mapNotNull { it.asin }.toSet(),
             selectedGenres = preview.genres.toSet(),
         )
-    }
 
     /**
      * Build the match request from current selections.
@@ -537,36 +540,37 @@ class MetadataViewModel(
         selections: MetadataSelections,
         previewBook: MetadataBook,
         coverUrl: String?,
-    ): ApplyMatchRequest {
-        return ApplyMatchRequest(
+    ): ApplyMatchRequest =
+        ApplyMatchRequest(
             asin = asin,
             region = region,
-            fields = MatchFields(
-                title = selections.title,
-                subtitle = selections.subtitle,
-                description = selections.description,
-                publisher = selections.publisher,
-                releaseDate = selections.releaseDate,
-                language = selections.language,
-                cover = selections.cover,
-            ),
+            fields =
+                MatchFields(
+                    title = selections.title,
+                    subtitle = selections.subtitle,
+                    description = selections.description,
+                    publisher = selections.publisher,
+                    releaseDate = selections.releaseDate,
+                    language = selections.language,
+                    cover = selections.cover,
+                ),
             authors = selections.selectedAuthors.toList(),
             narrators = selections.selectedNarrators.toList(),
-            series = previewBook.series
-                .filter { it.asin in selections.selectedSeries }
-                .mapNotNull { series ->
-                    series.asin?.let { asin ->
-                        SeriesMatchEntry(
-                            asin = asin,
-                            applyName = true,
-                            applySequence = true,
-                        )
-                    }
-                },
+            series =
+                previewBook.series
+                    .filter { it.asin in selections.selectedSeries }
+                    .mapNotNull { series ->
+                        series.asin?.let { asin ->
+                            SeriesMatchEntry(
+                                asin = asin,
+                                applyName = true,
+                                applySequence = true,
+                            )
+                        }
+                    },
             genres = selections.selectedGenres.toList(),
             coverUrl = coverUrl, // Explicit cover URL (overrides Audible if provided)
         )
-    }
 }
 
 /**

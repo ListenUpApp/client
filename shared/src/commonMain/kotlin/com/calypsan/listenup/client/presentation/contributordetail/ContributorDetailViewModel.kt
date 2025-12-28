@@ -218,10 +218,11 @@ class ContributorDetailViewModel(
      */
     fun onConfirmDelete(onDeleted: () -> Unit) {
         val contributorId = currentContributorId ?: return
-        state.value = state.value.copy(
-            showDeleteConfirmation = false,
-            isDeleting = true,
-        )
+        state.value =
+            state.value.copy(
+                showDeleteConfirmation = false,
+                isDeleting = true,
+            )
 
         viewModelScope.launch {
             when (val result = contributorRepository.deleteContributor(contributorId)) {
@@ -233,10 +234,11 @@ class ContributorDetailViewModel(
 
                 is Failure -> {
                     logger.warn { "Failed to delete contributor: ${result.message}" }
-                    state.value = state.value.copy(
-                        isDeleting = false,
-                        error = result.message,
-                    )
+                    state.value =
+                        state.value.copy(
+                            isDeleting = false,
+                            error = result.message,
+                        )
                 }
             }
         }
@@ -276,6 +278,7 @@ class ContributorDetailViewModel(
             }
     }
 }
+
 /**
  * UI state for the Contributor Detail screen.
  */

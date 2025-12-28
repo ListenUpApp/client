@@ -20,8 +20,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,10 +83,11 @@ fun ContributorMetadataSearchScreen(
         },
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp),
         ) {
             // Context - who we're searching for
             state.currentContributor?.let { contributor ->
@@ -152,9 +153,10 @@ fun ContributorMetadataSearchScreen(
             when {
                 state.isSearching -> {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator()
@@ -248,11 +250,12 @@ private fun EmptyState(hasSearched: Boolean) {
             Spacer(Modifier.height(8.dp))
 
             Text(
-                text = if (hasSearched) {
-                    "Try a different name or region"
-                } else {
-                    "Enter a name to search for contributors on Audible"
-                },
+                text =
+                    if (hasSearched) {
+                        "Try a different name or region"
+                    } else {
+                        "Enter a name to search for contributors on Audible"
+                    },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
@@ -275,18 +278,20 @@ private fun ContributorSearchResultItem(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Profile image with placeholder
             if (result.imageUrl.isNullOrBlank()) {
                 // Placeholder icon when no image
                 Surface(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape),
+                    modifier =
+                        Modifier
+                            .size(56.dp)
+                            .clip(CircleShape),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -302,9 +307,10 @@ private fun ContributorSearchResultItem(
                 AsyncImage(
                     model = result.imageUrl,
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape),
+                    modifier =
+                        Modifier
+                            .size(56.dp)
+                            .clip(CircleShape),
                     contentScale = ContentScale.Crop,
                 )
             }

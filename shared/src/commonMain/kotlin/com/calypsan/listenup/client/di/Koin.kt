@@ -44,10 +44,10 @@ import com.calypsan.listenup.client.data.repository.ContributorRepositoryContrac
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
-import com.calypsan.listenup.client.data.repository.MetadataRepository
-import com.calypsan.listenup.client.data.repository.MetadataRepositoryContract
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.LibraryPreferencesContract
+import com.calypsan.listenup.client.data.repository.MetadataRepository
+import com.calypsan.listenup.client.data.repository.MetadataRepositoryContract
 import com.calypsan.listenup.client.data.repository.PlaybackPreferencesContract
 import com.calypsan.listenup.client.data.repository.SearchRepository
 import com.calypsan.listenup.client.data.repository.SearchRepositoryContract

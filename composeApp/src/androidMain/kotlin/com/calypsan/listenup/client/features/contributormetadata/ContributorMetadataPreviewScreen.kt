@@ -67,11 +67,12 @@ fun ContributorMetadataPreviewScreen(
     val availableFieldCount = if (hasImage) 3 else 2
 
     val hasAnySelected = selections.name || selections.biography || (hasImage && selections.image)
-    val selectedCount = listOfNotNull(
-        if (selections.name) true else null,
-        if (selections.biography) true else null,
-        if (hasImage && selections.image) true else null,
-    ).size
+    val selectedCount =
+        listOfNotNull(
+            if (selections.name) true else null,
+            if (selections.biography) true else null,
+            if (hasImage && selections.image) true else null,
+        ).size
 
     Scaffold(
         topBar = {
@@ -92,9 +93,10 @@ fun ContributorMetadataPreviewScreen(
                 tonalElevation = 3.dp,
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                 ) {
                     state.applyError?.let { error ->
                         Text(
@@ -139,9 +141,10 @@ fun ContributorMetadataPreviewScreen(
         when {
             state.isLoadingPreview -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(padding),
                     contentAlignment = Alignment.Center,
                 ) {
                     ListenUpLoadingIndicator()
@@ -150,9 +153,10 @@ fun ContributorMetadataPreviewScreen(
 
             state.previewError != null -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(padding),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(
@@ -176,9 +180,10 @@ fun ContributorMetadataPreviewScreen(
 
             currentContributor != null && profile != null -> {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(padding),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
@@ -237,9 +242,10 @@ private fun ImageComparisonRow(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(
@@ -269,9 +275,10 @@ private fun ImageComparisonRow(
                         AsyncImage(
                             model = currentImagePath,
                             contentDescription = "Current image",
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape),
+                            modifier =
+                                Modifier
+                                    .size(80.dp)
+                                    .clip(CircleShape),
                             contentScale = ContentScale.Crop,
                         )
                         Spacer(Modifier.height(4.dp))
@@ -294,17 +301,19 @@ private fun ImageComparisonRow(
                             AsyncImage(
                                 model = newImageUrl,
                                 contentDescription = "New image",
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .clip(CircleShape),
+                                modifier =
+                                    Modifier
+                                        .size(80.dp)
+                                        .clip(CircleShape),
                                 contentScale = ContentScale.Crop,
                             )
                         } else {
                             // Placeholder when no image available
                             Surface(
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .clip(CircleShape),
+                                modifier =
+                                    Modifier
+                                        .size(80.dp)
+                                        .clip(CircleShape),
                                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -321,11 +330,12 @@ private fun ImageComparisonRow(
                         Text(
                             text = "Audible",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (hasNewImage) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            },
+                            color =
+                                if (hasNewImage) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                },
                         )
                     }
                 }
@@ -363,9 +373,10 @@ private fun TextComparisonRow(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalAlignment = Alignment.Top,
         ) {
             Checkbox(
@@ -408,11 +419,12 @@ private fun TextComparisonRow(
                 Text(
                     text = currentValue?.ifBlank { "(empty)" } ?: "(empty)",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (currentValue.isNullOrBlank()) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
+                    color =
+                        if (currentValue.isNullOrBlank()) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                     maxLines = if (isMultiline) 4 else 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -428,11 +440,12 @@ private fun TextComparisonRow(
                 Text(
                     text = newValue?.ifBlank { "(empty)" } ?: "(empty)",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (newValue.isNullOrBlank()) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
+                    color =
+                        if (newValue.isNullOrBlank()) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                     maxLines = if (isMultiline) 4 else 2,
                     overflow = TextOverflow.Ellipsis,
                 )

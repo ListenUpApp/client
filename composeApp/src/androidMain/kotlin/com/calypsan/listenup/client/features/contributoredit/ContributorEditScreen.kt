@@ -295,17 +295,20 @@ private fun ArtistStudioContent(
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     val isMediumOrLarger = windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
 
-    val imagePicker = rememberImagePicker { result ->
-        when (result) {
-            is ImagePickerResult.Success -> {
-                onEvent(ContributorEditUiEvent.UploadImage(result.data, result.filename))
+    val imagePicker =
+        rememberImagePicker { result ->
+            when (result) {
+                is ImagePickerResult.Success -> {
+                    onEvent(ContributorEditUiEvent.UploadImage(result.data, result.filename))
+                }
+
+                is ImagePickerResult.Error -> {
+                    // Error is logged by the image picker; user will see nothing happened
+                }
+
+                ImagePickerResult.Cancelled -> { /* User cancelled */ }
             }
-            is ImagePickerResult.Error -> {
-                // Error is logged by the image picker; user will see nothing happened
-            }
-            ImagePickerResult.Cancelled -> { /* User cancelled */ }
         }
-    }
 
     Column(
         modifier =

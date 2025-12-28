@@ -169,10 +169,21 @@ private fun parseIsoDate(isoDate: String): LocalDate? {
 private fun formatIsoDate(date: LocalDate): String = date.toString()
 
 // Month names for display formatting
-private val monthNames = arrayOf(
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-)
+private val monthNames =
+    arrayOf(
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    )
 
 /**
  * Format a LocalDate for user-friendly display.

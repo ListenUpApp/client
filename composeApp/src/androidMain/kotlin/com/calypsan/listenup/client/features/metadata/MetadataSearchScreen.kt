@@ -83,10 +83,11 @@ fun MetadataSearchScreen(
         },
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp),
         ) {
             // Context - what book we're searching for
             if (state.currentTitle.isNotBlank()) {
@@ -152,9 +153,10 @@ fun MetadataSearchScreen(
             when {
                 state.isSearching -> {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator()
@@ -248,11 +250,12 @@ private fun EmptyState(hasSearched: Boolean) {
             Spacer(Modifier.height(8.dp))
 
             Text(
-                text = if (hasSearched) {
-                    "Try a different search term or region"
-                } else {
-                    "Enter a title, author, narrator, or ASIN to search"
-                },
+                text =
+                    if (hasSearched) {
+                        "Try a different search term or region"
+                    } else {
+                        "Enter a title, author, narrator, or ASIN to search"
+                    },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
@@ -283,10 +286,11 @@ private fun MetadataSearchResultItem(
             AsyncImage(
                 model = result.coverUrl,
                 contentDescription = null,
-                modifier = Modifier
-                    .width(56.dp)
-                    .aspectRatio(1f / 1.5f)
-                    .clip(MaterialTheme.shapes.small),
+                modifier =
+                    Modifier
+                        .width(56.dp)
+                        .aspectRatio(1f / 1.5f)
+                        .clip(MaterialTheme.shapes.small),
                 contentScale = ContentScale.Crop,
             )
 

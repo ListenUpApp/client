@@ -98,7 +98,9 @@ sealed class ContributorMetadataResult {
     ) : ContributorMetadataResult()
 
     /** Error occurred */
-    data class Error(val message: String) : ContributorMetadataResult()
+    data class Error(
+        val message: String,
+    ) : ContributorMetadataResult()
 }
 
 /**
@@ -279,14 +281,17 @@ class ContributorRepository(
     ): ContributorMetadataResult =
         withContext(IODispatcher) {
             try {
-                when (val result = metadataApi.applyContributorMetadata(
-                    contributorId = contributorId,
-                    asin = asin,
-                    imageUrl = imageUrl,
-                    applyName = applyName,
-                    applyBiography = applyBiography,
-                    applyImage = applyImage,
-                )) {
+                when (
+                    val result =
+                        metadataApi.applyContributorMetadata(
+                            contributorId = contributorId,
+                            asin = asin,
+                            imageUrl = imageUrl,
+                            applyName = applyName,
+                            applyBiography = applyBiography,
+                            applyImage = applyImage,
+                        )
+                ) {
                     is ApplyContributorMetadataResult.Success -> {
                         logger.info { "Applied Audible metadata to contributor $contributorId" }
                         ContributorMetadataResult.Success

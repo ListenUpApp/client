@@ -179,10 +179,11 @@ private fun MetadataSearchResultItem(
             AsyncImage(
                 model = result.coverUrl,
                 contentDescription = null,
-                modifier = Modifier
-                    .width(48.dp)
-                    .aspectRatio(1f / 1.5f)
-                    .clip(MaterialTheme.shapes.small),
+                modifier =
+                    Modifier
+                        .width(48.dp)
+                        .aspectRatio(1f / 1.5f)
+                        .clip(MaterialTheme.shapes.small),
                 contentScale = ContentScale.Crop,
             )
 

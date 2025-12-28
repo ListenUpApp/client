@@ -248,10 +248,11 @@ class ContributorMetadataViewModelTest {
             // Given
             val fixture = createFixture()
             val contributor = createContributorEntity()
-            val searchResults = listOf(
-                createSearchResult(asin = "B001", name = "Stephen King"),
-                createSearchResult(asin = "B002", name = "Stephen King Jr"),
-            )
+            val searchResults =
+                listOf(
+                    createSearchResult(asin = "B001", name = "Stephen King"),
+                    createSearchResult(asin = "B002", name = "Stephen King Jr"),
+                )
 
             everySuspend { fixture.contributorDao.observeById("contributor-1") } returns flowOf(contributor)
             everySuspend { fixture.metadataApi.searchContributors(any(), any()) } returns searchResults
@@ -393,7 +394,7 @@ class ContributorMetadataViewModelTest {
             everySuspend { fixture.contributorDao.observeById("contributor-1") } returns flowOf(contributor)
             everySuspend { fixture.metadataApi.searchContributors(any(), any()) } returns listOf(searchResult)
             everySuspend { fixture.metadataApi.getContributorProfile(any()) } returns profile
-            everySuspend { fixture.metadataApi.applyContributorMetadata(any(), any(), any(), any()) } returns
+            everySuspend { fixture.metadataApi.applyContributorMetadata(any(), any(), any(), any(), any(), any()) } returns
                 ApplyContributorMetadataResult.Success(response)
             everySuspend { fixture.imageApi.downloadContributorImage("contributor-1") } returns Success(imageBytes)
             everySuspend { fixture.imageStorage.saveContributorImage("contributor-1", imageBytes) } returns Success(Unit)
@@ -438,7 +439,7 @@ class ContributorMetadataViewModelTest {
             everySuspend { fixture.contributorDao.observeById("contributor-1") } returns flowOf(contributor)
             everySuspend { fixture.metadataApi.searchContributors(any(), any()) } returns listOf(searchResult)
             everySuspend { fixture.metadataApi.getContributorProfile(any()) } returns profile
-            everySuspend { fixture.metadataApi.applyContributorMetadata(any(), any(), any(), any()) } returns
+            everySuspend { fixture.metadataApi.applyContributorMetadata(any(), any(), any(), any(), any(), any()) } returns
                 ApplyContributorMetadataResult.Success(response)
             // Image download fails
             everySuspend { fixture.imageApi.downloadContributorImage("contributor-1") } returns
@@ -473,7 +474,7 @@ class ContributorMetadataViewModelTest {
             everySuspend { fixture.contributorDao.observeById("contributor-1") } returns flowOf(contributor)
             everySuspend { fixture.metadataApi.searchContributors(any(), any()) } returns listOf(searchResult)
             everySuspend { fixture.metadataApi.getContributorProfile(any()) } returns profile
-            everySuspend { fixture.metadataApi.applyContributorMetadata(any(), any(), any(), any()) } returns
+            everySuspend { fixture.metadataApi.applyContributorMetadata(any(), any(), any(), any(), any(), any()) } returns
                 ApplyContributorMetadataResult.Error("Server error")
 
             val viewModel = fixture.build()
@@ -501,12 +502,13 @@ class ContributorMetadataViewModelTest {
             val contributor = createContributorEntity()
             val searchResult = createSearchResult()
             // Profile with nothing available
-            val profile = ContributorMetadataProfile(
-                asin = "B001ASIN01",
-                name = "",
-                biography = null,
-                imageUrl = null,
-            )
+            val profile =
+                ContributorMetadataProfile(
+                    asin = "B001ASIN01",
+                    name = "",
+                    biography = null,
+                    imageUrl = null,
+                )
 
             everySuspend { fixture.contributorDao.observeById("contributor-1") } returns flowOf(contributor)
             everySuspend { fixture.metadataApi.searchContributors(any(), any()) } returns listOf(searchResult)
@@ -524,7 +526,7 @@ class ContributorMetadataViewModelTest {
 
             // Then - apply should not be called since no fields selected
             verifySuspend(VerifyMode.exactly(0)) {
-                fixture.metadataApi.applyContributorMetadata(any(), any(), any(), any())
+                fixture.metadataApi.applyContributorMetadata(any(), any(), any(), any(), any(), any())
             }
         }
 

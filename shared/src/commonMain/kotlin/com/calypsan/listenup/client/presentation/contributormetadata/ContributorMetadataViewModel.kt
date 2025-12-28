@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.presentation.contributormetadata
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.Result as CoreResult
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.images.ImageStorage
@@ -20,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.calypsan.listenup.client.core.Result as CoreResult
 
 private val logger = KotlinLogging.logger {}
 
@@ -48,25 +48,20 @@ data class ContributorMetadataUiState(
     // Contributor context
     val contributorId: String = "",
     val currentContributor: ContributorEntity? = null,
-
     // Region selection
     val selectedRegion: AudibleRegion = AudibleRegion.US,
-
     // Search state
     val searchQuery: String = "",
     val searchResults: List<ContributorMetadataSearchResult> = emptyList(),
     val isSearching: Boolean = false,
     val searchError: String? = null,
-
     // Preview state
     val selectedCandidate: ContributorMetadataSearchResult? = null,
     val previewProfile: ContributorMetadataProfile? = null,
     val isLoadingPreview: Boolean = false,
     val previewError: String? = null,
-
     // Field selections (for UI preview)
     val selections: ContributorMetadataSelections = ContributorMetadataSelections(),
-
     // Apply state
     val isApplying: Boolean = false,
     val applySuccess: Boolean = false,
@@ -226,12 +221,13 @@ class ContributorMetadataViewModel(
     fun loadProfileByAsin(asin: String) {
         state.update {
             it.copy(
-                selectedCandidate = ContributorMetadataSearchResult(
-                    asin = asin,
-                    name = "",
-                    imageUrl = null,
-                    description = null,
-                ),
+                selectedCandidate =
+                    ContributorMetadataSearchResult(
+                        asin = asin,
+                        name = "",
+                        imageUrl = null,
+                        description = null,
+                    ),
                 isLoadingPreview = true,
                 previewProfile = null,
                 previewError = null,
@@ -247,12 +243,13 @@ class ContributorMetadataViewModel(
 
                 state.update {
                     it.copy(
-                        selectedCandidate = ContributorMetadataSearchResult(
-                            asin = asin,
-                            name = profile.name,
-                            imageUrl = profile.imageUrl,
-                            description = null,
-                        ),
+                        selectedCandidate =
+                            ContributorMetadataSearchResult(
+                                asin = asin,
+                                name = profile.name,
+                                imageUrl = profile.imageUrl,
+                                description = null,
+                            ),
                         previewProfile = profile,
                         isLoadingPreview = false,
                         selections = selections,
@@ -291,11 +288,12 @@ class ContributorMetadataViewModel(
     fun toggleField(field: ContributorMetadataField) {
         state.update { currentState ->
             val selections = currentState.selections
-            val newSelections = when (field) {
-                ContributorMetadataField.NAME -> selections.copy(name = !selections.name)
-                ContributorMetadataField.BIOGRAPHY -> selections.copy(biography = !selections.biography)
-                ContributorMetadataField.IMAGE -> selections.copy(image = !selections.image)
-            }
+            val newSelections =
+                when (field) {
+                    ContributorMetadataField.NAME -> selections.copy(name = !selections.name)
+                    ContributorMetadataField.BIOGRAPHY -> selections.copy(biography = !selections.biography)
+                    ContributorMetadataField.IMAGE -> selections.copy(image = !selections.image)
+                }
             currentState.copy(selections = newSelections)
         }
     }
@@ -334,14 +332,15 @@ class ContributorMetadataViewModel(
                 // Call server API to apply selected metadata fields
                 // Pass imageUrl from search results since Audible API no longer returns images in profiles
                 val selections = currentState.selections
-                val result = metadataApi.applyContributorMetadata(
-                    contributorId = contributorId,
-                    asin = candidate.asin,
-                    imageUrl = candidate.imageUrl,
-                    applyName = selections.name,
-                    applyBiography = selections.biography,
-                    applyImage = selections.image,
-                )
+                val result =
+                    metadataApi.applyContributorMetadata(
+                        contributorId = contributorId,
+                        asin = candidate.asin,
+                        imageUrl = candidate.imageUrl,
+                        applyName = selections.name,
+                        applyBiography = selections.biography,
+                        applyImage = selections.image,
+                    )
 
                 when (result) {
                     is ApplyContributorMetadataResult.Success -> {
@@ -355,15 +354,20 @@ class ContributorMetadataViewModel(
                             if (downloadResult is CoreResult.Success) {
                                 val saveResult = imageStorage.saveContributorImage(contributorId, downloadResult.data)
                                 if (saveResult is CoreResult.Success) {
-                                    updatedEntity = updatedEntity.copy(
-                                        imagePath = imageStorage.getContributorImagePath(contributorId),
-                                    )
+                                    updatedEntity =
+                                        updatedEntity.copy(
+                                            imagePath = imageStorage.getContributorImagePath(contributorId),
+                                        )
                                     logger.debug { "Downloaded and saved contributor image locally" }
                                 } else {
-                                    logger.warn { "Failed to save contributor image: ${(saveResult as CoreResult.Failure).message}" }
+                                    logger.warn {
+                                        "Failed to save contributor image: ${(saveResult as CoreResult.Failure).message}"
+                                    }
                                 }
                             } else {
-                                logger.warn { "Failed to download contributor image: ${(downloadResult as CoreResult.Failure).message}" }
+                                logger.warn {
+                                    "Failed to download contributor image: ${(downloadResult as CoreResult.Failure).message}"
+                                }
                             }
                         }
 
@@ -423,11 +427,10 @@ class ContributorMetadataViewModel(
     /**
      * Initialize selections based on available profile data.
      */
-    private fun initializeSelections(profile: ContributorMetadataProfile): ContributorMetadataSelections {
-        return ContributorMetadataSelections(
+    private fun initializeSelections(profile: ContributorMetadataProfile): ContributorMetadataSelections =
+        ContributorMetadataSelections(
             name = profile.name.isNotBlank(),
             biography = !profile.biography.isNullOrBlank(),
             image = !profile.imageUrl.isNullOrBlank(),
         )
-    }
 }

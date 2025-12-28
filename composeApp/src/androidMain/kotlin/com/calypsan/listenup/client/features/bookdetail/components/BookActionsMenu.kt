@@ -1,10 +1,10 @@
 package com.calypsan.listenup.client.features.bookdetail.components
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
@@ -84,11 +84,12 @@ fun BookActionsMenu(
             },
             leadingIcon = {
                 Icon(
-                    imageVector = if (isComplete) {
-                        Icons.Default.RadioButtonUnchecked
-                    } else {
-                        Icons.Default.CheckCircle
-                    },
+                    imageVector =
+                        if (isComplete) {
+                            Icons.Default.RadioButtonUnchecked
+                        } else {
+                            Icons.Default.CheckCircle
+                        },
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
@@ -134,10 +135,11 @@ fun BookActionsMenu(
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
                     )
                 },
-                colors = MenuDefaults.itemColors(
-                    textColor = MaterialTheme.colorScheme.error,
-                    leadingIconColor = MaterialTheme.colorScheme.error,
-                ),
+                colors =
+                    MenuDefaults.itemColors(
+                        textColor = MaterialTheme.colorScheme.error,
+                        leadingIconColor = MaterialTheme.colorScheme.error,
+                    ),
                 onClick = onDeleteClick,
                 enabled = false, // Stubbed for now
             )

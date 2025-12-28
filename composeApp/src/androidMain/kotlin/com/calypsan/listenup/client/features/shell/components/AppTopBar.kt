@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
@@ -14,7 +15,6 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.foundation.clickable
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -213,9 +213,10 @@ private fun SyncIndicator(
         is SyncStatus.Retrying,
         -> {
             ListenUpLoadingIndicatorSmall(
-                modifier = Modifier
-                    .clickable(onClick = onClick)
-                    .padding(end = 4.dp),
+                modifier =
+                    Modifier
+                        .clickable(onClick = onClick)
+                        .padding(end = 4.dp),
             )
         }
 
@@ -224,9 +225,10 @@ private fun SyncIndicator(
                 imageVector = Icons.Default.CloudOff,
                 contentDescription = "Sync error",
                 tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier
-                    .clickable(onClick = onClick)
-                    .padding(end = 4.dp),
+                modifier =
+                    Modifier
+                        .clickable(onClick = onClick)
+                        .padding(end = 4.dp),
             )
         }
 

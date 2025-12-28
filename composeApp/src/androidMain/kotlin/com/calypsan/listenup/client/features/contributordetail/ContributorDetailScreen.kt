@@ -53,7 +53,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -62,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.getInitials
 import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
@@ -107,14 +107,21 @@ fun ContributorDetailScreen(
     LaunchedEffect(state.error) {
         state.error?.let { error ->
             // Make the error message user-friendly
-            val friendlyMessage = when {
-                error.contains("not found", ignoreCase = true) ->
-                    "Could not find metadata for this contributor on Audible"
-                error.contains("network", ignoreCase = true) ||
-                    error.contains("connection", ignoreCase = true) ->
-                    "Network error. Please check your connection and try again."
-                else -> error
-            }
+            val friendlyMessage =
+                when {
+                    error.contains("not found", ignoreCase = true) -> {
+                        "Could not find metadata for this contributor on Audible"
+                    }
+
+                    error.contains("network", ignoreCase = true) ||
+                        error.contains("connection", ignoreCase = true) -> {
+                        "Network error. Please check your connection and try again."
+                    }
+
+                    else -> {
+                        error
+                    }
+                }
             snackbarHostState.showSnackbar(friendlyMessage)
             viewModel.onClearError()
         }
@@ -160,7 +167,9 @@ fun ContributorDetailScreen(
             ListenUpDestructiveDialog(
                 onDismissRequest = viewModel::onDismissDelete,
                 title = "Delete Contributor?",
-                text = "This will remove ${state.contributor?.name ?: "this contributor"} from your library. This action cannot be undone.",
+                text =
+                    "This will remove ${state.contributor?.name ?: "this contributor"} " +
+                        "from your library. This action cannot be undone.",
                 confirmText = "Delete",
                 onConfirm = { viewModel.onConfirmDelete(onBackClick) },
             )
@@ -169,9 +178,10 @@ fun ContributorDetailScreen(
         // Show loading overlay for delete operation
         if (state.isDeleting) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f)),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator()
