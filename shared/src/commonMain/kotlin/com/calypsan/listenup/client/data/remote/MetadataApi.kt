@@ -7,6 +7,8 @@ import com.calypsan.listenup.client.data.remote.model.ContributorMetadataProfile
 import com.calypsan.listenup.client.data.remote.model.ContributorMetadataSearchResponse
 import com.calypsan.listenup.client.data.remote.model.ContributorMetadataSearchResult
 import com.calypsan.listenup.client.data.remote.model.ContributorResponse
+import com.calypsan.listenup.client.data.remote.model.CoverOption
+import com.calypsan.listenup.client.data.remote.model.CoverSearchResponse
 import com.calypsan.listenup.client.data.remote.model.MetadataBook
 import com.calypsan.listenup.client.data.remote.model.MetadataBookResponse
 import com.calypsan.listenup.client.data.remote.model.MetadataSearchResponse
@@ -66,6 +68,18 @@ interface MetadataApiContract {
         bookId: String,
         request: ApplyMatchRequest,
     )
+
+    /**
+     * Search for cover images from multiple sources (iTunes, Audible).
+     *
+     * @param title Book title to search for
+     * @param author Author name (optional, improves results)
+     * @return List of cover options sorted by resolution (highest first)
+     */
+    suspend fun searchCovers(
+        title: String,
+        author: String,
+    ): List<CoverOption>
 
     // === Contributor Metadata ===
 
@@ -207,6 +221,29 @@ class MetadataApi(
             contentType(ContentType.Application.Json)
             setBody(request)
         }
+    }
+
+    /**
+     * Search for cover images from multiple sources.
+     *
+     * Endpoint: GET /api/v1/covers/search
+     */
+    override suspend fun searchCovers(
+        title: String,
+        author: String,
+    ): List<CoverOption> {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<CoverSearchResponse> =
+            client
+                .get("/api/v1/covers/search") {
+                    parameter("title", title)
+                    parameter("author", author)
+                }.body()
+
+        if (!response.success) {
+            throw Exception(response.error ?: "Cover search failed")
+        }
+        return response.data?.covers ?: emptyList()
     }
 
     // === Contributor Metadata ===

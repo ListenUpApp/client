@@ -34,11 +34,12 @@ fun MetadataSearchRoute(
                 author = book.authors.firstOrNull()?.name ?: "",
             )
 
-            // If book has ASIN, pre-populate search with it
+            // If book has ASIN, search by ASIN, otherwise search by title+author
             if (book.asin != null) {
                 viewModel.updateQuery(book.asin!!)
-                viewModel.search()
             }
+            // Always auto-search when screen opens
+            viewModel.search()
         }
     }
 

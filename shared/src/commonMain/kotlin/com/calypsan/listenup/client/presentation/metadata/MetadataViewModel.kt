@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.presentation.metadata
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.remote.model.ApplyMatchRequest
+import com.calypsan.listenup.client.data.remote.model.CoverOption
 import com.calypsan.listenup.client.data.remote.model.MatchFields
 import com.calypsan.listenup.client.data.remote.model.MetadataBook
 import com.calypsan.listenup.client.data.local.db.BookId
@@ -84,6 +85,11 @@ data class MetadataUiState(
 
     // Field selections - what to apply
     val selections: MetadataSelections = MetadataSelections(),
+
+    // Cover selection - multi-source covers
+    val coverOptions: List<CoverOption> = emptyList(),
+    val isLoadingCovers: Boolean = false,
+    val selectedCoverUrl: String? = null, // null = use Audible default from preview
 
     // Apply state
     val isApplying: Boolean = false,
@@ -223,8 +229,15 @@ class MetadataViewModel(
                 previewBook = null,
                 previewError = null,
                 previewNotFound = false,
+                // Reset cover state
+                coverOptions = emptyList(),
+                isLoadingCovers = true,
+                selectedCoverUrl = null,
             )
         }
+
+        // Load covers in parallel with preview
+        loadCoverOptions()
 
         viewModelScope.launch {
             try {
@@ -378,6 +391,43 @@ class MetadataViewModel(
     }
 
     /**
+     * Select a cover from the available options.
+     *
+     * @param coverUrl URL of the selected cover, or null to use the current/default cover
+     */
+    fun selectCover(coverUrl: String?) {
+        state.update { it.copy(selectedCoverUrl = coverUrl) }
+    }
+
+    /**
+     * Load cover options from multiple sources (iTunes, Audible).
+     * Called in parallel with preview loading.
+     */
+    private fun loadCoverOptions() {
+        val currentState = state.value
+        val title = currentState.currentTitle
+        val author = currentState.currentAuthor
+
+        viewModelScope.launch {
+            try {
+                val covers = metadataRepository.searchCovers(title, author)
+                state.update {
+                    it.copy(
+                        coverOptions = covers,
+                        isLoadingCovers = false,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Non-fatal - just show Audible cover from preview only
+                logger.warn(e) { "Cover search failed, will use Audible cover only" }
+                state.update { it.copy(isLoadingCovers = false) }
+            }
+        }
+    }
+
+    /**
      * Apply the selected match to the book.
      *
      * This sends the match request to the server with the user's field selections.
@@ -409,6 +459,7 @@ class MetadataViewModel(
                     region = currentState.selectedRegion.code,
                     selections = selections,
                     previewBook = previewBook,
+                    coverUrl = currentState.selectedCoverUrl,
                 )
                 metadataRepository.applyMatch(bookId, request)
 
@@ -487,6 +538,7 @@ class MetadataViewModel(
         region: String,
         selections: MetadataSelections,
         previewBook: MetadataBook,
+        coverUrl: String?,
     ): ApplyMatchRequest {
         return ApplyMatchRequest(
             asin = asin,
@@ -514,6 +566,7 @@ class MetadataViewModel(
                     }
                 },
             genres = selections.selectedGenres.toList(),
+            coverUrl = coverUrl, // Explicit cover URL (overrides Audible if provided)
         )
     }
 }

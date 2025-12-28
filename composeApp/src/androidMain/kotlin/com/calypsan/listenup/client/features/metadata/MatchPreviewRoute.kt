@@ -124,6 +124,12 @@ fun MatchPreviewRoute(
                 applyError = metadataState.applyError,
                 previewNotFound = metadataState.previewNotFound,
                 selectedRegion = metadataState.selectedRegion,
+                // Cover selection
+                coverOptions = metadataState.coverOptions,
+                isLoadingCovers = metadataState.isLoadingCovers,
+                selectedCoverUrl = metadataState.selectedCoverUrl,
+                onSelectCover = metadataViewModel::selectCover,
+                // Callbacks
                 onRegionSelected = metadataViewModel::changeRegion,
                 onToggleField = metadataViewModel::toggleField,
                 onToggleAuthor = metadataViewModel::toggleAuthor,

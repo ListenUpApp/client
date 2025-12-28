@@ -1,5 +1,8 @@
 package com.calypsan.listenup.client.features.metadata
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,12 +19,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,6 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.calypsan.listenup.client.data.remote.model.CoverOption
 import com.calypsan.listenup.client.data.remote.model.MetadataBook
 import com.calypsan.listenup.client.data.remote.model.MetadataContributor
 import com.calypsan.listenup.client.data.remote.model.MetadataSeriesEntry
@@ -69,6 +78,12 @@ fun MatchPreviewScreen(
     applyError: String?,
     previewNotFound: Boolean,
     selectedRegion: AudibleRegion,
+    // Cover selection
+    coverOptions: List<CoverOption>,
+    isLoadingCovers: Boolean,
+    selectedCoverUrl: String?,
+    onSelectCover: (String?) -> Unit,
+    // Callbacks
     onRegionSelected: (AudibleRegion) -> Unit,
     onToggleField: (MetadataField) -> Unit,
     onToggleAuthor: (String) -> Unit,
@@ -181,16 +196,17 @@ fun MatchPreviewScreen(
                     }
                 }
             } else {
-                // Cover
-                if (newMetadata.coverUrl != null) {
-                    item {
-                        CoverSelectionItem(
-                            currentCoverPath = currentBook.coverPath,
-                            newCoverUrl = newMetadata.coverUrl,
-                            isSelected = selections.cover,
-                            onToggle = { onToggleField(MetadataField.COVER) },
-                        )
-                    }
+                // Cover selection row
+                item {
+                    CoverSelectionRow(
+                        currentCoverPath = currentBook.coverPath,
+                        coverOptions = coverOptions,
+                        isLoading = isLoadingCovers,
+                        selectedUrl = selectedCoverUrl,
+                        isCoverEnabled = selections.cover,
+                        onSelectCover = onSelectCover,
+                        onToggleCover = { onToggleField(MetadataField.COVER) },
+                    )
                 }
 
                 // Title
@@ -352,74 +368,212 @@ private fun RegionSelector(
 }
 
 /**
- * Cover selection with side-by-side comparison. Square aspect ratio.
+ * Horizontal scrollable row of cover options from multiple sources.
+ * Shows current cover first, then all available options from iTunes/Audible.
  */
 @Composable
-private fun CoverSelectionItem(
+private fun CoverSelectionRow(
     currentCoverPath: String?,
-    newCoverUrl: String?,
-    isSelected: Boolean,
-    onToggle: () -> Unit,
+    coverOptions: List<CoverOption>,
+    isLoading: Boolean,
+    selectedUrl: String?,
+    isCoverEnabled: Boolean,
+    onSelectCover: (String?) -> Unit,
+    onToggleCover: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(
-            checked = isSelected,
-            onCheckedChange = { onToggle() },
-        )
-
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Header with checkbox
         Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Current cover
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "Current",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(MaterialTheme.shapes.medium),
+            Checkbox(
+                checked = isCoverEnabled,
+                onCheckedChange = { onToggleCover() },
+            )
+            Text(
+                text = "Cover",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Scrollable cover options
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp),
+        ) {
+            // Current cover option (selecting this keeps current cover)
+            if (currentCoverPath != null) {
+                item {
+                    CoverOptionCard(
+                        label = "Current",
+                        source = null,
+                        width = null,
+                        height = null,
+                        isSelected = selectedUrl == null && isCoverEnabled,
+                        onClick = { onSelectCover(null) },
+                    ) {
+                        ListenUpAsyncImage(
+                            path = currentCoverPath,
+                            contentDescription = "Current cover",
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+            }
+
+            // Cover options from search
+            items(coverOptions) { cover ->
+                CoverOptionCard(
+                    label = cover.source.replaceFirstChar { it.uppercase() },
+                    source = cover.source,
+                    width = cover.width,
+                    height = cover.height,
+                    isSelected = selectedUrl == cover.url,
+                    onClick = { onSelectCover(cover.url) },
                 ) {
-                    ListenUpAsyncImage(
-                        path = currentCoverPath,
-                        contentDescription = "Current cover",
+                    AsyncImage(
+                        model = cover.url,
+                        contentDescription = "Cover from ${cover.source}",
                         modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
                     )
                 }
             }
 
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // Loading placeholders
+            if (isLoading) {
+                items(3) {
+                    CoverOptionPlaceholder()
+                }
+            }
+        }
+    }
+}
 
-            // New cover
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "New",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                AsyncImage(
-                    model = newCoverUrl,
-                    contentDescription = "New cover from Audible",
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(MaterialTheme.shapes.medium),
-                    contentScale = ContentScale.Crop,
+/**
+ * Individual cover option card with image, source badge, and dimensions.
+ */
+@Composable
+private fun CoverOptionCard(
+    label: String,
+    source: String?,
+    width: Int?,
+    height: Int?,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Card(
+            modifier = Modifier
+                .size(100.dp)
+                .clickable(onClick = onClick),
+            shape = MaterialTheme.shapes.medium,
+            border = if (isSelected) {
+                BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
+            } else {
+                null
+            },
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = if (isSelected) 4.dp else 1.dp,
+            ),
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                content()
+
+                // Source badge
+                if (source != null) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(4.dp),
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+
+                // Selected indicator
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .size(20.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Selected",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Dimensions or label
+        Text(
+            text = if (width != null && height != null) "${width}×${height}" else label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isSelected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+    }
+}
+
+/**
+ * Placeholder card shown while covers are loading.
+ */
+@Composable
+private fun CoverOptionPlaceholder() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Card(
+            modifier = Modifier.size(100.dp),
+            shape = MaterialTheme.shapes.medium,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = "Loading...",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

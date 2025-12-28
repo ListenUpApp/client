@@ -168,6 +168,39 @@ data class ApplyMatchRequest(
     val series: List<SeriesMatchEntry> = emptyList(),
     @SerialName("genres")
     val genres: List<String> = emptyList(),
+    @SerialName("cover_url")
+    val coverUrl: String? = null, // Explicit cover URL (overrides Audible if provided)
+)
+
+// =============================================================================
+// COVER SEARCH
+// =============================================================================
+
+/**
+ * Cover option from multi-source cover search.
+ * Represents a cover image from iTunes or Audible with its dimensions.
+ */
+@Serializable
+data class CoverOption(
+    @SerialName("source")
+    val source: String, // "audible" or "itunes"
+    @SerialName("url")
+    val url: String,
+    @SerialName("width")
+    val width: Int,
+    @SerialName("height")
+    val height: Int,
+    @SerialName("source_id")
+    val sourceId: String, // ASIN or iTunes collectionId
+)
+
+/**
+ * Response wrapper for cover search.
+ */
+@Serializable
+data class CoverSearchResponse(
+    @SerialName("covers")
+    val covers: List<CoverOption> = emptyList(),
 )
 
 // =============================================================================

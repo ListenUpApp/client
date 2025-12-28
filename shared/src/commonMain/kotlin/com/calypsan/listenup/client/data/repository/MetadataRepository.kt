@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.data.remote.MetadataApiContract
 import com.calypsan.listenup.client.data.remote.model.ApplyMatchRequest
+import com.calypsan.listenup.client.data.remote.model.CoverOption
 import com.calypsan.listenup.client.data.remote.model.MetadataBook
 import com.calypsan.listenup.client.data.remote.model.MetadataSearchResult
 import kotlinx.coroutines.withContext
@@ -52,6 +53,18 @@ interface MetadataRepositoryContract {
         bookId: String,
         request: ApplyMatchRequest,
     )
+
+    /**
+     * Search for cover images from multiple sources (iTunes, Audible).
+     *
+     * @param title Book title to search for
+     * @param author Author name (optional, improves results)
+     * @return List of cover options sorted by resolution (highest first)
+     */
+    suspend fun searchCovers(
+        title: String,
+        author: String,
+    ): List<CoverOption>
 }
 
 /**
@@ -98,4 +111,15 @@ class MetadataRepository(
             metadataApi.applyMatch(bookId, request)
         }
     }
+
+    /**
+     * Search for cover images from multiple sources.
+     */
+    override suspend fun searchCovers(
+        title: String,
+        author: String,
+    ): List<CoverOption> =
+        withContext(IODispatcher) {
+            metadataApi.searchCovers(title, author)
+        }
 }
