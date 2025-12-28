@@ -1,8 +1,9 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
+import com.calypsan.listenup.client.data.remote.model.ApplyContributorMetadataRequest
 import com.calypsan.listenup.client.data.remote.model.ApplyMatchRequest
-import com.calypsan.listenup.client.data.remote.model.ContributorMetadataConflictError
+import com.calypsan.listenup.client.data.remote.model.ContributorMetadataFieldsSelection
 import com.calypsan.listenup.client.data.remote.model.ContributorMetadataProfile
 import com.calypsan.listenup.client.data.remote.model.ContributorMetadataSearchResponse
 import com.calypsan.listenup.client.data.remote.model.ContributorMetadataSearchResult
@@ -103,20 +104,21 @@ interface MetadataApiContract {
     /**
      * Apply Audible metadata to a contributor.
      *
-     * If no ASIN provided and contributor has no ASIN, searches by name
-     * and may return 409 Conflict with candidates for disambiguation.
-     *
      * @param contributorId Local contributor ID
-     * @param asin Optional Audible ASIN (required if multiple matches)
-     * @param name Optional contributor name (fallback for search if contributor not found on server)
-     * @param imageUrl Optional image URL from search results (Audible API no longer returns images)
-     * @return Result with either success or candidates for disambiguation
+     * @param asin Audible ASIN of the matched contributor
+     * @param imageUrl Image URL from search results (Audible API no longer returns images in profiles)
+     * @param applyName Whether to apply the name from Audible
+     * @param applyBiography Whether to apply the biography from Audible
+     * @param applyImage Whether to download and apply the image
+     * @return Result with either success or error
      */
     suspend fun applyContributorMetadata(
         contributorId: String,
-        asin: String? = null,
-        name: String? = null,
-        imageUrl: String? = null,
+        asin: String,
+        imageUrl: String?,
+        applyName: Boolean,
+        applyBiography: Boolean,
+        applyImage: Boolean,
     ): ApplyContributorMetadataResult
 }
 
@@ -285,22 +287,29 @@ class MetadataApi(
      * Apply Audible metadata to a contributor.
      *
      * Endpoint: POST /api/v1/contributors/{id}/metadata
-     *
-     * Handles 409 Conflict response containing candidates for disambiguation.
      */
     override suspend fun applyContributorMetadata(
         contributorId: String,
-        asin: String?,
-        name: String?,
+        asin: String,
         imageUrl: String?,
+        applyName: Boolean,
+        applyBiography: Boolean,
+        applyImage: Boolean,
     ): ApplyContributorMetadataResult {
         val client = clientFactory.getClient()
+        val request = ApplyContributorMetadataRequest(
+            asin = asin,
+            imageUrl = imageUrl,
+            fields = ContributorMetadataFieldsSelection(
+                name = applyName,
+                biography = applyBiography,
+                image = applyImage,
+            ),
+        )
         val response =
             client.post("/api/v1/contributors/$contributorId/metadata") {
                 contentType(ContentType.Application.Json)
-                asin?.let { parameter("asin", it) }
-                name?.let { parameter("name", it) }
-                imageUrl?.let { parameter("imageUrl", it) }
+                setBody(request)
             }
 
         return when (response.status) {
@@ -311,19 +320,6 @@ class MetadataApi(
                 val contributor = apiResponse.data
                     ?: throw Exception("No contributor data in success response")
                 ApplyContributorMetadataResult.Success(contributor)
-            }
-
-            HttpStatusCode.Conflict -> {
-                // Parse candidates from error response
-                val errorBody = response.bodyAsText()
-                val error = json.decodeFromString<ContributorMetadataConflictError>(errorBody)
-                val candidates = error.details?.candidates ?: emptyList()
-                val searchedName = error.details?.searchedName
-                ApplyContributorMetadataResult.NeedsDisambiguation(
-                    candidates = candidates,
-                    searchedName = searchedName,
-                    message = error.message,
-                )
             }
 
             else -> {

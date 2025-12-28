@@ -269,3 +269,29 @@ data class ContributorMetadataConflictDetails(
     @SerialName("searched_name")
     val searchedName: String? = null,
 )
+
+/**
+ * Request body for applying contributor metadata.
+ */
+@Serializable
+data class ApplyContributorMetadataRequest(
+    @SerialName("asin")
+    val asin: String,
+    @SerialName("image_url")
+    val imageUrl: String? = null,
+    @SerialName("fields")
+    val fields: ContributorMetadataFieldsSelection,
+)
+
+/**
+ * Field selections for contributor metadata.
+ */
+@Serializable
+data class ContributorMetadataFieldsSelection(
+    @SerialName("name")
+    val name: Boolean = false,
+    @SerialName("biography")
+    val biography: Boolean = false,
+    @SerialName("image")
+    val image: Boolean = false,
+)

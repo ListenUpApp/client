@@ -25,9 +25,6 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * Tracks which contributor metadata fields the user has selected to apply.
- *
- * Note: Currently the server applies all fields. These selections are for
- * UI preview purposes and future field-level selection support.
  */
 data class ContributorMetadataSelections(
     val name: Boolean = true,
@@ -290,8 +287,6 @@ class ContributorMetadataViewModel(
 
     /**
      * Toggle a field selection.
-     *
-     * Note: Currently for UI preview only. The server applies all fields.
      */
     fun toggleField(field: ContributorMetadataField) {
         state.update { currentState ->
@@ -336,13 +331,16 @@ class ContributorMetadataViewModel(
             }
 
             try {
-                // Call server API to apply metadata with the selected ASIN
-                // Pass imageUrl from search results since Audible API no longer returns images
+                // Call server API to apply selected metadata fields
+                // Pass imageUrl from search results since Audible API no longer returns images in profiles
+                val selections = currentState.selections
                 val result = metadataApi.applyContributorMetadata(
                     contributorId = contributorId,
                     asin = candidate.asin,
-                    name = contributor?.name,
                     imageUrl = candidate.imageUrl,
+                    applyName = selections.name,
+                    applyBiography = selections.biography,
+                    applyImage = selections.image,
                 )
 
                 when (result) {
