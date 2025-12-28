@@ -348,8 +348,8 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onEditClick = { bookId ->
                                     backStack.add(BookEdit(bookId))
                                 },
-                                onMatchPreviewClick = { bookId, asin ->
-                                    backStack.add(MatchPreview(bookId, asin))
+                                onMetadataSearchClick = { bookId ->
+                                    backStack.add(MetadataSearch(bookId))
                                 },
                                 onSeriesClick = { seriesId ->
                                     backStack.add(SeriesDetail(seriesId))
@@ -371,6 +371,17 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                             )
                         }
+                        entry<MetadataSearch> { args ->
+                            com.calypsan.listenup.client.features.metadata.MetadataSearchRoute(
+                                bookId = args.bookId,
+                                onResultSelected = { asin ->
+                                    backStack.add(MatchPreview(args.bookId, asin))
+                                },
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
                         entry<MatchPreview> { args ->
                             com.calypsan.listenup.client.features.metadata.MatchPreviewRoute(
                                 bookId = args.bookId,
@@ -380,7 +391,11 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                                 onApplySuccess = {
                                     // Navigate back to book detail after successful apply
+                                    // Pop both MatchPreview and MetadataSearch
                                     backStack.removeAt(backStack.lastIndex)
+                                    if (backStack.lastOrNull() is MetadataSearch) {
+                                        backStack.removeAt(backStack.lastIndex)
+                                    }
                                 },
                             )
                         }

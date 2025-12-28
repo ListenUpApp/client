@@ -118,6 +118,9 @@ class BookPuller(
             return
         }
 
+        // Invalidate local covers for books whose cover has changed on server
+        invalidateChangedCovers(booksToUpsert)
+
         // Upsert books
         bookDao.upsertAll(booksToUpsert)
 
@@ -130,6 +133,25 @@ class BookPuller(
 
         // Download cover images in background
         downloadCovers(booksToUpsert)
+    }
+
+    /**
+     * Detect books whose cover URL has changed and delete their local cached covers.
+     *
+     * This ensures that when metadata is updated with a new cover, the new cover
+     * will be downloaded instead of using the stale cached version.
+     */
+    private suspend fun invalidateChangedCovers(serverBooks: List<BookEntity>) {
+        serverBooks.forEach { serverBook ->
+            val localBook = bookDao.getById(serverBook.id)
+            if (localBook != null && localBook.coverUrl != serverBook.coverUrl) {
+                logger.info {
+                    "Cover changed for book ${serverBook.id.value}: " +
+                        "'${localBook.coverUrl}' -> '${serverBook.coverUrl}'"
+                }
+                imageDownloader.deleteCover(serverBook.id)
+            }
+        }
     }
 
     private suspend fun syncChapters(

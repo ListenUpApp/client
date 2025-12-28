@@ -90,6 +90,19 @@ data class MatchPreview(
 ) : Route
 
 /**
+ * Book metadata search screen - search Audible for metadata matches.
+ *
+ * Shows search results from Audible. Selecting a result navigates to
+ * the MatchPreview screen.
+ *
+ * @property bookId The unique ID of the book to find metadata for.
+ */
+@Serializable
+data class MetadataSearch(
+    val bookId: String,
+) : Route
+
+/**
  * Series detail screen - displays series info and its books.
  *
  * @property seriesId The unique ID of the series to display.

@@ -413,6 +413,7 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.metadata.MetadataViewModel(
                 metadataRepository = get(),
+                imageDownloader = get(),
             )
         }
         // SyncIndicatorViewModel as singleton for app-wide sync status

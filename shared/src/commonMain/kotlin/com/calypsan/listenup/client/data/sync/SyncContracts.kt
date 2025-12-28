@@ -24,6 +24,17 @@ data class CoverDownloadResult(
  */
 interface ImageDownloaderContract {
     /**
+     * Delete a book's cover from local storage.
+     *
+     * Used when the server's cover has changed and the local cached
+     * version needs to be invalidated before downloading the new one.
+     *
+     * @param bookId Unique identifier for the book
+     * @return Result indicating success or failure
+     */
+    suspend fun deleteCover(bookId: BookId): Result<Unit>
+
+    /**
      * Download and save a single book cover.
      *
      * @param bookId Unique identifier for the book

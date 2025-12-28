@@ -5,11 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.remote.model.ApplyMatchRequest
 import com.calypsan.listenup.client.data.remote.model.MatchFields
 import com.calypsan.listenup.client.data.remote.model.MetadataBook
+import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.remote.model.MetadataContributor
 import com.calypsan.listenup.client.data.remote.model.MetadataSearchResult
 import com.calypsan.listenup.client.data.remote.model.MetadataSeriesEntry
 import com.calypsan.listenup.client.data.remote.model.SeriesMatchEntry
 import com.calypsan.listenup.client.data.repository.MetadataRepositoryContract
+import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -99,6 +101,7 @@ data class MetadataUiState(
  */
 class MetadataViewModel(
     private val metadataRepository: MetadataRepositoryContract,
+    private val imageDownloader: ImageDownloaderContract,
 ) : ViewModel() {
     val state: StateFlow<MetadataUiState>
         field = MutableStateFlow(MetadataUiState())
@@ -408,6 +411,28 @@ class MetadataViewModel(
                     previewBook = previewBook,
                 )
                 metadataRepository.applyMatch(bookId, request)
+
+                // Download cover from server if cover was selected
+                if (selections.cover) {
+                    val bookIdObj = BookId(bookId)
+                    // Delete existing cover to ensure we download the new one
+                    imageDownloader.deleteCover(bookIdObj)
+                    // Download the new cover from server
+                    val downloadResult = imageDownloader.downloadCover(bookIdObj)
+                    when (downloadResult) {
+                        is com.calypsan.listenup.client.core.Result.Success -> {
+                            if (downloadResult.data) {
+                                logger.info { "Downloaded new cover for book $bookId" }
+                            } else {
+                                logger.info { "No cover available on server for book $bookId" }
+                            }
+                        }
+                        is com.calypsan.listenup.client.core.Result.Failure -> {
+                            logger.warn { "Failed to download cover for book $bookId: ${downloadResult.exception.message}" }
+                        }
+                    }
+                }
+
                 state.update {
                     it.copy(
                         isApplying = false,

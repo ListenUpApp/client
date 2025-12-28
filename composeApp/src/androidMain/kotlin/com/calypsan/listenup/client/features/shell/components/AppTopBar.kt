@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -75,6 +76,7 @@ fun AppTopBar(
     onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
+    onSyncIndicatorClick: () -> Unit = {},
     scrollBehavior: TopAppBarScrollBehavior? = null,
     showAvatar: Boolean = true,
 ) {
@@ -127,7 +129,10 @@ fun AppTopBar(
 
             // Sync indicator (hidden when search expanded)
             if (!isSearchExpanded) {
-                SyncIndicator(syncState = syncState)
+                SyncIndicator(
+                    syncState = syncState,
+                    onClick = onSyncIndicatorClick,
+                )
             }
 
             // Avatar (hidden on medium/expanded screens where it's in the rail/drawer)
@@ -195,16 +200,23 @@ private fun SearchField(
  * - Spinner during Syncing/Progress/Retrying
  * - Error icon on Error
  * - Nothing for Idle/Success
+ *
+ * Tappable to show sync details.
  */
 @Composable
-private fun SyncIndicator(syncState: SyncStatus) {
+private fun SyncIndicator(
+    syncState: SyncStatus,
+    onClick: () -> Unit,
+) {
     when (syncState) {
         is SyncStatus.Syncing,
         is SyncStatus.Progress,
         is SyncStatus.Retrying,
         -> {
             ListenUpLoadingIndicatorSmall(
-                modifier = Modifier.padding(end = 4.dp),
+                modifier = Modifier
+                    .clickable(onClick = onClick)
+                    .padding(end = 4.dp),
             )
         }
 
@@ -213,7 +225,9 @@ private fun SyncIndicator(syncState: SyncStatus) {
                 imageVector = Icons.Default.CloudOff,
                 contentDescription = "Sync error",
                 tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(end = 4.dp),
+                modifier = Modifier
+                    .clickable(onClick = onClick)
+                    .padding(end = 4.dp),
             )
         }
 

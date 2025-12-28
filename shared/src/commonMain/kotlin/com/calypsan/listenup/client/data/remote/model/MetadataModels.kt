@@ -64,8 +64,8 @@ data class MetadataSearchResult(
  */
 @Serializable
 data class MetadataSearchResponse(
-    @SerialName("matches")
-    val matches: List<MetadataSearchResult> = emptyList(),
+    @SerialName("results")
+    val results: List<MetadataSearchResult> = emptyList(),
 )
 
 /**

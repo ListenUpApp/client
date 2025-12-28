@@ -33,10 +33,13 @@ import com.calypsan.listenup.client.features.shell.components.AppNavigationBar
 import com.calypsan.listenup.client.features.shell.components.AppNavigationDrawer
 import com.calypsan.listenup.client.features.shell.components.AppNavigationRail
 import com.calypsan.listenup.client.features.shell.components.AppTopBar
+import com.calypsan.listenup.client.features.shell.components.SyncDetailsSheet
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.search.SearchNavAction
 import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
+import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiEvent
+import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -77,6 +80,7 @@ fun AppShell(
     val settingsRepository: SettingsRepository = koinInject()
     val syncDao: SyncDao = koinInject()
     val searchViewModel: SearchViewModel = koinViewModel()
+    val syncIndicatorViewModel: SyncIndicatorViewModel = koinViewModel()
 
     // Preload library data by injecting LibraryViewModel (singleton) early.
     // This starts Room database queries immediately, so Library tab loads instantly.
@@ -98,6 +102,8 @@ fun AppShell(
     val user by userDao.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
     val searchState by searchViewModel.state.collectAsStateWithLifecycle()
     val searchNavAction by searchViewModel.navActions.collectAsStateWithLifecycle()
+    val syncIndicatorState by syncIndicatorViewModel.state.collectAsStateWithLifecycle()
+    val isSyncDetailsExpanded by syncIndicatorViewModel.isExpanded.collectAsStateWithLifecycle()
 
     // Handle search navigation
     LaunchedEffect(searchNavAction) {
@@ -176,8 +182,29 @@ fun AppShell(
             onAdminClick = onAdminClick,
             onSettingsClick = onSettingsClick,
             onSignOutClick = onSignOut,
+            onSyncIndicatorClick = { syncIndicatorViewModel.toggleExpanded() },
             scrollBehavior = scrollBehavior,
             showAvatar = showAvatarInTopBar,
+        )
+    }
+
+    // Sync details sheet
+    if (isSyncDetailsExpanded) {
+        SyncDetailsSheet(
+            state = syncIndicatorState,
+            onRetryOperation = { id ->
+                syncIndicatorViewModel.onEvent(SyncIndicatorUiEvent.RetryOperation(id))
+            },
+            onDismissOperation = { id ->
+                syncIndicatorViewModel.onEvent(SyncIndicatorUiEvent.DismissOperation(id))
+            },
+            onRetryAll = {
+                syncIndicatorViewModel.onEvent(SyncIndicatorUiEvent.RetryAll)
+            },
+            onDismissAll = {
+                syncIndicatorViewModel.onEvent(SyncIndicatorUiEvent.DismissAll)
+            },
+            onDismiss = { syncIndicatorViewModel.toggleExpanded() },
         )
     }
 

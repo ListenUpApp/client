@@ -18,7 +18,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,7 +35,6 @@ import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.model.BookDownloadStatus
-import com.calypsan.listenup.client.data.remote.model.MetadataSearchResult
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.design.components.rememberCoverColors
@@ -50,11 +48,9 @@ import com.calypsan.listenup.client.features.bookdetail.components.HeroSection
 import com.calypsan.listenup.client.features.bookdetail.components.PrimaryActionsSection
 import com.calypsan.listenup.client.features.bookdetail.components.TalentSection
 import com.calypsan.listenup.client.features.bookdetail.components.TwoPaneBookDetail
-import com.calypsan.listenup.client.features.metadata.MetadataSearchSheet
 import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.presentation.bookdetail.BookDetailUiState
 import com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel
-import com.calypsan.listenup.client.presentation.metadata.MetadataViewModel
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -80,12 +76,11 @@ fun BookDetailScreen(
     bookId: String,
     onBackClick: () -> Unit,
     onEditClick: (bookId: String) -> Unit,
-    onMatchPreviewClick: (bookId: String, asin: String) -> Unit,
+    onMetadataSearchClick: (bookId: String) -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     viewModel: BookDetailViewModel = koinViewModel(),
     playerViewModel: PlayerViewModel = koinViewModel(),
-    metadataViewModel: MetadataViewModel = koinViewModel(),
 ) {
     val downloadManager: DownloadManager = koinInject()
     val userDao: UserDao = koinInject()
@@ -97,7 +92,6 @@ fun BookDetailScreen(
     }
 
     val state by viewModel.state.collectAsState()
-    val metadataState by metadataViewModel.state.collectAsState()
     val currentUser by userDao.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
     val downloadStatus by downloadManager
         .observeBookStatus(BookId(bookId))
@@ -105,43 +99,10 @@ fun BookDetailScreen(
 
     val isAdmin = currentUser?.isRoot == true
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var showMetadataSheet by remember { mutableStateOf(false) }
-    val metadataSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Handle metadata apply success - refresh book data
-    LaunchedEffect(metadataState.applySuccess) {
-        if (metadataState.applySuccess) {
-            showMetadataSheet = false
-            metadataViewModel.reset()
-            viewModel.loadBook(bookId) // Refresh
-            snackbarHostState.showSnackbar("Metadata applied successfully")
-        }
-    }
-
-    // Callback for opening metadata search (or direct lookup if ASIN exists)
-    val onFindMetadataClick: () -> Unit = onFindMetadataClick@{
-        val book = state.book ?: return@onFindMetadataClick
-        val existingAsin = book.asin
-
-        // If book has ASIN, skip search and go directly to preview
-        // MatchPreviewRoute will handle loading the metadata
-        if (existingAsin != null) {
-            onMatchPreviewClick(bookId, existingAsin)
-        } else {
-            metadataViewModel.initForBook(
-                bookId = bookId,
-                title = book.title,
-                author = book.authors.firstOrNull()?.name ?: "",
-            )
-            showMetadataSheet = true
-        }
-    }
-
-    // Callback for when a metadata search result is clicked
-    val onMetadataResultClick: (MetadataSearchResult) -> Unit = { result ->
-        metadataViewModel.selectMatch(result)
-        showMetadataSheet = false
-        onMatchPreviewClick(bookId, result.asin)
+    // Callback for opening metadata search
+    val onFindMetadataClick: () -> Unit = {
+        onMetadataSearchClick(bookId)
     }
 
     // The man in black fled across the desert, and the gunslinger followed. (The Dark Tower)
@@ -217,21 +178,6 @@ fun BookDetailScreen(
                 )
             }
         }
-    }
-
-    // Metadata search bottom sheet
-    if (showMetadataSheet) {
-        MetadataSearchSheet(
-            state = metadataState,
-            onQueryChange = metadataViewModel::updateQuery,
-            onSearch = metadataViewModel::search,
-            onResultClick = onMetadataResultClick,
-            onDismiss = {
-                showMetadataSheet = false
-                metadataViewModel.reset()
-            },
-            sheetState = metadataSheetState,
-        )
     }
 
     if (showDeleteDialog) {

@@ -162,7 +162,7 @@ class MetadataApi(
         if (!response.success) {
             throw Exception(response.error ?: "Search failed")
         }
-        return response.data?.matches ?: emptyList()
+        return response.data?.results ?: emptyList()
     }
 
     /**
