@@ -32,6 +32,7 @@ import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
@@ -456,6 +457,24 @@ class ListenUpApi(
                 is Success -> result.data.toDomain()
                 is Failure -> throw result.exception
             }
+        }
+
+    /**
+     * Delete a contributor.
+     *
+     * Endpoint: DELETE /api/v1/contributors/{id}
+     *
+     * @param contributorId Contributor to delete
+     * @return Result indicating success or failure
+     */
+    override suspend fun deleteContributor(contributorId: String): Result<Unit> =
+        suspendRunCatching {
+            logger.debug { "Deleting contributor: $contributorId" }
+
+            val client = getAuthenticatedClient()
+            client.delete("/api/v1/contributors/$contributorId")
+
+            logger.debug { "Contributor deleted: $contributorId" }
         }
 
     /**

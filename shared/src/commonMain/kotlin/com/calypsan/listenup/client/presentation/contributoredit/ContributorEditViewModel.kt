@@ -18,6 +18,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -151,11 +152,11 @@ class ContributorEditViewModel(
     private val imageApi: ImageApiContract,
     private val imageStorage: ImageStorage,
 ) : ViewModel() {
-    val state: StateFlow<ContributorEditUiState>
-        field = MutableStateFlow(ContributorEditUiState())
+    private val _state = MutableStateFlow(ContributorEditUiState())
+    val state: StateFlow<ContributorEditUiState> = _state.asStateFlow()
 
-    val navActions: StateFlow<ContributorEditNavAction?>
-        field = MutableStateFlow<ContributorEditNavAction?>(null)
+    private val _navActions = MutableStateFlow<ContributorEditNavAction?>(null)
+    val navActions: StateFlow<ContributorEditNavAction?> = _navActions.asStateFlow()
 
     // Alias search
     private val aliasQueryFlow = MutableStateFlow("")
@@ -187,7 +188,7 @@ class ContributorEditViewModel(
             .filter { it.length >= 2 || it.isEmpty() }
             .onEach { query ->
                 if (query.isBlank()) {
-                    state.update {
+                    _state.update {
                         it.copy(
                             aliasSearchResults = emptyList(),
                             aliasSearchLoading = false,
@@ -204,11 +205,11 @@ class ContributorEditViewModel(
      */
     fun loadContributor(contributorId: String) {
         viewModelScope.launch {
-            state.update { it.copy(isLoading = true, contributorId = contributorId) }
+            _state.update { it.copy(isLoading = true, contributorId = contributorId) }
 
             val contributor = contributorDao.getById(contributorId)
             if (contributor == null) {
-                state.update { it.copy(isLoading = false, error = "Contributor not found") }
+                _state.update { it.copy(isLoading = false, error = "Contributor not found") }
                 return@launch
             }
 
@@ -224,7 +225,7 @@ class ContributorEditViewModel(
             originalAliases = aliases
             originalImagePath = contributor.imagePath
 
-            state.update {
+            _state.update {
                 it.copy(
                     isLoading = false,
                     imagePath = contributor.imagePath,
@@ -248,32 +249,32 @@ class ContributorEditViewModel(
     fun onEvent(event: ContributorEditUiEvent) {
         when (event) {
             is ContributorEditUiEvent.NameChanged -> {
-                state.update { it.copy(name = event.name) }
+                _state.update { it.copy(name = event.name) }
                 updateHasChanges()
             }
 
             is ContributorEditUiEvent.DescriptionChanged -> {
-                state.update { it.copy(description = event.description) }
+                _state.update { it.copy(description = event.description) }
                 updateHasChanges()
             }
 
             is ContributorEditUiEvent.WebsiteChanged -> {
-                state.update { it.copy(website = event.website) }
+                _state.update { it.copy(website = event.website) }
                 updateHasChanges()
             }
 
             is ContributorEditUiEvent.BirthDateChanged -> {
-                state.update { it.copy(birthDate = event.date) }
+                _state.update { it.copy(birthDate = event.date) }
                 updateHasChanges()
             }
 
             is ContributorEditUiEvent.DeathDateChanged -> {
-                state.update { it.copy(deathDate = event.date) }
+                _state.update { it.copy(deathDate = event.date) }
                 updateHasChanges()
             }
 
             is ContributorEditUiEvent.AliasSearchQueryChanged -> {
-                state.update { it.copy(aliasSearchQuery = event.query) }
+                _state.update { it.copy(aliasSearchQuery = event.query) }
                 aliasQueryFlow.value = event.query
             }
 
@@ -298,11 +299,11 @@ class ContributorEditViewModel(
             }
 
             is ContributorEditUiEvent.Cancel -> {
-                navActions.value = ContributorEditNavAction.NavigateBack
+                _navActions.value = ContributorEditNavAction.NavigateBack
             }
 
             is ContributorEditUiEvent.DismissError -> {
-                state.update { it.copy(error = null) }
+                _state.update { it.copy(error = null) }
             }
         }
     }
@@ -311,14 +312,14 @@ class ContributorEditViewModel(
      * Clear navigation action after handling.
      */
     fun clearNavAction() {
-        navActions.value = null
+        _navActions.value = null
     }
 
     private fun performAliasSearch(query: String) {
         aliasSearchJob?.cancel()
         aliasSearchJob =
             viewModelScope.launch {
-                state.update { it.copy(aliasSearchLoading = true) }
+                _state.update { it.copy(aliasSearchLoading = true) }
 
                 val response = contributorRepository.searchContributors(query, limit = 10)
 
@@ -336,7 +337,7 @@ class ContributorEditViewModel(
                         result.id != currentId && result.name.lowercase() !in currentAliases
                     }
 
-                state.update {
+                _state.update {
                     it.copy(
                         aliasSearchResults = filteredResults,
                         aliasSearchLoading = false,
@@ -353,7 +354,7 @@ class ContributorEditViewModel(
     private fun selectAlias(result: ContributorSearchResult) {
         val aliasName = result.name
 
-        state.update { current ->
+        _state.update { current ->
             // Check if already added
             if (current.aliases.any { it.equals(aliasName, ignoreCase = true) }) {
                 return@update current.copy(
@@ -384,7 +385,7 @@ class ContributorEditViewModel(
 
         val trimmedName = name.trim()
 
-        state.update { current ->
+        _state.update { current ->
             // Check if already added
             if (current.aliases.any { it.equals(trimmedName, ignoreCase = true) }) {
                 return@update current.copy(
@@ -417,7 +418,7 @@ class ContributorEditViewModel(
         }
 
         viewModelScope.launch {
-            state.update { it.copy(isUploadingImage = true, error = null) }
+            _state.update { it.copy(isUploadingImage = true, error = null) }
 
             when (val result = imageApi.uploadContributorImage(contributorId, imageData, filename)) {
                 is Success -> {
@@ -428,7 +429,7 @@ class ContributorEditViewModel(
                         is Success -> {
                             val localPath = imageStorage.getContributorImagePath(contributorId)
                             logger.info { "Contributor image saved locally: $localPath" }
-                            state.update {
+                            _state.update {
                                 it.copy(
                                     isUploadingImage = false,
                                     imagePath = localPath,
@@ -440,7 +441,7 @@ class ContributorEditViewModel(
                         is Failure -> {
                             logger.error { "Failed to save contributor image locally: ${saveResult.message}" }
                             // Still mark upload as successful since server has the image
-                            state.update {
+                            _state.update {
                                 it.copy(
                                     isUploadingImage = false,
                                     error = "Image uploaded but failed to save locally",
@@ -452,7 +453,7 @@ class ContributorEditViewModel(
 
                 is Failure -> {
                     logger.error { "Failed to upload contributor image: ${result.message}" }
-                    state.update {
+                    _state.update {
                         it.copy(
                             isUploadingImage = false,
                             error = "Failed to upload image: ${result.message}",
@@ -479,7 +480,7 @@ class ContributorEditViewModel(
             }
         } else {
             // This was a newly added alias - just remove it from the list
-            state.update { current ->
+            _state.update { current ->
                 current.copy(aliases = current.aliases.filter { !it.equals(alias, ignoreCase = true) })
             }
             // Remove from merge tracking
@@ -496,14 +497,14 @@ class ContributorEditViewModel(
 
         logger.info { "Unmerging alias '$aliasName' from contributor $contributorId" }
 
-        state.update { it.copy(isSaving = true) }
+        _state.update { it.copy(isSaving = true) }
 
         when (val result = contributorEditRepository.unmergeContributor(contributorId, aliasName)) {
             is Success -> {
                 logger.info { "Unmerge queued successfully" }
 
                 // Update local state to remove the alias
-                state.update { current ->
+                _state.update { current ->
                     current.copy(
                         aliases = current.aliases.filter { !it.equals(aliasName, ignoreCase = true) },
                         isSaving = false,
@@ -518,7 +519,7 @@ class ContributorEditViewModel(
 
             is Failure -> {
                 logger.error(result.exception) { "Unmerge failed for alias '$aliasName'" }
-                state.update {
+                _state.update {
                     it.copy(
                         isSaving = false,
                         error = "Failed to remove alias: ${result.exception.message}",
@@ -539,7 +540,7 @@ class ContributorEditViewModel(
                 current.aliases.toSet() != originalAliases.toSet() ||
                 current.imagePath != originalImagePath
 
-        state.update { it.copy(hasChanges = hasChanges) }
+        _state.update { it.copy(hasChanges = hasChanges) }
     }
 
     /**
@@ -553,12 +554,12 @@ class ContributorEditViewModel(
     private fun saveChanges() {
         val current = state.value
         if (!current.hasChanges) {
-            navActions.value = ContributorEditNavAction.NavigateBack
+            _navActions.value = ContributorEditNavAction.NavigateBack
             return
         }
 
         viewModelScope.launch {
-            state.update { it.copy(isSaving = true, error = null) }
+            _state.update { it.copy(isSaving = true, error = null) }
 
             try {
                 // 1. Handle new aliases - merge contributors
@@ -607,13 +608,13 @@ class ContributorEditViewModel(
                 ) {
                     is Success -> {
                         logger.info { "Contributor update queued: ${current.name}" }
-                        state.update { it.copy(isSaving = false, hasChanges = false) }
-                        navActions.value = ContributorEditNavAction.SaveSuccess
+                        _state.update { it.copy(isSaving = false, hasChanges = false) }
+                        _navActions.value = ContributorEditNavAction.SaveSuccess
                     }
 
                     is Failure -> {
                         logger.error(result.exception) { "Failed to update contributor" }
-                        state.update {
+                        _state.update {
                             it.copy(
                                 isSaving = false,
                                 error = "Failed to save: ${result.exception.message}",
@@ -623,7 +624,7 @@ class ContributorEditViewModel(
                 }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save contributor changes" }
-                state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }
+                _state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }
             }
         }
     }

@@ -1,4 +1,4 @@
-@file:Suppress("StringLiteralDuplication")
+@file:Suppress("StringLiteralDuplication", "MagicNumber")
 
 package com.calypsan.listenup.client.data.remote
 
@@ -384,7 +384,7 @@ class ImageApi(
                 result[bookId] = fileData
 
                 // Move to next file (files are padded to 512-byte boundary)
-                val paddedSize = ((fileSize + 511) / 512) * 512
+                val paddedSize = (fileSize + 511) / 512 * 512
                 offset += paddedSize
             } else {
                 // Invalid file size or truncated data, skip

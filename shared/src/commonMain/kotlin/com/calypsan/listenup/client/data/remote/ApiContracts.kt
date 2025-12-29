@@ -519,6 +519,19 @@ interface ContributorApiContract {
         contributorId: String,
         request: UpdateContributorRequest,
     ): Result<UpdateContributorResponse>
+
+    /**
+     * Delete a contributor.
+     *
+     * DELETE /api/v1/contributors/{contributorId}
+     *
+     * Soft-deletes the contributor. Books associated with this contributor
+     * will have their contributor links removed.
+     *
+     * @param contributorId The contributor to delete
+     * @return Result indicating success or failure
+     */
+    suspend fun deleteContributor(contributorId: String): Result<Unit>
 }
 
 /**

@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication", "NestedBlockDepth")
+
 package com.calypsan.listenup.client.playback
 
 import android.media.MediaCodecList

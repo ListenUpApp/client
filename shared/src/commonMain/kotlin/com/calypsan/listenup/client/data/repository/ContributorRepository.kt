@@ -2,11 +2,16 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
+import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SearchDao
+import com.calypsan.listenup.client.data.remote.ApplyContributorMetadataResult
 import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
+import com.calypsan.listenup.client.data.remote.MetadataApiContract
+import com.calypsan.listenup.client.data.remote.model.ContributorMetadataSearchResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.withContext
 import kotlin.time.measureTimedValue
@@ -35,6 +40,67 @@ interface ContributorRepositoryContract {
         query: String,
         limit: Int = 10,
     ): ContributorSearchResponse
+
+    /**
+     * Apply Audible metadata to a contributor.
+     *
+     * Fetches contributor profile (biography, image) from Audible and applies
+     * selected fields to the local contributor.
+     *
+     * @param contributorId Local contributor ID
+     * @param asin Audible ASIN for the contributor
+     * @param imageUrl Optional image URL to apply
+     * @param applyName Whether to apply the name from Audible
+     * @param applyBiography Whether to apply the biography from Audible
+     * @param applyImage Whether to download and apply the image
+     * @return Result indicating success, need for disambiguation, or error
+     */
+    suspend fun applyMetadataFromAudible(
+        contributorId: String,
+        asin: String,
+        imageUrl: String? = null,
+        applyName: Boolean = true,
+        applyBiography: Boolean = true,
+        applyImage: Boolean = true,
+    ): ContributorMetadataResult
+
+    /**
+     * Delete a contributor.
+     *
+     * Soft-deletes the contributor on the server. The contributor will be
+     * removed from the local database on the next sync.
+     *
+     * @param contributorId Contributor ID to delete
+     * @return Success or failure result
+     */
+    suspend fun deleteContributor(contributorId: String): Result<Unit>
+}
+
+/**
+ * Result of applying contributor metadata from Audible.
+ */
+sealed class ContributorMetadataResult {
+    /** Metadata applied successfully */
+    data object Success : ContributorMetadataResult()
+
+    /**
+     * Disambiguation required - either multiple matches found or no matches found.
+     * If candidates is empty, the user should be prompted to search with a different name.
+     *
+     * @param candidates List of matching contributors from Audible (may be empty)
+     * @param searchedName The name that was searched on Audible
+     * @param message Server message explaining the situation
+     */
+    data class NeedsDisambiguation(
+        val candidates: List<ContributorMetadataSearchResult>,
+        val searchedName: String? = null,
+        val message: String? = null,
+    ) : ContributorMetadataResult()
+
+    /** Error occurred */
+    data class Error(
+        val message: String,
+    ) : ContributorMetadataResult()
 }
 
 /**
@@ -51,22 +117,22 @@ data class ContributorSearchResponse(
 )
 
 /**
- * Repository for contributor search operations.
+ * Repository for contributor operations.
  *
- * Implements "never stranded" pattern:
+ * Implements "never stranded" pattern for search:
  * - Online: Use server Bleve search (fuzzy matching, ranked by popularity)
  * - Offline: Fall back to local Room FTS5 (prefix matching, always available)
  *
- * The caller doesn't need to know which path was taken—both return
- * the same ContributorSearchResult type. The `isOfflineResult` flag indicates
- * which was used (for optional UI indication).
+ * Also handles Audible metadata fetching and contributor deletion.
  *
- * @property api Server API client for contributor search
+ * @property api Server API client for contributor operations
+ * @property metadataApi API client for Audible metadata
  * @property searchDao Local FTS5 search DAO
  * @property networkMonitor For checking online/offline status
  */
 class ContributorRepository(
     private val api: ContributorApiContract,
+    private val metadataApi: MetadataApiContract,
     private val searchDao: SearchDao,
     private val networkMonitor: NetworkMonitor,
 ) : ContributorRepositoryContract {
@@ -196,6 +262,75 @@ class ContributorRepository(
             .split(Regex("\\s+"))
             .filter { it.isNotBlank() }
             .joinToString(" ") { "$it*" }
+
+    // === Metadata Operations ===
+
+    /**
+     * Apply Audible metadata to a contributor.
+     *
+     * Uses the metadata API to fetch contributor profile from Audible
+     * and apply it to the local contributor.
+     */
+    override suspend fun applyMetadataFromAudible(
+        contributorId: String,
+        asin: String,
+        imageUrl: String?,
+        applyName: Boolean,
+        applyBiography: Boolean,
+        applyImage: Boolean,
+    ): ContributorMetadataResult =
+        withContext(IODispatcher) {
+            try {
+                when (
+                    val result =
+                        metadataApi.applyContributorMetadata(
+                            contributorId = contributorId,
+                            asin = asin,
+                            imageUrl = imageUrl,
+                            applyName = applyName,
+                            applyBiography = applyBiography,
+                            applyImage = applyImage,
+                        )
+                ) {
+                    is ApplyContributorMetadataResult.Success -> {
+                        logger.info { "Applied Audible metadata to contributor $contributorId" }
+                        ContributorMetadataResult.Success
+                    }
+
+                    is ApplyContributorMetadataResult.NeedsDisambiguation -> {
+                        logger.debug {
+                            "Contributor metadata needs disambiguation: ${result.candidates.size} candidates for '${result.searchedName}'"
+                        }
+                        ContributorMetadataResult.NeedsDisambiguation(
+                            candidates = result.candidates,
+                            searchedName = result.searchedName,
+                            message = result.message,
+                        )
+                    }
+
+                    is ApplyContributorMetadataResult.Error -> {
+                        logger.warn { "Failed to apply contributor metadata: ${result.message}" }
+                        ContributorMetadataResult.Error(result.message)
+                    }
+                }
+            } catch (e: Exception) {
+                logger.error(e) { "Error applying contributor metadata" }
+                ContributorMetadataResult.Error(e.message ?: "Unknown error")
+            }
+        }
+
+    /**
+     * Delete a contributor.
+     *
+     * Calls the server API to soft-delete the contributor.
+     */
+    override suspend fun deleteContributor(contributorId: String): Result<Unit> =
+        suspendRunCatching {
+            withContext(IODispatcher) {
+                api.deleteContributor(contributorId)
+                logger.info { "Deleted contributor $contributorId" }
+            }
+        }
 }
 
 /**

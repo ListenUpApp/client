@@ -45,6 +45,7 @@ class HomeRepositoryTest {
         val playbackPositionDao: PlaybackPositionDao = mock()
         val syncApi: SyncApiContract = mock()
         val userDao: UserDao = mock()
+        val networkMonitor: NetworkMonitor = mock()
 
         val userFlow = MutableStateFlow<UserEntity?>(null)
 
@@ -54,6 +55,7 @@ class HomeRepositoryTest {
                 playbackPositionDao = playbackPositionDao,
                 syncApi = syncApi,
                 userDao = userDao,
+                networkMonitor = networkMonitor,
             )
     }
 
@@ -65,7 +67,8 @@ class HomeRepositoryTest {
         everySuspend { fixture.playbackPositionDao.get(any()) } returns null
         everySuspend { fixture.playbackPositionDao.save(any()) } returns Unit
         everySuspend { fixture.bookRepository.getBook(any()) } returns null
-        // Default: server unavailable, triggering local fallback
+        // Default: offline mode - tests local fallback behavior
+        every { fixture.networkMonitor.isOnline() } returns false
         everySuspend { fixture.syncApi.getContinueListening(any()) } returns Failure(Exception("Offline"))
         every { fixture.userDao.observeCurrentUser() } returns fixture.userFlow
 

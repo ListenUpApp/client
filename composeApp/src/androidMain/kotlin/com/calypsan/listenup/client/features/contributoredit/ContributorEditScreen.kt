@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Save
@@ -33,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.design.components.ListenUpDatePicker
@@ -291,12 +293,8 @@ private fun ArtistStudioContent(
     modifier: Modifier = Modifier,
 ) {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-    val isMediumOrLarger =
-        windowSizeClass.isWidthAtLeastBreakpoint(
-            WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
-        )
+    val isMediumOrLarger = windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
 
-    // Image picker for avatar uploads
     val imagePicker =
         rememberImagePicker { result ->
             when (result) {
@@ -304,11 +302,11 @@ private fun ArtistStudioContent(
                     onEvent(ContributorEditUiEvent.UploadImage(result.data, result.filename))
                 }
 
-                is ImagePickerResult.Cancelled -> { /* User cancelled */ }
-
                 is ImagePickerResult.Error -> {
-                    // Error is handled via the ViewModel's error state
+                    // Error is logged by the image picker; user will see nothing happened
                 }
+
+                ImagePickerResult.Cancelled -> { /* User cancelled */ }
             }
         }
 
@@ -466,6 +464,7 @@ private fun LinksCardContent(
         onValueChange = { onEvent(ContributorEditUiEvent.WebsiteChanged(it)) },
         label = "Website",
         placeholder = "https://...",
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
     )
 }
 

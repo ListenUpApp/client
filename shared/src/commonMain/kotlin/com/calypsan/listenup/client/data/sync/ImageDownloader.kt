@@ -31,6 +31,17 @@ class ImageDownloader(
     private val colorExtractor: CoverColorExtractor,
 ) : ImageDownloaderContract {
     /**
+     * Delete a book's cover from local storage.
+     *
+     * Used when the server's cover has changed and the local cached
+     * version needs to be invalidated before downloading the new one.
+     */
+    override suspend fun deleteCover(bookId: BookId): Result<Unit> {
+        logger.debug { "Deleting local cover for book ${bookId.value}" }
+        return imageStorage.deleteCover(bookId)
+    }
+
+    /**
      * Download and save a single book cover.
      *
      * Non-fatal errors (404, network issues) are logged but don't throw.

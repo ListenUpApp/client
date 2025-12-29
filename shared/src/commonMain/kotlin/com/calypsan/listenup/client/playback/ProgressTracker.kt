@@ -138,19 +138,23 @@ class ProgressTracker(
         positionMs: Long,
         speed: Float,
     ) {
-        // Preserve existing hasCustomSpeed value
-        val existing = positionDao.get(bookId)
-        positionDao.save(
-            PlaybackPositionEntity(
-                bookId = bookId,
-                positionMs = positionMs,
-                playbackSpeed = speed,
-                hasCustomSpeed = existing?.hasCustomSpeed ?: false,
-                updatedAt = Clock.System.now().toEpochMilliseconds(),
-                syncedAt = null,
-            ),
-        )
-        logger.debug { "Position saved: book=${bookId.value}, position=$positionMs" }
+        try {
+            // Preserve existing hasCustomSpeed value
+            val existing = positionDao.get(bookId)
+            positionDao.save(
+                PlaybackPositionEntity(
+                    bookId = bookId,
+                    positionMs = positionMs,
+                    playbackSpeed = speed,
+                    hasCustomSpeed = existing?.hasCustomSpeed ?: false,
+                    updatedAt = Clock.System.now().toEpochMilliseconds(),
+                    syncedAt = null,
+                ),
+            )
+            logger.debug { "Position saved: book=${bookId.value}, position=$positionMs" }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to save position: book=${bookId.value}, position=$positionMs" }
+        }
     }
 
     /**
@@ -263,6 +267,7 @@ class ProgressTracker(
      * Merge local and server positions, returning the more recent one.
      * If server is newer, updates local cache for offline access.
      */
+    @Suppress("UnusedParameter") // bookId reserved for future logging/debugging
     private suspend fun mergePositions(
         bookId: BookId,
         local: PlaybackPositionEntity?,

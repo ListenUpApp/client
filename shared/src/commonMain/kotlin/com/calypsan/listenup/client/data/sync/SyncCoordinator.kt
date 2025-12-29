@@ -1,3 +1,5 @@
+@file:Suppress("ThrowsCount")
+
 package com.calypsan.listenup.client.data.sync
 
 import io.github.oshai.kotlinlogging.KotlinLogging

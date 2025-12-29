@@ -13,6 +13,7 @@ import com.calypsan.listenup.client.data.local.db.RoleWithBookCount
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -59,6 +60,7 @@ class ContributorDetailViewModelTest {
         val bookDao: BookDao = mock()
         val imageStorage: ImageStorage = mock()
         val playbackPositionDao: PlaybackPositionDao = mock()
+        val contributorRepository: ContributorRepositoryContract = mock()
 
         val contributorFlow = MutableStateFlow<ContributorEntity?>(null)
         val rolesFlow = MutableStateFlow<List<RoleWithBookCount>>(emptyList())
@@ -69,6 +71,7 @@ class ContributorDetailViewModelTest {
                 bookDao = bookDao,
                 imageStorage = imageStorage,
                 playbackPositionDao = playbackPositionDao,
+                contributorRepository = contributorRepository,
             )
     }
 

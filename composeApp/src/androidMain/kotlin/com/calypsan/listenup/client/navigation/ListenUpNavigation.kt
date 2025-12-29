@@ -348,6 +348,9 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onEditClick = { bookId ->
                                     backStack.add(BookEdit(bookId))
                                 },
+                                onMetadataSearchClick = { bookId ->
+                                    backStack.add(MetadataSearch(bookId))
+                                },
                                 onSeriesClick = { seriesId ->
                                     backStack.add(SeriesDetail(seriesId))
                                 },
@@ -365,6 +368,34 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onSaveSuccess = {
                                     // Navigate back after successful save
                                     backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<MetadataSearch> { args ->
+                            com.calypsan.listenup.client.features.metadata.MetadataSearchRoute(
+                                bookId = args.bookId,
+                                onResultSelected = { asin ->
+                                    backStack.add(MatchPreview(args.bookId, asin))
+                                },
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<MatchPreview> { args ->
+                            com.calypsan.listenup.client.features.metadata.MatchPreviewRoute(
+                                bookId = args.bookId,
+                                asin = args.asin,
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onApplySuccess = {
+                                    // Navigate back to book detail after successful apply
+                                    // Pop both MatchPreview and MetadataSearch
+                                    backStack.removeAt(backStack.lastIndex)
+                                    if (backStack.lastOrNull() is MetadataSearch) {
+                                        backStack.removeAt(backStack.lastIndex)
+                                    }
                                 },
                             )
                         }
@@ -409,6 +440,9 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onViewAllClick = { contributorId, role ->
                                     backStack.add(ContributorBooks(contributorId, role))
                                 },
+                                onMetadataClick = { contributorId ->
+                                    backStack.add(ContributorMetadataSearch(contributorId))
+                                },
                             )
                         }
                         entry<ContributorEdit> { args ->
@@ -432,6 +466,35 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
+                                },
+                            )
+                        }
+                        entry<ContributorMetadataSearch> { args ->
+                            com.calypsan.listenup.client.features.contributormetadata.ContributorMetadataSearchRoute(
+                                contributorId = args.contributorId,
+                                onCandidateSelected = { asin ->
+                                    backStack.add(ContributorMetadataPreview(args.contributorId, asin))
+                                },
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<ContributorMetadataPreview> { args ->
+                            com.calypsan.listenup.client.features.contributormetadata.ContributorMetadataPreviewRoute(
+                                contributorId = args.contributorId,
+                                asin = args.asin,
+                                onApplySuccess = {
+                                    // Pop both preview and search to go back to contributor detail
+                                    backStack.removeAt(backStack.lastIndex)
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onChangeMatch = {
+                                    // Pop preview to go back to search
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
                                 },
                             )
                         }

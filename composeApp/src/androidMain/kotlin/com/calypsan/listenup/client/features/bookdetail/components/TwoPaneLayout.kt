@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod")
+
 package com.calypsan.listenup.client.features.bookdetail.components
 
 import androidx.compose.foundation.background
@@ -27,7 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +38,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -66,8 +69,14 @@ import com.calypsan.listenup.client.presentation.bookdetail.ChapterUiModel
 fun TwoPaneBookDetail(
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
+    isComplete: Boolean,
+    isAdmin: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
+    onFindMetadataClick: () -> Unit,
+    onMarkCompleteClick: () -> Unit,
+    onAddToCollectionClick: () -> Unit,
+    onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
@@ -90,8 +99,14 @@ fun TwoPaneBookDetail(
             state = state,
             downloadStatus = downloadStatus,
             coverColors = coverColors,
+            isComplete = isComplete,
+            isAdmin = isAdmin,
             onBackClick = onBackClick,
             onEditClick = onEditClick,
+            onFindMetadataClick = onFindMetadataClick,
+            onMarkCompleteClick = onMarkCompleteClick,
+            onAddToCollectionClick = onAddToCollectionClick,
+            onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
@@ -122,8 +137,14 @@ private fun TwoPaneLeftPane(
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
     coverColors: CoverColors,
+    isComplete: Boolean,
+    isAdmin: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
+    onFindMetadataClick: () -> Unit,
+    onMarkCompleteClick: () -> Unit,
+    onAddToCollectionClick: () -> Unit,
+    onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
@@ -158,10 +179,13 @@ private fun TwoPaneLeftPane(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Navigation row with semi-transparent background
+            var showMenu by remember { mutableStateOf(false) }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                // Back button
                 IconButton(
                     onClick = onBackClick,
                     modifier =
@@ -178,20 +202,51 @@ private fun TwoPaneLeftPane(
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
-                IconButton(
-                    onClick = onEditClick,
-                    modifier =
-                        Modifier
-                            .size(48.dp)
-                            .background(
-                                color = surfaceColor.copy(alpha = 0.5f),
-                                shape = CircleShape,
-                            ),
-                ) {
-                    Icon(
-                        Icons.Default.Edit,
-                        "Edit",
-                        tint = MaterialTheme.colorScheme.onSurface,
+
+                // Three-dot menu
+                Box {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier =
+                            Modifier
+                                .size(48.dp)
+                                .background(
+                                    color = surfaceColor.copy(alpha = 0.5f),
+                                    shape = CircleShape,
+                                ),
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            "More options",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+
+                    BookActionsMenu(
+                        expanded = showMenu,
+                        onDismiss = { showMenu = false },
+                        isComplete = isComplete,
+                        isAdmin = isAdmin,
+                        onEditClick = {
+                            showMenu = false
+                            onEditClick()
+                        },
+                        onFindMetadataClick = {
+                            showMenu = false
+                            onFindMetadataClick()
+                        },
+                        onMarkCompleteClick = {
+                            showMenu = false
+                            onMarkCompleteClick()
+                        },
+                        onAddToCollectionClick = {
+                            showMenu = false
+                            onAddToCollectionClick()
+                        },
+                        onDeleteClick = {
+                            showMenu = false
+                            onDeleteBookClick()
+                        },
                     )
                 }
             }

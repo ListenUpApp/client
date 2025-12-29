@@ -92,7 +92,7 @@ actual class DownloadFileManager(
         try {
             SystemFileSystem.atomicMove(source, destination)
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
 

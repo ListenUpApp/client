@@ -20,6 +20,8 @@ import com.calypsan.listenup.client.data.remote.InstanceApiContract
 import com.calypsan.listenup.client.data.remote.InviteApi
 import com.calypsan.listenup.client.data.remote.InviteApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
+import com.calypsan.listenup.client.data.remote.MetadataApi
+import com.calypsan.listenup.client.data.remote.MetadataApiContract
 import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
@@ -44,6 +46,8 @@ import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.LibraryPreferencesContract
+import com.calypsan.listenup.client.data.repository.MetadataRepository
+import com.calypsan.listenup.client.data.repository.MetadataRepositoryContract
 import com.calypsan.listenup.client.data.repository.PlaybackPreferencesContract
 import com.calypsan.listenup.client.data.repository.SearchRepository
 import com.calypsan.listenup.client.data.repository.SearchRepositoryContract
@@ -346,6 +350,7 @@ val presentationModule =
                 bookDao = get(),
                 imageStorage = get(),
                 playbackPositionDao = get(),
+                contributorRepository = get(),
             )
         }
         factory {
@@ -354,6 +359,14 @@ val presentationModule =
                 bookDao = get(),
                 imageStorage = get(),
                 playbackPositionDao = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataViewModel(
+                contributorDao = get(),
+                metadataApi = get(),
+                imageApi = get(),
+                imageStorage = get(),
             )
         }
         factory {
@@ -396,6 +409,13 @@ val presentationModule =
             )
         }
         factory { SettingsViewModel(settingsRepository = get(), userPreferencesApi = get()) }
+        // MetadataViewModel for Audible metadata search and matching
+        factory {
+            com.calypsan.listenup.client.presentation.metadata.MetadataViewModel(
+                metadataRepository = get(),
+                imageDownloader = get(),
+            )
+        }
         // SyncIndicatorViewModel as singleton for app-wide sync status
         single { SyncIndicatorViewModel(pendingOperationRepository = get()) }
     }
@@ -473,6 +493,16 @@ val syncModule =
         single {
             AdminApi(clientFactory = get())
         } bind AdminApiContract::class
+
+        // MetadataApi for Audible metadata search and matching
+        single {
+            MetadataApi(clientFactory = get())
+        } bind MetadataApiContract::class
+
+        // MetadataRepository for metadata operations
+        single {
+            MetadataRepository(metadataApi = get())
+        } bind MetadataRepositoryContract::class
 
         // UserPreferencesApi for syncing user preferences across devices
         single {
@@ -726,6 +756,7 @@ val syncModule =
                 playbackPositionDao = get(),
                 syncApi = get(),
                 userDao = get(),
+                networkMonitor = get(),
             )
         } bind HomeRepositoryContract::class
 
@@ -733,6 +764,7 @@ val syncModule =
         single {
             ContributorRepository(
                 api = get(),
+                metadataApi = get(),
                 searchDao = get(),
                 networkMonitor = get(),
             )

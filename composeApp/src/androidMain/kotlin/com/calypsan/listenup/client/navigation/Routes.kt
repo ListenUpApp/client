@@ -75,6 +75,34 @@ data class BookEdit(
 ) : Route
 
 /**
+ * Match preview screen - preview Audible metadata before applying.
+ *
+ * Shows side-by-side comparison of current book metadata vs metadata
+ * from Audible. User can confirm to apply the changes.
+ *
+ * @property bookId The unique ID of the book to update.
+ * @property asin The Audible ASIN of the matched book.
+ */
+@Serializable
+data class MatchPreview(
+    val bookId: String,
+    val asin: String,
+) : Route
+
+/**
+ * Book metadata search screen - search Audible for metadata matches.
+ *
+ * Shows search results from Audible. Selecting a result navigates to
+ * the MatchPreview screen.
+ *
+ * @property bookId The unique ID of the book to find metadata for.
+ */
+@Serializable
+data class MetadataSearch(
+    val bookId: String,
+) : Route
+
+/**
  * Series detail screen - displays series info and its books.
  *
  * @property seriesId The unique ID of the series to display.
@@ -135,6 +163,34 @@ data class ContributorBooks(
 @Serializable
 data class ContributorEdit(
     val contributorId: String,
+) : Route
+
+/**
+ * Contributor metadata search screen - search Audible for contributor.
+ *
+ * Shows search field, region selector, and results list.
+ * Selecting a result navigates to the preview screen.
+ *
+ * @property contributorId The unique ID of the contributor to match.
+ */
+@Serializable
+data class ContributorMetadataSearch(
+    val contributorId: String,
+) : Route
+
+/**
+ * Contributor metadata preview screen - preview Audible metadata before applying.
+ *
+ * Shows side-by-side comparison of current contributor data vs Audible data.
+ * User can toggle which fields to apply (name, biography, image).
+ *
+ * @property contributorId The unique ID of the contributor to update.
+ * @property asin The Audible ASIN of the matched contributor.
+ */
+@Serializable
+data class ContributorMetadataPreview(
+    val contributorId: String,
+    val asin: String,
 ) : Route
 
 /**

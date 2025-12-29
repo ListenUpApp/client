@@ -114,19 +114,15 @@ class PushSyncOrchestrator(
                 val succeeded =
                     buildList {
                         results.forEach { (id, result) ->
-                            when (result) {
-                                is Success -> {
-                                    add(id)
-                                    processed++
-                                }
-
-                                else -> {
-                                    val operation = batch.first { it.id == id }
-                                    handleFailure(
-                                        operation,
-                                        (result as? com.calypsan.listenup.client.core.Failure)?.exception,
-                                    )
-                                }
+                            if (result is Success) {
+                                add(id)
+                                processed++
+                            } else {
+                                val operation = batch.first { it.id == id }
+                                handleFailure(
+                                    operation,
+                                    (result as? com.calypsan.listenup.client.core.Failure)?.exception,
+                                )
                             }
                         }
                     }

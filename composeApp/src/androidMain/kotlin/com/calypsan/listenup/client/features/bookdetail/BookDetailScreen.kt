@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -30,8 +30,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.model.BookDownloadStatus
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
@@ -68,17 +70,20 @@ import org.koin.compose.viewmodel.koinViewModel
  * 6. Tags - User categorization
  * 7. Chapters - Deep dive content
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookDetailScreen(
     bookId: String,
     onBackClick: () -> Unit,
     onEditClick: (bookId: String) -> Unit,
+    onMetadataSearchClick: (bookId: String) -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     viewModel: BookDetailViewModel = koinViewModel(),
     playerViewModel: PlayerViewModel = koinViewModel(),
 ) {
     val downloadManager: DownloadManager = koinInject()
+    val userDao: UserDao = koinInject()
     val scope = rememberCoroutineScope()
     val snackbarHostState = LocalSnackbarHostState.current
 
@@ -87,11 +92,18 @@ fun BookDetailScreen(
     }
 
     val state by viewModel.state.collectAsState()
+    val currentUser by userDao.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
     val downloadStatus by downloadManager
         .observeBookStatus(BookId(bookId))
         .collectAsState(initial = BookDownloadStatus.notDownloaded(bookId))
 
+    val isAdmin = currentUser?.isRoot == true
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // Callback for opening metadata search
+    val onFindMetadataClick: () -> Unit = {
+        onMetadataSearchClick(bookId)
+    }
 
     // The man in black fled across the desert, and the gunslinger followed. (The Dark Tower)
     Surface(
@@ -123,8 +135,14 @@ fun BookDetailScreen(
                 BookDetailContent(
                     state = state,
                     downloadStatus = downloadStatus,
+                    isComplete = false, // TODO: Add completion tracking
+                    isAdmin = isAdmin,
                     onBackClick = onBackClick,
                     onEditClick = { onEditClick(bookId) },
+                    onFindMetadataClick = onFindMetadataClick,
+                    onMarkCompleteClick = { /* TODO: Implement */ },
+                    onAddToCollectionClick = { /* TODO: Implement */ },
+                    onDeleteBookClick = { /* TODO: Implement */ },
                     onPlayClick = { playerViewModel.playBook(BookId(bookId)) },
                     onDownloadClick = {
                         scope.launch {
@@ -186,8 +204,14 @@ fun BookDetailScreen(
 fun BookDetailContent(
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
+    isComplete: Boolean,
+    isAdmin: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
+    onFindMetadataClick: () -> Unit,
+    onMarkCompleteClick: () -> Unit,
+    onAddToCollectionClick: () -> Unit,
+    onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
@@ -207,8 +231,14 @@ fun BookDetailContent(
         TwoPaneBookDetail(
             state = state,
             downloadStatus = downloadStatus,
+            isComplete = isComplete,
+            isAdmin = isAdmin,
             onBackClick = onBackClick,
             onEditClick = onEditClick,
+            onFindMetadataClick = onFindMetadataClick,
+            onMarkCompleteClick = onMarkCompleteClick,
+            onAddToCollectionClick = onAddToCollectionClick,
+            onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
@@ -220,8 +250,14 @@ fun BookDetailContent(
         ImmersiveBookDetail(
             state = state,
             downloadStatus = downloadStatus,
+            isComplete = isComplete,
+            isAdmin = isAdmin,
             onBackClick = onBackClick,
             onEditClick = onEditClick,
+            onFindMetadataClick = onFindMetadataClick,
+            onMarkCompleteClick = onMarkCompleteClick,
+            onAddToCollectionClick = onAddToCollectionClick,
+            onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
@@ -245,8 +281,14 @@ fun BookDetailContent(
 private fun ImmersiveBookDetail(
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
+    isComplete: Boolean,
+    isAdmin: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
+    onFindMetadataClick: () -> Unit,
+    onMarkCompleteClick: () -> Unit,
+    onAddToCollectionClick: () -> Unit,
+    onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
@@ -282,8 +324,14 @@ private fun ImmersiveBookDetail(
                 progress = state.progress,
                 timeRemaining = state.timeRemainingFormatted,
                 coverColors = coverColors,
+                isComplete = isComplete,
+                isAdmin = isAdmin,
                 onBackClick = onBackClick,
                 onEditClick = onEditClick,
+                onFindMetadataClick = onFindMetadataClick,
+                onMarkCompleteClick = onMarkCompleteClick,
+                onAddToCollectionClick = onAddToCollectionClick,
+                onDeleteClick = onDeleteBookClick,
             )
         }
 

@@ -19,16 +19,19 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -42,7 +45,7 @@ import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
  * Hero section with color-extracted gradient background.
  * Uses Palette API colors for a cohesive look that matches the cover art.
  */
-@Suppress("MagicNumber")
+@Suppress("MagicNumber", "LongParameterList")
 @Composable
 fun HeroSection(
     coverPath: String?,
@@ -51,8 +54,14 @@ fun HeroSection(
     progress: Float?,
     timeRemaining: String?,
     coverColors: CoverColors,
+    isComplete: Boolean,
+    isAdmin: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
+    onFindMetadataClick: () -> Unit,
+    onMarkCompleteClick: () -> Unit,
+    onAddToCollectionClick: () -> Unit,
+    onDeleteClick: () -> Unit,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
     val surfaceContainerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -86,11 +95,16 @@ fun HeroSection(
                     .windowInsetsPadding(WindowInsets.statusBars),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Navigation bar
+            // Navigation bar with actions menu
             HeroNavigationBar(
                 onBackClick = onBackClick,
+                isComplete = isComplete,
+                isAdmin = isAdmin,
                 onEditClick = onEditClick,
-                surfaceColor = surfaceColor,
+                onFindMetadataClick = onFindMetadataClick,
+                onMarkCompleteClick = onMarkCompleteClick,
+                onAddToCollectionClick = onAddToCollectionClick,
+                onDeleteClick = onDeleteClick,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -138,15 +152,22 @@ fun HeroSection(
 }
 
 /**
- * Navigation bar with translucent buttons.
+ * Navigation bar with translucent back button and three-dot actions menu.
  * Uses surfaceContainerHigh for better contrast against dynamic cover colors.
  */
+@Suppress("LongParameterList")
 @Composable
 private fun HeroNavigationBar(
     onBackClick: () -> Unit,
+    isComplete: Boolean,
+    isAdmin: Boolean,
     onEditClick: () -> Unit,
-    @Suppress("UNUSED_PARAMETER") surfaceColor: Color,
+    onFindMetadataClick: () -> Unit,
+    onMarkCompleteClick: () -> Unit,
+    onAddToCollectionClick: () -> Unit,
+    onDeleteClick: () -> Unit,
 ) {
+    var showMenu by remember { mutableStateOf(false) }
     val buttonBackground = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
 
     Row(
@@ -156,6 +177,7 @@ private fun HeroNavigationBar(
                 .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
+        // Back button
         IconButton(
             onClick = onBackClick,
             modifier =
@@ -173,20 +195,50 @@ private fun HeroNavigationBar(
             )
         }
 
-        IconButton(
-            onClick = onEditClick,
-            modifier =
-                Modifier
-                    .size(48.dp)
-                    .background(
-                        color = buttonBackground,
-                        shape = CircleShape,
-                    ),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = "Edit book",
-                tint = MaterialTheme.colorScheme.onSurface,
+        // Three-dot menu
+        Box {
+            IconButton(
+                onClick = { showMenu = true },
+                modifier =
+                    Modifier
+                        .size(48.dp)
+                        .background(
+                            color = buttonBackground,
+                            shape = CircleShape,
+                        ),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More options",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+
+            BookActionsMenu(
+                expanded = showMenu,
+                onDismiss = { showMenu = false },
+                isComplete = isComplete,
+                isAdmin = isAdmin,
+                onEditClick = {
+                    showMenu = false
+                    onEditClick()
+                },
+                onFindMetadataClick = {
+                    showMenu = false
+                    onFindMetadataClick()
+                },
+                onMarkCompleteClick = {
+                    showMenu = false
+                    onMarkCompleteClick()
+                },
+                onAddToCollectionClick = {
+                    showMenu = false
+                    onAddToCollectionClick()
+                },
+                onDeleteClick = {
+                    showMenu = false
+                    onDeleteClick()
+                },
             )
         }
     }

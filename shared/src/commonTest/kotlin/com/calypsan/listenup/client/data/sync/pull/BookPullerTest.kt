@@ -126,6 +126,7 @@ class BookPullerTest {
             everySuspend { bookDao.upsertAll(any<List<BookEntity>>()) } returns Unit
             everySuspend { bookDao.deleteByIds(any()) } returns Unit
             everySuspend { bookDao.markConflict(any(), any()) } returns Unit
+            everySuspend { bookDao.getById(any()) } returns null // No existing book by default
             everySuspend { chapterDao.upsertAll(any<List<ChapterEntity>>()) } returns Unit
             everySuspend { bookContributorDao.deleteContributorsForBook(any()) } returns Unit
             everySuspend { bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) } returns Unit
@@ -133,6 +134,7 @@ class BookPullerTest {
             everySuspend { bookSeriesDao.insertAll(any<List<BookSeriesCrossRef>>()) } returns Unit
             everySuspend { conflictDetector.detectBookConflicts(any()) } returns emptyList()
             everySuspend { conflictDetector.shouldPreserveLocalChanges(any()) } returns false
+            everySuspend { imageDownloader.deleteCover(any()) } returns Result.Success(Unit)
             everySuspend { imageDownloader.downloadCovers(any()) } returns Result.Success(emptyList())
         }
 
