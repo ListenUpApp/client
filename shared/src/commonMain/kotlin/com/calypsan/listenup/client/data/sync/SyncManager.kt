@@ -1,6 +1,8 @@
 package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.getOrNull
+import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.Syncable
 import com.calypsan.listenup.client.data.local.db.Timestamp
@@ -12,6 +14,7 @@ import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
+import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +41,16 @@ interface SyncManagerContract {
      * Perform full synchronization with server.
      */
     suspend fun sync(): Result<Unit>
+
+    /**
+     * Handle library mismatch by clearing local data and resyncing.
+     *
+     * Called when the user confirms they want to discard local data
+     * and resync with the server's new library.
+     *
+     * @param newLibraryId The new library ID to sync with
+     */
+    suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit>
 }
 
 /**
@@ -66,6 +79,9 @@ class SyncManager(
     private val sseManager: SSEManagerContract,
     private val userPreferencesApi: UserPreferencesApiContract,
     private val settingsRepository: SettingsRepositoryContract,
+    private val instanceRepository: InstanceRepository,
+    private val pendingOperationDao: PendingOperationDao,
+    private val libraryResetHelper: LibraryResetHelperContract,
     private val syncDao: SyncDao,
     private val ftsPopulator: FtsPopulatorContract,
     private val scope: CoroutineScope,
@@ -91,6 +107,17 @@ class SyncManager(
         _syncState.value = SyncStatus.Syncing
 
         return try {
+            // Phase 0: Verify library identity
+            val mismatch = verifyLibraryIdentity()
+            if (mismatch != null) {
+                logger.warn { "Library mismatch detected: expected=${mismatch.expectedLibraryId}, actual=${mismatch.actualLibraryId}" }
+                _syncState.value = mismatch
+                return Result.Failure(
+                    exception = LibraryMismatchException(mismatch.expectedLibraryId, mismatch.actualLibraryId),
+                    message = "Server library has changed. Local data needs to be reset.",
+                )
+            }
+
             // Phase 1: Pull changes from server
             pullOrchestrator.pull { updateSyncState(it) }
 
@@ -143,6 +170,31 @@ class SyncManager(
     }
 
     /**
+     * Handle library mismatch by clearing local data and resyncing.
+     *
+     * Called when the user confirms they want to discard local data
+     * and resync with the server's new library.
+     *
+     * @param newLibraryId The new library ID to sync with
+     */
+    override suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit> {
+        logger.info { "Resetting for new library: $newLibraryId" }
+        _syncState.value = SyncStatus.Syncing
+
+        try {
+            // Clear all local library data and store new library ID
+            libraryResetHelper.resetForNewLibrary(newLibraryId)
+
+            // Perform fresh sync
+            return sync()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to reset for new library" }
+            _syncState.value = SyncStatus.Error(exception = e)
+            return Result.Failure(exception = e, message = "Failed to reset library: ${e.message}")
+        }
+    }
+
+    /**
      * Queue an entity for synchronization with server.
      */
     suspend fun queueUpdate(entity: Syncable) {
@@ -179,4 +231,54 @@ class SyncManager(
     internal fun updateSyncState(status: SyncStatus) {
         _syncState.value = status
     }
+
+    /**
+     * Verify that the server's library ID matches what we're synced with.
+     *
+     * @return LibraryMismatch status if IDs don't match, null if verification passes
+     */
+    private suspend fun verifyLibraryIdentity(): SyncStatus.LibraryMismatch? {
+        val storedLibraryId = settingsRepository.getConnectedLibraryId()
+
+        // First sync? Fetch and store the library ID, then continue
+        if (storedLibraryId == null) {
+            logger.info { "First sync - fetching library ID from server" }
+            val instance = instanceRepository.getInstance(forceRefresh = true).getOrNull()
+            if (instance != null) {
+                settingsRepository.setConnectedLibraryId(instance.id.value)
+                logger.info { "Stored library ID: ${instance.id.value}" }
+            }
+            return null
+        }
+
+        // Compare with server's current library ID
+        val instance = instanceRepository.getInstance(forceRefresh = true).getOrNull()
+        if (instance == null) {
+            // Can't reach server - allow sync to proceed with cached data
+            logger.warn { "Could not fetch instance for library verification, proceeding with cached data" }
+            return null
+        }
+
+        val serverLibraryId = instance.id.value
+        if (serverLibraryId != storedLibraryId) {
+            // Library mismatch! Check if there are pending local changes
+            val hasPendingChanges = pendingOperationDao.getOldestPending() != null
+
+            return SyncStatus.LibraryMismatch(
+                expectedLibraryId = storedLibraryId,
+                actualLibraryId = serverLibraryId,
+                hasPendingChanges = hasPendingChanges,
+            )
+        }
+
+        return null
+    }
 }
+
+/**
+ * Exception thrown when the server's library ID doesn't match what the client was synced with.
+ */
+class LibraryMismatchException(
+    val expectedLibraryId: String,
+    val actualLibraryId: String,
+) : Exception("Library mismatch: expected $expectedLibraryId, got $actualLibraryId")

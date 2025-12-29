@@ -28,6 +28,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.data.repository.AuthState
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.features.admin.AdminScreen
@@ -341,7 +342,10 @@ private fun LoginNavigation(
  */
 @Suppress("LongMethod")
 @Composable
-private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
+private fun AuthenticatedNavigation(
+    settingsRepository: SettingsRepository,
+    libraryResetHelper: LibraryResetHelperContract = koinInject(),
+) {
     val scope = rememberCoroutineScope()
     val backStack = remember { mutableStateListOf<Route>(Shell) }
 
@@ -396,6 +400,9 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                                 onSignOut = {
                                     scope.launch {
+                                        // Clear library data before signing out
+                                        // This ensures next login (same or different user) gets fresh data
+                                        libraryResetHelper.clearLibraryData()
                                         settingsRepository.clearAuthTokens()
                                     }
                                 },

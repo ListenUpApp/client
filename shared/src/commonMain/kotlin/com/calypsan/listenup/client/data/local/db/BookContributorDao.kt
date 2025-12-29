@@ -77,4 +77,7 @@ interface BookContributorDao {
         contributorId: String,
         role: String,
     )
+
+    @Query("DELETE FROM book_contributors")
+    suspend fun deleteAll()
 }

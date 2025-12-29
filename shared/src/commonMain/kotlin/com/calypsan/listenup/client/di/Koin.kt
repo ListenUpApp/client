@@ -61,11 +61,14 @@ import com.calypsan.listenup.client.data.repository.ServerMigrationHelper
 import com.calypsan.listenup.client.data.repository.ServerRepository
 import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
 import com.calypsan.listenup.client.data.repository.ServerUrlChangeListener
+import com.calypsan.listenup.client.data.repository.LibrarySyncContract
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.FtsPopulator
 import com.calypsan.listenup.client.data.sync.FtsPopulatorContract
 import com.calypsan.listenup.client.data.sync.ImageDownloader
+import com.calypsan.listenup.client.data.sync.LibraryResetHelper
+import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.data.sync.SSEManagerContract
@@ -149,6 +152,7 @@ val dataModule =
         single<SettingsRepositoryContract> { get<SettingsRepository>() }
         single<AuthSessionContract> { get<SettingsRepository>() }
         single<ServerConfigContract> { get<SettingsRepository>() }
+        single<LibrarySyncContract> { get<SettingsRepository>() }
         single<LibraryPreferencesContract> { get<SettingsRepository>() }
         single<PlaybackPreferencesContract> { get<SettingsRepository>() }
         single<LocalPreferencesContract> { get<SettingsRepository>() }
@@ -736,6 +740,23 @@ val syncModule =
             )
         } bind PushSyncOrchestratorContract::class
 
+        // LibraryResetHelper - clears local data on library mismatch or server switch
+        single {
+            LibraryResetHelper(
+                bookDao = get(),
+                seriesDao = get(),
+                contributorDao = get(),
+                chapterDao = get(),
+                bookContributorDao = get(),
+                bookSeriesDao = get(),
+                playbackPositionDao = get(),
+                pendingOperationDao = get(),
+                userDao = get(),
+                syncDao = get(),
+                librarySyncContract = get(),
+            )
+        } bind LibraryResetHelperContract::class
+
         // SyncManager - thin orchestrator coordinating sync phases
         single {
             SyncManager(
@@ -746,6 +767,9 @@ val syncModule =
                 sseManager = get(),
                 userPreferencesApi = get(),
                 settingsRepository = get(),
+                instanceRepository = get(),
+                pendingOperationDao = get(),
+                libraryResetHelper = get(),
                 syncDao = get(),
                 ftsPopulator = get(),
                 scope =

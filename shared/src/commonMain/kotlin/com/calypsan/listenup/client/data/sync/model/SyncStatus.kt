@@ -73,4 +73,26 @@ sealed interface SyncStatus {
     data class Error(
         val exception: Exception,
     ) : SyncStatus
+
+    /**
+     * Library identity mismatch detected.
+     *
+     * The server's library ID doesn't match what this client was synced with.
+     * This happens when:
+     * - Server was reinstalled/reset (database wiped)
+     * - Server restored from a different backup
+     * - Client connected to a different server instance
+     *
+     * UI should prompt the user to resync, optionally warning about
+     * unsaved local changes.
+     *
+     * @property expectedLibraryId The library ID the client was synced with
+     * @property actualLibraryId The library ID the server now has
+     * @property hasPendingChanges Whether there are unsync'd local changes that would be lost
+     */
+    data class LibraryMismatch(
+        val expectedLibraryId: String,
+        val actualLibraryId: String,
+        val hasPendingChanges: Boolean,
+    ) : SyncStatus
 }

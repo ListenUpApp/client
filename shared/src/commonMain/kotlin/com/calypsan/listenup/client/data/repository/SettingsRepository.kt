@@ -126,6 +126,33 @@ interface ServerConfigContract {
 }
 
 /**
+ * Contract for library identity and sync verification.
+ *
+ * Used by SyncManager to detect when the server's library has changed
+ * (e.g., server reinstalled, database wiped) and trigger appropriate
+ * resync flows.
+ */
+interface LibrarySyncContract {
+    /**
+     * Get the library ID this client is currently synced with.
+     * Returns null if this is the first sync (no library connected yet).
+     */
+    suspend fun getConnectedLibraryId(): String?
+
+    /**
+     * Store the library ID after successful sync verification.
+     * This becomes the reference point for future mismatch detection.
+     */
+    suspend fun setConnectedLibraryId(libraryId: String)
+
+    /**
+     * Clear the connected library ID.
+     * Called when switching servers or after detecting a mismatch.
+     */
+    suspend fun clearConnectedLibraryId()
+}
+
+/**
  * Contract for library display and sort preferences.
  *
  * Used by LibraryViewModel and SettingsViewModel for managing
@@ -254,6 +281,7 @@ interface LocalPreferencesContract {
 interface SettingsRepositoryContract :
     AuthSessionContract,
     ServerConfigContract,
+    LibrarySyncContract,
     LibraryPreferencesContract,
     PlaybackPreferencesContract,
     LocalPreferencesContract
@@ -309,6 +337,9 @@ class SettingsRepository(
         private const val KEY_SESSION_ID = "session_id"
         private const val KEY_USER_ID = "user_id"
         private const val KEY_OPEN_REGISTRATION = "open_registration"
+
+        // Library identity (for detecting server reinstalls/resets)
+        private const val KEY_CONNECTED_LIBRARY_ID = "connected_library_id"
 
         // Pending registration (waiting for admin approval)
         private const val KEY_PENDING_USER_ID = "pending_user_id"
@@ -636,7 +667,33 @@ class SettingsRepository(
         secureStorage.delete(KEY_SESSION_ID)
         secureStorage.delete(KEY_USER_ID)
         secureStorage.delete(KEY_OPEN_REGISTRATION)
+        secureStorage.delete(KEY_CONNECTED_LIBRARY_ID)
         _authState.value = AuthState.NeedsServerUrl
+    }
+
+    // Library sync identity
+
+    /**
+     * Get the library ID this client is synced with.
+     * Returns null on first connection to a server.
+     */
+    override suspend fun getConnectedLibraryId(): String? =
+        secureStorage.read(KEY_CONNECTED_LIBRARY_ID)
+
+    /**
+     * Store the library ID after successful sync verification.
+     * This ID is used to detect when the server's library has changed.
+     */
+    override suspend fun setConnectedLibraryId(libraryId: String) {
+        secureStorage.save(KEY_CONNECTED_LIBRARY_ID, libraryId)
+    }
+
+    /**
+     * Clear the connected library ID.
+     * Called when resetting local data after a library mismatch.
+     */
+    override suspend fun clearConnectedLibraryId() {
+        secureStorage.delete(KEY_CONNECTED_LIBRARY_ID)
     }
 
     // Library sort preferences

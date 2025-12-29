@@ -41,4 +41,7 @@ interface BookSeriesDao {
      */
     @Query("SELECT * FROM book_series WHERE bookId = :bookId")
     suspend fun getBookSeriesCrossRefs(bookId: BookId): List<BookSeriesCrossRef>
+
+    @Query("DELETE FROM book_series")
+    suspend fun deleteAll()
 }
