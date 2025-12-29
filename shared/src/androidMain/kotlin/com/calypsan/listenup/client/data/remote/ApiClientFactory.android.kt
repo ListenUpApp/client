@@ -112,3 +112,42 @@ internal actual suspend fun createStreamingHttpClient(
             contentType(ContentType.Application.Json)
         }
     }
+
+/**
+ * Android implementation of unauthenticated streaming HTTP client factory.
+ *
+ * Configures OkHttp engine with infinite timeouts for SSE connections,
+ * without authentication. Used for endpoints like registration status
+ * that don't require auth tokens.
+ */
+internal actual fun createUnauthenticatedStreamingHttpClient(
+    serverUrl: ServerUrl,
+): HttpClient =
+    HttpClient(OkHttp) {
+        // Configure OkHttp engine with infinite timeouts for streaming
+        engine {
+            config {
+                // 0 = infinite timeout in OkHttp
+                connectTimeout(0.seconds)
+                readTimeout(0.seconds)
+                writeTimeout(0.seconds)
+            }
+        }
+
+        install(ContentNegotiation) {
+            json(
+                Json {
+                    prettyPrint = false
+                    isLenient = false
+                    ignoreUnknownKeys = true
+                },
+            )
+        }
+
+        // NO Auth plugin - this is intentionally unauthenticated
+
+        defaultRequest {
+            url(serverUrl.value)
+            contentType(ContentType.Application.Json)
+        }
+    }

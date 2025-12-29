@@ -42,6 +42,7 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
+import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteSubmissionStatus
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -118,10 +119,46 @@ fun ListenUpNavigation(
             LoginNavigation(settingsRepository, currentAuthState.openRegistration)
         }
 
+        is AuthState.PendingApproval -> {
+            PendingApprovalNavigation(
+                userId = currentAuthState.userId,
+                email = currentAuthState.email,
+                password = currentAuthState.encryptedPassword,
+            )
+        }
+
         is AuthState.Authenticated -> {
             AuthenticatedNavigation(settingsRepository)
         }
     }
+}
+
+/**
+ * Navigation for pending approval screen.
+ *
+ * Shows the pending approval screen for users who have registered
+ * but are waiting for admin approval. Handles:
+ * - SSE connection for real-time approval notification
+ * - Auto-login on approval
+ * - Cancel to return to login
+ */
+@Composable
+private fun PendingApprovalNavigation(
+    userId: String,
+    email: String,
+    password: String,
+) {
+    val viewModel: PendingApprovalViewModel = koinInject {
+        org.koin.core.parameter.parametersOf(userId, email, password)
+    }
+
+    com.calypsan.listenup.client.features.auth.PendingApprovalScreen(
+        viewModel = viewModel,
+        onNavigateToLogin = {
+            // Auth state will automatically update from clearPendingRegistration
+            // No explicit navigation needed
+        },
+    )
 }
 
 /**
@@ -248,6 +285,12 @@ private fun LoginNavigation(
 ) {
     val scope = rememberCoroutineScope()
     val backStack = remember { mutableStateListOf<Route>(Login) }
+
+    // Refresh open registration value from server
+    // This ensures the "Create Account" link appears if admin enabled it
+    LaunchedEffect(Unit) {
+        settingsRepository.refreshOpenRegistration()
+    }
 
     NavDisplay(
         backStack = backStack,

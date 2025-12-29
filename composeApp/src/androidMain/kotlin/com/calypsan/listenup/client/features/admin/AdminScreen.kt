@@ -15,12 +15,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.CardDefaults
@@ -28,13 +32,16 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -76,6 +83,7 @@ fun AdminScreen(
 
     var userToDelete by remember { mutableStateOf<AdminUser?>(null) }
     var inviteToRevoke by remember { mutableStateOf<AdminInvite?>(null) }
+    var userToDeny by remember { mutableStateOf<AdminUser?>(null) }
 
     LaunchedEffect(state.error) {
         state.error?.let {
@@ -103,6 +111,9 @@ fun AdminScreen(
         } else {
             AdminContent(
                 state = state,
+                onOpenRegistrationChange = { viewModel.setOpenRegistration(it) },
+                onApproveUserClick = { viewModel.approveUser(it.id) },
+                onDenyUserClick = { userToDeny = it },
                 onDeleteUserClick = { userToDelete = it },
                 onCopyInviteClick = { invite ->
                     copyToClipboard(context, invite.url)
@@ -122,7 +133,7 @@ fun AdminScreen(
         ListenUpDestructiveDialog(
             onDismissRequest = { userToDelete = null },
             title = "Delete User",
-            text = "Are you sure you want to delete ${user.displayName}? This action cannot be undone.",
+            text = "Are you sure you want to delete ${user.displayName ?: user.email}? This action cannot be undone.",
             confirmText = "Delete",
             onConfirm = {
                 viewModel.deleteUser(user.id)
@@ -148,6 +159,21 @@ fun AdminScreen(
             onDismiss = { inviteToRevoke = null },
         )
     }
+
+    // Deny user confirmation dialog
+    userToDeny?.let { user ->
+        ListenUpDestructiveDialog(
+            onDismissRequest = { userToDeny = null },
+            title = "Deny Registration",
+            text = "Are you sure you want to deny the registration request from ${user.displayName ?: user.email}? They will need to register again.",
+            confirmText = "Deny",
+            onConfirm = {
+                viewModel.denyUser(user.id)
+                userToDeny = null
+            },
+            onDismiss = { userToDeny = null },
+        )
+    }
 }
 
 private fun copyToClipboard(
@@ -162,6 +188,9 @@ private fun copyToClipboard(
 @Composable
 private fun AdminContent(
     state: AdminUiState,
+    onOpenRegistrationChange: (Boolean) -> Unit,
+    onApproveUserClick: (AdminUser) -> Unit,
+    onDenyUserClick: (AdminUser) -> Unit,
     onDeleteUserClick: (AdminUser) -> Unit,
     onCopyInviteClick: (AdminInvite) -> Unit,
     onRevokeInviteClick: (AdminInvite) -> Unit,
@@ -174,13 +203,82 @@ private fun AdminContent(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
     ) {
+        // Settings section
+        item {
+            Text(
+                text = "Settings",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+            )
+        }
+
+        item {
+            SettingsCard(
+                openRegistration = state.openRegistration,
+                isToggling = state.isTogglingOpenRegistration,
+                onOpenRegistrationChange = onOpenRegistrationChange,
+            )
+        }
+
+        // Pending users section (only shown when open registration is enabled)
+        if (state.openRegistration) {
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Pending Registrations",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
+
+            item {
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors =
+                        CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        ),
+                ) {
+                    if (state.pendingUsers.isEmpty()) {
+                        Text(
+                            text = "No pending registrations",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    } else {
+                        Column {
+                            state.pendingUsers.forEachIndexed { index, user ->
+                                PendingUserRow(
+                                    user = user,
+                                    isApproving = state.approvingUserId == user.id,
+                                    isDenying = state.denyingUserId == user.id,
+                                    onApproveClick = { onApproveUserClick(user) },
+                                    onDenyClick = { onDenyUserClick(user) },
+                                )
+                                if (index < state.pendingUsers.lastIndex) {
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.2f),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Users section header
         item {
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = "Users",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+                modifier = Modifier.padding(bottom = 8.dp),
             )
         }
 
@@ -284,6 +382,129 @@ private fun AdminContent(
 }
 
 @Composable
+private fun SettingsCard(
+    openRegistration: Boolean,
+    isToggling: Boolean,
+    onOpenRegistrationChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.HowToReg,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Open Registration",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Allow anyone to request an account",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (isToggling) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Switch(
+                    checked = openRegistration,
+                    onCheckedChange = onOpenRegistrationChange,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PendingUserRow(
+    user: AdminUser,
+    isApproving: Boolean,
+    isDenying: Boolean,
+    onApproveClick: () -> Unit,
+    onDenyClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // Name and email
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = user.displayName ?: "${user.firstName ?: ""} ${user.lastName ?: ""}".trim().ifEmpty { user.email },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = user.email,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        // Action buttons
+        if (isApproving || isDenying) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 2.dp,
+            )
+        } else {
+            OutlinedButton(
+                onClick = onDenyClick,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Deny")
+            }
+            FilledTonalButton(
+                onClick = onApproveClick,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Approve")
+            }
+        }
+    }
+}
+
+@Composable
 private fun UserTableHeader(modifier: Modifier = Modifier) {
     Row(
         modifier =
@@ -337,7 +558,7 @@ private fun UserTableRow(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = user.displayName,
+                text = user.displayName ?: user.email,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,

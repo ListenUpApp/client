@@ -345,3 +345,50 @@ data class SSELibraryScanCompletedEvent(
     @SerialName("books_removed")
     val booksRemoved: Int,
 )
+
+/**
+ * SSE user pending event data (admin-only).
+ * Sent when a new user registers via open registration and is awaiting approval.
+ */
+@Serializable
+data class SSEUserPendingEvent(
+    @SerialName("user")
+    val user: SSEUserData,
+)
+
+/**
+ * SSE user approved event data (admin-only).
+ * Sent when a pending user is approved by an admin.
+ */
+@Serializable
+data class SSEUserApprovedEvent(
+    @SerialName("user")
+    val user: SSEUserData,
+)
+
+/**
+ * User data embedded in SSE user events.
+ */
+@Serializable
+data class SSEUserData(
+    @SerialName("id")
+    val id: String,
+    @SerialName("email")
+    val email: String,
+    @SerialName("display_name")
+    val displayName: String? = null,
+    @SerialName("first_name")
+    val firstName: String? = null,
+    @SerialName("last_name")
+    val lastName: String? = null,
+    @SerialName("is_root")
+    val isRoot: Boolean = false,
+    @SerialName("role")
+    val role: String = "member",
+    @SerialName("status")
+    val status: String = "active",
+    @SerialName("created_at")
+    val createdAt: String = "",
+    @SerialName("updated_at")
+    val updatedAt: String? = null,
+)

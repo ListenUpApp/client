@@ -1,13 +1,16 @@
 package com.calypsan.listenup.client.presentation.admin
 
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.AdminInvite
 import com.calypsan.listenup.client.data.remote.AdminUser
+import com.calypsan.listenup.client.data.remote.InstanceApiContract
+import com.calypsan.listenup.client.domain.model.Instance
+import com.calypsan.listenup.client.domain.model.InstanceId
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
 import dev.mokkery.mock
-import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -22,10 +25,36 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, ExperimentalTime::class)
 class AdminViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
+
+    private fun createMockInstance(openRegistration: Boolean = false) = Instance(
+        id = InstanceId("test-instance"),
+        name = "Test Server",
+        version = "1.0.0",
+        localUrl = "http://localhost:8080",
+        remoteUrl = null,
+        openRegistration = openRegistration,
+        setupRequired = false,
+        createdAt = Instant.DISTANT_PAST,
+        updatedAt = Instant.DISTANT_PAST,
+    )
+
+    private fun createMockInstanceApi(openRegistration: Boolean = false): InstanceApiContract {
+        val instanceApi: InstanceApiContract = mock()
+        everySuspend { instanceApi.getInstance() } returns Success(createMockInstance(openRegistration))
+        return instanceApi
+    }
+
+    private fun createMockAdminApi(): AdminApiContract {
+        val adminApi: AdminApiContract = mock()
+        everySuspend { adminApi.getPendingUsers() } returns emptyList()
+        return adminApi
+    }
 
     private fun createUser(
         id: String = "user-1",
@@ -74,11 +103,12 @@ class AdminViewModelTest {
     @Test
     fun `initial state is loading`() =
         runTest {
-            val adminApi: AdminApiContract = mock()
+            val adminApi = createMockAdminApi()
+            val instanceApi = createMockInstanceApi()
             everySuspend { adminApi.getUsers() } returns emptyList()
             everySuspend { adminApi.getInvites() } returns emptyList()
 
-            val viewModel = AdminViewModel(adminApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi)
 
             assertTrue(viewModel.state.value.isLoading)
         }
@@ -86,13 +116,14 @@ class AdminViewModelTest {
     @Test
     fun `loadData fetches users and invites`() =
         runTest {
-            val adminApi: AdminApiContract = mock()
+            val adminApi = createMockAdminApi()
+            val instanceApi = createMockInstanceApi()
             val users = listOf(createUser("user-1"), createUser("user-2"))
             val invites = listOf(createInvite("invite-1"))
             everySuspend { adminApi.getUsers() } returns users
             everySuspend { adminApi.getInvites() } returns invites
 
-            val viewModel = AdminViewModel(adminApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi)
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
@@ -103,7 +134,8 @@ class AdminViewModelTest {
     @Test
     fun `loadData filters out claimed invites`() =
         runTest {
-            val adminApi: AdminApiContract = mock()
+            val adminApi = createMockAdminApi()
+            val instanceApi = createMockInstanceApi()
             val invites =
                 listOf(
                     createInvite("pending", claimedAt = null),
@@ -112,7 +144,7 @@ class AdminViewModelTest {
             everySuspend { adminApi.getUsers() } returns emptyList()
             everySuspend { adminApi.getInvites() } returns invites
 
-            val viewModel = AdminViewModel(adminApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi)
             advanceUntilIdle()
 
             assertEquals(1, viewModel.state.value.pendingInvites.size)
@@ -126,11 +158,12 @@ class AdminViewModelTest {
     @Test
     fun `loadData handles user fetch error`() =
         runTest {
-            val adminApi: AdminApiContract = mock()
+            val adminApi = createMockAdminApi()
+            val instanceApi = createMockInstanceApi()
             everySuspend { adminApi.getUsers() } throws RuntimeException("Network error")
             everySuspend { adminApi.getInvites() } returns emptyList()
 
-            val viewModel = AdminViewModel(adminApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi)
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
@@ -143,13 +176,14 @@ class AdminViewModelTest {
     @Test
     fun `deleteUser removes user from list`() =
         runTest {
-            val adminApi: AdminApiContract = mock()
+            val adminApi = createMockAdminApi()
+            val instanceApi = createMockInstanceApi()
             val users = listOf(createUser("user-1"), createUser("user-2"))
             everySuspend { adminApi.getUsers() } returns users
             everySuspend { adminApi.getInvites() } returns emptyList()
             everySuspend { adminApi.deleteUser("user-1") } returns Unit
 
-            val viewModel = AdminViewModel(adminApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi)
             advanceUntilIdle()
             assertEquals(2, viewModel.state.value.users.size)
 
@@ -167,13 +201,14 @@ class AdminViewModelTest {
     @Test
     fun `revokeInvite removes invite from list`() =
         runTest {
-            val adminApi: AdminApiContract = mock()
+            val adminApi = createMockAdminApi()
+            val instanceApi = createMockInstanceApi()
             val invites = listOf(createInvite("invite-1"), createInvite("invite-2"))
             everySuspend { adminApi.getUsers() } returns emptyList()
             everySuspend { adminApi.getInvites() } returns invites
             everySuspend { adminApi.deleteInvite("invite-1") } returns Unit
 
-            val viewModel = AdminViewModel(adminApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi)
             advanceUntilIdle()
 
             viewModel.revokeInvite("invite-1")
@@ -190,11 +225,12 @@ class AdminViewModelTest {
     @Test
     fun `clearError clears error state`() =
         runTest {
-            val adminApi: AdminApiContract = mock()
+            val adminApi = createMockAdminApi()
+            val instanceApi = createMockInstanceApi()
             everySuspend { adminApi.getUsers() } throws RuntimeException("Error")
             everySuspend { adminApi.getInvites() } returns emptyList()
 
-            val viewModel = AdminViewModel(adminApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi)
             advanceUntilIdle()
             assertTrue(viewModel.state.value.error != null)
 

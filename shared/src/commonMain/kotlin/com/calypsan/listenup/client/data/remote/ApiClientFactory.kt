@@ -81,6 +81,24 @@ class ApiClientFactory(
         )
     }
 
+    /**
+     * Create an unauthenticated streaming HTTP client.
+     *
+     * Used for SSE endpoints that don't require authentication, such as
+     * the registration status stream for pending users.
+     *
+     * NOT cached - creates a new client each time.
+     *
+     * @return Configured HttpClient without auth, suitable for streaming
+     */
+    suspend fun getUnauthenticatedStreamingClient(): HttpClient {
+        val serverUrl =
+            settingsRepository.getServerUrl()
+                ?: error("Server URL not configured")
+
+        return createUnauthenticatedStreamingHttpClient(serverUrl)
+    }
+
     private suspend fun createClient(): HttpClient {
         val serverUrl =
             settingsRepository.getServerUrl()
@@ -208,4 +226,18 @@ internal expect suspend fun createStreamingHttpClient(
     serverUrl: ServerUrl,
     settingsRepository: SettingsRepository,
     authApi: AuthApiContract,
+): HttpClient
+
+/**
+ * Platform-specific unauthenticated streaming HTTP client factory.
+ *
+ * Creates an HttpClient configured for long-lived SSE connections
+ * without authentication. Used for endpoints that don't require auth,
+ * such as registration status streaming for pending users.
+ *
+ * @param serverUrl Base server URL
+ * @return HttpClient with streaming configuration, no auth
+ */
+internal expect fun createUnauthenticatedStreamingHttpClient(
+    serverUrl: ServerUrl,
 ): HttpClient

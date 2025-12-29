@@ -69,6 +69,40 @@ interface AuthSessionContract {
 
     /** Check server status to determine if setup is required. */
     suspend fun checkServerStatus(): AuthState
+
+    /**
+     * Refresh the open registration status from the server.
+     * Updates the NeedsLogin state with the latest value without showing loading state.
+     * Call this when entering the login screen to ensure the "Create Account" link is shown.
+     */
+    suspend fun refreshOpenRegistration()
+
+    /**
+     * Save pending registration state after submitting registration.
+     * This persists the user's credentials so we can auto-login after approval,
+     * even if the app restarts.
+     *
+     * @param userId The pending user's ID from registration response
+     * @param email The user's email address
+     * @param password The user's password (will be encrypted in storage)
+     */
+    suspend fun savePendingRegistration(
+        userId: String,
+        email: String,
+        password: String,
+    )
+
+    /**
+     * Get pending registration credentials for auto-login.
+     * @return Triple of (userId, email, encryptedPassword) if pending, null otherwise
+     */
+    suspend fun getPendingRegistration(): Triple<String, String, String>?
+
+    /**
+     * Clear pending registration state.
+     * Called after successful login or denial.
+     */
+    suspend fun clearPendingRegistration()
 }
 
 /**
@@ -274,6 +308,12 @@ class SettingsRepository(
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_SESSION_ID = "session_id"
         private const val KEY_USER_ID = "user_id"
+        private const val KEY_OPEN_REGISTRATION = "open_registration"
+
+        // Pending registration (waiting for admin approval)
+        private const val KEY_PENDING_USER_ID = "pending_user_id"
+        private const val KEY_PENDING_EMAIL = "pending_email"
+        private const val KEY_PENDING_PASSWORD = "pending_password" // Encrypted
 
         // Library sort preferences (per-tab)
         private const val KEY_SORT_BOOKS = "sort_books"
@@ -415,7 +455,9 @@ class SettingsRepository(
 
         // Go directly to NeedsLogin - don't make HTTP calls during auth failure
         // The server was reachable (we got a 401), so setup isn't required
-        _authState.value = AuthState.NeedsLogin()
+        // Use cached open registration value if available
+        val cachedOpenRegistration = getCachedOpenRegistration()
+        _authState.value = AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
     }
 
     /**
@@ -493,9 +535,22 @@ class SettingsRepository(
             )
         }
 
+        // Check for pending registration (user registered but waiting for approval)
+        val pendingRegistration = getPendingRegistration()
+        if (pendingRegistration != null) {
+            val (pendingUserId, pendingEmail, pendingPassword) = pendingRegistration
+            return AuthState.PendingApproval(
+                userId = pendingUserId,
+                email = pendingEmail,
+                encryptedPassword = pendingPassword,
+            )
+        }
+
         // URL but no token → user needs to log in
         // Don't check server status - that's a network call
-        return AuthState.NeedsLogin()
+        // Use cached open registration value if available
+        val cachedOpenRegistration = getCachedOpenRegistration()
+        return AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
     }
 
     /**
@@ -511,6 +566,9 @@ class SettingsRepository(
 
         return when (val result = instanceRepository.getInstance(forceRefresh = true)) {
             is Result.Success -> {
+                // Cache open registration status for use when deriving auth state
+                secureStorage.save(KEY_OPEN_REGISTRATION, result.data.openRegistration.toString())
+
                 val newState =
                     if (result.data.setupRequired) {
                         AuthState.NeedsSetup
@@ -522,10 +580,42 @@ class SettingsRepository(
             }
 
             is Result.Failure -> {
-                // Server unreachable - stay in NeedsLogin, don't clear URL
+                // Server unreachable - stay in NeedsLogin with cached open registration value
                 // User can retry or check their connection
-                _authState.value = AuthState.NeedsLogin()
-                AuthState.NeedsLogin()
+                val cachedOpenRegistration = getCachedOpenRegistration()
+                _authState.value = AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
+                AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
+            }
+        }
+    }
+
+    /**
+     * Get the cached open registration value from storage.
+     * Returns false if not cached.
+     */
+    private suspend fun getCachedOpenRegistration(): Boolean =
+        secureStorage.read(KEY_OPEN_REGISTRATION)?.toBooleanStrictOrNull() ?: false
+
+    /**
+     * Refresh open registration status from server without changing auth state to CheckingServer.
+     * Updates the NeedsLogin state directly if we're currently in that state.
+     */
+    override suspend fun refreshOpenRegistration() {
+        // Only refresh if we're in NeedsLogin state
+        val currentState = _authState.value
+        if (currentState !is AuthState.NeedsLogin) return
+
+        when (val result = instanceRepository.getInstance(forceRefresh = true)) {
+            is Result.Success -> {
+                // Cache the value
+                secureStorage.save(KEY_OPEN_REGISTRATION, result.data.openRegistration.toString())
+                // Update state with new value (only if still in NeedsLogin)
+                if (_authState.value is AuthState.NeedsLogin) {
+                    _authState.value = AuthState.NeedsLogin(openRegistration = result.data.openRegistration)
+                }
+            }
+            is Result.Failure -> {
+                // Silently fail - keep existing cached value
             }
         }
     }
@@ -545,6 +635,7 @@ class SettingsRepository(
         secureStorage.delete(KEY_REFRESH_TOKEN)
         secureStorage.delete(KEY_SESSION_ID)
         secureStorage.delete(KEY_USER_ID)
+        secureStorage.delete(KEY_OPEN_REGISTRATION)
         _authState.value = AuthState.NeedsServerUrl
     }
 
@@ -754,5 +845,49 @@ class SettingsRepository(
     override suspend fun setHapticFeedbackEnabled(enabled: Boolean) {
         secureStorage.save(KEY_HAPTIC_FEEDBACK, enabled.toString())
         _hapticFeedbackEnabled.value = enabled
+    }
+
+    // Pending registration methods
+
+    /**
+     * Save pending registration state after submitting registration.
+     * Stores credentials securely for auto-login after admin approval.
+     */
+    override suspend fun savePendingRegistration(
+        userId: String,
+        email: String,
+        password: String,
+    ) {
+        secureStorage.save(KEY_PENDING_USER_ID, userId)
+        secureStorage.save(KEY_PENDING_EMAIL, email)
+        secureStorage.save(KEY_PENDING_PASSWORD, password)
+
+        // Update auth state to PendingApproval
+        _authState.value = AuthState.PendingApproval(
+            userId = userId,
+            email = email,
+            encryptedPassword = password,
+        )
+    }
+
+    /**
+     * Get pending registration credentials for auto-login.
+     * @return Triple of (userId, email, password) if pending, null otherwise
+     */
+    override suspend fun getPendingRegistration(): Triple<String, String, String>? {
+        val userId = secureStorage.read(KEY_PENDING_USER_ID) ?: return null
+        val email = secureStorage.read(KEY_PENDING_EMAIL) ?: return null
+        val password = secureStorage.read(KEY_PENDING_PASSWORD) ?: return null
+        return Triple(userId, email, password)
+    }
+
+    /**
+     * Clear pending registration state.
+     * Called after successful login or when registration is denied.
+     */
+    override suspend fun clearPendingRegistration() {
+        secureStorage.delete(KEY_PENDING_USER_ID)
+        secureStorage.delete(KEY_PENDING_EMAIL)
+        secureStorage.delete(KEY_PENDING_PASSWORD)
     }
 }

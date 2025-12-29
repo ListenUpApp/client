@@ -3,19 +3,28 @@ package com.calypsan.listenup.client.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.remote.AuthApiContract
+import com.calypsan.listenup.client.data.repository.SettingsRepository
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+private val logger = KotlinLogging.logger {}
+
 /**
  * ViewModel for the registration screen.
  *
  * Handles new user registration when open registration is enabled.
- * Users are created with pending status and must wait for admin approval.
+ * After successful registration:
+ * 1. Saves pending registration state to secure storage
+ * 2. AuthState transitions to PendingApproval
+ * 3. Navigation shows PendingApprovalScreen
+ * 4. PendingApprovalScreen handles SSE/polling and auto-login
  */
 class RegisterViewModel(
     private val authApi: AuthApiContract,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RegisterUiState())
     val state: StateFlow<RegisterUiState> = _state.asStateFlow()
@@ -50,12 +59,23 @@ class RegisterViewModel(
         viewModelScope.launch {
             try {
                 val response = authApi.register(email, password, firstName, lastName)
-                _state.value =
-                    _state.value.copy(
-                        status = RegisterStatus.Success(response.message),
-                    )
+                logger.info { "Registration successful, userId: ${response.userId}" }
+
+                // Save pending registration state - this will:
+                // 1. Persist credentials securely for auto-login after approval
+                // 2. Update AuthState to PendingApproval
+                // 3. Trigger navigation to PendingApprovalScreen
+                settingsRepository.savePendingRegistration(
+                    userId = response.userId,
+                    email = email,
+                    password = password,
+                )
+
+                // Mark as success - navigation will happen automatically via AuthState
+                _state.value = _state.value.copy(status = RegisterStatus.Success)
             } catch (e: Exception) {
                 val message = e.message ?: "Registration failed. Please try again."
+                logger.error(e) { "Registration failed" }
                 _state.value = _state.value.copy(status = RegisterStatus.Error(message))
             }
         }
@@ -81,9 +101,12 @@ sealed interface RegisterStatus {
 
     data object Loading : RegisterStatus
 
-    data class Success(
-        val message: String,
-    ) : RegisterStatus
+    /**
+     * Registration submitted successfully.
+     * AuthState has been updated to PendingApproval.
+     * Navigation will automatically show PendingApprovalScreen.
+     */
+    data object Success : RegisterStatus
 
     data class Error(
         val message: String,

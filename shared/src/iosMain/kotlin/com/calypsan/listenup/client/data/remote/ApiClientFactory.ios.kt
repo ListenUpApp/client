@@ -112,3 +112,46 @@ internal actual suspend fun createStreamingHttpClient(
             contentType(ContentType.Application.Json)
         }
     }
+
+/**
+ * iOS implementation of unauthenticated streaming HTTP client factory.
+ *
+ * Configures Darwin (URLSession) engine with infinite timeouts for SSE connections,
+ * without authentication. Used for endpoints like registration status
+ * that don't require auth tokens.
+ */
+internal actual fun createUnauthenticatedStreamingHttpClient(
+    serverUrl: ServerUrl,
+): HttpClient =
+    HttpClient(Darwin) {
+        // Configure Darwin engine with infinite timeouts for streaming
+        engine {
+            configureRequest {
+                // Disable timeout for streaming requests
+                setTimeoutInterval(Double.POSITIVE_INFINITY)
+            }
+
+            configureSession {
+                // Use background session configuration for long-lived connections
+                timeoutIntervalForRequest = Double.POSITIVE_INFINITY
+                timeoutIntervalForResource = Double.POSITIVE_INFINITY
+            }
+        }
+
+        install(ContentNegotiation) {
+            json(
+                Json {
+                    prettyPrint = false
+                    isLenient = false
+                    ignoreUnknownKeys = true
+                },
+            )
+        }
+
+        // NO Auth plugin - this is intentionally unauthenticated
+
+        defaultRequest {
+            url(serverUrl.value)
+            contentType(ContentType.Application.Json)
+        }
+    }

@@ -52,7 +52,10 @@ import org.koin.compose.koinInject
  * Register screen for new user account creation.
  *
  * Only shown when open registration is enabled on the server.
- * Creates users with pending status - they must wait for admin approval.
+ * After successful registration:
+ * 1. AuthState transitions to PendingApproval
+ * 2. Navigation automatically shows PendingApprovalScreen
+ * 3. PendingApprovalScreen handles waiting for approval and auto-login
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,15 +70,11 @@ fun RegisterScreen(
     // Handle status changes
     LaunchedEffect(state.status) {
         when (val status = state.status) {
-            is RegisterStatus.Success -> {
-                snackbarHostState.showSnackbar(status.message)
-            }
-
             is RegisterStatus.Error -> {
                 snackbarHostState.showSnackbar(status.message)
                 viewModel.clearError()
             }
-
+            // Success triggers AuthState change, navigation handles the rest
             else -> {}
         }
     }
@@ -154,7 +153,6 @@ private fun RegisterForm(
 
     val focusManager = LocalFocusManager.current
     val isLoading = state.status is RegisterStatus.Loading
-    val isSuccess = state.status is RegisterStatus.Success
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -179,7 +177,7 @@ private fun RegisterForm(
             value = firstName,
             onValueChange = { firstName = it },
             label = "First Name",
-            enabled = !isLoading && !isSuccess,
+            enabled = !isLoading,
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType = KeyboardType.Text,
@@ -197,7 +195,7 @@ private fun RegisterForm(
             value = lastName,
             onValueChange = { lastName = it },
             label = "Last Name",
-            enabled = !isLoading && !isSuccess,
+            enabled = !isLoading,
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType = KeyboardType.Text,
@@ -215,7 +213,7 @@ private fun RegisterForm(
             value = email,
             onValueChange = { email = it },
             label = "Email",
-            enabled = !isLoading && !isSuccess,
+            enabled = !isLoading,
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType = KeyboardType.Email,
@@ -233,7 +231,7 @@ private fun RegisterForm(
             value = password,
             onValueChange = { password = it },
             label = "Password",
-            enabled = !isLoading && !isSuccess,
+            enabled = !isLoading,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions =
                 KeyboardOptions(
@@ -252,7 +250,7 @@ private fun RegisterForm(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
             label = "Confirm Password",
-            enabled = !isLoading && !isSuccess,
+            enabled = !isLoading,
             visualTransformation = PasswordVisualTransformation(),
             isError = confirmPassword.isNotEmpty() && password != confirmPassword,
             supportingText =
@@ -270,7 +268,7 @@ private fun RegisterForm(
                 KeyboardActions(
                     onDone = {
                         focusManager.clearFocus()
-                        if (!isLoading && !isSuccess && password == confirmPassword) {
+                        if (!isLoading && password == confirmPassword) {
                             onSubmit(email, password, firstName, lastName)
                         }
                     },
@@ -285,21 +283,10 @@ private fun RegisterForm(
             onClick = {
                 onSubmit(email, password, firstName, lastName)
             },
-            text = if (isSuccess) "Request Submitted" else "Request Account",
-            enabled = !isLoading && !isSuccess && password == confirmPassword && password.isNotEmpty(),
+            text = "Request Account",
+            enabled = !isLoading && password == confirmPassword && password.isNotEmpty(),
             isLoading = isLoading,
             modifier = Modifier.fillMaxWidth(),
         )
-
-        if (isSuccess) {
-            Text(
-                text =
-                    "Your account request has been submitted. " +
-                        "You will receive access once an admin approves your request.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
     }
 }

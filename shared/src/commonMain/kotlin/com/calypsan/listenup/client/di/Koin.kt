@@ -103,6 +103,7 @@ import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
+import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
@@ -308,6 +309,18 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.auth.RegisterViewModel(
                 authApi = get(),
+                settingsRepository = get(),
+            )
+        }
+        // PendingApprovalViewModel - takes userId, email, password as parameters
+        factory { params ->
+            PendingApprovalViewModel(
+                authApi = get(),
+                settingsRepository = get(),
+                apiClientFactory = get(),
+                userId = params.get<String>(0),
+                email = params.get<String>(1),
+                password = params.get<String>(2),
             )
         }
         // InviteRegistrationViewModel - takes serverUrl and inviteCode as parameters
@@ -321,7 +334,7 @@ val presentationModule =
             )
         }
         // Admin ViewModels
-        factory { AdminViewModel(adminApi = get()) }
+        factory { AdminViewModel(adminApi = get(), instanceApi = get(), sseManager = get()) }
         factory { CreateInviteViewModel(adminApi = get()) }
         // LibraryViewModel as singleton for preloading - starts loading Room data
         // immediately when injected at AppShell level, making Library instant

@@ -59,6 +59,12 @@ class SSEEventProcessor(
                 }
 
                 is SSEEventType.Heartbeat -> { /* Keep-alive, no action */ }
+
+                is SSEEventType.UserPending,
+                is SSEEventType.UserApproved,
+                -> {
+                    // Admin-only events, handled by AdminViewModel
+                }
             }
         } catch (e: Exception) {
             logger.error(e) { "Failed to process SSE event: $event" }

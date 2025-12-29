@@ -6,6 +6,9 @@ import com.calypsan.listenup.client.data.remote.model.SSEBookEvent
 import com.calypsan.listenup.client.data.remote.model.SSEEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEUserData
+import com.calypsan.listenup.client.data.remote.model.SSEUserPendingEvent
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.request.prepareGet
@@ -287,6 +290,16 @@ class SSEManager(
                         SSEEventType.Heartbeat
                     }
 
+                    "user.pending" -> {
+                        val userEvent = json.decodeFromJsonElement(SSEUserPendingEvent.serializer(), sseEvent.data)
+                        SSEEventType.UserPending(userEvent.user)
+                    }
+
+                    "user.approved" -> {
+                        val userEvent = json.decodeFromJsonElement(SSEUserApprovedEvent.serializer(), sseEvent.data)
+                        SSEEventType.UserApproved(userEvent.user)
+                    }
+
                     else -> {
                         logger.debug { "Unknown event type: ${sseEvent.type}" }
                         return
@@ -331,4 +344,18 @@ sealed class SSEEventType {
     ) : SSEEventType()
 
     data object Heartbeat : SSEEventType()
+
+    /**
+     * Admin-only: New user registered and is pending approval.
+     */
+    data class UserPending(
+        val user: SSEUserData,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: Pending user was approved.
+     */
+    data class UserApproved(
+        val user: SSEUserData,
+    ) : SSEEventType()
 }

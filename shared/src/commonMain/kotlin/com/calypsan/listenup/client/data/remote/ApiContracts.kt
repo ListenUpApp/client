@@ -202,6 +202,17 @@ interface AuthApiContract {
      * Logout and invalidate current session.
      */
     suspend fun logout(sessionId: String)
+
+    /**
+     * Check the approval status of a pending registration.
+     *
+     * Used to poll for approval after registering. Once approved,
+     * the client can proceed with login.
+     *
+     * @param userId User ID from registration response
+     * @return RegistrationStatusResponse with current status
+     */
+    suspend fun checkRegistrationStatus(userId: String): RegistrationStatusResponse
 }
 
 /**
