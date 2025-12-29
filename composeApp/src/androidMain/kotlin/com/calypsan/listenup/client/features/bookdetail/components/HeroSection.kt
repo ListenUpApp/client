@@ -40,6 +40,7 @@ import com.calypsan.listenup.client.design.components.CoverColors
 import com.calypsan.listenup.client.design.components.ElevatedCoverCard
 import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
+import com.calypsan.listenup.client.design.theme.LocalDarkTheme
 
 /**
  * Hero section with color-extracted gradient background.
@@ -65,18 +66,29 @@ fun HeroSection(
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
     val surfaceContainerColor = MaterialTheme.colorScheme.surfaceContainer
+    val isDark = LocalDarkTheme.current
 
     // Take a bite, take a bite... (Sleep Token - The Offering)
-    // Expressive gradient: saturated cover color -> surfaceContainer -> surface
-    // Creates a more dramatic, immersive transition that honors the cover art
+    // Expressive gradient: cover color -> surfaceContainer -> surface
+    // In dark mode, use subtler alpha to avoid an oppressive feel
     val gradientColors =
-        listOf(
-            coverColors.darkMuted,
-            coverColors.darkMuted.copy(alpha = 0.85f),
-            surfaceContainerColor.copy(alpha = 0.7f),
-            surfaceContainerColor,
-            surfaceColor,
-        )
+        if (isDark) {
+            listOf(
+                coverColors.darkMuted.copy(alpha = 0.5f),
+                coverColors.darkMuted.copy(alpha = 0.3f),
+                surfaceContainerColor.copy(alpha = 0.7f),
+                surfaceContainerColor,
+                surfaceColor,
+            )
+        } else {
+            listOf(
+                coverColors.darkMuted,
+                coverColors.darkMuted.copy(alpha = 0.85f),
+                surfaceContainerColor.copy(alpha = 0.7f),
+                surfaceContainerColor,
+                surfaceColor,
+            )
+        }
 
     Box(
         modifier =

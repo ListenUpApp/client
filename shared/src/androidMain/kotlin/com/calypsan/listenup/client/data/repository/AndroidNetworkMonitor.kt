@@ -34,16 +34,21 @@ class AndroidNetworkMonitor(
     private val _isOnlineFlow = MutableStateFlow(checkCurrentConnectivity())
     override val isOnlineFlow: StateFlow<Boolean> = _isOnlineFlow.asStateFlow()
 
+    private val _isOnUnmeteredNetworkFlow = MutableStateFlow(checkCurrentUnmetered())
+    override val isOnUnmeteredNetworkFlow: StateFlow<Boolean> = _isOnUnmeteredNetworkFlow.asStateFlow()
+
     init {
         val networkCallback =
             object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     _isOnlineFlow.value = true
+                    _isOnUnmeteredNetworkFlow.value = checkCurrentUnmetered()
                 }
 
                 override fun onLost(network: Network) {
                     // Re-check since there might be other networks available
                     _isOnlineFlow.value = checkCurrentConnectivity()
+                    _isOnUnmeteredNetworkFlow.value = checkCurrentUnmetered()
                 }
 
                 override fun onCapabilitiesChanged(
@@ -58,6 +63,11 @@ class AndroidNetworkMonitor(
                                 NetworkCapabilities.NET_CAPABILITY_VALIDATED,
                             )
                     _isOnlineFlow.value = hasInternet
+
+                    // Check if network is unmetered (WiFi, ethernet, etc.)
+                    val isUnmetered = hasInternet &&
+                        capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+                    _isOnUnmeteredNetworkFlow.value = isUnmetered
                 }
             }
 
@@ -83,5 +93,18 @@ class AndroidNetworkMonitor(
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
             capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    /**
+     * Check if currently on an unmetered network (WiFi, ethernet).
+     *
+     * Used to determine if downloads can proceed when WiFi-only is enabled.
+     */
+    private fun checkCurrentUnmetered(): Boolean {
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
     }
 }

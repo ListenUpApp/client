@@ -2,50 +2,227 @@ package com.calypsan.listenup.client.presentation.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesRequest
+import com.calypsan.listenup.client.data.repository.AuthSessionContract
+import com.calypsan.listenup.client.data.repository.ServerConfigContract
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.model.ThemeMode
+import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * UI state for the Settings screen.
+ *
+ * Settings are divided into:
+ * - Synced settings: Stored on server, follow user across devices
+ * - Local settings: Device-specific, stored locally only
+ */
 data class SettingsUiState(
+    // Loading state
+    val isLoading: Boolean = true,
+    val isSyncing: Boolean = false,
+    val syncError: String? = null,
+    // Synced settings (server storage)
     val defaultPlaybackSpeed: Float = SettingsRepository.DEFAULT_PLAYBACK_SPEED,
+    val defaultSkipForwardSec: Int = 30,
+    val defaultSkipBackwardSec: Int = 10,
+    val defaultSleepTimerMin: Int? = null,
+    val shakeToResetSleepTimer: Boolean = false,
+    // Local settings (device storage) - populated from StateFlows
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val dynamicColorsEnabled: Boolean = true,
+    val autoRewindEnabled: Boolean = true,
+    val wifiOnlyDownloads: Boolean = true,
+    val autoRemoveFinished: Boolean = false,
+    val hapticFeedbackEnabled: Boolean = true,
+    // Library display settings (local)
     val spatialPlayback: Boolean = true,
     val ignoreTitleArticles: Boolean = true,
     val hideSingleBookSeries: Boolean = true,
-    val isLoading: Boolean = true,
+    // Server info (read-only)
+    val serverUrl: String? = null,
+    val serverVersion: String? = null,
 )
 
+/**
+ * ViewModel for the Settings screen.
+ *
+ * Manages both synced settings (fetched from/pushed to server) and
+ * local settings (device-specific preferences).
+ *
+ * Synced settings use optimistic updates: UI updates immediately,
+ * server sync happens in background. Failures are logged but don't
+ * revert local state.
+ */
 class SettingsViewModel(
     private val settingsRepository: SettingsRepositoryContract,
     private val userPreferencesApi: UserPreferencesApiContract,
+    private val instanceRepository: InstanceRepository,
+    private val serverConfigContract: ServerConfigContract,
+    private val authSessionContract: AuthSessionContract,
 ) : ViewModel() {
-    val state: StateFlow<SettingsUiState>
-        field = MutableStateFlow(SettingsUiState())
+    // Internal mutable state for settings that aren't reactive StateFlows
+    private val internalState = MutableStateFlow(SettingsUiState())
+
+    /**
+     * Combined UI state that merges:
+     * - Internal state (synced settings, loading states)
+     * - Reactive local preferences from SettingsRepository
+     */
+    val state: StateFlow<SettingsUiState> =
+        combine(
+            internalState,
+            settingsRepository.themeMode,
+            settingsRepository.dynamicColorsEnabled,
+            settingsRepository.autoRewindEnabled,
+            settingsRepository.wifiOnlyDownloads,
+            settingsRepository.autoRemoveFinished,
+            settingsRepository.hapticFeedbackEnabled,
+        ) { values ->
+            // Extract values from array (combine with 7+ flows returns Array<Any?>)
+            @Suppress("UNCHECKED_CAST")
+            val internal = values[0] as SettingsUiState
+            val theme = values[1] as ThemeMode
+            val dynamicColors = values[2] as Boolean
+            val autoRewind = values[3] as Boolean
+            val wifiOnly = values[4] as Boolean
+            val autoRemove = values[5] as Boolean
+            val haptics = values[6] as Boolean
+
+            internal.copy(
+                themeMode = theme,
+                dynamicColorsEnabled = dynamicColors,
+                autoRewindEnabled = autoRewind,
+                wifiOnlyDownloads = wifiOnly,
+                autoRemoveFinished = autoRemove,
+                hapticFeedbackEnabled = haptics,
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = SettingsUiState(),
+        )
 
     init {
         loadSettings()
     }
 
+    /**
+     * Load all settings on initialization.
+     * - Synced settings: Fetch from server, fall back to local cache
+     * - Local settings: Read from secure storage
+     * - Server info: Fetch from instance endpoint
+     */
     private fun loadSettings() {
         viewModelScope.launch {
-            state.update {
+            // Load local settings that aren't reactive StateFlows
+            val spatialPlayback = settingsRepository.getSpatialPlayback()
+            val ignoreTitleArticles = settingsRepository.getIgnoreTitleArticles()
+            val hideSingleBookSeries = settingsRepository.getHideSingleBookSeries()
+            val defaultPlaybackSpeed = settingsRepository.getDefaultPlaybackSpeed()
+
+            // Load server URL from local storage
+            val serverUrl = serverConfigContract.getServerUrl()?.value
+
+            internalState.update {
                 it.copy(
-                    defaultPlaybackSpeed = settingsRepository.getDefaultPlaybackSpeed(),
-                    spatialPlayback = settingsRepository.getSpatialPlayback(),
-                    ignoreTitleArticles = settingsRepository.getIgnoreTitleArticles(),
-                    hideSingleBookSeries = settingsRepository.getHideSingleBookSeries(),
-                    isLoading = false,
+                    spatialPlayback = spatialPlayback,
+                    ignoreTitleArticles = ignoreTitleArticles,
+                    hideSingleBookSeries = hideSingleBookSeries,
+                    defaultPlaybackSpeed = defaultPlaybackSpeed,
+                    serverUrl = serverUrl,
                 )
+            }
+
+            // Fetch synced settings and server info from server
+            fetchSyncedSettings()
+            fetchServerInfo()
+        }
+    }
+
+    /**
+     * Fetch server instance info to get version.
+     */
+    private suspend fun fetchServerInfo() {
+        when (val result = instanceRepository.getInstance()) {
+            is Success -> {
+                internalState.update {
+                    it.copy(serverVersion = result.data.version)
+                }
+            }
+            is Failure -> {
+                logger.warn { "Failed to fetch server info: ${result.exception.message}" }
             }
         }
     }
+
+    /**
+     * Fetch synced settings from server and update local cache.
+     * Falls back to cached values if server is unreachable.
+     */
+    private suspend fun fetchSyncedSettings() {
+        internalState.update { it.copy(isSyncing = true, syncError = null) }
+
+        when (val result = userPreferencesApi.getPreferences()) {
+            is Result.Success -> {
+                val prefs = result.data
+                internalState.update {
+                    it.copy(
+                        defaultPlaybackSpeed = prefs.defaultPlaybackSpeed,
+                        defaultSkipForwardSec = prefs.defaultSkipForwardSec,
+                        defaultSkipBackwardSec = prefs.defaultSkipBackwardSec,
+                        defaultSleepTimerMin = prefs.defaultSleepTimerMin,
+                        shakeToResetSleepTimer = prefs.shakeToResetSleepTimer,
+                        isLoading = false,
+                        isSyncing = false,
+                    )
+                }
+
+                // Update local cache for offline access
+                settingsRepository.setDefaultPlaybackSpeed(prefs.defaultPlaybackSpeed)
+            }
+
+            is Failure -> {
+                logger.warn { "Failed to fetch synced settings: ${result.exception.message}" }
+                internalState.update {
+                    it.copy(
+                        isLoading = false,
+                        isSyncing = false,
+                        // Keep cached values, just note the sync failed
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Sync a single preference to server.
+     * Returns true if sync succeeded.
+     */
+    private suspend fun syncToServer(request: UserPreferencesRequest): Boolean {
+        val result = userPreferencesApi.updatePreferences(request)
+        if (result is Failure) {
+            logger.warn { "Failed to sync setting: ${result.exception.message}" }
+            return false
+        }
+        return true
+    }
+
+    // region Synced Settings (server storage)
 
     /**
      * Set the default playback speed for new books.
@@ -55,38 +232,167 @@ class SettingsViewModel(
         viewModelScope.launch {
             // Update local cache immediately (optimistic)
             settingsRepository.setDefaultPlaybackSpeed(speed)
-            state.update { it.copy(defaultPlaybackSpeed = speed) }
+            internalState.update { it.copy(defaultPlaybackSpeed = speed) }
 
-            // Sync to server in background (fire-and-forget)
-            val result =
-                userPreferencesApi.updatePreferences(
-                    UserPreferencesRequest(defaultPlaybackSpeed = speed),
-                )
-            if (result is com.calypsan.listenup.client.core.Failure) {
-                // Log but don't revert - server sync will retry on next app launch
-                logger.warn { "Failed to sync default playback speed: ${result.exception.message}" }
-            }
+            // Sync to server in background
+            syncToServer(UserPreferencesRequest(defaultPlaybackSpeed = speed))
         }
     }
 
+    /**
+     * Set the default skip forward duration.
+     * Updates locally immediately (optimistic), syncs to server in background.
+     */
+    fun setDefaultSkipForwardSec(seconds: Int) {
+        viewModelScope.launch {
+            internalState.update { it.copy(defaultSkipForwardSec = seconds) }
+            syncToServer(UserPreferencesRequest(defaultSkipForwardSec = seconds))
+        }
+    }
+
+    /**
+     * Set the default skip backward duration.
+     * Updates locally immediately (optimistic), syncs to server in background.
+     */
+    fun setDefaultSkipBackwardSec(seconds: Int) {
+        viewModelScope.launch {
+            internalState.update { it.copy(defaultSkipBackwardSec = seconds) }
+            syncToServer(UserPreferencesRequest(defaultSkipBackwardSec = seconds))
+        }
+    }
+
+    /**
+     * Set the default sleep timer duration.
+     * Pass null to disable the default sleep timer.
+     */
+    fun setDefaultSleepTimerMin(minutes: Int?) {
+        viewModelScope.launch {
+            internalState.update { it.copy(defaultSleepTimerMin = minutes) }
+            syncToServer(UserPreferencesRequest(defaultSleepTimerMin = minutes))
+        }
+    }
+
+    /**
+     * Set whether shaking the device resets the sleep timer.
+     */
+    fun setShakeToResetSleepTimer(enabled: Boolean) {
+        viewModelScope.launch {
+            internalState.update { it.copy(shakeToResetSleepTimer = enabled) }
+            syncToServer(UserPreferencesRequest(shakeToResetSleepTimer = enabled))
+        }
+    }
+
+    // endregion
+
+    // region Local Settings (device storage)
+
+    /**
+     * Set the theme mode (system/light/dark).
+     * Device-local setting, does not sync to server.
+     */
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch {
+            settingsRepository.setThemeMode(mode)
+            // StateFlow update handled by combine
+        }
+    }
+
+    /**
+     * Set whether to use dynamic (wallpaper-based) colors.
+     * Device-local setting, does not sync to server.
+     */
+    fun setDynamicColorsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setDynamicColorsEnabled(enabled)
+        }
+    }
+
+    /**
+     * Set whether to auto-rewind when resuming playback.
+     * Device-local setting, does not sync to server.
+     */
+    fun setAutoRewindEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoRewindEnabled(enabled)
+        }
+    }
+
+    /**
+     * Set whether to only download on WiFi.
+     * Device-local setting, does not sync to server.
+     */
+    fun setWifiOnlyDownloads(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setWifiOnlyDownloads(enabled)
+        }
+    }
+
+    /**
+     * Set whether to auto-remove downloads after finishing.
+     * Device-local setting, does not sync to server.
+     */
+    fun setAutoRemoveFinished(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoRemoveFinished(enabled)
+        }
+    }
+
+    /**
+     * Set whether haptic feedback is enabled.
+     * Device-local setting, does not sync to server.
+     */
+    fun setHapticFeedbackEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setHapticFeedbackEnabled(enabled)
+        }
+    }
+
+    /**
+     * Set spatial (5.1 surround) audio preference.
+     * Device-local setting for audio hardware capability.
+     */
     fun setSpatialPlayback(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setSpatialPlayback(enabled)
-            state.update { it.copy(spatialPlayback = enabled) }
+            internalState.update { it.copy(spatialPlayback = enabled) }
         }
     }
 
+    /**
+     * Set whether to ignore leading articles when sorting titles.
+     * Device-local setting for display preference.
+     */
     fun setIgnoreTitleArticles(ignore: Boolean) {
         viewModelScope.launch {
             settingsRepository.setIgnoreTitleArticles(ignore)
-            state.update { it.copy(ignoreTitleArticles = ignore) }
+            internalState.update { it.copy(ignoreTitleArticles = ignore) }
         }
     }
 
+    /**
+     * Set whether to hide series with only one book.
+     * Device-local setting for display preference.
+     */
     fun setHideSingleBookSeries(hide: Boolean) {
         viewModelScope.launch {
             settingsRepository.setHideSingleBookSeries(hide)
-            state.update { it.copy(hideSingleBookSeries = hide) }
+            internalState.update { it.copy(hideSingleBookSeries = hide) }
         }
     }
+
+    // endregion
+
+    // region Account Actions
+
+    /**
+     * Sign out the current user.
+     * Clears authentication tokens and returns to login screen.
+     */
+    fun signOut() {
+        viewModelScope.launch {
+            authSessionContract.clearAuthTokens()
+        }
+    }
+
+    // endregion
 }

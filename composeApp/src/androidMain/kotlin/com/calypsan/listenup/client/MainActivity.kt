@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,18 +32,21 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
+import com.calypsan.listenup.client.data.repository.LocalPreferencesContract
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.deeplink.DeepLinkParser
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.domain.model.Instance
+import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.navigation.ListenUpNavigation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -71,6 +75,11 @@ class MainActivity : ComponentActivity() {
 
         // Handle deep link from initial launch
         handleIntent(intent)
+
+        // Initialize local preferences (theme, dynamic colors, etc.) from storage
+        lifecycleScope.launch {
+            settingsRepository.initializeLocalPreferences()
+        }
 
         setContent {
             ListenUpApp()
@@ -126,12 +135,32 @@ class MainActivity : ComponentActivity() {
  * - Google Sans Flex typography
  * - Expressive shapes (20-28dp corners)
  *
+ * Theme respects user preferences:
+ * - ThemeMode: System (default), Light, or Dark
+ * - Dynamic colors: On/Off (Android 12+ only)
+ *
  * Navigation is auth-driven and automatically adjusts based on
  * authentication state from SettingsRepository.
  */
 @Composable
-fun ListenUpApp() {
-    ListenUpTheme {
+fun ListenUpApp(localPreferences: LocalPreferencesContract = koinInject()) {
+    // Observe theme preferences
+    val themeMode by localPreferences.themeMode.collectAsState()
+    val dynamicColorsEnabled by localPreferences.dynamicColorsEnabled.collectAsState()
+
+    // Derive dark theme from user preference
+    val isSystemDark = isSystemInDarkTheme()
+    val darkTheme =
+        when (themeMode) {
+            ThemeMode.SYSTEM -> isSystemDark
+            ThemeMode.LIGHT -> false
+            ThemeMode.DARK -> true
+        }
+
+    ListenUpTheme(
+        darkTheme = darkTheme,
+        dynamicColor = dynamicColorsEnabled,
+    ) {
         ListenUpNavigation()
     }
 }

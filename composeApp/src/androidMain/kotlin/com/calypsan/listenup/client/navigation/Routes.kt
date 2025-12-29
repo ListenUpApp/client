@@ -239,3 +239,9 @@ data object CreateInvite : Route
  */
 @Serializable
 data object Settings : Route
+
+/**
+ * Licenses screen - open source library acknowledgements.
+ */
+@Serializable
+data object Licenses : Route

@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.core.ServerUrl
+import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -153,6 +154,61 @@ interface PlaybackPreferencesContract {
     suspend fun setSpatialPlayback(enabled: Boolean)
 }
 
+/**
+ * Contract for local device preferences.
+ *
+ * These settings do NOT sync to the server - they're device-specific.
+ * Examples: theme, dynamic colors, haptics, download behavior.
+ */
+interface LocalPreferencesContract {
+    // Appearance
+
+    /** Reactive theme mode preference. */
+    val themeMode: StateFlow<ThemeMode>
+
+    /** Reactive dynamic colors preference (Material You). */
+    val dynamicColorsEnabled: StateFlow<Boolean>
+
+    /** Set the theme mode (system/light/dark). */
+    suspend fun setThemeMode(mode: ThemeMode)
+
+    /** Set whether to use dynamic (wallpaper-based) colors. Android 12+ only. */
+    suspend fun setDynamicColorsEnabled(enabled: Boolean)
+
+    // Playback (local settings)
+
+    /** Reactive auto-rewind preference. */
+    val autoRewindEnabled: StateFlow<Boolean>
+
+    /** Set whether to auto-rewind when resuming playback. */
+    suspend fun setAutoRewindEnabled(enabled: Boolean)
+
+    // Downloads
+
+    /** Reactive WiFi-only downloads preference. */
+    val wifiOnlyDownloads: StateFlow<Boolean>
+
+    /** Reactive auto-remove finished downloads preference. */
+    val autoRemoveFinished: StateFlow<Boolean>
+
+    /** Set whether to only download on WiFi. */
+    suspend fun setWifiOnlyDownloads(enabled: Boolean)
+
+    /** Set whether to auto-remove downloads after finishing a book. */
+    suspend fun setAutoRemoveFinished(enabled: Boolean)
+
+    // Controls
+
+    /** Reactive haptic feedback preference. */
+    val hapticFeedbackEnabled: StateFlow<Boolean>
+
+    /** Set whether to enable haptic feedback on controls. */
+    suspend fun setHapticFeedbackEnabled(enabled: Boolean)
+
+    /** Initialize local preferences from storage. Call on app startup. */
+    suspend fun initializeLocalPreferences()
+}
+
 // endregion
 
 /**
@@ -165,7 +221,8 @@ interface SettingsRepositoryContract :
     AuthSessionContract,
     ServerConfigContract,
     LibraryPreferencesContract,
-    PlaybackPreferencesContract
+    PlaybackPreferencesContract,
+    LocalPreferencesContract
 
 /**
  * Repository for managing application settings and authentication state.
@@ -192,6 +249,25 @@ class SettingsRepository(
     private val _preferenceChanges = MutableSharedFlow<PreferenceChangeEvent>(extraBufferCapacity = 1)
     override val preferenceChanges: SharedFlow<PreferenceChangeEvent> = _preferenceChanges.asSharedFlow()
 
+    // Local preferences StateFlows (device-specific, NOT synced)
+    private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+    override val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
+    private val _dynamicColorsEnabled = MutableStateFlow(true)
+    override val dynamicColorsEnabled: StateFlow<Boolean> = _dynamicColorsEnabled.asStateFlow()
+
+    private val _autoRewindEnabled = MutableStateFlow(true)
+    override val autoRewindEnabled: StateFlow<Boolean> = _autoRewindEnabled.asStateFlow()
+
+    private val _wifiOnlyDownloads = MutableStateFlow(true)
+    override val wifiOnlyDownloads: StateFlow<Boolean> = _wifiOnlyDownloads.asStateFlow()
+
+    private val _autoRemoveFinished = MutableStateFlow(false)
+    override val autoRemoveFinished: StateFlow<Boolean> = _autoRemoveFinished.asStateFlow()
+
+    private val _hapticFeedbackEnabled = MutableStateFlow(true)
+    override val hapticFeedbackEnabled: StateFlow<Boolean> = _hapticFeedbackEnabled.asStateFlow()
+
     companion object {
         private const val KEY_SERVER_URL = "server_url"
         private const val KEY_ACCESS_TOKEN = "access_token"
@@ -211,9 +287,17 @@ class SettingsRepository(
         // Series display preferences
         private const val KEY_HIDE_SINGLE_BOOK_SERIES = "hide_single_book_series"
 
-        // Playback preferences
+        // Playback preferences (synced)
         private const val KEY_SPATIAL_PLAYBACK = "spatial_playback"
         private const val KEY_DEFAULT_PLAYBACK_SPEED = "default_playback_speed"
+
+        // Local preferences (device-specific, NOT synced)
+        private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_DYNAMIC_COLORS = "dynamic_colors"
+        private const val KEY_AUTO_REWIND = "auto_rewind"
+        private const val KEY_WIFI_ONLY_DOWNLOADS = "wifi_only_downloads"
+        private const val KEY_AUTO_REMOVE_FINISHED = "auto_remove_finished"
+        private const val KEY_HAPTIC_FEEDBACK = "haptic_feedback"
 
         // Default values
         const val DEFAULT_PLAYBACK_SPEED = 1.0f
@@ -591,5 +675,84 @@ class SettingsRepository(
 
         // Emit event for sync layer to observe and queue
         _preferenceChanges.emit(PreferenceChangeEvent.PlaybackSpeedChanged(speed))
+    }
+
+    // Local preferences (device-specific, NOT synced)
+
+    /**
+     * Initialize local preferences from storage.
+     * Call this during app startup to hydrate StateFlows from persisted values.
+     */
+    override suspend fun initializeLocalPreferences() {
+        _themeMode.value = ThemeMode.fromString(secureStorage.read(KEY_THEME_MODE))
+        _dynamicColorsEnabled.value =
+            secureStorage.read(KEY_DYNAMIC_COLORS)?.toBooleanStrictOrNull() ?: true
+        _autoRewindEnabled.value =
+            secureStorage.read(KEY_AUTO_REWIND)?.toBooleanStrictOrNull() ?: true
+        _wifiOnlyDownloads.value =
+            secureStorage.read(KEY_WIFI_ONLY_DOWNLOADS)?.toBooleanStrictOrNull() ?: true
+        _autoRemoveFinished.value =
+            secureStorage.read(KEY_AUTO_REMOVE_FINISHED)?.toBooleanStrictOrNull() ?: false
+        _hapticFeedbackEnabled.value =
+            secureStorage.read(KEY_HAPTIC_FEEDBACK)?.toBooleanStrictOrNull() ?: true
+    }
+
+    /**
+     * Set the theme mode (system/light/dark).
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        secureStorage.save(KEY_THEME_MODE, mode.toStorageString())
+        _themeMode.value = mode
+    }
+
+    /**
+     * Set whether to use dynamic (wallpaper-based) colors.
+     * Only affects Android 12+. Falls back to static colors on older versions.
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setDynamicColorsEnabled(enabled: Boolean) {
+        secureStorage.save(KEY_DYNAMIC_COLORS, enabled.toString())
+        _dynamicColorsEnabled.value = enabled
+    }
+
+    /**
+     * Set whether to auto-rewind when resuming playback.
+     * When enabled, playback rewinds a few seconds on resume to help recall context.
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setAutoRewindEnabled(enabled: Boolean) {
+        secureStorage.save(KEY_AUTO_REWIND, enabled.toString())
+        _autoRewindEnabled.value = enabled
+    }
+
+    /**
+     * Set whether to only download on WiFi.
+     * When enabled, downloads pause on cellular and resume on WiFi.
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setWifiOnlyDownloads(enabled: Boolean) {
+        secureStorage.save(KEY_WIFI_ONLY_DOWNLOADS, enabled.toString())
+        _wifiOnlyDownloads.value = enabled
+    }
+
+    /**
+     * Set whether to auto-remove downloads after finishing a book.
+     * When enabled, completed books are removed to save storage space.
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setAutoRemoveFinished(enabled: Boolean) {
+        secureStorage.save(KEY_AUTO_REMOVE_FINISHED, enabled.toString())
+        _autoRemoveFinished.value = enabled
+    }
+
+    /**
+     * Set whether to enable haptic feedback on controls.
+     * When enabled, tapping player controls provides tactile feedback.
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setHapticFeedbackEnabled(enabled: Boolean) {
+        secureStorage.save(KEY_HAPTIC_FEEDBACK, enabled.toString())
+        _hapticFeedbackEnabled.value = enabled
     }
 }

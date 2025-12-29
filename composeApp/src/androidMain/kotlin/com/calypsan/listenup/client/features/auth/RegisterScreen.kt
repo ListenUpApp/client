@@ -293,7 +293,9 @@ private fun RegisterForm(
 
         if (isSuccess) {
             Text(
-                text = "Your account request has been submitted. You will receive access once an admin approves your request.",
+                text =
+                    "Your account request has been submitted. " +
+                        "You will receive access once an admin approves your request.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 8.dp),

@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,9 +34,14 @@ import com.calypsan.listenup.client.data.model.BookDownloadStatus
  *
  * States:
  * - Not downloaded: Download icon, tap to queue
- * - Downloading: Progress circle, tap to cancel
+ * - Queued (normal): Progress spinner, tap to cancel
+ * - Queued (waiting for WiFi): WiFi-off icon, tap to cancel
+ * - Downloading: Progress circle with %, tap to cancel
  * - Downloaded: Trash icon, tap to delete
  * - Failed/Partial: Retry icon, tap to resume
+ *
+ * @param isWaitingForWifi True when download is queued but waiting for WiFi connection
+ *                         (wifiOnlyDownloads enabled + not on WiFi). Shows WiFi-off icon.
  */
 @Composable
 fun DownloadButton(
@@ -44,6 +50,7 @@ fun DownloadButton(
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isWaitingForWifi: Boolean = false,
 ) {
     val containerColor = MaterialTheme.colorScheme.secondaryContainer
     val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -68,9 +75,27 @@ fun DownloadButton(
                     }
                 }
 
-                BookDownloadState.QUEUED,
-                BookDownloadState.DOWNLOADING,
-                -> {
+                BookDownloadState.QUEUED -> {
+                    IconButton(onClick = onCancelClick) {
+                        if (isWaitingForWifi) {
+                            // Waiting for WiFi - show WiFi-off icon
+                            Icon(
+                                Icons.Default.WifiOff,
+                                contentDescription = "Waiting for WiFi",
+                                tint = contentColor.copy(alpha = 0.7f),
+                            )
+                        } else {
+                            // Normal queued state - show spinner
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = contentColor,
+                            )
+                        }
+                    }
+                }
+
+                BookDownloadState.DOWNLOADING -> {
                     IconButton(onClick = onCancelClick) {
                         Box(contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(
@@ -118,6 +143,9 @@ fun DownloadButton(
 
 /**
  * Expanded download button with text label for wider layouts.
+ *
+ * @param isWaitingForWifi True when download is queued but waiting for WiFi connection
+ *                         (wifiOnlyDownloads enabled + not on WiFi). Shows "Waiting for WiFi".
  */
 @Composable
 fun DownloadButtonExpanded(
@@ -126,6 +154,7 @@ fun DownloadButtonExpanded(
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isWaitingForWifi: Boolean = false,
 ) {
     val progressPercent = (status.progress * 100).toInt()
 
@@ -151,12 +180,24 @@ fun DownloadButtonExpanded(
             }
 
             BookDownloadState.QUEUED -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Queued...")
+                if (isWaitingForWifi) {
+                    // Waiting for WiFi - show WiFi-off icon with message
+                    Icon(
+                        Icons.Default.WifiOff,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Waiting for WiFi")
+                } else {
+                    // Normal queued state
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Queued...")
+                }
             }
 
             BookDownloadState.DOWNLOADING -> {

@@ -547,6 +547,16 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onNavigateBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
+                                onNavigateToLicenses = {
+                                    backStack.add(Licenses)
+                                },
+                            )
+                        }
+                        entry<Licenses> {
+                            com.calypsan.listenup.client.features.settings.LicensesScreen(
+                                onNavigateBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
                             )
                         }
                     },

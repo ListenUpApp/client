@@ -12,7 +12,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -96,9 +96,7 @@ fun ListenUpAsyncImage(
 
     // When blurHash is provided, use layered rendering with placeholder
     if (blurHash != null) {
-        @Suppress("MagicNumber")
-        Box(modifier = modifier.background(Color(0xFFE0E0E0))) {
-            // Light gray placeholder
+        Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
             // Layer 1: BlurHash placeholder (instant, shows until real image loads)
             if (!imageLoaded) {
                 BlurHashPlaceholder(

@@ -25,6 +25,9 @@ import com.calypsan.listenup.client.features.bookdetail.DownloadButton
 
 /**
  * Primary action buttons - Play dominates, Download alongside.
+ *
+ * @param isWaitingForWifi True when download is queued but waiting for WiFi connection.
+ *                         Passed to DownloadButton to show "Waiting for WiFi" state.
  */
 @Composable
 fun PrimaryActionsSection(
@@ -34,6 +37,7 @@ fun PrimaryActionsSection(
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isWaitingForWifi: Boolean = false,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -79,6 +83,7 @@ fun PrimaryActionsSection(
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
             modifier = Modifier.size(64.dp),
+            isWaitingForWifi = isWaitingForWifi,
         )
     }
 }
