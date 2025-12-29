@@ -43,6 +43,13 @@ data object Setup : Route
 data object Login : Route
 
 /**
+ * Register screen - create new account when open registration is enabled.
+ * User enters email, password, and name to request an account (pending admin approval).
+ */
+@Serializable
+data object Register : Route
+
+/**
  * App shell - main authenticated container.
  *
  * Contains the bottom navigation bar with Home, Library, and Discover tabs.

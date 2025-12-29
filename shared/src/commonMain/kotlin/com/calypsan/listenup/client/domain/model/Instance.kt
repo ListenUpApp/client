@@ -49,6 +49,8 @@ data class Instance(
     val localUrl: String? = null,
     @SerialName("remote_url")
     val remoteUrl: String? = null,
+    @SerialName("open_registration")
+    val openRegistration: Boolean = false,
     @SerialName("setup_required")
     val setupRequired: Boolean,
     @SerialName("created_at")

@@ -331,7 +331,7 @@ class SettingsRepository(
 
         // Go directly to NeedsLogin - don't make HTTP calls during auth failure
         // The server was reachable (we got a 401), so setup isn't required
-        _authState.value = AuthState.NeedsLogin
+        _authState.value = AuthState.NeedsLogin()
     }
 
     /**
@@ -411,7 +411,7 @@ class SettingsRepository(
 
         // URL but no token → user needs to log in
         // Don't check server status - that's a network call
-        return AuthState.NeedsLogin
+        return AuthState.NeedsLogin()
     }
 
     /**
@@ -431,7 +431,7 @@ class SettingsRepository(
                     if (result.data.setupRequired) {
                         AuthState.NeedsSetup
                     } else {
-                        AuthState.NeedsLogin
+                        AuthState.NeedsLogin(openRegistration = result.data.openRegistration)
                     }
                 _authState.value = newState
                 newState
@@ -440,8 +440,8 @@ class SettingsRepository(
             is Result.Failure -> {
                 // Server unreachable - stay in NeedsLogin, don't clear URL
                 // User can retry or check their connection
-                _authState.value = AuthState.NeedsLogin
-                AuthState.NeedsLogin
+                _authState.value = AuthState.NeedsLogin()
+                AuthState.NeedsLogin()
             }
         }
     }

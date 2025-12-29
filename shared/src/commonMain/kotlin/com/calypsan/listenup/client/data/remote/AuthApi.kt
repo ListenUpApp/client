@@ -193,12 +193,56 @@ class AuthApi(
             client.close()
         }
     }
+
+    /**
+     * Register a new user account when open registration is enabled.
+     *
+     * Creates a user with pending status that requires admin approval.
+     * The user cannot log in until an admin approves their account.
+     *
+     * @param email User's email address (will be username)
+     * @param password User's password (min 8 characters)
+     * @param firstName User's first name
+     * @param lastName User's last name
+     * @return RegisterResponse with success message
+     * @throws Exception on network errors, validation failures, or if registration is disabled
+     */
+    override suspend fun register(
+        email: String,
+        password: String,
+        firstName: String,
+        lastName: String,
+    ): RegisterResponse {
+        val client = createClient(requireServerUrl())
+        try {
+            val response: ApiResponse<RegisterResponse> =
+                client
+                    .post("/api/v1/auth/register") {
+                        setBody(RegisterRequest(email, password, firstName, lastName))
+                    }.body()
+
+            return when (val result = response.toResult()) {
+                is Success -> result.data
+                is Failure -> throw result.exception
+            }
+        } finally {
+            client.close()
+        }
+    }
 }
 
 // Request DTOs
 
 @Serializable
 private data class SetupRequest(
+    @SerialName("email") val email: String,
+    @SerialName("password") val password: String,
+    @SerialName("first_name") val firstName: String,
+    @SerialName("last_name") val lastName: String,
+)
+
+@Serializable
+private data class RegisterRequest(
     @SerialName("email") val email: String,
     @SerialName("password") val password: String,
     @SerialName("first_name") val firstName: String,
@@ -277,4 +321,15 @@ data class AuthUser(
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
     @SerialName("last_login_at") val lastLoginAt: String,
+)
+
+/**
+ * Response from registration endpoint.
+ *
+ * Contains a success message indicating the account was created
+ * with pending status and requires admin approval.
+ */
+@Serializable
+data class RegisterResponse(
+    @SerialName("message") val message: String,
 )

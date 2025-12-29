@@ -174,6 +174,26 @@ interface AuthApiContract {
     ): AuthResponse
 
     /**
+     * Register a new user account (when open registration is enabled).
+     *
+     * Creates a user with pending status that requires admin approval.
+     * Only available when open_registration is enabled on the server.
+     *
+     * @param email User's email address
+     * @param password User's password (min 8 characters)
+     * @param firstName User's first name
+     * @param lastName User's last name
+     * @return RegisterResponse with success message
+     * @throws Exception on network errors or if registration is disabled
+     */
+    suspend fun register(
+        email: String,
+        password: String,
+        firstName: String,
+        lastName: String,
+    ): RegisterResponse
+
+    /**
      * Refresh access token using refresh token.
      */
     suspend fun refresh(refreshToken: RefreshToken): AuthResponse

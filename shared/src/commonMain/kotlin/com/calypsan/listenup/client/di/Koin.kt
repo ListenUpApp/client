@@ -303,6 +303,11 @@ val presentationModule =
                 userDao = get(),
             )
         }
+        factory {
+            com.calypsan.listenup.client.presentation.auth.RegisterViewModel(
+                authApi = get(),
+            )
+        }
         // InviteRegistrationViewModel - takes serverUrl and inviteCode as parameters
         factory { params ->
             InviteRegistrationViewModel(

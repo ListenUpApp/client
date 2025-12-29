@@ -59,8 +59,13 @@ sealed interface AuthState {
     /**
      * Server is configured, but user needs to log in.
      * Show login screen for authentication.
+     *
+     * @property openRegistration True if public registration is enabled on the server.
+     *                            When true, show a "Create Account" option on the login screen.
      */
-    data object NeedsLogin : AuthState
+    data class NeedsLogin(
+        val openRegistration: Boolean = false,
+    ) : AuthState
 
     /**
      * User is authenticated with valid tokens.

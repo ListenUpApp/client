@@ -58,10 +58,16 @@ import org.koin.compose.koinInject
  * - Client-side validation with field-specific errors
  * - Snackbar for network/server/credential errors
  * - Auto-navigation on success via AuthState
+ *
+ * @param openRegistration Whether to show the "Create Account" button
+ * @param onChangeServer Callback when user wants to change server
+ * @param onRegister Callback when user clicks "Create Account"
  */
 @Composable
 fun LoginScreen(
+    openRegistration: Boolean = false,
     onChangeServer: () -> Unit,
+    onRegister: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = koinInject(),
 ) {
@@ -102,8 +108,10 @@ fun LoginScreen(
 
     LoginContent(
         state = state,
+        openRegistration = openRegistration,
         onSubmit = viewModel::onLoginSubmit,
         onChangeServer = onChangeServer,
+        onRegister = onRegister,
         snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
@@ -115,8 +123,10 @@ fun LoginScreen(
 @Composable
 private fun LoginContent(
     state: com.calypsan.listenup.client.presentation.auth.LoginUiState,
+    openRegistration: Boolean,
     onSubmit: (String, String) -> Unit,
     onChangeServer: () -> Unit,
+    onRegister: () -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
@@ -160,6 +170,12 @@ private fun LoginContent(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (openRegistration) {
+                TextButton(onClick = onRegister) {
+                    Text("Create Account")
+                }
+            }
 
             TextButton(onClick = onChangeServer) {
                 Text("Change Server")

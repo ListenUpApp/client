@@ -88,7 +88,9 @@ fun ListenUpNavigation(
     }
 
     // Route to appropriate screen based on auth state
-    when (authState) {
+    // Capture to local val to enable smart casting (delegated properties can't be smart cast)
+    val currentAuthState = authState
+    when (currentAuthState) {
         AuthState.Initializing -> {
             // Show blank screen while determining auth state
             // Prevents flash of wrong screen on startup
@@ -112,8 +114,8 @@ fun ListenUpNavigation(
             SetupNavigation()
         }
 
-        AuthState.NeedsLogin -> {
-            LoginNavigation(settingsRepository)
+        is AuthState.NeedsLogin -> {
+            LoginNavigation(settingsRepository, currentAuthState.openRegistration)
         }
 
         is AuthState.Authenticated -> {
@@ -236,9 +238,14 @@ private fun SetupNavigation() {
 /**
  * Login navigation - shown when server is configured but user needs to authenticate.
  * After successful login, AuthState.Authenticated triggers automatic navigation.
+ *
+ * @param openRegistration Whether the server allows public registration
  */
 @Composable
-private fun LoginNavigation(settingsRepository: SettingsRepository) {
+private fun LoginNavigation(
+    settingsRepository: SettingsRepository,
+    openRegistration: Boolean,
+) {
     val scope = rememberCoroutineScope()
     val backStack = remember { mutableStateListOf<Route>(Login) }
 
@@ -249,11 +256,23 @@ private fun LoginNavigation(settingsRepository: SettingsRepository) {
                 entry<Login> {
                     com.calypsan.listenup.client.features.auth
                         .LoginScreen(
+                            openRegistration = openRegistration,
                             onChangeServer = {
                                 scope.launch {
                                     // Clear server URL to go back to server selection
                                     settingsRepository.disconnectFromServer()
                                 }
+                            },
+                            onRegister = {
+                                backStack.add(Register)
+                            },
+                        )
+                }
+                entry<Register> {
+                    com.calypsan.listenup.client.features.auth
+                        .RegisterScreen(
+                            onBackClick = {
+                                backStack.removeAt(backStack.lastIndex)
                             },
                         )
                 }
