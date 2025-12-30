@@ -4,10 +4,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -23,15 +25,21 @@ import androidx.compose.ui.unit.dp
  * Toolbar shown when in multi-select mode.
  * Displays the selected count and actions for the selection.
  *
+ * Actions:
+ * - "Add to Lens" - available to all users
+ * - "Add to Collection" - available to admin users only
+ *
  * @param selectedCount Number of currently selected books
- * @param onAddToCollection Called when "Add to Collection" is tapped
+ * @param onAddToLens Called when "Add to Lens" is tapped
+ * @param onAddToCollection Called when "Add to Collection" is tapped (null = hide button)
  * @param onClose Called when the close button is tapped
  * @param modifier Optional modifier
  */
 @Composable
 fun SelectionToolbar(
     selectedCount: Int,
-    onAddToCollection: () -> Unit,
+    onAddToLens: () -> Unit,
+    onAddToCollection: (() -> Unit)?,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -68,14 +76,15 @@ fun SelectionToolbar(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Add to collection button
+            // Add to lens button (all users)
             TextButton(
-                onClick = onAddToCollection,
+                onClick = onAddToLens,
                 enabled = selectedCount > 0,
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                    imageVector = Icons.Default.FilterList,
                     contentDescription = null,
+                    modifier = Modifier.size(18.dp),
                     tint = if (selectedCount > 0) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -84,13 +93,41 @@ fun SelectionToolbar(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Add to Collection",
+                    text = "Lens",
                     color = if (selectedCount > 0) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
                 )
+            }
+
+            // Add to collection button (admin only)
+            if (onAddToCollection != null) {
+                TextButton(
+                    onClick = onAddToCollection,
+                    enabled = selectedCount > 0,
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = if (selectedCount > 0) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Collection",
+                        color = if (selectedCount > 0) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
             }
         }
     }

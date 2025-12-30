@@ -392,6 +392,9 @@ private fun AuthenticatedNavigation(
                                 onContributorClick = { contributorId ->
                                     backStack.add(ContributorDetail(contributorId))
                                 },
+                                onLensClick = { lensId ->
+                                    backStack.add(LensDetail(lensId))
+                                },
                                 onAdminClick = {
                                     backStack.add(Admin)
                                 },
@@ -627,6 +630,36 @@ private fun AuthenticatedNavigation(
                                 },
                                 onNavigateToLicenses = {
                                     backStack.add(Licenses)
+                                },
+                            )
+                        }
+                        entry<LensDetail> { args ->
+                            com.calypsan.listenup.client.features.lens.LensDetailScreen(
+                                lensId = args.lensId,
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(BookDetail(bookId))
+                                },
+                                onEditClick = { lensId ->
+                                    backStack.add(LensEdit(lensId))
+                                },
+                            )
+                        }
+                        entry<CreateLens> {
+                            com.calypsan.listenup.client.features.lens.CreateEditLensScreen(
+                                lensId = null,
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<LensEdit> { args ->
+                            com.calypsan.listenup.client.features.lens.CreateEditLensScreen(
+                                lensId = args.lensId,
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
                                 },
                             )
                         }

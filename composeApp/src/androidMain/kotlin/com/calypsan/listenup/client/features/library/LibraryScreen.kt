@@ -97,13 +97,16 @@ fun LibraryScreen(
     val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
     val collections by viewModel.collections.collectAsStateWithLifecycle()
     val isAddingToCollection by viewModel.isAddingToCollection.collectAsStateWithLifecycle()
+    val myLenses by viewModel.myLenses.collectAsStateWithLifecycle()
+    val isAddingToLens by viewModel.isAddingToLens.collectAsStateWithLifecycle()
 
     // Derive selection state
     val isInSelectionMode = selectionMode is SelectionMode.Active
     val selectedBookIds = (selectionMode as? SelectionMode.Active)?.selectedIds ?: emptySet()
 
-    // Collection picker sheet state
+    // Collection and lens picker sheet state
     var showCollectionPicker by remember { mutableStateOf(false) }
+    var showLensPicker by remember { mutableStateOf(false) }
 
     // Handle back press to exit selection mode
     BackHandler(enabled = isInSelectionMode) {
@@ -123,6 +126,30 @@ fun LibraryScreen(
                     ).show()
                 }
                 is LibraryEvent.AddToCollectionFailed -> {
+                    Toast.makeText(
+                        context,
+                        "Failed to add: ${event.message}",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+                is LibraryEvent.BooksAddedToLens -> {
+                    showLensPicker = false
+                    Toast.makeText(
+                        context,
+                        if (event.count == 1) "1 book added to lens" else "${event.count} books added to lens",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                is LibraryEvent.LensCreatedAndBooksAdded -> {
+                    showLensPicker = false
+                    val bookText = if (event.bookCount == 1) "1 book" else "${event.bookCount} books"
+                    Toast.makeText(
+                        context,
+                        "Created \"${event.lensName}\" with $bookText",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                is LibraryEvent.AddToLensFailed -> {
                     Toast.makeText(
                         context,
                         "Failed to add: ${event.message}",
@@ -172,7 +199,6 @@ fun LibraryScreen(
                             bookProgress = bookProgress,
                             isInSelectionMode = isInSelectionMode,
                             selectedBookIds = selectedBookIds,
-                            isAdmin = isAdmin,
                             onCategorySelected = { category ->
                                 viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
                             },
@@ -251,7 +277,8 @@ fun LibraryScreen(
         ) {
             SelectionToolbar(
                 selectedCount = selectedBookIds.size,
-                onAddToCollection = { showCollectionPicker = true },
+                onAddToLens = { showLensPicker = true },
+                onAddToCollection = if (isAdmin) {{ showCollectionPicker = true }} else null,
                 onClose = { viewModel.exitSelectionMode() },
             )
         }
@@ -267,6 +294,22 @@ fun LibraryScreen(
             },
             onDismiss = { showCollectionPicker = false },
             isLoading = isAddingToCollection,
+        )
+    }
+
+    // Lens picker sheet
+    if (showLensPicker) {
+        LensPickerSheet(
+            lenses = myLenses,
+            selectedBookCount = selectedBookIds.size,
+            onLensSelected = { lensId ->
+                viewModel.addSelectedToLens(lensId)
+            },
+            onCreateAndAddToLens = { name ->
+                viewModel.createLensAndAddBooks(name)
+            },
+            onDismiss = { showLensPicker = false },
+            isLoading = isAddingToLens,
         )
     }
 }

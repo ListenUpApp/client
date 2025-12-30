@@ -9,6 +9,11 @@ import com.calypsan.listenup.client.data.remote.model.SSECollectionCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSECollectionDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSECollectionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEEvent
+import com.calypsan.listenup.client.data.remote.model.SSELensBookAddedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELensBookRemovedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELensCreatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELensDeletedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELensUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
@@ -354,6 +359,64 @@ class SSEManager(
                         )
                     }
 
+                    "lens.created" -> {
+                        val lensEvent = json.decodeFromJsonElement(SSELensCreatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.LensCreated(
+                            id = lensEvent.id,
+                            ownerId = lensEvent.ownerId,
+                            name = lensEvent.name,
+                            description = lensEvent.description,
+                            bookCount = lensEvent.bookCount,
+                            ownerDisplayName = lensEvent.ownerDisplayName,
+                            ownerAvatarColor = lensEvent.ownerAvatarColor,
+                            createdAt = lensEvent.createdAt,
+                            updatedAt = lensEvent.updatedAt,
+                        )
+                    }
+
+                    "lens.updated" -> {
+                        val lensEvent = json.decodeFromJsonElement(SSELensUpdatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.LensUpdated(
+                            id = lensEvent.id,
+                            ownerId = lensEvent.ownerId,
+                            name = lensEvent.name,
+                            description = lensEvent.description,
+                            bookCount = lensEvent.bookCount,
+                            ownerDisplayName = lensEvent.ownerDisplayName,
+                            ownerAvatarColor = lensEvent.ownerAvatarColor,
+                            createdAt = lensEvent.createdAt,
+                            updatedAt = lensEvent.updatedAt,
+                        )
+                    }
+
+                    "lens.deleted" -> {
+                        val lensEvent = json.decodeFromJsonElement(SSELensDeletedEvent.serializer(), sseEvent.data)
+                        SSEEventType.LensDeleted(
+                            id = lensEvent.id,
+                            ownerId = lensEvent.ownerId,
+                        )
+                    }
+
+                    "lens.book_added" -> {
+                        val lensEvent = json.decodeFromJsonElement(SSELensBookAddedEvent.serializer(), sseEvent.data)
+                        SSEEventType.LensBookAdded(
+                            lensId = lensEvent.lensId,
+                            ownerId = lensEvent.ownerId,
+                            bookId = lensEvent.bookId,
+                            bookCount = lensEvent.bookCount,
+                        )
+                    }
+
+                    "lens.book_removed" -> {
+                        val lensEvent = json.decodeFromJsonElement(SSELensBookRemovedEvent.serializer(), sseEvent.data)
+                        SSEEventType.LensBookRemoved(
+                            lensId = lensEvent.lensId,
+                            ownerId = lensEvent.ownerId,
+                            bookId = lensEvent.bookId,
+                            bookCount = lensEvent.bookCount,
+                        )
+                    }
+
                     else -> {
                         logger.debug { "Unknown event type: ${sseEvent.type}" }
                         return
@@ -457,5 +520,65 @@ sealed class SSEEventType {
         val collectionId: String,
         val collectionName: String,
         val bookId: String,
+    ) : SSEEventType()
+
+    // Lens events
+
+    /**
+     * A new lens was created.
+     */
+    data class LensCreated(
+        val id: String,
+        val ownerId: String,
+        val name: String,
+        val description: String?,
+        val bookCount: Int,
+        val ownerDisplayName: String,
+        val ownerAvatarColor: String,
+        val createdAt: String,
+        val updatedAt: String,
+    ) : SSEEventType()
+
+    /**
+     * An existing lens was updated.
+     */
+    data class LensUpdated(
+        val id: String,
+        val ownerId: String,
+        val name: String,
+        val description: String?,
+        val bookCount: Int,
+        val ownerDisplayName: String,
+        val ownerAvatarColor: String,
+        val createdAt: String,
+        val updatedAt: String,
+    ) : SSEEventType()
+
+    /**
+     * A lens was deleted.
+     */
+    data class LensDeleted(
+        val id: String,
+        val ownerId: String,
+    ) : SSEEventType()
+
+    /**
+     * A book was added to a lens.
+     */
+    data class LensBookAdded(
+        val lensId: String,
+        val ownerId: String,
+        val bookId: String,
+        val bookCount: Int,
+    ) : SSEEventType()
+
+    /**
+     * A book was removed from a lens.
+     */
+    data class LensBookRemoved(
+        val lensId: String,
+        val ownerId: String,
+        val bookId: String,
+        val bookCount: Int,
     ) : SSEEventType()
 }

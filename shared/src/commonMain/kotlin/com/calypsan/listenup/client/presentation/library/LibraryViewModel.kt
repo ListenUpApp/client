@@ -6,6 +6,8 @@ import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
+import com.calypsan.listenup.client.data.local.db.LensDao
+import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
@@ -13,6 +15,7 @@ import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
+import com.calypsan.listenup.client.data.remote.LensApiContract
 import com.calypsan.listenup.client.data.remote.model.toTimestamp
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
@@ -27,6 +30,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -56,6 +61,8 @@ class LibraryViewModel(
     private val userDao: UserDao,
     private val collectionDao: CollectionDao,
     private val adminCollectionApi: AdminCollectionApiContract,
+    private val lensDao: LensDao,
+    private val lensApi: LensApiContract,
 ) : ViewModel() {
     // Sort state for each tab (category + direction)
     val booksSortState: StateFlow<SortState>
@@ -232,6 +239,30 @@ class LibraryViewModel(
     private val _isAddingToCollection = MutableStateFlow(false)
     val isAddingToCollection: StateFlow<Boolean> = _isAddingToCollection
 
+    /**
+     * Observable list of the current user's lenses for the lens picker.
+     * Available to all users (not just admins).
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val myLenses: StateFlow<List<LensEntity>> =
+        userDao.observeCurrentUser()
+            .flatMapLatest { user ->
+                if (user != null) {
+                    lensDao.observeMyLenses(user.id)
+                } else {
+                    flowOf(emptyList())
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList(),
+            )
+
+    // State for lens add operation
+    private val _isAddingToLens = MutableStateFlow(false)
+    val isAddingToLens: StateFlow<Boolean> = _isAddingToLens
+
     // Events for UI feedback
     private val _events = MutableSharedFlow<LibraryEvent>()
     val events = _events.asSharedFlow()
@@ -372,20 +403,21 @@ class LibraryViewModel(
         }
     }
 
-    // Selection mode actions (admin only)
+    // Selection mode actions
 
     /**
      * Enter selection mode with the given book as the initial selection.
-     * Only works for admin users.
-     * Also refreshes collections to ensure picker has up-to-date data.
+     * Available to all users for lens actions; collection actions require admin.
+     * Refreshes collections (for admins) to ensure picker has up-to-date data.
      *
      * @param initialBookId The ID of the book that was long-pressed
      */
     fun enterSelectionMode(initialBookId: String) {
-        if (!isAdmin.value) return
         _selectionMode.value = SelectionMode.Active(selectedIds = setOf(initialBookId))
         logger.debug { "Entered selection mode with book: $initialBookId" }
-        refreshCollections()
+        if (isAdmin.value) {
+            refreshCollections()
+        }
     }
 
     /**
@@ -480,6 +512,66 @@ class LibraryViewModel(
                 _events.emit(LibraryEvent.AddToCollectionFailed(e.message ?: "Unknown error"))
             } finally {
                 _isAddingToCollection.value = false
+            }
+        }
+    }
+
+    /**
+     * Add all selected books to the specified lens.
+     * Calls the LensApi and emits success/error events.
+     *
+     * @param lensId The ID of the lens to add books to
+     */
+    fun addSelectedToLens(lensId: String) {
+        val current = _selectionMode.value
+        if (current !is SelectionMode.Active) return
+        if (current.selectedIds.isEmpty()) return
+
+        viewModelScope.launch {
+            _isAddingToLens.value = true
+            try {
+                val bookIds = current.selectedIds.toList()
+                lensApi.addBooks(lensId, bookIds)
+                logger.info { "Added ${bookIds.size} books to lens $lensId" }
+                _events.emit(LibraryEvent.BooksAddedToLens(bookIds.size))
+                exitSelectionMode()
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to add books to lens" }
+                _events.emit(LibraryEvent.AddToLensFailed(e.message ?: "Unknown error"))
+            } finally {
+                _isAddingToLens.value = false
+            }
+        }
+    }
+
+    /**
+     * Create a new lens and add all selected books to it.
+     * First creates the lens via API, then adds the books.
+     *
+     * @param name The name for the new lens
+     */
+    fun createLensAndAddBooks(name: String) {
+        val current = _selectionMode.value
+        if (current !is SelectionMode.Active) return
+        if (current.selectedIds.isEmpty()) return
+
+        viewModelScope.launch {
+            _isAddingToLens.value = true
+            try {
+                val bookIds = current.selectedIds.toList()
+                // Create the lens
+                val newLens = lensApi.createLens(name, null)
+                logger.info { "Created lens '${newLens.name}' with id ${newLens.id}" }
+                // Add books to the new lens
+                lensApi.addBooks(newLens.id, bookIds)
+                logger.info { "Added ${bookIds.size} books to new lens ${newLens.id}" }
+                _events.emit(LibraryEvent.LensCreatedAndBooksAdded(newLens.name, bookIds.size))
+                exitSelectionMode()
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to create lens and add books" }
+                _events.emit(LibraryEvent.AddToLensFailed(e.message ?: "Unknown error"))
+            } finally {
+                _isAddingToLens.value = false
             }
         }
     }
@@ -747,6 +839,28 @@ sealed interface LibraryEvent {
      * Failed to add books to a collection.
      */
     data class AddToCollectionFailed(
+        val message: String,
+    ) : LibraryEvent
+
+    /**
+     * Books were successfully added to a lens.
+     */
+    data class BooksAddedToLens(
+        val count: Int,
+    ) : LibraryEvent
+
+    /**
+     * A new lens was created and books were added to it.
+     */
+    data class LensCreatedAndBooksAdded(
+        val lensName: String,
+        val bookCount: Int,
+    ) : LibraryEvent
+
+    /**
+     * Failed to add books to a lens.
+     */
+    data class AddToLensFailed(
         val message: String,
     ) : LibraryEvent
 }

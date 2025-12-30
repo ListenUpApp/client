@@ -687,3 +687,43 @@ val MIGRATION_16_17 =
             )
         }
     }
+
+/**
+ * Migration from version 17 to version 18.
+ *
+ * Changes:
+ * - Add lenses table for personal curation and social discovery
+ *
+ * Lenses are user-created curated lists of books. Unlike collections
+ * (admin-managed access boundaries), lenses are personal - each belongs
+ * to one user and can contain books from any library/collection.
+ */
+val MIGRATION_17_18 =
+    object : Migration(17, 18) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create lenses table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS lenses (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    ownerId TEXT NOT NULL,
+                    ownerDisplayName TEXT NOT NULL,
+                    ownerAvatarColor TEXT NOT NULL,
+                    bookCount INTEGER NOT NULL,
+                    totalDurationSeconds INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+
+            // Create index on ownerId for efficient "my lenses" queries
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_lenses_ownerId ON lenses(ownerId)
+                """.trimIndent(),
+            )
+        }
+    }

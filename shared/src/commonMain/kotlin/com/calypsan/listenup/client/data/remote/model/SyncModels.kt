@@ -457,3 +457,102 @@ data class SSECollectionBookRemovedEvent(
     @SerialName("book_id")
     val bookId: String,
 )
+
+// Lens SSE events
+
+/**
+ * SSE lens created event data.
+ */
+@Serializable
+data class SSELensCreatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("owner_id")
+    val ownerId: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("description")
+    val description: String? = null,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("owner_display_name")
+    val ownerDisplayName: String,
+    @SerialName("owner_avatar_color")
+    val ownerAvatarColor: String,
+    @SerialName("created_at")
+    val createdAt: String,
+    @SerialName("updated_at")
+    val updatedAt: String,
+)
+
+/**
+ * SSE lens updated event data.
+ */
+@Serializable
+data class SSELensUpdatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("owner_id")
+    val ownerId: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("description")
+    val description: String? = null,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("owner_display_name")
+    val ownerDisplayName: String,
+    @SerialName("owner_avatar_color")
+    val ownerAvatarColor: String,
+    @SerialName("created_at")
+    val createdAt: String,
+    @SerialName("updated_at")
+    val updatedAt: String,
+)
+
+/**
+ * SSE lens deleted event data.
+ */
+@Serializable
+data class SSELensDeletedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("owner_id")
+    val ownerId: String,
+    @SerialName("deleted_at")
+    val deletedAt: String,
+)
+
+/**
+ * SSE lens book added event data.
+ */
+@Serializable
+data class SSELensBookAddedEvent(
+    @SerialName("lens_id")
+    val lensId: String,
+    @SerialName("owner_id")
+    val ownerId: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("timestamp")
+    val timestamp: String,
+)
+
+/**
+ * SSE lens book removed event data.
+ */
+@Serializable
+data class SSELensBookRemovedEvent(
+    @SerialName("lens_id")
+    val lensId: String,
+    @SerialName("owner_id")
+    val ownerId: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("timestamp")
+    val timestamp: String,
+)

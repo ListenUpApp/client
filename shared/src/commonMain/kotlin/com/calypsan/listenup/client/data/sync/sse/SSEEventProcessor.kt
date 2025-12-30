@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.calypsan.listenup.client.data.sync.sse
 
 import com.calypsan.listenup.client.core.Result
@@ -7,6 +9,8 @@ import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
+import com.calypsan.listenup.client.data.local.db.LensDao
+import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
@@ -20,8 +24,20 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * Parse ISO 8601 timestamp string to Timestamp, falling back to current time on error.
+ */
+private fun parseTimestamp(isoString: String): Timestamp =
+    try {
+        Timestamp.fromEpochMillis(Instant.parse(isoString).toEpochMilliseconds())
+    } catch (_: Exception) {
+        Timestamp.now()
+    }
 
 /**
  * Processes real-time Server-Sent Events and applies changes to local database.
@@ -38,6 +54,7 @@ class SSEEventProcessor(
     private val bookContributorDao: BookContributorDao,
     private val bookSeriesDao: BookSeriesDao,
     private val collectionDao: CollectionDao,
+    private val lensDao: LensDao,
     private val imageDownloader: ImageDownloaderContract,
     private val playbackStateProvider: PlaybackStateProvider,
     private val downloadService: DownloadService,
@@ -102,6 +119,26 @@ class SSEEventProcessor(
 
                 is SSEEventType.CollectionBookRemoved -> {
                     handleCollectionBookRemoved(event)
+                }
+
+                is SSEEventType.LensCreated -> {
+                    handleLensCreated(event)
+                }
+
+                is SSEEventType.LensUpdated -> {
+                    handleLensUpdated(event)
+                }
+
+                is SSEEventType.LensDeleted -> {
+                    handleLensDeleted(event)
+                }
+
+                is SSEEventType.LensBookAdded -> {
+                    handleLensBookAdded(event)
+                }
+
+                is SSEEventType.LensBookRemoved -> {
+                    handleLensBookRemoved(event)
                 }
             }
         } catch (e: Exception) {
@@ -293,6 +330,79 @@ class SSEEventProcessor(
             collectionDao.upsert(
                 existing.copy(
                     bookCount = (existing.bookCount - 1).coerceAtLeast(0),
+                    updatedAt = Timestamp.now(),
+                ),
+            )
+        }
+    }
+
+    // ========== Lens Event Handlers ==========
+
+    private suspend fun handleLensCreated(event: SSEEventType.LensCreated) {
+        logger.debug { "SSE: Lens created - ${event.name} (${event.id})" }
+        lensDao.upsert(
+            LensEntity(
+                id = event.id,
+                name = event.name,
+                description = event.description,
+                ownerId = event.ownerId,
+                ownerDisplayName = event.ownerDisplayName,
+                ownerAvatarColor = event.ownerAvatarColor,
+                bookCount = event.bookCount,
+                totalDurationSeconds = 0, // Will be updated on first detail view
+                createdAt = parseTimestamp(event.createdAt),
+                updatedAt = parseTimestamp(event.updatedAt),
+            ),
+        )
+    }
+
+    private suspend fun handleLensUpdated(event: SSEEventType.LensUpdated) {
+        logger.debug { "SSE: Lens updated - ${event.name} (${event.id})" }
+        // Get existing to preserve totalDurationSeconds
+        val existing = lensDao.getById(event.id)
+        lensDao.upsert(
+            LensEntity(
+                id = event.id,
+                name = event.name,
+                description = event.description,
+                ownerId = event.ownerId,
+                ownerDisplayName = event.ownerDisplayName,
+                ownerAvatarColor = event.ownerAvatarColor,
+                bookCount = event.bookCount,
+                totalDurationSeconds = existing?.totalDurationSeconds ?: 0,
+                createdAt = parseTimestamp(event.createdAt),
+                updatedAt = parseTimestamp(event.updatedAt),
+            ),
+        )
+    }
+
+    private suspend fun handleLensDeleted(event: SSEEventType.LensDeleted) {
+        logger.debug { "SSE: Lens deleted - ${event.id}" }
+        lensDao.deleteById(event.id)
+    }
+
+    private suspend fun handleLensBookAdded(event: SSEEventType.LensBookAdded) {
+        logger.debug { "SSE: Book ${event.bookId} added to lens ${event.lensId}" }
+        // Update the book count for the lens
+        val existing = lensDao.getById(event.lensId)
+        if (existing != null) {
+            lensDao.upsert(
+                existing.copy(
+                    bookCount = event.bookCount,
+                    updatedAt = Timestamp.now(),
+                ),
+            )
+        }
+    }
+
+    private suspend fun handleLensBookRemoved(event: SSEEventType.LensBookRemoved) {
+        logger.debug { "SSE: Book ${event.bookId} removed from lens ${event.lensId}" }
+        // Update the book count for the lens
+        val existing = lensDao.getById(event.lensId)
+        if (existing != null) {
+            lensDao.upsert(
+                existing.copy(
+                    bookCount = event.bookCount,
                     updatedAt = Timestamp.now(),
                 ),
             )

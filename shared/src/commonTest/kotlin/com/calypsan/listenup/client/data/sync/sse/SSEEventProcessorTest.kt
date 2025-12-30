@@ -10,6 +10,8 @@ import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
+import com.calypsan.listenup.client.data.local.db.LensDao
+import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
@@ -99,6 +101,7 @@ class SSEEventProcessorTest {
         val bookContributorDao: BookContributorDao = mock()
         val bookSeriesDao: BookSeriesDao = mock()
         val collectionDao: CollectionDao = mock()
+        val lensDao: LensDao = mock()
         val imageDownloader: ImageDownloaderContract = mock()
         val playbackStateProvider: PlaybackStateProvider = mock()
         val downloadService: DownloadService = mock()
@@ -118,6 +121,9 @@ class SSEEventProcessorTest {
             everySuspend { collectionDao.upsert(any<CollectionEntity>()) } returns Unit
             everySuspend { collectionDao.deleteById(any()) } returns Unit
             everySuspend { collectionDao.getById(any()) } returns null
+            everySuspend { lensDao.upsert(any<LensEntity>()) } returns Unit
+            everySuspend { lensDao.deleteById(any()) } returns Unit
+            everySuspend { lensDao.getById(any()) } returns null
             everySuspend { imageDownloader.downloadCover(any()) } returns Result.Success(false)
 
             // PlaybackStateProvider stubs
@@ -145,6 +151,7 @@ class SSEEventProcessorTest {
                 bookContributorDao = bookContributorDao,
                 bookSeriesDao = bookSeriesDao,
                 collectionDao = collectionDao,
+                lensDao = lensDao,
                 imageDownloader = imageDownloader,
                 playbackStateProvider = playbackStateProvider,
                 downloadService = downloadService,

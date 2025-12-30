@@ -266,3 +266,38 @@ data object Settings : Route
  */
 @Serializable
 data object Licenses : Route
+
+// Lens Routes
+
+/**
+ * Lens detail screen - displays lens info and its books.
+ *
+ * Shows the lens name, description, owner info, and list of books.
+ * Owners can edit the lens, add/remove books.
+ *
+ * @property lensId The unique ID of the lens to display.
+ */
+@Serializable
+data class LensDetail(
+    val lensId: String,
+) : Route
+
+/**
+ * Create lens screen - create a new personal lens.
+ *
+ * Form for name and optional description.
+ */
+@Serializable
+data object CreateLens : Route
+
+/**
+ * Edit lens screen - edit an existing lens.
+ *
+ * Form for name and description. Owner only.
+ *
+ * @property lensId The unique ID of the lens to edit.
+ */
+@Serializable
+data class LensEdit(
+    val lensId: String,
+) : Route

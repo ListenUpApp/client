@@ -189,12 +189,11 @@ private fun ArticleToggleChip(
  * @param bookProgress Map of bookId to progress (0.0-1.0) for in-progress books
  * @param isInSelectionMode Whether multi-select mode is active
  * @param selectedBookIds Set of currently selected book IDs
- * @param isAdmin Whether the current user is an admin (can use multi-select)
  * @param onCategorySelected Called when user selects a new category
  * @param onDirectionToggle Called when user toggles sort direction
  * @param onToggleIgnoreArticles Called when user toggles article handling
  * @param onBookClick Callback when a book is clicked (navigates or toggles selection)
- * @param onBookLongPress Callback when a book is long-pressed (enters selection mode for admins)
+ * @param onBookLongPress Callback when a book is long-pressed (enters selection mode)
  * @param onRetry Callback when retry is clicked in error state
  * @param modifier Optional modifier
  */
@@ -209,7 +208,6 @@ fun BooksContent(
     bookProgress: Map<String, Float>,
     isInSelectionMode: Boolean = false,
     selectedBookIds: Set<String> = emptySet(),
-    isAdmin: Boolean = false,
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
     onToggleIgnoreArticles: () -> Unit,
@@ -249,7 +247,6 @@ fun BooksContent(
                     bookProgress = bookProgress,
                     isInSelectionMode = isInSelectionMode,
                     selectedBookIds = selectedBookIds,
-                    isAdmin = isAdmin,
                     onCategorySelected = onCategorySelected,
                     onDirectionToggle = onDirectionToggle,
                     onToggleIgnoreArticles = onToggleIgnoreArticles,
@@ -273,7 +270,6 @@ private fun BookGrid(
     bookProgress: Map<String, Float>,
     isInSelectionMode: Boolean,
     selectedBookIds: Set<String>,
-    isAdmin: Boolean,
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
     onToggleIgnoreArticles: () -> Unit,
@@ -379,10 +375,8 @@ private fun BookGrid(
                             progress = bookProgress[bookId],
                             isInSelectionMode = isInSelectionMode,
                             isSelected = bookId in selectedBookIds,
-                            onLongPress = if (isAdmin) {
-                                { onBookLongPress?.invoke(bookId) }
-                            } else {
-                                null
+                            onLongPress = onBookLongPress?.let { callback ->
+                                { callback(bookId) }
                             },
                             modifier = Modifier.animateItem(),
                         )

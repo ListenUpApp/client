@@ -74,6 +74,7 @@ fun AppShell(
     onBookClick: (String) -> Unit,
     onSeriesClick: (String) -> Unit,
     onContributorClick: (String) -> Unit,
+    onLensClick: (String) -> Unit,
     onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSignOut: () -> Unit,
@@ -257,6 +258,8 @@ fun AppShell(
                     HomeScreen(
                         onBookClick = onBookClick,
                         onNavigateToLibrary = { onDestinationChange(ShellDestination.Library) },
+                        onLensClick = onLensClick,
+                        onSeeAllLenses = { onDestinationChange(ShellDestination.Library) }, // TODO: Navigate to lenses tab
                         modifier = Modifier.padding(padding),
                     )
                 }
@@ -273,7 +276,10 @@ fun AppShell(
                 }
 
                 ShellDestination.Discover -> {
-                    DiscoverScreen(modifier = Modifier.padding(padding))
+                    DiscoverScreen(
+                        onLensClick = onLensClick,
+                        modifier = Modifier.padding(padding),
+                    )
                 }
             }
 

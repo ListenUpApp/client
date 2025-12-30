@@ -21,6 +21,8 @@ import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.remote.InstanceApiContract
 import com.calypsan.listenup.client.data.remote.InviteApi
 import com.calypsan.listenup.client.data.remote.InviteApiContract
+import com.calypsan.listenup.client.data.remote.LensApi
+import com.calypsan.listenup.client.data.remote.LensApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.MetadataApi
 import com.calypsan.listenup.client.data.remote.MetadataApiContract
@@ -249,6 +251,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().searchDao() }
         single { get<ListenUpDatabase>().serverDao() }
         single { get<ListenUpDatabase>().collectionDao() }
+        single { get<ListenUpDatabase>().lensDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
         // When active server's URL changes via mDNS rediscovery, updates SettingsRepository
@@ -374,6 +377,8 @@ val presentationModule =
                 userDao = get(),
                 collectionDao = get(),
                 adminCollectionApi = get(),
+                lensDao = get(),
+                lensApi = get(),
             )
         }
         factory {
@@ -390,6 +395,25 @@ val presentationModule =
                 seriesDao = get(),
                 bookRepository = get(),
                 imageStorage = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.lens.LensDetailViewModel(
+                lensApi = get(),
+                lensDao = get(),
+                userDao = get(),
+                imageStorage = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.lens.CreateEditLensViewModel(
+                lensApi = get(),
+                lensDao = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.discover.DiscoverViewModel(
+                lensApi = get(),
             )
         }
         factory {
@@ -420,6 +444,7 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.home.HomeViewModel(
                 homeRepository = get(),
+                lensDao = get(),
             )
         }
         factory {
@@ -570,6 +595,11 @@ val syncModule =
             UserPreferencesApi(clientFactory = get())
         } bind UserPreferencesApiContract::class
 
+        // LensApi for personal curation lenses
+        single {
+            LensApi(clientFactory = get())
+        } bind LensApiContract::class
+
         // FtsPopulator for rebuilding FTS tables after sync
         single {
             FtsPopulator(
@@ -601,6 +631,7 @@ val syncModule =
                 bookContributorDao = get(),
                 bookSeriesDao = get(),
                 collectionDao = get(),
+                lensDao = get(),
                 imageDownloader = get(),
                 playbackStateProvider = get<PlaybackManager>(),
                 downloadService = get(),
