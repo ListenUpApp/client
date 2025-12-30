@@ -85,7 +85,7 @@ class BookEditViewModelTest {
         // Default stubs for API operations
         everySuspend { fixture.genreApi.listGenres() } returns emptyList()
         everySuspend { fixture.genreApi.getBookGenres(any()) } returns emptyList()
-        everySuspend { fixture.tagApi.getUserTags() } returns emptyList()
+        everySuspend { fixture.tagApi.listTags() } returns emptyList()
         everySuspend { fixture.tagApi.getBookTags(any()) } returns emptyList()
         everySuspend { fixture.contributorRepository.searchContributors(any(), any()) } returns
             ContributorSearchResponse(emptyList(), false, 0L)
@@ -512,7 +512,7 @@ class BookEditViewModelTest {
             // Given
             val fixture = createFixture()
             val book = TestData.book(id = "book-1")
-            val tag = EditableTag(id = "tag-1", name = "Favorites", color = "#FF0000")
+            val tag = EditableTag(id = "tag-1", slug = "favorites")
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
@@ -527,7 +527,7 @@ class BookEditViewModelTest {
                 "Favorites",
                 viewModel.state.value.tags
                     .first()
-                    .name,
+                    .displayName(),
             )
             assertTrue(viewModel.state.value.hasChanges)
         }
@@ -537,7 +537,7 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val domainTag = TestData.tag(id = "tag-1", name = "Favorites")
+            val domainTag = TestData.tag(id = "tag-1", slug = "favorites")
             val book = TestData.book(id = "book-1", tags = listOf(domainTag))
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             everySuspend { fixture.tagApi.getBookTags("book-1") } returns listOf(domainTag)

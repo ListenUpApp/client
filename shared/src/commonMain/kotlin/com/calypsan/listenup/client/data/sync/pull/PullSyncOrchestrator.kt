@@ -19,6 +19,7 @@ class PullSyncOrchestrator(
     private val bookPuller: Puller,
     private val seriesPuller: Puller,
     private val contributorPuller: Puller,
+    private val tagPuller: Puller,
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
 ) {
@@ -26,6 +27,7 @@ class PullSyncOrchestrator(
      * Pull all entities from server with retry logic.
      *
      * Runs pulls for Books, Series, and Contributors in parallel for performance.
+     * Tags are pulled sequentially after books (since they depend on book data).
      * Uses proper cancellation if any job fails.
      *
      * @param onProgress Callback for progress updates
@@ -45,7 +47,7 @@ class PullSyncOrchestrator(
                 SyncStatus.Progress(
                     phase = SyncPhase.FETCHING_METADATA,
                     current = 0,
-                    total = 3,
+                    total = 4,
                     message = "Preparing sync...",
                 ),
             )
@@ -70,13 +72,16 @@ class PullSyncOrchestrator(
                     contributorsJob.cancel()
                     throw e
                 }
+
+                // Pull tags after books are synced (tags need book data)
+                tagPuller.pull(updatedAfter, onProgress)
             }
 
             onProgress(
                 SyncStatus.Progress(
                     phase = SyncPhase.FINALIZING,
-                    current = 3,
-                    total = 3,
+                    current = 4,
+                    total = 4,
                     message = "Finalizing sync...",
                 ),
             )

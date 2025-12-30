@@ -127,6 +127,20 @@ data class BookResponse(
     val chapters: List<ChapterResponse> = emptyList(),
     @SerialName("audio_files")
     val audioFiles: List<AudioFileResponse> = emptyList(),
+    // Tags applied to this book (synced inline like contributors)
+    @SerialName("tags")
+    val tags: List<BookTagResponse> = emptyList(),
+)
+
+/**
+ * Tag information for a book during sync.
+ */
+@Serializable
+data class BookTagResponse(
+    val id: String,
+    val slug: String,
+    @SerialName("book_count")
+    val bookCount: Int = 0,
 )
 
 @Serializable
@@ -555,4 +569,61 @@ data class SSELensBookRemovedEvent(
     val bookCount: Int,
     @SerialName("timestamp")
     val timestamp: String,
+)
+
+// Tag SSE events
+
+/**
+ * SSE tag event data (embedded in BookTagEvent).
+ */
+@Serializable
+data class SSETagData(
+    @SerialName("id")
+    val id: String,
+    @SerialName("slug")
+    val slug: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("created_at")
+    val createdAt: String,
+)
+
+/**
+ * SSE tag created event data.
+ * Sent when a new tag is created globally.
+ */
+@Serializable
+data class SSETagCreatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("slug")
+    val slug: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("created_at")
+    val createdAt: String,
+)
+
+/**
+ * SSE book tag added event data.
+ * Sent when a tag is added to a book.
+ */
+@Serializable
+data class SSEBookTagAddedEvent(
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("tag")
+    val tag: SSETagData,
+)
+
+/**
+ * SSE book tag removed event data.
+ * Sent when a tag is removed from a book.
+ */
+@Serializable
+data class SSEBookTagRemovedEvent(
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("tag")
+    val tag: SSETagData,
 )

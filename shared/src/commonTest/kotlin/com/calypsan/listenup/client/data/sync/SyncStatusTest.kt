@@ -165,11 +165,12 @@ class SyncStatusTest {
     fun `SyncPhase has all expected phases`() {
         val phases = SyncPhase.entries
 
-        assertEquals(5, phases.size)
+        assertEquals(6, phases.size)
         assertNotNull(phases.find { it == SyncPhase.FETCHING_METADATA })
         assertNotNull(phases.find { it == SyncPhase.SYNCING_BOOKS })
         assertNotNull(phases.find { it == SyncPhase.SYNCING_SERIES })
         assertNotNull(phases.find { it == SyncPhase.SYNCING_CONTRIBUTORS })
+        assertNotNull(phases.find { it == SyncPhase.SYNCING_TAGS })
         assertNotNull(phases.find { it == SyncPhase.FINALIZING })
     }
 
@@ -180,7 +181,8 @@ class SyncStatusTest {
         assertEquals(1, SyncPhase.SYNCING_BOOKS.ordinal)
         assertEquals(2, SyncPhase.SYNCING_SERIES.ordinal)
         assertEquals(3, SyncPhase.SYNCING_CONTRIBUTORS.ordinal)
-        assertEquals(4, SyncPhase.FINALIZING.ordinal)
+        assertEquals(4, SyncPhase.SYNCING_TAGS.ordinal)
+        assertEquals(5, SyncPhase.FINALIZING.ordinal)
     }
 
     // ========== State Transition Pattern Tests ==========

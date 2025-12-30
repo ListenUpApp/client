@@ -75,6 +75,7 @@ fun AppShell(
     onSeriesClick: (String) -> Unit,
     onContributorClick: (String) -> Unit,
     onLensClick: (String) -> Unit,
+    onTagClick: (String) -> Unit,
     onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSignOut: () -> Unit,
@@ -125,6 +126,11 @@ fun AppShell(
 
             is SearchNavAction.NavigateToSeries -> {
                 onSeriesClick(action.seriesId)
+                searchViewModel.clearNavAction()
+            }
+
+            is SearchNavAction.NavigateToTag -> {
+                onTagClick(action.tagId)
                 searchViewModel.clearNavAction()
             }
 

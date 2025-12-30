@@ -86,6 +86,7 @@ import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
+import com.calypsan.listenup.client.data.sync.pull.TagPuller
 import com.calypsan.listenup.client.data.sync.push.BookUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.ContributorUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
@@ -252,6 +253,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().serverDao() }
         single { get<ListenUpDatabase>().collectionDao() }
         single { get<ListenUpDatabase>().lensDao() }
+        single { get<ListenUpDatabase>().tagDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
         // When active server's URL changes via mDNS rediscovery, updates SettingsRepository
@@ -386,6 +388,7 @@ val presentationModule =
                 bookRepository = get(),
                 genreApi = get(),
                 tagApi = get(),
+                tagDao = get(),
                 playbackPositionDao = get(),
                 userDao = get(),
             )
@@ -395,6 +398,12 @@ val presentationModule =
                 seriesDao = get(),
                 bookRepository = get(),
                 imageStorage = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.tagdetail.TagDetailViewModel(
+                tagDao = get(),
+                bookRepository = get(),
             )
         }
         factory {
@@ -632,6 +641,7 @@ val syncModule =
                 bookSeriesDao = get(),
                 collectionDao = get(),
                 lensDao = get(),
+                tagDao = get(),
                 imageDownloader = get(),
                 playbackStateProvider = get<PlaybackManager>(),
                 downloadService = get(),
@@ -656,6 +666,7 @@ val syncModule =
                 chapterDao = get(),
                 bookContributorDao = get(),
                 bookSeriesDao = get(),
+                tagDao = get(),
                 imageDownloader = get(),
                 conflictDetector = get(),
                 scope =
@@ -703,6 +714,17 @@ val syncModule =
             )
         }
 
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("tagPuller"),
+        ) {
+            TagPuller(
+                tagApi = get(),
+                tagDao = get(),
+            )
+        }
+
         // PullSyncOrchestrator - coordinates parallel entity pulls
         single {
             PullSyncOrchestrator(
@@ -723,6 +745,12 @@ val syncModule =
                         qualifier =
                             org.koin.core.qualifier
                                 .named("contributorPuller"),
+                    ),
+                tagPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("tagPuller"),
                     ),
                 coordinator = get(),
                 syncDao = get(),
@@ -850,7 +878,6 @@ val syncModule =
                 searchApi = get(),
                 searchDao = get(),
                 imageStorage = get(),
-                networkMonitor = get(),
             )
         } bind SearchRepositoryContract::class
 

@@ -82,6 +82,7 @@ fun BookDetailScreen(
     onMetadataSearchClick: (bookId: String) -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
+    onTagClick: (tagId: String) -> Unit,
     viewModel: BookDetailViewModel = koinViewModel(),
     playerViewModel: PlayerViewModel = koinViewModel(),
 ) {
@@ -194,6 +195,7 @@ fun BookDetailScreen(
                     onDeleteClick = { showDeleteDialog = true },
                     onSeriesClick = onSeriesClick,
                     onContributorClick = onContributorClick,
+                    onTagClick = onTagClick,
                 )
             }
         }
@@ -238,6 +240,7 @@ fun BookDetailContent(
     onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
+    onTagClick: (tagId: String) -> Unit,
 ) {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
 
@@ -266,6 +269,7 @@ fun BookDetailContent(
             onDeleteClick = onDeleteClick,
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
+            onTagClick = onTagClick,
         )
     } else {
         ImmersiveBookDetail(
@@ -286,6 +290,7 @@ fun BookDetailContent(
             onDeleteClick = onDeleteClick,
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
+            onTagClick = onTagClick,
         )
     }
 }
@@ -318,6 +323,7 @@ private fun ImmersiveBookDetail(
     onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
+    onTagClick: (tagId: String) -> Unit,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
@@ -413,6 +419,7 @@ private fun ImmersiveBookDetail(
                 TagsSection(
                     tags = state.tags,
                     isLoading = state.isLoadingTags,
+                    onTagClick = { tag -> onTagClick(tag.id) },
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
             }

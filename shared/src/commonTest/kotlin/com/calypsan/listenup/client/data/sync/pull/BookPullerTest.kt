@@ -8,7 +8,10 @@ import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
+import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.ChapterDao
+import com.calypsan.listenup.client.data.local.db.TagDao
+import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.remote.SyncApiContract
@@ -118,6 +121,7 @@ class BookPullerTest {
         val chapterDao: ChapterDao = mock()
         val bookContributorDao: BookContributorDao = mock()
         val bookSeriesDao: BookSeriesDao = mock()
+        val tagDao: TagDao = mock()
         val conflictDetector: ConflictDetectorContract = mock()
         val imageDownloader: ImageDownloaderContract = mock()
 
@@ -132,6 +136,9 @@ class BookPullerTest {
             everySuspend { bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) } returns Unit
             everySuspend { bookSeriesDao.deleteSeriesForBook(any()) } returns Unit
             everySuspend { bookSeriesDao.insertAll(any<List<BookSeriesCrossRef>>()) } returns Unit
+            everySuspend { tagDao.upsertAll(any<List<TagEntity>>()) } returns Unit
+            everySuspend { tagDao.deleteTagsForBook(any()) } returns Unit
+            everySuspend { tagDao.insertAllBookTags(any<List<BookTagCrossRef>>()) } returns Unit
             everySuspend { conflictDetector.detectBookConflicts(any()) } returns emptyList()
             everySuspend { conflictDetector.shouldPreserveLocalChanges(any()) } returns false
             everySuspend { imageDownloader.deleteCover(any()) } returns Result.Success(Unit)
@@ -145,6 +152,7 @@ class BookPullerTest {
                 chapterDao = chapterDao,
                 bookContributorDao = bookContributorDao,
                 bookSeriesDao = bookSeriesDao,
+                tagDao = tagDao,
                 conflictDetector = conflictDetector,
                 imageDownloader = imageDownloader,
                 scope = scope,

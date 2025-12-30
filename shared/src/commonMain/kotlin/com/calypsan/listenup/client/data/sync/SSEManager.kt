@@ -10,10 +10,13 @@ import com.calypsan.listenup.client.data.remote.model.SSECollectionDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSECollectionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensBookAddedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEBookTagAddedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEBookTagRemovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensBookRemovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
@@ -417,6 +420,35 @@ class SSEManager(
                         )
                     }
 
+                    "tag.created" -> {
+                        val tagEvent = json.decodeFromJsonElement(SSETagCreatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.TagCreated(
+                            id = tagEvent.id,
+                            slug = tagEvent.slug,
+                            bookCount = tagEvent.bookCount,
+                        )
+                    }
+
+                    "book.tag_added" -> {
+                        val tagEvent = json.decodeFromJsonElement(SSEBookTagAddedEvent.serializer(), sseEvent.data)
+                        SSEEventType.BookTagAdded(
+                            bookId = tagEvent.bookId,
+                            tagId = tagEvent.tag.id,
+                            tagSlug = tagEvent.tag.slug,
+                            tagBookCount = tagEvent.tag.bookCount,
+                        )
+                    }
+
+                    "book.tag_removed" -> {
+                        val tagEvent = json.decodeFromJsonElement(SSEBookTagRemovedEvent.serializer(), sseEvent.data)
+                        SSEEventType.BookTagRemoved(
+                            bookId = tagEvent.bookId,
+                            tagId = tagEvent.tag.id,
+                            tagSlug = tagEvent.tag.slug,
+                            tagBookCount = tagEvent.tag.bookCount,
+                        )
+                    }
+
                     else -> {
                         logger.debug { "Unknown event type: ${sseEvent.type}" }
                         return
@@ -580,5 +612,36 @@ sealed class SSEEventType {
         val ownerId: String,
         val bookId: String,
         val bookCount: Int,
+    ) : SSEEventType()
+
+    // Tag events
+
+    /**
+     * A new tag was created globally.
+     */
+    data class TagCreated(
+        val id: String,
+        val slug: String,
+        val bookCount: Int,
+    ) : SSEEventType()
+
+    /**
+     * A tag was added to a book.
+     */
+    data class BookTagAdded(
+        val bookId: String,
+        val tagId: String,
+        val tagSlug: String,
+        val tagBookCount: Int,
+    ) : SSEEventType()
+
+    /**
+     * A tag was removed from a book.
+     */
+    data class BookTagRemoved(
+        val bookId: String,
+        val tagId: String,
+        val tagSlug: String,
+        val tagBookCount: Int,
     ) : SSEEventType()
 }

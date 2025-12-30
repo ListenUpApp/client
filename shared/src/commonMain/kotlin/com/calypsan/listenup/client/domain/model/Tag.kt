@@ -1,17 +1,33 @@
 package com.calypsan.listenup.client.domain.model
 
+import kotlinx.datetime.Instant
+
 /**
- * Domain model for a user tag.
+ * Domain model for a global tag.
  *
- * Tags are personal to each user and used for organizing books.
- * Examples: "beach read", "book club 2024", "gift for mom"
+ * Tags are community-wide content descriptors that any user can apply to books
+ * they can access. Examples: "found-family", "slow-burn", "unreliable-narrator".
  *
- * Tags have optional colors for visual customization in the UI.
+ * The slug is the source of truth - there is no separate name field.
+ * Use [displayName] to get a human-readable version for UI display.
  */
 data class Tag(
     val id: String,
-    val name: String,
     val slug: String,
-    val color: String? = null,
     val bookCount: Int = 0,
-)
+    val createdAt: Instant? = null,
+) {
+    /**
+     * Converts the slug to a human-readable display name.
+     *
+     * Transformation: "found-family" -> "Found Family"
+     *
+     * @return The slug converted to title case with hyphens replaced by spaces
+     */
+    fun displayName(): String =
+        slug
+            .split("-")
+            .joinToString(" ") { word ->
+                word.replaceFirstChar { it.titlecase() }
+            }
+}

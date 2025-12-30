@@ -275,6 +275,7 @@ class SettingsRepositoryTest {
                     instanceRepository,
                 )
             everySuspend { storage.delete(any()) } returns Unit
+            everySuspend { storage.read("open_registration") } returns null
 
             // When
             repository.clearAuthTokens()
@@ -450,6 +451,8 @@ class SettingsRepositoryTest {
             everySuspend { storage.read("access_token") } returns null
             everySuspend { storage.read("user_id") } returns null
             everySuspend { storage.read("session_id") } returns null
+            everySuspend { storage.read("pending_user_id") } returns null
+            everySuspend { storage.read("open_registration") } returns null
             // Server returns setup not required
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
                 Result.Success(
@@ -474,6 +477,7 @@ class SettingsRepositoryTest {
                     storage,
                     instanceRepository,
                 )
+            everySuspend { storage.save(any(), any()) } returns Unit
             // Server returns setup required
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
                 Result.Success(
@@ -498,6 +502,7 @@ class SettingsRepositoryTest {
                     storage,
                     instanceRepository,
                 )
+            everySuspend { storage.read("open_registration") } returns null
             // Server unreachable
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
                 Result.Failure(

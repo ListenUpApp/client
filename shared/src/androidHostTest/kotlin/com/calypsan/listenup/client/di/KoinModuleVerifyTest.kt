@@ -8,6 +8,8 @@ import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
+import com.calypsan.listenup.client.data.local.db.LensDao
+import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -92,6 +94,8 @@ class KoinModuleVerifyTest {
                     BookContributorDao::class,
                     BookSeriesDao::class,
                     CollectionDao::class,
+                    LensDao::class,
+                    TagDao::class,
                     PlaybackPositionDao::class,
                     PendingOperationDao::class,
                     DownloadDao::class,

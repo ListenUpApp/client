@@ -216,50 +216,60 @@ interface AuthApiContract {
 }
 
 /**
- * Contract interface for tag API operations.
+ * Contract interface for global tag API operations.
+ *
+ * Tags are community-wide content descriptors (e.g., "found-family", "slow-burn").
+ * Any user can add/remove tags from books they have access to.
  *
  * Extracted to enable mocking in tests. Production implementation
  * is [TagApi], test implementation can be a mock or fake.
  */
 interface TagApiContract {
     /**
-     * Get all tags for the current user.
+     * Get all global tags ordered by popularity (book count).
      */
-    suspend fun getUserTags(): List<Tag>
+    suspend fun listTags(): List<Tag>
+
+    /**
+     * Get a specific tag by its slug.
+     *
+     * @param slug The tag slug (e.g., "found-family")
+     * @return The tag, or null if not found
+     */
+    suspend fun getTagBySlug(slug: String): Tag?
 
     /**
      * Get tags for a specific book.
+     *
+     * @param bookId The book ID
      */
     suspend fun getBookTags(bookId: String): List<Tag>
 
     /**
-     * Add a tag to a book.
+     * Add a tag to a book. Creates the tag if it doesn't exist.
+     *
+     * The raw input will be normalized to a slug by the server
+     * (e.g., "Found Family" -> "found-family").
+     *
+     * @param bookId The book ID
+     * @param rawInput The tag text (will be normalized to slug)
+     * @return The tag that was added (or created)
      */
     suspend fun addTagToBook(
         bookId: String,
-        tagId: String,
-    )
-
-    /**
-     * Remove a tag from a book.
-     */
-    suspend fun removeTagFromBook(
-        bookId: String,
-        tagId: String,
-    )
-
-    /**
-     * Create a new tag.
-     */
-    suspend fun createTag(
-        name: String,
-        color: String? = null,
+        rawInput: String,
     ): Tag
 
     /**
-     * Delete a tag.
+     * Remove a tag from a book.
+     *
+     * @param bookId The book ID
+     * @param slug The tag slug to remove
      */
-    suspend fun deleteTag(tagId: String)
+    suspend fun removeTagFromBook(
+        bookId: String,
+        slug: String,
+    )
 }
 
 /**

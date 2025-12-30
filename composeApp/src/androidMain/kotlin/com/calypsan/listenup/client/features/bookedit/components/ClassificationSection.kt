@@ -180,7 +180,7 @@ private fun TagsSubsection(
             },
             resultContent = { tag ->
                 AutocompleteResultItem(
-                    name = tag.name,
+                    name = tag.displayName(),
                     subtitle = null,
                     onClick = { onTagSelected(tag) },
                 )
@@ -193,11 +193,11 @@ private fun TagsSubsection(
         val trimmedQuery = searchQuery.trim()
         val hasMatch =
             searchResults.any {
-                it.name.equals(trimmedQuery, ignoreCase = true)
+                it.displayName().equals(trimmedQuery, ignoreCase = true)
             }
         val alreadyHasTag =
             tags.any {
-                it.name.equals(trimmedQuery, ignoreCase = true)
+                it.displayName().equals(trimmedQuery, ignoreCase = true)
             }
         @Suppress("ComplexCondition")
         if (trimmedQuery.length >= 2 && !isSearching && !isCreating && !hasMatch && !alreadyHasTag) {
@@ -242,11 +242,11 @@ private fun TagChip(
     InputChip(
         selected = false,
         onClick = { },
-        label = { Text(tag.name) },
+        label = { Text(tag.displayName()) },
         trailingIcon = {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Remove ${tag.name}",
+                contentDescription = "Remove ${tag.displayName()}",
                 modifier =
                     Modifier
                         .size(InputChipDefaults.AvatarSize)

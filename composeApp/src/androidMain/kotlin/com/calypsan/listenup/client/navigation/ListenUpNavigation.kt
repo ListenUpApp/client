@@ -395,6 +395,9 @@ private fun AuthenticatedNavigation(
                                 onLensClick = { lensId ->
                                     backStack.add(LensDetail(lensId))
                                 },
+                                onTagClick = { tagId ->
+                                    backStack.add(TagDetail(tagId))
+                                },
                                 onAdminClick = {
                                     backStack.add(Admin)
                                 },
@@ -428,6 +431,9 @@ private fun AuthenticatedNavigation(
                                 },
                                 onContributorClick = { contributorId ->
                                     backStack.add(ContributorDetail(contributorId))
+                                },
+                                onTagClick = { tagId ->
+                                    backStack.add(TagDetail(tagId))
                                 },
                             )
                         }
@@ -482,6 +488,17 @@ private fun AuthenticatedNavigation(
                                 },
                                 onEditClick = { seriesId ->
                                     backStack.add(SeriesEdit(seriesId))
+                                },
+                            )
+                        }
+                        entry<TagDetail> { args ->
+                            com.calypsan.listenup.client.features.tagdetail.TagDetailScreen(
+                                tagId = args.tagId,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(BookDetail(bookId))
                                 },
                             )
                         }

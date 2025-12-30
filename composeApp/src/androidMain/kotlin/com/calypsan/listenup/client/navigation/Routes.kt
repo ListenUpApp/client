@@ -120,6 +120,16 @@ data class SeriesDetail(
 ) : Route
 
 /**
+ * Tag detail screen - displays tag info and books with this tag.
+ *
+ * @property tagId The unique ID of the tag to display.
+ */
+@Serializable
+data class TagDetail(
+    val tagId: String,
+) : Route
+
+/**
  * Series edit screen - edit series metadata and cover.
  *
  * Allows editing name, description, and cover image for a series.

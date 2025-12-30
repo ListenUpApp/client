@@ -1,8 +1,17 @@
 package com.calypsan.listenup.client.data.local.db
 
 import androidx.room.Dao
+import androidx.room.Embedded
 import androidx.room.Query
 import androidx.room.SkipQueryVerification
+
+/**
+ * Result class for book search that includes denormalized author name.
+ */
+data class BookSearchResult(
+    @Embedded val book: BookEntity,
+    val authorName: String?,
+)
 
 /**
  * DAO for local full-text search using FTS5.
@@ -29,6 +38,7 @@ interface SearchDao {
      *
      * Returns books matching the query, ranked by relevance using bm25().
      * The query should use FTS5 syntax with prefix matching (e.g., "brandon*").
+     * Includes the denormalized author name from the FTS table.
      *
      * Note: We join on the bookId column stored in the FTS table, not rowid,
      * since FTS5 manages its own internal rowids.
@@ -39,7 +49,7 @@ interface SearchDao {
     @SkipQueryVerification
     @Query(
         """
-        SELECT b.*
+        SELECT b.*, fts.author AS authorName
         FROM books_fts fts
         INNER JOIN books b ON fts.bookId = b.id
         WHERE books_fts MATCH :query
@@ -50,7 +60,7 @@ interface SearchDao {
     suspend fun searchBooks(
         query: String,
         limit: Int = 20,
-    ): List<BookEntity>
+    ): List<BookSearchResult>
 
     /**
      * Search contributors using FTS5.
@@ -89,6 +99,28 @@ interface SearchDao {
         query: String,
         limit: Int = 10,
     ): List<SeriesEntity>
+
+    /**
+     * Search tags by slug.
+     *
+     * Uses simple LIKE query since tags are just slugs (e.g., "slow-burn").
+     * Searches for slugs containing the query, ordered by book count.
+     *
+     * @param query Search pattern (will be wrapped in % for LIKE)
+     * @param limit Max results to return
+     */
+    @Query(
+        """
+        SELECT * FROM tags
+        WHERE slug LIKE '%' || :query || '%'
+        ORDER BY bookCount DESC, slug ASC
+        LIMIT :limit
+    """,
+    )
+    suspend fun searchTags(
+        query: String,
+        limit: Int = 10,
+    ): List<TagEntity>
 
     // ==================== FTS POPULATION ====================
 
@@ -180,7 +212,7 @@ interface SearchDao {
         """
         SELECT c.name FROM contributors c
         INNER JOIN book_contributors bc ON bc.contributorId = c.id
-        WHERE bc.bookId = :bookId AND bc.role = 'AUTHOR'
+        WHERE bc.bookId = :bookId AND LOWER(bc.role) = 'author'
         LIMIT 1
     """,
     )
@@ -193,7 +225,7 @@ interface SearchDao {
         """
         SELECT c.name FROM contributors c
         INNER JOIN book_contributors bc ON bc.contributorId = c.id
-        WHERE bc.bookId = :bookId AND bc.role = 'NARRATOR'
+        WHERE bc.bookId = :bookId AND LOWER(bc.role) = 'narrator'
         LIMIT 1
     """,
     )

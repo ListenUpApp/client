@@ -3,11 +3,12 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.IODispatcher
-import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.BookSearchResult
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
+import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SearchFacetsResponse
@@ -55,8 +56,11 @@ interface SearchRepositoryContract {
  * Repository for search operations.
  *
  * Implements "never stranded" pattern:
- * - Online: Use server Bleve search (fuzzy, faceted, hierarchical)
- * - Offline: Fall back to local Room FTS5 (simpler but always works)
+ * - Primary: Use server Bleve search (fuzzy, faceted, hierarchical)
+ * - Fallback: Local Room FTS5 (simpler but always works)
+ *
+ * Always tries server first because the server may be on a local network
+ * without internet access. Falls back to local search on any error.
  *
  * The caller doesn't need to know which path was taken—both return
  * the same SearchResult type. The `isOfflineResult` flag indicates
@@ -65,13 +69,11 @@ interface SearchRepositoryContract {
  * @property searchApi Server search API client
  * @property searchDao Local FTS5 search DAO
  * @property imageStorage For resolving local cover paths
- * @property networkMonitor For checking online/offline status
  */
 class SearchRepository(
     private val searchApi: SearchApiContract,
     private val searchDao: SearchDao,
     private val imageStorage: ImageStorage,
-    private val networkMonitor: NetworkMonitor,
 ) : SearchRepositoryContract {
     /**
      * Search across books, contributors, and series.
@@ -103,21 +105,19 @@ class SearchRepository(
             )
         }
 
-        // Try server search if online
-        if (networkMonitor.isOnline()) {
-            try {
-                return searchServer(sanitizedQuery, types, genres, genrePath, limit)
-            } catch (e: CancellationException) {
-                // Preserve structured concurrency - re-throw cancellation
-                throw e
-            } catch (e: Exception) {
-                logger.warn(e) { "Server search failed, falling back to local FTS" }
-                // Fall through to local search
-            }
+        // Always try server search first, fall back to local on failure
+        // We don't check isOnline() because the server may be on a local network
+        // without internet access, which would cause isOnline() to return false
+        // even though the server is reachable.
+        return try {
+            searchServer(sanitizedQuery, types, genres, genrePath, limit)
+        } catch (e: CancellationException) {
+            // Preserve structured concurrency - re-throw cancellation
+            throw e
+        } catch (e: Exception) {
+            logger.warn(e) { "Server search failed for '$sanitizedQuery', falling back to local search" }
+            searchLocal(sanitizedQuery, types, limit)
         }
-
-        // Offline or server failed - use local FTS
-        return searchLocal(sanitizedQuery, types, limit)
     }
 
     /**
@@ -164,8 +164,8 @@ class SearchRepository(
                         // Search each type
                         if (SearchHitType.BOOK in searchTypes) {
                             try {
-                                val books = searchDao.searchBooks(ftsQuery, limit)
-                                addAll(books.map { it.toSearchHit(imageStorage) })
+                                val bookResults = searchDao.searchBooks(ftsQuery, limit)
+                                addAll(bookResults.map { it.toSearchHit(imageStorage) })
                             } catch (e: Exception) {
                                 logger.warn(e) { "Book FTS search failed" }
                             }
@@ -186,6 +186,16 @@ class SearchRepository(
                                 addAll(series.map { it.toSearchHit() })
                             } catch (e: Exception) {
                                 logger.warn(e) { "Series FTS search failed" }
+                            }
+                        }
+
+                        if (SearchHitType.TAG in searchTypes) {
+                            try {
+                                // Tags use simple LIKE query, not FTS - use original query without *
+                                val tags = searchDao.searchTags(query, limit / 2)
+                                addAll(tags.map { it.toSearchHit() })
+                            } catch (e: Exception) {
+                                logger.warn(e) { "Tag search failed" }
                             }
                         }
                     }
@@ -242,6 +252,7 @@ private fun SearchHitResponse.toDomain(imageStorage: ImageStorage): SearchHit {
             "book" -> SearchHitType.BOOK
             "contributor" -> SearchHitType.CONTRIBUTOR
             "series" -> SearchHitType.SERIES
+            "tag" -> SearchHitType.TAG
             else -> SearchHitType.BOOK
         }
 
@@ -264,6 +275,8 @@ private fun SearchHitResponse.toDomain(imageStorage: ImageStorage): SearchHit {
         seriesName = seriesName,
         duration = duration,
         bookCount = bookCount,
+        genreSlugs = genreSlugs,
+        tags = tags,
         coverPath = coverPath,
         score = score,
         highlight = highlights?.values?.firstOrNull(),
@@ -278,18 +291,18 @@ private fun SearchFacetsResponse.toDomain(): SearchFacets =
         narrators = narrators?.map { FacetCount(it.value, it.count) } ?: emptyList(),
     )
 
-private fun BookEntity.toSearchHit(imageStorage: ImageStorage): SearchHit {
-    val coverPath = if (imageStorage.exists(id)) imageStorage.getCoverPath(id) else null
+private fun BookSearchResult.toSearchHit(imageStorage: ImageStorage): SearchHit {
+    val coverPath = if (imageStorage.exists(book.id)) imageStorage.getCoverPath(book.id) else null
 
     return SearchHit(
-        id = id.value,
+        id = book.id.value,
         type = SearchHitType.BOOK,
-        name = title,
-        subtitle = subtitle,
-        author = null, // Would need join - acceptable for offline
+        name = book.title,
+        subtitle = book.subtitle,
+        author = authorName, // Author from FTS denormalized data
         narrator = null,
         seriesName = null, // Series now in junction table - acceptable for offline
-        duration = totalDuration,
+        duration = book.totalDuration,
         bookCount = null,
         coverPath = coverPath,
         score = 1.0f, // No scoring in local search
@@ -311,5 +324,14 @@ private fun SeriesEntity.toSearchHit(): SearchHit =
         type = SearchHitType.SERIES,
         name = name,
         bookCount = null,
+        score = 1.0f,
+    )
+
+private fun TagEntity.toSearchHit(): SearchHit =
+    SearchHit(
+        id = id,
+        type = SearchHitType.TAG,
+        name = displayName(),
+        bookCount = bookCount,
         score = 1.0f,
     )

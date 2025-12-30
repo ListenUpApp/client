@@ -2,8 +2,10 @@ package com.calypsan.listenup.client.presentation.home
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
+import kotlinx.coroutines.flow.flowOf
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -48,12 +50,14 @@ class HomeViewModelTest {
 
     private class TestFixture {
         val homeRepository: HomeRepositoryContract = mock()
+        val lensDao: LensDao = mock()
         val userFlow = MutableStateFlow<UserEntity?>(null)
         var currentHour: Int = 10 // Default to morning
 
         fun build(): HomeViewModel =
             HomeViewModel(
                 homeRepository = homeRepository,
+                lensDao = lensDao,
                 currentHour = { currentHour },
             )
     }
@@ -64,6 +68,7 @@ class HomeViewModelTest {
         // Default stubs
         every { fixture.homeRepository.observeCurrentUser() } returns fixture.userFlow
         everySuspend { fixture.homeRepository.getContinueListening(any()) } returns Success(emptyList())
+        every { fixture.lensDao.observeMyLenses(any()) } returns flowOf(emptyList())
 
         return fixture
     }

@@ -230,3 +230,60 @@ data class RoleWithBookCount(
     val role: String,
     val bookCount: Int,
 )
+
+/**
+ * Cross-reference entity for the many-to-many relationship between Books and Tags.
+ *
+ * A book can have multiple tags, and a tag can be applied to multiple books.
+ *
+ * @property bookId Foreign key to the book
+ * @property tagId Foreign key to the tag
+ */
+@Entity(
+    tableName = "book_tags",
+    primaryKeys = ["bookId", "tagId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = BookEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["bookId"],
+            onDelete = ForeignKey.CASCADE, // If book is deleted, remove relation
+        ),
+        ForeignKey(
+            entity = TagEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["tagId"],
+            onDelete = ForeignKey.CASCADE, // If tag is deleted, remove relation
+        ),
+    ],
+    indices = [
+        Index(value = ["bookId"]),
+        Index(value = ["tagId"]),
+    ],
+)
+data class BookTagCrossRef(
+    val bookId: BookId,
+    val tagId: String,
+)
+
+/**
+ * Relation POJO for loading a book with all its tags in a single query.
+ *
+ * Uses Room's @Relation with Junction to handle the many-to-many relationship
+ * through the book_tags table.
+ */
+data class BookWithTags(
+    @Embedded val book: BookEntity,
+    @Relation(
+        entity = TagEntity::class,
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy =
+            Junction(
+                value = BookTagCrossRef::class,
+                parentColumn = "bookId",
+                entityColumn = "tagId",
+            ),
+    )
+    val tags: List<TagEntity>,
+)

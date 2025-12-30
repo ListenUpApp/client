@@ -10,8 +10,11 @@ import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
+import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.data.local.db.TagDao
+import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
@@ -102,6 +105,7 @@ class SSEEventProcessorTest {
         val bookSeriesDao: BookSeriesDao = mock()
         val collectionDao: CollectionDao = mock()
         val lensDao: LensDao = mock()
+        val tagDao: TagDao = mock()
         val imageDownloader: ImageDownloaderContract = mock()
         val playbackStateProvider: PlaybackStateProvider = mock()
         val downloadService: DownloadService = mock()
@@ -124,6 +128,10 @@ class SSEEventProcessorTest {
             everySuspend { lensDao.upsert(any<LensEntity>()) } returns Unit
             everySuspend { lensDao.deleteById(any()) } returns Unit
             everySuspend { lensDao.getById(any()) } returns null
+            everySuspend { tagDao.upsert(any<TagEntity>()) } returns Unit
+            everySuspend { tagDao.insertBookTag(any<BookTagCrossRef>()) } returns Unit
+            everySuspend { tagDao.deleteBookTag(any(), any()) } returns Unit
+            everySuspend { tagDao.getById(any()) } returns null
             everySuspend { imageDownloader.downloadCover(any()) } returns Result.Success(false)
 
             // PlaybackStateProvider stubs
@@ -152,6 +160,7 @@ class SSEEventProcessorTest {
                 bookSeriesDao = bookSeriesDao,
                 collectionDao = collectionDao,
                 lensDao = lensDao,
+                tagDao = tagDao,
                 imageDownloader = imageDownloader,
                 playbackStateProvider = playbackStateProvider,
                 downloadService = downloadService,

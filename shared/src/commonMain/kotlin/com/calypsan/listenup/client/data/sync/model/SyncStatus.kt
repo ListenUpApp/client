@@ -10,6 +10,7 @@ enum class SyncPhase {
     SYNCING_BOOKS,
     SYNCING_SERIES,
     SYNCING_CONTRIBUTORS,
+    SYNCING_TAGS,
     FINALIZING,
 }
 

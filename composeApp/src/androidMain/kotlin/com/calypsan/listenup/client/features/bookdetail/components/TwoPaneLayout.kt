@@ -85,6 +85,7 @@ fun TwoPaneBookDetail(
     onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
+    onTagClick: (tagId: String) -> Unit,
     onFindMetadataClick: () -> Unit = {},
     onMarkCompleteClick: () -> Unit = {},
     onAddToCollectionClick: () -> Unit = {},
@@ -131,6 +132,7 @@ fun TwoPaneBookDetail(
         TwoPaneRightPane(
             state = state,
             onSeriesClick = onSeriesClick,
+            onTagClick = onTagClick,
             modifier =
                 Modifier
                     .weight(1f)
@@ -349,6 +351,7 @@ private fun TwoPaneLeftPane(
 private fun TwoPaneRightPane(
     state: BookDetailUiState,
     onSeriesClick: (seriesId: String) -> Unit,
+    onTagClick: (tagId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
@@ -395,6 +398,7 @@ private fun TwoPaneRightPane(
                 TagsSection(
                     tags = state.tags,
                     isLoading = state.isLoadingTags,
+                    onTagClick = { tag -> onTagClick(tag.id) },
                 )
             }
         }

@@ -3,7 +3,11 @@ package com.calypsan.listenup.client.presentation.bookdetail
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
+import com.calypsan.listenup.client.data.local.db.TagDao
+import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
@@ -15,10 +19,13 @@ import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
+import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import dev.mokkery.verifySuspend
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -58,14 +65,18 @@ class BookDetailViewModelTest {
         val bookRepository: BookRepositoryContract = mock()
         val genreApi: GenreApiContract = mock()
         val tagApi: TagApiContract = mock()
+        val tagDao: TagDao = mock()
         val playbackPositionDao: PlaybackPositionDao = mock()
+        val userDao: UserDao = mock()
 
         fun build(): BookDetailViewModel =
             BookDetailViewModel(
                 bookRepository = bookRepository,
                 genreApi = genreApi,
                 tagApi = tagApi,
+                tagDao = tagDao,
                 playbackPositionDao = playbackPositionDao,
+                userDao = userDao,
             )
     }
 
@@ -75,8 +86,10 @@ class BookDetailViewModelTest {
         // Default stubs for genre and tag operations
         everySuspend { fixture.genreApi.getBookGenres(any()) } returns emptyList()
         everySuspend { fixture.tagApi.getBookTags(any()) } returns emptyList()
-        everySuspend { fixture.tagApi.getUserTags() } returns emptyList()
+        everySuspend { fixture.tagApi.listTags() } returns emptyList()
         everySuspend { fixture.playbackPositionDao.get(any()) } returns null
+        every { fixture.tagDao.observeTagsForBook(any()) } returns flowOf(emptyList())
+        every { fixture.userDao.observeCurrentUser() } returns flowOf(null)
 
         return fixture
     }
@@ -152,16 +165,12 @@ class BookDetailViewModelTest {
 
     private fun createTag(
         id: String = "tag-1",
-        name: String = "Favorites",
         slug: String = "favorites",
-        color: String? = "#FF5733",
         bookCount: Int = 5,
     ): Tag =
         Tag(
             id = id,
-            name = name,
             slug = slug,
-            color = color,
             bookCount = bookCount,
         )
 
@@ -539,12 +548,12 @@ class BookDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val book = createBook()
-            val bookTags = listOf(createTag(id = "tag-1", name = "Favorites"))
-            val userTags = listOf(createTag(id = "tag-1"), createTag(id = "tag-2", name = "To Read"))
+            val bookTags = listOf(createTag(id = "tag-1", slug = "favorites"))
+            val allTags = listOf(createTag(id = "tag-1", slug = "favorites"), createTag(id = "tag-2", slug = "to-read"))
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.tagApi.getBookTags(any()) } returns bookTags
-            everySuspend { fixture.tagApi.getUserTags() } returns userTags
+            everySuspend { fixture.tagApi.listTags() } returns allTags
             val viewModel = fixture.build()
 
             // When
@@ -556,9 +565,9 @@ class BookDetailViewModelTest {
             assertEquals(
                 "Favorites",
                 viewModel.state.value.tags[0]
-                    .name,
+                    .displayName(),
             )
-            assertEquals(2, viewModel.state.value.allUserTags.size)
+            assertEquals(2, viewModel.state.value.allTags.size)
         }
 
     @Test
@@ -567,19 +576,20 @@ class BookDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val book = createBook(id = "book-1")
+            val tag = createTag(id = "tag-1", slug = "favorites")
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.tagApi.addTagToBook(any(), any()) } returns Unit
+            everySuspend { fixture.tagApi.addTagToBook(any(), any()) } returns tag
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
 
-            // When
-            viewModel.addTag("tag-1")
+            // When - addTag now takes a slug
+            viewModel.addTag("favorites")
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.tagApi.addTagToBook("book-1", "tag-1") }
+            verifySuspend { fixture.tagApi.addTagToBook("book-1", "favorites") }
         }
 
     @Test
@@ -595,37 +605,35 @@ class BookDetailViewModelTest {
             viewModel.loadBook("book-1")
             advanceUntilIdle()
 
-            // When
-            viewModel.removeTag("tag-1")
+            // When - removeTag now takes a slug
+            viewModel.removeTag("favorites")
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.tagApi.removeTagFromBook("book-1", "tag-1") }
+            verifySuspend { fixture.tagApi.removeTagFromBook("book-1", "favorites") }
         }
 
     @Test
-    fun `createAndAddTag creates tag and adds to book`() =
+    fun `addNewTag adds tag to book`() =
         runTest {
             // Given
             val fixture = createFixture()
             val book = createBook(id = "book-1")
-            val newTag = createTag(id = "new-tag", name = "New Tag")
+            val newTag = createTag(id = "new-tag", slug = "new-tag")
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.tagApi.createTag(any(), any()) } returns newTag
-            everySuspend { fixture.tagApi.addTagToBook(any(), any()) } returns Unit
+            everySuspend { fixture.tagApi.addTagToBook(any(), any()) } returns newTag
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
             viewModel.showTagPicker()
 
-            // When
-            viewModel.createAndAddTag("New Tag")
+            // When - addNewTag sends raw input to API, server normalizes to slug
+            viewModel.addNewTag("New Tag")
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.tagApi.createTag("New Tag", null) }
-            verifySuspend { fixture.tagApi.addTagToBook("book-1", "new-tag") }
+            verifySuspend { fixture.tagApi.addTagToBook("book-1", "New Tag") }
             assertFalse(viewModel.state.value.showTagPicker) // Picker should close
         }
 

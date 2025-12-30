@@ -7,10 +7,13 @@ import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
+import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.data.local.db.TagDao
+import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
@@ -48,6 +51,7 @@ private fun parseTimestamp(isoString: String): Timestamp =
  * - ScanStarted/ScanCompleted: Log events
  * - Heartbeat: Connection keep-alive
  * - Collection events: Update local collection cache (admin-only)
+ * - Tag events: Update local tag cache and book-tag relationships
  */
 class SSEEventProcessor(
     private val bookDao: BookDao,
@@ -55,6 +59,7 @@ class SSEEventProcessor(
     private val bookSeriesDao: BookSeriesDao,
     private val collectionDao: CollectionDao,
     private val lensDao: LensDao,
+    private val tagDao: TagDao,
     private val imageDownloader: ImageDownloaderContract,
     private val playbackStateProvider: PlaybackStateProvider,
     private val downloadService: DownloadService,
@@ -139,6 +144,18 @@ class SSEEventProcessor(
 
                 is SSEEventType.LensBookRemoved -> {
                     handleLensBookRemoved(event)
+                }
+
+                is SSEEventType.TagCreated -> {
+                    handleTagCreated(event)
+                }
+
+                is SSEEventType.BookTagAdded -> {
+                    handleBookTagAdded(event)
+                }
+
+                is SSEEventType.BookTagRemoved -> {
+                    handleBookTagRemoved(event)
                 }
             }
         } catch (e: Exception) {
@@ -406,6 +423,73 @@ class SSEEventProcessor(
                     updatedAt = Timestamp.now(),
                 ),
             )
+        }
+    }
+
+    // ========== Tag Event Handlers ==========
+
+    private suspend fun handleTagCreated(event: SSEEventType.TagCreated) {
+        logger.debug { "SSE: Tag created - ${event.slug} (${event.id})" }
+        tagDao.upsert(
+            TagEntity(
+                id = event.id,
+                slug = event.slug,
+                bookCount = event.bookCount,
+                createdAt = Timestamp.now(),
+            ),
+        )
+    }
+
+    private suspend fun handleBookTagAdded(event: SSEEventType.BookTagAdded) {
+        logger.debug { "SSE: Tag ${event.tagSlug} added to book ${event.bookId}" }
+
+        // Ensure the tag exists locally (upsert with updated book count)
+        tagDao.upsert(
+            TagEntity(
+                id = event.tagId,
+                slug = event.tagSlug,
+                bookCount = event.tagBookCount,
+                createdAt = Timestamp.now(),
+            ),
+        )
+
+        // Add the book-tag relationship
+        tagDao.insertBookTag(
+            BookTagCrossRef(
+                bookId = BookId(event.bookId),
+                tagId = event.tagId,
+            ),
+        )
+
+        // Touch the book's updatedAt to trigger UI refresh
+        try {
+            bookDao.touchUpdatedAt(BookId(event.bookId), Timestamp.now())
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to touch book ${event.bookId} after tag added" }
+        }
+    }
+
+    private suspend fun handleBookTagRemoved(event: SSEEventType.BookTagRemoved) {
+        logger.debug { "SSE: Tag ${event.tagSlug} removed from book ${event.bookId}" }
+
+        // Remove the book-tag relationship
+        tagDao.deleteBookTag(BookId(event.bookId), event.tagId)
+
+        // Update the tag's book count
+        val existingTag = tagDao.getById(event.tagId)
+        if (existingTag != null) {
+            tagDao.upsert(
+                existingTag.copy(
+                    bookCount = event.tagBookCount,
+                ),
+            )
+        }
+
+        // Touch the book's updatedAt to trigger UI refresh
+        try {
+            bookDao.touchUpdatedAt(BookId(event.bookId), Timestamp.now())
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to touch book ${event.bookId} after tag removed" }
         }
     }
 }
