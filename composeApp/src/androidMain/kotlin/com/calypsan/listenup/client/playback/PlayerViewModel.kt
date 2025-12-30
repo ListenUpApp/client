@@ -2,6 +2,7 @@
 
 package com.calypsan.listenup.client.playback
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -141,7 +142,10 @@ class PlayerViewModel(
                                 MediaMetadata
                                     .Builder()
                                     .setTitle(prepareResult.bookTitle)
-                                    .setArtist(file.filename)
+                                    .setArtist(prepareResult.bookAuthor)
+                                    .setAlbumTitle(prepareResult.seriesName)
+                                    .setArtworkUri(prepareResult.coverPath?.let { Uri.parse("file://$it") })
+                                    .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
                                     .build(),
                             ).build()
                     }

@@ -2,20 +2,28 @@ package com.calypsan.listenup.client.playback
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +60,7 @@ private val logger = KotlinLogging.logger {}
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var player: ExoPlayer? = null
+    private var notificationProvider: AudiobookNotificationProvider? = null
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var idleJob: Job? = null
@@ -99,6 +108,13 @@ class PlaybackService : MediaSessionService() {
 
         initializePlayer()
         initializeMediaSession()
+        initializeNotificationProvider()
+
+        // Register callback for chapter changes to update notification
+        playbackManager.onChapterChanged = { chapterInfo ->
+            logger.debug { "Chapter changed: ${chapterInfo.title}" }
+            updateNotificationForChapter(chapterInfo)
+        }
     }
 
     private fun initializePlayer() {
@@ -120,10 +136,16 @@ class PlaybackService : MediaSessionService() {
             DefaultMediaSourceFactory(this)
                 .setDataSourceFactory(dataSourceFactory)
 
-        // Build ExoPlayer
+        // Create renderers factory with decoder fallback for better compatibility
+        val renderersFactory =
+            DefaultRenderersFactory(this)
+                .setEnableDecoderFallback(true)
+
+        // Build ExoPlayer with audiobook-optimized settings
         player =
             ExoPlayer
                 .Builder(this)
+                .setRenderersFactory(renderersFactory)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .setAudioAttributes(
                     AudioAttributes
@@ -133,13 +155,32 @@ class PlaybackService : MediaSessionService() {
                         .build(),
                     // handleAudioFocus =
                     true,
-                ).setHandleAudioBecomingNoisy(true) // Pause when headphones unplugged
+                )
+                .setHandleAudioBecomingNoisy(true) // Pause when headphones unplugged
+                .setWakeMode(C.WAKE_MODE_LOCAL) // Keep CPU awake during playback
                 .build()
                 .apply {
                     addListener(PlayerListener())
+
+                    // Enable audio offload for battery savings during long listening sessions
+                    // DSP-based decoding while CPU sleeps
+                    val audioOffloadPreferences =
+                        TrackSelectionParameters.AudioOffloadPreferences
+                            .Builder()
+                            .setAudioOffloadMode(
+                                TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED,
+                            )
+                            .setIsGaplessSupportRequired(true)
+                            .build()
+
+                    trackSelectionParameters =
+                        trackSelectionParameters
+                            .buildUpon()
+                            .setAudioOffloadPreferences(audioOffloadPreferences)
+                            .build()
                 }
 
-        logger.info { "ExoPlayer initialized" }
+        logger.info { "ExoPlayer initialized with audio offload enabled" }
     }
 
     private fun initializeMediaSession() {
@@ -157,9 +198,66 @@ class PlaybackService : MediaSessionService() {
         if (sessionIntent != null) {
             builder.setSessionActivity(sessionIntent)
         }
+
+        // Add callback for custom commands (chapter skip, 30s skip)
+        builder.setCallback(MediaSessionCallback())
+
         mediaSession = builder.build()
 
         logger.info { "MediaSession initialized" }
+    }
+
+    private fun initializeNotificationProvider() {
+        notificationProvider = AudiobookNotificationProvider(this, playbackManager)
+        setMediaNotificationProvider(notificationProvider!!)
+        logger.info { "Notification provider initialized" }
+    }
+
+    /**
+     * Update the notification when chapter changes.
+     *
+     * We update the MediaMetadata subtitle to reflect the new chapter info,
+     * which triggers Media3 to rebuild the notification.
+     */
+    private fun updateNotificationForChapter(chapterInfo: PlaybackManager.ChapterInfo) {
+        val session = mediaSession ?: return
+        val player = player ?: return
+
+        // Build chapter subtitle
+        val chapterText =
+            if (chapterInfo.isGenericTitle) {
+                "Chapter ${chapterInfo.index + 1} of ${chapterInfo.totalChapters}"
+            } else {
+                chapterInfo.title
+            }
+
+        val timeRemaining = formatDuration(chapterInfo.remainingMs)
+        val subtitle = "$chapterText • $timeRemaining left"
+
+        // Update current media item metadata with chapter info as subtitle
+        val currentMetadata = player.mediaMetadata
+        val updatedMetadata =
+            MediaMetadata
+                .Builder()
+                .populate(currentMetadata)
+                .setSubtitle(subtitle)
+                .build()
+
+        // Notify session of metadata change to trigger notification update
+        session.setSessionExtras(Bundle().apply { putString("chapter_subtitle", subtitle) })
+
+        logger.debug { "Updated notification: $subtitle" }
+    }
+
+    private fun formatDuration(ms: Long): String {
+        val totalMinutes = ms / 60_000
+        val hours = totalMinutes / 60
+        val minutes = totalMinutes % 60
+        return when {
+            hours > 0 -> "${hours}h ${minutes}m"
+            minutes > 0 -> "${minutes}m"
+            else -> "< 1m"
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
@@ -182,12 +280,16 @@ class PlaybackService : MediaSessionService() {
         idleJob?.cancel()
         positionUpdateJob?.cancel()
 
+        // Clear chapter change callback to avoid memory leaks
+        playbackManager.onChapterChanged = null
+
         mediaSession?.run {
             player.release()
             release()
             mediaSession = null
         }
         player = null
+        notificationProvider = null
 
         serviceScope.cancel()
         super.onDestroy()
@@ -345,6 +447,178 @@ class PlaybackService : MediaSessionService() {
             reason: Int,
         ) {
             logger.debug { "Media item transition: ${mediaItem?.mediaId}, reason: $reason" }
+        }
+    }
+
+    /**
+     * MediaSession callback for handling custom commands and playback resumption.
+     *
+     * Handles audiobook-specific commands:
+     * - Skip back/forward 30 seconds
+     * - Previous/next chapter
+     * - Playback resumption (Android Auto, Wear OS, system notifications)
+     */
+    private inner class MediaSessionCallback : MediaSession.Callback {
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): MediaSession.ConnectionResult {
+            // Add custom commands to the session
+            val customCommands =
+                AudiobookNotificationProvider.getCustomCommands().map { command ->
+                    command
+                }
+
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
+                        .buildUpon()
+                        .apply { customCommands.forEach { add(it) } }
+                        .build(),
+                )
+                .build()
+        }
+
+        /**
+         * Handle playback resumption from system UI.
+         *
+         * Called when user taps "Resume ListenUp" from Android Auto, Wear OS,
+         * or system notifications after device reboot.
+         */
+        override fun onPlaybackResumption(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            logger.info { "Playback resumption requested" }
+
+            return Futures.submitAsync(
+                {
+                    // Get the last played book from ProgressTracker
+                    val lastPlayed = kotlinx.coroutines.runBlocking {
+                        progressTracker.getLastPlayedBook()
+                    }
+
+                    if (lastPlayed == null) {
+                        logger.warn { "No last played book found for resumption" }
+                        return@submitAsync Futures.immediateFailedFuture<MediaSession.MediaItemsWithStartPosition>(
+                            IllegalStateException("No book to resume"),
+                        )
+                    }
+
+                    logger.info { "Resuming book: ${lastPlayed.bookId.value} at ${lastPlayed.positionMs}ms" }
+
+                    // Prepare playback for the book
+                    val prepareResult = kotlinx.coroutines.runBlocking {
+                        playbackManager.prepareForPlayback(lastPlayed.bookId)
+                    }
+
+                    if (prepareResult == null) {
+                        logger.error { "Failed to prepare book for resumption" }
+                        return@submitAsync Futures.immediateFailedFuture<MediaSession.MediaItemsWithStartPosition>(
+                            IllegalStateException("Failed to prepare book"),
+                        )
+                    }
+
+                    // Build MediaItems from timeline
+                    val mediaItems = prepareResult.timeline.files.map { file ->
+                        MediaItem
+                            .Builder()
+                            .setMediaId(file.audioFileId)
+                            .setUri(file.streamingUrl)
+                            .setMediaMetadata(
+                                MediaMetadata
+                                    .Builder()
+                                    .setTitle(prepareResult.bookTitle)
+                                    .setArtist(prepareResult.bookAuthor)
+                                    .setAlbumTitle(prepareResult.seriesName)
+                                    .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
+                                    .build(),
+                            ).build()
+                    }
+
+                    // Resolve start position
+                    val startPosition = prepareResult.timeline.resolve(prepareResult.resumePositionMs)
+
+                    Futures.immediateFuture(
+                        MediaSession.MediaItemsWithStartPosition(
+                            mediaItems,
+                            startPosition.mediaItemIndex,
+                            startPosition.positionInFileMs,
+                        ),
+                    )
+                },
+                java.util.concurrent.Executors.newSingleThreadExecutor(),
+            )
+        }
+
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle,
+        ): ListenableFuture<SessionResult> {
+            val player = player ?: return Futures.immediateFuture(
+                SessionResult(SessionResult.RESULT_ERROR_UNKNOWN),
+            )
+            val chapters = playbackManager.chapters.value
+            val currentChapter = playbackManager.currentChapter.value
+            val timeline = playbackManager.currentTimeline.value
+
+            when (customCommand.customAction) {
+                AudiobookNotificationProvider.COMMAND_SKIP_BACK_30 -> {
+                    // Get book-relative position, subtract 30s, seek
+                    val currentBookPosition = getBookRelativePosition()
+                    val newPosition = (currentBookPosition - 30_000).coerceAtLeast(0)
+
+                    // Resolve new position to mediaItemIndex and filePosition
+                    if (timeline != null) {
+                        val resolved = timeline.resolve(newPosition)
+                        player.seekTo(resolved.mediaItemIndex, resolved.positionInFileMs)
+                    } else {
+                        // Fallback to simple seek within current file
+                        val newFilePosition = (player.currentPosition - 30_000).coerceAtLeast(0)
+                        player.seekTo(newFilePosition)
+                    }
+                    logger.debug { "Skip back 30s: $currentBookPosition -> $newPosition" }
+                }
+
+                AudiobookNotificationProvider.COMMAND_SKIP_FORWARD_30 -> {
+                    val currentBookPosition = getBookRelativePosition()
+                    val maxPosition = timeline?.totalDurationMs ?: player.duration
+                    val newPosition = (currentBookPosition + 30_000).coerceAtMost(maxPosition)
+
+                    if (timeline != null) {
+                        val resolved = timeline.resolve(newPosition)
+                        player.seekTo(resolved.mediaItemIndex, resolved.positionInFileMs)
+                    } else {
+                        val newFilePosition = (player.currentPosition + 30_000).coerceAtMost(player.duration)
+                        player.seekTo(newFilePosition)
+                    }
+                    logger.debug { "Skip forward 30s: $currentBookPosition -> $newPosition" }
+                }
+
+                AudiobookNotificationProvider.COMMAND_PREV_CHAPTER -> {
+                    if (currentChapter != null && chapters.isNotEmpty() && timeline != null) {
+                        val prevIndex = (currentChapter.index - 1).coerceAtLeast(0)
+                        val prevChapter = chapters[prevIndex]
+                        val resolved = timeline.resolve(prevChapter.startTime)
+                        player.seekTo(resolved.mediaItemIndex, resolved.positionInFileMs)
+                        logger.debug { "Previous chapter: ${prevIndex + 1} of ${chapters.size}" }
+                    }
+                }
+
+                AudiobookNotificationProvider.COMMAND_NEXT_CHAPTER -> {
+                    if (currentChapter != null && chapters.isNotEmpty() && timeline != null) {
+                        val nextIndex = (currentChapter.index + 1).coerceAtMost(chapters.size - 1)
+                        val nextChapter = chapters[nextIndex]
+                        val resolved = timeline.resolve(nextChapter.startTime)
+                        player.seekTo(resolved.mediaItemIndex, resolved.positionInFileMs)
+                        logger.debug { "Next chapter: ${nextIndex + 1} of ${chapters.size}" }
+                    }
+                }
+            }
+
+            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
     }
 }

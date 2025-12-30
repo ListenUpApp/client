@@ -97,6 +97,8 @@ val iosPlaybackModule: Module =
             PlaybackManager(
                 settingsRepository = get(),
                 bookDao = get(),
+                chapterDao = get(),
+                imageStorage = get(),
                 progressTracker = get(),
                 tokenProvider = get(),
                 downloadService = get(),
