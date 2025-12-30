@@ -21,6 +21,7 @@ import androidx.room.TypeConverters
  * - v11: Added publisher, language, isbn, asin, abridged columns to books table
  * - v12: Added website, birthDate, deathDate, aliases columns to contributors; creditedAs to book_contributors
  * - v13: Added servers table for multi-server support with per-server auth tokens
+ * - v17: Added collections table for admin collection management
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -39,8 +40,9 @@ import androidx.room.TypeConverters
         PendingOperationEntity::class,
         DownloadEntity::class,
         ServerEntity::class,
+        CollectionEntity::class,
     ],
-    version = 16,
+    version = 17,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)
@@ -71,6 +73,8 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun searchDao(): SearchDao
 
     abstract fun serverDao(): ServerDao
+
+    abstract fun collectionDao(): CollectionDao
 }
 
 /**

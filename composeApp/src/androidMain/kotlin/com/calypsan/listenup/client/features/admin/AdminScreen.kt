@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -74,6 +75,7 @@ fun AdminScreen(
     viewModel: AdminViewModel,
     onBackClick: () -> Unit,
     onInviteClick: () -> Unit,
+    onCollectionsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -123,6 +125,7 @@ fun AdminScreen(
                 },
                 onRevokeInviteClick = { inviteToRevoke = it },
                 onInviteClick = onInviteClick,
+                onCollectionsClick = onCollectionsClick,
                 modifier = Modifier.padding(innerPadding),
             )
         }
@@ -195,6 +198,7 @@ private fun AdminContent(
     onCopyInviteClick: (AdminInvite) -> Unit,
     onRevokeInviteClick: (AdminInvite) -> Unit,
     onInviteClick: () -> Unit,
+    onCollectionsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -376,6 +380,12 @@ private fun AdminContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             InviteSomeoneCard(onClick = onInviteClick)
+        }
+
+        // Collections button
+        item {
+            Spacer(modifier = Modifier.height(12.dp))
+            CollectionsCard(onClick = onCollectionsClick)
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
@@ -719,6 +729,49 @@ private fun InviteSomeoneCard(
                     text = "Share your audiobook library with others",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CollectionsCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Folder,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Collections",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = "Organize books into collections for access control",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
                 )
             }
         }

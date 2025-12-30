@@ -5,13 +5,18 @@ import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.AdminInvite
 import com.calypsan.listenup.client.data.remote.AdminUser
 import com.calypsan.listenup.client.data.remote.InstanceApiContract
+import com.calypsan.listenup.client.data.sync.SSEEventType
+import com.calypsan.listenup.client.data.sync.SSEManagerContract
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.model.InstanceId
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
+import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.mock
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -54,6 +59,13 @@ class AdminViewModelTest {
         val adminApi: AdminApiContract = mock()
         everySuspend { adminApi.getPendingUsers() } returns emptyList()
         return adminApi
+    }
+
+    private fun createMockSSEManager(): SSEManagerContract {
+        val sseManager: SSEManagerContract = mock()
+        val eventFlow = MutableSharedFlow<SSEEventType>()
+        every { sseManager.eventFlow } returns eventFlow
+        return sseManager
     }
 
     private fun createUser(
@@ -108,7 +120,7 @@ class AdminViewModelTest {
             everySuspend { adminApi.getUsers() } returns emptyList()
             everySuspend { adminApi.getInvites() } returns emptyList()
 
-            val viewModel = AdminViewModel(adminApi, instanceApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
 
             assertTrue(viewModel.state.value.isLoading)
         }
@@ -123,7 +135,7 @@ class AdminViewModelTest {
             everySuspend { adminApi.getUsers() } returns users
             everySuspend { adminApi.getInvites() } returns invites
 
-            val viewModel = AdminViewModel(adminApi, instanceApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
@@ -144,7 +156,7 @@ class AdminViewModelTest {
             everySuspend { adminApi.getUsers() } returns emptyList()
             everySuspend { adminApi.getInvites() } returns invites
 
-            val viewModel = AdminViewModel(adminApi, instanceApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
             advanceUntilIdle()
 
             assertEquals(1, viewModel.state.value.pendingInvites.size)
@@ -163,7 +175,7 @@ class AdminViewModelTest {
             everySuspend { adminApi.getUsers() } throws RuntimeException("Network error")
             everySuspend { adminApi.getInvites() } returns emptyList()
 
-            val viewModel = AdminViewModel(adminApi, instanceApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
@@ -183,7 +195,7 @@ class AdminViewModelTest {
             everySuspend { adminApi.getInvites() } returns emptyList()
             everySuspend { adminApi.deleteUser("user-1") } returns Unit
 
-            val viewModel = AdminViewModel(adminApi, instanceApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
             advanceUntilIdle()
             assertEquals(2, viewModel.state.value.users.size)
 
@@ -208,7 +220,7 @@ class AdminViewModelTest {
             everySuspend { adminApi.getInvites() } returns invites
             everySuspend { adminApi.deleteInvite("invite-1") } returns Unit
 
-            val viewModel = AdminViewModel(adminApi, instanceApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
             advanceUntilIdle()
 
             viewModel.revokeInvite("invite-1")
@@ -230,7 +242,7 @@ class AdminViewModelTest {
             everySuspend { adminApi.getUsers() } throws RuntimeException("Error")
             everySuspend { adminApi.getInvites() } returns emptyList()
 
-            val viewModel = AdminViewModel(adminApi, instanceApi)
+            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
             advanceUntilIdle()
             assertTrue(viewModel.state.value.error != null)
 

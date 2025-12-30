@@ -392,3 +392,68 @@ data class SSEUserData(
     @SerialName("updated_at")
     val updatedAt: String? = null,
 )
+
+// Collection SSE events (admin-only)
+
+/**
+ * SSE collection created event data.
+ */
+@Serializable
+data class SSECollectionCreatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+)
+
+/**
+ * SSE collection updated event data.
+ */
+@Serializable
+data class SSECollectionUpdatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+)
+
+/**
+ * SSE collection deleted event data.
+ */
+@Serializable
+data class SSECollectionDeletedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("name")
+    val name: String,
+)
+
+/**
+ * SSE collection book added event data.
+ */
+@Serializable
+data class SSECollectionBookAddedEvent(
+    @SerialName("collection_id")
+    val collectionId: String,
+    @SerialName("collection_name")
+    val collectionName: String,
+    @SerialName("book_id")
+    val bookId: String,
+)
+
+/**
+ * SSE collection book removed event data.
+ */
+@Serializable
+data class SSECollectionBookRemovedEvent(
+    @SerialName("collection_id")
+    val collectionId: String,
+    @SerialName("collection_name")
+    val collectionName: String,
+    @SerialName("book_id")
+    val bookId: String,
+)

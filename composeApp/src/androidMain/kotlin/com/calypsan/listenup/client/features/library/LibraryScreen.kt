@@ -1,5 +1,11 @@
 package com.calypsan.listenup.client.features.library
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
@@ -9,17 +15,25 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.features.library.components.AuthorsContent
 import com.calypsan.listenup.client.features.library.components.BooksContent
 import com.calypsan.listenup.client.features.library.components.LibraryTabRow
 import com.calypsan.listenup.client.features.library.components.NarratorsContent
+import com.calypsan.listenup.client.features.library.components.SelectionToolbar
 import com.calypsan.listenup.client.features.library.components.SeriesContent
+import com.calypsan.listenup.client.presentation.library.LibraryEvent
 import com.calypsan.listenup.client.presentation.library.LibraryUiEvent
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
+import com.calypsan.listenup.client.presentation.library.SelectionMode
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -55,6 +69,8 @@ fun LibraryScreen(
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = koinViewModel(),
 ) {
+    val context = LocalContext.current
+
     // Trigger intelligent auto-sync when screen becomes visible (only once)
     LaunchedEffect(Unit) {
         viewModel.onScreenVisible()
@@ -76,11 +92,53 @@ fun LibraryScreen(
     val narratorsSortState by viewModel.narratorsSortState.collectAsStateWithLifecycle()
     val ignoreTitleArticles by viewModel.ignoreTitleArticles.collectAsStateWithLifecycle()
 
+    // Selection mode state
+    val selectionMode by viewModel.selectionMode.collectAsStateWithLifecycle()
+    val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
+    val collections by viewModel.collections.collectAsStateWithLifecycle()
+    val isAddingToCollection by viewModel.isAddingToCollection.collectAsStateWithLifecycle()
+
+    // Derive selection state
+    val isInSelectionMode = selectionMode is SelectionMode.Active
+    val selectedBookIds = (selectionMode as? SelectionMode.Active)?.selectedIds ?: emptySet()
+
+    // Collection picker sheet state
+    var showCollectionPicker by remember { mutableStateOf(false) }
+
+    // Handle back press to exit selection mode
+    BackHandler(enabled = isInSelectionMode) {
+        viewModel.exitSelectionMode()
+    }
+
+    // Handle events (toast feedback)
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is LibraryEvent.BooksAddedToCollection -> {
+                    showCollectionPicker = false
+                    Toast.makeText(
+                        context,
+                        if (event.count == 1) "1 book added to collection" else "${event.count} books added to collection",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                is LibraryEvent.AddToCollectionFailed -> {
+                    Toast.makeText(
+                        context,
+                        "Failed to add: ${event.message}",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }
+    }
+
     // Pager state for tab switching
     val pagerState = rememberPagerState(pageCount = { LibraryTab.entries.size })
     val scope = rememberCoroutineScope()
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
         // Tab row - collapses icons when top bar collapses
         LibraryTabRow(
             selectedTabIndex = pagerState.currentPage,
@@ -112,6 +170,9 @@ fun LibraryScreen(
                             sortState = booksSortState,
                             ignoreTitleArticles = ignoreTitleArticles,
                             bookProgress = bookProgress,
+                            isInSelectionMode = isInSelectionMode,
+                            selectedBookIds = selectedBookIds,
+                            isAdmin = isAdmin,
                             onCategorySelected = { category ->
                                 viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
                             },
@@ -121,7 +182,16 @@ fun LibraryScreen(
                             onToggleIgnoreArticles = {
                                 viewModel.onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
                             },
-                            onBookClick = onBookClick,
+                            onBookClick = { bookId ->
+                                if (isInSelectionMode) {
+                                    viewModel.toggleBookSelection(bookId)
+                                } else {
+                                    onBookClick(bookId)
+                                }
+                            },
+                            onBookLongPress = { bookId ->
+                                viewModel.enterSelectionMode(bookId)
+                            },
                             onRetry = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
                         )
                     }
@@ -170,5 +240,33 @@ fun LibraryScreen(
                 }
             }
         }
+        }
+
+        // Selection toolbar (overlays at top)
+        AnimatedVisibility(
+            visible = isInSelectionMode,
+            enter = slideInVertically { -it },
+            exit = slideOutVertically { -it },
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
+            SelectionToolbar(
+                selectedCount = selectedBookIds.size,
+                onAddToCollection = { showCollectionPicker = true },
+                onClose = { viewModel.exitSelectionMode() },
+            )
+        }
+    }
+
+    // Collection picker sheet
+    if (showCollectionPicker) {
+        CollectionPickerSheet(
+            collections = collections,
+            selectedBookCount = selectedBookIds.size,
+            onCollectionSelected = { collectionId ->
+                viewModel.addSelectedToCollection(collectionId)
+            },
+            onDismiss = { showCollectionPicker = false },
+            isLoading = isAddingToCollection,
+        )
     }
 }

@@ -578,6 +578,9 @@ private fun AuthenticatedNavigation(
                                 onInviteClick = {
                                     backStack.add(CreateInvite)
                                 },
+                                onCollectionsClick = {
+                                    backStack.add(AdminCollections)
+                                },
                             )
                         }
                         entry<CreateInvite> {
@@ -588,6 +591,31 @@ private fun AuthenticatedNavigation(
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                                 onSuccess = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<AdminCollections> {
+                            val viewModel: com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel =
+                                koinInject()
+                            com.calypsan.listenup.client.features.admin.collections.AdminCollectionsScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onCollectionClick = { collectionId ->
+                                    backStack.add(AdminCollectionDetail(collectionId))
+                                },
+                            )
+                        }
+                        entry<AdminCollectionDetail> { args ->
+                            val viewModel: com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel =
+                                koinInject {
+                                    org.koin.core.parameter.parametersOf(args.collectionId)
+                                }
+                            com.calypsan.listenup.client.features.admin.collections.AdminCollectionDetailScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                             )

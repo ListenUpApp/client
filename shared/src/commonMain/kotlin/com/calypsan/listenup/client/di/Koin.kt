@@ -7,6 +7,8 @@ import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.AdminApi
 import com.calypsan.listenup.client.data.remote.AdminApiContract
+import com.calypsan.listenup.client.data.remote.AdminCollectionApi
+import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.AuthApiContract
@@ -100,6 +102,7 @@ import com.calypsan.listenup.client.data.sync.push.SetBookSeriesHandler
 import com.calypsan.listenup.client.data.sync.push.UnmergeContributorHandler
 import com.calypsan.listenup.client.data.sync.push.UserPreferencesHandler
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
+import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
@@ -245,6 +248,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().downloadDao() }
         single { get<ListenUpDatabase>().searchDao() }
         single { get<ListenUpDatabase>().serverDao() }
+        single { get<ListenUpDatabase>().collectionDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
         // When active server's URL changes via mDNS rediscovery, updates SettingsRepository
@@ -340,6 +344,22 @@ val presentationModule =
         // Admin ViewModels
         factory { AdminViewModel(adminApi = get(), instanceApi = get(), sseManager = get()) }
         factory { CreateInviteViewModel(adminApi = get()) }
+        factory {
+            com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel(
+                collectionDao = get(),
+                adminCollectionApi = get(),
+            )
+        }
+        // AdminCollectionDetailViewModel - takes collectionId as parameter
+        factory { params ->
+            com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel(
+                collectionId = params.get<String>(0),
+                collectionDao = get(),
+                adminCollectionApi = get(),
+                adminApi = get(),
+                userDao = get(),
+            )
+        }
         // LibraryViewModel as singleton for preloading - starts loading Room data
         // immediately when injected at AppShell level, making Library instant
         single {
@@ -351,6 +371,9 @@ val presentationModule =
                 settingsRepository = get(),
                 syncDao = get(),
                 playbackPositionDao = get(),
+                userDao = get(),
+                collectionDao = get(),
+                adminCollectionApi = get(),
             )
         }
         factory {
@@ -359,6 +382,7 @@ val presentationModule =
                 genreApi = get(),
                 tagApi = get(),
                 playbackPositionDao = get(),
+                userDao = get(),
             )
         }
         factory {
@@ -536,6 +560,11 @@ val syncModule =
             MetadataRepository(metadataApi = get())
         } bind MetadataRepositoryContract::class
 
+        // AdminCollectionApi for admin collection operations
+        single {
+            AdminCollectionApi(clientFactory = get())
+        } bind AdminCollectionApiContract::class
+
         // UserPreferencesApi for syncing user preferences across devices
         single {
             UserPreferencesApi(clientFactory = get())
@@ -571,7 +600,10 @@ val syncModule =
                 bookDao = get(),
                 bookContributorDao = get(),
                 bookSeriesDao = get(),
+                collectionDao = get(),
                 imageDownloader = get(),
+                playbackStateProvider = get<PlaybackManager>(),
+                downloadService = get(),
                 scope =
                     get(
                         qualifier =

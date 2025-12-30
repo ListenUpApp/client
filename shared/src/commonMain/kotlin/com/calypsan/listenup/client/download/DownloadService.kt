@@ -48,4 +48,16 @@ interface DownloadService {
      * @return Result indicating success, failure reason, or if already downloaded
      */
     suspend fun downloadBook(bookId: BookId): DownloadResult
+
+    /**
+     * Cancel active download for a book.
+     * Called when book access is revoked or user cancels download.
+     */
+    suspend fun cancelDownload(bookId: BookId)
+
+    /**
+     * Delete downloaded files for a book.
+     * Called when book is deleted (access revoked) to clean up local storage.
+     */
+    suspend fun deleteDownload(bookId: BookId)
 }

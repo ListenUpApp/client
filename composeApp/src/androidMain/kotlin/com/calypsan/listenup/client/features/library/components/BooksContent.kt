@@ -187,10 +187,14 @@ private fun ArticleToggleChip(
  * @param sortState Current sort state (category + direction)
  * @param ignoreTitleArticles Whether to ignore articles (A, An, The) when sorting by title
  * @param bookProgress Map of bookId to progress (0.0-1.0) for in-progress books
+ * @param isInSelectionMode Whether multi-select mode is active
+ * @param selectedBookIds Set of currently selected book IDs
+ * @param isAdmin Whether the current user is an admin (can use multi-select)
  * @param onCategorySelected Called when user selects a new category
  * @param onDirectionToggle Called when user toggles sort direction
  * @param onToggleIgnoreArticles Called when user toggles article handling
- * @param onBookClick Callback when a book is clicked
+ * @param onBookClick Callback when a book is clicked (navigates or toggles selection)
+ * @param onBookLongPress Callback when a book is long-pressed (enters selection mode for admins)
  * @param onRetry Callback when retry is clicked in error state
  * @param modifier Optional modifier
  */
@@ -203,10 +207,14 @@ fun BooksContent(
     sortState: SortState,
     ignoreTitleArticles: Boolean,
     bookProgress: Map<String, Float>,
+    isInSelectionMode: Boolean = false,
+    selectedBookIds: Set<String> = emptySet(),
+    isAdmin: Boolean = false,
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
     onToggleIgnoreArticles: () -> Unit,
     onBookClick: (String) -> Unit,
+    onBookLongPress: ((String) -> Unit)? = null,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -239,10 +247,14 @@ fun BooksContent(
                     sortState = sortState,
                     ignoreTitleArticles = ignoreTitleArticles,
                     bookProgress = bookProgress,
+                    isInSelectionMode = isInSelectionMode,
+                    selectedBookIds = selectedBookIds,
+                    isAdmin = isAdmin,
                     onCategorySelected = onCategorySelected,
                     onDirectionToggle = onDirectionToggle,
                     onToggleIgnoreArticles = onToggleIgnoreArticles,
                     onBookClick = onBookClick,
+                    onBookLongPress = onBookLongPress,
                 )
             }
         }
@@ -252,17 +264,21 @@ fun BooksContent(
 /**
  * Grid of book cards with sort split button and alphabet scrollbar.
  */
-@Suppress("LongMethod", "CognitiveComplexMethod")
+@Suppress("LongMethod", "CognitiveComplexMethod", "LongParameterList")
 @Composable
 private fun BookGrid(
     books: List<Book>,
     sortState: SortState,
     ignoreTitleArticles: Boolean,
     bookProgress: Map<String, Float>,
+    isInSelectionMode: Boolean,
+    selectedBookIds: Set<String>,
+    isAdmin: Boolean,
     onCategorySelected: (SortCategory) -> Unit,
     onDirectionToggle: () -> Unit,
     onToggleIgnoreArticles: () -> Unit,
     onBookClick: (String) -> Unit,
+    onBookLongPress: ((String) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
@@ -356,10 +372,18 @@ private fun BookGrid(
                     }
 
                     is BookGridItem.BookItem -> {
+                        val bookId = gridItem.book.id.value
                         BookCard(
                             book = gridItem.book,
-                            onClick = { onBookClick(gridItem.book.id.value) },
-                            progress = bookProgress[gridItem.book.id.value],
+                            onClick = { onBookClick(bookId) },
+                            progress = bookProgress[bookId],
+                            isInSelectionMode = isInSelectionMode,
+                            isSelected = bookId in selectedBookIds,
+                            onLongPress = if (isAdmin) {
+                                { onBookLongPress?.invoke(bookId) }
+                            } else {
+                                null
+                            },
                             modifier = Modifier.animateItem(),
                         )
                     }

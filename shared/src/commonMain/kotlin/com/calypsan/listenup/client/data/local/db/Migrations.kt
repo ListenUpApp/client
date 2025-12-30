@@ -658,3 +658,32 @@ val MIGRATION_15_16 =
             )
         }
     }
+
+/**
+ * Migration from version 16 to version 17.
+ *
+ * Changes:
+ * - Add collections table for admin collection management
+ *
+ * Collections are admin-only features that allow grouping books
+ * for organizational purposes.
+ */
+val MIGRATION_16_17 =
+    object : Migration(16, 17) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create collections table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS collections (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    name TEXT NOT NULL,
+                    bookCount INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    syncState INTEGER NOT NULL DEFAULT 0,
+                    serverVersion INTEGER NOT NULL DEFAULT 0
+                )
+                """.trimIndent(),
+            )
+        }
+    }

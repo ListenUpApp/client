@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
+import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
@@ -26,9 +27,19 @@ class BookDetailViewModel(
     private val genreApi: GenreApiContract,
     private val tagApi: TagApiContract,
     private val playbackPositionDao: PlaybackPositionDao,
+    private val userDao: UserDao,
 ) : ViewModel() {
     val state: StateFlow<BookDetailUiState>
         field = MutableStateFlow(BookDetailUiState())
+
+    init {
+        // Observe admin status
+        viewModelScope.launch {
+            userDao.observeCurrentUser().collect { user ->
+                state.update { it.copy(isAdmin = user?.isRoot == true) }
+            }
+        }
+    }
 
     fun loadBook(bookId: String) {
         viewModelScope.launch {
@@ -223,6 +234,8 @@ data class BookDetailUiState(
     val isLoading: Boolean = true,
     val book: Book? = null,
     val error: String? = null,
+    val isAdmin: Boolean = false,
+    val isComplete: Boolean = false,
     // Extended metadata for UI prototype (now in DB)
     val subtitle: String? = null,
     val series: String? = null,

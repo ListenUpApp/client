@@ -235,6 +235,27 @@ data object Admin : Route
 data object CreateInvite : Route
 
 /**
+ * Admin collections screen - manage collections.
+ *
+ * Shows list of collections with create/delete functionality.
+ * Only accessible to admin users (root or role=admin).
+ */
+@Serializable
+data object AdminCollections : Route
+
+/**
+ * Admin collection detail screen - view and edit a collection.
+ *
+ * Shows collection details, allows name editing, and displays books.
+ *
+ * @property collectionId The unique ID of the collection to display.
+ */
+@Serializable
+data class AdminCollectionDetail(
+    val collectionId: String,
+) : Route
+
+/**
  * Settings screen - app preferences and configuration.
  */
 @Serializable

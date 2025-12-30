@@ -85,6 +85,9 @@ fun TwoPaneBookDetail(
     onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
+    onFindMetadataClick: () -> Unit = {},
+    onMarkCompleteClick: () -> Unit = {},
+    onAddToCollectionClick: () -> Unit = {},
 ) {
     val coverColors =
         rememberCoverColors(
@@ -115,6 +118,9 @@ fun TwoPaneBookDetail(
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
             onContributorClick = onContributorClick,
+            onFindMetadataClick = onFindMetadataClick,
+            onMarkCompleteClick = onMarkCompleteClick,
+            onAddToCollectionClick = onAddToCollectionClick,
             modifier =
                 Modifier
                     .width(400.dp)
@@ -154,6 +160,9 @@ private fun TwoPaneLeftPane(
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
+    onFindMetadataClick: () -> Unit,
+    onMarkCompleteClick: () -> Unit,
+    onAddToCollectionClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -218,7 +227,8 @@ private fun TwoPaneLeftPane(
                     )
                 }
 
-                // Three-dot menu
+                // Three-dot menu (matching phone HeroSection)
+                var showMenu by remember { mutableStateOf(false) }
                 Box {
                     IconButton(
                         onClick = { showMenu = true },

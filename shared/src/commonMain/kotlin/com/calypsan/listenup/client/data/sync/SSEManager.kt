@@ -3,6 +3,11 @@ package com.calypsan.listenup.client.data.sync
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.model.SSEBookDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookEvent
+import com.calypsan.listenup.client.data.remote.model.SSECollectionBookAddedEvent
+import com.calypsan.listenup.client.data.remote.model.SSECollectionBookRemovedEvent
+import com.calypsan.listenup.client.data.remote.model.SSECollectionCreatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSECollectionDeletedEvent
+import com.calypsan.listenup.client.data.remote.model.SSECollectionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
@@ -31,7 +36,7 @@ private val logger = KotlinLogging.logger {}
  * Manages Server-Sent Events (SSE) connection for real-time library updates.
  *
  * SSE Connection Lifecycle:
- * 1. connect() opens SSE stream to GET /api/v1/sync/stream
+ * 1. connect() opens SSE stream to GET /api/v1/sync/events
  * 2. Parses incoming SSE events and emits to eventFlow
  * 3. Automatically reconnects on connection loss (exponential backoff)
  * 4. disconnect() closes stream and cancels reconnection
@@ -69,7 +74,7 @@ class SSEManager(
         }
 
     companion object {
-        private const val SSE_ENDPOINT = "/api/v1/sync/stream"
+        private const val SSE_ENDPOINT = "/api/v1/sync/events"
         private const val INITIAL_RECONNECT_DELAY_MS = 1000L
         private const val MAX_RECONNECT_DELAY_MS = 30000L
         private const val RECONNECT_BACKOFF_MULTIPLIER = 2.0
@@ -300,6 +305,55 @@ class SSEManager(
                         SSEEventType.UserApproved(userEvent.user)
                     }
 
+                    "collection.created" -> {
+                        val collectionEvent =
+                            json.decodeFromJsonElement(SSECollectionCreatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.CollectionCreated(
+                            id = collectionEvent.id,
+                            name = collectionEvent.name,
+                            bookCount = collectionEvent.bookCount,
+                        )
+                    }
+
+                    "collection.updated" -> {
+                        val collectionEvent =
+                            json.decodeFromJsonElement(SSECollectionUpdatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.CollectionUpdated(
+                            id = collectionEvent.id,
+                            name = collectionEvent.name,
+                            bookCount = collectionEvent.bookCount,
+                        )
+                    }
+
+                    "collection.deleted" -> {
+                        val collectionEvent =
+                            json.decodeFromJsonElement(SSECollectionDeletedEvent.serializer(), sseEvent.data)
+                        SSEEventType.CollectionDeleted(
+                            id = collectionEvent.id,
+                            name = collectionEvent.name,
+                        )
+                    }
+
+                    "collection.book_added" -> {
+                        val collectionEvent =
+                            json.decodeFromJsonElement(SSECollectionBookAddedEvent.serializer(), sseEvent.data)
+                        SSEEventType.CollectionBookAdded(
+                            collectionId = collectionEvent.collectionId,
+                            collectionName = collectionEvent.collectionName,
+                            bookId = collectionEvent.bookId,
+                        )
+                    }
+
+                    "collection.book_removed" -> {
+                        val collectionEvent =
+                            json.decodeFromJsonElement(SSECollectionBookRemovedEvent.serializer(), sseEvent.data)
+                        SSEEventType.CollectionBookRemoved(
+                            collectionId = collectionEvent.collectionId,
+                            collectionName = collectionEvent.collectionName,
+                            bookId = collectionEvent.bookId,
+                        )
+                    }
+
                     else -> {
                         logger.debug { "Unknown event type: ${sseEvent.type}" }
                         return
@@ -357,5 +411,51 @@ sealed class SSEEventType {
      */
     data class UserApproved(
         val user: SSEUserData,
+    ) : SSEEventType()
+
+    // Collection events (admin-only)
+
+    /**
+     * Admin-only: New collection was created.
+     */
+    data class CollectionCreated(
+        val id: String,
+        val name: String,
+        val bookCount: Int,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: Collection was updated.
+     */
+    data class CollectionUpdated(
+        val id: String,
+        val name: String,
+        val bookCount: Int,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: Collection was deleted.
+     */
+    data class CollectionDeleted(
+        val id: String,
+        val name: String,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: Book was added to a collection.
+     */
+    data class CollectionBookAdded(
+        val collectionId: String,
+        val collectionName: String,
+        val bookId: String,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: Book was removed from a collection.
+     */
+    data class CollectionBookRemoved(
+        val collectionId: String,
+        val collectionName: String,
+        val bookId: String,
     ) : SSEEventType()
 }

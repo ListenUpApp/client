@@ -247,7 +247,7 @@ class DownloadManager(
     /**
      * Cancel active download for a book.
      */
-    suspend fun cancelDownload(bookId: BookId) {
+    override suspend fun cancelDownload(bookId: BookId) {
         workManager.cancelAllWorkByTag("download_${bookId.value}")
         downloadDao.updateStateForBook(bookId.value, DownloadState.PAUSED)
         logger.info { "Cancelled download: ${bookId.value}" }
@@ -258,7 +258,7 @@ class DownloadManager(
      * Marks records as DELETED (keeps them for tracking) and removes files.
      * This prevents auto-download on next playback - user must explicitly tap download.
      */
-    suspend fun deleteDownload(bookId: BookId) {
+    override suspend fun deleteDownload(bookId: BookId) {
         // Cancel any active downloads first
         workManager.cancelAllWorkByTag("download_${bookId.value}")
 

@@ -9,6 +9,7 @@ import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.sync.sse.PlaybackStateProvider
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
 import com.calypsan.listenup.client.domain.playback.StreamPrepareResult
 import com.calypsan.listenup.client.download.DownloadService
@@ -42,12 +43,12 @@ class PlaybackManager(
     private val playbackApi: PlaybackApi?,
     private val capabilityDetector: AudioCapabilityDetector?,
     private val scope: CoroutineScope,
-) {
-    val currentBookId: StateFlow<BookId?>
-        field = MutableStateFlow<BookId?>(null)
+) : PlaybackStateProvider {
+    private val _currentBookId = MutableStateFlow<BookId?>(null)
+    override val currentBookId: StateFlow<BookId?> = _currentBookId
 
-    val currentTimeline: StateFlow<PlaybackTimeline?>
-        field = MutableStateFlow<PlaybackTimeline?>(null)
+    private val _currentTimeline = MutableStateFlow<PlaybackTimeline?>(null)
+    val currentTimeline: StateFlow<PlaybackTimeline?> = _currentTimeline
 
     val isPlaying: StateFlow<Boolean>
         field = MutableStateFlow(false)
@@ -169,8 +170,8 @@ class PlaybackManager(
                     resolveLocalPath = { audioFileId -> downloadService.getLocalPath(audioFileId) },
                 )
             }
-        currentTimeline.value = timeline
-        currentBookId.value = bookId
+        _currentTimeline.value = timeline
+        _currentBookId.value = bookId
         totalDurationMs.value = timeline.totalDurationMs
 
         logger.info { "Built timeline: ${timeline.files.size} files, ${timeline.totalDurationMs}ms total" }
@@ -287,11 +288,11 @@ class PlaybackManager(
 
     /**
      * Clear current playback state.
-     * Called when playback stops.
+     * Called when playback stops or when access is revoked.
      */
-    fun clearPlayback() {
-        currentBookId.value = null
-        currentTimeline.value = null
+    override fun clearPlayback() {
+        _currentBookId.value = null
+        _currentTimeline.value = null
         isPlaying.value = false
         currentPositionMs.value = 0L
         totalDurationMs.value = 0L

@@ -2,13 +2,18 @@ package com.calypsan.listenup.client.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.data.local.db.CollectionDao
+import com.calypsan.listenup.client.data.local.db.CollectionEntity
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.data.local.db.SyncDao
+import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
+import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
+import com.calypsan.listenup.client.data.remote.model.toTimestamp
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
@@ -16,10 +21,13 @@ import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.util.sortableTitle
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -45,6 +53,9 @@ class LibraryViewModel(
     private val settingsRepository: SettingsRepositoryContract,
     private val syncDao: SyncDao,
     private val playbackPositionDao: PlaybackPositionDao,
+    private val userDao: UserDao,
+    private val collectionDao: CollectionDao,
+    private val adminCollectionApi: AdminCollectionApiContract,
 ) : ViewModel() {
     // Sort state for each tab (category + direction)
     val booksSortState: StateFlow<SortState>
@@ -188,6 +199,43 @@ class LibraryViewModel(
             initialValue = emptyMap(),
         )
 
+    // Selection mode for multi-select (admin only)
+    private val _selectionMode = MutableStateFlow<SelectionMode>(SelectionMode.None)
+    val selectionMode: StateFlow<SelectionMode> = _selectionMode
+
+    /**
+     * Whether the current user is an admin (isRoot).
+     * Only admins can use multi-select to add books to collections.
+     */
+    val isAdmin: StateFlow<Boolean> =
+        userDao.observeCurrentUser()
+            .map { user -> user?.isRoot == true }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = false,
+            )
+
+    /**
+     * Observable list of collections for the collection picker.
+     * Only relevant for admins.
+     */
+    val collections: StateFlow<List<CollectionEntity>> =
+        collectionDao.observeAll()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList(),
+            )
+
+    // State for collection add operation
+    private val _isAddingToCollection = MutableStateFlow(false)
+    val isAddingToCollection: StateFlow<Boolean> = _isAddingToCollection
+
+    // Events for UI feedback
+    private val _events = MutableSharedFlow<LibraryEvent>()
+    val events = _events.asSharedFlow()
+
     private var hasPerformedInitialSync = false
 
     init {
@@ -321,6 +369,118 @@ class LibraryViewModel(
     private fun refreshBooks() {
         viewModelScope.launch {
             bookRepository.refreshBooks()
+        }
+    }
+
+    // Selection mode actions (admin only)
+
+    /**
+     * Enter selection mode with the given book as the initial selection.
+     * Only works for admin users.
+     * Also refreshes collections to ensure picker has up-to-date data.
+     *
+     * @param initialBookId The ID of the book that was long-pressed
+     */
+    fun enterSelectionMode(initialBookId: String) {
+        if (!isAdmin.value) return
+        _selectionMode.value = SelectionMode.Active(selectedIds = setOf(initialBookId))
+        logger.debug { "Entered selection mode with book: $initialBookId" }
+        refreshCollections()
+    }
+
+    /**
+     * Refresh collections from the server API.
+     * This syncs the local database with the latest server state including book counts.
+     */
+    private fun refreshCollections() {
+        viewModelScope.launch {
+            try {
+                val serverCollections = adminCollectionApi.getCollections()
+                logger.debug { "Fetched ${serverCollections.size} collections from server" }
+
+                // Update local database with server data
+                serverCollections.forEach { response ->
+                    val entity = CollectionEntity(
+                        id = response.id,
+                        name = response.name,
+                        bookCount = response.bookCount,
+                        createdAt = response.createdAt.toTimestamp(),
+                        updatedAt = response.updatedAt.toTimestamp(),
+                    )
+                    collectionDao.upsert(entity)
+                }
+
+                // Delete local collections that no longer exist on server
+                val serverIds = serverCollections.map { it.id }.toSet()
+                val localCollections = collectionDao.getAll()
+                localCollections.filter { it.id !in serverIds }.forEach { orphan ->
+                    logger.debug { "Removing orphaned collection: ${orphan.name} (${orphan.id})" }
+                    collectionDao.deleteById(orphan.id)
+                }
+            } catch (e: Exception) {
+                logger.warn(e) { "Failed to refresh collections from server" }
+                // Don't emit error - local data is still usable
+            }
+        }
+    }
+
+    /**
+     * Toggle the selection state of a book.
+     * If in selection mode, adds/removes the book from selection.
+     *
+     * @param bookId The ID of the book to toggle
+     */
+    fun toggleBookSelection(bookId: String) {
+        val current = _selectionMode.value
+        if (current !is SelectionMode.Active) return
+
+        val newSelectedIds = if (bookId in current.selectedIds) {
+            current.selectedIds - bookId
+        } else {
+            current.selectedIds + bookId
+        }
+
+        // If no books remain selected, exit selection mode
+        if (newSelectedIds.isEmpty()) {
+            exitSelectionMode()
+        } else {
+            _selectionMode.value = SelectionMode.Active(selectedIds = newSelectedIds)
+        }
+    }
+
+    /**
+     * Exit selection mode and clear all selections.
+     */
+    fun exitSelectionMode() {
+        _selectionMode.value = SelectionMode.None
+        logger.debug { "Exited selection mode" }
+    }
+
+    /**
+     * Add all selected books to the specified collection.
+     * Calls the AdminCollectionApi and emits success/error events.
+     *
+     * @param collectionId The ID of the collection to add books to
+     */
+    fun addSelectedToCollection(collectionId: String) {
+        val current = _selectionMode.value
+        if (current !is SelectionMode.Active) return
+        if (current.selectedIds.isEmpty()) return
+
+        viewModelScope.launch {
+            _isAddingToCollection.value = true
+            try {
+                val bookIds = current.selectedIds.toList()
+                adminCollectionApi.addBooks(collectionId, bookIds)
+                logger.info { "Added ${bookIds.size} books to collection $collectionId" }
+                _events.emit(LibraryEvent.BooksAddedToCollection(bookIds.size))
+                exitSelectionMode()
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to add books to collection" }
+                _events.emit(LibraryEvent.AddToCollectionFailed(e.message ?: "Unknown error"))
+            } finally {
+                _isAddingToCollection.value = false
+            }
         }
     }
 
@@ -553,4 +713,40 @@ sealed interface LibraryUiEvent {
     ) : LibraryUiEvent
 
     data object NarratorsDirectionToggled : LibraryUiEvent
+}
+
+/**
+ * Selection mode state for multi-select functionality (admin only).
+ */
+sealed interface SelectionMode {
+    /**
+     * No selection active - normal library behavior.
+     */
+    data object None : SelectionMode
+
+    /**
+     * Multi-select mode is active with the given selected book IDs.
+     */
+    data class Active(
+        val selectedIds: Set<String>,
+    ) : SelectionMode
+}
+
+/**
+ * One-time events emitted by the Library ViewModel for UI feedback.
+ */
+sealed interface LibraryEvent {
+    /**
+     * Books were successfully added to a collection.
+     */
+    data class BooksAddedToCollection(
+        val count: Int,
+    ) : LibraryEvent
+
+    /**
+     * Failed to add books to a collection.
+     */
+    data class AddToCollectionFailed(
+        val message: String,
+    ) : LibraryEvent
 }
