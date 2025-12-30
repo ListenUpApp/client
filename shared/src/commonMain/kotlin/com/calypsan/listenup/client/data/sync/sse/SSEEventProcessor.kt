@@ -102,8 +102,10 @@ class SSEEventProcessor(
 
                 is SSEEventType.UserPending,
                 is SSEEventType.UserApproved,
+                is SSEEventType.InboxBookAdded,
+                is SSEEventType.InboxBookReleased,
                 -> {
-                    // Admin-only events, handled by AdminViewModel
+                    // Admin-only events, handled by AdminViewModel/AdminInboxViewModel
                 }
 
                 is SSEEventType.CollectionCreated -> {

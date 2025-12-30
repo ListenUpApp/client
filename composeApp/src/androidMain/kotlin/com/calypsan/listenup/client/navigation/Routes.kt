@@ -266,6 +266,15 @@ data class AdminCollectionDetail(
 ) : Route
 
 /**
+ * Admin inbox screen - review newly scanned books.
+ *
+ * Shows books waiting for admin review before becoming visible.
+ * Supports batch selection and release operations.
+ */
+@Serializable
+data object AdminInbox : Route
+
+/**
  * Settings screen - app preferences and configuration.
  */
 @Serializable

@@ -862,3 +862,172 @@ data class UserPreferencesRequest(
     /** Whether shaking device resets sleep timer */
     val shakeToResetSleepTimer: Boolean? = null,
 )
+
+// =============================================================================
+// Admin API Contracts (Admin-only endpoints)
+// =============================================================================
+
+/**
+ * Contract interface for admin server settings API operations.
+ *
+ * Handles server-wide settings like inbox workflow.
+ * Server endpoints: /api/v1/admin/settings (GET/PATCH)
+ */
+interface AdminSettingsApiContract {
+    /**
+     * Get server settings (admin only).
+     *
+     * Endpoint: GET /api/v1/admin/settings
+     * Auth: Required (admin)
+     *
+     * @return Result containing server settings
+     */
+    suspend fun getServerSettings(): Result<ServerSettingsResponse>
+
+    /**
+     * Update server settings (admin only).
+     *
+     * Endpoint: PATCH /api/v1/admin/settings
+     * Auth: Required (admin)
+     *
+     * @param request Fields to update (only non-null fields are sent)
+     * @return Result containing updated settings
+     */
+    suspend fun updateServerSettings(request: ServerSettingsRequest): Result<ServerSettingsResponse>
+}
+
+/**
+ * Response from server settings endpoint.
+ *
+ * Contains server-wide configuration managed by admins.
+ */
+data class ServerSettingsResponse(
+    /** Whether inbox workflow is enabled */
+    val inboxEnabled: Boolean,
+    /** Number of books currently in inbox */
+    val inboxCount: Int,
+)
+
+/**
+ * Request to update server settings (PATCH semantics).
+ */
+data class ServerSettingsRequest(
+    /** Enable or disable inbox workflow */
+    val inboxEnabled: Boolean? = null,
+)
+
+/**
+ * Contract interface for admin inbox API operations.
+ *
+ * Handles the inbox staging workflow where newly scanned books
+ * land for admin review before becoming visible to users.
+ */
+interface AdminInboxApiContract {
+    /**
+     * List all books in the inbox (admin only).
+     *
+     * Endpoint: GET /api/v1/admin/inbox
+     * Auth: Required (admin)
+     *
+     * @return Result containing list of inbox books with staging info
+     */
+    suspend fun listInboxBooks(): Result<InboxBooksResponse>
+
+    /**
+     * Release books from inbox to the library (admin only).
+     *
+     * Books are moved out of inbox and become visible to users.
+     * If staged collections are set, the book is assigned to those collections.
+     * If no collections are staged, the book becomes public.
+     *
+     * Endpoint: POST /api/v1/admin/inbox/release
+     * Auth: Required (admin)
+     *
+     * @param bookIds List of book IDs to release
+     * @return Result containing release summary
+     */
+    suspend fun releaseBooks(bookIds: List<String>): Result<ReleaseInboxBooksResponse>
+
+    /**
+     * Stage a collection assignment for an inbox book (admin only).
+     *
+     * When the book is released, it will be assigned to this collection.
+     * Multiple collections can be staged.
+     *
+     * Endpoint: POST /api/v1/admin/inbox/{bookId}/stage
+     * Auth: Required (admin)
+     *
+     * @param bookId Book ID in inbox
+     * @param collectionId Collection ID to stage
+     * @return Result with Unit on success
+     */
+    suspend fun stageCollection(
+        bookId: String,
+        collectionId: String,
+    ): Result<Unit>
+
+    /**
+     * Remove a staged collection from an inbox book (admin only).
+     *
+     * Endpoint: DELETE /api/v1/admin/inbox/{bookId}/stage/{collectionId}
+     * Auth: Required (admin)
+     *
+     * @param bookId Book ID in inbox
+     * @param collectionId Collection ID to unstage
+     * @return Result with Unit on success
+     */
+    suspend fun unstageCollection(
+        bookId: String,
+        collectionId: String,
+    ): Result<Unit>
+}
+
+/**
+ * Response from inbox list endpoint.
+ */
+data class InboxBooksResponse(
+    val books: List<InboxBookResponse>,
+    val total: Int,
+)
+
+/**
+ * A book in the inbox with staging information.
+ */
+data class InboxBookResponse(
+    /** Book ID */
+    val id: String,
+    /** Book title */
+    val title: String,
+    /** Primary author name */
+    val author: String?,
+    /** Cover image URL (relative path) */
+    val coverUrl: String?,
+    /** Total duration in milliseconds */
+    val duration: Long,
+    /** Collection IDs staged for assignment on release */
+    val stagedCollectionIds: List<String>,
+    /** Staged collections with names for display */
+    val stagedCollections: List<CollectionRef>,
+    /** When the book was scanned */
+    val scannedAt: String,
+)
+
+/**
+ * Collection reference with ID and name for display.
+ */
+data class CollectionRef(
+    val id: String,
+    val name: String,
+)
+
+/**
+ * Response from releasing inbox books.
+ */
+data class ReleaseInboxBooksResponse(
+    /** Number of books released */
+    val released: Int,
+    /** Number of books made public (no collections) */
+    val public: Int,
+    /** Number of collection assignments made */
+    val toCollections: Int,
+)

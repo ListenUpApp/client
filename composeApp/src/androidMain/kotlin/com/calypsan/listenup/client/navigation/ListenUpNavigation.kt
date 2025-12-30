@@ -40,6 +40,8 @@ import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
 import com.calypsan.listenup.client.features.settings.SettingsScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
+import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
@@ -590,6 +592,9 @@ private fun AuthenticatedNavigation(
                         // Admin screens
                         entry<Admin> {
                             val viewModel: AdminViewModel = koinInject()
+                            val settingsViewModel: AdminSettingsViewModel = koinInject()
+                            val settingsState by settingsViewModel.state.collectAsState()
+
                             AdminScreen(
                                 viewModel = viewModel,
                                 onBackClick = {
@@ -600,6 +605,39 @@ private fun AuthenticatedNavigation(
                                 },
                                 onCollectionsClick = {
                                     backStack.add(AdminCollections)
+                                },
+                                onInboxClick = {
+                                    backStack.add(AdminInbox)
+                                },
+                                inboxEnabled = settingsState.inboxEnabled,
+                                inboxCount = settingsState.inboxCount,
+                                isTogglingInbox = settingsState.isSaving,
+                                onInboxEnabledChange = { settingsViewModel.setInboxEnabled(it) },
+                            )
+
+                            // Handle disable inbox confirmation dialog
+                            if (settingsState.showDisableConfirmation) {
+                                com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog(
+                                    onDismissRequest = { settingsViewModel.cancelDisableInbox() },
+                                    title = "Disable Inbox Workflow",
+                                    text = "This will release all ${settingsState.inboxCount} book${if (settingsState.inboxCount != 1) "s" else ""} " +
+                                        "currently in the inbox with their staged collection assignments.\n\n" +
+                                        "New books will become immediately visible to users.",
+                                    confirmText = "Disable & Release",
+                                    onConfirm = { settingsViewModel.confirmDisableInbox() },
+                                    onDismiss = { settingsViewModel.cancelDisableInbox() },
+                                )
+                            }
+                        }
+                        entry<AdminInbox> {
+                            val viewModel: AdminInboxViewModel = koinInject()
+                            com.calypsan.listenup.client.features.admin.inbox.AdminInboxScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(BookDetail(bookId))
                                 },
                             )
                         }

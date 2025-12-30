@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.TopAppBar
@@ -76,6 +77,11 @@ fun AdminScreen(
     onBackClick: () -> Unit,
     onInviteClick: () -> Unit,
     onCollectionsClick: () -> Unit = {},
+    onInboxClick: () -> Unit = {},
+    inboxEnabled: Boolean = false,
+    inboxCount: Int = 0,
+    isTogglingInbox: Boolean = false,
+    onInboxEnabledChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -126,6 +132,11 @@ fun AdminScreen(
                 onRevokeInviteClick = { inviteToRevoke = it },
                 onInviteClick = onInviteClick,
                 onCollectionsClick = onCollectionsClick,
+                onInboxClick = onInboxClick,
+                inboxEnabled = inboxEnabled,
+                inboxCount = inboxCount,
+                isTogglingInbox = isTogglingInbox,
+                onInboxEnabledChange = onInboxEnabledChange,
                 modifier = Modifier.padding(innerPadding),
             )
         }
@@ -199,6 +210,11 @@ private fun AdminContent(
     onRevokeInviteClick: (AdminInvite) -> Unit,
     onInviteClick: () -> Unit,
     onCollectionsClick: () -> Unit,
+    onInboxClick: () -> Unit,
+    inboxEnabled: Boolean,
+    inboxCount: Int,
+    isTogglingInbox: Boolean,
+    onInboxEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -220,8 +236,11 @@ private fun AdminContent(
         item {
             SettingsCard(
                 openRegistration = state.openRegistration,
-                isToggling = state.isTogglingOpenRegistration,
+                isTogglingOpenRegistration = state.isTogglingOpenRegistration,
                 onOpenRegistrationChange = onOpenRegistrationChange,
+                inboxEnabled = inboxEnabled,
+                isTogglingInbox = isTogglingInbox,
+                onInboxEnabledChange = onInboxEnabledChange,
             )
         }
 
@@ -386,6 +405,20 @@ private fun AdminContent(
         item {
             Spacer(modifier = Modifier.height(12.dp))
             CollectionsCard(onClick = onCollectionsClick)
+        }
+
+        // Inbox button (only shown when inbox workflow is enabled)
+        if (inboxEnabled) {
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+                InboxCard(
+                    inboxCount = inboxCount,
+                    onClick = onInboxClick,
+                )
+            }
+        }
+
+        item {
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
@@ -394,8 +427,11 @@ private fun AdminContent(
 @Composable
 private fun SettingsCard(
     openRegistration: Boolean,
-    isToggling: Boolean,
+    isTogglingOpenRegistration: Boolean,
     onOpenRegistrationChange: (Boolean) -> Unit,
+    inboxEnabled: Boolean,
+    isTogglingInbox: Boolean,
+    onInboxEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     ElevatedCard(
@@ -406,41 +442,87 @@ private fun SettingsCard(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ),
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.HowToReg,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Open Registration",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+        Column {
+            // Open Registration toggle
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.HowToReg,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    text = "Allow anyone to request an account",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Open Registration",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "Allow anyone to request an account",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (isTogglingOpenRegistration) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Switch(
+                        checked = openRegistration,
+                        onCheckedChange = onOpenRegistrationChange,
+                    )
+                }
             }
-            if (isToggling) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            )
+
+            // Inbox Workflow toggle
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Inbox,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            } else {
-                Switch(
-                    checked = openRegistration,
-                    onCheckedChange = onOpenRegistrationChange,
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Inbox Workflow",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "Review new books before they appear in library",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (isTogglingInbox) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Switch(
+                        checked = inboxEnabled,
+                        onCheckedChange = onInboxEnabledChange,
+                    )
+                }
             }
         }
     }
@@ -772,6 +854,54 @@ private fun CollectionsCard(
                     text = "Organize books into collections for access control",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InboxCard(
+    inboxCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Inbox,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Inbox",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+                Text(
+                    text = if (inboxCount > 0) {
+                        "$inboxCount book${if (inboxCount != 1) "s" else ""} awaiting review"
+                    } else {
+                        "Review newly scanned books before publishing"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
                 )
             }
         }

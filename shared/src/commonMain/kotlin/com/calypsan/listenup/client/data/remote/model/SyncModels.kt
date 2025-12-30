@@ -627,3 +627,45 @@ data class SSEBookTagRemovedEvent(
     @SerialName("tag")
     val tag: SSETagData,
 )
+
+// =============================================================================
+// Inbox SSE Events (Admin-only)
+// =============================================================================
+
+/**
+ * Simplified book data for inbox events.
+ * Contains only essential fields for inbox display.
+ */
+@Serializable
+data class SSEInboxBookData(
+    @SerialName("id")
+    val id: String,
+    @SerialName("title")
+    val title: String,
+    @SerialName("author")
+    val author: String? = null,
+    @SerialName("cover_url")
+    val coverUrl: String? = null,
+    @SerialName("duration")
+    val duration: Long = 0,
+)
+
+/**
+ * SSE inbox book added event.
+ * Sent when a new book is scanned and added to the inbox.
+ */
+@Serializable
+data class SSEInboxBookAddedEvent(
+    @SerialName("book")
+    val book: SSEInboxBookData,
+)
+
+/**
+ * SSE inbox book released event.
+ * Sent when a book is released from the inbox.
+ */
+@Serializable
+data class SSEInboxBookReleasedEvent(
+    @SerialName("book_id")
+    val bookId: String,
+)

@@ -49,6 +49,26 @@ interface AdminApiContract {
 
     // Settings
     suspend fun setOpenRegistration(enabled: Boolean)
+
+    // Server settings (inbox workflow)
+    suspend fun getServerSettings(): ServerSettingsResponse
+
+    suspend fun updateServerSettings(request: ServerSettingsRequest): ServerSettingsResponse
+
+    // Inbox management
+    suspend fun listInboxBooks(): InboxBooksResponse
+
+    suspend fun releaseBooks(bookIds: List<String>): ReleaseInboxBooksResponse
+
+    suspend fun stageCollection(
+        bookId: String,
+        collectionId: String,
+    )
+
+    suspend fun unstageCollection(
+        bookId: String,
+        collectionId: String,
+    )
 }
 
 /**
@@ -218,6 +238,96 @@ class AdminApi(
             }
         }
     }
+
+    // Server Settings (Inbox Workflow)
+
+    override suspend fun getServerSettings(): ServerSettingsResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<ServerSettingsApiResponse> =
+            client.get("/api/v1/admin/settings").body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data.toDomain()
+            is Failure -> throw result.exception
+        }
+    }
+
+    override suspend fun updateServerSettings(request: ServerSettingsRequest): ServerSettingsResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<ServerSettingsApiResponse> =
+            client
+                .patch("/api/v1/admin/settings") {
+                    setBody(request.toApiRequest())
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data.toDomain()
+            is Failure -> throw result.exception
+        }
+    }
+
+    // Inbox Management
+
+    override suspend fun listInboxBooks(): InboxBooksResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<InboxBooksApiResponse> =
+            client.get("/api/v1/admin/inbox").body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data.toDomain()
+            is Failure -> throw result.exception
+        }
+    }
+
+    override suspend fun releaseBooks(bookIds: List<String>): ReleaseInboxBooksResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<ReleaseInboxBooksApiResponse> =
+            client
+                .post("/api/v1/admin/inbox/release") {
+                    setBody(ReleaseInboxBooksApiRequest(bookIds))
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data.toDomain()
+            is Failure -> throw result.exception
+        }
+    }
+
+    override suspend fun stageCollection(
+        bookId: String,
+        collectionId: String,
+    ) {
+        val client = clientFactory.getClient()
+        val response =
+            client.post("/api/v1/admin/inbox/$bookId/stage") {
+                setBody(StageCollectionApiRequest(collectionId))
+            }
+
+        if (!response.status.isSuccess()) {
+            val errorResponse: ApiResponse<Unit> = response.body()
+            when (val result = errorResponse.toResult()) {
+                is Success -> { /* Shouldn't happen */ }
+                is Failure -> throw result.exception
+            }
+        }
+    }
+
+    override suspend fun unstageCollection(
+        bookId: String,
+        collectionId: String,
+    ) {
+        val client = clientFactory.getClient()
+        val response =
+            client.delete("/api/v1/admin/inbox/$bookId/stage/$collectionId")
+
+        if (!response.status.isSuccess()) {
+            val errorResponse: ApiResponse<Unit> = response.body()
+            when (val result = errorResponse.toResult()) {
+                is Success -> { /* Shouldn't happen */ }
+                is Failure -> throw result.exception
+            }
+        }
+    }
 }
 
 // Response wrappers
@@ -324,4 +434,124 @@ data class UpdateUserRequest(
 @Serializable
 data class SetOpenRegistrationRequest(
     @SerialName("enabled") val enabled: Boolean,
+)
+
+// =============================================================================
+// Server Settings API Models
+// =============================================================================
+
+/**
+ * API response for server settings endpoint.
+ */
+@Serializable
+private data class ServerSettingsApiResponse(
+    @SerialName("inbox_enabled") val inboxEnabled: Boolean,
+    @SerialName("inbox_count") val inboxCount: Int,
+) {
+    fun toDomain(): ServerSettingsResponse =
+        ServerSettingsResponse(
+            inboxEnabled = inboxEnabled,
+            inboxCount = inboxCount,
+        )
+}
+
+/**
+ * API request for updating server settings.
+ */
+@Serializable
+private data class ServerSettingsApiRequest(
+    @SerialName("inbox_enabled") val inboxEnabled: Boolean?,
+)
+
+private fun ServerSettingsRequest.toApiRequest(): ServerSettingsApiRequest =
+    ServerSettingsApiRequest(inboxEnabled = inboxEnabled)
+
+// =============================================================================
+// Inbox API Models
+// =============================================================================
+
+/**
+ * API response for listing inbox books.
+ */
+@Serializable
+private data class InboxBooksApiResponse(
+    @SerialName("books") val books: List<InboxBookApiResponse>,
+    @SerialName("total") val total: Int,
+) {
+    fun toDomain(): InboxBooksResponse =
+        InboxBooksResponse(
+            books = books.map { it.toDomain() },
+            total = total,
+        )
+}
+
+/**
+ * API response for a single inbox book.
+ */
+@Serializable
+private data class InboxBookApiResponse(
+    @SerialName("id") val id: String,
+    @SerialName("title") val title: String,
+    @SerialName("author") val author: String? = null,
+    @SerialName("cover_url") val coverUrl: String? = null,
+    @SerialName("duration") val duration: Long,
+    @SerialName("staged_collection_ids") val stagedCollectionIds: List<String>,
+    @SerialName("staged_collections") val stagedCollections: List<CollectionRefApiResponse>,
+    @SerialName("scanned_at") val scannedAt: String,
+) {
+    fun toDomain(): InboxBookResponse =
+        InboxBookResponse(
+            id = id,
+            title = title,
+            author = author,
+            coverUrl = coverUrl,
+            duration = duration,
+            stagedCollectionIds = stagedCollectionIds,
+            stagedCollections = stagedCollections.map { it.toDomain() },
+            scannedAt = scannedAt,
+        )
+}
+
+/**
+ * API response for collection reference.
+ */
+@Serializable
+private data class CollectionRefApiResponse(
+    @SerialName("id") val id: String,
+    @SerialName("name") val name: String,
+) {
+    fun toDomain(): CollectionRef = CollectionRef(id = id, name = name)
+}
+
+/**
+ * API request for releasing inbox books.
+ */
+@Serializable
+private data class ReleaseInboxBooksApiRequest(
+    @SerialName("book_ids") val bookIds: List<String>,
+)
+
+/**
+ * API response for releasing inbox books.
+ */
+@Serializable
+private data class ReleaseInboxBooksApiResponse(
+    @SerialName("released") val released: Int,
+    @SerialName("public") val public: Int,
+    @SerialName("to_collections") val toCollections: Int,
+) {
+    fun toDomain(): ReleaseInboxBooksResponse =
+        ReleaseInboxBooksResponse(
+            released = released,
+            public = public,
+            toCollections = toCollections,
+        )
+}
+
+/**
+ * API request for staging a collection.
+ */
+@Serializable
+private data class StageCollectionApiRequest(
+    @SerialName("collection_id") val collectionId: String,
 )

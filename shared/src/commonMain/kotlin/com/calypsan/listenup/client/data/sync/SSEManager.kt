@@ -12,6 +12,8 @@ import com.calypsan.listenup.client.data.remote.model.SSEEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensBookAddedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookTagAddedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookTagRemovedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEInboxBookAddedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEInboxBookReleasedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensBookRemovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensDeletedEvent
@@ -449,6 +451,21 @@ class SSEManager(
                         )
                     }
 
+                    "inbox.book_added" -> {
+                        val inboxEvent = json.decodeFromJsonElement(SSEInboxBookAddedEvent.serializer(), sseEvent.data)
+                        SSEEventType.InboxBookAdded(
+                            bookId = inboxEvent.book.id,
+                            title = inboxEvent.book.title,
+                        )
+                    }
+
+                    "inbox.book_released" -> {
+                        val inboxEvent = json.decodeFromJsonElement(SSEInboxBookReleasedEvent.serializer(), sseEvent.data)
+                        SSEEventType.InboxBookReleased(
+                            bookId = inboxEvent.bookId,
+                        )
+                    }
+
                     else -> {
                         logger.debug { "Unknown event type: ${sseEvent.type}" }
                         return
@@ -643,5 +660,22 @@ sealed class SSEEventType {
         val tagId: String,
         val tagSlug: String,
         val tagBookCount: Int,
+    ) : SSEEventType()
+
+    // Inbox events (admin-only)
+
+    /**
+     * Admin-only: A book was added to the inbox.
+     */
+    data class InboxBookAdded(
+        val bookId: String,
+        val title: String,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: A book was released from the inbox.
+     */
+    data class InboxBookReleased(
+        val bookId: String,
     ) : SSEEventType()
 }

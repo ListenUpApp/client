@@ -350,6 +350,17 @@ val presentationModule =
         factory { AdminViewModel(adminApi = get(), instanceApi = get(), sseManager = get()) }
         factory { CreateInviteViewModel(adminApi = get()) }
         factory {
+            com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel(
+                adminApi = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel(
+                adminApi = get(),
+                sseManager = get(),
+            )
+        }
+        factory {
             com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel(
                 collectionDao = get(),
                 adminCollectionApi = get(),
