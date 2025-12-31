@@ -134,16 +134,12 @@ object TestData {
      */
     fun tag(
         id: String = "tag-1",
-        name: String = "Favorites",
         slug: String = "favorites",
-        color: String? = "#FF5733",
         bookCount: Int = 10,
     ): Tag =
         Tag(
             id = id,
-            name = name,
             slug = slug,
-            color = color,
             bookCount = bookCount,
         )
 

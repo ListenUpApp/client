@@ -3,9 +3,27 @@ package com.calypsan.listenup.client.data.sync
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.model.SSEBookDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookEvent
+import com.calypsan.listenup.client.data.remote.model.SSEBookTagAddedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEBookTagRemovedEvent
+import com.calypsan.listenup.client.data.remote.model.SSECollectionBookAddedEvent
+import com.calypsan.listenup.client.data.remote.model.SSECollectionBookRemovedEvent
+import com.calypsan.listenup.client.data.remote.model.SSECollectionCreatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSECollectionDeletedEvent
+import com.calypsan.listenup.client.data.remote.model.SSECollectionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEEvent
+import com.calypsan.listenup.client.data.remote.model.SSEInboxBookAddedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEInboxBookReleasedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELensBookAddedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELensBookRemovedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELensCreatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELensDeletedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELensUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
+import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEUserData
+import com.calypsan.listenup.client.data.remote.model.SSEUserPendingEvent
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.request.prepareGet
@@ -16,8 +34,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -28,7 +49,7 @@ private val logger = KotlinLogging.logger {}
  * Manages Server-Sent Events (SSE) connection for real-time library updates.
  *
  * SSE Connection Lifecycle:
- * 1. connect() opens SSE stream to GET /api/v1/sync/stream
+ * 1. connect() opens SSE stream to GET /api/v1/sync/events
  * 2. Parses incoming SSE events and emits to eventFlow
  * 3. Automatically reconnects on connection loss (exponential backoff)
  * 4. disconnect() closes stream and cancels reconnection
@@ -55,8 +76,12 @@ class SSEManager(
     private val _eventFlow = MutableSharedFlow<SSEEventType>(replay = 0, extraBufferCapacity = 64)
     override val eventFlow: SharedFlow<SSEEventType> = _eventFlow.asSharedFlow()
 
+    private val _isConnected = MutableStateFlow(false)
+
+    /** Observable connection state for UI/monitoring. Thread-safe. */
+    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+
     private var connectionJob: Job? = null
-    private var isConnected = false
 
     // JSON parser for manually parsing SSE event data field
     private val json =
@@ -66,7 +91,7 @@ class SSEManager(
         }
 
     companion object {
-        private const val SSE_ENDPOINT = "/api/v1/sync/stream"
+        private const val SSE_ENDPOINT = "/api/v1/sync/events"
         private const val INITIAL_RECONNECT_DELAY_MS = 1000L
         private const val MAX_RECONNECT_DELAY_MS = 30000L
         private const val RECONNECT_BACKOFF_MULTIPLIER = 2.0
@@ -108,7 +133,7 @@ class SSEManager(
                         break
                     } catch (e: Exception) {
                         logger.warn(e) { "Connection error" }
-                        isConnected = false
+                        _isConnected.value = false
 
                         if (!isActive) {
                             break // Don't reconnect if job was cancelled
@@ -133,7 +158,7 @@ class SSEManager(
         logger.debug { "Disconnecting..." }
         connectionJob?.cancel()
         connectionJob = null
-        isConnected = false
+        _isConnected.value = false
     }
 
     /**
@@ -163,7 +188,7 @@ class SSEManager(
             logger.trace { "Got body channel, starting to read events..." }
 
             try {
-                isConnected = true
+                _isConnected.value = true
                 parseSSEStream(channel)
                 logger.debug { "Stream reading ended gracefully" }
             } finally {
@@ -287,6 +312,171 @@ class SSEManager(
                         SSEEventType.Heartbeat
                     }
 
+                    "user.pending" -> {
+                        val userEvent = json.decodeFromJsonElement(SSEUserPendingEvent.serializer(), sseEvent.data)
+                        SSEEventType.UserPending(userEvent.user)
+                    }
+
+                    "user.approved" -> {
+                        val userEvent = json.decodeFromJsonElement(SSEUserApprovedEvent.serializer(), sseEvent.data)
+                        SSEEventType.UserApproved(userEvent.user)
+                    }
+
+                    "collection.created" -> {
+                        val collectionEvent =
+                            json.decodeFromJsonElement(SSECollectionCreatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.CollectionCreated(
+                            id = collectionEvent.id,
+                            name = collectionEvent.name,
+                            bookCount = collectionEvent.bookCount,
+                        )
+                    }
+
+                    "collection.updated" -> {
+                        val collectionEvent =
+                            json.decodeFromJsonElement(SSECollectionUpdatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.CollectionUpdated(
+                            id = collectionEvent.id,
+                            name = collectionEvent.name,
+                            bookCount = collectionEvent.bookCount,
+                        )
+                    }
+
+                    "collection.deleted" -> {
+                        val collectionEvent =
+                            json.decodeFromJsonElement(SSECollectionDeletedEvent.serializer(), sseEvent.data)
+                        SSEEventType.CollectionDeleted(
+                            id = collectionEvent.id,
+                            name = collectionEvent.name,
+                        )
+                    }
+
+                    "collection.book_added" -> {
+                        val collectionEvent =
+                            json.decodeFromJsonElement(SSECollectionBookAddedEvent.serializer(), sseEvent.data)
+                        SSEEventType.CollectionBookAdded(
+                            collectionId = collectionEvent.collectionId,
+                            collectionName = collectionEvent.collectionName,
+                            bookId = collectionEvent.bookId,
+                        )
+                    }
+
+                    "collection.book_removed" -> {
+                        val collectionEvent =
+                            json.decodeFromJsonElement(SSECollectionBookRemovedEvent.serializer(), sseEvent.data)
+                        SSEEventType.CollectionBookRemoved(
+                            collectionId = collectionEvent.collectionId,
+                            collectionName = collectionEvent.collectionName,
+                            bookId = collectionEvent.bookId,
+                        )
+                    }
+
+                    "lens.created" -> {
+                        val lensEvent = json.decodeFromJsonElement(SSELensCreatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.LensCreated(
+                            id = lensEvent.id,
+                            ownerId = lensEvent.ownerId,
+                            name = lensEvent.name,
+                            description = lensEvent.description,
+                            bookCount = lensEvent.bookCount,
+                            ownerDisplayName = lensEvent.ownerDisplayName,
+                            ownerAvatarColor = lensEvent.ownerAvatarColor,
+                            createdAt = lensEvent.createdAt,
+                            updatedAt = lensEvent.updatedAt,
+                        )
+                    }
+
+                    "lens.updated" -> {
+                        val lensEvent = json.decodeFromJsonElement(SSELensUpdatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.LensUpdated(
+                            id = lensEvent.id,
+                            ownerId = lensEvent.ownerId,
+                            name = lensEvent.name,
+                            description = lensEvent.description,
+                            bookCount = lensEvent.bookCount,
+                            ownerDisplayName = lensEvent.ownerDisplayName,
+                            ownerAvatarColor = lensEvent.ownerAvatarColor,
+                            createdAt = lensEvent.createdAt,
+                            updatedAt = lensEvent.updatedAt,
+                        )
+                    }
+
+                    "lens.deleted" -> {
+                        val lensEvent = json.decodeFromJsonElement(SSELensDeletedEvent.serializer(), sseEvent.data)
+                        SSEEventType.LensDeleted(
+                            id = lensEvent.id,
+                            ownerId = lensEvent.ownerId,
+                        )
+                    }
+
+                    "lens.book_added" -> {
+                        val lensEvent = json.decodeFromJsonElement(SSELensBookAddedEvent.serializer(), sseEvent.data)
+                        SSEEventType.LensBookAdded(
+                            lensId = lensEvent.lensId,
+                            ownerId = lensEvent.ownerId,
+                            bookId = lensEvent.bookId,
+                            bookCount = lensEvent.bookCount,
+                        )
+                    }
+
+                    "lens.book_removed" -> {
+                        val lensEvent = json.decodeFromJsonElement(SSELensBookRemovedEvent.serializer(), sseEvent.data)
+                        SSEEventType.LensBookRemoved(
+                            lensId = lensEvent.lensId,
+                            ownerId = lensEvent.ownerId,
+                            bookId = lensEvent.bookId,
+                            bookCount = lensEvent.bookCount,
+                        )
+                    }
+
+                    "tag.created" -> {
+                        val tagEvent = json.decodeFromJsonElement(SSETagCreatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.TagCreated(
+                            id = tagEvent.id,
+                            slug = tagEvent.slug,
+                            bookCount = tagEvent.bookCount,
+                        )
+                    }
+
+                    "book.tag_added" -> {
+                        val tagEvent = json.decodeFromJsonElement(SSEBookTagAddedEvent.serializer(), sseEvent.data)
+                        SSEEventType.BookTagAdded(
+                            bookId = tagEvent.bookId,
+                            tagId = tagEvent.tag.id,
+                            tagSlug = tagEvent.tag.slug,
+                            tagBookCount = tagEvent.tag.bookCount,
+                        )
+                    }
+
+                    "book.tag_removed" -> {
+                        val tagEvent = json.decodeFromJsonElement(SSEBookTagRemovedEvent.serializer(), sseEvent.data)
+                        SSEEventType.BookTagRemoved(
+                            bookId = tagEvent.bookId,
+                            tagId = tagEvent.tag.id,
+                            tagSlug = tagEvent.tag.slug,
+                            tagBookCount = tagEvent.tag.bookCount,
+                        )
+                    }
+
+                    "inbox.book_added" -> {
+                        val inboxEvent = json.decodeFromJsonElement(SSEInboxBookAddedEvent.serializer(), sseEvent.data)
+                        SSEEventType.InboxBookAdded(
+                            bookId = inboxEvent.book.id,
+                            title = inboxEvent.book.title,
+                        )
+                    }
+
+                    "inbox.book_released" -> {
+                        val inboxEvent =
+                            json.decodeFromJsonElement(
+                                SSEInboxBookReleasedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.InboxBookReleased(
+                            bookId = inboxEvent.bookId,
+                        )
+                    }
+
                     else -> {
                         logger.debug { "Unknown event type: ${sseEvent.type}" }
                         return
@@ -331,4 +521,172 @@ sealed class SSEEventType {
     ) : SSEEventType()
 
     data object Heartbeat : SSEEventType()
+
+    /**
+     * Admin-only: New user registered and is pending approval.
+     */
+    data class UserPending(
+        val user: SSEUserData,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: Pending user was approved.
+     */
+    data class UserApproved(
+        val user: SSEUserData,
+    ) : SSEEventType()
+
+    // Collection events (admin-only)
+
+    /**
+     * Admin-only: New collection was created.
+     */
+    data class CollectionCreated(
+        val id: String,
+        val name: String,
+        val bookCount: Int,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: Collection was updated.
+     */
+    data class CollectionUpdated(
+        val id: String,
+        val name: String,
+        val bookCount: Int,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: Collection was deleted.
+     */
+    data class CollectionDeleted(
+        val id: String,
+        val name: String,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: Book was added to a collection.
+     */
+    data class CollectionBookAdded(
+        val collectionId: String,
+        val collectionName: String,
+        val bookId: String,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: Book was removed from a collection.
+     */
+    data class CollectionBookRemoved(
+        val collectionId: String,
+        val collectionName: String,
+        val bookId: String,
+    ) : SSEEventType()
+
+    // Lens events
+
+    /**
+     * A new lens was created.
+     */
+    data class LensCreated(
+        val id: String,
+        val ownerId: String,
+        val name: String,
+        val description: String?,
+        val bookCount: Int,
+        val ownerDisplayName: String,
+        val ownerAvatarColor: String,
+        val createdAt: String,
+        val updatedAt: String,
+    ) : SSEEventType()
+
+    /**
+     * An existing lens was updated.
+     */
+    data class LensUpdated(
+        val id: String,
+        val ownerId: String,
+        val name: String,
+        val description: String?,
+        val bookCount: Int,
+        val ownerDisplayName: String,
+        val ownerAvatarColor: String,
+        val createdAt: String,
+        val updatedAt: String,
+    ) : SSEEventType()
+
+    /**
+     * A lens was deleted.
+     */
+    data class LensDeleted(
+        val id: String,
+        val ownerId: String,
+    ) : SSEEventType()
+
+    /**
+     * A book was added to a lens.
+     */
+    data class LensBookAdded(
+        val lensId: String,
+        val ownerId: String,
+        val bookId: String,
+        val bookCount: Int,
+    ) : SSEEventType()
+
+    /**
+     * A book was removed from a lens.
+     */
+    data class LensBookRemoved(
+        val lensId: String,
+        val ownerId: String,
+        val bookId: String,
+        val bookCount: Int,
+    ) : SSEEventType()
+
+    // Tag events
+
+    /**
+     * A new tag was created globally.
+     */
+    data class TagCreated(
+        val id: String,
+        val slug: String,
+        val bookCount: Int,
+    ) : SSEEventType()
+
+    /**
+     * A tag was added to a book.
+     */
+    data class BookTagAdded(
+        val bookId: String,
+        val tagId: String,
+        val tagSlug: String,
+        val tagBookCount: Int,
+    ) : SSEEventType()
+
+    /**
+     * A tag was removed from a book.
+     */
+    data class BookTagRemoved(
+        val bookId: String,
+        val tagId: String,
+        val tagSlug: String,
+        val tagBookCount: Int,
+    ) : SSEEventType()
+
+    // Inbox events (admin-only)
+
+    /**
+     * Admin-only: A book was added to the inbox.
+     */
+    data class InboxBookAdded(
+        val bookId: String,
+        val title: String,
+    ) : SSEEventType()
+
+    /**
+     * Admin-only: A book was released from the inbox.
+     */
+    data class InboxBookReleased(
+        val bookId: String,
+    ) : SSEEventType()
 }

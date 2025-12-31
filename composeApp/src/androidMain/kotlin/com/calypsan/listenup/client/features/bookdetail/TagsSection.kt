@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.features.bookdetail
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -15,26 +15,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
 import com.calypsan.listenup.client.domain.model.Tag
-import io.github.oshai.kotlinlogging.KotlinLogging
-
-private val logger = KotlinLogging.logger {}
 
 /**
- * Read-only section displaying tags for a book.
+ * Section displaying tags for a book.
  *
- * Tags are displayed as simple chips without edit capability.
- * Editing tags will be available on the Edit Book page.
+ * Tags are global community descriptors displayed as clickable chips.
+ * Clicking a tag navigates to the TagDetailScreen.
+ * Editing tags is available on the Edit Book page.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TagsSection(
     tags: List<Tag>,
     isLoading: Boolean,
+    onTagClick: (Tag) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (tags.isEmpty() && !isLoading) return
@@ -60,7 +58,10 @@ fun TagsSection(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 tags.forEach { tag ->
-                    TagChip(tag = tag)
+                    TagChip(
+                        tag = tag,
+                        onClick = { onTagClick(tag) },
+                    )
                 }
             }
         }
@@ -68,44 +69,26 @@ fun TagsSection(
 }
 
 /**
- * A read-only tag chip.
+ * A clickable tag chip styled consistently with GenreChip.
  *
- * Uses the tag's color if available, otherwise falls back to theme colors.
+ * Uses secondaryContainer background to match genre pills.
  */
 @Composable
 private fun TagChip(
     tag: Tag,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Parse tag color if available
-    val tagColor =
-        tag.color?.let { hex ->
-            try {
-                Color(android.graphics.Color.parseColor(hex))
-            } catch (e: Exception) {
-                logger.debug(e) { "Failed to parse tag color: $hex" }
-                null
-            }
-        }
-
     Text(
-        text = tag.name,
+        text = tag.displayName(),
         style = MaterialTheme.typography.labelMedium,
-        color = tagColor ?: MaterialTheme.colorScheme.onSurface,
+        fontWeight = FontWeight.Medium,
+        color = MaterialTheme.colorScheme.onSecondaryContainer,
         modifier =
             modifier
                 .clip(RoundedCornerShape(16.dp))
-                .then(
-                    if (tagColor != null) {
-                        Modifier.background(tagColor.copy(alpha = 0.15f))
-                    } else {
-                        Modifier
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline,
-                                shape = RoundedCornerShape(16.dp),
-                            ).background(MaterialTheme.colorScheme.surfaceContainerLow)
-                    },
-                ).padding(horizontal = 12.dp, vertical = 6.dp),
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }

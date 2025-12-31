@@ -15,27 +15,36 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.HowToReg
+import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,6 +76,12 @@ fun AdminScreen(
     viewModel: AdminViewModel,
     onBackClick: () -> Unit,
     onInviteClick: () -> Unit,
+    onCollectionsClick: () -> Unit = {},
+    onInboxClick: () -> Unit = {},
+    inboxEnabled: Boolean = false,
+    inboxCount: Int = 0,
+    isTogglingInbox: Boolean = false,
+    onInboxEnabledChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -76,6 +91,7 @@ fun AdminScreen(
 
     var userToDelete by remember { mutableStateOf<AdminUser?>(null) }
     var inviteToRevoke by remember { mutableStateOf<AdminInvite?>(null) }
+    var userToDeny by remember { mutableStateOf<AdminUser?>(null) }
 
     LaunchedEffect(state.error) {
         state.error?.let {
@@ -87,7 +103,7 @@ fun AdminScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            CenterAlignedTopAppBar(
+            TopAppBar(
                 title = { Text("Administration") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
@@ -103,6 +119,9 @@ fun AdminScreen(
         } else {
             AdminContent(
                 state = state,
+                onOpenRegistrationChange = { viewModel.setOpenRegistration(it) },
+                onApproveUserClick = { viewModel.approveUser(it.id) },
+                onDenyUserClick = { userToDeny = it },
                 onDeleteUserClick = { userToDelete = it },
                 onCopyInviteClick = { invite ->
                     copyToClipboard(context, invite.url)
@@ -112,6 +131,12 @@ fun AdminScreen(
                 },
                 onRevokeInviteClick = { inviteToRevoke = it },
                 onInviteClick = onInviteClick,
+                onCollectionsClick = onCollectionsClick,
+                onInboxClick = onInboxClick,
+                inboxEnabled = inboxEnabled,
+                inboxCount = inboxCount,
+                isTogglingInbox = isTogglingInbox,
+                onInboxEnabledChange = onInboxEnabledChange,
                 modifier = Modifier.padding(innerPadding),
             )
         }
@@ -122,7 +147,7 @@ fun AdminScreen(
         ListenUpDestructiveDialog(
             onDismissRequest = { userToDelete = null },
             title = "Delete User",
-            text = "Are you sure you want to delete ${user.displayName}? This action cannot be undone.",
+            text = "Are you sure you want to delete ${user.displayName ?: user.email}? This action cannot be undone.",
             confirmText = "Delete",
             onConfirm = {
                 viewModel.deleteUser(user.id)
@@ -148,6 +173,23 @@ fun AdminScreen(
             onDismiss = { inviteToRevoke = null },
         )
     }
+
+    // Deny user confirmation dialog
+    userToDeny?.let { user ->
+        ListenUpDestructiveDialog(
+            onDismissRequest = { userToDeny = null },
+            title = "Deny Registration",
+            text =
+                "Are you sure you want to deny the registration request from " +
+                    "${user.displayName ?: user.email}? They will need to register again.",
+            confirmText = "Deny",
+            onConfirm = {
+                viewModel.denyUser(user.id)
+                userToDeny = null
+            },
+            onDismiss = { userToDeny = null },
+        )
+    }
 }
 
 private fun copyToClipboard(
@@ -162,10 +204,19 @@ private fun copyToClipboard(
 @Composable
 private fun AdminContent(
     state: AdminUiState,
+    onOpenRegistrationChange: (Boolean) -> Unit,
+    onApproveUserClick: (AdminUser) -> Unit,
+    onDenyUserClick: (AdminUser) -> Unit,
     onDeleteUserClick: (AdminUser) -> Unit,
     onCopyInviteClick: (AdminInvite) -> Unit,
     onRevokeInviteClick: (AdminInvite) -> Unit,
     onInviteClick: () -> Unit,
+    onCollectionsClick: () -> Unit,
+    onInboxClick: () -> Unit,
+    inboxEnabled: Boolean,
+    inboxCount: Int,
+    isTogglingInbox: Boolean,
+    onInboxEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -174,13 +225,85 @@ private fun AdminContent(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
     ) {
+        // Settings section
+        item {
+            Text(
+                text = "Settings",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+            )
+        }
+
+        item {
+            SettingsCard(
+                openRegistration = state.openRegistration,
+                isTogglingOpenRegistration = state.isTogglingOpenRegistration,
+                onOpenRegistrationChange = onOpenRegistrationChange,
+                inboxEnabled = inboxEnabled,
+                isTogglingInbox = isTogglingInbox,
+                onInboxEnabledChange = onInboxEnabledChange,
+            )
+        }
+
+        // Pending users section (only shown when open registration is enabled)
+        if (state.openRegistration) {
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Pending Registrations",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
+
+            item {
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors =
+                        CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        ),
+                ) {
+                    if (state.pendingUsers.isEmpty()) {
+                        Text(
+                            text = "No pending registrations",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    } else {
+                        Column {
+                            state.pendingUsers.forEachIndexed { index, user ->
+                                PendingUserRow(
+                                    user = user,
+                                    isApproving = state.approvingUserId == user.id,
+                                    isDenying = state.denyingUserId == user.id,
+                                    onApproveClick = { onApproveUserClick(user) },
+                                    onDenyClick = { onDenyUserClick(user) },
+                                )
+                                if (index < state.pendingUsers.lastIndex) {
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.2f),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Users section header
         item {
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = "Users",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+                modifier = Modifier.padding(bottom = 8.dp),
             )
         }
 
@@ -278,7 +401,200 @@ private fun AdminContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             InviteSomeoneCard(onClick = onInviteClick)
+        }
+
+        // Collections button
+        item {
+            Spacer(modifier = Modifier.height(12.dp))
+            CollectionsCard(onClick = onCollectionsClick)
+        }
+
+        // Inbox button (only shown when inbox workflow is enabled)
+        if (inboxEnabled) {
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+                InboxCard(
+                    inboxCount = inboxCount,
+                    onClick = onInboxClick,
+                )
+            }
+        }
+
+        item {
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun SettingsCard(
+    openRegistration: Boolean,
+    isTogglingOpenRegistration: Boolean,
+    onOpenRegistrationChange: (Boolean) -> Unit,
+    inboxEnabled: Boolean,
+    isTogglingInbox: Boolean,
+    onInboxEnabledChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+    ) {
+        Column {
+            // Open Registration toggle
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.HowToReg,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Open Registration",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "Allow anyone to request an account",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (isTogglingOpenRegistration) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Switch(
+                        checked = openRegistration,
+                        onCheckedChange = onOpenRegistrationChange,
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            )
+
+            // Inbox Workflow toggle
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Inbox,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Inbox Workflow",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "Review new books before they appear in library",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (isTogglingInbox) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Switch(
+                        checked = inboxEnabled,
+                        onCheckedChange = onInboxEnabledChange,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PendingUserRow(
+    user: AdminUser,
+    isApproving: Boolean,
+    isDenying: Boolean,
+    onApproveClick: () -> Unit,
+    onDenyClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // Name and email
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text =
+                    user.displayName ?: "${user.firstName ?: ""} ${user.lastName ?: ""}".trim().ifEmpty { user.email },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = user.email,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        // Action buttons
+        if (isApproving || isDenying) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 2.dp,
+            )
+        } else {
+            OutlinedButton(
+                onClick = onDenyClick,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Deny")
+            }
+            FilledTonalButton(
+                onClick = onApproveClick,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Approve")
+            }
         }
     }
 }
@@ -337,7 +653,7 @@ private fun UserTableRow(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = user.displayName,
+                text = user.displayName ?: user.email,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
@@ -498,6 +814,98 @@ private fun InviteSomeoneCard(
                     text = "Share your audiobook library with others",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CollectionsCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Folder,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Collections",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = "Organize books into collections for access control",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InboxCard(
+    inboxCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Inbox,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Inbox",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+                Text(
+                    text =
+                        if (inboxCount > 0) {
+                            "$inboxCount book${if (inboxCount != 1) "s" else ""} awaiting review"
+                        } else {
+                            "Review newly scanned books before publishing"
+                        },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
                 )
             }
         }

@@ -10,6 +10,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.isSuccess
 import kotlinx.serialization.SerialName
@@ -32,12 +33,42 @@ interface AdminApiContract {
 
     suspend fun deleteUser(userId: String)
 
+    // Pending user management
+    suspend fun getPendingUsers(): List<AdminUser>
+
+    suspend fun approveUser(userId: String): AdminUser
+
+    suspend fun denyUser(userId: String)
+
     // Invite management
     suspend fun getInvites(): List<AdminInvite>
 
     suspend fun createInvite(request: CreateInviteRequest): AdminInvite
 
     suspend fun deleteInvite(inviteId: String)
+
+    // Settings
+    suspend fun setOpenRegistration(enabled: Boolean)
+
+    // Server settings (inbox workflow)
+    suspend fun getServerSettings(): ServerSettingsResponse
+
+    suspend fun updateServerSettings(request: ServerSettingsRequest): ServerSettingsResponse
+
+    // Inbox management
+    suspend fun listInboxBooks(): InboxBooksResponse
+
+    suspend fun releaseBooks(bookIds: List<String>): ReleaseInboxBooksResponse
+
+    suspend fun stageCollection(
+        bookId: String,
+        collectionId: String,
+    )
+
+    suspend fun unstageCollection(
+        bookId: String,
+        collectionId: String,
+    )
 }
 
 /**
@@ -108,6 +139,46 @@ class AdminApi(
         // 204 No Content - success
     }
 
+    // Pending User Management
+
+    override suspend fun getPendingUsers(): List<AdminUser> {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<UsersResponse> =
+            client.get("/api/v1/admin/users/pending").body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data.users
+            is Failure -> throw result.exception
+        }
+    }
+
+    override suspend fun approveUser(userId: String): AdminUser {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<AdminUser> =
+            client.post("/api/v1/admin/users/$userId/approve").body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exception
+        }
+    }
+
+    override suspend fun denyUser(userId: String) {
+        val client = clientFactory.getClient()
+        val response = client.post("/api/v1/admin/users/$userId/deny")
+
+        if (!response.status.isSuccess()) {
+            val errorResponse: ApiResponse<Unit> = response.body()
+            when (val result = errorResponse.toResult()) {
+                is Success -> { /* Shouldn't happen */ }
+
+                is Failure -> {
+                    throw result.exception
+                }
+            }
+        }
+    }
+
     // Invite Management
 
     override suspend fun getInvites(): List<AdminInvite> {
@@ -152,6 +223,123 @@ class AdminApi(
         }
         // 204 No Content - success
     }
+
+    // Settings
+
+    override suspend fun setOpenRegistration(enabled: Boolean) {
+        val client = clientFactory.getClient()
+        val response =
+            client.put("/api/v1/admin/settings/open-registration") {
+                setBody(SetOpenRegistrationRequest(enabled))
+            }
+
+        if (!response.status.isSuccess()) {
+            val errorResponse: ApiResponse<Unit> = response.body()
+            when (val result = errorResponse.toResult()) {
+                is Success -> { /* Shouldn't happen */ }
+
+                is Failure -> {
+                    throw result.exception
+                }
+            }
+        }
+    }
+
+    // Server Settings (Inbox Workflow)
+
+    override suspend fun getServerSettings(): ServerSettingsResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<ServerSettingsApiResponse> =
+            client.get("/api/v1/admin/settings").body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data.toDomain()
+            is Failure -> throw result.exception
+        }
+    }
+
+    override suspend fun updateServerSettings(request: ServerSettingsRequest): ServerSettingsResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<ServerSettingsApiResponse> =
+            client
+                .patch("/api/v1/admin/settings") {
+                    setBody(request.toApiRequest())
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data.toDomain()
+            is Failure -> throw result.exception
+        }
+    }
+
+    // Inbox Management
+
+    override suspend fun listInboxBooks(): InboxBooksResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<InboxBooksApiResponse> =
+            client.get("/api/v1/admin/inbox").body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data.toDomain()
+            is Failure -> throw result.exception
+        }
+    }
+
+    override suspend fun releaseBooks(bookIds: List<String>): ReleaseInboxBooksResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<ReleaseInboxBooksApiResponse> =
+            client
+                .post("/api/v1/admin/inbox/release") {
+                    setBody(ReleaseInboxBooksApiRequest(bookIds))
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data.toDomain()
+            is Failure -> throw result.exception
+        }
+    }
+
+    override suspend fun stageCollection(
+        bookId: String,
+        collectionId: String,
+    ) {
+        val client = clientFactory.getClient()
+        val response =
+            client.post("/api/v1/admin/inbox/$bookId/stage") {
+                setBody(StageCollectionApiRequest(collectionId))
+            }
+
+        if (!response.status.isSuccess()) {
+            val errorResponse: ApiResponse<Unit> = response.body()
+            when (val result = errorResponse.toResult()) {
+                is Success -> { /* Shouldn't happen */ }
+
+                is Failure -> {
+                    throw result.exception
+                }
+            }
+        }
+    }
+
+    override suspend fun unstageCollection(
+        bookId: String,
+        collectionId: String,
+    ) {
+        val client = clientFactory.getClient()
+        val response =
+            client.delete("/api/v1/admin/inbox/$bookId/stage/$collectionId")
+
+        if (!response.status.isSuccess()) {
+            val errorResponse: ApiResponse<Unit> = response.body()
+            when (val result = errorResponse.toResult()) {
+                is Success -> { /* Shouldn't happen */ }
+
+                is Failure -> {
+                    throw result.exception
+                }
+            }
+        }
+    }
 }
 
 // Response wrappers
@@ -176,13 +364,15 @@ private data class InvitesResponse(
 data class AdminUser(
     @SerialName("id") val id: String,
     @SerialName("email") val email: String,
-    @SerialName("display_name") val displayName: String,
-    @SerialName("first_name") val firstName: String,
-    @SerialName("last_name") val lastName: String,
+    @SerialName("display_name") val displayName: String? = null,
+    @SerialName("first_name") val firstName: String? = null,
+    @SerialName("last_name") val lastName: String? = null,
     @SerialName("is_root") val isRoot: Boolean,
     @SerialName("role") val role: String,
+    @SerialName("status") val status: String = "active",
     @SerialName("invited_by") val invitedBy: String? = null,
     @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String? = null,
     @SerialName("last_login_at") val lastLoginAt: String? = null,
 ) {
     /**
@@ -190,6 +380,11 @@ data class AdminUser(
      * Root users cannot be modified except by themselves.
      */
     val isProtected: Boolean get() = isRoot
+
+    /**
+     * Whether this user is pending admin approval.
+     */
+    val isPending: Boolean get() = status == "pending"
 }
 
 /**
@@ -243,4 +438,132 @@ data class UpdateUserRequest(
     @SerialName("role") val role: String? = null,
     @SerialName("first_name") val firstName: String? = null,
     @SerialName("last_name") val lastName: String? = null,
+)
+
+/**
+ * Request to set open registration setting.
+ */
+@Serializable
+data class SetOpenRegistrationRequest(
+    @SerialName("enabled") val enabled: Boolean,
+)
+
+// =============================================================================
+// Server Settings API Models
+// =============================================================================
+
+/**
+ * API response for server settings endpoint.
+ */
+@Serializable
+private data class ServerSettingsApiResponse(
+    @SerialName("inbox_enabled") val inboxEnabled: Boolean,
+    @SerialName("inbox_count") val inboxCount: Int,
+) {
+    fun toDomain(): ServerSettingsResponse =
+        ServerSettingsResponse(
+            inboxEnabled = inboxEnabled,
+            inboxCount = inboxCount,
+        )
+}
+
+/**
+ * API request for updating server settings.
+ */
+@Serializable
+private data class ServerSettingsApiRequest(
+    @SerialName("inbox_enabled") val inboxEnabled: Boolean?,
+)
+
+private fun ServerSettingsRequest.toApiRequest(): ServerSettingsApiRequest =
+    ServerSettingsApiRequest(inboxEnabled = inboxEnabled)
+
+// =============================================================================
+// Inbox API Models
+// =============================================================================
+
+/**
+ * API response for listing inbox books.
+ */
+@Serializable
+private data class InboxBooksApiResponse(
+    @SerialName("books") val books: List<InboxBookApiResponse>,
+    @SerialName("total") val total: Int,
+) {
+    fun toDomain(): InboxBooksResponse =
+        InboxBooksResponse(
+            books = books.map { it.toDomain() },
+            total = total,
+        )
+}
+
+/**
+ * API response for a single inbox book.
+ */
+@Serializable
+private data class InboxBookApiResponse(
+    @SerialName("id") val id: String,
+    @SerialName("title") val title: String,
+    @SerialName("author") val author: String? = null,
+    @SerialName("cover_url") val coverUrl: String? = null,
+    @SerialName("duration") val duration: Long,
+    @SerialName("staged_collection_ids") val stagedCollectionIds: List<String>,
+    @SerialName("staged_collections") val stagedCollections: List<CollectionRefApiResponse>,
+    @SerialName("scanned_at") val scannedAt: String,
+) {
+    fun toDomain(): InboxBookResponse =
+        InboxBookResponse(
+            id = id,
+            title = title,
+            author = author,
+            coverUrl = coverUrl,
+            duration = duration,
+            stagedCollectionIds = stagedCollectionIds,
+            stagedCollections = stagedCollections.map { it.toDomain() },
+            scannedAt = scannedAt,
+        )
+}
+
+/**
+ * API response for collection reference.
+ */
+@Serializable
+private data class CollectionRefApiResponse(
+    @SerialName("id") val id: String,
+    @SerialName("name") val name: String,
+) {
+    fun toDomain(): CollectionRef = CollectionRef(id = id, name = name)
+}
+
+/**
+ * API request for releasing inbox books.
+ */
+@Serializable
+private data class ReleaseInboxBooksApiRequest(
+    @SerialName("book_ids") val bookIds: List<String>,
+)
+
+/**
+ * API response for releasing inbox books.
+ */
+@Serializable
+private data class ReleaseInboxBooksApiResponse(
+    @SerialName("released") val released: Int,
+    @SerialName("public") val public: Int,
+    @SerialName("to_collections") val toCollections: Int,
+) {
+    fun toDomain(): ReleaseInboxBooksResponse =
+        ReleaseInboxBooksResponse(
+            released = released,
+            public = public,
+            toCollections = toCollections,
+        )
+}
+
+/**
+ * API request for staging a collection.
+ */
+@Serializable
+private data class StageCollectionApiRequest(
+    @SerialName("collection_id") val collectionId: String,
 )

@@ -73,12 +73,24 @@ data class EditableGenre(
 
 /**
  * Tag for editing.
+ *
+ * Tags are global community descriptors identified by slug.
  */
 data class EditableTag(
     val id: String,
-    val name: String,
-    val color: String? = null,
-)
+    val slug: String,
+) {
+    /**
+     * Human-readable display name derived from slug.
+     * "found-family" -> "Found Family"
+     */
+    fun displayName(): String =
+        slug
+            .split("-")
+            .joinToString(" ") { word ->
+                word.replaceFirstChar { it.titlecase() }
+            }
+}
 
 /**
  * UI state for book editing screen.
@@ -123,9 +135,9 @@ data class BookEditUiState(
     val allGenres: List<EditableGenre> = emptyList(), // Cached list from server
     val genreSearchQuery: String = "",
     val genreSearchResults: List<EditableGenre> = emptyList(), // Filtered locally
-    // Tags (user-scoped, can create new)
+    // Tags (global community descriptors)
     val tags: List<EditableTag> = emptyList(),
-    val allTags: List<EditableTag> = emptyList(), // User's existing tags
+    val allTags: List<EditableTag> = emptyList(), // All available tags
     val tagSearchQuery: String = "",
     val tagSearchResults: List<EditableTag> = emptyList(),
     val tagSearchLoading: Boolean = false,

@@ -86,6 +86,9 @@ kotlin {
             implementation(libs.media3.ui)
             implementation(libs.media3.datasource.okhttp)
 
+            // Async/Future support for Media3 callbacks
+            implementation(libs.concurrent.futures)
+
             // Palette for dynamic color extraction from cover art
             implementation(libs.androidx.palette.ktx)
 

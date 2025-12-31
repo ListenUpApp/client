@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.features.home.components.ContinueListeningRow
 import com.calypsan.listenup.client.features.home.components.EmptyContinueListening
 import com.calypsan.listenup.client.features.home.components.HomeHeader
+import com.calypsan.listenup.client.features.home.components.MyLensesRow
 import com.calypsan.listenup.client.presentation.home.HomeViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -27,11 +28,14 @@ import org.koin.compose.viewmodel.koinViewModel
  * Features:
  * - Time-aware greeting (Good morning/afternoon/evening/night)
  * - Continue Listening section with in-progress audiobooks
+ * - My Lenses section with user's personal curation lenses
  * - Pull-to-refresh to reload data
  * - Empty state with link to browse library
  *
  * @param onBookClick Callback when a book is clicked
  * @param onNavigateToLibrary Callback to navigate to the library
+ * @param onLensClick Callback when a lens is clicked
+ * @param onSeeAllLenses Callback when "See All" is clicked for lenses
  * @param modifier Modifier from parent
  * @param viewModel HomeViewModel injected via Koin
  */
@@ -40,6 +44,8 @@ import org.koin.compose.viewmodel.koinViewModel
 fun HomeScreen(
     onBookClick: (String) -> Unit,
     onNavigateToLibrary: () -> Unit,
+    onLensClick: (String) -> Unit,
+    onSeeAllLenses: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
@@ -71,6 +77,16 @@ fun HomeScreen(
             } else if (!state.isLoading) {
                 EmptyContinueListening(
                     onBrowseLibrary = onNavigateToLibrary,
+                )
+            }
+
+            // My Lenses section
+            if (state.hasMyLenses) {
+                Spacer(modifier = Modifier.height(24.dp))
+                MyLensesRow(
+                    lenses = state.myLenses,
+                    onLensClick = onLensClick,
+                    onSeeAllClick = onSeeAllLenses,
                 )
             }
 

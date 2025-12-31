@@ -2,8 +2,6 @@
 
 package com.calypsan.listenup.client.presentation.bookedit.delegates
 
-import com.calypsan.listenup.client.data.remote.TagApiContract
-import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.presentation.bookedit.BookEditUiState
 import com.calypsan.listenup.client.presentation.bookedit.EditableGenre
 import com.calypsan.listenup.client.presentation.bookedit.EditableTag
@@ -31,17 +29,18 @@ private const val SEARCH_LIMIT = 10
  *
  * Responsibilities:
  * - Genre filtering (local, from pre-loaded list)
- * - Tag search and creation
+ * - Tag search and selection (from pre-loaded list)
+ * - Create new tags by entering raw text (normalized to slug)
  * - Add/remove genres and tags
  *
  * @property state Shared state flow owned by ViewModel
- * @property tagApi API for tag creation
  * @property scope CoroutineScope for launching operations
  * @property onChangesMade Callback to notify ViewModel of changes
  */
 class GenreTagEditDelegate(
     private val state: MutableStateFlow<BookEditUiState>,
-    private val tagApi: TagApiContract,
+    @Suppress("UnusedPrivateMember")
+    private val tagApi: Any, // Kept for interface compatibility, not used
     private val scope: CoroutineScope,
     private val onChangesMade: () -> Unit,
 ) {
@@ -129,17 +128,18 @@ class GenreTagEditDelegate(
 
     /**
      * Create a new tag inline and add it to the book.
+     *
+     * Tags are normalized to slugs (e.g., "Found Family" -> "found-family").
+     * The actual tag creation happens on the server when the book is saved.
      */
     fun createAndAddTag(name: String) {
         if (name.isBlank()) return
 
-        val trimmedName = name.trim()
+        val slug = normalizeToSlug(name)
+        if (slug.isEmpty()) return
 
-        // Check if tag with same name already exists in allTags
-        val existingTag =
-            state.value.allTags.find {
-                it.name.equals(trimmedName, ignoreCase = true)
-            }
+        // Check if tag with same slug already exists in allTags
+        val existingTag = state.value.allTags.find { it.slug == slug }
 
         if (existingTag != null) {
             // Use existing tag
@@ -147,38 +147,48 @@ class GenreTagEditDelegate(
             return
         }
 
-        // Create new tag via API
-        scope.launch {
-            state.update { it.copy(tagCreating = true) }
-
-            try {
-                val newTag = tagApi.createTag(trimmedName)
-                val editableTag = newTag.toEditable()
-
-                state.update { current ->
-                    current.copy(
-                        tags = current.tags + editableTag,
-                        allTags = current.allTags + editableTag, // Add to available tags
-                        tagSearchQuery = "",
-                        tagSearchResults = emptyList(),
-                        tagCreating = false,
-                    )
-                }
-                tagQueryFlow.value = ""
-                onChangesMade()
-
-                logger.info { "Created new tag: ${newTag.name}" }
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to create tag: $trimmedName" }
-                state.update {
-                    it.copy(
-                        tagCreating = false,
-                        error = "Failed to create tag: ${e.message}",
-                    )
-                }
+        // Check if we already have this tag added
+        if (state.value.tags.any { it.slug == slug }) {
+            state.update {
+                it.copy(
+                    tagSearchQuery = "",
+                    tagSearchResults = emptyList(),
+                )
             }
+            tagQueryFlow.value = ""
+            return
         }
+
+        // Create a new editable tag (no ID yet - will be assigned by server)
+        val newTag = EditableTag(id = "", slug = slug)
+
+        state.update { current ->
+            current.copy(
+                tags = current.tags + newTag,
+                allTags = current.allTags + newTag, // Add to available tags
+                tagSearchQuery = "",
+                tagSearchResults = emptyList(),
+            )
+        }
+        tagQueryFlow.value = ""
+        onChangesMade()
+
+        logger.info { "Added new tag: $slug" }
     }
+
+    /**
+     * Normalizes user input to a slug format.
+     * "Found Family" -> "found-family"
+     * "slow burn" -> "slow-burn"
+     */
+    private fun normalizeToSlug(input: String): String =
+        input
+            .trim()
+            .lowercase()
+            .replace(Regex("[\\s_/]+"), "-")
+            .replace(Regex("[^a-z0-9-]"), "")
+            .replace(Regex("-+"), "-")
+            .trim('-')
 
     /**
      * Remove a tag from the book.
@@ -242,18 +252,18 @@ class GenreTagEditDelegate(
             scope.launch {
                 state.update { it.copy(tagSearchLoading = true) }
 
-                // Filter from allTags (already loaded)
+                // Filter from allTags (already loaded) by displayName
                 val lowerQuery = query.lowercase()
-                val currentTagIds =
+                val currentSlugs =
                     state.value.tags
-                        .map { it.id }
+                        .map { it.slug }
                         .toSet()
 
                 val filtered =
                     state.value.allTags
                         .filter { tag ->
-                            tag.id !in currentTagIds &&
-                                tag.name.lowercase().contains(lowerQuery)
+                            tag.slug !in currentSlugs &&
+                                tag.displayName().lowercase().contains(lowerQuery)
                         }.take(SEARCH_LIMIT)
 
                 state.update {
@@ -264,6 +274,4 @@ class GenreTagEditDelegate(
                 }
             }
     }
-
-    private fun Tag.toEditable() = EditableTag(id = id, name = name, color = color)
 }

@@ -7,7 +7,7 @@ import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.call.body
 import io.ktor.client.request.get
-import io.ktor.client.request.put
+import io.ktor.client.request.patch
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -17,10 +17,12 @@ import kotlinx.serialization.Serializable
 private val logger = KotlinLogging.logger {}
 
 /**
- * API client for user preferences.
+ * API client for user settings that sync across devices.
  *
- * Handles fetching and updating user preferences that sync across devices.
+ * Handles fetching and updating user playback settings.
  * Uses ApiClientFactory to obtain authenticated HttpClient at call time.
+ *
+ * Server endpoint: /api/v1/settings (GET/PATCH)
  *
  * @property clientFactory Factory for creating authenticated HttpClient
  */
@@ -28,42 +30,48 @@ class UserPreferencesApi(
     private val clientFactory: ApiClientFactory,
 ) : UserPreferencesApiContract {
     /**
-     * Get user preferences from the server.
+     * Get user settings from the server.
      *
-     * Endpoint: GET /api/v1/user/preferences
+     * Endpoint: GET /api/v1/settings
      * Auth: Required
      *
-     * @return Result containing user preferences or error
+     * @return Result containing user settings or error
      */
     override suspend fun getPreferences(): Result<UserPreferencesResponse> =
         suspendRunCatching {
-            logger.debug { "Fetching user preferences" }
+            logger.debug { "Fetching user settings" }
             val client = clientFactory.getClient()
-            val response: ApiResponse<UserPreferencesApiResponse> =
-                client.get("/api/v1/user/preferences").body()
+            val response: ApiResponse<UserSettingsApiResponse> =
+                client.get("/api/v1/settings").body()
             response.toResult().getOrThrow().toDomain()
         }
 
     /**
-     * Update user preferences on the server.
+     * Update user settings on the server.
      *
-     * Endpoint: PUT /api/v1/user/preferences
+     * Endpoint: PATCH /api/v1/settings
      * Auth: Required
      *
-     * @param request The preferences to update
-     * @return Result containing updated preferences or error
+     * Uses PATCH semantics - only non-null fields are updated.
+     *
+     * @param request The settings to update (only non-null fields are sent)
+     * @return Result containing updated settings or error
      */
     override suspend fun updatePreferences(request: UserPreferencesRequest): Result<UserPreferencesResponse> =
         suspendRunCatching {
-            logger.debug { "Updating user preferences: defaultPlaybackSpeed=${request.defaultPlaybackSpeed}" }
+            logger.debug { "Updating user settings: $request" }
             val client = clientFactory.getClient()
             val apiRequest =
-                UserPreferencesApiRequest(
+                UserSettingsApiRequest(
                     defaultPlaybackSpeed = request.defaultPlaybackSpeed,
+                    defaultSkipForwardSec = request.defaultSkipForwardSec,
+                    defaultSkipBackwardSec = request.defaultSkipBackwardSec,
+                    defaultSleepTimerMin = request.defaultSleepTimerMin,
+                    shakeToResetSleepTimer = request.shakeToResetSleepTimer,
                 )
-            val response: ApiResponse<UserPreferencesApiResponse> =
+            val response: ApiResponse<UserSettingsApiResponse> =
                 client
-                    .put("/api/v1/user/preferences") {
+                    .patch("/api/v1/settings") {
                         contentType(ContentType.Application.Json)
                         setBody(apiRequest)
                     }.body()
@@ -72,24 +80,48 @@ class UserPreferencesApi(
 }
 
 /**
- * Internal API response model for user preferences.
+ * Internal API response model for user settings.
+ * Maps to server's UserSettingsResponse.
  */
 @Serializable
-internal data class UserPreferencesApiResponse(
+internal data class UserSettingsApiResponse(
     @SerialName("default_playback_speed")
     val defaultPlaybackSpeed: Float,
+    @SerialName("default_skip_forward_sec")
+    val defaultSkipForwardSec: Int,
+    @SerialName("default_skip_backward_sec")
+    val defaultSkipBackwardSec: Int,
+    @SerialName("default_sleep_timer_min")
+    val defaultSleepTimerMin: Int? = null,
+    @SerialName("shake_to_reset_sleep_timer")
+    val shakeToResetSleepTimer: Boolean,
+    @SerialName("updated_at")
+    val updatedAt: String? = null,
 ) {
     fun toDomain(): UserPreferencesResponse =
         UserPreferencesResponse(
             defaultPlaybackSpeed = defaultPlaybackSpeed,
+            defaultSkipForwardSec = defaultSkipForwardSec,
+            defaultSkipBackwardSec = defaultSkipBackwardSec,
+            defaultSleepTimerMin = defaultSleepTimerMin,
+            shakeToResetSleepTimer = shakeToResetSleepTimer,
         )
 }
 
 /**
- * Internal API request model for user preferences.
+ * Internal API request model for user settings.
+ * Uses PATCH semantics - only non-null fields are sent to server.
  */
 @Serializable
-internal data class UserPreferencesApiRequest(
+internal data class UserSettingsApiRequest(
     @SerialName("default_playback_speed")
-    val defaultPlaybackSpeed: Float?,
+    val defaultPlaybackSpeed: Float? = null,
+    @SerialName("default_skip_forward_sec")
+    val defaultSkipForwardSec: Int? = null,
+    @SerialName("default_skip_backward_sec")
+    val defaultSkipBackwardSec: Int? = null,
+    @SerialName("default_sleep_timer_min")
+    val defaultSleepTimerMin: Int? = null,
+    @SerialName("shake_to_reset_sleep_timer")
+    val shakeToResetSleepTimer: Boolean? = null,
 )

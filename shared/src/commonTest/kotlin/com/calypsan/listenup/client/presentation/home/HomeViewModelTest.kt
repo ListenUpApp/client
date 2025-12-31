@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.home
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
@@ -14,6 +15,7 @@ import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -48,12 +50,14 @@ class HomeViewModelTest {
 
     private class TestFixture {
         val homeRepository: HomeRepositoryContract = mock()
+        val lensDao: LensDao = mock()
         val userFlow = MutableStateFlow<UserEntity?>(null)
         var currentHour: Int = 10 // Default to morning
 
         fun build(): HomeViewModel =
             HomeViewModel(
                 homeRepository = homeRepository,
+                lensDao = lensDao,
                 currentHour = { currentHour },
             )
     }
@@ -64,6 +68,7 @@ class HomeViewModelTest {
         // Default stubs
         every { fixture.homeRepository.observeCurrentUser() } returns fixture.userFlow
         everySuspend { fixture.homeRepository.getContinueListening(any()) } returns Success(emptyList())
+        every { fixture.lensDao.observeMyLenses(any()) } returns flowOf(emptyList())
 
         return fixture
     }

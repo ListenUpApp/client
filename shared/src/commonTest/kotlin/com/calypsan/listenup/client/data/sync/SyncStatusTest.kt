@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.sync
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
@@ -23,7 +24,7 @@ class SyncStatusTest {
     @Test
     fun `Idle is a valid sync status`() {
         val status: SyncStatus = SyncStatus.Idle
-        assertIs<SyncStatus.Idle>(status)
+        checkIs<SyncStatus.Idle>(status)
     }
 
     // ========== Syncing State Tests ==========
@@ -31,7 +32,7 @@ class SyncStatusTest {
     @Test
     fun `Syncing is a valid sync status`() {
         val status: SyncStatus = SyncStatus.Syncing
-        assertIs<SyncStatus.Syncing>(status)
+        checkIs<SyncStatus.Syncing>(status)
     }
 
     // ========== Progress State Tests ==========
@@ -147,7 +148,7 @@ class SyncStatusTest {
         val exception = IllegalStateException("Invalid state")
         val status = SyncStatus.Error(exception = exception)
 
-        assertIs<IllegalStateException>(status.exception)
+        checkIs<IllegalStateException>(status.exception)
     }
 
     @Test
@@ -165,11 +166,12 @@ class SyncStatusTest {
     fun `SyncPhase has all expected phases`() {
         val phases = SyncPhase.entries
 
-        assertEquals(5, phases.size)
+        assertEquals(6, phases.size)
         assertNotNull(phases.find { it == SyncPhase.FETCHING_METADATA })
         assertNotNull(phases.find { it == SyncPhase.SYNCING_BOOKS })
         assertNotNull(phases.find { it == SyncPhase.SYNCING_SERIES })
         assertNotNull(phases.find { it == SyncPhase.SYNCING_CONTRIBUTORS })
+        assertNotNull(phases.find { it == SyncPhase.SYNCING_TAGS })
         assertNotNull(phases.find { it == SyncPhase.FINALIZING })
     }
 
@@ -180,7 +182,8 @@ class SyncStatusTest {
         assertEquals(1, SyncPhase.SYNCING_BOOKS.ordinal)
         assertEquals(2, SyncPhase.SYNCING_SERIES.ordinal)
         assertEquals(3, SyncPhase.SYNCING_CONTRIBUTORS.ordinal)
-        assertEquals(4, SyncPhase.FINALIZING.ordinal)
+        assertEquals(4, SyncPhase.SYNCING_TAGS.ordinal)
+        assertEquals(5, SyncPhase.FINALIZING.ordinal)
     }
 
     // ========== State Transition Pattern Tests ==========
@@ -219,11 +222,11 @@ class SyncStatusTest {
         states.add(SyncStatus.Success(timestamp = Timestamp.now()))
 
         // Verify transitions
-        assertIs<SyncStatus.Idle>(states[0])
-        assertIs<SyncStatus.Syncing>(states[1])
-        assertIs<SyncStatus.Progress>(states[2])
-        assertIs<SyncStatus.Progress>(states[3])
-        assertIs<SyncStatus.Success>(states[4])
+        checkIs<SyncStatus.Idle>(states[0])
+        checkIs<SyncStatus.Syncing>(states[1])
+        checkIs<SyncStatus.Progress>(states[2])
+        checkIs<SyncStatus.Progress>(states[3])
+        checkIs<SyncStatus.Success>(states[4])
     }
 
     @Test
@@ -235,9 +238,9 @@ class SyncStatusTest {
         states.add(SyncStatus.Retrying(attempt = 2, maxAttempts = 3))
         states.add(SyncStatus.Error(exception = RuntimeException("Failed after retries")))
 
-        assertIs<SyncStatus.Syncing>(states[0])
-        assertIs<SyncStatus.Retrying>(states[1])
-        assertIs<SyncStatus.Retrying>(states[2])
-        assertIs<SyncStatus.Error>(states[3])
+        checkIs<SyncStatus.Syncing>(states[0])
+        checkIs<SyncStatus.Retrying>(states[1])
+        checkIs<SyncStatus.Retrying>(states[2])
+        checkIs<SyncStatus.Error>(states[3])
     }
 }

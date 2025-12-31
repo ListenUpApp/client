@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookId
@@ -135,8 +136,8 @@ class HomeRepositoryTest {
             val result = repository.getContinueListening(10)
 
             // Then
-            assertIs<Success<*>>(result)
-            assertTrue((result.data as List<*>).isEmpty())
+            val success = assertIs<Success<*>>(result)
+            assertTrue((success.data as List<*>).isEmpty())
         }
 
     @Test
@@ -155,8 +156,8 @@ class HomeRepositoryTest {
             val result = repository.getContinueListening(10)
 
             // Then
-            assertIs<Success<*>>(result)
-            val books = result.data as List<*>
+            val success = assertIs<Success<*>>(result)
+            val books = success.data as List<*>
             assertEquals(1, books.size)
             val continueBook = books[0] as com.calypsan.listenup.client.domain.model.ContinueListeningBook
             assertEquals("book-1", continueBook.bookId)
@@ -184,8 +185,8 @@ class HomeRepositoryTest {
             val result = repository.getContinueListening(10)
 
             // Then
-            assertIs<Success<*>>(result)
-            val books = result.data as List<*>
+            val success = assertIs<Success<*>>(result)
+            val books = success.data as List<*>
             assertEquals(1, books.size)
         }
 
@@ -205,8 +206,8 @@ class HomeRepositoryTest {
             val result = repository.getContinueListening(10)
 
             // Then
-            assertIs<Success<*>>(result)
-            val books = result.data as List<*>
+            val success = assertIs<Success<*>>(result)
+            val books = success.data as List<*>
             assertTrue(books.isEmpty())
         }
 
@@ -226,8 +227,8 @@ class HomeRepositoryTest {
             val result = repository.getContinueListening(10)
 
             // Then
-            assertIs<Success<*>>(result)
-            val books = result.data as List<*>
+            val success = assertIs<Success<*>>(result)
+            val books = success.data as List<*>
             assertEquals(1, books.size)
         }
 
@@ -247,8 +248,8 @@ class HomeRepositoryTest {
             val result = repository.getContinueListening(10)
 
             // Then - progress should be 0, book not filtered (progress < 0.99)
-            assertIs<Success<*>>(result)
-            val books = result.data as List<*>
+            val success = assertIs<Success<*>>(result)
+            val books = success.data as List<*>
             assertEquals(1, books.size)
             val continueBook = books[0] as com.calypsan.listenup.client.domain.model.ContinueListeningBook
             assertEquals(0f, continueBook.progress)
@@ -270,8 +271,8 @@ class HomeRepositoryTest {
             val result = repository.getContinueListening(10)
 
             // Then
-            assertIs<Success<*>>(result)
-            val books = result.data as List<*>
+            val success = assertIs<Success<*>>(result)
+            val books = success.data as List<*>
             val continueBook = books[0] as com.calypsan.listenup.client.domain.model.ContinueListeningBook
             assertEquals("Stephen King", continueBook.authorNames)
         }
@@ -292,8 +293,8 @@ class HomeRepositoryTest {
             val result = repository.getContinueListening(10)
 
             // Then
-            assertIs<Success<*>>(result)
-            val books = result.data as List<*>
+            val success = assertIs<Success<*>>(result)
+            val books = success.data as List<*>
             val continueBook = books[0] as com.calypsan.listenup.client.domain.model.ContinueListeningBook
             assertEquals("/path/to/cover.jpg", continueBook.coverPath)
         }
@@ -316,8 +317,8 @@ class HomeRepositoryTest {
             val result = repository.getContinueListening(5)
 
             // Then
-            assertIs<Success<*>>(result)
-            val returnedBooks = result.data as List<*>
+            val success = assertIs<Success<*>>(result)
+            val returnedBooks = success.data as List<*>
             assertEquals(5, returnedBooks.size)
         }
 

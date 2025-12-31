@@ -16,6 +16,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -34,6 +35,7 @@ class PullSyncOrchestratorTest {
         val bookPuller: Puller = mock()
         val seriesPuller: Puller = mock()
         val contributorPuller: Puller = mock()
+        val tagPuller: Puller = mock()
         val syncDao: SyncDao = mock()
 
         // Use real coordinator for simpler testing
@@ -44,6 +46,7 @@ class PullSyncOrchestratorTest {
             everySuspend { bookPuller.pull(any(), any()) } returns Unit
             everySuspend { seriesPuller.pull(any(), any()) } returns Unit
             everySuspend { contributorPuller.pull(any(), any()) } returns Unit
+            everySuspend { tagPuller.pull(any(), any()) } returns Unit
             everySuspend { syncDao.getValue(SyncDao.KEY_LAST_SYNC_BOOKS) } returns null
         }
 
@@ -52,6 +55,7 @@ class PullSyncOrchestratorTest {
                 bookPuller = bookPuller,
                 seriesPuller = seriesPuller,
                 contributorPuller = contributorPuller,
+                tagPuller = tagPuller,
                 coordinator = coordinator,
                 syncDao = syncDao,
             )
@@ -60,7 +64,7 @@ class PullSyncOrchestratorTest {
     // ========== Successful Pull Tests ==========
 
     @Test
-    fun `pull calls all three pullers`() =
+    fun `pull calls all four pullers`() =
         runTest {
             // Given
             val fixture = TestFixture()
@@ -69,10 +73,11 @@ class PullSyncOrchestratorTest {
             // When
             orchestrator.pull {}
 
-            // Then - all pullers called
+            // Then - all pullers called (tags last, after books)
             verifySuspend { fixture.bookPuller.pull(any(), any()) }
             verifySuspend { fixture.seriesPuller.pull(any(), any()) }
             verifySuspend { fixture.contributorPuller.pull(any(), any()) }
+            verifySuspend { fixture.tagPuller.pull(any(), any()) }
         }
 
     @Test
@@ -90,6 +95,7 @@ class PullSyncOrchestratorTest {
             verifySuspend { fixture.bookPuller.pull(null, any()) }
             verifySuspend { fixture.seriesPuller.pull(null, any()) }
             verifySuspend { fixture.contributorPuller.pull(null, any()) }
+            verifySuspend { fixture.tagPuller.pull(null, any()) }
         }
 
     @Test
@@ -109,6 +115,7 @@ class PullSyncOrchestratorTest {
             verifySuspend { fixture.bookPuller.pull(lastSync.toIsoString(), any()) }
             verifySuspend { fixture.seriesPuller.pull(lastSync.toIsoString(), any()) }
             verifySuspend { fixture.contributorPuller.pull(lastSync.toIsoString(), any()) }
+            verifySuspend { fixture.tagPuller.pull(lastSync.toIsoString(), any()) }
         }
 
     // ========== Progress Reporting Tests ==========
@@ -126,9 +133,8 @@ class PullSyncOrchestratorTest {
 
             // Then - first update is FETCHING_METADATA
             assertTrue(progressUpdates.isNotEmpty())
-            val first = progressUpdates.first()
-            assertTrue(first is SyncStatus.Progress)
-            assertEquals(SyncPhase.FETCHING_METADATA, (first as SyncStatus.Progress).phase)
+            val first = assertIs<SyncStatus.Progress>(progressUpdates.first())
+            assertEquals(SyncPhase.FETCHING_METADATA, first.phase)
         }
 
     @Test
@@ -144,9 +150,8 @@ class PullSyncOrchestratorTest {
 
             // Then - last update is FINALIZING
             assertTrue(progressUpdates.isNotEmpty())
-            val last = progressUpdates.last()
-            assertTrue(last is SyncStatus.Progress)
-            assertEquals(SyncPhase.FINALIZING, (last as SyncStatus.Progress).phase)
+            val last = assertIs<SyncStatus.Progress>(progressUpdates.last())
+            assertEquals(SyncPhase.FINALIZING, last.phase)
         }
 
     // ========== Failure Handling Tests ==========

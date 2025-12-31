@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
+import com.calypsan.listenup.client.data.local.db.TagDao
+import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
@@ -11,10 +13,12 @@ import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
@@ -25,10 +29,23 @@ class BookDetailViewModel(
     private val bookRepository: BookRepositoryContract,
     private val genreApi: GenreApiContract,
     private val tagApi: TagApiContract,
+    private val tagDao: TagDao,
     private val playbackPositionDao: PlaybackPositionDao,
+    private val userDao: UserDao,
 ) : ViewModel() {
     val state: StateFlow<BookDetailUiState>
         field = MutableStateFlow(BookDetailUiState())
+
+    private var tagObserverJob: Job? = null
+
+    init {
+        // Observe admin status
+        viewModelScope.launch {
+            userDao.observeCurrentUser().collect { user ->
+                state.update { it.copy(isAdmin = user?.isRoot == true) }
+            }
+        }
+    }
 
     fun loadBook(bookId: String) {
         viewModelScope.launch {
@@ -126,23 +143,55 @@ class BookDetailViewModel(
     /**
      * Load tags for the current book.
      * Tags are optional - failures don't affect the main screen.
+     *
+     * This method:
+     * 1. Fetches initial tags from the API
+     * 2. Starts observing local storage for real-time SSE updates
      */
     private fun loadTags(bookId: String) {
+        // Cancel any previous observer
+        tagObserverJob?.cancel()
+
+        // Start observing local database for real-time updates
+        tagObserverJob =
+            viewModelScope.launch {
+                tagDao.observeTagsForBook(BookId(bookId)).collect { localTags ->
+                    val domainTags =
+                        localTags.map { entity ->
+                            Tag(
+                                id = entity.id,
+                                slug = entity.slug,
+                                bookCount = entity.bookCount,
+                                createdAt = Instant.fromEpochMilliseconds(entity.createdAt.epochMillis),
+                            )
+                        }
+                    if (domainTags.isNotEmpty()) {
+                        state.update {
+                            it.copy(
+                                tags = domainTags,
+                                isLoadingTags = false,
+                            )
+                        }
+                    }
+                }
+            }
+
+        // Also fetch from API to get latest data and allTags
         viewModelScope.launch {
             state.update { it.copy(isLoadingTags = true) }
             try {
                 val bookTags = tagApi.getBookTags(bookId)
-                val allTags = tagApi.getUserTags()
+                val allTags = tagApi.listTags()
                 state.update {
                     it.copy(
                         tags = bookTags,
-                        allUserTags = allTags,
+                        allTags = allTags,
                         isLoadingTags = false,
                     )
                 }
             } catch (e: Exception) {
                 // Tags are optional - don't fail the whole screen
-                logger.warn(e) { "Failed to load tags" }
+                logger.warn(e) { "Failed to load tags from API" }
                 state.update { it.copy(isLoadingTags = false) }
             }
         }
@@ -164,56 +213,64 @@ class BookDetailViewModel(
 
     /**
      * Add a tag to the current book.
+     *
+     * @param slug The tag slug to add
      */
-    fun addTag(tagId: String) {
+    fun addTag(slug: String) {
         val bookId =
             state.value.book
                 ?.id
                 ?.value ?: return
         viewModelScope.launch {
             try {
-                tagApi.addTagToBook(bookId, tagId)
+                tagApi.addTagToBook(bookId, slug)
                 loadTags(bookId) // Refresh
             } catch (e: Exception) {
-                logger.error(e) { "Failed to add tag $tagId to book $bookId" }
+                logger.error(e) { "Failed to add tag '$slug' to book $bookId" }
             }
         }
     }
 
     /**
      * Remove a tag from the current book.
+     *
+     * @param slug The tag slug to remove
      */
-    fun removeTag(tagId: String) {
+    fun removeTag(slug: String) {
         val bookId =
             state.value.book
                 ?.id
                 ?.value ?: return
         viewModelScope.launch {
             try {
-                tagApi.removeTagFromBook(bookId, tagId)
+                tagApi.removeTagFromBook(bookId, slug)
                 loadTags(bookId) // Refresh
             } catch (e: Exception) {
-                logger.error(e) { "Failed to remove tag $tagId from book $bookId" }
+                logger.error(e) { "Failed to remove tag '$slug' from book $bookId" }
             }
         }
     }
 
     /**
-     * Create a new tag and add it to the current book.
+     * Add a new tag to the current book.
+     *
+     * The raw input will be normalized to a slug by the server.
+     * If the tag doesn't exist, it will be created.
+     *
+     * @param rawInput The tag text to add (will be normalized)
      */
-    fun createAndAddTag(name: String) {
+    fun addNewTag(rawInput: String) {
         val bookId =
             state.value.book
                 ?.id
                 ?.value ?: return
         viewModelScope.launch {
             try {
-                val newTag = tagApi.createTag(name)
-                tagApi.addTagToBook(bookId, newTag.id)
+                tagApi.addTagToBook(bookId, rawInput)
                 loadTags(bookId) // Refresh
                 hideTagPicker()
             } catch (e: Exception) {
-                logger.error(e) { "Failed to create and add tag '$name' to book $bookId" }
+                logger.error(e) { "Failed to add tag '$rawInput' to book $bookId" }
             }
         }
     }
@@ -223,6 +280,8 @@ data class BookDetailUiState(
     val isLoading: Boolean = true,
     val book: Book? = null,
     val error: String? = null,
+    val isAdmin: Boolean = false,
+    val isComplete: Boolean = false,
     // Extended metadata for UI prototype (now in DB)
     val subtitle: String? = null,
     val series: String? = null,
@@ -237,9 +296,9 @@ data class BookDetailUiState(
     // Genres (loaded from API)
     val genres: List<Genre> = emptyList(),
     val genresList: List<String> = emptyList(),
-    // Tags
+    // Tags (global community descriptors)
     val tags: List<Tag> = emptyList(),
-    val allUserTags: List<Tag> = emptyList(),
+    val allTags: List<Tag> = emptyList(),
     val isLoadingTags: Boolean = false,
     val showTagPicker: Boolean = false,
 )

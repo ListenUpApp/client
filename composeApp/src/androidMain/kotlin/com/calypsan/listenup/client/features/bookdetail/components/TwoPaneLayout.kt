@@ -55,6 +55,7 @@ import com.calypsan.listenup.client.design.components.GenreChipRow
 import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.design.components.rememberCoverColors
 import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
+import com.calypsan.listenup.client.design.theme.LocalDarkTheme
 import com.calypsan.listenup.client.features.bookdetail.TagsSection
 import com.calypsan.listenup.client.presentation.bookdetail.BookDetailUiState
 import com.calypsan.listenup.client.presentation.bookdetail.ChapterUiModel
@@ -71,6 +72,7 @@ fun TwoPaneBookDetail(
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
     isAdmin: Boolean,
+    isWaitingForWifi: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
     onFindMetadataClick: () -> Unit,
@@ -83,6 +85,7 @@ fun TwoPaneBookDetail(
     onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
+    onTagClick: (tagId: String) -> Unit,
 ) {
     val coverColors =
         rememberCoverColors(
@@ -98,6 +101,7 @@ fun TwoPaneBookDetail(
         TwoPaneLeftPane(
             state = state,
             downloadStatus = downloadStatus,
+            isWaitingForWifi = isWaitingForWifi,
             coverColors = coverColors,
             isComplete = isComplete,
             isAdmin = isAdmin,
@@ -122,6 +126,7 @@ fun TwoPaneBookDetail(
         TwoPaneRightPane(
             state = state,
             onSeriesClick = onSeriesClick,
+            onTagClick = onTagClick,
             modifier =
                 Modifier
                     .weight(1f)
@@ -136,6 +141,7 @@ fun TwoPaneBookDetail(
 private fun TwoPaneLeftPane(
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
+    isWaitingForWifi: Boolean,
     coverColors: CoverColors,
     isComplete: Boolean,
     isAdmin: Boolean,
@@ -153,15 +159,26 @@ private fun TwoPaneLeftPane(
     modifier: Modifier = Modifier,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
+    val isDark = LocalDarkTheme.current
 
     // Create premium gradient from extracted color (same as HeroSection)
+    // In dark mode, use subtler alpha to avoid an oppressive feel
     val gradientColors =
-        listOf(
-            coverColors.darkMuted.copy(alpha = 0.95f),
-            coverColors.darkMuted.copy(alpha = 0.85f),
-            coverColors.darkMuted.copy(alpha = 0.7f),
-            surfaceColor.copy(alpha = 0.3f),
-        )
+        if (isDark) {
+            listOf(
+                coverColors.darkMuted.copy(alpha = 0.5f),
+                coverColors.darkMuted.copy(alpha = 0.35f),
+                coverColors.darkMuted.copy(alpha = 0.2f),
+                surfaceColor.copy(alpha = 0.3f),
+            )
+        } else {
+            listOf(
+                coverColors.darkMuted.copy(alpha = 0.95f),
+                coverColors.darkMuted.copy(alpha = 0.85f),
+                coverColors.darkMuted.copy(alpha = 0.7f),
+                surfaceColor.copy(alpha = 0.3f),
+            )
+        }
 
     Box(
         modifier =
@@ -179,8 +196,6 @@ private fun TwoPaneLeftPane(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Navigation row with semi-transparent background
-            var showMenu by remember { mutableStateOf(false) }
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -203,7 +218,8 @@ private fun TwoPaneLeftPane(
                     )
                 }
 
-                // Three-dot menu
+                // Three-dot menu (matching phone HeroSection)
+                var showMenu by remember { mutableStateOf(false) }
                 Box {
                     IconButton(
                         onClick = { showMenu = true },
@@ -314,6 +330,7 @@ private fun TwoPaneLeftPane(
                 onDownloadClick = onDownloadClick,
                 onCancelClick = onCancelClick,
                 onDeleteClick = onDeleteClick,
+                isWaitingForWifi = isWaitingForWifi,
             )
         }
     }
@@ -323,6 +340,7 @@ private fun TwoPaneLeftPane(
 private fun TwoPaneRightPane(
     state: BookDetailUiState,
     onSeriesClick: (seriesId: String) -> Unit,
+    onTagClick: (tagId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
@@ -369,6 +387,7 @@ private fun TwoPaneRightPane(
                 TagsSection(
                     tags = state.tags,
                     isLoading = state.isLoadingTags,
+                    onTagClick = { tag -> onTagClick(tag.id) },
                 )
             }
         }

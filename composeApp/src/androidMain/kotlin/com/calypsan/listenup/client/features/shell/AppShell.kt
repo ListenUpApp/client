@@ -15,6 +15,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -25,6 +26,8 @@ import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SyncManager
+import com.calypsan.listenup.client.data.sync.model.SyncStatus
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
@@ -40,6 +43,7 @@ import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiEvent
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -70,6 +74,8 @@ fun AppShell(
     onBookClick: (String) -> Unit,
     onSeriesClick: (String) -> Unit,
     onContributorClick: (String) -> Unit,
+    onLensClick: (String) -> Unit,
+    onTagClick: (String) -> Unit,
     onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSignOut: () -> Unit,
@@ -123,12 +129,54 @@ fun AppShell(
                 searchViewModel.clearNavAction()
             }
 
+            is SearchNavAction.NavigateToTag -> {
+                onTagClick(action.tagId)
+                searchViewModel.clearNavAction()
+            }
+
             null -> {}
         }
     }
 
+    // Coroutine scope for async operations
+    val scope = rememberCoroutineScope()
+
     // Local UI state
     var isAvatarMenuExpanded by remember { mutableStateOf(false) }
+
+    // Library mismatch dialog state
+    var libraryMismatchToShow by remember { mutableStateOf<SyncStatus.LibraryMismatch?>(null) }
+
+    // Detect library mismatch from sync state
+    LaunchedEffect(syncState) {
+        if (syncState is SyncStatus.LibraryMismatch) {
+            libraryMismatchToShow = syncState as SyncStatus.LibraryMismatch
+        }
+    }
+
+    // Library mismatch dialog
+    libraryMismatchToShow?.let { mismatch ->
+        ListenUpDestructiveDialog(
+            onDismissRequest = { libraryMismatchToShow = null },
+            title = "Library Changed",
+            text =
+                if (mismatch.hasPendingChanges) {
+                    "The server's library has changed. You have unsaved changes that will be lost. " +
+                        "Would you like to resync with the new library?"
+                } else {
+                    "The server's library has changed. Your local data will be refreshed to match."
+                },
+            confirmText = if (mismatch.hasPendingChanges) "Discard & Resync" else "Resync",
+            onConfirm = {
+                libraryMismatchToShow = null
+                scope.launch {
+                    syncManager.resetForNewLibrary(mismatch.actualLibraryId)
+                }
+            },
+            dismissText = "Cancel",
+            onDismiss = { libraryMismatchToShow = null },
+        )
+    }
 
     // Scroll behavior for collapsing top bar
     // enterAlwaysScrollBehavior: hides on scroll down, shows immediately on scroll up
@@ -217,6 +265,9 @@ fun AppShell(
                     HomeScreen(
                         onBookClick = onBookClick,
                         onNavigateToLibrary = { onDestinationChange(ShellDestination.Library) },
+                        onLensClick = onLensClick,
+                        // TODO: Navigate to lenses tab
+                        onSeeAllLenses = { onDestinationChange(ShellDestination.Library) },
                         modifier = Modifier.padding(padding),
                     )
                 }
@@ -233,7 +284,10 @@ fun AppShell(
                 }
 
                 ShellDestination.Discover -> {
-                    DiscoverScreen(modifier = Modifier.padding(padding))
+                    DiscoverScreen(
+                        onLensClick = onLensClick,
+                        modifier = Modifier.padding(padding),
+                    )
                 }
             }
 

@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.core.ServerUrl
+import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,6 +69,40 @@ interface AuthSessionContract {
 
     /** Check server status to determine if setup is required. */
     suspend fun checkServerStatus(): AuthState
+
+    /**
+     * Refresh the open registration status from the server.
+     * Updates the NeedsLogin state with the latest value without showing loading state.
+     * Call this when entering the login screen to ensure the "Create Account" link is shown.
+     */
+    suspend fun refreshOpenRegistration()
+
+    /**
+     * Save pending registration state after submitting registration.
+     * This persists the user's credentials so we can auto-login after approval,
+     * even if the app restarts.
+     *
+     * @param userId The pending user's ID from registration response
+     * @param email The user's email address
+     * @param password The user's password (will be encrypted in storage)
+     */
+    suspend fun savePendingRegistration(
+        userId: String,
+        email: String,
+        password: String,
+    )
+
+    /**
+     * Get pending registration credentials for auto-login.
+     * @return Triple of (userId, email, encryptedPassword) if pending, null otherwise
+     */
+    suspend fun getPendingRegistration(): Triple<String, String, String>?
+
+    /**
+     * Clear pending registration state.
+     * Called after successful login or denial.
+     */
+    suspend fun clearPendingRegistration()
 }
 
 /**
@@ -88,6 +123,33 @@ interface ServerConfigContract {
 
     /** Clear all settings including server URL (complete reset). */
     suspend fun clearAll()
+}
+
+/**
+ * Contract for library identity and sync verification.
+ *
+ * Used by SyncManager to detect when the server's library has changed
+ * (e.g., server reinstalled, database wiped) and trigger appropriate
+ * resync flows.
+ */
+interface LibrarySyncContract {
+    /**
+     * Get the library ID this client is currently synced with.
+     * Returns null if this is the first sync (no library connected yet).
+     */
+    suspend fun getConnectedLibraryId(): String?
+
+    /**
+     * Store the library ID after successful sync verification.
+     * This becomes the reference point for future mismatch detection.
+     */
+    suspend fun setConnectedLibraryId(libraryId: String)
+
+    /**
+     * Clear the connected library ID.
+     * Called when switching servers or after detecting a mismatch.
+     */
+    suspend fun clearConnectedLibraryId()
 }
 
 /**
@@ -153,6 +215,61 @@ interface PlaybackPreferencesContract {
     suspend fun setSpatialPlayback(enabled: Boolean)
 }
 
+/**
+ * Contract for local device preferences.
+ *
+ * These settings do NOT sync to the server - they're device-specific.
+ * Examples: theme, dynamic colors, haptics, download behavior.
+ */
+interface LocalPreferencesContract {
+    // Appearance
+
+    /** Reactive theme mode preference. */
+    val themeMode: StateFlow<ThemeMode>
+
+    /** Reactive dynamic colors preference (Material You). */
+    val dynamicColorsEnabled: StateFlow<Boolean>
+
+    /** Set the theme mode (system/light/dark). */
+    suspend fun setThemeMode(mode: ThemeMode)
+
+    /** Set whether to use dynamic (wallpaper-based) colors. Android 12+ only. */
+    suspend fun setDynamicColorsEnabled(enabled: Boolean)
+
+    // Playback (local settings)
+
+    /** Reactive auto-rewind preference. */
+    val autoRewindEnabled: StateFlow<Boolean>
+
+    /** Set whether to auto-rewind when resuming playback. */
+    suspend fun setAutoRewindEnabled(enabled: Boolean)
+
+    // Downloads
+
+    /** Reactive WiFi-only downloads preference. */
+    val wifiOnlyDownloads: StateFlow<Boolean>
+
+    /** Reactive auto-remove finished downloads preference. */
+    val autoRemoveFinished: StateFlow<Boolean>
+
+    /** Set whether to only download on WiFi. */
+    suspend fun setWifiOnlyDownloads(enabled: Boolean)
+
+    /** Set whether to auto-remove downloads after finishing a book. */
+    suspend fun setAutoRemoveFinished(enabled: Boolean)
+
+    // Controls
+
+    /** Reactive haptic feedback preference. */
+    val hapticFeedbackEnabled: StateFlow<Boolean>
+
+    /** Set whether to enable haptic feedback on controls. */
+    suspend fun setHapticFeedbackEnabled(enabled: Boolean)
+
+    /** Initialize local preferences from storage. Call on app startup. */
+    suspend fun initializeLocalPreferences()
+}
+
 // endregion
 
 /**
@@ -164,8 +281,10 @@ interface PlaybackPreferencesContract {
 interface SettingsRepositoryContract :
     AuthSessionContract,
     ServerConfigContract,
+    LibrarySyncContract,
     LibraryPreferencesContract,
-    PlaybackPreferencesContract
+    PlaybackPreferencesContract,
+    LocalPreferencesContract
 
 /**
  * Repository for managing application settings and authentication state.
@@ -192,12 +311,40 @@ class SettingsRepository(
     private val _preferenceChanges = MutableSharedFlow<PreferenceChangeEvent>(extraBufferCapacity = 1)
     override val preferenceChanges: SharedFlow<PreferenceChangeEvent> = _preferenceChanges.asSharedFlow()
 
+    // Local preferences StateFlows (device-specific, NOT synced)
+    private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+    override val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
+    private val _dynamicColorsEnabled = MutableStateFlow(true)
+    override val dynamicColorsEnabled: StateFlow<Boolean> = _dynamicColorsEnabled.asStateFlow()
+
+    private val _autoRewindEnabled = MutableStateFlow(true)
+    override val autoRewindEnabled: StateFlow<Boolean> = _autoRewindEnabled.asStateFlow()
+
+    private val _wifiOnlyDownloads = MutableStateFlow(true)
+    override val wifiOnlyDownloads: StateFlow<Boolean> = _wifiOnlyDownloads.asStateFlow()
+
+    private val _autoRemoveFinished = MutableStateFlow(false)
+    override val autoRemoveFinished: StateFlow<Boolean> = _autoRemoveFinished.asStateFlow()
+
+    private val _hapticFeedbackEnabled = MutableStateFlow(true)
+    override val hapticFeedbackEnabled: StateFlow<Boolean> = _hapticFeedbackEnabled.asStateFlow()
+
     companion object {
         private const val KEY_SERVER_URL = "server_url"
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_SESSION_ID = "session_id"
         private const val KEY_USER_ID = "user_id"
+        private const val KEY_OPEN_REGISTRATION = "open_registration"
+
+        // Library identity (for detecting server reinstalls/resets)
+        private const val KEY_CONNECTED_LIBRARY_ID = "connected_library_id"
+
+        // Pending registration (waiting for admin approval)
+        private const val KEY_PENDING_USER_ID = "pending_user_id"
+        private const val KEY_PENDING_EMAIL = "pending_email"
+        private const val KEY_PENDING_PASSWORD = "pending_password" // Encrypted
 
         // Library sort preferences (per-tab)
         private const val KEY_SORT_BOOKS = "sort_books"
@@ -211,9 +358,17 @@ class SettingsRepository(
         // Series display preferences
         private const val KEY_HIDE_SINGLE_BOOK_SERIES = "hide_single_book_series"
 
-        // Playback preferences
+        // Playback preferences (synced)
         private const val KEY_SPATIAL_PLAYBACK = "spatial_playback"
         private const val KEY_DEFAULT_PLAYBACK_SPEED = "default_playback_speed"
+
+        // Local preferences (device-specific, NOT synced)
+        private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_DYNAMIC_COLORS = "dynamic_colors"
+        private const val KEY_AUTO_REWIND = "auto_rewind"
+        private const val KEY_WIFI_ONLY_DOWNLOADS = "wifi_only_downloads"
+        private const val KEY_AUTO_REMOVE_FINISHED = "auto_remove_finished"
+        private const val KEY_HAPTIC_FEEDBACK = "haptic_feedback"
 
         // Default values
         const val DEFAULT_PLAYBACK_SPEED = 1.0f
@@ -331,7 +486,9 @@ class SettingsRepository(
 
         // Go directly to NeedsLogin - don't make HTTP calls during auth failure
         // The server was reachable (we got a 401), so setup isn't required
-        _authState.value = AuthState.NeedsLogin
+        // Use cached open registration value if available
+        val cachedOpenRegistration = getCachedOpenRegistration()
+        _authState.value = AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
     }
 
     /**
@@ -409,9 +566,22 @@ class SettingsRepository(
             )
         }
 
+        // Check for pending registration (user registered but waiting for approval)
+        val pendingRegistration = getPendingRegistration()
+        if (pendingRegistration != null) {
+            val (pendingUserId, pendingEmail, pendingPassword) = pendingRegistration
+            return AuthState.PendingApproval(
+                userId = pendingUserId,
+                email = pendingEmail,
+                encryptedPassword = pendingPassword,
+            )
+        }
+
         // URL but no token → user needs to log in
         // Don't check server status - that's a network call
-        return AuthState.NeedsLogin
+        // Use cached open registration value if available
+        val cachedOpenRegistration = getCachedOpenRegistration()
+        return AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
     }
 
     /**
@@ -427,21 +597,57 @@ class SettingsRepository(
 
         return when (val result = instanceRepository.getInstance(forceRefresh = true)) {
             is Result.Success -> {
+                // Cache open registration status for use when deriving auth state
+                secureStorage.save(KEY_OPEN_REGISTRATION, result.data.openRegistration.toString())
+
                 val newState =
                     if (result.data.setupRequired) {
                         AuthState.NeedsSetup
                     } else {
-                        AuthState.NeedsLogin
+                        AuthState.NeedsLogin(openRegistration = result.data.openRegistration)
                     }
                 _authState.value = newState
                 newState
             }
 
             is Result.Failure -> {
-                // Server unreachable - stay in NeedsLogin, don't clear URL
+                // Server unreachable - stay in NeedsLogin with cached open registration value
                 // User can retry or check their connection
-                _authState.value = AuthState.NeedsLogin
-                AuthState.NeedsLogin
+                val cachedOpenRegistration = getCachedOpenRegistration()
+                _authState.value = AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
+                AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
+            }
+        }
+    }
+
+    /**
+     * Get the cached open registration value from storage.
+     * Returns false if not cached.
+     */
+    private suspend fun getCachedOpenRegistration(): Boolean =
+        secureStorage.read(KEY_OPEN_REGISTRATION)?.toBooleanStrictOrNull() ?: false
+
+    /**
+     * Refresh open registration status from server without changing auth state to CheckingServer.
+     * Updates the NeedsLogin state directly if we're currently in that state.
+     */
+    override suspend fun refreshOpenRegistration() {
+        // Only refresh if we're in NeedsLogin state
+        val currentState = _authState.value
+        if (currentState !is AuthState.NeedsLogin) return
+
+        when (val result = instanceRepository.getInstance(forceRefresh = true)) {
+            is Result.Success -> {
+                // Cache the value
+                secureStorage.save(KEY_OPEN_REGISTRATION, result.data.openRegistration.toString())
+                // Update state with new value (only if still in NeedsLogin)
+                if (_authState.value is AuthState.NeedsLogin) {
+                    _authState.value = AuthState.NeedsLogin(openRegistration = result.data.openRegistration)
+                }
+            }
+
+            is Result.Failure -> {
+                // Silently fail - keep existing cached value
             }
         }
     }
@@ -461,7 +667,33 @@ class SettingsRepository(
         secureStorage.delete(KEY_REFRESH_TOKEN)
         secureStorage.delete(KEY_SESSION_ID)
         secureStorage.delete(KEY_USER_ID)
+        secureStorage.delete(KEY_OPEN_REGISTRATION)
+        secureStorage.delete(KEY_CONNECTED_LIBRARY_ID)
         _authState.value = AuthState.NeedsServerUrl
+    }
+
+    // Library sync identity
+
+    /**
+     * Get the library ID this client is synced with.
+     * Returns null on first connection to a server.
+     */
+    override suspend fun getConnectedLibraryId(): String? = secureStorage.read(KEY_CONNECTED_LIBRARY_ID)
+
+    /**
+     * Store the library ID after successful sync verification.
+     * This ID is used to detect when the server's library has changed.
+     */
+    override suspend fun setConnectedLibraryId(libraryId: String) {
+        secureStorage.save(KEY_CONNECTED_LIBRARY_ID, libraryId)
+    }
+
+    /**
+     * Clear the connected library ID.
+     * Called when resetting local data after a library mismatch.
+     */
+    override suspend fun clearConnectedLibraryId() {
+        secureStorage.delete(KEY_CONNECTED_LIBRARY_ID)
     }
 
     // Library sort preferences
@@ -591,5 +823,129 @@ class SettingsRepository(
 
         // Emit event for sync layer to observe and queue
         _preferenceChanges.emit(PreferenceChangeEvent.PlaybackSpeedChanged(speed))
+    }
+
+    // Local preferences (device-specific, NOT synced)
+
+    /**
+     * Initialize local preferences from storage.
+     * Call this during app startup to hydrate StateFlows from persisted values.
+     */
+    override suspend fun initializeLocalPreferences() {
+        _themeMode.value = ThemeMode.fromString(secureStorage.read(KEY_THEME_MODE))
+        _dynamicColorsEnabled.value =
+            secureStorage.read(KEY_DYNAMIC_COLORS)?.toBooleanStrictOrNull() ?: true
+        _autoRewindEnabled.value =
+            secureStorage.read(KEY_AUTO_REWIND)?.toBooleanStrictOrNull() ?: true
+        _wifiOnlyDownloads.value =
+            secureStorage.read(KEY_WIFI_ONLY_DOWNLOADS)?.toBooleanStrictOrNull() ?: true
+        _autoRemoveFinished.value =
+            secureStorage.read(KEY_AUTO_REMOVE_FINISHED)?.toBooleanStrictOrNull() ?: false
+        _hapticFeedbackEnabled.value =
+            secureStorage.read(KEY_HAPTIC_FEEDBACK)?.toBooleanStrictOrNull() ?: true
+    }
+
+    /**
+     * Set the theme mode (system/light/dark).
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        secureStorage.save(KEY_THEME_MODE, mode.toStorageString())
+        _themeMode.value = mode
+    }
+
+    /**
+     * Set whether to use dynamic (wallpaper-based) colors.
+     * Only affects Android 12+. Falls back to static colors on older versions.
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setDynamicColorsEnabled(enabled: Boolean) {
+        secureStorage.save(KEY_DYNAMIC_COLORS, enabled.toString())
+        _dynamicColorsEnabled.value = enabled
+    }
+
+    /**
+     * Set whether to auto-rewind when resuming playback.
+     * When enabled, playback rewinds a few seconds on resume to help recall context.
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setAutoRewindEnabled(enabled: Boolean) {
+        secureStorage.save(KEY_AUTO_REWIND, enabled.toString())
+        _autoRewindEnabled.value = enabled
+    }
+
+    /**
+     * Set whether to only download on WiFi.
+     * When enabled, downloads pause on cellular and resume on WiFi.
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setWifiOnlyDownloads(enabled: Boolean) {
+        secureStorage.save(KEY_WIFI_ONLY_DOWNLOADS, enabled.toString())
+        _wifiOnlyDownloads.value = enabled
+    }
+
+    /**
+     * Set whether to auto-remove downloads after finishing a book.
+     * When enabled, completed books are removed to save storage space.
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setAutoRemoveFinished(enabled: Boolean) {
+        secureStorage.save(KEY_AUTO_REMOVE_FINISHED, enabled.toString())
+        _autoRemoveFinished.value = enabled
+    }
+
+    /**
+     * Set whether to enable haptic feedback on controls.
+     * When enabled, tapping player controls provides tactile feedback.
+     * This is a device-local setting - does NOT sync to server.
+     */
+    override suspend fun setHapticFeedbackEnabled(enabled: Boolean) {
+        secureStorage.save(KEY_HAPTIC_FEEDBACK, enabled.toString())
+        _hapticFeedbackEnabled.value = enabled
+    }
+
+    // Pending registration methods
+
+    /**
+     * Save pending registration state after submitting registration.
+     * Stores credentials securely for auto-login after admin approval.
+     */
+    override suspend fun savePendingRegistration(
+        userId: String,
+        email: String,
+        password: String,
+    ) {
+        secureStorage.save(KEY_PENDING_USER_ID, userId)
+        secureStorage.save(KEY_PENDING_EMAIL, email)
+        secureStorage.save(KEY_PENDING_PASSWORD, password)
+
+        // Update auth state to PendingApproval
+        _authState.value =
+            AuthState.PendingApproval(
+                userId = userId,
+                email = email,
+                encryptedPassword = password,
+            )
+    }
+
+    /**
+     * Get pending registration credentials for auto-login.
+     * @return Triple of (userId, email, password) if pending, null otherwise
+     */
+    override suspend fun getPendingRegistration(): Triple<String, String, String>? {
+        val userId = secureStorage.read(KEY_PENDING_USER_ID) ?: return null
+        val email = secureStorage.read(KEY_PENDING_EMAIL) ?: return null
+        val password = secureStorage.read(KEY_PENDING_PASSWORD) ?: return null
+        return Triple(userId, email, password)
+    }
+
+    /**
+     * Clear pending registration state.
+     * Called after successful login or when registration is denied.
+     */
+    override suspend fun clearPendingRegistration() {
+        secureStorage.delete(KEY_PENDING_USER_ID)
+        secureStorage.delete(KEY_PENDING_EMAIL)
+        secureStorage.delete(KEY_PENDING_PASSWORD)
     }
 }

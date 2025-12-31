@@ -49,22 +49,28 @@ data class SearchUiState(
         get() = results?.hits?.groupBy { it.type } ?: emptyMap()
 
     /**
-     * Books from results.
+     * Books from results (deduplicated by ID).
      */
     val books: List<SearchHit>
-        get() = groupedHits[SearchHitType.BOOK] ?: emptyList()
+        get() = (groupedHits[SearchHitType.BOOK] ?: emptyList()).distinctBy { it.id }
 
     /**
-     * Contributors from results.
+     * Contributors from results (deduplicated by ID).
      */
     val contributors: List<SearchHit>
-        get() = groupedHits[SearchHitType.CONTRIBUTOR] ?: emptyList()
+        get() = (groupedHits[SearchHitType.CONTRIBUTOR] ?: emptyList()).distinctBy { it.id }
 
     /**
-     * Series from results.
+     * Series from results (deduplicated by ID).
      */
     val series: List<SearchHit>
-        get() = groupedHits[SearchHitType.SERIES] ?: emptyList()
+        get() = (groupedHits[SearchHitType.SERIES] ?: emptyList()).distinctBy { it.id }
+
+    /**
+     * Tags from results (deduplicated by ID).
+     */
+    val tags: List<SearchHit>
+        get() = (groupedHits[SearchHitType.TAG] ?: emptyList()).distinctBy { it.id }
 }
 
 /**
@@ -104,6 +110,10 @@ sealed interface SearchNavAction {
 
     data class NavigateToSeries(
         val seriesId: String,
+    ) : SearchNavAction
+
+    data class NavigateToTag(
+        val tagId: String,
     ) : SearchNavAction
 }
 
@@ -243,7 +253,9 @@ class SearchViewModel(
                             isSearching = false,
                         )
                     }
-                    logger.debug { "Search completed: ${result.total} results for '$query'" }
+                    logger.info {
+                        "Search completed: ${result.total} results for '$query' (offline=${result.isOfflineResult})"
+                    }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     // Job was cancelled (e.g., new search started) - don't show error
                     logger.debug { "Search cancelled for '$query'" }
@@ -266,6 +278,7 @@ class SearchViewModel(
                 SearchHitType.BOOK -> SearchNavAction.NavigateToBook(hit.id)
                 SearchHitType.CONTRIBUTOR -> SearchNavAction.NavigateToContributor(hit.id)
                 SearchHitType.SERIES -> SearchNavAction.NavigateToSeries(hit.id)
+                SearchHitType.TAG -> SearchNavAction.NavigateToTag(hit.id)
             }
         navActions.value = action
 

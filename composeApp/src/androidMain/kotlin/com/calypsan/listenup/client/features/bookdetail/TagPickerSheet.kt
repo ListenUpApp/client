@@ -34,7 +34,7 @@ import com.calypsan.listenup.client.domain.model.Tag
 /**
  * Bottom sheet for selecting or creating tags.
  *
- * Shows existing user tags that aren't already on the book,
+ * Shows global tags that aren't already on the book,
  * plus an option to create a new tag.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,8 +49,8 @@ fun TagPickerSheet(
     val sheetState = rememberModalBottomSheetState()
     var newTagName by remember { mutableStateOf("") }
 
-    val selectedIds = selectedTags.map { it.id }.toSet()
-    val availableTags = allTags.filter { it.id !in selectedIds }
+    val selectedSlugs = selectedTags.map { it.slug }.toSet()
+    val availableTags = allTags.filter { it.slug !in selectedSlugs }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -76,7 +76,7 @@ fun TagPickerSheet(
                 OutlinedTextField(
                     value = newTagName,
                     onValueChange = { newTagName = it },
-                    placeholder = { Text("Create new tag...") },
+                    placeholder = { Text("Add tag...") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -90,7 +90,7 @@ fun TagPickerSheet(
                     enabled = newTagName.isNotBlank(),
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
-                    Text("Create")
+                    Text("Add")
                 }
             }
 
@@ -99,7 +99,7 @@ fun TagPickerSheet(
                 HorizontalDivider()
 
                 Text(
-                    text = "Your Tags",
+                    text = "Popular Tags",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 8.dp),
@@ -108,7 +108,7 @@ fun TagPickerSheet(
                 LazyColumn {
                     items(availableTags) { tag ->
                         ListItem(
-                            headlineContent = { Text(tag.name) },
+                            headlineContent = { Text(tag.displayName()) },
                             supportingContent =
                                 if (tag.bookCount > 0) {
                                     { Text("${tag.bookCount} book${if (tag.bookCount != 1) "s" else ""}") }

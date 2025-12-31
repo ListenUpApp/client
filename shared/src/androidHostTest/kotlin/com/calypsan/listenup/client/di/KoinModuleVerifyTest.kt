@@ -6,14 +6,17 @@ import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.ChapterDao
+import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
+import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.ServerDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
+import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
 import com.calypsan.listenup.client.data.local.images.ImageStorage
@@ -32,13 +35,17 @@ import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.repository.AuthSessionContract
 import com.calypsan.listenup.client.data.repository.LibraryPreferencesContract
+import com.calypsan.listenup.client.data.repository.LibrarySyncContract
 import com.calypsan.listenup.client.data.repository.NetworkMonitor
 import com.calypsan.listenup.client.data.repository.PlaybackPreferencesContract
 import com.calypsan.listenup.client.data.repository.ServerConfigContract
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.OperationHandler
+import com.calypsan.listenup.client.data.sync.sse.PlaybackStateProvider
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.download.DownloadService
+import com.calypsan.listenup.client.playback.PlaybackManager
 import kotlinx.coroutines.CoroutineScope
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.test.verify.verify
@@ -86,15 +93,23 @@ class KoinModuleVerifyTest {
                     ContributorDao::class,
                     BookContributorDao::class,
                     BookSeriesDao::class,
+                    CollectionDao::class,
+                    LensDao::class,
+                    TagDao::class,
                     PlaybackPositionDao::class,
                     PendingOperationDao::class,
                     DownloadDao::class,
                     SearchDao::class,
                     ServerDao::class,
+                    // Playback and download services
+                    PlaybackManager::class,
+                    PlaybackStateProvider::class,
+                    DownloadService::class,
                     // Repositories and APIs from other modules
                     SettingsRepository::class,
                     SettingsRepositoryContract::class,
                     AuthSessionContract::class,
+                    LibrarySyncContract::class,
                     ServerConfigContract::class,
                     LibraryPreferencesContract::class,
                     PlaybackPreferencesContract::class,

@@ -8,6 +8,7 @@ package com.calypsan.listenup.client.core
  *
  * Currently provides:
  * - isEmulator(): Detects if app is running on emulator/simulator
+ * - getDeviceModel(): Gets the device model name for identification
  */
 expect object PlatformUtils {
     /**
@@ -19,4 +20,14 @@ expect object PlatformUtils {
      * @return true if running on emulator/simulator, false otherwise
      */
     fun isEmulator(): Boolean
+
+    /**
+     * Gets the device model name.
+     *
+     * Used for device identification in authentication and session tracking.
+     * Examples: "Pixel 7 Pro", "iPhone 15 Pro", "SM-G998B"
+     *
+     * @return Device model name string
+     */
+    fun getDeviceModel(): String
 }

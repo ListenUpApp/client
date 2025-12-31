@@ -21,4 +21,7 @@ interface ChapterDao {
 
     @Query("DELETE FROM chapters WHERE bookId = :bookId")
     suspend fun deleteChaptersForBook(bookId: BookId)
+
+    @Query("DELETE FROM chapters")
+    suspend fun deleteAll()
 }

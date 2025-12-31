@@ -277,3 +277,38 @@ data class ServerEntity(
         const val STALE_THRESHOLD_MS = 5 * 60 * 1000L
     }
 }
+
+/**
+ * Local database entity for tags.
+ *
+ * Tags are community-wide content descriptors that any user can apply to books
+ * (e.g., "found-family", "slow-burn", "unreliable-narrator").
+ *
+ * The slug is the source of truth - there is no separate name field.
+ * Display names are computed by converting slug to title case.
+ */
+@Entity(
+    tableName = "tags",
+    indices = [Index(value = ["slug"], unique = true)],
+)
+data class TagEntity(
+    @PrimaryKey val id: String,
+    /** Slug is the canonical identifier (e.g., "found-family") */
+    val slug: String,
+    /** Number of books with this tag (denormalized for sorting) */
+    val bookCount: Int = 0,
+    /** Creation timestamp */
+    val createdAt: Timestamp,
+) {
+    /**
+     * Converts the slug to a human-readable display name.
+     *
+     * Transformation: "found-family" -> "Found Family"
+     */
+    fun displayName(): String =
+        slug
+            .split("-")
+            .joinToString(" ") { word ->
+                word.replaceFirstChar { it.titlecase() }
+            }
+}

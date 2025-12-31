@@ -46,6 +46,7 @@ class SearchApi(
         offset: Int,
     ): SearchResponse {
         val client = clientFactory.getClient()
+        // Search endpoint is wrapped in ApiResponse like all other endpoints
         val response: ApiResponse<SearchResponse> =
             client
                 .get("/api/v1/search") {
@@ -60,7 +61,10 @@ class SearchApi(
                     parameter("facets", "true")
                 }.body()
 
-        return response.data ?: throw SearchException(response.error ?: "Search failed")
+        if (!response.success || response.data == null) {
+            throw SearchException(response.error ?: "Search failed")
+        }
+        return response.data
     }
 }
 
@@ -81,7 +85,7 @@ data class SearchResponse(
 data class SearchHitResponse(
     val id: String,
     val type: String,
-    val score: Float,
+    val score: Float = 0f,
     val name: String,
     val subtitle: String? = null,
     val author: String? = null,
@@ -91,6 +95,9 @@ data class SearchHitResponse(
     val duration: Long? = null,
     @SerialName("book_count")
     val bookCount: Int? = null,
+    @SerialName("genre_slugs")
+    val genreSlugs: List<String>? = null,
+    val tags: List<String>? = null,
     val highlights: Map<String, String>? = null,
 )
 

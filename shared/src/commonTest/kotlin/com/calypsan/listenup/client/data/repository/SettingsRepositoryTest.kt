@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.Result
@@ -61,7 +62,7 @@ class SettingsRepositoryTest {
 
             // Then - initial state before initializeAuthState is called
             // Initializing prevents flash of wrong screen on app startup
-            assertIs<AuthState.Initializing>(repository.authState.value)
+            checkIs<AuthState.Initializing>(repository.authState.value)
         }
 
     @Test
@@ -157,8 +158,7 @@ class SettingsRepositoryTest {
             verifySuspend { storage.save("session_id", "session789") }
             verifySuspend { storage.save("user_id", "user001") }
 
-            val state = repository.authState.value
-            assertIs<AuthState.Authenticated>(state)
+            val state = assertIs<AuthState.Authenticated>(repository.authState.value)
             assertEquals("user001", state.userId)
             assertEquals("session789", state.sessionId)
         }
@@ -275,6 +275,7 @@ class SettingsRepositoryTest {
                     instanceRepository,
                 )
             everySuspend { storage.delete(any()) } returns Unit
+            everySuspend { storage.read("open_registration") } returns null
 
             // When
             repository.clearAuthTokens()
@@ -285,7 +286,7 @@ class SettingsRepositoryTest {
             verifySuspend { storage.delete("session_id") }
             verifySuspend { storage.delete("user_id") }
 
-            assertIs<AuthState.NeedsLogin>(repository.authState.value)
+            checkIs<AuthState.NeedsLogin>(repository.authState.value)
         }
 
     @Test
@@ -306,7 +307,7 @@ class SettingsRepositoryTest {
 
             // Then
             verifySuspend { storage.clear() }
-            assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
+            checkIs<AuthState.NeedsServerUrl>(repository.authState.value)
         }
 
     @Test
@@ -406,7 +407,7 @@ class SettingsRepositoryTest {
             repository.initializeAuthState()
 
             // Then
-            assertIs<AuthState.NeedsServerUrl>(repository.authState.value)
+            checkIs<AuthState.NeedsServerUrl>(repository.authState.value)
         }
 
     @Test
@@ -429,8 +430,7 @@ class SettingsRepositoryTest {
             repository.initializeAuthState()
 
             // Then
-            val state = repository.authState.value
-            assertIs<AuthState.Authenticated>(state)
+            val state = assertIs<AuthState.Authenticated>(repository.authState.value)
             assertEquals("user001", state.userId)
             assertEquals("session789", state.sessionId)
         }
@@ -450,6 +450,8 @@ class SettingsRepositoryTest {
             everySuspend { storage.read("access_token") } returns null
             everySuspend { storage.read("user_id") } returns null
             everySuspend { storage.read("session_id") } returns null
+            everySuspend { storage.read("pending_user_id") } returns null
+            everySuspend { storage.read("open_registration") } returns null
             // Server returns setup not required
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
                 Result.Success(
@@ -460,7 +462,7 @@ class SettingsRepositoryTest {
             repository.initializeAuthState()
 
             // Then
-            assertIs<AuthState.NeedsLogin>(repository.authState.value)
+            checkIs<AuthState.NeedsLogin>(repository.authState.value)
         }
 
     @Test
@@ -474,6 +476,7 @@ class SettingsRepositoryTest {
                     storage,
                     instanceRepository,
                 )
+            everySuspend { storage.save(any(), any()) } returns Unit
             // Server returns setup required
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
                 Result.Success(
@@ -484,7 +487,7 @@ class SettingsRepositoryTest {
             repository.checkServerStatus()
 
             // Then
-            assertIs<AuthState.NeedsSetup>(repository.authState.value)
+            checkIs<AuthState.NeedsSetup>(repository.authState.value)
         }
 
     @Test
@@ -498,6 +501,7 @@ class SettingsRepositoryTest {
                     storage,
                     instanceRepository,
                 )
+            everySuspend { storage.read("open_registration") } returns null
             // Server unreachable
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
                 Result.Failure(
@@ -508,7 +512,7 @@ class SettingsRepositoryTest {
             repository.checkServerStatus()
 
             // Then - stays in NeedsLogin, doesn't clear URL (user can retry)
-            assertIs<AuthState.NeedsLogin>(repository.authState.value)
+            checkIs<AuthState.NeedsLogin>(repository.authState.value)
         }
 
     @Test
@@ -660,8 +664,8 @@ class SettingsRepositoryTest {
             // Then
             val receivedEvent = eventDeferred.await()
             verifySuspend { storage.save("default_playback_speed", "1.5") }
-            assertIs<PreferenceChangeEvent.PlaybackSpeedChanged>(receivedEvent)
-            assertEquals(1.5f, receivedEvent.speed)
+            val speedChangedEvent = assertIs<PreferenceChangeEvent.PlaybackSpeedChanged>(receivedEvent)
+            assertEquals(1.5f, speedChangedEvent.speed)
         }
 
     @Test

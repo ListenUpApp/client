@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.ServerUrl
 import kotlinx.coroutines.test.runTest
@@ -30,8 +31,8 @@ class InstanceRepositoryImplTest {
             val result = repository.getInstance()
 
             // Then
-            assertIs<Failure>(result)
-            assertTrue(result.exception.message?.contains("Server URL not configured") == true)
+            val failure = assertIs<Failure>(result)
+            assertTrue(failure.exception.message?.contains("Server URL not configured") == true)
         }
 
     @Test
@@ -47,8 +48,8 @@ class InstanceRepositoryImplTest {
             val result = repository.getInstance(forceRefresh = true)
 
             // Then
-            assertIs<Failure>(result)
-            assertTrue(result.exception.message?.contains("Server URL not configured") == true)
+            val failure = assertIs<Failure>(result)
+            assertTrue(failure.exception.message?.contains("Server URL not configured") == true)
         }
 
     @Test

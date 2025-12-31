@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -115,6 +116,7 @@ fun SearchResultsOverlay(
                             books = state.books,
                             contributors = state.contributors,
                             series = state.series,
+                            tags = state.tags,
                             onResultClick = onResultClick,
                             modifier = Modifier.weight(1f),
                         )
@@ -170,6 +172,19 @@ private fun TypeFilterRow(
                 )
             },
         )
+        Spacer(modifier = Modifier.width(8.dp))
+        FilterChip(
+            selected = SearchHitType.TAG in selectedTypes || selectedTypes.isEmpty(),
+            onClick = { onToggle(SearchHitType.TAG) },
+            label = { Text("Tags") },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Tag,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            },
+        )
     }
 }
 
@@ -205,6 +220,7 @@ private fun SearchResultsList(
     books: List<SearchHit>,
     contributors: List<SearchHit>,
     series: List<SearchHit>,
+    tags: List<SearchHit>,
     onResultClick: (SearchHit) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -247,6 +263,20 @@ private fun SearchResultsList(
             }
             items(series, key = { "series_${it.id}" }) { hit ->
                 SeriesSearchResultCard(
+                    hit = hit,
+                    onClick = { onResultClick(hit) },
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        // Tags section
+        if (tags.isNotEmpty()) {
+            item(key = "tags_header") {
+                SectionHeader(title = "Tags", count = tags.size)
+            }
+            items(tags, key = { "tag_${it.id}" }) { hit ->
+                TagSearchResultCard(
                     hit = hit,
                     onClick = { onResultClick(hit) },
                 )
@@ -485,6 +515,65 @@ private fun SeriesSearchResultCard(
                 hit.bookCount?.let { count ->
                     Text(
                         text = "$count books",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TagSearchResultCard(
+    hit: SearchHit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Tag icon
+            Box(
+                modifier =
+                    Modifier
+                        .size(48.dp)
+                        .background(
+                            MaterialTheme.colorScheme.secondaryContainer,
+                            RoundedCornerShape(24.dp),
+                        ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Default.Tag,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = hit.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                hit.bookCount?.let { count ->
+                    Text(
+                        text = "$count ${if (count == 1) "book" else "books"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

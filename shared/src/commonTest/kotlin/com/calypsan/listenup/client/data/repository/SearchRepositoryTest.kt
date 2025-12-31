@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.BookSearchResult
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
@@ -32,8 +33,8 @@ import kotlin.test.assertTrue
  * Tests for SearchRepository.
  *
  * Tests the "never stranded" pattern:
- * - Online: Use server Bleve search
- * - Offline or server failure: Fall back to local Room FTS5
+ * - Primary: Use server Bleve search
+ * - Fallback: Local Room FTS5 on server failure
  */
 class SearchRepositoryTest {
     // --- Helper functions for creating mocks ---
@@ -44,27 +45,30 @@ class SearchRepositoryTest {
 
     private fun createMockImageStorage(): ImageStorage = mock<ImageStorage>()
 
-    private fun createMockNetworkMonitor(): NetworkMonitor = mock<NetworkMonitor>()
-
-    private fun createTestBookEntity(
+    private fun createTestBookSearchResult(
         id: String = "book-1",
         title: String = "Test Book",
-    ): BookEntity =
-        BookEntity(
-            id = BookId(id),
-            title = title,
-            subtitle = null,
-            coverUrl = null,
-            totalDuration = 3600000,
-            description = null,
-            genres = null,
-            publishYear = null,
-            audioFilesJson = null,
-            syncState = SyncState.SYNCED,
-            lastModified = Timestamp(0),
-            serverVersion = Timestamp(1),
-            createdAt = Timestamp(0),
-            updatedAt = Timestamp(0),
+        authorName: String? = "Test Author",
+    ): BookSearchResult =
+        BookSearchResult(
+            book =
+                BookEntity(
+                    id = BookId(id),
+                    title = title,
+                    subtitle = null,
+                    coverUrl = null,
+                    totalDuration = 3600000,
+                    description = null,
+                    genres = null,
+                    publishYear = null,
+                    audioFilesJson = null,
+                    syncState = SyncState.SYNCED,
+                    lastModified = Timestamp(0),
+                    serverVersion = Timestamp(1),
+                    createdAt = Timestamp(0),
+                    updatedAt = Timestamp(0),
+                ),
+            authorName = authorName,
         )
 
     private fun createSearchResponse(
@@ -103,8 +107,7 @@ class SearchRepositoryTest {
             val searchApi = createMockSearchApi()
             val searchDao = createMockSearchDao()
             val imageStorage = createMockImageStorage()
-            val networkMonitor = createMockNetworkMonitor()
-            val repository = SearchRepository(searchApi, searchDao, imageStorage, networkMonitor)
+            val repository = SearchRepository(searchApi, searchDao, imageStorage)
 
             // When
             val result = repository.search("")
@@ -121,8 +124,7 @@ class SearchRepositoryTest {
             val searchApi = createMockSearchApi()
             val searchDao = createMockSearchDao()
             val imageStorage = createMockImageStorage()
-            val networkMonitor = createMockNetworkMonitor()
-            val repository = SearchRepository(searchApi, searchDao, imageStorage, networkMonitor)
+            val repository = SearchRepository(searchApi, searchDao, imageStorage)
 
             // When
             val result = repository.search("   ")
@@ -132,19 +134,17 @@ class SearchRepositoryTest {
             assertTrue(result.hits.isEmpty())
         }
 
-    // --- Online search tests ---
+    // --- Server search tests ---
 
     @Test
-    fun `online search calls server API`() =
+    fun `search calls server API first`() =
         runTest {
             // Given
             val searchApi = createMockSearchApi()
             val searchDao = createMockSearchDao()
             val imageStorage = createMockImageStorage()
-            val networkMonitor = createMockNetworkMonitor()
-            val repository = SearchRepository(searchApi, searchDao, imageStorage, networkMonitor)
+            val repository = SearchRepository(searchApi, searchDao, imageStorage)
 
-            every { networkMonitor.isOnline() } returns true
             every { imageStorage.exists(any()) } returns false
 
             val serverResponse =
@@ -180,16 +180,14 @@ class SearchRepositoryTest {
         }
 
     @Test
-    fun `online search with types parameter filters correctly`() =
+    fun `search with types parameter filters correctly`() =
         runTest {
             // Given
             val searchApi = createMockSearchApi()
             val searchDao = createMockSearchDao()
             val imageStorage = createMockImageStorage()
-            val networkMonitor = createMockNetworkMonitor()
-            val repository = SearchRepository(searchApi, searchDao, imageStorage, networkMonitor)
+            val repository = SearchRepository(searchApi, searchDao, imageStorage)
 
-            every { networkMonitor.isOnline() } returns true
             every { imageStorage.exists(any()) } returns false
 
             everySuspend {
@@ -223,33 +221,7 @@ class SearchRepositoryTest {
             }
         }
 
-    // --- Offline fallback tests ---
-
-    @Test
-    fun `offline search uses local FTS`() =
-        runTest {
-            // Given
-            val searchApi = createMockSearchApi()
-            val searchDao = createMockSearchDao()
-            val imageStorage = createMockImageStorage()
-            val networkMonitor = createMockNetworkMonitor()
-            val repository = SearchRepository(searchApi, searchDao, imageStorage, networkMonitor)
-
-            every { networkMonitor.isOnline() } returns false
-            every { imageStorage.exists(any()) } returns false
-            everySuspend { searchDao.searchBooks(any(), any()) } returns
-                listOf(createTestBookEntity(id = "book-1", title = "Local Book"))
-            everySuspend { searchDao.searchContributors(any(), any()) } returns emptyList()
-            everySuspend { searchDao.searchSeries(any(), any()) } returns emptyList()
-
-            // When
-            val result = repository.search("local")
-
-            // Then
-            assertEquals(1, result.hits.size)
-            assertEquals("Local Book", result.hits[0].name)
-            assertTrue(result.isOfflineResult)
-        }
+    // --- Fallback tests ---
 
     @Test
     fun `server error falls back to local FTS`() =
@@ -258,10 +230,8 @@ class SearchRepositoryTest {
             val searchApi = createMockSearchApi()
             val searchDao = createMockSearchDao()
             val imageStorage = createMockImageStorage()
-            val networkMonitor = createMockNetworkMonitor()
-            val repository = SearchRepository(searchApi, searchDao, imageStorage, networkMonitor)
+            val repository = SearchRepository(searchApi, searchDao, imageStorage)
 
-            every { networkMonitor.isOnline() } returns true
             every { imageStorage.exists(any()) } returns false
             everySuspend {
                 searchApi.search(
@@ -276,9 +246,10 @@ class SearchRepositoryTest {
                 )
             } throws SearchException("Server error")
             everySuspend { searchDao.searchBooks(any(), any()) } returns
-                listOf(createTestBookEntity(id = "book-1", title = "Fallback Book"))
+                listOf(createTestBookSearchResult(id = "book-1", title = "Fallback Book"))
             everySuspend { searchDao.searchContributors(any(), any()) } returns emptyList()
             everySuspend { searchDao.searchSeries(any(), any()) } returns emptyList()
+            everySuspend { searchDao.searchTags(any(), any()) } returns emptyList()
 
             // When
             val result = repository.search("fallback")
@@ -286,6 +257,43 @@ class SearchRepositoryTest {
             // Then
             assertEquals(1, result.hits.size)
             assertEquals("Fallback Book", result.hits[0].name)
+            assertTrue(result.isOfflineResult)
+        }
+
+    @Test
+    fun `network error falls back to local FTS`() =
+        runTest {
+            // Given
+            val searchApi = createMockSearchApi()
+            val searchDao = createMockSearchDao()
+            val imageStorage = createMockImageStorage()
+            val repository = SearchRepository(searchApi, searchDao, imageStorage)
+
+            every { imageStorage.exists(any()) } returns false
+            everySuspend {
+                searchApi.search(
+                    query = any(),
+                    types = any(),
+                    genres = any(),
+                    genrePath = any(),
+                    minDuration = any(),
+                    maxDuration = any(),
+                    limit = any(),
+                    offset = any(),
+                )
+            } throws RuntimeException("No network")
+            everySuspend { searchDao.searchBooks(any(), any()) } returns
+                listOf(createTestBookSearchResult(id = "book-1", title = "Local Book"))
+            everySuspend { searchDao.searchContributors(any(), any()) } returns emptyList()
+            everySuspend { searchDao.searchSeries(any(), any()) } returns emptyList()
+            everySuspend { searchDao.searchTags(any(), any()) } returns emptyList()
+
+            // When
+            val result = repository.search("local")
+
+            // Then
+            assertEquals(1, result.hits.size)
+            assertEquals("Local Book", result.hits[0].name)
             assertTrue(result.isOfflineResult)
         }
 
@@ -298,10 +306,8 @@ class SearchRepositoryTest {
             val searchApi = createMockSearchApi()
             val searchDao = createMockSearchDao()
             val imageStorage = createMockImageStorage()
-            val networkMonitor = createMockNetworkMonitor()
-            val repository = SearchRepository(searchApi, searchDao, imageStorage, networkMonitor)
+            val repository = SearchRepository(searchApi, searchDao, imageStorage)
 
-            every { networkMonitor.isOnline() } returns true
             every { imageStorage.exists(any()) } returns false
             everySuspend {
                 searchApi.search(
@@ -330,10 +336,8 @@ class SearchRepositoryTest {
             val searchApi = createMockSearchApi()
             val searchDao = createMockSearchDao()
             val imageStorage = createMockImageStorage()
-            val networkMonitor = createMockNetworkMonitor()
-            val repository = SearchRepository(searchApi, searchDao, imageStorage, networkMonitor)
+            val repository = SearchRepository(searchApi, searchDao, imageStorage)
 
-            every { networkMonitor.isOnline() } returns true
             every { imageStorage.exists(any()) } returns false
             everySuspend {
                 searchApi.search(
@@ -364,10 +368,8 @@ class SearchRepositoryTest {
             val searchApi = createMockSearchApi()
             val searchDao = createMockSearchDao()
             val imageStorage = createMockImageStorage()
-            val networkMonitor = createMockNetworkMonitor()
-            val repository = SearchRepository(searchApi, searchDao, imageStorage, networkMonitor)
+            val repository = SearchRepository(searchApi, searchDao, imageStorage)
 
-            every { networkMonitor.isOnline() } returns true
             every { imageStorage.exists(any()) } returns false
 
             val serverResponse =
@@ -410,13 +412,24 @@ class SearchRepositoryTest {
             val searchApi = createMockSearchApi()
             val searchDao = createMockSearchDao()
             val imageStorage = createMockImageStorage()
-            val networkMonitor = createMockNetworkMonitor()
-            val repository = SearchRepository(searchApi, searchDao, imageStorage, networkMonitor)
+            val repository = SearchRepository(searchApi, searchDao, imageStorage)
 
-            every { networkMonitor.isOnline() } returns false
             every { imageStorage.exists(any()) } returns false
+            // Server throws to trigger local fallback
+            everySuspend {
+                searchApi.search(
+                    query = any(),
+                    types = any(),
+                    genres = any(),
+                    genrePath = any(),
+                    minDuration = any(),
+                    maxDuration = any(),
+                    limit = any(),
+                    offset = any(),
+                )
+            } throws SearchException("Server unavailable")
             everySuspend { searchDao.searchBooks(any(), any()) } returns
-                listOf(createTestBookEntity(title = "Book"))
+                listOf(createTestBookSearchResult(title = "Book"))
             everySuspend { searchDao.searchContributors(any(), any()) } returns
                 listOf(
                     ContributorEntity(
@@ -444,6 +457,7 @@ class SearchRepositoryTest {
                         updatedAt = Timestamp(0),
                     ),
                 )
+            everySuspend { searchDao.searchTags(any(), any()) } returns emptyList()
 
             // When
             val result = repository.search("test")

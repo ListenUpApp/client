@@ -7,6 +7,7 @@ enum class SearchHitType {
     BOOK,
     CONTRIBUTOR,
     SERIES,
+    TAG,
 }
 
 /**
@@ -25,6 +26,8 @@ data class SearchHit(
     val seriesName: String? = null,
     val duration: Long? = null,
     val bookCount: Int? = null,
+    val genreSlugs: List<String>? = null,
+    val tags: List<String>? = null,
     val coverPath: String? = null,
     val score: Float = 0f,
     val highlight: String? = null,

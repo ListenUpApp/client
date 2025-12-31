@@ -7,6 +7,8 @@ import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.AdminApi
 import com.calypsan.listenup.client.data.remote.AdminApiContract
+import com.calypsan.listenup.client.data.remote.AdminCollectionApi
+import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.AuthApiContract
@@ -19,6 +21,8 @@ import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.remote.InstanceApiContract
 import com.calypsan.listenup.client.data.remote.InviteApi
 import com.calypsan.listenup.client.data.remote.InviteApiContract
+import com.calypsan.listenup.client.data.remote.LensApi
+import com.calypsan.listenup.client.data.remote.LensApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.MetadataApi
 import com.calypsan.listenup.client.data.remote.MetadataApiContract
@@ -46,6 +50,8 @@ import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.LibraryPreferencesContract
+import com.calypsan.listenup.client.data.repository.LibrarySyncContract
+import com.calypsan.listenup.client.data.repository.LocalPreferencesContract
 import com.calypsan.listenup.client.data.repository.MetadataRepository
 import com.calypsan.listenup.client.data.repository.MetadataRepositoryContract
 import com.calypsan.listenup.client.data.repository.PlaybackPreferencesContract
@@ -66,6 +72,8 @@ import com.calypsan.listenup.client.data.sync.FtsPopulator
 import com.calypsan.listenup.client.data.sync.FtsPopulatorContract
 import com.calypsan.listenup.client.data.sync.ImageDownloader
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
+import com.calypsan.listenup.client.data.sync.LibraryResetHelper
+import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
 import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.data.sync.SSEManagerContract
 import com.calypsan.listenup.client.data.sync.SyncCoordinator
@@ -78,6 +86,7 @@ import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
+import com.calypsan.listenup.client.data.sync.pull.TagPuller
 import com.calypsan.listenup.client.data.sync.push.BookUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.ContributorUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
@@ -98,8 +107,10 @@ import com.calypsan.listenup.client.data.sync.push.UserPreferencesHandler
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
+import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
+import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
@@ -147,8 +158,10 @@ val dataModule =
         single<SettingsRepositoryContract> { get<SettingsRepository>() }
         single<AuthSessionContract> { get<SettingsRepository>() }
         single<ServerConfigContract> { get<SettingsRepository>() }
+        single<LibrarySyncContract> { get<SettingsRepository>() }
         single<LibraryPreferencesContract> { get<SettingsRepository>() }
         single<PlaybackPreferencesContract> { get<SettingsRepository>() }
+        single<LocalPreferencesContract> { get<SettingsRepository>() }
     }
 
 /**
@@ -238,6 +251,9 @@ val repositoryModule =
         single { get<ListenUpDatabase>().downloadDao() }
         single { get<ListenUpDatabase>().searchDao() }
         single { get<ListenUpDatabase>().serverDao() }
+        single { get<ListenUpDatabase>().collectionDao() }
+        single { get<ListenUpDatabase>().lensDao() }
+        single { get<ListenUpDatabase>().tagDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
         // When active server's URL changes via mDNS rediscovery, updates SettingsRepository
@@ -303,6 +319,23 @@ val presentationModule =
                 userDao = get(),
             )
         }
+        factory {
+            com.calypsan.listenup.client.presentation.auth.RegisterViewModel(
+                authApi = get(),
+                settingsRepository = get(),
+            )
+        }
+        // PendingApprovalViewModel - takes userId, email, password as parameters
+        factory { params ->
+            PendingApprovalViewModel(
+                authApi = get(),
+                settingsRepository = get(),
+                apiClientFactory = get(),
+                userId = params.get<String>(0),
+                email = params.get<String>(1),
+                password = params.get<String>(2),
+            )
+        }
         // InviteRegistrationViewModel - takes serverUrl and inviteCode as parameters
         factory { params ->
             InviteRegistrationViewModel(
@@ -314,8 +347,35 @@ val presentationModule =
             )
         }
         // Admin ViewModels
-        factory { AdminViewModel(adminApi = get()) }
+        factory { AdminViewModel(adminApi = get(), instanceApi = get(), sseManager = get()) }
         factory { CreateInviteViewModel(adminApi = get()) }
+        factory {
+            com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel(
+                adminApi = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel(
+                adminApi = get(),
+                sseManager = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel(
+                collectionDao = get(),
+                adminCollectionApi = get(),
+            )
+        }
+        // AdminCollectionDetailViewModel - takes collectionId as parameter
+        factory { params ->
+            com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel(
+                collectionId = params.get<String>(0),
+                collectionDao = get(),
+                adminCollectionApi = get(),
+                adminApi = get(),
+                userDao = get(),
+            )
+        }
         // LibraryViewModel as singleton for preloading - starts loading Room data
         // immediately when injected at AppShell level, making Library instant
         single {
@@ -327,6 +387,11 @@ val presentationModule =
                 settingsRepository = get(),
                 syncDao = get(),
                 playbackPositionDao = get(),
+                userDao = get(),
+                collectionDao = get(),
+                adminCollectionApi = get(),
+                lensDao = get(),
+                lensApi = get(),
             )
         }
         factory {
@@ -334,7 +399,9 @@ val presentationModule =
                 bookRepository = get(),
                 genreApi = get(),
                 tagApi = get(),
+                tagDao = get(),
                 playbackPositionDao = get(),
+                userDao = get(),
             )
         }
         factory {
@@ -342,6 +409,31 @@ val presentationModule =
                 seriesDao = get(),
                 bookRepository = get(),
                 imageStorage = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.tagdetail.TagDetailViewModel(
+                tagDao = get(),
+                bookRepository = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.lens.LensDetailViewModel(
+                lensApi = get(),
+                lensDao = get(),
+                userDao = get(),
+                imageStorage = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.lens.CreateEditLensViewModel(
+                lensApi = get(),
+                lensDao = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.discover.DiscoverViewModel(
+                lensApi = get(),
             )
         }
         factory {
@@ -372,6 +464,7 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.home.HomeViewModel(
                 homeRepository = get(),
+                lensDao = get(),
             )
         }
         factory {
@@ -408,7 +501,15 @@ val presentationModule =
                 imageApi = get(),
             )
         }
-        factory { SettingsViewModel(settingsRepository = get(), userPreferencesApi = get()) }
+        factory {
+            SettingsViewModel(
+                settingsRepository = get(),
+                userPreferencesApi = get(),
+                instanceRepository = get(),
+                serverConfigContract = get(),
+                authSessionContract = get(),
+            )
+        }
         // MetadataViewModel for Audible metadata search and matching
         factory {
             com.calypsan.listenup.client.presentation.metadata.MetadataViewModel(
@@ -504,10 +605,20 @@ val syncModule =
             MetadataRepository(metadataApi = get())
         } bind MetadataRepositoryContract::class
 
+        // AdminCollectionApi for admin collection operations
+        single {
+            AdminCollectionApi(clientFactory = get())
+        } bind AdminCollectionApiContract::class
+
         // UserPreferencesApi for syncing user preferences across devices
         single {
             UserPreferencesApi(clientFactory = get())
         } bind UserPreferencesApiContract::class
+
+        // LensApi for personal curation lenses
+        single {
+            LensApi(clientFactory = get())
+        } bind LensApiContract::class
 
         // FtsPopulator for rebuilding FTS tables after sync
         single {
@@ -539,7 +650,12 @@ val syncModule =
                 bookDao = get(),
                 bookContributorDao = get(),
                 bookSeriesDao = get(),
+                collectionDao = get(),
+                lensDao = get(),
+                tagDao = get(),
                 imageDownloader = get(),
+                playbackStateProvider = get<PlaybackManager>(),
+                downloadService = get(),
                 scope =
                     get(
                         qualifier =
@@ -561,6 +677,7 @@ val syncModule =
                 chapterDao = get(),
                 bookContributorDao = get(),
                 bookSeriesDao = get(),
+                tagDao = get(),
                 imageDownloader = get(),
                 conflictDetector = get(),
                 scope =
@@ -608,6 +725,17 @@ val syncModule =
             )
         }
 
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("tagPuller"),
+        ) {
+            TagPuller(
+                tagApi = get(),
+                tagDao = get(),
+            )
+        }
+
         // PullSyncOrchestrator - coordinates parallel entity pulls
         single {
             PullSyncOrchestrator(
@@ -628,6 +756,12 @@ val syncModule =
                         qualifier =
                             org.koin.core.qualifier
                                 .named("contributorPuller"),
+                    ),
+                tagPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("tagPuller"),
                     ),
                 coordinator = get(),
                 syncDao = get(),
@@ -708,6 +842,23 @@ val syncModule =
             )
         } bind PushSyncOrchestratorContract::class
 
+        // LibraryResetHelper - clears local data on library mismatch or server switch
+        single {
+            LibraryResetHelper(
+                bookDao = get(),
+                seriesDao = get(),
+                contributorDao = get(),
+                chapterDao = get(),
+                bookContributorDao = get(),
+                bookSeriesDao = get(),
+                playbackPositionDao = get(),
+                pendingOperationDao = get(),
+                userDao = get(),
+                syncDao = get(),
+                librarySyncContract = get(),
+            )
+        } bind LibraryResetHelperContract::class
+
         // SyncManager - thin orchestrator coordinating sync phases
         single {
             SyncManager(
@@ -718,6 +869,9 @@ val syncModule =
                 sseManager = get(),
                 userPreferencesApi = get(),
                 settingsRepository = get(),
+                instanceRepository = get(),
+                pendingOperationDao = get(),
+                libraryResetHelper = get(),
                 syncDao = get(),
                 ftsPopulator = get(),
                 scope =
@@ -735,7 +889,6 @@ val syncModule =
                 searchApi = get(),
                 searchDao = get(),
                 imageStorage = get(),
-                networkMonitor = get(),
             )
         } bind SearchRepositoryContract::class
 

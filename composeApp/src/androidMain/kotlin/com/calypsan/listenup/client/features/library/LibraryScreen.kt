@@ -1,5 +1,11 @@
 package com.calypsan.listenup.client.features.library
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
@@ -9,17 +15,25 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.features.library.components.AuthorsContent
 import com.calypsan.listenup.client.features.library.components.BooksContent
 import com.calypsan.listenup.client.features.library.components.LibraryTabRow
 import com.calypsan.listenup.client.features.library.components.NarratorsContent
+import com.calypsan.listenup.client.features.library.components.SelectionToolbar
 import com.calypsan.listenup.client.features.library.components.SeriesContent
+import com.calypsan.listenup.client.presentation.library.LibraryEvent
 import com.calypsan.listenup.client.presentation.library.LibraryUiEvent
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
+import com.calypsan.listenup.client.presentation.library.SelectionMode
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -55,6 +69,8 @@ fun LibraryScreen(
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = koinViewModel(),
 ) {
+    val context = LocalContext.current
+
     // Trigger intelligent auto-sync when screen becomes visible (only once)
     LaunchedEffect(Unit) {
         viewModel.onScreenVisible()
@@ -76,99 +92,244 @@ fun LibraryScreen(
     val narratorsSortState by viewModel.narratorsSortState.collectAsStateWithLifecycle()
     val ignoreTitleArticles by viewModel.ignoreTitleArticles.collectAsStateWithLifecycle()
 
+    // Selection mode state
+    val selectionMode by viewModel.selectionMode.collectAsStateWithLifecycle()
+    val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
+    val collections by viewModel.collections.collectAsStateWithLifecycle()
+    val isAddingToCollection by viewModel.isAddingToCollection.collectAsStateWithLifecycle()
+    val myLenses by viewModel.myLenses.collectAsStateWithLifecycle()
+    val isAddingToLens by viewModel.isAddingToLens.collectAsStateWithLifecycle()
+
+    // Derive selection state
+    val isInSelectionMode = selectionMode is SelectionMode.Active
+    val selectedBookIds = (selectionMode as? SelectionMode.Active)?.selectedIds ?: emptySet()
+
+    // Collection and lens picker sheet state
+    var showCollectionPicker by remember { mutableStateOf(false) }
+    var showLensPicker by remember { mutableStateOf(false) }
+
+    // Handle back press to exit selection mode
+    BackHandler(enabled = isInSelectionMode) {
+        viewModel.exitSelectionMode()
+    }
+
+    // Handle events (toast feedback)
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is LibraryEvent.BooksAddedToCollection -> {
+                    showCollectionPicker = false
+                    Toast
+                        .makeText(
+                            context,
+                            if (event.count ==
+                                1
+                            ) {
+                                "1 book added to collection"
+                            } else {
+                                "${event.count} books added to collection"
+                            },
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                }
+
+                is LibraryEvent.AddToCollectionFailed -> {
+                    Toast
+                        .makeText(
+                            context,
+                            "Failed to add: ${event.message}",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                }
+
+                is LibraryEvent.BooksAddedToLens -> {
+                    showLensPicker = false
+                    Toast
+                        .makeText(
+                            context,
+                            if (event.count == 1) "1 book added to lens" else "${event.count} books added to lens",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                }
+
+                is LibraryEvent.LensCreatedAndBooksAdded -> {
+                    showLensPicker = false
+                    val bookText = if (event.bookCount == 1) "1 book" else "${event.bookCount} books"
+                    Toast
+                        .makeText(
+                            context,
+                            "Created \"${event.lensName}\" with $bookText",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                }
+
+                is LibraryEvent.AddToLensFailed -> {
+                    Toast
+                        .makeText(
+                            context,
+                            "Failed to add: ${event.message}",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                }
+            }
+        }
+    }
+
     // Pager state for tab switching
     val pagerState = rememberPagerState(pageCount = { LibraryTab.entries.size })
     val scope = rememberCoroutineScope()
 
-    Column(modifier = modifier.fillMaxSize()) {
-        // Tab row - collapses icons when top bar collapses
-        LibraryTabRow(
-            selectedTabIndex = pagerState.currentPage,
-            onTabSelected = { index ->
-                scope.launch {
-                    pagerState.animateScrollToPage(index)
-                }
-            },
-            collapseFraction = topBarCollapseFraction,
-        )
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Tab row - collapses icons when top bar collapses
+            LibraryTabRow(
+                selectedTabIndex = pagerState.currentPage,
+                onTabSelected = { index ->
+                    scope.launch {
+                        pagerState.animateScrollToPage(index)
+                    }
+                },
+                collapseFraction = topBarCollapseFraction,
+            )
 
-        // Pull-to-refresh wraps entire pager (syncs all data)
-        PullToRefreshBox(
-            isRefreshing = syncState is SyncStatus.Syncing,
-            onRefresh = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            // Swipeable content
-            HorizontalPager(
-                state = pagerState,
+            // Pull-to-refresh wraps entire pager (syncs all data)
+            PullToRefreshBox(
+                isRefreshing = syncState is SyncStatus.Syncing,
+                onRefresh = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
                 modifier = Modifier.fillMaxSize(),
-            ) { page ->
-                when (LibraryTab.entries[page]) {
-                    LibraryTab.Books -> {
-                        BooksContent(
-                            books = books,
-                            hasLoadedBooks = hasLoadedBooks,
-                            syncState = syncState,
-                            sortState = booksSortState,
-                            ignoreTitleArticles = ignoreTitleArticles,
-                            bookProgress = bookProgress,
-                            onCategorySelected = { category ->
-                                viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
-                            },
-                            onDirectionToggle = {
-                                viewModel.onEvent(LibraryUiEvent.BooksDirectionToggled)
-                            },
-                            onToggleIgnoreArticles = {
-                                viewModel.onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
-                            },
-                            onBookClick = onBookClick,
-                            onRetry = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
-                        )
-                    }
+            ) {
+                // Swipeable content
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                ) { page ->
+                    when (LibraryTab.entries[page]) {
+                        LibraryTab.Books -> {
+                            BooksContent(
+                                books = books,
+                                hasLoadedBooks = hasLoadedBooks,
+                                syncState = syncState,
+                                sortState = booksSortState,
+                                ignoreTitleArticles = ignoreTitleArticles,
+                                bookProgress = bookProgress,
+                                isInSelectionMode = isInSelectionMode,
+                                selectedBookIds = selectedBookIds,
+                                onCategorySelected = { category ->
+                                    viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
+                                },
+                                onDirectionToggle = {
+                                    viewModel.onEvent(LibraryUiEvent.BooksDirectionToggled)
+                                },
+                                onToggleIgnoreArticles = {
+                                    viewModel.onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
+                                },
+                                onBookClick = { bookId ->
+                                    if (isInSelectionMode) {
+                                        viewModel.toggleBookSelection(bookId)
+                                    } else {
+                                        onBookClick(bookId)
+                                    }
+                                },
+                                onBookLongPress = { bookId ->
+                                    viewModel.enterSelectionMode(bookId)
+                                },
+                                onRetry = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
+                            )
+                        }
 
-                    LibraryTab.Series -> {
-                        SeriesContent(
-                            series = series,
-                            sortState = seriesSortState,
-                            onCategorySelected = { category ->
-                                viewModel.onEvent(LibraryUiEvent.SeriesCategoryChanged(category))
-                            },
-                            onDirectionToggle = {
-                                viewModel.onEvent(LibraryUiEvent.SeriesDirectionToggled)
-                            },
-                            onSeriesClick = onSeriesClick,
-                        )
-                    }
+                        LibraryTab.Series -> {
+                            SeriesContent(
+                                series = series,
+                                sortState = seriesSortState,
+                                onCategorySelected = { category ->
+                                    viewModel.onEvent(LibraryUiEvent.SeriesCategoryChanged(category))
+                                },
+                                onDirectionToggle = {
+                                    viewModel.onEvent(LibraryUiEvent.SeriesDirectionToggled)
+                                },
+                                onSeriesClick = onSeriesClick,
+                            )
+                        }
 
-                    LibraryTab.Authors -> {
-                        AuthorsContent(
-                            authors = authors,
-                            sortState = authorsSortState,
-                            onCategorySelected = { category ->
-                                viewModel.onEvent(LibraryUiEvent.AuthorsCategoryChanged(category))
-                            },
-                            onDirectionToggle = {
-                                viewModel.onEvent(LibraryUiEvent.AuthorsDirectionToggled)
-                            },
-                            onAuthorClick = onAuthorClick,
-                        )
-                    }
+                        LibraryTab.Authors -> {
+                            AuthorsContent(
+                                authors = authors,
+                                sortState = authorsSortState,
+                                onCategorySelected = { category ->
+                                    viewModel.onEvent(LibraryUiEvent.AuthorsCategoryChanged(category))
+                                },
+                                onDirectionToggle = {
+                                    viewModel.onEvent(LibraryUiEvent.AuthorsDirectionToggled)
+                                },
+                                onAuthorClick = onAuthorClick,
+                            )
+                        }
 
-                    LibraryTab.Narrators -> {
-                        NarratorsContent(
-                            narrators = narrators,
-                            sortState = narratorsSortState,
-                            onCategorySelected = { category ->
-                                viewModel.onEvent(LibraryUiEvent.NarratorsCategoryChanged(category))
-                            },
-                            onDirectionToggle = {
-                                viewModel.onEvent(LibraryUiEvent.NarratorsDirectionToggled)
-                            },
-                            onNarratorClick = onNarratorClick,
-                        )
+                        LibraryTab.Narrators -> {
+                            NarratorsContent(
+                                narrators = narrators,
+                                sortState = narratorsSortState,
+                                onCategorySelected = { category ->
+                                    viewModel.onEvent(LibraryUiEvent.NarratorsCategoryChanged(category))
+                                },
+                                onDirectionToggle = {
+                                    viewModel.onEvent(LibraryUiEvent.NarratorsDirectionToggled)
+                                },
+                                onNarratorClick = onNarratorClick,
+                            )
+                        }
                     }
                 }
             }
         }
+
+        // Selection toolbar (overlays at top)
+        AnimatedVisibility(
+            visible = isInSelectionMode,
+            enter = slideInVertically { -it },
+            exit = slideOutVertically { -it },
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
+            SelectionToolbar(
+                selectedCount = selectedBookIds.size,
+                onAddToLens = { showLensPicker = true },
+                onAddToCollection =
+                    if (isAdmin) {
+                        { showCollectionPicker = true }
+                    } else {
+                        null
+                    },
+                onClose = { viewModel.exitSelectionMode() },
+            )
+        }
+    }
+
+    // Collection picker sheet
+    if (showCollectionPicker) {
+        CollectionPickerSheet(
+            collections = collections,
+            selectedBookCount = selectedBookIds.size,
+            onCollectionSelected = { collectionId ->
+                viewModel.addSelectedToCollection(collectionId)
+            },
+            onDismiss = { showCollectionPicker = false },
+            isLoading = isAddingToCollection,
+        )
+    }
+
+    // Lens picker sheet
+    if (showLensPicker) {
+        LensPickerSheet(
+            lenses = myLenses,
+            selectedBookCount = selectedBookIds.size,
+            onLensSelected = { lensId ->
+                viewModel.addSelectedToLens(lensId)
+            },
+            onCreateAndAddToLens = { name ->
+                viewModel.createLensAndAddBooks(name)
+            },
+            onDismiss = { showLensPicker = false },
+            isLoading = isAddingToLens,
+        )
     }
 }

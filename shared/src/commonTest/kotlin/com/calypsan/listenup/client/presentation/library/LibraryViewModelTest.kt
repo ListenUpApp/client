@@ -4,9 +4,11 @@ import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
+import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
+import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.SeriesDao
@@ -15,6 +17,9 @@ import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
+import com.calypsan.listenup.client.data.remote.LensApiContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
@@ -158,6 +163,11 @@ class LibraryViewModelTest {
         val settingsRepository: SettingsRepositoryContract = mock()
         val syncDao: SyncDao = mock()
         val playbackPositionDao: PlaybackPositionDao = mock()
+        val userDao: UserDao = mock()
+        val collectionDao: CollectionDao = mock()
+        val adminCollectionApi: AdminCollectionApiContract = mock()
+        val lensDao: LensDao = mock()
+        val lensApi: LensApiContract = mock()
 
         val syncStateFlow = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
 
@@ -170,6 +180,11 @@ class LibraryViewModelTest {
                 settingsRepository = settingsRepository,
                 syncDao = syncDao,
                 playbackPositionDao = playbackPositionDao,
+                userDao = userDao,
+                collectionDao = collectionDao,
+                adminCollectionApi = adminCollectionApi,
+                lensDao = lensDao,
+                lensApi = lensApi,
             )
     }
 
@@ -183,6 +198,9 @@ class LibraryViewModelTest {
         every { fixture.contributorDao.observeByRoleWithCount("narrator") } returns flowOf(emptyList())
         every { fixture.syncManager.syncState } returns fixture.syncStateFlow
         every { fixture.playbackPositionDao.observeAll() } returns flowOf(emptyList())
+        every { fixture.userDao.observeCurrentUser() } returns flowOf(null)
+        every { fixture.collectionDao.observeAll() } returns flowOf(emptyList())
+        every { fixture.lensDao.observeMyLenses(any()) } returns flowOf(emptyList())
 
         // Default settings stubs (no persisted state)
         everySuspend { fixture.settingsRepository.getBooksSortState() } returns null

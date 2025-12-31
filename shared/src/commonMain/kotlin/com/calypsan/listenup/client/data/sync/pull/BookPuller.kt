@@ -6,7 +6,10 @@ import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
+import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.ChapterDao
+import com.calypsan.listenup.client.data.local.db.TagDao
+import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
@@ -30,6 +33,7 @@ class BookPuller(
     private val chapterDao: ChapterDao,
     private val bookContributorDao: BookContributorDao,
     private val bookSeriesDao: BookSeriesDao,
+    private val tagDao: TagDao,
     private val conflictDetector: ConflictDetectorContract,
     private val imageDownloader: ImageDownloaderContract,
     private val scope: CoroutineScope,
@@ -130,6 +134,7 @@ class BookPuller(
         // Sync relationships
         syncBookContributors(response, booksToUpsert)
         syncBookSeries(response, booksToUpsert)
+        syncBookTags(response, booksToUpsert)
 
         // Download cover images in background
         downloadCovers(booksToUpsert)
@@ -212,6 +217,48 @@ class BookPuller(
 
         if (bookSeriesToUpsert.isNotEmpty()) {
             bookSeriesDao.insertAll(bookSeriesToUpsert)
+        }
+    }
+
+    private suspend fun syncBookTags(
+        response: SyncBooksResponse,
+        upsertedBooks: List<BookEntity>,
+    ) {
+        // First, collect all unique tags and upsert them
+        val allTags =
+            response.books
+                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
+                .flatMap { it.tags }
+                .distinctBy { it.id }
+                .map { tag ->
+                    TagEntity(
+                        id = tag.id,
+                        slug = tag.slug,
+                        bookCount = tag.bookCount,
+                        createdAt = Timestamp.now(),
+                    )
+                }
+
+        if (allTags.isNotEmpty()) {
+            tagDao.upsertAll(allTags)
+            logger.debug { "Upserted ${allTags.size} unique tags" }
+        }
+
+        // Then create book-tag cross references
+        val bookTagCrossRefs =
+            response.books
+                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
+                .flatMap { bookResponse ->
+                    tagDao.deleteTagsForBook(BookId(bookResponse.id))
+
+                    bookResponse.tags.map { tag ->
+                        BookTagCrossRef(bookId = BookId(bookResponse.id), tagId = tag.id)
+                    }
+                }
+
+        if (bookTagCrossRefs.isNotEmpty()) {
+            tagDao.insertAllBookTags(bookTagCrossRefs)
+            logger.debug { "Created ${bookTagCrossRefs.size} book-tag relationships" }
         }
     }
 

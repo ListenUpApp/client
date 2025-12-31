@@ -28,6 +28,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.data.repository.AuthState
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.features.admin.AdminScreen
@@ -39,8 +40,11 @@ import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
 import com.calypsan.listenup.client.features.settings.SettingsScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
+import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
+import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteSubmissionStatus
 import kotlinx.coroutines.launch
@@ -88,7 +92,9 @@ fun ListenUpNavigation(
     }
 
     // Route to appropriate screen based on auth state
-    when (authState) {
+    // Capture to local val to enable smart casting (delegated properties can't be smart cast)
+    val currentAuthState = authState
+    when (currentAuthState) {
         AuthState.Initializing -> {
             // Show blank screen while determining auth state
             // Prevents flash of wrong screen on startup
@@ -112,14 +118,52 @@ fun ListenUpNavigation(
             SetupNavigation()
         }
 
-        AuthState.NeedsLogin -> {
-            LoginNavigation(settingsRepository)
+        is AuthState.NeedsLogin -> {
+            LoginNavigation(settingsRepository, currentAuthState.openRegistration)
+        }
+
+        is AuthState.PendingApproval -> {
+            PendingApprovalNavigation(
+                userId = currentAuthState.userId,
+                email = currentAuthState.email,
+                password = currentAuthState.encryptedPassword,
+            )
         }
 
         is AuthState.Authenticated -> {
             AuthenticatedNavigation(settingsRepository)
         }
     }
+}
+
+/**
+ * Navigation for pending approval screen.
+ *
+ * Shows the pending approval screen for users who have registered
+ * but are waiting for admin approval. Handles:
+ * - SSE connection for real-time approval notification
+ * - Auto-login on approval
+ * - Cancel to return to login
+ */
+@Composable
+private fun PendingApprovalNavigation(
+    userId: String,
+    email: String,
+    password: String,
+) {
+    val viewModel: PendingApprovalViewModel =
+        koinInject {
+            org.koin.core.parameter
+                .parametersOf(userId, email, password)
+        }
+
+    com.calypsan.listenup.client.features.auth.PendingApprovalScreen(
+        viewModel = viewModel,
+        onNavigateToLogin = {
+            // Auth state will automatically update from clearPendingRegistration
+            // No explicit navigation needed
+        },
+    )
 }
 
 /**
@@ -236,11 +280,22 @@ private fun SetupNavigation() {
 /**
  * Login navigation - shown when server is configured but user needs to authenticate.
  * After successful login, AuthState.Authenticated triggers automatic navigation.
+ *
+ * @param openRegistration Whether the server allows public registration
  */
 @Composable
-private fun LoginNavigation(settingsRepository: SettingsRepository) {
+private fun LoginNavigation(
+    settingsRepository: SettingsRepository,
+    openRegistration: Boolean,
+) {
     val scope = rememberCoroutineScope()
     val backStack = remember { mutableStateListOf<Route>(Login) }
+
+    // Refresh open registration value from server
+    // This ensures the "Create Account" link appears if admin enabled it
+    LaunchedEffect(Unit) {
+        settingsRepository.refreshOpenRegistration()
+    }
 
     NavDisplay(
         backStack = backStack,
@@ -249,11 +304,23 @@ private fun LoginNavigation(settingsRepository: SettingsRepository) {
                 entry<Login> {
                     com.calypsan.listenup.client.features.auth
                         .LoginScreen(
+                            openRegistration = openRegistration,
                             onChangeServer = {
                                 scope.launch {
                                     // Clear server URL to go back to server selection
                                     settingsRepository.disconnectFromServer()
                                 }
+                            },
+                            onRegister = {
+                                backStack.add(Register)
+                            },
+                        )
+                }
+                entry<Register> {
+                    com.calypsan.listenup.client.features.auth
+                        .RegisterScreen(
+                            onBackClick = {
+                                backStack.removeAt(backStack.lastIndex)
                             },
                         )
                 }
@@ -279,7 +346,10 @@ private fun LoginNavigation(settingsRepository: SettingsRepository) {
  */
 @Suppress("LongMethod")
 @Composable
-private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
+private fun AuthenticatedNavigation(
+    settingsRepository: SettingsRepository,
+    libraryResetHelper: LibraryResetHelperContract = koinInject(),
+) {
     val scope = rememberCoroutineScope()
     val backStack = remember { mutableStateListOf<Route>(Shell) }
 
@@ -326,6 +396,12 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 onContributorClick = { contributorId ->
                                     backStack.add(ContributorDetail(contributorId))
                                 },
+                                onLensClick = { lensId ->
+                                    backStack.add(LensDetail(lensId))
+                                },
+                                onTagClick = { tagId ->
+                                    backStack.add(TagDetail(tagId))
+                                },
                                 onAdminClick = {
                                     backStack.add(Admin)
                                 },
@@ -334,6 +410,9 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                                 onSignOut = {
                                     scope.launch {
+                                        // Clear library data before signing out
+                                        // This ensures next login (same or different user) gets fresh data
+                                        libraryResetHelper.clearLibraryData()
                                         settingsRepository.clearAuthTokens()
                                     }
                                 },
@@ -356,6 +435,9 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                                 onContributorClick = { contributorId ->
                                     backStack.add(ContributorDetail(contributorId))
+                                },
+                                onTagClick = { tagId ->
+                                    backStack.add(TagDetail(tagId))
                                 },
                             )
                         }
@@ -410,6 +492,17 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                                 onEditClick = { seriesId ->
                                     backStack.add(SeriesEdit(seriesId))
+                                },
+                            )
+                        }
+                        entry<TagDetail> { args ->
+                            com.calypsan.listenup.client.features.tagdetail.TagDetailScreen(
+                                tagId = args.tagId,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(BookDetail(bookId))
                                 },
                             )
                         }
@@ -501,6 +594,9 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                         // Admin screens
                         entry<Admin> {
                             val viewModel: AdminViewModel = koinInject()
+                            val settingsViewModel: AdminSettingsViewModel = koinInject()
+                            val settingsState by settingsViewModel.state.collectAsState()
+
                             AdminScreen(
                                 viewModel = viewModel,
                                 onBackClick = {
@@ -508,6 +604,44 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                                 onInviteClick = {
                                     backStack.add(CreateInvite)
+                                },
+                                onCollectionsClick = {
+                                    backStack.add(AdminCollections)
+                                },
+                                onInboxClick = {
+                                    backStack.add(AdminInbox)
+                                },
+                                inboxEnabled = settingsState.inboxEnabled,
+                                inboxCount = settingsState.inboxCount,
+                                isTogglingInbox = settingsState.isSaving,
+                                onInboxEnabledChange = { settingsViewModel.setInboxEnabled(it) },
+                            )
+
+                            // Handle disable inbox confirmation dialog
+                            if (settingsState.showDisableConfirmation) {
+                                com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog(
+                                    onDismissRequest = { settingsViewModel.cancelDisableInbox() },
+                                    title = "Disable Inbox Workflow",
+                                    text =
+                                        "This will release all ${settingsState.inboxCount} " +
+                                            "book${if (settingsState.inboxCount != 1) "s" else ""} " +
+                                            "currently in the inbox with their staged collection assignments.\n\n" +
+                                            "New books will become immediately visible to users.",
+                                    confirmText = "Disable & Release",
+                                    onConfirm = { settingsViewModel.confirmDisableInbox() },
+                                    onDismiss = { settingsViewModel.cancelDisableInbox() },
+                                )
+                            }
+                        }
+                        entry<AdminInbox> {
+                            val viewModel: AdminInboxViewModel = koinInject()
+                            com.calypsan.listenup.client.features.admin.inbox.AdminInboxScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(BookDetail(bookId))
                                 },
                             )
                         }
@@ -523,8 +657,75 @@ private fun AuthenticatedNavigation(settingsRepository: SettingsRepository) {
                                 },
                             )
                         }
+                        entry<AdminCollections> {
+                            val viewModel: com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel =
+                                koinInject()
+                            com.calypsan.listenup.client.features.admin.collections.AdminCollectionsScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onCollectionClick = { collectionId ->
+                                    backStack.add(AdminCollectionDetail(collectionId))
+                                },
+                            )
+                        }
+                        entry<AdminCollectionDetail> { args ->
+                            val viewModel:
+                                com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel =
+                                koinInject {
+                                    org.koin.core.parameter
+                                        .parametersOf(args.collectionId)
+                                }
+                            com.calypsan.listenup.client.features.admin.collections.AdminCollectionDetailScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
                         entry<Settings> {
                             SettingsScreen(
+                                onNavigateBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onNavigateToLicenses = {
+                                    backStack.add(Licenses)
+                                },
+                            )
+                        }
+                        entry<LensDetail> { args ->
+                            com.calypsan.listenup.client.features.lens.LensDetailScreen(
+                                lensId = args.lensId,
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(BookDetail(bookId))
+                                },
+                                onEditClick = { lensId ->
+                                    backStack.add(LensEdit(lensId))
+                                },
+                            )
+                        }
+                        entry<CreateLens> {
+                            com.calypsan.listenup.client.features.lens.CreateEditLensScreen(
+                                lensId = null,
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<LensEdit> { args ->
+                            com.calypsan.listenup.client.features.lens.CreateEditLensScreen(
+                                lensId = args.lensId,
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<Licenses> {
+                            com.calypsan.listenup.client.features.settings.LicensesScreen(
                                 onNavigateBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },

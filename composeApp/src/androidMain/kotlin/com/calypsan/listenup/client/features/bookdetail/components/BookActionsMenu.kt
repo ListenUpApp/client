@@ -98,24 +98,19 @@ fun BookActionsMenu(
             enabled = false, // Stubbed for now
         )
 
-        // Add to Collection (stubbed for now)
-        DropdownMenuItem(
-            text = {
-                Text(
-                    text = "Add to Collection",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                )
-            },
-            onClick = onAddToCollectionClick,
-            enabled = false, // Stubbed for now
-        )
+        // Add to Collection (admin only)
+        if (isAdmin) {
+            DropdownMenuItem(
+                text = { Text("Add to Collection") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                        contentDescription = null,
+                    )
+                },
+                onClick = onAddToCollectionClick,
+            )
+        }
 
         // Delete Book (admin only, stubbed for now)
         if (isAdmin) {

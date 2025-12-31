@@ -43,6 +43,13 @@ data object Setup : Route
 data object Login : Route
 
 /**
+ * Register screen - create new account when open registration is enabled.
+ * User enters email, password, and name to request an account (pending admin approval).
+ */
+@Serializable
+data object Register : Route
+
+/**
  * App shell - main authenticated container.
  *
  * Contains the bottom navigation bar with Home, Library, and Discover tabs.
@@ -110,6 +117,16 @@ data class MetadataSearch(
 @Serializable
 data class SeriesDetail(
     val seriesId: String,
+) : Route
+
+/**
+ * Tag detail screen - displays tag info and books with this tag.
+ *
+ * @property tagId The unique ID of the tag to display.
+ */
+@Serializable
+data class TagDetail(
+    val tagId: String,
 ) : Route
 
 /**
@@ -228,7 +245,78 @@ data object Admin : Route
 data object CreateInvite : Route
 
 /**
+ * Admin collections screen - manage collections.
+ *
+ * Shows list of collections with create/delete functionality.
+ * Only accessible to admin users (root or role=admin).
+ */
+@Serializable
+data object AdminCollections : Route
+
+/**
+ * Admin collection detail screen - view and edit a collection.
+ *
+ * Shows collection details, allows name editing, and displays books.
+ *
+ * @property collectionId The unique ID of the collection to display.
+ */
+@Serializable
+data class AdminCollectionDetail(
+    val collectionId: String,
+) : Route
+
+/**
+ * Admin inbox screen - review newly scanned books.
+ *
+ * Shows books waiting for admin review before becoming visible.
+ * Supports batch selection and release operations.
+ */
+@Serializable
+data object AdminInbox : Route
+
+/**
  * Settings screen - app preferences and configuration.
  */
 @Serializable
 data object Settings : Route
+
+/**
+ * Licenses screen - open source library acknowledgements.
+ */
+@Serializable
+data object Licenses : Route
+
+// Lens Routes
+
+/**
+ * Lens detail screen - displays lens info and its books.
+ *
+ * Shows the lens name, description, owner info, and list of books.
+ * Owners can edit the lens, add/remove books.
+ *
+ * @property lensId The unique ID of the lens to display.
+ */
+@Serializable
+data class LensDetail(
+    val lensId: String,
+) : Route
+
+/**
+ * Create lens screen - create a new personal lens.
+ *
+ * Form for name and optional description.
+ */
+@Serializable
+data object CreateLens : Route
+
+/**
+ * Edit lens screen - edit an existing lens.
+ *
+ * Form for name and description. Owner only.
+ *
+ * @property lensId The unique ID of the lens to edit.
+ */
+@Serializable
+data class LensEdit(
+    val lensId: String,
+) : Route

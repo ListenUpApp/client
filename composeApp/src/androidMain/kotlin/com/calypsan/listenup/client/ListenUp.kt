@@ -120,6 +120,8 @@ val playbackModule =
             PlaybackManager(
                 settingsRepository = get(),
                 bookDao = get(),
+                chapterDao = get(),
+                imageStorage = get(),
                 progressTracker = get(),
                 tokenProvider = get(),
                 downloadService = get(),
@@ -171,12 +173,14 @@ val downloadModule =
 
         // Download manager - coordinates download queue and state
         // Bound to DownloadService interface for shared code (PlaybackManager)
+        // Uses localPreferences for WiFi-only download constraint
         single<DownloadService> {
             DownloadManager(
                 downloadDao = get(),
                 bookDao = get(),
                 workManager = WorkManager.getInstance(androidContext()),
                 fileManager = get(),
+                localPreferences = get(),
             )
         }
 

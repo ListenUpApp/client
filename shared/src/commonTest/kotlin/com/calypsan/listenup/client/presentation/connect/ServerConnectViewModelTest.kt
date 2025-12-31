@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.connect
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.error.ServerConnectError
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import dev.mokkery.mock
@@ -114,7 +115,7 @@ class ServerConnectViewModelTest {
             val viewModel = fixture.build()
             viewModel.onEvent(ServerConnectUiEvent.ConnectClicked)
             advanceUntilIdle()
-            assertIs<ServerConnectError.InvalidUrl>(viewModel.state.value.error)
+            checkIs<ServerConnectError.InvalidUrl>(viewModel.state.value.error)
 
             // When - user starts typing
             viewModel.onEvent(ServerConnectUiEvent.UrlChanged("h"))
@@ -152,8 +153,7 @@ class ServerConnectViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = viewModel.state.value.error
-            assertIs<ServerConnectError.InvalidUrl>(error)
+            val error = assertIs<ServerConnectError.InvalidUrl>(viewModel.state.value.error)
             assertEquals("blank", error.reason)
             assertEquals("Please enter a server URL", error.message)
         }
@@ -171,8 +171,7 @@ class ServerConnectViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val error = viewModel.state.value.error
-            assertIs<ServerConnectError.InvalidUrl>(error)
+            val error = assertIs<ServerConnectError.InvalidUrl>(viewModel.state.value.error)
             assertEquals("blank", error.reason)
         }
 
@@ -217,7 +216,7 @@ class ServerConnectViewModelTest {
             val viewModel = fixture.build()
             viewModel.onEvent(ServerConnectUiEvent.ConnectClicked)
             advanceUntilIdle()
-            assertIs<ServerConnectError.InvalidUrl>(viewModel.state.value.error)
+            checkIs<ServerConnectError.InvalidUrl>(viewModel.state.value.error)
 
             // When - change URL
             viewModel.onEvent(ServerConnectUiEvent.UrlChanged("new-url"))

@@ -9,6 +9,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -146,9 +147,11 @@ class AuthApi(
 
     /**
      * Get the device model.
-     * Expected to be implemented via expect/actual pattern.
+     * Uses platform-specific implementation via expect/actual pattern.
      */
-    private fun getDeviceModel(): String = "Unknown" // TODO: Use expect/actual
+    private fun getDeviceModel(): String =
+        com.calypsan.listenup.client.core.PlatformUtils
+            .getDeviceModel()
 
     /**
      * Refresh access token using refresh token.
@@ -193,12 +196,82 @@ class AuthApi(
             client.close()
         }
     }
+
+    /**
+     * Register a new user account when open registration is enabled.
+     *
+     * Creates a user with pending status that requires admin approval.
+     * The user cannot log in until an admin approves their account.
+     *
+     * @param email User's email address (will be username)
+     * @param password User's password (min 8 characters)
+     * @param firstName User's first name
+     * @param lastName User's last name
+     * @return RegisterResponse with user ID and success message
+     * @throws Exception on network errors, validation failures, or if registration is disabled
+     */
+    override suspend fun register(
+        email: String,
+        password: String,
+        firstName: String,
+        lastName: String,
+    ): RegisterResponse {
+        val client = createClient(requireServerUrl())
+        try {
+            val response: ApiResponse<RegisterResponse> =
+                client
+                    .post("/api/v1/auth/register") {
+                        setBody(RegisterRequest(email, password, firstName, lastName))
+                    }.body()
+
+            return when (val result = response.toResult()) {
+                is Success -> result.data
+                is Failure -> throw result.exception
+            }
+        } finally {
+            client.close()
+        }
+    }
+
+    /**
+     * Check the approval status of a pending registration.
+     *
+     * Used to poll for approval after registering. Once approved,
+     * the client can proceed with login.
+     *
+     * @param userId User ID from registration response
+     * @return RegistrationStatusResponse with current status
+     */
+    override suspend fun checkRegistrationStatus(userId: String): RegistrationStatusResponse {
+        val client = createClient(requireServerUrl())
+        try {
+            val response: ApiResponse<RegistrationStatusResponse> =
+                client
+                    .get("/api/v1/auth/registration-status/$userId")
+                    .body()
+
+            return when (val result = response.toResult()) {
+                is Success -> result.data
+                is Failure -> throw result.exception
+            }
+        } finally {
+            client.close()
+        }
+    }
 }
 
 // Request DTOs
 
 @Serializable
 private data class SetupRequest(
+    @SerialName("email") val email: String,
+    @SerialName("password") val password: String,
+    @SerialName("first_name") val firstName: String,
+    @SerialName("last_name") val lastName: String,
+)
+
+@Serializable
+private data class RegisterRequest(
     @SerialName("email") val email: String,
     @SerialName("password") val password: String,
     @SerialName("first_name") val firstName: String,
@@ -277,4 +350,28 @@ data class AuthUser(
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
     @SerialName("last_login_at") val lastLoginAt: String,
+)
+
+/**
+ * Response from registration endpoint.
+ *
+ * Contains the user ID and a success message indicating the account was created
+ * with pending status and requires admin approval.
+ */
+@Serializable
+data class RegisterResponse(
+    @SerialName("user_id") val userId: String,
+    @SerialName("message") val message: String,
+)
+
+/**
+ * Response from registration status check endpoint.
+ *
+ * Used to poll for approval status after registration.
+ */
+@Serializable
+data class RegistrationStatusResponse(
+    @SerialName("user_id") val userId: String,
+    @SerialName("status") val status: String,
+    @SerialName("approved") val approved: Boolean,
 )

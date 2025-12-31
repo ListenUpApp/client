@@ -8,19 +8,30 @@ import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
+import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
+import com.calypsan.listenup.client.data.local.db.CollectionDao
+import com.calypsan.listenup.client.data.local.db.CollectionEntity
+import com.calypsan.listenup.client.data.local.db.LensDao
+import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.data.local.db.TagDao
+import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SSEEventType
+import com.calypsan.listenup.client.download.DownloadResult
+import com.calypsan.listenup.client.download.DownloadService
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
+import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import dev.mokkery.verify.VerifyMode
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -92,7 +103,15 @@ class SSEEventProcessorTest {
         val bookDao: BookDao = mock()
         val bookContributorDao: BookContributorDao = mock()
         val bookSeriesDao: BookSeriesDao = mock()
+        val collectionDao: CollectionDao = mock()
+        val lensDao: LensDao = mock()
+        val tagDao: TagDao = mock()
         val imageDownloader: ImageDownloaderContract = mock()
+        val playbackStateProvider: PlaybackStateProvider = mock()
+        val downloadService: DownloadService = mock()
+
+        // StateFlow for current book ID
+        private val currentBookIdFlow = MutableStateFlow<BookId?>(null)
 
         init {
             // Default stubs
@@ -103,7 +122,35 @@ class SSEEventProcessorTest {
             everySuspend { bookContributorDao.insertAll(any<List<BookContributorCrossRef>>()) } returns Unit
             everySuspend { bookSeriesDao.deleteSeriesForBook(any()) } returns Unit
             everySuspend { bookSeriesDao.insertAll(any<List<BookSeriesCrossRef>>()) } returns Unit
+            everySuspend { collectionDao.upsert(any<CollectionEntity>()) } returns Unit
+            everySuspend { collectionDao.deleteById(any()) } returns Unit
+            everySuspend { collectionDao.getById(any()) } returns null
+            everySuspend { lensDao.upsert(any<LensEntity>()) } returns Unit
+            everySuspend { lensDao.deleteById(any()) } returns Unit
+            everySuspend { lensDao.getById(any()) } returns null
+            everySuspend { tagDao.upsert(any<TagEntity>()) } returns Unit
+            everySuspend { tagDao.insertBookTag(any<BookTagCrossRef>()) } returns Unit
+            everySuspend { tagDao.deleteBookTag(any(), any()) } returns Unit
+            everySuspend { tagDao.getById(any()) } returns null
             everySuspend { imageDownloader.downloadCover(any()) } returns Result.Success(false)
+
+            // PlaybackStateProvider stubs
+            every { playbackStateProvider.currentBookId } returns currentBookIdFlow
+            every { playbackStateProvider.clearPlayback() } returns Unit
+
+            // DownloadService stubs
+            everySuspend { downloadService.cancelDownload(any()) } returns Unit
+            everySuspend { downloadService.deleteDownload(any()) } returns Unit
+            everySuspend { downloadService.downloadBook(any()) } returns DownloadResult.Success
+            everySuspend { downloadService.getLocalPath(any()) } returns null
+            everySuspend { downloadService.wasExplicitlyDeleted(any()) } returns false
+        }
+
+        /**
+         * Set the currently playing book ID for testing access revocation.
+         */
+        fun setCurrentlyPlayingBook(bookId: BookId?) {
+            currentBookIdFlow.value = bookId
         }
 
         fun build(): SSEEventProcessor =
@@ -111,7 +158,12 @@ class SSEEventProcessorTest {
                 bookDao = bookDao,
                 bookContributorDao = bookContributorDao,
                 bookSeriesDao = bookSeriesDao,
+                collectionDao = collectionDao,
+                lensDao = lensDao,
+                tagDao = tagDao,
                 imageDownloader = imageDownloader,
+                playbackStateProvider = playbackStateProvider,
+                downloadService = downloadService,
                 scope = scope,
             )
     }

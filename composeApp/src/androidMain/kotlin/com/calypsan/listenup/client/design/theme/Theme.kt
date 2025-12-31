@@ -6,13 +6,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
@@ -42,22 +40,6 @@ private val ExpressiveShapes =
  * Usage: val isDark = LocalDarkTheme.current
  */
 val LocalDarkTheme = staticCompositionLocalOf { false }
-
-/**
- * Dark color scheme fallback using ListenUp orange seed.
- * Used on Android < 12 where dynamic color is unavailable.
- * Surface containers are tinted with the primary orange to create depth.
- */
-private val DarkColorScheme =
-    darkColorScheme(
-        primary = ListenUpOrange,
-        // Tinted dark surface containers derived from orange seed
-        surface = Color(0xFF1A1210),
-        surfaceContainer = Color(0xFF251D1A),
-        surfaceContainerLow = Color(0xFF1F1714),
-        surfaceContainerHigh = Color(0xFF302723),
-        surfaceContainerHighest = Color(0xFF3B322D),
-    )
 
 /**
  * ListenUp Material 3 theme with true Material You support.

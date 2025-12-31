@@ -10,6 +10,7 @@ package com.calypsan.listenup.client.data.repository
  * ```
  * No URL → NeedsServerUrl
  * URL + Token → Authenticated (optimistic, skip network check)
+ * URL + Pending Registration → PendingApproval
  * URL + No Token → CheckingServer
  *   ├─ setup_required=true  → NeedsSetup
  *   ├─ setup_required=false → NeedsLogin
@@ -25,6 +26,7 @@ package com.calypsan.listenup.client.data.repository
  *         AuthState.CheckingServer -> showLoading()
  *         AuthState.NeedsSetup -> showRootUserSetup()
  *         AuthState.NeedsLogin -> showLogin()
+ *         is AuthState.PendingApproval -> showPendingApproval()
  *         is AuthState.Authenticated -> showLibrary(state.userId)
  *     }
  * }
@@ -59,8 +61,28 @@ sealed interface AuthState {
     /**
      * Server is configured, but user needs to log in.
      * Show login screen for authentication.
+     *
+     * @property openRegistration True if public registration is enabled on the server.
+     *                            When true, show a "Create Account" option on the login screen.
      */
-    data object NeedsLogin : AuthState
+    data class NeedsLogin(
+        val openRegistration: Boolean = false,
+    ) : AuthState
+
+    /**
+     * User has registered but is waiting for admin approval.
+     * Show a dedicated pending approval screen that connects to SSE
+     * for real-time approval notification.
+     *
+     * @property userId The pending user's ID from registration response
+     * @property email The user's email address for display and auto-login
+     * @property encryptedPassword Encrypted password stored for auto-login after approval
+     */
+    data class PendingApproval(
+        val userId: String,
+        val email: String,
+        val encryptedPassword: String,
+    ) : AuthState
 
     /**
      * User is authenticated with valid tokens.

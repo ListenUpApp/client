@@ -1,22 +1,24 @@
 package com.calypsan.listenup.client.data.remote
 
-import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Tag
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.Instant
 
 /**
- * API client for tag operations.
+ * API client for global tag operations.
  *
- * Tags are user-scoped and used for personal organization of books.
- * Each user has their own set of tags that can be applied to any book.
+ * Tags are community-wide content descriptors that any user can apply
+ * to books they have access to.
  *
  * @property clientFactory Factory for creating authenticated HttpClient
  */
@@ -24,14 +26,32 @@ class TagApi(
     private val clientFactory: ApiClientFactory,
 ) : TagApiContract {
     /**
-     * Get all tags for the current user.
+     * Get all global tags ordered by popularity.
      *
-     * Endpoint: GET /api/v1/tags/
+     * Endpoint: GET /api/v1/tags
      */
-    override suspend fun getUserTags(): List<Tag> {
+    override suspend fun listTags(): List<Tag> {
         val client = clientFactory.getClient()
-        val response: ApiResponse<List<TagResponse>> = client.get("/api/v1/tags/").body()
-        return response.data?.map { it.toDomain() } ?: emptyList()
+        val response: ListTagsResponse = client.get("/api/v1/tags").body()
+        return response.tags.map { it.toDomain() }
+    }
+
+    /**
+     * Get a tag by its slug.
+     *
+     * Endpoint: GET /api/v1/tags/{slug}
+     *
+     * @param slug The tag slug
+     * @return The tag, or null if not found
+     */
+    override suspend fun getTagBySlug(slug: String): Tag? {
+        val client = clientFactory.getClient()
+        val httpResponse: HttpResponse = client.get("/api/v1/tags/$slug")
+        return if (httpResponse.status.isSuccess()) {
+            httpResponse.body<TagResponse>().toDomain()
+        } else {
+            null
+        }
     }
 
     /**
@@ -43,123 +63,92 @@ class TagApi(
      */
     override suspend fun getBookTags(bookId: String): List<Tag> {
         val client = clientFactory.getClient()
-        val response: ApiResponse<List<TagResponse>> = client.get("/api/v1/books/$bookId/tags").body()
-        return response.data?.map { it.toDomain() } ?: emptyList()
+        val response: GetBookTagsResponse = client.get("/api/v1/books/$bookId/tags").body()
+        return response.tags.map { it.toDomain() }
     }
 
     /**
-     * Add a tag to a book.
+     * Add a tag to a book. Creates the tag if it doesn't exist.
      *
      * Endpoint: POST /api/v1/books/{bookId}/tags
      *
      * @param bookId The book to tag
-     * @param tagId The tag to apply
+     * @param rawInput The tag text (will be normalized to slug by server)
+     * @return The tag that was added or created
      */
     override suspend fun addTagToBook(
         bookId: String,
-        tagId: String,
-    ) {
+        rawInput: String,
+    ): Tag {
         val client = clientFactory.getClient()
-        client.post("/api/v1/books/$bookId/tags") {
-            contentType(ContentType.Application.Json)
-            setBody(AddTagRequest(tagId = tagId))
-        }
+        val response: TagResponse =
+            client
+                .post("/api/v1/books/$bookId/tags") {
+                    contentType(ContentType.Application.Json)
+                    setBody(AddTagRequest(tag = rawInput))
+                }.body()
+        return response.toDomain()
     }
 
     /**
      * Remove a tag from a book.
      *
-     * Endpoint: DELETE /api/v1/books/{bookId}/tags/{tagId}
+     * Endpoint: DELETE /api/v1/books/{bookId}/tags/{slug}
      *
      * @param bookId The book to untag
-     * @param tagId The tag to remove
+     * @param slug The tag slug to remove
      */
     override suspend fun removeTagFromBook(
         bookId: String,
-        tagId: String,
+        slug: String,
     ) {
         val client = clientFactory.getClient()
-        client.delete("/api/v1/books/$bookId/tags/$tagId")
-    }
-
-    /**
-     * Create a new tag.
-     *
-     * Endpoint: POST /api/v1/tags/
-     *
-     * @param name The display name for the new tag
-     * @param color Optional hex color for the tag (e.g., "#FF5733")
-     * @return The created tag
-     */
-    override suspend fun createTag(
-        name: String,
-        color: String?,
-    ): Tag {
-        val client = clientFactory.getClient()
-        val response: ApiResponse<TagResponse> =
-            client
-                .post("/api/v1/tags/") {
-                    contentType(ContentType.Application.Json)
-                    setBody(CreateTagRequest(name = name, color = color))
-                }.body()
-        return response.data?.toDomain()
-            ?: error(response.error ?: "Failed to create tag")
-    }
-
-    /**
-     * Delete a tag.
-     *
-     * Endpoint: DELETE /api/v1/tags/{tagId}
-     *
-     * @param tagId The tag to delete
-     */
-    override suspend fun deleteTag(tagId: String) {
-        val client = clientFactory.getClient()
-        client.delete("/api/v1/tags/$tagId")
+        client.delete("/api/v1/books/$bookId/tags/$slug")
     }
 }
 
+// === Response DTOs ===
+
+/**
+ * Response wrapper for listing tags.
+ */
+@Serializable
+internal data class ListTagsResponse(
+    val tags: List<TagResponse>,
+)
+
+/**
+ * Response wrapper for getting book tags.
+ */
+@Serializable
+internal data class GetBookTagsResponse(
+    val tags: List<TagResponse>,
+)
+
 /**
  * Tag API response DTO.
- *
- * Note: Timestamps are ISO 8601 strings from the server (Go time.Time).
- * We don't need them for the domain model, so we just ignore them.
  */
 @Serializable
 internal data class TagResponse(
     val id: String,
-    val name: String,
     val slug: String,
-    @SerialName("owner_id")
-    val ownerId: String,
-    val color: String? = null,
     @SerialName("book_count")
     val bookCount: Int = 0,
     @SerialName("created_at")
     val createdAt: String? = null,
-    @SerialName("updated_at")
-    val updatedAt: String? = null,
-    @SerialName("deleted_at")
-    val deletedAt: String? = null,
 ) {
     fun toDomain() =
         Tag(
             id = id,
-            name = name,
             slug = slug,
-            color = color,
             bookCount = bookCount,
+            createdAt = createdAt?.let { Instant.parse(it) },
         )
 }
 
-@Serializable
-internal data class AddTagRequest(
-    @SerialName("tag_id")
-    val tagId: String,
-)
+// === Request DTOs ===
 
 @Serializable
-internal data class CreateTagRequest(
-    val name: String,
-    val color: String? = null,
+internal data class AddTagRequest(
+    val tag: String,
 )

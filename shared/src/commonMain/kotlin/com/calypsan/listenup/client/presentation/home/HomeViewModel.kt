@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentHourOfDay
+import com.calypsan.listenup.client.data.local.db.LensDao
+import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -20,16 +22,22 @@ private val logger = KotlinLogging.logger {}
  * Manages:
  * - Time-aware greeting with user's name
  * - Continue listening books list
+ * - My lenses list
  * - Loading and error states
  *
  * @property homeRepository Repository for home screen data
+ * @property lensDao DAO for lens data
  */
 class HomeViewModel(
     private val homeRepository: HomeRepositoryContract,
+    private val lensDao: LensDao,
     private val currentHour: () -> Int = { currentHourOfDay() },
 ) : ViewModel() {
     val state: StateFlow<HomeUiState>
         field = MutableStateFlow(HomeUiState(timeGreeting = computeTimeGreeting()))
+
+    // Store user ID for lens observation
+    private var currentUserId: String? = null
 
     init {
         observeUser()
@@ -50,10 +58,11 @@ class HomeViewModel(
         }
 
     /**
-     * Observe current user for greeting.
+     * Observe current user for greeting and lens loading.
      *
      * Updates the greeting whenever user data changes.
      * Falls back to generic greeting if no user name available.
+     * Also starts observing lenses when user ID is available.
      */
     private fun observeUser() {
         viewModelScope.launch {
@@ -62,6 +71,25 @@ class HomeViewModel(
 
                 state.update { it.copy(userName = firstName) }
                 logger.debug { "User first name updated: $firstName" }
+
+                // Start observing lenses when we have a user ID
+                val userId = user?.id
+                if (userId != null && userId != currentUserId) {
+                    currentUserId = userId
+                    observeMyLenses(userId)
+                }
+            }
+        }
+    }
+
+    /**
+     * Observe my lenses from the local database.
+     */
+    private fun observeMyLenses(userId: String) {
+        viewModelScope.launch {
+            lensDao.observeMyLenses(userId).collect { lenses ->
+                state.update { it.copy(myLenses = lenses) }
+                logger.debug { "My lenses updated: ${lenses.size}" }
             }
         }
     }
@@ -130,6 +158,7 @@ data class HomeUiState(
     val userName: String = "",
     val timeGreeting: String = "Good morning",
     val continueListening: List<ContinueListeningBook> = emptyList(),
+    val myLenses: List<LensEntity> = emptyList(),
     val error: String? = null,
 ) {
     /**
@@ -154,4 +183,10 @@ data class HomeUiState(
      */
     val hasContinueListening: Boolean
         get() = continueListening.isNotEmpty()
+
+    /**
+     * Whether there are lenses to display.
+     */
+    val hasMyLenses: Boolean
+        get() = myLenses.isNotEmpty()
 }

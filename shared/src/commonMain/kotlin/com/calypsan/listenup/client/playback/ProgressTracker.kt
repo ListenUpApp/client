@@ -355,6 +355,32 @@ class ProgressTracker(
     fun getCurrentSpeed(): Float = currentSession?.playbackSpeed ?: 1.0f
 
     /**
+     * Get the most recently played book.
+     * Used for playback resumption from system UI (Android Auto, Wear OS, etc).
+     *
+     * @return The book ID and position of the most recently played book, or null if never played
+     */
+    suspend fun getLastPlayedBook(): LastPlayedInfo? {
+        val positions = positionDao.getRecentPositions(1)
+        val position = positions.firstOrNull() ?: return null
+
+        return LastPlayedInfo(
+            bookId = position.bookId,
+            positionMs = position.positionMs,
+            playbackSpeed = position.playbackSpeed,
+        )
+    }
+
+    /**
+     * Information about the last played book for resumption.
+     */
+    data class LastPlayedInfo(
+        val bookId: BookId,
+        val positionMs: Long,
+        val playbackSpeed: Float,
+    )
+
+    /**
      * Queue a listening event via the unified push sync system.
      */
     private suspend fun queueListeningEvent(

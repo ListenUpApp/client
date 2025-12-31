@@ -90,6 +90,9 @@ interface SeriesDao {
     @Transaction
     @Query("SELECT * FROM series WHERE id = :id")
     fun observeByIdWithBooks(id: String): Flow<SeriesWithBooks?>
+
+    @Query("DELETE FROM series")
+    suspend fun deleteAll()
 }
 
 @Dao
@@ -246,4 +249,7 @@ interface ContributorDao {
         contributorId: String,
         imagePath: String?,
     )
+
+    @Query("DELETE FROM contributors")
+    suspend fun deleteAll()
 }

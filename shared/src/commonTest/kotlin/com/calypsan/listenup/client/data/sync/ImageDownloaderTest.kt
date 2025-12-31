@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.sync
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
@@ -77,8 +78,8 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCover(bookId)
 
             // Then
-            assertIs<Success<Boolean>>(result)
-            assertTrue(result.data)
+            val success = assertIs<Success<Boolean>>(result)
+            assertTrue(success.data)
             verifySuspend { fixture.imageApi.downloadCover(bookId) }
             verifySuspend { fixture.imageStorage.saveCover(bookId, imageBytes) }
         }
@@ -96,8 +97,8 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCover(bookId)
 
             // Then
-            assertIs<Success<Boolean>>(result)
-            assertEquals(false, result.data)
+            val success = assertIs<Success<Boolean>>(result)
+            assertEquals(false, success.data)
         }
 
     @Test
@@ -113,8 +114,8 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCover(bookId)
 
             // Then - returns false (non-fatal), not failure
-            assertIs<Success<Boolean>>(result)
-            assertEquals(false, result.data)
+            val success = assertIs<Success<Boolean>>(result)
+            assertEquals(false, success.data)
         }
 
     @Test
@@ -134,8 +135,8 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCover(bookId)
 
             // Then - storage failure is fatal
-            assertIs<Failure>(result)
-            assertEquals("Disk full", result.exception.message)
+            val failure = assertIs<Failure>(result)
+            assertEquals("Disk full", failure.exception.message)
         }
 
     @Test
@@ -184,13 +185,13 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCovers(listOf(book1, book2, book3))
 
             // Then
-            assertIs<Success<List<CoverDownloadResult>>>(result)
-            assertEquals(3, result.data.size)
-            assertTrue(result.data.any { it.bookId == book1 })
-            assertTrue(result.data.any { it.bookId == book2 })
-            assertTrue(result.data.any { it.bookId == book3 })
+            val success = assertIs<Success<List<CoverDownloadResult>>>(result)
+            assertEquals(3, success.data.size)
+            assertTrue(success.data.any { it.bookId == book1 })
+            assertTrue(success.data.any { it.bookId == book2 })
+            assertTrue(success.data.any { it.bookId == book3 })
             // Verify colors were extracted
-            result.data.forEach { downloadResult ->
+            success.data.forEach { downloadResult ->
                 assertEquals(testColors, downloadResult.colors)
             }
         }
@@ -218,9 +219,9 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCovers(listOf(book1, book2))
 
             // Then - only book-2 was newly downloaded
-            assertIs<Success<List<CoverDownloadResult>>>(result)
-            assertEquals(1, result.data.size)
-            assertEquals(book2, result.data[0].bookId)
+            val success = assertIs<Success<List<CoverDownloadResult>>>(result)
+            assertEquals(1, success.data.size)
+            assertEquals(book2, success.data[0].bookId)
         }
 
     @Test
@@ -240,8 +241,8 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCovers(listOf(book1, book2))
 
             // Then - result is empty but not failure
-            assertIs<Success<List<CoverDownloadResult>>>(result)
-            assertTrue(result.data.isEmpty())
+            val success = assertIs<Success<List<CoverDownloadResult>>>(result)
+            assertTrue(success.data.isEmpty())
         }
 
     @Test
@@ -270,9 +271,9 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCovers(listOf(book1, book2))
 
             // Then - only successful saves are included
-            assertIs<Success<List<CoverDownloadResult>>>(result)
-            assertEquals(1, result.data.size)
-            assertEquals(book2, result.data[0].bookId)
+            val success = assertIs<Success<List<CoverDownloadResult>>>(result)
+            assertEquals(1, success.data.size)
+            assertEquals(book2, success.data[0].bookId)
         }
 
     @Test
@@ -291,8 +292,8 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCovers(listOf(book1, book2))
 
             // Then
-            assertIs<Success<List<CoverDownloadResult>>>(result)
-            assertTrue(result.data.isEmpty())
+            val success = assertIs<Success<List<CoverDownloadResult>>>(result)
+            assertTrue(success.data.isEmpty())
         }
 
     @Test
@@ -306,8 +307,8 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCovers(emptyList())
 
             // Then
-            assertIs<Success<List<CoverDownloadResult>>>(result)
-            assertTrue(result.data.isEmpty())
+            val success = assertIs<Success<List<CoverDownloadResult>>>(result)
+            assertTrue(success.data.isEmpty())
         }
 
     @Test
@@ -331,9 +332,9 @@ class ImageDownloaderTest {
             val result = imageDownloader.downloadCovers(listOf(book1))
 
             // Then - download succeeds but colors are null
-            assertIs<Success<List<CoverDownloadResult>>>(result)
-            assertEquals(1, result.data.size)
-            assertEquals(book1, result.data[0].bookId)
-            assertEquals(null, result.data[0].colors)
+            val success = assertIs<Success<List<CoverDownloadResult>>>(result)
+            assertEquals(1, success.data.size)
+            assertEquals(book1, success.data[0].bookId)
+            assertEquals(null, success.data[0].colors)
         }
 }

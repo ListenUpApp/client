@@ -127,6 +127,20 @@ data class BookResponse(
     val chapters: List<ChapterResponse> = emptyList(),
     @SerialName("audio_files")
     val audioFiles: List<AudioFileResponse> = emptyList(),
+    // Tags applied to this book (synced inline like contributors)
+    @SerialName("tags")
+    val tags: List<BookTagResponse> = emptyList(),
+)
+
+/**
+ * Tag information for a book during sync.
+ */
+@Serializable
+data class BookTagResponse(
+    val id: String,
+    val slug: String,
+    @SerialName("book_count")
+    val bookCount: Int = 0,
 )
 
 @Serializable
@@ -344,4 +358,314 @@ data class SSELibraryScanCompletedEvent(
     val booksUpdated: Int,
     @SerialName("books_removed")
     val booksRemoved: Int,
+)
+
+/**
+ * SSE user pending event data (admin-only).
+ * Sent when a new user registers via open registration and is awaiting approval.
+ */
+@Serializable
+data class SSEUserPendingEvent(
+    @SerialName("user")
+    val user: SSEUserData,
+)
+
+/**
+ * SSE user approved event data (admin-only).
+ * Sent when a pending user is approved by an admin.
+ */
+@Serializable
+data class SSEUserApprovedEvent(
+    @SerialName("user")
+    val user: SSEUserData,
+)
+
+/**
+ * User data embedded in SSE user events.
+ */
+@Serializable
+data class SSEUserData(
+    @SerialName("id")
+    val id: String,
+    @SerialName("email")
+    val email: String,
+    @SerialName("display_name")
+    val displayName: String? = null,
+    @SerialName("first_name")
+    val firstName: String? = null,
+    @SerialName("last_name")
+    val lastName: String? = null,
+    @SerialName("is_root")
+    val isRoot: Boolean = false,
+    @SerialName("role")
+    val role: String = "member",
+    @SerialName("status")
+    val status: String = "active",
+    @SerialName("created_at")
+    val createdAt: String = "",
+    @SerialName("updated_at")
+    val updatedAt: String? = null,
+)
+
+// Collection SSE events (admin-only)
+
+/**
+ * SSE collection created event data.
+ */
+@Serializable
+data class SSECollectionCreatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+)
+
+/**
+ * SSE collection updated event data.
+ */
+@Serializable
+data class SSECollectionUpdatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+)
+
+/**
+ * SSE collection deleted event data.
+ */
+@Serializable
+data class SSECollectionDeletedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("name")
+    val name: String,
+)
+
+/**
+ * SSE collection book added event data.
+ */
+@Serializable
+data class SSECollectionBookAddedEvent(
+    @SerialName("collection_id")
+    val collectionId: String,
+    @SerialName("collection_name")
+    val collectionName: String,
+    @SerialName("book_id")
+    val bookId: String,
+)
+
+/**
+ * SSE collection book removed event data.
+ */
+@Serializable
+data class SSECollectionBookRemovedEvent(
+    @SerialName("collection_id")
+    val collectionId: String,
+    @SerialName("collection_name")
+    val collectionName: String,
+    @SerialName("book_id")
+    val bookId: String,
+)
+
+// Lens SSE events
+
+/**
+ * SSE lens created event data.
+ */
+@Serializable
+data class SSELensCreatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("owner_id")
+    val ownerId: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("description")
+    val description: String? = null,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("owner_display_name")
+    val ownerDisplayName: String,
+    @SerialName("owner_avatar_color")
+    val ownerAvatarColor: String,
+    @SerialName("created_at")
+    val createdAt: String,
+    @SerialName("updated_at")
+    val updatedAt: String,
+)
+
+/**
+ * SSE lens updated event data.
+ */
+@Serializable
+data class SSELensUpdatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("owner_id")
+    val ownerId: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("description")
+    val description: String? = null,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("owner_display_name")
+    val ownerDisplayName: String,
+    @SerialName("owner_avatar_color")
+    val ownerAvatarColor: String,
+    @SerialName("created_at")
+    val createdAt: String,
+    @SerialName("updated_at")
+    val updatedAt: String,
+)
+
+/**
+ * SSE lens deleted event data.
+ */
+@Serializable
+data class SSELensDeletedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("owner_id")
+    val ownerId: String,
+    @SerialName("deleted_at")
+    val deletedAt: String,
+)
+
+/**
+ * SSE lens book added event data.
+ */
+@Serializable
+data class SSELensBookAddedEvent(
+    @SerialName("lens_id")
+    val lensId: String,
+    @SerialName("owner_id")
+    val ownerId: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("timestamp")
+    val timestamp: String,
+)
+
+/**
+ * SSE lens book removed event data.
+ */
+@Serializable
+data class SSELensBookRemovedEvent(
+    @SerialName("lens_id")
+    val lensId: String,
+    @SerialName("owner_id")
+    val ownerId: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("timestamp")
+    val timestamp: String,
+)
+
+// Tag SSE events
+
+/**
+ * SSE tag event data (embedded in BookTagEvent).
+ */
+@Serializable
+data class SSETagData(
+    @SerialName("id")
+    val id: String,
+    @SerialName("slug")
+    val slug: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("created_at")
+    val createdAt: String,
+)
+
+/**
+ * SSE tag created event data.
+ * Sent when a new tag is created globally.
+ */
+@Serializable
+data class SSETagCreatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("slug")
+    val slug: String,
+    @SerialName("book_count")
+    val bookCount: Int,
+    @SerialName("created_at")
+    val createdAt: String,
+)
+
+/**
+ * SSE book tag added event data.
+ * Sent when a tag is added to a book.
+ */
+@Serializable
+data class SSEBookTagAddedEvent(
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("tag")
+    val tag: SSETagData,
+)
+
+/**
+ * SSE book tag removed event data.
+ * Sent when a tag is removed from a book.
+ */
+@Serializable
+data class SSEBookTagRemovedEvent(
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("tag")
+    val tag: SSETagData,
+)
+
+// =============================================================================
+// Inbox SSE Events (Admin-only)
+// =============================================================================
+
+/**
+ * Simplified book data for inbox events.
+ * Contains only essential fields for inbox display.
+ */
+@Serializable
+data class SSEInboxBookData(
+    @SerialName("id")
+    val id: String,
+    @SerialName("title")
+    val title: String,
+    @SerialName("author")
+    val author: String? = null,
+    @SerialName("cover_url")
+    val coverUrl: String? = null,
+    @SerialName("duration")
+    val duration: Long = 0,
+)
+
+/**
+ * SSE inbox book added event.
+ * Sent when a new book is scanned and added to the inbox.
+ */
+@Serializable
+data class SSEInboxBookAddedEvent(
+    @SerialName("book")
+    val book: SSEInboxBookData,
+)
+
+/**
+ * SSE inbox book released event.
+ * Sent when a book is released from the inbox.
+ */
+@Serializable
+data class SSEInboxBookReleasedEvent(
+    @SerialName("book_id")
+    val bookId: String,
 )

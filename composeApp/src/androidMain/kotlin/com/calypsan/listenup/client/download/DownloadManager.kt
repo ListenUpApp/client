@@ -31,14 +31,22 @@ private val logger = KotlinLogging.logger {}
  * - Track download state per book
  * - Resolve local paths for offline playback
  * - Calculate storage usage
+ * - Respect WiFi-only download constraint via WorkManager
  *
  * Implements [DownloadService] for use by shared code (PlaybackManager).
+ *
+ * The download queue is implemented via WorkManager's work queue, which:
+ * - Persists queued downloads across app restarts
+ * - Automatically retries failed downloads with exponential backoff
+ * - Respects network constraints (WiFi-only when enabled)
+ * - Allows cancellation via unique work names
  */
 class DownloadManager(
     private val downloadDao: DownloadDao,
     private val bookDao: BookDao,
     private val workManager: WorkManager,
     private val fileManager: DownloadFileManager,
+    private val localPreferences: com.calypsan.listenup.client.data.repository.LocalPreferencesContract,
 ) : DownloadService {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -195,6 +203,16 @@ class DownloadManager(
 
         downloadDao.insertAll(entities)
 
+        // Determine network constraint based on WiFi-only preference
+        // UNMETERED = WiFi/ethernet only, CONNECTED = any network (including cellular)
+        val wifiOnly = localPreferences.wifiOnlyDownloads.value
+        val requiredNetworkType = if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED
+
+        logger.info {
+            "Queueing downloads with network constraint: " +
+                if (wifiOnly) "UNMETERED (WiFi only)" else "CONNECTED (any network)"
+        }
+
         // Queue WorkManager jobs
         toDownload.forEach { file ->
             val workRequest =
@@ -209,7 +227,7 @@ class DownloadManager(
                     ).setConstraints(
                         Constraints
                             .Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .setRequiredNetworkType(requiredNetworkType)
                             .build(),
                     ).addTag("download_${bookId.value}")
                     .addTag("download_file_${file.id}")
@@ -229,7 +247,7 @@ class DownloadManager(
     /**
      * Cancel active download for a book.
      */
-    suspend fun cancelDownload(bookId: BookId) {
+    override suspend fun cancelDownload(bookId: BookId) {
         workManager.cancelAllWorkByTag("download_${bookId.value}")
         downloadDao.updateStateForBook(bookId.value, DownloadState.PAUSED)
         logger.info { "Cancelled download: ${bookId.value}" }
@@ -240,7 +258,7 @@ class DownloadManager(
      * Marks records as DELETED (keeps them for tracking) and removes files.
      * This prevents auto-download on next playback - user must explicitly tap download.
      */
-    suspend fun deleteDownload(bookId: BookId) {
+    override suspend fun deleteDownload(bookId: BookId) {
         // Cancel any active downloads first
         workManager.cancelAllWorkByTag("download_${bookId.value}")
 

@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.invite
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.remote.AuthResponse
 import com.calypsan.listenup.client.data.remote.AuthUser
@@ -81,7 +82,7 @@ class InviteRegistrationViewModelTest {
 
             val viewModel = InviteRegistrationViewModel(inviteApi, settingsRepository, userDao, serverUrl, inviteCode)
 
-            assertIs<InviteLoadingState.Loading>(viewModel.state.value.loadingState)
+            checkIs<InviteLoadingState.Loading>(viewModel.state.value.loadingState)
         }
 
     @Test
@@ -95,7 +96,7 @@ class InviteRegistrationViewModelTest {
             val viewModel = InviteRegistrationViewModel(inviteApi, settingsRepository, userDao, serverUrl, inviteCode)
             advanceUntilIdle()
 
-            assertIs<InviteLoadingState.Loaded>(viewModel.state.value.loadingState)
+            checkIs<InviteLoadingState.Loaded>(viewModel.state.value.loadingState)
         }
 
     @Test
@@ -109,7 +110,7 @@ class InviteRegistrationViewModelTest {
             val viewModel = InviteRegistrationViewModel(inviteApi, settingsRepository, userDao, serverUrl, inviteCode)
             advanceUntilIdle()
 
-            assertIs<InviteLoadingState.Invalid>(viewModel.state.value.loadingState)
+            checkIs<InviteLoadingState.Invalid>(viewModel.state.value.loadingState)
         }
 
     @Test
@@ -123,7 +124,7 @@ class InviteRegistrationViewModelTest {
             val viewModel = InviteRegistrationViewModel(inviteApi, settingsRepository, userDao, serverUrl, inviteCode)
             advanceUntilIdle()
 
-            assertIs<InviteLoadingState.Error>(viewModel.state.value.loadingState)
+            checkIs<InviteLoadingState.Error>(viewModel.state.value.loadingState)
         }
 
     @Test
@@ -141,8 +142,8 @@ class InviteRegistrationViewModelTest {
             advanceUntilIdle()
 
             val status = viewModel.state.value.submissionStatus
-            assertIs<InviteSubmissionStatus.Error>(status)
-            assertIs<InviteErrorType.ValidationError>(status.type)
+            val error = assertIs<InviteSubmissionStatus.Error>(status)
+            checkIs<InviteErrorType.ValidationError>(error.type)
         }
 
     @Test
@@ -160,8 +161,8 @@ class InviteRegistrationViewModelTest {
             advanceUntilIdle()
 
             val status = viewModel.state.value.submissionStatus
-            assertIs<InviteSubmissionStatus.Error>(status)
-            assertIs<InviteErrorType.PasswordMismatch>(status.type)
+            val error = assertIs<InviteSubmissionStatus.Error>(status)
+            checkIs<InviteErrorType.PasswordMismatch>(error.type)
         }
 
     @Test
@@ -182,7 +183,7 @@ class InviteRegistrationViewModelTest {
             viewModel.submitRegistration("password123", "password123")
             advanceUntilIdle()
 
-            assertIs<InviteSubmissionStatus.Success>(viewModel.state.value.submissionStatus)
+            checkIs<InviteSubmissionStatus.Success>(viewModel.state.value.submissionStatus)
             verifySuspend { settingsRepository.saveAuthTokens(any(), any(), any(), any()) }
         }
 
@@ -199,10 +200,10 @@ class InviteRegistrationViewModelTest {
 
             viewModel.submitRegistration("short", "short") // Trigger error
             advanceUntilIdle()
-            assertIs<InviteSubmissionStatus.Error>(viewModel.state.value.submissionStatus)
+            checkIs<InviteSubmissionStatus.Error>(viewModel.state.value.submissionStatus)
 
             viewModel.clearError()
 
-            assertIs<InviteSubmissionStatus.Idle>(viewModel.state.value.submissionStatus)
+            checkIs<InviteSubmissionStatus.Idle>(viewModel.state.value.submissionStatus)
         }
 }

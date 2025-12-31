@@ -36,7 +36,7 @@ fun LibraryTabRow(
     SecondaryTabRow(
         selectedTabIndex = selectedTabIndex,
         modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         LibraryTab.entries.forEachIndexed { index, tab ->
             Tab(

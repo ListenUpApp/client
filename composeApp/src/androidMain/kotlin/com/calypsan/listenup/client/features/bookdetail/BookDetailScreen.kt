@@ -34,7 +34,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.model.BookDownloadState
 import com.calypsan.listenup.client.data.model.BookDownloadStatus
+import com.calypsan.listenup.client.data.repository.LocalPreferencesContract
+import com.calypsan.listenup.client.data.repository.NetworkMonitor
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.design.components.rememberCoverColors
@@ -79,11 +82,14 @@ fun BookDetailScreen(
     onMetadataSearchClick: (bookId: String) -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
+    onTagClick: (tagId: String) -> Unit,
     viewModel: BookDetailViewModel = koinViewModel(),
     playerViewModel: PlayerViewModel = koinViewModel(),
 ) {
     val downloadManager: DownloadManager = koinInject()
     val userDao: UserDao = koinInject()
+    val localPreferences: LocalPreferencesContract = koinInject()
+    val networkMonitor: NetworkMonitor = koinInject()
     val scope = rememberCoroutineScope()
     val snackbarHostState = LocalSnackbarHostState.current
 
@@ -98,6 +104,20 @@ fun BookDetailScreen(
         .collectAsState(initial = BookDownloadStatus.notDownloaded(bookId))
 
     val isAdmin = currentUser?.isRoot == true
+
+    // WiFi-only download state detection
+    val wifiOnlyDownloads by localPreferences.wifiOnlyDownloads.collectAsState()
+    val isOnUnmeteredNetwork by networkMonitor.isOnUnmeteredNetworkFlow.collectAsState()
+
+    // Show "Waiting for WiFi" when:
+    // - Download is queued AND
+    // - WiFi-only is enabled AND
+    // - Not currently on WiFi/unmetered network
+    val isWaitingForWifi =
+        downloadStatus.state == BookDownloadState.QUEUED &&
+            wifiOnlyDownloads &&
+            !isOnUnmeteredNetwork
+
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Callback for opening metadata search
@@ -137,6 +157,7 @@ fun BookDetailScreen(
                     downloadStatus = downloadStatus,
                     isComplete = false, // TODO: Add completion tracking
                     isAdmin = isAdmin,
+                    isWaitingForWifi = isWaitingForWifi,
                     onBackClick = onBackClick,
                     onEditClick = { onEditClick(bookId) },
                     onFindMetadataClick = onFindMetadataClick,
@@ -175,6 +196,7 @@ fun BookDetailScreen(
                     onDeleteClick = { showDeleteDialog = true },
                     onSeriesClick = onSeriesClick,
                     onContributorClick = onContributorClick,
+                    onTagClick = onTagClick,
                 )
             }
         }
@@ -206,6 +228,7 @@ fun BookDetailContent(
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
     isAdmin: Boolean,
+    isWaitingForWifi: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
     onFindMetadataClick: () -> Unit,
@@ -218,6 +241,7 @@ fun BookDetailContent(
     onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
+    onTagClick: (tagId: String) -> Unit,
 ) {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
 
@@ -233,6 +257,7 @@ fun BookDetailContent(
             downloadStatus = downloadStatus,
             isComplete = isComplete,
             isAdmin = isAdmin,
+            isWaitingForWifi = isWaitingForWifi,
             onBackClick = onBackClick,
             onEditClick = onEditClick,
             onFindMetadataClick = onFindMetadataClick,
@@ -245,6 +270,7 @@ fun BookDetailContent(
             onDeleteClick = onDeleteClick,
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
+            onTagClick = onTagClick,
         )
     } else {
         ImmersiveBookDetail(
@@ -252,6 +278,7 @@ fun BookDetailContent(
             downloadStatus = downloadStatus,
             isComplete = isComplete,
             isAdmin = isAdmin,
+            isWaitingForWifi = isWaitingForWifi,
             onBackClick = onBackClick,
             onEditClick = onEditClick,
             onFindMetadataClick = onFindMetadataClick,
@@ -264,6 +291,7 @@ fun BookDetailContent(
             onDeleteClick = onDeleteClick,
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
+            onTagClick = onTagClick,
         )
     }
 }
@@ -283,6 +311,7 @@ private fun ImmersiveBookDetail(
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
     isAdmin: Boolean,
+    isWaitingForWifi: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
     onFindMetadataClick: () -> Unit,
@@ -295,6 +324,7 @@ private fun ImmersiveBookDetail(
     onDeleteClick: () -> Unit,
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
+    onTagClick: (tagId: String) -> Unit,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
@@ -324,8 +354,8 @@ private fun ImmersiveBookDetail(
                 progress = state.progress,
                 timeRemaining = state.timeRemainingFormatted,
                 coverColors = coverColors,
-                isComplete = isComplete,
-                isAdmin = isAdmin,
+                isComplete = state.isComplete,
+                isAdmin = state.isAdmin,
                 onBackClick = onBackClick,
                 onEditClick = onEditClick,
                 onFindMetadataClick = onFindMetadataClick,
@@ -354,6 +384,7 @@ private fun ImmersiveBookDetail(
                 onCancelClick = onCancelClick,
                 onDeleteClick = onDeleteClick,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                isWaitingForWifi = isWaitingForWifi,
             )
         }
 
@@ -389,6 +420,7 @@ private fun ImmersiveBookDetail(
                 TagsSection(
                     tags = state.tags,
                     isLoading = state.isLoadingTags,
+                    onTagClick = { tag -> onTagClick(tag.id) },
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
             }

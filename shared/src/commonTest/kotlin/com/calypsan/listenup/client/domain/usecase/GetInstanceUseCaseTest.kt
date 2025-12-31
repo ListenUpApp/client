@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
@@ -68,8 +69,8 @@ class GetInstanceUseCaseTest {
             val result = useCase()
 
             // Then
-            assertIs<Success<Instance>>(result)
-            assertEquals("My Server", result.data.name)
+            val success = assertIs<Success<Instance>>(result)
+            assertEquals("My Server", success.data.name)
         }
 
     @Test
@@ -84,8 +85,8 @@ class GetInstanceUseCaseTest {
             val result = useCase()
 
             // Then
-            assertIs<Failure>(result)
-            assertEquals("Network error", result.exception.message)
+            val failure = assertIs<Failure>(result)
+            assertEquals("Network error", failure.exception.message)
         }
 
     // ========== ForceRefresh Parameter Tests ==========
@@ -158,9 +159,9 @@ class GetInstanceUseCaseTest {
             val result = useCase()
 
             // Then
-            assertIs<Success<Instance>>(result)
-            assertEquals("test-123", result.data.id.value)
-            assertEquals("Production Server", result.data.name)
-            assertEquals("2.5.0", result.data.version)
+            val success = assertIs<Success<Instance>>(result)
+            assertEquals("test-123", success.data.id.value)
+            assertEquals("Production Server", success.data.name)
+            assertEquals("2.5.0", success.data.version)
         }
 }

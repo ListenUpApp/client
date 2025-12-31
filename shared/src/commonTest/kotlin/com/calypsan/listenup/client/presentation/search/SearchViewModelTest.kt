@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.search
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.data.repository.SearchRepositoryContract
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
@@ -256,8 +257,8 @@ class SearchViewModelTest {
             // Then
             val state = viewModel.state.value
             assertFalse(state.isSearching)
-            assertNotNull(state.results)
-            assertEquals(2, state.results!!.hits.size)
+            val results = assertNotNull(state.results)
+            assertEquals(2, results.hits.size)
             assertNull(state.error)
         }
 
@@ -373,8 +374,7 @@ class SearchViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val action = viewModel.navActions.value
-            assertIs<SearchNavAction.NavigateToBook>(action)
+            val action = assertIs<SearchNavAction.NavigateToBook>(viewModel.navActions.value)
             assertEquals("book-123", action.bookId)
         }
 
@@ -392,8 +392,7 @@ class SearchViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val action = viewModel.navActions.value
-            assertIs<SearchNavAction.NavigateToContributor>(action)
+            val action = assertIs<SearchNavAction.NavigateToContributor>(viewModel.navActions.value)
             assertEquals("author-456", action.contributorId)
         }
 
@@ -411,8 +410,7 @@ class SearchViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val action = viewModel.navActions.value
-            assertIs<SearchNavAction.NavigateToSeries>(action)
+            val action = assertIs<SearchNavAction.NavigateToSeries>(viewModel.navActions.value)
             assertEquals("series-789", action.seriesId)
         }
 

@@ -174,6 +174,26 @@ interface AuthApiContract {
     ): AuthResponse
 
     /**
+     * Register a new user account (when open registration is enabled).
+     *
+     * Creates a user with pending status that requires admin approval.
+     * Only available when open_registration is enabled on the server.
+     *
+     * @param email User's email address
+     * @param password User's password (min 8 characters)
+     * @param firstName User's first name
+     * @param lastName User's last name
+     * @return RegisterResponse with success message
+     * @throws Exception on network errors or if registration is disabled
+     */
+    suspend fun register(
+        email: String,
+        password: String,
+        firstName: String,
+        lastName: String,
+    ): RegisterResponse
+
+    /**
      * Refresh access token using refresh token.
      */
     suspend fun refresh(refreshToken: RefreshToken): AuthResponse
@@ -182,53 +202,74 @@ interface AuthApiContract {
      * Logout and invalidate current session.
      */
     suspend fun logout(sessionId: String)
+
+    /**
+     * Check the approval status of a pending registration.
+     *
+     * Used to poll for approval after registering. Once approved,
+     * the client can proceed with login.
+     *
+     * @param userId User ID from registration response
+     * @return RegistrationStatusResponse with current status
+     */
+    suspend fun checkRegistrationStatus(userId: String): RegistrationStatusResponse
 }
 
 /**
- * Contract interface for tag API operations.
+ * Contract interface for global tag API operations.
+ *
+ * Tags are community-wide content descriptors (e.g., "found-family", "slow-burn").
+ * Any user can add/remove tags from books they have access to.
  *
  * Extracted to enable mocking in tests. Production implementation
  * is [TagApi], test implementation can be a mock or fake.
  */
 interface TagApiContract {
     /**
-     * Get all tags for the current user.
+     * Get all global tags ordered by popularity (book count).
      */
-    suspend fun getUserTags(): List<Tag>
+    suspend fun listTags(): List<Tag>
+
+    /**
+     * Get a specific tag by its slug.
+     *
+     * @param slug The tag slug (e.g., "found-family")
+     * @return The tag, or null if not found
+     */
+    suspend fun getTagBySlug(slug: String): Tag?
 
     /**
      * Get tags for a specific book.
+     *
+     * @param bookId The book ID
      */
     suspend fun getBookTags(bookId: String): List<Tag>
 
     /**
-     * Add a tag to a book.
+     * Add a tag to a book. Creates the tag if it doesn't exist.
+     *
+     * The raw input will be normalized to a slug by the server
+     * (e.g., "Found Family" -> "found-family").
+     *
+     * @param bookId The book ID
+     * @param rawInput The tag text (will be normalized to slug)
+     * @return The tag that was added (or created)
      */
     suspend fun addTagToBook(
         bookId: String,
-        tagId: String,
-    )
-
-    /**
-     * Remove a tag from a book.
-     */
-    suspend fun removeTagFromBook(
-        bookId: String,
-        tagId: String,
-    )
-
-    /**
-     * Create a new tag.
-     */
-    suspend fun createTag(
-        name: String,
-        color: String? = null,
+        rawInput: String,
     ): Tag
 
     /**
-     * Delete a tag.
+     * Remove a tag from a book.
+     *
+     * @param bookId The book ID
+     * @param slug The tag slug to remove
      */
-    suspend fun deleteTag(tagId: String)
+    suspend fun removeTagFromBook(
+        bookId: String,
+        slug: String,
+    )
 }
 
 /**
@@ -755,50 +796,238 @@ data class SeriesEditResponse(
 )
 
 /**
- * Contract interface for user preferences API operations.
+ * Contract interface for user settings API operations.
  *
- * Handles syncing user preferences across devices.
- * Preferences include playback defaults and other user-specific settings.
+ * Handles syncing user playback settings across devices.
+ * Server endpoint: /api/v1/settings (GET/PATCH)
  */
 interface UserPreferencesApiContract {
     /**
-     * Get user preferences from the server.
+     * Get user settings from the server.
      *
-     * Endpoint: GET /api/v1/user/preferences
+     * Endpoint: GET /api/v1/settings
      * Auth: Required
      *
-     * @return Result containing user preferences or error
+     * @return Result containing user settings or error
      */
     suspend fun getPreferences(): Result<UserPreferencesResponse>
 
     /**
-     * Update user preferences on the server.
+     * Update user settings on the server.
      *
-     * Endpoint: PUT /api/v1/user/preferences
+     * Endpoint: PATCH /api/v1/settings
      * Auth: Required
      *
-     * @param request The preferences to update
-     * @return Result containing updated preferences or error
+     * Uses PATCH semantics - only non-null fields are updated.
+     *
+     * @param request The settings to update (only non-null fields are sent)
+     * @return Result containing updated settings or error
      */
     suspend fun updatePreferences(request: UserPreferencesRequest): Result<UserPreferencesResponse>
 }
 
 /**
- * Response from user preferences endpoint.
+ * Response from user settings endpoint.
  *
- * Extensible for future preferences (sort settings, theme, etc.)
+ * Contains all user-level playback settings that sync across devices.
+ * These apply to all books unless overridden per-book.
  */
 data class UserPreferencesResponse(
-    /** Default playback speed for new books (e.g., 1.0, 1.25, 1.5) */
+    /** Default playback speed for new books (0.5 - 3.0) */
     val defaultPlaybackSpeed: Float,
+    /** Default skip forward duration in seconds (10, 15, 30, 45, 60) */
+    val defaultSkipForwardSec: Int = 30,
+    /** Default skip backward duration in seconds (5, 10, 15, 30) */
+    val defaultSkipBackwardSec: Int = 10,
+    /** Default sleep timer duration in minutes (null = disabled) */
+    val defaultSleepTimerMin: Int? = null,
+    /** Whether shaking device resets sleep timer */
+    val shakeToResetSleepTimer: Boolean = false,
 )
 
 /**
- * Request to update user preferences.
+ * Request to update user settings.
  *
- * All fields are optional - only non-null fields are updated.
+ * All fields are optional - only non-null fields are updated (PATCH semantics).
  */
 data class UserPreferencesRequest(
-    /** Default playback speed for new books (e.g., 1.0, 1.25, 1.5) */
+    /** Default playback speed for new books (0.5 - 3.0) */
     val defaultPlaybackSpeed: Float? = null,
+    /** Default skip forward duration in seconds */
+    val defaultSkipForwardSec: Int? = null,
+    /** Default skip backward duration in seconds */
+    val defaultSkipBackwardSec: Int? = null,
+    /** Default sleep timer duration in minutes (null to disable) */
+    val defaultSleepTimerMin: Int? = null,
+    /** Whether shaking device resets sleep timer */
+    val shakeToResetSleepTimer: Boolean? = null,
+)
+
+// =============================================================================
+// Admin API Contracts (Admin-only endpoints)
+// =============================================================================
+
+/**
+ * Contract interface for admin server settings API operations.
+ *
+ * Handles server-wide settings like inbox workflow.
+ * Server endpoints: /api/v1/admin/settings (GET/PATCH)
+ */
+interface AdminSettingsApiContract {
+    /**
+     * Get server settings (admin only).
+     *
+     * Endpoint: GET /api/v1/admin/settings
+     * Auth: Required (admin)
+     *
+     * @return Result containing server settings
+     */
+    suspend fun getServerSettings(): Result<ServerSettingsResponse>
+
+    /**
+     * Update server settings (admin only).
+     *
+     * Endpoint: PATCH /api/v1/admin/settings
+     * Auth: Required (admin)
+     *
+     * @param request Fields to update (only non-null fields are sent)
+     * @return Result containing updated settings
+     */
+    suspend fun updateServerSettings(request: ServerSettingsRequest): Result<ServerSettingsResponse>
+}
+
+/**
+ * Response from server settings endpoint.
+ *
+ * Contains server-wide configuration managed by admins.
+ */
+data class ServerSettingsResponse(
+    /** Whether inbox workflow is enabled */
+    val inboxEnabled: Boolean,
+    /** Number of books currently in inbox */
+    val inboxCount: Int,
+)
+
+/**
+ * Request to update server settings (PATCH semantics).
+ */
+data class ServerSettingsRequest(
+    /** Enable or disable inbox workflow */
+    val inboxEnabled: Boolean? = null,
+)
+
+/**
+ * Contract interface for admin inbox API operations.
+ *
+ * Handles the inbox staging workflow where newly scanned books
+ * land for admin review before becoming visible to users.
+ */
+interface AdminInboxApiContract {
+    /**
+     * List all books in the inbox (admin only).
+     *
+     * Endpoint: GET /api/v1/admin/inbox
+     * Auth: Required (admin)
+     *
+     * @return Result containing list of inbox books with staging info
+     */
+    suspend fun listInboxBooks(): Result<InboxBooksResponse>
+
+    /**
+     * Release books from inbox to the library (admin only).
+     *
+     * Books are moved out of inbox and become visible to users.
+     * If staged collections are set, the book is assigned to those collections.
+     * If no collections are staged, the book becomes public.
+     *
+     * Endpoint: POST /api/v1/admin/inbox/release
+     * Auth: Required (admin)
+     *
+     * @param bookIds List of book IDs to release
+     * @return Result containing release summary
+     */
+    suspend fun releaseBooks(bookIds: List<String>): Result<ReleaseInboxBooksResponse>
+
+    /**
+     * Stage a collection assignment for an inbox book (admin only).
+     *
+     * When the book is released, it will be assigned to this collection.
+     * Multiple collections can be staged.
+     *
+     * Endpoint: POST /api/v1/admin/inbox/{bookId}/stage
+     * Auth: Required (admin)
+     *
+     * @param bookId Book ID in inbox
+     * @param collectionId Collection ID to stage
+     * @return Result with Unit on success
+     */
+    suspend fun stageCollection(
+        bookId: String,
+        collectionId: String,
+    ): Result<Unit>
+
+    /**
+     * Remove a staged collection from an inbox book (admin only).
+     *
+     * Endpoint: DELETE /api/v1/admin/inbox/{bookId}/stage/{collectionId}
+     * Auth: Required (admin)
+     *
+     * @param bookId Book ID in inbox
+     * @param collectionId Collection ID to unstage
+     * @return Result with Unit on success
+     */
+    suspend fun unstageCollection(
+        bookId: String,
+        collectionId: String,
+    ): Result<Unit>
+}
+
+/**
+ * Response from inbox list endpoint.
+ */
+data class InboxBooksResponse(
+    val books: List<InboxBookResponse>,
+    val total: Int,
+)
+
+/**
+ * A book in the inbox with staging information.
+ */
+data class InboxBookResponse(
+    /** Book ID */
+    val id: String,
+    /** Book title */
+    val title: String,
+    /** Primary author name */
+    val author: String?,
+    /** Cover image URL (relative path) */
+    val coverUrl: String?,
+    /** Total duration in milliseconds */
+    val duration: Long,
+    /** Collection IDs staged for assignment on release */
+    val stagedCollectionIds: List<String>,
+    /** Staged collections with names for display */
+    val stagedCollections: List<CollectionRef>,
+    /** When the book was scanned */
+    val scannedAt: String,
+)
+
+/**
+ * Collection reference with ID and name for display.
+ */
+data class CollectionRef(
+    val id: String,
+    val name: String,
+)
+
+/**
+ * Response from releasing inbox books.
+ */
+data class ReleaseInboxBooksResponse(
+    /** Number of books released */
+    val released: Int,
+    /** Number of books made public (no collections) */
+    val public: Int,
+    /** Number of collection assignments made */
+    val toCollections: Int,
 )

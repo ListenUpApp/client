@@ -658,3 +658,131 @@ val MIGRATION_15_16 =
             )
         }
     }
+
+/**
+ * Migration from version 16 to version 17.
+ *
+ * Changes:
+ * - Add collections table for admin collection management
+ *
+ * Collections are admin-only features that allow grouping books
+ * for organizational purposes.
+ */
+val MIGRATION_16_17 =
+    object : Migration(16, 17) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create collections table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS collections (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    name TEXT NOT NULL,
+                    bookCount INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    syncState INTEGER NOT NULL DEFAULT 0,
+                    serverVersion INTEGER NOT NULL DEFAULT 0
+                )
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 17 to version 18.
+ *
+ * Changes:
+ * - Add lenses table for personal curation and social discovery
+ *
+ * Lenses are user-created curated lists of books. Unlike collections
+ * (admin-managed access boundaries), lenses are personal - each belongs
+ * to one user and can contain books from any library/collection.
+ */
+val MIGRATION_17_18 =
+    object : Migration(17, 18) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create lenses table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS lenses (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    ownerId TEXT NOT NULL,
+                    ownerDisplayName TEXT NOT NULL,
+                    ownerAvatarColor TEXT NOT NULL,
+                    bookCount INTEGER NOT NULL,
+                    totalDurationSeconds INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+
+            // Create index on ownerId for efficient "my lenses" queries
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_lenses_ownerId ON lenses(ownerId)
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 18 to version 19.
+ *
+ * Changes:
+ * - Add tags table for community-wide content descriptors
+ * - Add book_tags junction table for many-to-many book-tag relationships
+ *
+ * Tags are community-wide content descriptors (e.g., "found-family", "slow-burn")
+ * that any user can apply to books they can access.
+ */
+val MIGRATION_18_19 =
+    object : Migration(18, 19) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create tags table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS tags (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    slug TEXT NOT NULL,
+                    bookCount INTEGER NOT NULL DEFAULT 0,
+                    createdAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+
+            // Create unique index on slug
+            connection.execSQL(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS index_tags_slug ON tags(slug)
+                """.trimIndent(),
+            )
+
+            // Create book_tags junction table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS book_tags (
+                    bookId TEXT NOT NULL,
+                    tagId TEXT NOT NULL,
+                    PRIMARY KEY (bookId, tagId),
+                    FOREIGN KEY (bookId) REFERENCES books(id) ON DELETE CASCADE,
+                    FOREIGN KEY (tagId) REFERENCES tags(id) ON DELETE CASCADE
+                )
+                """.trimIndent(),
+            )
+
+            // Create indices for efficient lookups
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_book_tags_bookId ON book_tags(bookId)
+                """.trimIndent(),
+            )
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_book_tags_tagId ON book_tags(tagId)
+                """.trimIndent(),
+            )
+        }
+    }

@@ -415,7 +415,7 @@ class BookEditViewModel(
     private suspend fun loadTagsForBook(bookId: String): Pair<List<EditableTag>, List<EditableTag>> {
         val allTags =
             try {
-                tagApi.getUserTags().map { it.toEditable() }
+                tagApi.listTags().map { it.toEditable() }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to load all tags" }
                 emptyList()
@@ -434,7 +434,7 @@ class BookEditViewModel(
 
     private fun Genre.toEditable() = EditableGenre(id = id, name = name, path = path)
 
-    private fun Tag.toEditable() = EditableTag(id = id, name = name, color = color)
+    private fun Tag.toEditable() = EditableTag(id = id, slug = slug)
 
     private fun cancelAndCleanup() {
         coverDelegate.cleanupStagingOnCancel()
@@ -582,23 +582,23 @@ class BookEditViewModel(
                     }
                 }
 
-                // Update tags
+                // Update tags (using slugs for add/remove)
                 if (current.tags != originalTags) {
                     try {
-                        val currentTagIds = current.tags.map { it.id }.toSet()
-                        val originalTagIds = originalTags.map { it.id }.toSet()
+                        val currentSlugs = current.tags.map { it.slug }.toSet()
+                        val originalSlugs = originalTags.map { it.slug }.toSet()
 
-                        val removedTagIds = originalTagIds - currentTagIds
-                        for (tagId in removedTagIds) {
-                            tagApi.removeTagFromBook(current.bookId, tagId)
+                        val removedSlugs = originalSlugs - currentSlugs
+                        for (slug in removedSlugs) {
+                            tagApi.removeTagFromBook(current.bookId, slug)
                         }
 
-                        val addedTagIds = currentTagIds - originalTagIds
-                        for (tagId in addedTagIds) {
-                            tagApi.addTagToBook(current.bookId, tagId)
+                        val addedSlugs = currentSlugs - originalSlugs
+                        for (slug in addedSlugs) {
+                            tagApi.addTagToBook(current.bookId, slug)
                         }
 
-                        logger.info { "Book tags updated: +${addedTagIds.size}, -${removedTagIds.size}" }
+                        logger.info { "Book tags updated: +${addedSlugs.size}, -${removedSlugs.size}" }
                     } catch (e: Exception) {
                         logger.error(e) { "Failed to save tags" }
                         logger.warn { "Continuing despite tag save failure" }

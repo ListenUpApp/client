@@ -40,7 +40,6 @@ class NowPlayingViewModel(
 
     val sleepTimerState: StateFlow<SleepTimerState> = sleepTimerManager.state
 
-    private var chapters: List<Chapter> = emptyList()
     private var lastNotifiedChapterIndex: Int = -1
 
     companion object {
@@ -73,7 +72,6 @@ class NowPlayingViewModel(
                     loadBookInfo(bookId)
                 } else {
                     state.update { it.copy(isVisible = false, isExpanded = false) }
-                    chapters = emptyList()
                 }
             }
         }
@@ -89,6 +87,28 @@ class NowPlayingViewModel(
         viewModelScope.launch {
             playbackManager.currentPositionMs.collect { positionMs ->
                 updatePosition(positionMs)
+            }
+        }
+
+        // Observe current chapter from PlaybackManager
+        viewModelScope.launch {
+            playbackManager.currentChapter.collect { chapterInfo ->
+                if (chapterInfo != null) {
+                    // Notify sleep timer manager of chapter changes (for end-of-chapter mode)
+                    if (chapterInfo.index != lastNotifiedChapterIndex) {
+                        lastNotifiedChapterIndex = chapterInfo.index
+                        sleepTimerManager.onChapterChanged(chapterInfo.index)
+                    }
+
+                    state.update {
+                        it.copy(
+                            chapterIndex = chapterInfo.index,
+                            chapterTitle = chapterInfo.title,
+                            totalChapters = chapterInfo.totalChapters,
+                            chapterDurationMs = chapterInfo.endMs - chapterInfo.startMs,
+                        )
+                    }
+                }
             }
         }
 
@@ -175,25 +195,8 @@ class NowPlayingViewModel(
             return
         }
 
-        chapters = bookRepository.getChapters(bookId.value)
-
-        // Log chapter data to diagnose crashes
-        Log.d(TAG, "=== Chapters for book ${bookId.value} (${book.title}) ===")
-        Log.d(TAG, "Book duration: ${book.duration}ms, Chapter count: ${chapters.size}")
-        chapters.forEachIndexed { index, chapter ->
-            Log.d(
-                TAG,
-                "  Chapter[$index]: '${chapter.title}', start=${chapter.startTime}ms, " +
-                    "duration=${chapter.duration}ms, end=${chapter.startTime + chapter.duration}ms",
-            )
-            // Warn if chapter extends beyond book duration
-            if (chapter.startTime + chapter.duration > book.duration) {
-                Log.w(TAG, "  ⚠️ Chapter[$index] extends beyond book duration!")
-            }
-            if (chapter.startTime > book.duration) {
-                Log.e(TAG, "  ⚠️ Chapter[$index] starts AFTER book ends!")
-            }
-        }
+        // Chapters are now loaded by PlaybackManager and observed via currentChapter flow
+        val chapters = playbackManager.chapters.value
 
         state.update {
             it.copy(
@@ -217,9 +220,6 @@ class NowPlayingViewModel(
     }
 
     private fun updatePosition(bookPositionMs: Long) {
-        val currentChapter = findChapterAtPosition(bookPositionMs)
-        val chapterIndex = chapters.indexOf(currentChapter).coerceAtLeast(0)
-
         val bookDurationMs = state.value.bookDurationMs
         val bookProgress =
             if (bookDurationMs > 0) {
@@ -228,12 +228,15 @@ class NowPlayingViewModel(
                 0f
             }
 
+        // Chapter info comes from PlaybackManager.currentChapter observer
+        val chapterInfo = playbackManager.currentChapter.value
         val (chapterProgress, chapterPositionMs) =
-            if (currentChapter != null) {
-                val posInChapter = bookPositionMs - currentChapter.startTime
+            if (chapterInfo != null) {
+                val posInChapter = bookPositionMs - chapterInfo.startMs
+                val chapterDuration = chapterInfo.endMs - chapterInfo.startMs
                 val progress =
-                    if (currentChapter.duration > 0) {
-                        posInChapter.toFloat() / currentChapter.duration
+                    if (chapterDuration > 0) {
+                        posInChapter.toFloat() / chapterDuration
                     } else {
                         0f
                     }
@@ -256,16 +259,9 @@ class NowPlayingViewModel(
         // Debounce: only update if position changed by >200ms to prevent excessive recomposition
         val currentState = state.value
         val positionDeltaMs = kotlin.math.abs(bookPositionMs - currentState.bookPositionMs)
-        val chapterChanged = chapterIndex != currentState.chapterIndex
-
-        // Notify sleep timer manager of chapter changes (for end-of-chapter mode)
-        if (chapterIndex != lastNotifiedChapterIndex) {
-            lastNotifiedChapterIndex = chapterIndex
-            sleepTimerManager.onChapterChanged(chapterIndex)
-        }
 
         // Skip update if change is too small (time-based, not percentage-based)
-        if (!chapterChanged && positionDeltaMs < 200) {
+        if (positionDeltaMs < 200) {
             return
         }
 
@@ -273,16 +269,11 @@ class NowPlayingViewModel(
             it.copy(
                 bookProgress = bookProgress.coerceIn(0f, 1f),
                 bookPositionMs = bookPositionMs,
-                chapterIndex = chapterIndex,
-                chapterTitle = currentChapter?.title,
                 chapterProgress = chapterProgress,
                 chapterPositionMs = chapterPositionMs,
-                chapterDurationMs = currentChapter?.duration ?: 0L,
             )
         }
     }
-
-    private fun findChapterAtPosition(positionMs: Long): Chapter? = chapters.lastOrNull { it.startTime <= positionMs }
 
     // UI Actions
 
@@ -479,12 +470,14 @@ class NowPlayingViewModel(
     }
 
     fun nextChapter() {
+        val chapters = playbackManager.chapters.value
         Log.d(TAG, "nextChapter called: current=${state.value.chapterIndex}, total=${chapters.size}")
         val newIndex = (state.value.chapterIndex + 1).coerceAtMost(chapters.lastIndex.coerceAtLeast(0))
         seekToChapter(newIndex)
     }
 
     fun seekToChapter(index: Int) {
+        val chapters = playbackManager.chapters.value
         Log.d(TAG, "seekToChapter called: index=$index, chaptersSize=${chapters.size}")
         val chapter = chapters.getOrNull(index)
         if (chapter == null) {
@@ -518,6 +511,7 @@ class NowPlayingViewModel(
 
     fun seekWithinChapter(progress: Float) {
         Log.d(TAG, "seekWithinChapter called: progress=$progress")
+        val chapters = playbackManager.chapters.value
         val currentChapter = chapters.getOrNull(state.value.chapterIndex)
         if (currentChapter == null) {
             Log.w(TAG, "seekWithinChapter: no current chapter")
@@ -585,7 +579,7 @@ class NowPlayingViewModel(
         setSpeed(speeds[nextIndex])
     }
 
-    fun getChapters(): List<Chapter> = chapters
+    fun getChapters(): List<Chapter> = playbackManager.chapters.value
 
     override fun onCleared() {
         super.onCleared()
