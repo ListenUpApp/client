@@ -15,9 +15,9 @@ import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.mock
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -37,17 +37,18 @@ import kotlin.time.Instant
 class AdminViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
-    private fun createMockInstance(openRegistration: Boolean = false) = Instance(
-        id = InstanceId("test-instance"),
-        name = "Test Server",
-        version = "1.0.0",
-        localUrl = "http://localhost:8080",
-        remoteUrl = null,
-        openRegistration = openRegistration,
-        setupRequired = false,
-        createdAt = Instant.DISTANT_PAST,
-        updatedAt = Instant.DISTANT_PAST,
-    )
+    private fun createMockInstance(openRegistration: Boolean = false) =
+        Instance(
+            id = InstanceId("test-instance"),
+            name = "Test Server",
+            version = "1.0.0",
+            localUrl = "http://localhost:8080",
+            remoteUrl = null,
+            openRegistration = openRegistration,
+            setupRequired = false,
+            createdAt = Instant.DISTANT_PAST,
+            updatedAt = Instant.DISTANT_PAST,
+        )
 
     private fun createMockInstanceApi(openRegistration: Boolean = false): InstanceApiContract {
         val instanceApi: InstanceApiContract = mock()

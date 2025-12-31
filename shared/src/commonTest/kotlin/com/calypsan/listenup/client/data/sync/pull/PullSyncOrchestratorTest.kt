@@ -16,6 +16,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -132,9 +133,8 @@ class PullSyncOrchestratorTest {
 
             // Then - first update is FETCHING_METADATA
             assertTrue(progressUpdates.isNotEmpty())
-            val first = progressUpdates.first()
-            assertTrue(first is SyncStatus.Progress)
-            assertEquals(SyncPhase.FETCHING_METADATA, (first as SyncStatus.Progress).phase)
+            val first = assertIs<SyncStatus.Progress>(progressUpdates.first())
+            assertEquals(SyncPhase.FETCHING_METADATA, first.phase)
         }
 
     @Test
@@ -150,9 +150,8 @@ class PullSyncOrchestratorTest {
 
             // Then - last update is FINALIZING
             assertTrue(progressUpdates.isNotEmpty())
-            val last = progressUpdates.last()
-            assertTrue(last is SyncStatus.Progress)
-            assertEquals(SyncPhase.FINALIZING, (last as SyncStatus.Progress).phase)
+            val last = assertIs<SyncStatus.Progress>(progressUpdates.last())
+            assertEquals(SyncPhase.FINALIZING, last.phase)
         }
 
     // ========== Failure Handling Tests ==========

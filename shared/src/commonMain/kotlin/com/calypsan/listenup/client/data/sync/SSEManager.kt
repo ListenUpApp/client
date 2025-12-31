@@ -3,24 +3,24 @@ package com.calypsan.listenup.client.data.sync
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.data.remote.model.SSEBookDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookEvent
+import com.calypsan.listenup.client.data.remote.model.SSEBookTagAddedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEBookTagRemovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSECollectionBookAddedEvent
 import com.calypsan.listenup.client.data.remote.model.SSECollectionBookRemovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSECollectionCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSECollectionDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSECollectionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEEvent
-import com.calypsan.listenup.client.data.remote.model.SSELensBookAddedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEBookTagAddedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEBookTagRemovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEInboxBookAddedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEInboxBookReleasedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELensBookAddedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensBookRemovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensUpdatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
+import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserData
 import com.calypsan.listenup.client.data.remote.model.SSEUserPendingEvent
@@ -34,8 +34,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -73,8 +76,12 @@ class SSEManager(
     private val _eventFlow = MutableSharedFlow<SSEEventType>(replay = 0, extraBufferCapacity = 64)
     override val eventFlow: SharedFlow<SSEEventType> = _eventFlow.asSharedFlow()
 
+    private val _isConnected = MutableStateFlow(false)
+
+    /** Observable connection state for UI/monitoring. Thread-safe. */
+    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+
     private var connectionJob: Job? = null
-    private var isConnected = false
 
     // JSON parser for manually parsing SSE event data field
     private val json =
@@ -126,7 +133,7 @@ class SSEManager(
                         break
                     } catch (e: Exception) {
                         logger.warn(e) { "Connection error" }
-                        isConnected = false
+                        _isConnected.value = false
 
                         if (!isActive) {
                             break // Don't reconnect if job was cancelled
@@ -151,7 +158,7 @@ class SSEManager(
         logger.debug { "Disconnecting..." }
         connectionJob?.cancel()
         connectionJob = null
-        isConnected = false
+        _isConnected.value = false
     }
 
     /**
@@ -181,7 +188,7 @@ class SSEManager(
             logger.trace { "Got body channel, starting to read events..." }
 
             try {
-                isConnected = true
+                _isConnected.value = true
                 parseSSEStream(channel)
                 logger.debug { "Stream reading ended gracefully" }
             } finally {
@@ -460,7 +467,11 @@ class SSEManager(
                     }
 
                     "inbox.book_released" -> {
-                        val inboxEvent = json.decodeFromJsonElement(SSEInboxBookReleasedEvent.serializer(), sseEvent.data)
+                        val inboxEvent =
+                            json.decodeFromJsonElement(
+                                SSEInboxBookReleasedEvent.serializer(),
+                                sseEvent.data,
+                            )
                         SSEEventType.InboxBookReleased(
                             bookId = inboxEvent.bookId,
                         )

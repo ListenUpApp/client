@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -423,8 +424,8 @@ class BookRepositoryTest {
             val result = repository.refreshBooks()
 
             // Then
-            assertTrue(result is Result.Failure)
-            assertEquals(exception, (result as Result.Failure).exception)
+            val failure = assertIs<Result.Failure>(result)
+            assertEquals(exception, failure.exception)
         }
 
     // ========== getBook Tests ==========

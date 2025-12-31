@@ -225,18 +225,19 @@ class BookPuller(
         upsertedBooks: List<BookEntity>,
     ) {
         // First, collect all unique tags and upsert them
-        val allTags = response.books
-            .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
-            .flatMap { it.tags }
-            .distinctBy { it.id }
-            .map { tag ->
-                TagEntity(
-                    id = tag.id,
-                    slug = tag.slug,
-                    bookCount = tag.bookCount,
-                    createdAt = Timestamp.now(),
-                )
-            }
+        val allTags =
+            response.books
+                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
+                .flatMap { it.tags }
+                .distinctBy { it.id }
+                .map { tag ->
+                    TagEntity(
+                        id = tag.id,
+                        slug = tag.slug,
+                        bookCount = tag.bookCount,
+                        createdAt = Timestamp.now(),
+                    )
+                }
 
         if (allTags.isNotEmpty()) {
             tagDao.upsertAll(allTags)
@@ -244,15 +245,16 @@ class BookPuller(
         }
 
         // Then create book-tag cross references
-        val bookTagCrossRefs = response.books
-            .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
-            .flatMap { bookResponse ->
-                tagDao.deleteTagsForBook(BookId(bookResponse.id))
+        val bookTagCrossRefs =
+            response.books
+                .filter { bookResponse -> upsertedBooks.any { it.id.value == bookResponse.id } }
+                .flatMap { bookResponse ->
+                    tagDao.deleteTagsForBook(BookId(bookResponse.id))
 
-                bookResponse.tags.map { tag ->
-                    BookTagCrossRef(bookId = BookId(bookResponse.id), tagId = tag.id)
+                    bookResponse.tags.map { tag ->
+                        BookTagCrossRef(bookId = BookId(bookResponse.id), tagId = tag.id)
+                    }
                 }
-            }
 
         if (bookTagCrossRefs.isNotEmpty()) {
             tagDao.insertAllBookTags(bookTagCrossRefs)

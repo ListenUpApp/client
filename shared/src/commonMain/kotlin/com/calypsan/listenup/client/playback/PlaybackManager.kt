@@ -9,10 +9,10 @@ import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.PlaybackApi
-import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.sse.PlaybackStateProvider
+import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
 import com.calypsan.listenup.client.domain.playback.StreamPrepareResult
 import com.calypsan.listenup.client.download.DownloadService
@@ -71,6 +71,11 @@ class PlaybackManager(
     val prepareProgress: StateFlow<PrepareProgress?>
         field = MutableStateFlow<PrepareProgress?>(null)
 
+    // Error state for displaying playback errors to the user
+    // Null means no error, non-null means error to display
+    private val _playbackError = MutableStateFlow<PlaybackError?>(null)
+    val playbackError: StateFlow<PlaybackError?> = _playbackError
+
     // Chapter state for notification and UI
     private val _chapters = MutableStateFlow<List<Chapter>>(emptyList())
     val chapters: StateFlow<List<Chapter>> = _chapters
@@ -118,25 +123,26 @@ class PlaybackManager(
 
         // Extract author names (use creditedAs when available for proper attribution)
         val contributorsById = bookWithContributors.contributors.associateBy { it.id }
-        val authorNames = bookWithContributors.contributorRoles
-            .filter { it.role == "author" }
-            .mapNotNull { crossRef ->
-                contributorsById[crossRef.contributorId]?.let { entity ->
-                    crossRef.creditedAs ?: entity.name
-                }
-            }
-            .distinct()
+        val authorNames =
+            bookWithContributors.contributorRoles
+                .filter { it.role == "author" }
+                .mapNotNull { crossRef ->
+                    contributorsById[crossRef.contributorId]?.let { entity ->
+                        crossRef.creditedAs ?: entity.name
+                    }
+                }.distinct()
         val bookAuthor = authorNames.joinToString(", ").ifEmpty { "Unknown Author" }
 
         // Get series name (first series if multiple)
         val seriesName = bookWithContributors.series.firstOrNull()?.name
 
         // Get cover path (if exists on disk)
-        val coverPath = if (imageStorage.exists(bookId)) {
-            imageStorage.getCoverPath(bookId)
-        } else {
-            null
-        }
+        val coverPath =
+            if (imageStorage.exists(bookId)) {
+                imageStorage.getCoverPath(bookId)
+            } else {
+                null
+            }
 
         // 4. Parse audio files from JSON
         val audioFilesJson = book.audioFilesJson
@@ -345,6 +351,33 @@ class PlaybackManager(
         currentPositionMs.value = 0L
         totalDurationMs.value = 0L
         playbackSpeed.value = 1.0f
+        _playbackError.value = null
+    }
+
+    /**
+     * Report a playback error to be displayed to the user.
+     * Called by platform-specific error handlers.
+     */
+    fun reportError(
+        message: String,
+        isRecoverable: Boolean = false,
+    ) {
+        _playbackError.value =
+            PlaybackError(
+                message = message,
+                isRecoverable = isRecoverable,
+                timestampMs =
+                    com.calypsan.listenup.client.core
+                        .currentEpochMilliseconds(),
+            )
+    }
+
+    /**
+     * Clear the current playback error.
+     * Called when user dismisses the error or error condition is resolved.
+     */
+    fun clearError() {
+        _playbackError.value = null
     }
 
     /**
@@ -459,6 +492,15 @@ class PlaybackManager(
     )
 
     /**
+     * Playback error for display to the user.
+     */
+    data class PlaybackError(
+        val message: String,
+        val isRecoverable: Boolean,
+        val timestampMs: Long,
+    )
+
+    /**
      * Current chapter information for notification and UI.
      */
     data class ChapterInfo(
@@ -476,14 +518,15 @@ class PlaybackManager(
      */
     private suspend fun loadChapters(bookId: BookId) {
         val entities = chapterDao.getChaptersForBook(bookId)
-        _chapters.value = entities.map { entity ->
-            Chapter(
-                id = entity.id.value,
-                title = entity.title,
-                duration = entity.duration,
-                startTime = entity.startTime,
-            )
-        }
+        _chapters.value =
+            entities.map { entity ->
+                Chapter(
+                    id = entity.id.value,
+                    title = entity.title,
+                    duration = entity.duration,
+                    startTime = entity.startTime,
+                )
+            }
         logger.debug { "Loaded ${_chapters.value.size} chapters for book ${bookId.value}" }
     }
 
@@ -498,23 +541,27 @@ class PlaybackManager(
             return
         }
 
-        val index = chapterList.indexOfLast { it.startTime <= positionMs }
-            .coerceAtLeast(0)
+        val index =
+            chapterList
+                .indexOfLast { it.startTime <= positionMs }
+                .coerceAtLeast(0)
 
         val chapter = chapterList[index]
-        val endMs = chapterList.getOrNull(index + 1)?.startTime
-            ?: currentTimeline.value?.totalDurationMs
-            ?: chapter.startTime
+        val endMs =
+            chapterList.getOrNull(index + 1)?.startTime
+                ?: currentTimeline.value?.totalDurationMs
+                ?: chapter.startTime
 
-        val newChapter = ChapterInfo(
-            index = index,
-            title = chapter.title,
-            startMs = chapter.startTime,
-            endMs = endMs,
-            remainingMs = (endMs - positionMs).coerceAtLeast(0),
-            totalChapters = chapterList.size,
-            isGenericTitle = isGenericChapterTitle(chapter.title),
-        )
+        val newChapter =
+            ChapterInfo(
+                index = index,
+                title = chapter.title,
+                startMs = chapter.startTime,
+                endMs = endMs,
+                remainingMs = (endMs - positionMs).coerceAtLeast(0),
+                totalChapters = chapterList.size,
+                isGenericTitle = isGenericChapterTitle(chapter.title),
+            )
 
         // Only trigger notification update on chapter change
         if (newChapter.index != _currentChapter.value?.index) {

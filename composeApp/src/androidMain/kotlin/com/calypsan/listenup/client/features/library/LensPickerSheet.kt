@@ -98,11 +98,12 @@ fun LensPickerSheet(
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
-                    text = if (selectedBookCount == 1) {
-                        "1 book selected"
-                    } else {
-                        "$selectedBookCount books selected"
-                    },
+                    text =
+                        if (selectedBookCount == 1) {
+                            "1 book selected"
+                        } else {
+                            "$selectedBookCount books selected"
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -208,10 +209,11 @@ private fun CreateNewLensRow(
         ) {
             // Plus icon
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -227,11 +229,12 @@ private fun CreateNewLensRow(
             Text(
                 text = "Create New Lens",
                 style = MaterialTheme.typography.bodyLarge,
-                color = if (enabled) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                },
+                color =
+                    if (enabled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    },
             )
         }
     }
@@ -247,13 +250,14 @@ private fun LensRow(
     enabled: Boolean = true,
 ) {
     // Parse the owner's avatar color for the lens icon background
-    val iconColor = remember(lens.ownerAvatarColor) {
-        try {
-            Color(android.graphics.Color.parseColor(lens.ownerAvatarColor))
-        } catch (_: Exception) {
-            Color(0xFF6B7280) // Fallback gray
+    val iconColor =
+        remember(lens.ownerAvatarColor) {
+            try {
+                Color(android.graphics.Color.parseColor(lens.ownerAvatarColor))
+            } catch (_: Exception) {
+                Color(0xFF6B7280) // Fallback gray
+            }
         }
-    }
 
     Surface(
         onClick = onClick,
@@ -269,10 +273,11 @@ private fun LensRow(
         ) {
             // Lens icon with avatar color background
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(iconColor.copy(alpha = 0.15f)),
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(iconColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -289,20 +294,22 @@ private fun LensRow(
                 Text(
                     text = lens.name,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (enabled) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    },
+                    color =
+                        if (enabled) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = if (lens.bookCount == 1) {
-                        "1 book"
-                    } else {
-                        "${lens.bookCount} books"
-                    },
+                    text =
+                        if (lens.bookCount == 1) {
+                            "1 book"
+                        } else {
+                            "${lens.bookCount} books"
+                        },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

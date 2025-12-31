@@ -49,9 +49,10 @@ fun SelectionToolbar(
         shadowElevation = 4.dp,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Close button
@@ -65,11 +66,12 @@ fun SelectionToolbar(
 
             // Selected count
             Text(
-                text = if (selectedCount == 1) {
-                    "1 selected"
-                } else {
-                    "$selectedCount selected"
-                },
+                text =
+                    if (selectedCount == 1) {
+                        "1 selected"
+                    } else {
+                        "$selectedCount selected"
+                    },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
@@ -85,20 +87,22 @@ fun SelectionToolbar(
                     imageVector = Icons.Default.FilterList,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
-                    tint = if (selectedCount > 0) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    tint =
+                        if (selectedCount > 0) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "Lens",
-                    color = if (selectedCount > 0) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    color =
+                        if (selectedCount > 0) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                 )
             }
 
@@ -112,20 +116,22 @@ fun SelectionToolbar(
                         imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = if (selectedCount > 0) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        tint =
+                            if (selectedCount > 0) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Collection",
-                        color = if (selectedCount > 0) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        color =
+                            if (selectedCount > 0) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                     )
                 }
             }

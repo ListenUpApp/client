@@ -253,7 +253,9 @@ class SearchViewModel(
                             isSearching = false,
                         )
                     }
-                    logger.info { "Search completed: ${result.total} results for '$query' (offline=${result.isOfflineResult})" }
+                    logger.info {
+                        "Search completed: ${result.total} results for '$query' (offline=${result.isOfflineResult})"
+                    }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     // Job was cancelled (e.g., new search started) - don't show error
                     logger.debug { "Search cancelled for '$query'" }

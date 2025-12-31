@@ -28,7 +28,6 @@ import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
-import kotlinx.coroutines.launch
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
@@ -44,6 +43,7 @@ import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiEvent
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -159,12 +159,13 @@ fun AppShell(
         ListenUpDestructiveDialog(
             onDismissRequest = { libraryMismatchToShow = null },
             title = "Library Changed",
-            text = if (mismatch.hasPendingChanges) {
-                "The server's library has changed. You have unsaved changes that will be lost. " +
-                    "Would you like to resync with the new library?"
-            } else {
-                "The server's library has changed. Your local data will be refreshed to match."
-            },
+            text =
+                if (mismatch.hasPendingChanges) {
+                    "The server's library has changed. You have unsaved changes that will be lost. " +
+                        "Would you like to resync with the new library?"
+                } else {
+                    "The server's library has changed. Your local data will be refreshed to match."
+                },
             confirmText = if (mismatch.hasPendingChanges) "Discard & Resync" else "Resync",
             onConfirm = {
                 libraryMismatchToShow = null
@@ -265,7 +266,8 @@ fun AppShell(
                         onBookClick = onBookClick,
                         onNavigateToLibrary = { onDestinationChange(ShellDestination.Library) },
                         onLensClick = onLensClick,
-                        onSeeAllLenses = { onDestinationChange(ShellDestination.Library) }, // TODO: Navigate to lenses tab
+                        // TODO: Navigate to lenses tab
+                        onSeeAllLenses = { onDestinationChange(ShellDestination.Library) },
                         modifier = Modifier.padding(padding),
                     )
                 }

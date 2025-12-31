@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Bundle
 import androidx.annotation.OptIn
+import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -155,8 +156,7 @@ class PlaybackService : MediaSessionService() {
                         .build(),
                     // handleAudioFocus =
                     true,
-                )
-                .setHandleAudioBecomingNoisy(true) // Pause when headphones unplugged
+                ).setHandleAudioBecomingNoisy(true) // Pause when headphones unplugged
                 .setWakeMode(C.WAKE_MODE_LOCAL) // Keep CPU awake during playback
                 .build()
                 .apply {
@@ -169,8 +169,7 @@ class PlaybackService : MediaSessionService() {
                             .Builder()
                             .setAudioOffloadMode(
                                 TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED,
-                            )
-                            .setIsGaplessSupportRequired(true)
+                            ).setIsGaplessSupportRequired(true)
                             .build()
 
                     trackSelectionParameters =
@@ -430,8 +429,11 @@ class PlaybackService : MediaSessionService() {
                         player = player!!,
                         currentBookId = currentBookId,
                         onShowError = { message ->
-                            // TODO: Show error notification or update UI state
-                            logger.error { "Error to show user: $message" }
+                            // Report error to PlaybackManager for UI display
+                            playbackManager.reportError(
+                                message = message,
+                                isRecoverable = false,
+                            )
                         },
                     )
 
@@ -469,14 +471,14 @@ class PlaybackService : MediaSessionService() {
                     command
                 }
 
-            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+            return MediaSession.ConnectionResult
+                .AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(
                     MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
                         .buildUpon()
                         .apply { customCommands.forEach { add(it) } }
                         .build(),
-                )
-                .build()
+                ).build()
         }
 
         /**
@@ -491,64 +493,65 @@ class PlaybackService : MediaSessionService() {
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
             logger.info { "Playback resumption requested" }
 
-            return Futures.submitAsync(
-                {
-                    // Get the last played book from ProgressTracker
-                    val lastPlayed = kotlinx.coroutines.runBlocking {
-                        progressTracker.getLastPlayedBook()
-                    }
+            // Use CallbackToFutureAdapter for proper async handling without blocking
+            return androidx.concurrent.futures.CallbackToFutureAdapter.getFuture { completer ->
+                serviceScope.launch {
+                    try {
+                        // Get the last played book from ProgressTracker
+                        val lastPlayed = progressTracker.getLastPlayedBook()
 
-                    if (lastPlayed == null) {
-                        logger.warn { "No last played book found for resumption" }
-                        return@submitAsync Futures.immediateFailedFuture<MediaSession.MediaItemsWithStartPosition>(
-                            IllegalStateException("No book to resume"),
-                        )
-                    }
+                        if (lastPlayed == null) {
+                            logger.warn { "No last played book found for resumption" }
+                            completer.setException(IllegalStateException("No book to resume"))
+                            return@launch
+                        }
 
-                    logger.info { "Resuming book: ${lastPlayed.bookId.value} at ${lastPlayed.positionMs}ms" }
+                        logger.info { "Resuming book: ${lastPlayed.bookId.value} at ${lastPlayed.positionMs}ms" }
 
-                    // Prepare playback for the book
-                    val prepareResult = kotlinx.coroutines.runBlocking {
-                        playbackManager.prepareForPlayback(lastPlayed.bookId)
-                    }
+                        // Prepare playback for the book
+                        val prepareResult = playbackManager.prepareForPlayback(lastPlayed.bookId)
 
-                    if (prepareResult == null) {
-                        logger.error { "Failed to prepare book for resumption" }
-                        return@submitAsync Futures.immediateFailedFuture<MediaSession.MediaItemsWithStartPosition>(
-                            IllegalStateException("Failed to prepare book"),
-                        )
-                    }
+                        if (prepareResult == null) {
+                            logger.error { "Failed to prepare book for resumption" }
+                            completer.setException(IllegalStateException("Failed to prepare book"))
+                            return@launch
+                        }
 
-                    // Build MediaItems from timeline
-                    val mediaItems = prepareResult.timeline.files.map { file ->
-                        MediaItem
-                            .Builder()
-                            .setMediaId(file.audioFileId)
-                            .setUri(file.streamingUrl)
-                            .setMediaMetadata(
-                                MediaMetadata
+                        // Build MediaItems from timeline
+                        val mediaItems =
+                            prepareResult.timeline.files.map { file ->
+                                MediaItem
                                     .Builder()
-                                    .setTitle(prepareResult.bookTitle)
-                                    .setArtist(prepareResult.bookAuthor)
-                                    .setAlbumTitle(prepareResult.seriesName)
-                                    .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
-                                    .build(),
-                            ).build()
+                                    .setMediaId(file.audioFileId)
+                                    .setUri(file.streamingUrl)
+                                    .setMediaMetadata(
+                                        MediaMetadata
+                                            .Builder()
+                                            .setTitle(prepareResult.bookTitle)
+                                            .setArtist(prepareResult.bookAuthor)
+                                            .setAlbumTitle(prepareResult.seriesName)
+                                            .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
+                                            .build(),
+                                    ).build()
+                            }
+
+                        // Resolve start position
+                        val startPosition = prepareResult.timeline.resolve(prepareResult.resumePositionMs)
+
+                        completer.set(
+                            MediaSession.MediaItemsWithStartPosition(
+                                mediaItems,
+                                startPosition.mediaItemIndex,
+                                startPosition.positionInFileMs,
+                            ),
+                        )
+                    } catch (e: Exception) {
+                        logger.error(e) { "Playback resumption failed" }
+                        completer.setException(e)
                     }
-
-                    // Resolve start position
-                    val startPosition = prepareResult.timeline.resolve(prepareResult.resumePositionMs)
-
-                    Futures.immediateFuture(
-                        MediaSession.MediaItemsWithStartPosition(
-                            mediaItems,
-                            startPosition.mediaItemIndex,
-                            startPosition.positionInFileMs,
-                        ),
-                    )
-                },
-                java.util.concurrent.Executors.newSingleThreadExecutor(),
-            )
+                }
+                "PlaybackResumption"
+            }
         }
 
         override fun onCustomCommand(
@@ -557,9 +560,10 @@ class PlaybackService : MediaSessionService() {
             customCommand: SessionCommand,
             args: Bundle,
         ): ListenableFuture<SessionResult> {
-            val player = player ?: return Futures.immediateFuture(
-                SessionResult(SessionResult.RESULT_ERROR_UNKNOWN),
-            )
+            val player =
+                player ?: return Futures.immediateFuture(
+                    SessionResult(SessionResult.RESULT_ERROR_UNKNOWN),
+                )
             val chapters = playbackManager.chapters.value
             val currentChapter = playbackManager.currentChapter.value
             val timeline = playbackManager.currentTimeline.value

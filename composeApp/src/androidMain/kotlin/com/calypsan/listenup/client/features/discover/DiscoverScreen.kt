@@ -68,9 +68,10 @@ fun DiscoverScreen(
     PullToRefreshBox(
         isRefreshing = state.isLoading,
         onRefresh = { viewModel.refresh() },
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         when {
             state.isLoading && state.users.isEmpty() -> {
@@ -165,28 +166,31 @@ private fun UserLensesSection(
     userLenses: UserLensesResponse,
     onLensClick: (String) -> Unit,
 ) {
-    val avatarColor = remember(userLenses.user.avatarColor) {
-        try {
-            Color(android.graphics.Color.parseColor(userLenses.user.avatarColor))
-        } catch (_: Exception) {
-            Color(0xFF6B7280)
+    val avatarColor =
+        remember(userLenses.user.avatarColor) {
+            try {
+                Color(android.graphics.Color.parseColor(userLenses.user.avatarColor))
+            } catch (_: Exception) {
+                Color(0xFF6B7280)
+            }
         }
-    }
 
     Column {
         // User header
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Avatar
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(avatarColor),
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(avatarColor),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -245,16 +249,18 @@ private fun DiscoverLensCard(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .width(140.dp)
-            .clickable(onClick = onClick),
+        modifier =
+            modifier
+                .width(140.dp)
+                .clickable(onClick = onClick),
     ) {
         // Lens icon
         Box(
-            modifier = Modifier
-                .size(140.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(avatarColor.copy(alpha = 0.15f)),
+            modifier =
+                Modifier
+                    .size(140.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(avatarColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(

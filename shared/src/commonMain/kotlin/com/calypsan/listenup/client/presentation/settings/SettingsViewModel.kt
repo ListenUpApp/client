@@ -164,6 +164,7 @@ class SettingsViewModel(
                     it.copy(serverVersion = result.data.version)
                 }
             }
+
             is Failure -> {
                 logger.warn { "Failed to fetch server info: ${result.exception.message}" }
             }

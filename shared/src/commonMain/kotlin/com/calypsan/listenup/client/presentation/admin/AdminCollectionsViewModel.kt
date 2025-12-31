@@ -42,10 +42,11 @@ class AdminCollectionsViewModel(
 
             collectionDao.observeAll().collect { collections ->
                 logger.debug { "Collections updated: ${collections.size}" }
-                state.value = state.value.copy(
-                    isLoading = false,
-                    collections = collections,
-                )
+                state.value =
+                    state.value.copy(
+                        isLoading = false,
+                        collections = collections,
+                    )
             }
         }
     }
@@ -62,13 +63,14 @@ class AdminCollectionsViewModel(
 
                 // Update local database with server data
                 serverCollections.forEach { response ->
-                    val entity = CollectionEntity(
-                        id = response.id,
-                        name = response.name,
-                        bookCount = response.bookCount,
-                        createdAt = response.createdAt.toTimestamp(),
-                        updatedAt = response.updatedAt.toTimestamp(),
-                    )
+                    val entity =
+                        CollectionEntity(
+                            id = response.id,
+                            name = response.name,
+                            bookCount = response.bookCount,
+                            createdAt = response.createdAt.toTimestamp(),
+                            updatedAt = response.updatedAt.toTimestamp(),
+                        )
                     collectionDao.upsert(entity)
                 }
 
@@ -105,25 +107,28 @@ class AdminCollectionsViewModel(
 
                 // Insert locally immediately for instant feedback
                 // (SSE may also upsert, which is fine - idempotent)
-                val entity = CollectionEntity(
-                    id = response.id,
-                    name = response.name,
-                    bookCount = response.bookCount,
-                    createdAt = response.createdAt.toTimestamp(),
-                    updatedAt = response.updatedAt.toTimestamp(),
-                )
+                val entity =
+                    CollectionEntity(
+                        id = response.id,
+                        name = response.name,
+                        bookCount = response.bookCount,
+                        createdAt = response.createdAt.toTimestamp(),
+                        updatedAt = response.updatedAt.toTimestamp(),
+                    )
                 collectionDao.upsert(entity)
 
-                state.value = state.value.copy(
-                    isCreating = false,
-                    createSuccess = true,
-                )
+                state.value =
+                    state.value.copy(
+                        isCreating = false,
+                        createSuccess = true,
+                    )
             } catch (e: Exception) {
                 logger.error(e) { "Failed to create collection" }
-                state.value = state.value.copy(
-                    isCreating = false,
-                    error = e.message ?: "Failed to create collection",
-                )
+                state.value =
+                    state.value.copy(
+                        isCreating = false,
+                        error = e.message ?: "Failed to create collection",
+                    )
             }
         }
     }
@@ -145,10 +150,11 @@ class AdminCollectionsViewModel(
                 state.value = state.value.copy(deletingCollectionId = null)
             } catch (e: Exception) {
                 logger.error(e) { "Failed to delete collection: $collectionId" }
-                state.value = state.value.copy(
-                    deletingCollectionId = null,
-                    error = e.message ?: "Failed to delete collection",
-                )
+                state.value =
+                    state.value.copy(
+                        deletingCollectionId = null,
+                        error = e.message ?: "Failed to delete collection",
+                    )
             }
         }
     }

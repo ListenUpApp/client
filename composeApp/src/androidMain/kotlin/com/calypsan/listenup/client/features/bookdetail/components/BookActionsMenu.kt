@@ -84,11 +84,12 @@ fun BookActionsMenu(
             },
             leadingIcon = {
                 Icon(
-                    imageVector = if (isComplete) {
-                        Icons.Default.RadioButtonUnchecked
-                    } else {
-                        Icons.Default.CheckCircle
-                    },
+                    imageVector =
+                        if (isComplete) {
+                            Icons.Default.RadioButtonUnchecked
+                        } else {
+                            Icons.Default.CheckCircle
+                        },
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
@@ -129,10 +130,11 @@ fun BookActionsMenu(
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
                     )
                 },
-                colors = MenuDefaults.itemColors(
-                    textColor = MaterialTheme.colorScheme.error,
-                    leadingIconColor = MaterialTheme.colorScheme.error,
-                ),
+                colors =
+                    MenuDefaults.itemColors(
+                        textColor = MaterialTheme.colorScheme.error,
+                        leadingIconColor = MaterialTheme.colorScheme.error,
+                    ),
                 onClick = onDeleteClick,
                 enabled = false, // Stubbed for now
             )

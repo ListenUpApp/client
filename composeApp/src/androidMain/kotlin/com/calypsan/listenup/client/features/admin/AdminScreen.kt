@@ -24,13 +24,12 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.HowToReg
-import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,6 +44,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -179,7 +179,9 @@ fun AdminScreen(
         ListenUpDestructiveDialog(
             onDismissRequest = { userToDeny = null },
             title = "Deny Registration",
-            text = "Are you sure you want to deny the registration request from ${user.displayName ?: user.email}? They will need to register again.",
+            text =
+                "Are you sure you want to deny the registration request from " +
+                    "${user.displayName ?: user.email}? They will need to register again.",
             confirmText = "Deny",
             onConfirm = {
                 viewModel.denyUser(user.id)
@@ -548,7 +550,8 @@ private fun PendingUserRow(
         // Name and email
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = user.displayName ?: "${user.firstName ?: ""} ${user.lastName ?: ""}".trim().ifEmpty { user.email },
+                text =
+                    user.displayName ?: "${user.firstName ?: ""} ${user.lastName ?: ""}".trim().ifEmpty { user.email },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
                 maxLines = 1,
@@ -895,11 +898,12 @@ private fun InboxCard(
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                 )
                 Text(
-                    text = if (inboxCount > 0) {
-                        "$inboxCount book${if (inboxCount != 1) "s" else ""} awaiting review"
-                    } else {
-                        "Review newly scanned books before publishing"
-                    },
+                    text =
+                        if (inboxCount > 0) {
+                            "$inboxCount book${if (inboxCount != 1) "s" else ""} awaiting review"
+                        } else {
+                            "Review newly scanned books before publishing"
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
                 )

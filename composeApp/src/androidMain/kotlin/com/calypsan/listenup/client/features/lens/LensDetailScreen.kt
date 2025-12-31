@@ -296,13 +296,14 @@ private fun LensHeroSection(
     totalDuration: String,
 ) {
     // Parse avatar color from hex string
-    val color = remember(avatarColor) {
-        try {
-            Color(android.graphics.Color.parseColor(avatarColor))
-        } catch (_: Exception) {
-            Color(0xFF6B7280) // Fallback gray
+    val color =
+        remember(avatarColor) {
+            try {
+                Color(android.graphics.Color.parseColor(avatarColor))
+            } catch (_: Exception) {
+                Color(0xFF6B7280) // Fallback gray
+            }
         }
-    }
 
     Column(
         modifier =

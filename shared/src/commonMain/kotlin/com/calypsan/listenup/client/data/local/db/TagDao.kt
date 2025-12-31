@@ -109,7 +109,10 @@ interface TagDao {
      * @param tagId The tag ID
      */
     @Query("DELETE FROM book_tags WHERE bookId = :bookId AND tagId = :tagId")
-    suspend fun deleteBookTag(bookId: BookId, tagId: String)
+    suspend fun deleteBookTag(
+        bookId: BookId,
+        tagId: String,
+    )
 
     /**
      * Delete all tags for a book.

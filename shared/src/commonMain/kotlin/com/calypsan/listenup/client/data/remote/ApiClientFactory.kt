@@ -238,6 +238,4 @@ internal expect suspend fun createStreamingHttpClient(
  * @param serverUrl Base server URL
  * @return HttpClient with streaming configuration, no auth
  */
-internal expect fun createUnauthenticatedStreamingHttpClient(
-    serverUrl: ServerUrl,
-): HttpClient
+internal expect fun createUnauthenticatedStreamingHttpClient(serverUrl: ServerUrl): HttpClient

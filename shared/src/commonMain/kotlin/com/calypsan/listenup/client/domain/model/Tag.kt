@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.domain.model
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /**
  * Domain model for a global tag.

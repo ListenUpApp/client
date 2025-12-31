@@ -27,4 +27,14 @@ actual object PlatformUtils {
             Build.PRODUCT == "google_sdk" ||
             Build.HARDWARE.contains("goldfish") ||
             Build.HARDWARE.contains("ranchu")
+
+    /**
+     * Returns the Android device model name.
+     *
+     * Uses Build.MODEL which returns user-visible device names like:
+     * - "Pixel 7 Pro"
+     * - "SM-G998B" (Samsung Galaxy S21 Ultra)
+     * - "sdk_gphone64_arm64" (emulator)
+     */
+    actual fun getDeviceModel(): String = Build.MODEL
 }

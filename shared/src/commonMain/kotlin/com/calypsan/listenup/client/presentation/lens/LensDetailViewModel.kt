@@ -67,15 +67,17 @@ class LensDetailViewModel(
                 }
 
                 // Map books to use local cover paths instead of server paths
-                val booksWithLocalCovers = lensDetail.books.map { book ->
-                    val bookId = BookId(book.id)
-                    val localCoverPath = if (imageStorage.exists(bookId)) {
-                        imageStorage.getCoverPath(bookId)
-                    } else {
-                        null
+                val booksWithLocalCovers =
+                    lensDetail.books.map { book ->
+                        val bookId = BookId(book.id)
+                        val localCoverPath =
+                            if (imageStorage.exists(bookId)) {
+                                imageStorage.getCoverPath(bookId)
+                            } else {
+                                null
+                            }
+                        book.copy(coverPath = localCoverPath)
                     }
-                    book.copy(coverPath = localCoverPath)
-                }
 
                 state.update {
                     it.copy(

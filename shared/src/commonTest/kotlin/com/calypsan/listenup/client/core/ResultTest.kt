@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.core
 
+import com.calypsan.listenup.client.checkIs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -26,17 +27,17 @@ class ResultTest {
     @Test
     fun `Success wraps value correctly`() {
         val result: Result<String> = Success("hello")
-        assertIs<Success<String>>(result)
-        assertEquals("hello", result.data)
+        val success = assertIs<Success<String>>(result)
+        assertEquals("hello", success.data)
     }
 
     @Test
     fun `Failure wraps exception correctly`() {
         val exception = IllegalStateException("test error")
         val result: Result<String> = Failure(exception)
-        assertIs<Failure>(result)
-        assertEquals(exception, result.exception)
-        assertEquals("test error", result.message)
+        val failure = assertIs<Failure>(result)
+        assertEquals(exception, failure.exception)
+        assertEquals("test error", failure.message)
     }
 
     @Test
@@ -111,8 +112,8 @@ class ResultTest {
     fun `map transforms Success value`() {
         val result: Result<Int> = Success(21)
         val mapped = result.map { it * 2 }
-        assertIs<Success<Int>>(mapped)
-        assertEquals(42, mapped.data)
+        val success = assertIs<Success<Int>>(mapped)
+        assertEquals(42, success.data)
     }
 
     @Test
@@ -120,16 +121,16 @@ class ResultTest {
         val exception = Exception("error")
         val result: Result<Int> = Failure(exception)
         val mapped = result.map { it * 2 }
-        assertIs<Failure>(mapped)
-        assertEquals(exception, mapped.exception)
+        val failure = assertIs<Failure>(mapped)
+        assertEquals(exception, failure.exception)
     }
 
     @Test
     fun `flatMap chains successful Results`() {
         val result: Result<Int> = Success(21)
         val chained = result.flatMap { Success(it * 2) }
-        assertIs<Success<Int>>(chained)
-        assertEquals(42, chained.data)
+        val success = assertIs<Success<Int>>(chained)
+        assertEquals(42, success.data)
     }
 
     @Test
@@ -142,8 +143,8 @@ class ResultTest {
                 transformCalled = true
                 Success(it * 2)
             }
-        assertIs<Failure>(chained)
-        assertEquals(exception, chained.exception)
+        val failure = assertIs<Failure>(chained)
+        assertEquals(exception, failure.exception)
         assertFalse(transformCalled)
     }
 
@@ -152,8 +153,8 @@ class ResultTest {
         val result: Result<Int> = Success(42)
         val secondException = Exception("second error")
         val chained = result.flatMap { Failure(secondException) }
-        assertIs<Failure>(chained)
-        assertEquals(secondException, chained.exception)
+        val failure = assertIs<Failure>(chained)
+        assertEquals(secondException, failure.exception)
     }
 
     // ========== onSuccess / onFailure ==========
@@ -164,6 +165,7 @@ class ResultTest {
         val result: Result<Int> = Success(42)
         val returned = result.onSuccess { captured = it }
         assertEquals(42, captured)
+        checkIs<Success<Int>>(result)
         assertEquals(result, returned)
     }
 
@@ -182,6 +184,7 @@ class ResultTest {
         val result: Result<Int> = Failure(exception)
         val returned = result.onFailure { capturedException = it }
         assertEquals(exception, capturedException)
+        checkIs<Failure>(result)
         assertEquals(result, returned)
     }
 
@@ -199,16 +202,16 @@ class ResultTest {
     fun `recover returns original Success`() {
         val result: Result<Int> = Success(42)
         val recovered = result.recover { 0 }
-        assertIs<Success<Int>>(recovered)
-        assertEquals(42, recovered.data)
+        val success = assertIs<Success<Int>>(recovered)
+        assertEquals(42, success.data)
     }
 
     @Test
     fun `recover transforms Failure to Success`() {
         val result: Result<Int> = Failure(Exception("error"))
         val recovered = result.recover { -1 }
-        assertIs<Success<Int>>(recovered)
-        assertEquals(-1, recovered.data)
+        val success = assertIs<Success<Int>>(recovered)
+        assertEquals(-1, success.data)
     }
 
     // ========== runCatching (non-suspending) ==========
@@ -218,8 +221,8 @@ class ResultTest {
         val result =
             com.calypsan.listenup.client.core
                 .runCatching { 42 }
-        assertIs<Success<Int>>(result)
-        assertEquals(42, result.data)
+        val success = assertIs<Success<Int>>(result)
+        assertEquals(42, success.data)
     }
 
     @Test
@@ -228,8 +231,8 @@ class ResultTest {
             com.calypsan.listenup.client.core.runCatching<Int> {
                 throw IllegalStateException("error")
             }
-        assertIs<Failure>(result)
-        assertIs<IllegalStateException>(result.exception)
+        val failure = assertIs<Failure>(result)
+        checkIs<IllegalStateException>(failure.exception)
     }
 
     // ========== suspendRunCatching (CRITICAL: CancellationException handling) ==========
@@ -238,8 +241,8 @@ class ResultTest {
     fun `suspendRunCatching returns Success for successful suspend block`() =
         runTest {
             val result = suspendRunCatching { "async result" }
-            assertIs<Success<String>>(result)
-            assertEquals("async result", result.data)
+            val success = assertIs<Success<String>>(result)
+            assertEquals("async result", success.data)
         }
 
     @Test
@@ -249,8 +252,8 @@ class ResultTest {
                 suspendRunCatching<Int> {
                     throw IllegalArgumentException("async error")
                 }
-            assertIs<Failure>(result)
-            assertIs<IllegalArgumentException>(result.exception)
+            val failure = assertIs<Failure>(result)
+            checkIs<IllegalArgumentException>(failure.exception)
         }
 
     @Test
@@ -310,8 +313,8 @@ class ResultTest {
                     kotlinx.coroutines.delay(1)
                     it * 2
                 }
-            assertIs<Success<Int>>(mapped)
-            assertEquals(42, mapped.data)
+            val success = assertIs<Success<Int>>(mapped)
+            assertEquals(42, success.data)
         }
 
     @Test
@@ -325,7 +328,7 @@ class ResultTest {
                     transformCalled = true
                     it * 2
                 }
-            assertIs<Failure>(mapped)
+            checkIs<Failure>(mapped)
             assertFalse(transformCalled)
         }
 }

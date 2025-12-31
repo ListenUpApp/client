@@ -449,11 +449,12 @@ private fun SettingsActionItem(
     onClick: () -> Unit,
     destructive: Boolean = false,
 ) {
-    val contentColor = if (destructive) {
-        MaterialTheme.colorScheme.error
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val contentColor =
+        if (destructive) {
+            MaterialTheme.colorScheme.error
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        }
 
     ListItem(
         headlineContent = {
@@ -462,15 +463,16 @@ private fun SettingsActionItem(
                 color = contentColor,
             )
         },
-        leadingContent = icon?.let {
-            {
-                Icon(
-                    imageVector = it,
-                    contentDescription = null,
-                    tint = contentColor,
-                )
-            }
-        },
+        leadingContent =
+            icon?.let {
+                {
+                    Icon(
+                        imageVector = it,
+                        contentDescription = null,
+                        tint = contentColor,
+                    )
+                }
+            },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier =
             Modifier

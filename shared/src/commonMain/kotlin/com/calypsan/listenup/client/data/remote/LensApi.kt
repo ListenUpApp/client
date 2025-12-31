@@ -34,7 +34,10 @@ interface LensApiContract {
     /**
      * Create a new lens.
      */
-    suspend fun createLens(name: String, description: String?): LensResponse
+    suspend fun createLens(
+        name: String,
+        description: String?,
+    ): LensResponse
 
     /**
      * Get a lens by ID with its books.
@@ -44,7 +47,11 @@ interface LensApiContract {
     /**
      * Update a lens (owner only).
      */
-    suspend fun updateLens(lensId: String, name: String, description: String?): LensResponse
+    suspend fun updateLens(
+        lensId: String,
+        name: String,
+        description: String?,
+    ): LensResponse
 
     /**
      * Delete a lens (owner only).
@@ -54,12 +61,18 @@ interface LensApiContract {
     /**
      * Add books to a lens (owner only).
      */
-    suspend fun addBooks(lensId: String, bookIds: List<String>)
+    suspend fun addBooks(
+        lensId: String,
+        bookIds: List<String>,
+    )
 
     /**
      * Remove a book from a lens (owner only).
      */
-    suspend fun removeBook(lensId: String, bookId: String)
+    suspend fun removeBook(
+        lensId: String,
+        bookId: String,
+    )
 }
 
 /**
@@ -92,7 +105,10 @@ class LensApi(
         }
     }
 
-    override suspend fun createLens(name: String, description: String?): LensResponse {
+    override suspend fun createLens(
+        name: String,
+        description: String?,
+    ): LensResponse {
         val client = clientFactory.getClient()
         val response: ApiResponse<LensResponse> =
             client
@@ -117,7 +133,11 @@ class LensApi(
         }
     }
 
-    override suspend fun updateLens(lensId: String, name: String, description: String?): LensResponse {
+    override suspend fun updateLens(
+        lensId: String,
+        name: String,
+        description: String?,
+    ): LensResponse {
         val client = clientFactory.getClient()
         val response: ApiResponse<LensResponse> =
             client
@@ -139,27 +159,40 @@ class LensApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
     }
 
-    override suspend fun addBooks(lensId: String, bookIds: List<String>) {
+    override suspend fun addBooks(
+        lensId: String,
+        bookIds: List<String>,
+    ) {
         val client = clientFactory.getClient()
-        val response = client.post("/api/v1/lenses/$lensId/books") {
-            setBody(AddBooksToLensRequest(bookIds))
-        }
+        val response =
+            client.post("/api/v1/lenses/$lensId/books") {
+                setBody(AddBooksToLensRequest(bookIds))
+            }
 
         if (!response.status.isSuccess()) {
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
     }
 
-    override suspend fun removeBook(lensId: String, bookId: String) {
+    override suspend fun removeBook(
+        lensId: String,
+        bookId: String,
+    ) {
         val client = clientFactory.getClient()
         val response = client.delete("/api/v1/lenses/$lensId/books/$bookId")
 
@@ -167,7 +200,10 @@ class LensApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
     }

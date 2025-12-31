@@ -86,9 +86,6 @@ fun TwoPaneBookDetail(
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
-    onFindMetadataClick: () -> Unit = {},
-    onMarkCompleteClick: () -> Unit = {},
-    onAddToCollectionClick: () -> Unit = {},
 ) {
     val coverColors =
         rememberCoverColors(
@@ -119,9 +116,6 @@ fun TwoPaneBookDetail(
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
             onContributorClick = onContributorClick,
-            onFindMetadataClick = onFindMetadataClick,
-            onMarkCompleteClick = onMarkCompleteClick,
-            onAddToCollectionClick = onAddToCollectionClick,
             modifier =
                 Modifier
                     .width(400.dp)
@@ -162,9 +156,6 @@ private fun TwoPaneLeftPane(
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
-    onFindMetadataClick: () -> Unit,
-    onMarkCompleteClick: () -> Unit,
-    onAddToCollectionClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -205,8 +196,6 @@ private fun TwoPaneLeftPane(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Navigation row with semi-transparent background
-            var showMenu by remember { mutableStateOf(false) }
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

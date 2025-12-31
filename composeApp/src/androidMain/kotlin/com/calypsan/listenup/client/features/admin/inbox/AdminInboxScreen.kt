@@ -27,7 +27,6 @@ import androidx.compose.material.icons.outlined.Publish
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,6 +39,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -90,12 +90,13 @@ fun AdminInboxScreen(
     // Handle release success
     LaunchedEffect(state.lastReleaseResult) {
         state.lastReleaseResult?.let { result ->
-            val message = buildString {
-                append("Released ${result.released} book${if (result.released != 1) "s" else ""}")
-                if (result.public > 0) {
-                    append(" (${result.public} public)")
+            val message =
+                buildString {
+                    append("Released ${result.released} book${if (result.released != 1) "s" else ""}")
+                    if (result.public > 0) {
+                        append(" (${result.public} public)")
+                    }
                 }
-            }
             snackbarHostState.showSnackbar(message)
             viewModel.clearReleaseResult()
         }
@@ -133,11 +134,12 @@ fun AdminInboxScreen(
                             }
                         }) {
                             Icon(
-                                imageVector = if (state.allSelected) {
-                                    Icons.Outlined.CheckBox
-                                } else {
-                                    Icons.Outlined.SelectAll
-                                },
+                                imageVector =
+                                    if (state.allSelected) {
+                                        Icons.Outlined.CheckBox
+                                    } else {
+                                        Icons.Outlined.SelectAll
+                                    },
                                 contentDescription = if (state.allSelected) "Deselect all" else "Select all",
                             )
                         }
@@ -189,16 +191,18 @@ fun AdminInboxScreen(
 
     // Release confirmation dialog (shown when releasing books without collections)
     if (showReleaseConfirmation) {
-        val booksWithoutCollections = state.books
-            .filter { it.id in state.selectedBookIds && it.stagedCollectionIds.isEmpty() }
-            .size
+        val booksWithoutCollections =
+            state.books
+                .filter { it.id in state.selectedBookIds && it.stagedCollectionIds.isEmpty() }
+                .size
 
         ListenUpDestructiveDialog(
             onDismissRequest = { showReleaseConfirmation = false },
             title = "Release Without Collections",
-            text = "$booksWithoutCollections book${if (booksWithoutCollections != 1) "s" else ""} " +
-                "will be released without any collection assignments.\n\n" +
-                "These books will become visible to ALL users.",
+            text =
+                "$booksWithoutCollections book${if (booksWithoutCollections != 1) "s" else ""} " +
+                    "will be released without any collection assignments.\n\n" +
+                    "These books will become visible to ALL users.",
             confirmText = "Release Anyway",
             onConfirm = {
                 showReleaseConfirmation = false
@@ -220,9 +224,10 @@ private fun InboxContent(
         EmptyInboxMessage(modifier = modifier)
     } else {
         LazyColumn(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
         ) {
             item {
                 Text(
@@ -237,9 +242,10 @@ private fun InboxContent(
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
+                    colors =
+                        CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
                 ) {
                     Column {
                         state.books.forEachIndexed { index, book ->
@@ -277,17 +283,17 @@ private fun InboxBookRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(
-                if (isSelected) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                ).clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -303,9 +309,10 @@ private fun InboxBookRow(
             model = book.coverUrl,
             contentDescription = book.title,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(4.dp)),
+            modifier =
+                Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(4.dp)),
         )
 
         // Book info
@@ -328,8 +335,9 @@ private fun InboxBookRow(
             }
             // Show staged collections count
             if (book.stagedCollectionIds.isNotEmpty()) {
+                val count = book.stagedCollectionIds.size
                 Text(
-                    text = "${book.stagedCollectionIds.size} collection${if (book.stagedCollectionIds.size != 1) "s" else ""} staged",
+                    text = "$count collection${if (count != 1) "s" else ""} staged",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -355,9 +363,10 @@ private fun InboxBookRow(
 @Composable
 private fun EmptyInboxMessage(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

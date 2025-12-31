@@ -15,7 +15,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -40,16 +39,17 @@ class PendingApprovalViewModel(
     val email: String,
     private val password: String,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(PendingApprovalUiState())
-    val state: StateFlow<PendingApprovalUiState> = _state.asStateFlow()
+    val state: StateFlow<PendingApprovalUiState>
+        field = MutableStateFlow(PendingApprovalUiState())
 
     private var sseJob: Job? = null
     private var pollingJob: Job? = null
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
 
     init {
         // Start SSE connection immediately
@@ -68,20 +68,22 @@ class PendingApprovalViewModel(
      */
     private fun connectToSSE() {
         sseJob?.cancel()
-        sseJob = viewModelScope.launch {
-            try {
-                streamRegistrationStatus()
-            } catch (e: Exception) {
-                logger.warn(e) { "SSE connection failed, falling back to polling" }
-                // Fall back to polling
-                startPolling()
+        sseJob =
+            viewModelScope.launch {
+                try {
+                    streamRegistrationStatus()
+                } catch (e: Exception) {
+                    logger.warn(e) { "SSE connection failed, falling back to polling" }
+                    // Fall back to polling
+                    startPolling()
+                }
             }
-        }
     }
 
     private suspend fun streamRegistrationStatus() {
-        val serverUrl = settingsRepository.getServerUrl()
-            ?: error("Server URL not configured")
+        val serverUrl =
+            settingsRepository.getServerUrl()
+                ?: error("Server URL not configured")
 
         // Use unauthenticated client for this endpoint
         val httpClient = apiClientFactory.getUnauthenticatedStreamingClient()
@@ -106,9 +108,11 @@ class PendingApprovalViewModel(
                             eventData = StringBuilder()
                         }
                     }
+
                     line.startsWith("data: ") -> {
                         eventData.append(line.removePrefix("data: "))
                     }
+
                     line.startsWith("event: ") -> {
                         // Event type line, handled via data parsing
                     }
@@ -128,13 +132,15 @@ class PendingApprovalViewModel(
                     logger.info { "Registration approved via SSE!" }
                     attemptAutoLogin()
                 }
+
                 "denied" -> {
                     logger.info { "Registration denied via SSE" }
                     handleDenied()
                 }
+
                 "pending" -> {
                     // Still pending, update UI
-                    _state.value = _state.value.copy(status = PendingApprovalStatus.Waiting)
+                    state.value = state.value.copy(status = PendingApprovalStatus.Waiting)
                 }
             }
         } catch (e: Exception) {
@@ -147,38 +153,40 @@ class PendingApprovalViewModel(
      */
     private fun startPolling() {
         pollingJob?.cancel()
-        pollingJob = viewModelScope.launch {
-            while (isActive) {
-                delay(POLL_INTERVAL_MS)
-                try {
-                    val status = authApi.checkRegistrationStatus(userId)
-                    logger.debug { "Poll result: status=${status.status}, approved=${status.approved}" }
+        pollingJob =
+            viewModelScope.launch {
+                while (isActive) {
+                    delay(POLL_INTERVAL_MS)
+                    try {
+                        val status = authApi.checkRegistrationStatus(userId)
+                        logger.debug { "Poll result: status=${status.status}, approved=${status.approved}" }
 
-                    when {
-                        status.approved -> {
-                            logger.info { "Registration approved via polling!" }
-                            attemptAutoLogin()
-                            break
+                        when {
+                            status.approved -> {
+                                logger.info { "Registration approved via polling!" }
+                                attemptAutoLogin()
+                                break
+                            }
+
+                            status.status == "denied" -> {
+                                logger.info { "Registration denied via polling" }
+                                handleDenied()
+                                break
+                            }
                         }
-                        status.status == "denied" -> {
-                            logger.info { "Registration denied via polling" }
-                            handleDenied()
-                            break
-                        }
+                    } catch (e: Exception) {
+                        logger.warn(e) { "Failed to check registration status" }
+                        // Continue polling
                     }
-                } catch (e: Exception) {
-                    logger.warn(e) { "Failed to check registration status" }
-                    // Continue polling
                 }
             }
-        }
     }
 
     /**
      * Attempts to log in automatically after approval.
      */
     private suspend fun attemptAutoLogin() {
-        _state.value = _state.value.copy(status = PendingApprovalStatus.LoggingIn)
+        state.value = state.value.copy(status = PendingApprovalStatus.LoggingIn)
 
         try {
             val authResponse = authApi.login(email, password)
@@ -195,26 +203,30 @@ class PendingApprovalViewModel(
             settingsRepository.clearPendingRegistration()
 
             logger.info { "Auto-login successful!" }
-            _state.value = _state.value.copy(status = PendingApprovalStatus.LoginSuccess)
+            state.value = state.value.copy(status = PendingApprovalStatus.LoginSuccess)
         } catch (e: Exception) {
             logger.error(e) { "Auto-login failed" }
             // Clear pending and let user log in manually
             settingsRepository.clearPendingRegistration()
-            _state.value = _state.value.copy(
-                status = PendingApprovalStatus.ApprovedManualLogin(
-                    "Your account has been approved! Please log in with your credentials.",
-                ),
-            )
+            state.value =
+                state.value.copy(
+                    status =
+                        PendingApprovalStatus.ApprovedManualLogin(
+                            "Your account has been approved! Please log in with your credentials.",
+                        ),
+                )
         }
     }
 
     private suspend fun handleDenied() {
         settingsRepository.clearPendingRegistration()
-        _state.value = _state.value.copy(
-            status = PendingApprovalStatus.Denied(
-                "Your registration was denied by an administrator.",
-            ),
-        )
+        state.value =
+            state.value.copy(
+                status =
+                    PendingApprovalStatus.Denied(
+                        "Your registration was denied by an administrator.",
+                    ),
+            )
     }
 
     /**
@@ -248,10 +260,14 @@ sealed interface PendingApprovalStatus {
     data object LoginSuccess : PendingApprovalStatus
 
     /** Approved but auto-login failed. User should log in manually. */
-    data class ApprovedManualLogin(val message: String) : PendingApprovalStatus
+    data class ApprovedManualLogin(
+        val message: String,
+    ) : PendingApprovalStatus
 
     /** Registration was denied. */
-    data class Denied(val message: String) : PendingApprovalStatus
+    data class Denied(
+        val message: String,
+    ) : PendingApprovalStatus
 }
 
 /**

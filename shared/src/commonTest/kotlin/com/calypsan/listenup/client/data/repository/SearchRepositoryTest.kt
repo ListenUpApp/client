@@ -51,22 +51,23 @@ class SearchRepositoryTest {
         authorName: String? = "Test Author",
     ): BookSearchResult =
         BookSearchResult(
-            book = BookEntity(
-                id = BookId(id),
-                title = title,
-                subtitle = null,
-                coverUrl = null,
-                totalDuration = 3600000,
-                description = null,
-                genres = null,
-                publishYear = null,
-                audioFilesJson = null,
-                syncState = SyncState.SYNCED,
-                lastModified = Timestamp(0),
-                serverVersion = Timestamp(1),
-                createdAt = Timestamp(0),
-                updatedAt = Timestamp(0),
-            ),
+            book =
+                BookEntity(
+                    id = BookId(id),
+                    title = title,
+                    subtitle = null,
+                    coverUrl = null,
+                    totalDuration = 3600000,
+                    description = null,
+                    genres = null,
+                    publishYear = null,
+                    audioFilesJson = null,
+                    syncState = SyncState.SYNCED,
+                    lastModified = Timestamp(0),
+                    serverVersion = Timestamp(1),
+                    createdAt = Timestamp(0),
+                    updatedAt = Timestamp(0),
+                ),
             authorName = authorName,
         )
 

@@ -215,7 +215,8 @@ class LibraryViewModel(
      * Only admins can use multi-select to add books to collections.
      */
     val isAdmin: StateFlow<Boolean> =
-        userDao.observeCurrentUser()
+        userDao
+            .observeCurrentUser()
             .map { user -> user?.isRoot == true }
             .stateIn(
                 scope = viewModelScope,
@@ -228,7 +229,8 @@ class LibraryViewModel(
      * Only relevant for admins.
      */
     val collections: StateFlow<List<CollectionEntity>> =
-        collectionDao.observeAll()
+        collectionDao
+            .observeAll()
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -245,15 +247,15 @@ class LibraryViewModel(
      */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val myLenses: StateFlow<List<LensEntity>> =
-        userDao.observeCurrentUser()
+        userDao
+            .observeCurrentUser()
             .flatMapLatest { user ->
                 if (user != null) {
                     lensDao.observeMyLenses(user.id)
                 } else {
                     flowOf(emptyList())
                 }
-            }
-            .stateIn(
+            }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = emptyList(),
@@ -432,13 +434,14 @@ class LibraryViewModel(
 
                 // Update local database with server data
                 serverCollections.forEach { response ->
-                    val entity = CollectionEntity(
-                        id = response.id,
-                        name = response.name,
-                        bookCount = response.bookCount,
-                        createdAt = response.createdAt.toTimestamp(),
-                        updatedAt = response.updatedAt.toTimestamp(),
-                    )
+                    val entity =
+                        CollectionEntity(
+                            id = response.id,
+                            name = response.name,
+                            bookCount = response.bookCount,
+                            createdAt = response.createdAt.toTimestamp(),
+                            updatedAt = response.updatedAt.toTimestamp(),
+                        )
                     collectionDao.upsert(entity)
                 }
 
@@ -466,11 +469,12 @@ class LibraryViewModel(
         val current = _selectionMode.value
         if (current !is SelectionMode.Active) return
 
-        val newSelectedIds = if (bookId in current.selectedIds) {
-            current.selectedIds - bookId
-        } else {
-            current.selectedIds + bookId
-        }
+        val newSelectedIds =
+            if (bookId in current.selectedIds) {
+                current.selectedIds - bookId
+            } else {
+                current.selectedIds + bookId
+            }
 
         // If no books remain selected, exit selection mode
         if (newSelectedIds.isEmpty()) {

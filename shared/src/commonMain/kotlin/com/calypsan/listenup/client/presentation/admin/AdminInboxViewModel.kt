@@ -44,9 +44,11 @@ class AdminInboxViewModel(
                     is SSEEventType.InboxBookAdded -> {
                         handleInboxBookAdded(event)
                     }
+
                     is SSEEventType.InboxBookReleased -> {
                         handleInboxBookReleased(event.bookId)
                     }
+
                     else -> { /* Other events handled elsewhere */ }
                 }
             }
@@ -64,9 +66,10 @@ class AdminInboxViewModel(
         // Remove the book from local state
         val currentBooks = state.value.books
         if (currentBooks.any { it.id == bookId }) {
-            state.value = state.value.copy(
-                books = currentBooks.filter { it.id != bookId },
-            )
+            state.value =
+                state.value.copy(
+                    books = currentBooks.filter { it.id != bookId },
+                )
         }
     }
 
@@ -76,16 +79,18 @@ class AdminInboxViewModel(
 
             try {
                 val response = adminApi.listInboxBooks()
-                state.value = state.value.copy(
-                    isLoading = false,
-                    books = response.books,
-                )
+                state.value =
+                    state.value.copy(
+                        isLoading = false,
+                        books = response.books,
+                    )
             } catch (e: Exception) {
                 logger.error(e) { "Failed to load inbox books" }
-                state.value = state.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to load inbox",
-                )
+                state.value =
+                    state.value.copy(
+                        isLoading = false,
+                        error = e.message ?: "Failed to load inbox",
+                    )
             }
         }
     }
@@ -100,34 +105,41 @@ class AdminInboxViewModel(
         if (bookIds.isEmpty()) return
 
         viewModelScope.launch {
-            state.value = state.value.copy(
-                isReleasing = true,
-                releasingBookIds = bookIds.toSet(),
-            )
+            state.value =
+                state.value.copy(
+                    isReleasing = true,
+                    releasingBookIds = bookIds.toSet(),
+                )
 
             try {
                 val result = adminApi.releaseBooks(bookIds)
-                logger.info { "Released ${result.released} books (${result.public} public, ${result.toCollections} to collections)" }
+                logger.info {
+                    "Released ${result.released} books (${result.public} public, ${result.toCollections} to collections)"
+                }
 
-                // Remove released books from local state
+                // Remove released books from local state and clear selection
                 val releasedSet = bookIds.toSet()
-                state.value = state.value.copy(
-                    isReleasing = false,
-                    releasingBookIds = emptySet(),
-                    books = state.value.books.filter { it.id !in releasedSet },
-                    lastReleaseResult = ReleaseResult(
-                        released = result.released,
-                        public = result.public,
-                        toCollections = result.toCollections,
-                    ),
-                )
+                state.value =
+                    state.value.copy(
+                        isReleasing = false,
+                        releasingBookIds = emptySet(),
+                        selectedBookIds = emptySet(), // Clear selection after successful release
+                        books = state.value.books.filter { it.id !in releasedSet },
+                        lastReleaseResult =
+                            ReleaseResult(
+                                released = result.released,
+                                public = result.public,
+                                toCollections = result.toCollections,
+                            ),
+                    )
             } catch (e: Exception) {
                 logger.error(e) { "Failed to release books" }
-                state.value = state.value.copy(
-                    isReleasing = false,
-                    releasingBookIds = emptySet(),
-                    error = e.message ?: "Failed to release books",
-                )
+                state.value =
+                    state.value.copy(
+                        isReleasing = false,
+                        releasingBookIds = emptySet(),
+                        error = e.message ?: "Failed to release books",
+                    )
             }
         }
     }
@@ -135,17 +147,24 @@ class AdminInboxViewModel(
     /**
      * Stage a collection assignment for an inbox book.
      */
-    fun stageCollection(bookId: String, collectionId: String) {
+    fun stageCollection(
+        bookId: String,
+        collectionId: String,
+    ) {
         viewModelScope.launch {
+            state.value = state.value.copy(stagingBookId = bookId)
             try {
                 adminApi.stageCollection(bookId, collectionId)
                 // Reload to get updated staged collections
                 loadInboxBooks()
             } catch (e: Exception) {
                 logger.error(e) { "Failed to stage collection" }
-                state.value = state.value.copy(
-                    error = e.message ?: "Failed to stage collection",
-                )
+                state.value =
+                    state.value.copy(
+                        error = e.message ?: "Failed to stage collection",
+                    )
+            } finally {
+                state.value = state.value.copy(stagingBookId = null)
             }
         }
     }
@@ -153,17 +172,24 @@ class AdminInboxViewModel(
     /**
      * Remove a staged collection from an inbox book.
      */
-    fun unstageCollection(bookId: String, collectionId: String) {
+    fun unstageCollection(
+        bookId: String,
+        collectionId: String,
+    ) {
         viewModelScope.launch {
+            state.value = state.value.copy(stagingBookId = bookId)
             try {
                 adminApi.unstageCollection(bookId, collectionId)
                 // Reload to get updated staged collections
                 loadInboxBooks()
             } catch (e: Exception) {
                 logger.error(e) { "Failed to unstage collection" }
-                state.value = state.value.copy(
-                    error = e.message ?: "Failed to unstage collection",
-                )
+                state.value =
+                    state.value.copy(
+                        error = e.message ?: "Failed to unstage collection",
+                    )
+            } finally {
+                state.value = state.value.copy(stagingBookId = null)
             }
         }
     }
@@ -173,11 +199,12 @@ class AdminInboxViewModel(
      */
     fun toggleBookSelection(bookId: String) {
         val currentSelection = state.value.selectedBookIds
-        val newSelection = if (bookId in currentSelection) {
-            currentSelection - bookId
-        } else {
-            currentSelection + bookId
-        }
+        val newSelection =
+            if (bookId in currentSelection) {
+                currentSelection - bookId
+            } else {
+                currentSelection + bookId
+            }
         state.value = state.value.copy(selectedBookIds = newSelection)
     }
 
@@ -185,9 +212,13 @@ class AdminInboxViewModel(
      * Select all books.
      */
     fun selectAll() {
-        state.value = state.value.copy(
-            selectedBookIds = state.value.books.map { it.id }.toSet(),
-        )
+        state.value =
+            state.value.copy(
+                selectedBookIds =
+                    state.value.books
+                        .map { it.id }
+                        .toSet(),
+            )
     }
 
     /**
@@ -226,6 +257,7 @@ data class AdminInboxUiState(
     val selectedBookIds: Set<String> = emptySet(),
     val isReleasing: Boolean = false,
     val releasingBookIds: Set<String> = emptySet(),
+    val stagingBookId: String? = null,
     val lastReleaseResult: ReleaseResult? = null,
     val error: String? = null,
 ) {
@@ -233,6 +265,9 @@ data class AdminInboxUiState(
     val hasSelection: Boolean get() = selectedBookIds.isNotEmpty()
     val selectedCount: Int get() = selectedBookIds.size
     val allSelected: Boolean get() = selectedBookIds.size == books.size && books.isNotEmpty()
+
+    /** Check if a specific book is currently being staged/unstaged */
+    fun isBookStaging(bookId: String): Boolean = stagingBookId == bookId
 }
 
 /**

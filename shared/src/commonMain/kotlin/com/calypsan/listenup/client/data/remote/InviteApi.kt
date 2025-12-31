@@ -111,7 +111,9 @@ class InviteApi : InviteApiContract {
                     clientName = "ListenUp Mobile",
                     clientVersion = "1.0.0",
                     clientBuild = "1",
-                    deviceModel = "Unknown",
+                    deviceModel =
+                        com.calypsan.listenup.client.core.PlatformUtils
+                            .getDeviceModel(),
                 )
 
             val response: ApiResponse<AuthResponse> =

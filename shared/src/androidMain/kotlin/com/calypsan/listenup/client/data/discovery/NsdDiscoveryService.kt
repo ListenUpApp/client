@@ -3,11 +3,13 @@ package com.calypsan.listenup.client.data.discovery
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import java.util.concurrent.Executors
 
 /**
  * Android implementation of [ServerDiscoveryService] using NsdManager.
@@ -116,7 +118,18 @@ class NsdDiscoveryService(
     }
 
     private fun resolveService(serviceInfo: NsdServiceInfo) {
-        // Use the callback-based API for Android 13+ compatibility
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            // API 34+: Use the new ServiceInfoCallback API
+            resolveServiceModern(serviceInfo)
+        } else {
+            // API 33 and below: Use the deprecated ResolveListener API
+            @Suppress("DEPRECATION")
+            resolveServiceLegacy(serviceInfo)
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun resolveServiceLegacy(serviceInfo: NsdServiceInfo) {
         val resolveListener =
             object : NsdManager.ResolveListener {
                 override fun onResolveFailed(
@@ -126,8 +139,10 @@ class NsdDiscoveryService(
                     Log.e(TAG, "Resolve failed for ${serviceInfo.serviceName}: $errorCode")
                 }
 
+                @Suppress("DEPRECATION")
                 override fun onServiceResolved(resolvedInfo: NsdServiceInfo) {
-                    Log.d(TAG, "Resolved: ${resolvedInfo.serviceName} at ${resolvedInfo.host}:${resolvedInfo.port}")
+                    val hostAddress = resolvedInfo.host?.hostAddress
+                    Log.d(TAG, "Resolved: ${resolvedInfo.serviceName} at $hostAddress:${resolvedInfo.port}")
                     val server = parseDiscoveredServer(resolvedInfo)
                     if (server != null) {
                         serversState.update { it + (server.id to server) }
@@ -145,8 +160,50 @@ class NsdDiscoveryService(
         }
     }
 
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    private fun resolveServiceModern(serviceInfo: NsdServiceInfo) {
+        val executor = Executors.newSingleThreadExecutor()
+        var callback: NsdManager.ServiceInfoCallback? = null
+
+        callback =
+            object : NsdManager.ServiceInfoCallback {
+                override fun onServiceInfoCallbackRegistrationFailed(errorCode: Int) {
+                    Log.e(TAG, "ServiceInfoCallback registration failed: $errorCode")
+                }
+
+                override fun onServiceUpdated(resolvedInfo: NsdServiceInfo) {
+                    val hostAddress = resolvedInfo.hostAddresses.firstOrNull()?.hostAddress
+                    Log.d(TAG, "Resolved: ${resolvedInfo.serviceName} at $hostAddress:${resolvedInfo.port}")
+                    val server = parseDiscoveredServer(resolvedInfo)
+                    if (server != null) {
+                        serversState.update { it + (server.id to server) }
+                        Log.i(TAG, "Server discovered: ${server.name} (${server.id}) at ${server.localUrl}")
+                    } else {
+                        Log.w(TAG, "Failed to parse server: ${resolvedInfo.serviceName}")
+                    }
+                    // Unregister after successful resolution
+                    callback?.let { nsdManager.unregisterServiceInfoCallback(it) }
+                }
+
+                override fun onServiceLost() {
+                    Log.d(TAG, "Service lost during resolution: ${serviceInfo.serviceName}")
+                    callback?.let { nsdManager.unregisterServiceInfoCallback(it) }
+                }
+
+                override fun onServiceInfoCallbackUnregistered() {
+                    Log.d(TAG, "ServiceInfoCallback unregistered for ${serviceInfo.serviceName}")
+                }
+            }
+
+        try {
+            nsdManager.registerServiceInfoCallback(serviceInfo, executor, callback)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register service info callback", e)
+        }
+    }
+
     private fun parseDiscoveredServer(serviceInfo: NsdServiceInfo): DiscoveredServer? {
-        val host = serviceInfo.host?.hostAddress ?: return null
+        val host = getHostAddress(serviceInfo) ?: return null
         val port = serviceInfo.port
 
         // Parse TXT records (available on Android 7.0+)
@@ -170,6 +227,13 @@ class NsdDiscoveryService(
     }
 
     @Suppress("DEPRECATION")
+    private fun getHostAddress(serviceInfo: NsdServiceInfo): String? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            serviceInfo.hostAddresses.firstOrNull()?.hostAddress
+        } else {
+            serviceInfo.host?.hostAddress
+        }
+
     private fun parseTxtRecords(serviceInfo: NsdServiceInfo): Map<String, String> {
         val result = mutableMapOf<String, String>()
 

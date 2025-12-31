@@ -65,8 +65,9 @@ class AndroidNetworkMonitor(
                     _isOnlineFlow.value = hasInternet
 
                     // Check if network is unmetered (WiFi, ethernet, etc.)
-                    val isUnmetered = hasInternet &&
-                        capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+                    val isUnmetered =
+                        hasInternet &&
+                            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
                     _isOnUnmeteredNetworkFlow.value = isUnmetered
                 }
             }

@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.seriesedit
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookId
@@ -202,7 +203,7 @@ class SeriesEditViewModelTest {
             viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
             advanceUntilIdle()
 
-            assertIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
+            checkIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
         }
 
     @Test
@@ -225,7 +226,7 @@ class SeriesEditViewModelTest {
             advanceUntilIdle()
 
             verifySuspend { seriesEditRepository.updateSeries("series-1", "Updated Name", any()) }
-            assertIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
+            checkIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
         }
 
     @Test
@@ -246,7 +247,7 @@ class SeriesEditViewModelTest {
             viewModel.onEvent(SeriesEditUiEvent.CancelClicked)
             advanceUntilIdle()
 
-            assertIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
+            checkIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
         }
 
     @Test

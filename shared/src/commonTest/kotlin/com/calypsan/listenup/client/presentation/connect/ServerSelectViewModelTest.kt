@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.connect
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.data.local.db.ServerEntity
 import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
@@ -126,7 +127,7 @@ class ServerSelectViewModelTest {
             viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
             advanceUntilIdle()
 
-            assertIs<ServerSelectViewModel.NavigationEvent.GoToManualEntry>(viewModel.navigationEvents.value)
+            checkIs<ServerSelectViewModel.NavigationEvent.GoToManualEntry>(viewModel.navigationEvents.value)
         }
 
     @Test
@@ -167,7 +168,7 @@ class ServerSelectViewModelTest {
 
             verifySuspend { serverRepository.setActiveServer(server.id) }
             verifySuspend { settingsRepository.setServerUrl(ServerUrl(server.localUrl!!)) }
-            assertIs<ServerSelectViewModel.NavigationEvent.ServerActivated>(viewModel.navigationEvents.value)
+            checkIs<ServerSelectViewModel.NavigationEvent.ServerActivated>(viewModel.navigationEvents.value)
         }
 
     @Test

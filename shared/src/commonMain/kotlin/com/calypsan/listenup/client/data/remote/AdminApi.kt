@@ -171,7 +171,10 @@ class AdminApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
     }
@@ -234,7 +237,10 @@ class AdminApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
     }
@@ -307,7 +313,10 @@ class AdminApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
     }
@@ -324,7 +333,10 @@ class AdminApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
     }

@@ -113,9 +113,10 @@ fun BookDetailScreen(
     // - Download is queued AND
     // - WiFi-only is enabled AND
     // - Not currently on WiFi/unmetered network
-    val isWaitingForWifi = downloadStatus.state == BookDownloadState.QUEUED &&
-        wifiOnlyDownloads &&
-        !isOnUnmeteredNetwork
+    val isWaitingForWifi =
+        downloadStatus.state == BookDownloadState.QUEUED &&
+            wifiOnlyDownloads &&
+            !isOnUnmeteredNetwork
 
     var showDeleteDialog by remember { mutableStateOf(false) }
 

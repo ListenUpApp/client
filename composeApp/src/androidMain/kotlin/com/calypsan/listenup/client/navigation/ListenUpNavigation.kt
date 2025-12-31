@@ -44,8 +44,8 @@ import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
-import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
+import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteSubmissionStatus
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -151,9 +151,11 @@ private fun PendingApprovalNavigation(
     email: String,
     password: String,
 ) {
-    val viewModel: PendingApprovalViewModel = koinInject {
-        org.koin.core.parameter.parametersOf(userId, email, password)
-    }
+    val viewModel: PendingApprovalViewModel =
+        koinInject {
+            org.koin.core.parameter
+                .parametersOf(userId, email, password)
+        }
 
     com.calypsan.listenup.client.features.auth.PendingApprovalScreen(
         viewModel = viewModel,
@@ -620,9 +622,11 @@ private fun AuthenticatedNavigation(
                                 com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog(
                                     onDismissRequest = { settingsViewModel.cancelDisableInbox() },
                                     title = "Disable Inbox Workflow",
-                                    text = "This will release all ${settingsState.inboxCount} book${if (settingsState.inboxCount != 1) "s" else ""} " +
-                                        "currently in the inbox with their staged collection assignments.\n\n" +
-                                        "New books will become immediately visible to users.",
+                                    text =
+                                        "This will release all ${settingsState.inboxCount} " +
+                                            "book${if (settingsState.inboxCount != 1) "s" else ""} " +
+                                            "currently in the inbox with their staged collection assignments.\n\n" +
+                                            "New books will become immediately visible to users.",
                                     confirmText = "Disable & Release",
                                     onConfirm = { settingsViewModel.confirmDisableInbox() },
                                     onDismiss = { settingsViewModel.cancelDisableInbox() },
@@ -667,9 +671,11 @@ private fun AuthenticatedNavigation(
                             )
                         }
                         entry<AdminCollectionDetail> { args ->
-                            val viewModel: com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel =
+                            val viewModel:
+                                com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel =
                                 koinInject {
-                                    org.koin.core.parameter.parametersOf(args.collectionId)
+                                    org.koin.core.parameter
+                                        .parametersOf(args.collectionId)
                                 }
                             com.calypsan.listenup.client.features.admin.collections.AdminCollectionDetailScreen(
                                 viewModel = viewModel,

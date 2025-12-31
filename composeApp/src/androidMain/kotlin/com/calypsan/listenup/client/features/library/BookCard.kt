@@ -76,21 +76,23 @@ fun BookCard(
 
     // Animate scale for press and selection
     val scale by animateFloatAsState(
-        targetValue = when {
-            isPressed -> 0.96f
-            isSelected -> 0.98f
-            else -> 1f
-        },
+        targetValue =
+            when {
+                isPressed -> 0.96f
+                isSelected -> 0.98f
+                else -> 1f
+            },
         label = "card_scale",
     )
 
     // Animate border color for selection
     val borderColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0f)
-        },
+        targetValue =
+            if (isSelected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0f)
+            },
         label = "border_color",
     )
 
@@ -132,9 +134,10 @@ fun BookCard(
             if (isInSelectionMode) {
                 SelectionIndicator(
                     isSelected = isSelected,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp),
                 )
             }
         }
@@ -216,7 +219,7 @@ private fun CoverWithGlow(
                         )
                     } else {
                         Modifier
-                    }
+                    },
                 ),
         contentAlignment = Alignment.Center,
     ) {
@@ -274,45 +277,46 @@ private fun SelectionIndicator(
     modifier: Modifier = Modifier,
 ) {
     val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
-        },
+        targetValue =
+            if (isSelected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+            },
         label = "selection_bg",
     )
 
     val iconTint by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.onPrimary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-        },
+        targetValue =
+            if (isSelected) {
+                MaterialTheme.colorScheme.onPrimary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            },
         label = "selection_icon",
     )
 
     Box(
-        modifier = modifier
-            .size(28.dp)
-            .shadow(
-                elevation = 2.dp,
-                shape = CircleShape,
-            )
-            .background(
-                color = backgroundColor,
-                shape = CircleShape,
-            )
-            .then(
-                if (!isSelected) {
-                    Modifier.border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                        shape = CircleShape,
-                    )
-                } else {
-                    Modifier
-                }
-            ),
+        modifier =
+            modifier
+                .size(28.dp)
+                .shadow(
+                    elevation = 2.dp,
+                    shape = CircleShape,
+                ).background(
+                    color = backgroundColor,
+                    shape = CircleShape,
+                ).then(
+                    if (!isSelected) {
+                        Modifier.border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            shape = CircleShape,
+                        )
+                    } else {
+                        Modifier
+                    },
+                ),
         contentAlignment = Alignment.Center,
     ) {
         if (isSelected) {

@@ -34,17 +34,19 @@ class AdminSettingsViewModel(
 
             try {
                 val settings = adminApi.getServerSettings()
-                state.value = state.value.copy(
-                    isLoading = false,
-                    inboxEnabled = settings.inboxEnabled,
-                    inboxCount = settings.inboxCount,
-                )
+                state.value =
+                    state.value.copy(
+                        isLoading = false,
+                        inboxEnabled = settings.inboxEnabled,
+                        inboxCount = settings.inboxCount,
+                    )
             } catch (e: Exception) {
                 logger.error(e) { "Failed to load server settings" }
-                state.value = state.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to load settings",
-                )
+                state.value =
+                    state.value.copy(
+                        isLoading = false,
+                        error = e.message ?: "Failed to load settings",
+                    )
             }
         }
     }
@@ -86,21 +88,24 @@ class AdminSettingsViewModel(
             state.value = state.value.copy(isSaving = true, error = null)
 
             try {
-                val settings = adminApi.updateServerSettings(
-                    ServerSettingsRequest(inboxEnabled = enabled),
-                )
-                state.value = state.value.copy(
-                    isSaving = false,
-                    inboxEnabled = settings.inboxEnabled,
-                    inboxCount = settings.inboxCount,
-                )
+                val settings =
+                    adminApi.updateServerSettings(
+                        ServerSettingsRequest(inboxEnabled = enabled),
+                    )
+                state.value =
+                    state.value.copy(
+                        isSaving = false,
+                        inboxEnabled = settings.inboxEnabled,
+                        inboxCount = settings.inboxCount,
+                    )
                 logger.info { "Inbox workflow ${if (enabled) "enabled" else "disabled"}" }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to update server settings" }
-                state.value = state.value.copy(
-                    isSaving = false,
-                    error = e.message ?: "Failed to update settings",
-                )
+                state.value =
+                    state.value.copy(
+                        isSaving = false,
+                        error = e.message ?: "Failed to update settings",
+                    )
             }
         }
     }

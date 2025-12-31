@@ -247,6 +247,36 @@ class IosDownloadService(
         }
     }
 
+    /**
+     * Cancel active download for a book.
+     *
+     * Currently iOS downloads run in-app, so cancellation
+     * is handled by coroutine cancellation.
+     */
+    override suspend fun cancelDownload(bookId: BookId) {
+        logger.info { "Cancelling download for book: ${bookId.value}" }
+        // Mark any in-progress downloads as failed
+        val downloads = downloadDao.getForBook(bookId.value)
+        for (download in downloads) {
+            if (download.state == DownloadState.DOWNLOADING || download.state == DownloadState.QUEUED) {
+                downloadDao.updateError(download.audioFileId, "Cancelled by user")
+            }
+        }
+    }
+
+    /**
+     * Delete downloaded files for a book.
+     */
+    override suspend fun deleteDownload(bookId: BookId) {
+        logger.info { "Deleting downloads for book: ${bookId.value}" }
+
+        // Delete all files for this book
+        fileManager.deleteBookFiles(bookId.value)
+
+        // Mark as deleted in database
+        downloadDao.markDeletedForBook(bookId.value)
+    }
+
     private suspend fun downloadData(request: NSMutableURLRequest): NSData? =
         suspendCancellableCoroutine { continuation ->
             val task: NSURLSessionDataTask =

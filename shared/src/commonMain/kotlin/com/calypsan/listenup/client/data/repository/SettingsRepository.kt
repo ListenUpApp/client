@@ -645,6 +645,7 @@ class SettingsRepository(
                     _authState.value = AuthState.NeedsLogin(openRegistration = result.data.openRegistration)
                 }
             }
+
             is Result.Failure -> {
                 // Silently fail - keep existing cached value
             }
@@ -677,8 +678,7 @@ class SettingsRepository(
      * Get the library ID this client is synced with.
      * Returns null on first connection to a server.
      */
-    override suspend fun getConnectedLibraryId(): String? =
-        secureStorage.read(KEY_CONNECTED_LIBRARY_ID)
+    override suspend fun getConnectedLibraryId(): String? = secureStorage.read(KEY_CONNECTED_LIBRARY_ID)
 
     /**
      * Store the library ID after successful sync verification.
@@ -920,11 +920,12 @@ class SettingsRepository(
         secureStorage.save(KEY_PENDING_PASSWORD, password)
 
         // Update auth state to PendingApproval
-        _authState.value = AuthState.PendingApproval(
-            userId = userId,
-            email = email,
-            encryptedPassword = password,
-        )
+        _authState.value =
+            AuthState.PendingApproval(
+                userId = userId,
+                email = email,
+                encryptedPassword = password,
+            )
     }
 
     /**

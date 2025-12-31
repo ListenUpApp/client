@@ -11,4 +11,18 @@ import platform.UIKit.UIDevice
  */
 actual object PlatformUtils {
     actual fun isEmulator(): Boolean = UIDevice.currentDevice.name.contains("Simulator", ignoreCase = true)
+
+    /**
+     * Returns the iOS device model name.
+     *
+     * Uses UIDevice.currentDevice.model which returns device type names like:
+     * - "iPhone"
+     * - "iPad"
+     * - "iPod touch"
+     *
+     * Note: For more specific model info (e.g., "iPhone 15 Pro"),
+     * we would need to use sysctlbyname("hw.machine") and map identifiers.
+     * For session tracking purposes, the general device type is sufficient.
+     */
+    actual fun getDeviceModel(): String = UIDevice.currentDevice.model
 }

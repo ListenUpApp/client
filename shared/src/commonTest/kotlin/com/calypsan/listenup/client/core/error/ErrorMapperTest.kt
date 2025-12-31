@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.core.error
 
+import com.calypsan.listenup.client.checkIs
 import kotlinx.serialization.SerializationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,9 +28,9 @@ class ErrorMapperTest {
         val exception = SerializationException("Failed to parse JSON")
         val error = ErrorMapper.map(exception)
 
-        assertIs<DataError>(error)
-        assertEquals("Invalid data format.", error.message)
-        assertEquals("DATA_ERROR", error.code)
+        val dataError = assertIs<DataError>(error)
+        assertEquals("Invalid data format.", dataError.message)
+        assertEquals("DATA_ERROR", dataError.code)
     }
 
     @Test
@@ -37,8 +38,8 @@ class ErrorMapperTest {
         val exception = SerializationException("Parse error")
         val error = ErrorMapper.map(exception)
 
-        assertIs<DataError>(error)
-        assertEquals(false, error.isRetryable)
+        val dataError = assertIs<DataError>(error)
+        assertEquals(false, dataError.isRetryable)
     }
 
     @Test
@@ -46,8 +47,8 @@ class ErrorMapperTest {
         val exception = SerializationException("Unexpected JSON token")
         val error = ErrorMapper.map(exception)
 
-        assertIs<DataError>(error)
-        assertEquals("Unexpected JSON token", error.debugInfo)
+        val dataError = assertIs<DataError>(error)
+        assertEquals("Unexpected JSON token", dataError.debugInfo)
     }
 
     // ========== Unknown Error Tests ==========
@@ -57,8 +58,8 @@ class ErrorMapperTest {
         val exception = IllegalStateException("Something went wrong")
         val error = ErrorMapper.map(exception)
 
-        assertIs<UnknownError>(error)
-        assertTrue(error.message.contains("unexpected error"))
+        val unknownError = assertIs<UnknownError>(error)
+        assertTrue(unknownError.message.contains("unexpected error"))
     }
 
     @Test
@@ -66,8 +67,8 @@ class ErrorMapperTest {
         val exception = RuntimeException("Random error")
         val error = ErrorMapper.map(exception)
 
-        assertIs<UnknownError>(error)
-        assertEquals(true, error.isRetryable)
+        val unknownError = assertIs<UnknownError>(error)
+        assertEquals(true, unknownError.isRetryable)
     }
 
     @Test
@@ -75,8 +76,8 @@ class ErrorMapperTest {
         val exception = RuntimeException("Custom error message")
         val error = ErrorMapper.map(exception)
 
-        assertIs<UnknownError>(error)
-        assertTrue(error.message.contains("Custom error message"))
+        val unknownError = assertIs<UnknownError>(error)
+        assertTrue(unknownError.message.contains("Custom error message"))
     }
 
     @Test
@@ -84,8 +85,8 @@ class ErrorMapperTest {
         val exception = IllegalArgumentException("Bad argument")
         val error = ErrorMapper.map(exception)
 
-        assertIs<UnknownError>(error)
-        assertTrue(error.debugInfo?.contains("IllegalArgumentException") == true)
+        val unknownError = assertIs<UnknownError>(error)
+        assertTrue(unknownError.debugInfo?.contains("IllegalArgumentException") == true)
     }
 
     @Test
@@ -93,8 +94,8 @@ class ErrorMapperTest {
         val exception = UnsupportedOperationException("Not supported")
         val error = ErrorMapper.map(exception)
 
-        assertIs<UnknownError>(error)
-        assertEquals("UNKNOWN_ERROR", error.code)
+        val unknownError = assertIs<UnknownError>(error)
+        assertEquals("UNKNOWN_ERROR", unknownError.code)
     }
 
     // ========== Custom Exception Tests ==========
@@ -107,7 +108,7 @@ class ErrorMapperTest {
         val exception = CustomException("Custom domain error")
         val error = ErrorMapper.map(exception)
 
-        assertIs<UnknownError>(error)
+        checkIs<UnknownError>(error)
     }
 
     @Test
@@ -115,7 +116,7 @@ class ErrorMapperTest {
         val exception = NullPointerException("null reference")
         val error = ErrorMapper.map(exception)
 
-        assertIs<UnknownError>(error)
+        checkIs<UnknownError>(error)
     }
 
     @Test
@@ -123,6 +124,6 @@ class ErrorMapperTest {
         val exception = IndexOutOfBoundsException("index 5 out of bounds")
         val error = ErrorMapper.map(exception)
 
-        assertIs<UnknownError>(error)
+        checkIs<UnknownError>(error)
     }
 }

@@ -147,9 +147,11 @@ class AuthApi(
 
     /**
      * Get the device model.
-     * Expected to be implemented via expect/actual pattern.
+     * Uses platform-specific implementation via expect/actual pattern.
      */
-    private fun getDeviceModel(): String = "Unknown" // TODO: Use expect/actual
+    private fun getDeviceModel(): String =
+        com.calypsan.listenup.client.core.PlatformUtils
+            .getDeviceModel()
 
     /**
      * Refresh access token using refresh token.

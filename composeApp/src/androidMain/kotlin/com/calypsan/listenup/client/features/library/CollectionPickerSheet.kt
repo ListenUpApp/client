@@ -85,11 +85,12 @@ fun CollectionPickerSheet(
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
-                    text = if (selectedBookCount == 1) {
-                        "1 book selected"
-                    } else {
-                        "$selectedBookCount books selected"
-                    },
+                    text =
+                        if (selectedBookCount == 1) {
+                            "1 book selected"
+                        } else {
+                            "$selectedBookCount books selected"
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -104,9 +105,10 @@ fun CollectionPickerSheet(
                 if (collections.isEmpty()) {
                     // Empty state
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Icon(
@@ -198,20 +200,22 @@ private fun CollectionRow(
                 Text(
                     text = collection.name,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (enabled) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    },
+                    color =
+                        if (enabled) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = if (collection.bookCount == 1) {
-                        "1 book"
-                    } else {
-                        "${collection.bookCount} books"
-                    },
+                    text =
+                        if (collection.bookCount == 1) {
+                            "1 book"
+                        } else {
+                            "${collection.bookCount} books"
+                        },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -46,9 +46,11 @@ class AdminViewModel(
                     is SSEEventType.UserPending -> {
                         handleUserPending(event.user)
                     }
+
                     is SSEEventType.UserApproved -> {
                         handleUserApproved(event.user)
                     }
+
                     else -> { /* Other events handled elsewhere */ }
                 }
             }
@@ -61,9 +63,10 @@ class AdminViewModel(
         val currentPending = state.value.pendingUsers
         // Only add if not already in list
         if (currentPending.none { it.id == newPendingUser.id }) {
-            state.value = state.value.copy(
-                pendingUsers = currentPending + newPendingUser,
-            )
+            state.value =
+                state.value.copy(
+                    pendingUsers = currentPending + newPendingUser,
+                )
         }
     }
 
@@ -73,15 +76,17 @@ class AdminViewModel(
         // Remove from pending
         val updatedPending = state.value.pendingUsers.filter { it.id != userData.id }
         // Only add to users if not already present (avoid duplicates from button + SSE)
-        val updatedUsers = if (state.value.users.none { it.id == userData.id }) {
-            state.value.users + approvedUser
-        } else {
-            state.value.users
-        }
-        state.value = state.value.copy(
-            pendingUsers = updatedPending,
-            users = updatedUsers,
-        )
+        val updatedUsers =
+            if (state.value.users.none { it.id == userData.id }) {
+                state.value.users + approvedUser
+            } else {
+                state.value.users
+            }
+        state.value =
+            state.value.copy(
+                pendingUsers = updatedPending,
+                users = updatedUsers,
+            )
     }
 
     fun loadData() {
@@ -130,10 +135,11 @@ class AdminViewModel(
                 }
 
             // Sort users: root user first, then by creation date (oldest first)
-            val sortedUsers = users.sortedWith(
-                compareByDescending<AdminUser> { it.isRoot }
-                    .thenBy { it.createdAt },
-            )
+            val sortedUsers =
+                users.sortedWith(
+                    compareByDescending<AdminUser> { it.isRoot }
+                        .thenBy { it.createdAt },
+                )
 
             state.value =
                 state.value.copy(
@@ -203,11 +209,12 @@ class AdminViewModel(
                 // Move from pending to active users
                 val updatedPending = state.value.pendingUsers.filter { it.id != userId }
                 // Only add to users if not already present (avoid duplicates from button + SSE)
-                val updatedUsers = if (state.value.users.none { it.id == userId }) {
-                    state.value.users + approvedUser
-                } else {
-                    state.value.users
-                }
+                val updatedUsers =
+                    if (state.value.users.none { it.id == userId }) {
+                        state.value.users + approvedUser
+                    } else {
+                        state.value.users
+                    }
                 state.value =
                     state.value.copy(
                         approvingUserId = null,

@@ -21,10 +21,10 @@ import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SSEEventType
 import com.calypsan.listenup.client.download.DownloadService
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
@@ -72,6 +72,7 @@ class SSEEventProcessor(
      * Emitted when a book is deleted while being played or downloaded.
      */
     val accessRevokedEvents: SharedFlow<AccessRevokedEvent> = _accessRevokedEvents.asSharedFlow()
+
     /**
      * Process an incoming SSE event.
      */
@@ -500,7 +501,9 @@ class SSEEventProcessor(
  * Event emitted when access to a book is revoked while playing.
  * UI should display a notification that "This book is no longer available".
  */
-data class AccessRevokedEvent(val bookId: BookId)
+data class AccessRevokedEvent(
+    val bookId: BookId,
+)
 
 /**
  * Interface for playback state access needed by SSEEventProcessor.

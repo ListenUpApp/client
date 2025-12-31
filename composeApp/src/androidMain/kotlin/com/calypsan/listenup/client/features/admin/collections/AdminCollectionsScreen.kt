@@ -23,7 +23,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +37,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -89,9 +89,9 @@ fun AdminCollectionsScreen(
     // Handle create success
     LaunchedEffect(state.createSuccess) {
         if (state.createSuccess) {
-            showCreateDialog = false  // Dismiss dialog FIRST (before suspend)
+            showCreateDialog = false // Dismiss dialog FIRST (before suspend)
             viewModel.clearCreateSuccess()
-            snackbarHostState.showSnackbar("Collection created")  // This suspends
+            snackbarHostState.showSnackbar("Collection created") // This suspends
         }
     }
 
@@ -144,13 +144,14 @@ fun AdminCollectionsScreen(
 
     // Delete confirmation dialog
     collectionToDelete?.let { collection ->
-        val warningText = if (collection.bookCount > 0) {
-            "Are you sure you want to delete \"${collection.name}\"?\n\n" +
-                "The ${collection.bookCount} book${if (collection.bookCount != 1) "s" else ""} " +
-                "in this collection will become visible to all users."
-        } else {
-            "Are you sure you want to delete \"${collection.name}\"?"
-        }
+        val warningText =
+            if (collection.bookCount > 0) {
+                "Are you sure you want to delete \"${collection.name}\"?\n\n" +
+                    "The ${collection.bookCount} book${if (collection.bookCount != 1) "s" else ""} " +
+                    "in this collection will become visible to all users."
+            } else {
+                "Are you sure you want to delete \"${collection.name}\"?"
+            }
 
         ListenUpDestructiveDialog(
             onDismissRequest = { collectionToDelete = null },
@@ -177,9 +178,10 @@ private fun CollectionsContent(
         EmptyCollectionsMessage(modifier = modifier)
     } else {
         LazyColumn(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
         ) {
             item {
                 Text(
@@ -194,9 +196,10 @@ private fun CollectionsContent(
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
+                    colors =
+                        CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
                 ) {
                     Column {
                         state.collections.forEachIndexed { index, collection ->
@@ -232,16 +235,17 @@ private fun CollectionRow(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { dismissValue ->
-            if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
-                onDeleteClick()
-                false // Don't actually dismiss, let the dialog handle it
-            } else {
-                false
-            }
-        },
-    )
+    val dismissState =
+        rememberSwipeToDismissBoxState(
+            confirmValueChange = { dismissValue ->
+                if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                    onDeleteClick()
+                    false // Don't actually dismiss, let the dialog handle it
+                } else {
+                    false
+                }
+            },
+        )
 
     SwipeToDismissBox(
         state = dismissState,
@@ -254,10 +258,11 @@ private fun CollectionRow(
                 label = "SwipeBackground",
             )
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(color)
-                    .padding(horizontal = 20.dp),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(color)
+                        .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
@@ -273,11 +278,12 @@ private fun CollectionRow(
         modifier = modifier,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .clickable(onClick = onClick)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -315,9 +321,10 @@ private fun CollectionRow(
 @Composable
 private fun EmptyCollectionsMessage(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

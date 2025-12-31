@@ -34,6 +34,5 @@ data class LensEntity(
      * - Owner sees: "To Read"
      * - Others see: "Simon's To Read"
      */
-    fun displayName(currentUserId: String): String =
-        if (ownerId == currentUserId) name else "$ownerDisplayName's $name"
+    fun displayName(currentUserId: String): String = if (ownerId == currentUserId) name else "$ownerDisplayName's $name"
 }

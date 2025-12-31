@@ -60,10 +60,12 @@ fun PendingApprovalScreen(
                 snackbarHostState.showSnackbar(status.message)
                 onNavigateToLogin()
             }
+
             is PendingApprovalStatus.Denied -> {
                 snackbarHostState.showSnackbar(status.message)
                 onNavigateToLogin()
             }
+
             else -> {}
         }
     }
@@ -74,10 +76,11 @@ fun PendingApprovalScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -86,18 +89,21 @@ fun PendingApprovalScreen(
             Spacer(modifier = Modifier.height(48.dp))
 
             ElevatedCard(
-                modifier = Modifier
-                    .widthIn(max = 480.dp)
-                    .fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .widthIn(max = 480.dp)
+                        .fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                ),
+                colors =
+                    CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
@@ -163,7 +169,8 @@ fun PendingApprovalScreen(
                         }
 
                         is PendingApprovalStatus.ApprovedManualLogin,
-                        is PendingApprovalStatus.Denied -> {
+                        is PendingApprovalStatus.Denied,
+                        -> {
                             // Handled via snackbar and navigation
                         }
                     }
@@ -193,11 +200,12 @@ fun PendingApprovalScreen(
 @Composable
 private fun BrandLogo(modifier: Modifier = Modifier) {
     val isDarkTheme = LocalDarkTheme.current
-    val logoRes = if (isDarkTheme) {
-        R.drawable.listenup_logo_white
-    } else {
-        R.drawable.listenup_logo_black
-    }
+    val logoRes =
+        if (isDarkTheme) {
+            R.drawable.listenup_logo_white
+        } else {
+            R.drawable.listenup_logo_black
+        }
 
     Image(
         painter = painterResource(logoRes),

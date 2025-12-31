@@ -7,7 +7,6 @@ import com.calypsan.listenup.client.data.repository.SettingsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -26,8 +25,8 @@ class RegisterViewModel(
     private val authApi: AuthApiContract,
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(RegisterUiState())
-    val state: StateFlow<RegisterUiState> = _state.asStateFlow()
+    val state: StateFlow<RegisterUiState>
+        field = MutableStateFlow(RegisterUiState())
 
     fun onRegisterSubmit(
         email: String,
@@ -37,24 +36,24 @@ class RegisterViewModel(
     ) {
         // Validate inputs
         if (email.isBlank()) {
-            _state.value = _state.value.copy(status = RegisterStatus.Error("Email is required"))
+            state.value = state.value.copy(status = RegisterStatus.Error("Email is required"))
             return
         }
         if (password.length < 8) {
-            _state.value =
-                _state.value.copy(status = RegisterStatus.Error("Password must be at least 8 characters"))
+            state.value =
+                state.value.copy(status = RegisterStatus.Error("Password must be at least 8 characters"))
             return
         }
         if (firstName.isBlank()) {
-            _state.value = _state.value.copy(status = RegisterStatus.Error("First name is required"))
+            state.value = state.value.copy(status = RegisterStatus.Error("First name is required"))
             return
         }
         if (lastName.isBlank()) {
-            _state.value = _state.value.copy(status = RegisterStatus.Error("Last name is required"))
+            state.value = state.value.copy(status = RegisterStatus.Error("Last name is required"))
             return
         }
 
-        _state.value = _state.value.copy(status = RegisterStatus.Loading)
+        state.value = state.value.copy(status = RegisterStatus.Loading)
 
         viewModelScope.launch {
             try {
@@ -72,17 +71,17 @@ class RegisterViewModel(
                 )
 
                 // Mark as success - navigation will happen automatically via AuthState
-                _state.value = _state.value.copy(status = RegisterStatus.Success)
+                state.value = state.value.copy(status = RegisterStatus.Success)
             } catch (e: Exception) {
                 val message = e.message ?: "Registration failed. Please try again."
                 logger.error(e) { "Registration failed" }
-                _state.value = _state.value.copy(status = RegisterStatus.Error(message))
+                state.value = state.value.copy(status = RegisterStatus.Error(message))
             }
         }
     }
 
     fun clearError() {
-        _state.value = _state.value.copy(status = RegisterStatus.Idle)
+        state.value = state.value.copy(status = RegisterStatus.Idle)
     }
 }
 

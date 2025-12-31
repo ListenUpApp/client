@@ -119,42 +119,57 @@ fun LibraryScreen(
             when (event) {
                 is LibraryEvent.BooksAddedToCollection -> {
                     showCollectionPicker = false
-                    Toast.makeText(
-                        context,
-                        if (event.count == 1) "1 book added to collection" else "${event.count} books added to collection",
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                    Toast
+                        .makeText(
+                            context,
+                            if (event.count ==
+                                1
+                            ) {
+                                "1 book added to collection"
+                            } else {
+                                "${event.count} books added to collection"
+                            },
+                            Toast.LENGTH_SHORT,
+                        ).show()
                 }
+
                 is LibraryEvent.AddToCollectionFailed -> {
-                    Toast.makeText(
-                        context,
-                        "Failed to add: ${event.message}",
-                        Toast.LENGTH_LONG,
-                    ).show()
+                    Toast
+                        .makeText(
+                            context,
+                            "Failed to add: ${event.message}",
+                            Toast.LENGTH_LONG,
+                        ).show()
                 }
+
                 is LibraryEvent.BooksAddedToLens -> {
                     showLensPicker = false
-                    Toast.makeText(
-                        context,
-                        if (event.count == 1) "1 book added to lens" else "${event.count} books added to lens",
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                    Toast
+                        .makeText(
+                            context,
+                            if (event.count == 1) "1 book added to lens" else "${event.count} books added to lens",
+                            Toast.LENGTH_SHORT,
+                        ).show()
                 }
+
                 is LibraryEvent.LensCreatedAndBooksAdded -> {
                     showLensPicker = false
                     val bookText = if (event.bookCount == 1) "1 book" else "${event.bookCount} books"
-                    Toast.makeText(
-                        context,
-                        "Created \"${event.lensName}\" with $bookText",
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                    Toast
+                        .makeText(
+                            context,
+                            "Created \"${event.lensName}\" with $bookText",
+                            Toast.LENGTH_SHORT,
+                        ).show()
                 }
+
                 is LibraryEvent.AddToLensFailed -> {
-                    Toast.makeText(
-                        context,
-                        "Failed to add: ${event.message}",
-                        Toast.LENGTH_LONG,
-                    ).show()
+                    Toast
+                        .makeText(
+                            context,
+                            "Failed to add: ${event.message}",
+                            Toast.LENGTH_LONG,
+                        ).show()
                 }
             }
         }
@@ -166,106 +181,106 @@ fun LibraryScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-        // Tab row - collapses icons when top bar collapses
-        LibraryTabRow(
-            selectedTabIndex = pagerState.currentPage,
-            onTabSelected = { index ->
-                scope.launch {
-                    pagerState.animateScrollToPage(index)
-                }
-            },
-            collapseFraction = topBarCollapseFraction,
-        )
+            // Tab row - collapses icons when top bar collapses
+            LibraryTabRow(
+                selectedTabIndex = pagerState.currentPage,
+                onTabSelected = { index ->
+                    scope.launch {
+                        pagerState.animateScrollToPage(index)
+                    }
+                },
+                collapseFraction = topBarCollapseFraction,
+            )
 
-        // Pull-to-refresh wraps entire pager (syncs all data)
-        PullToRefreshBox(
-            isRefreshing = syncState is SyncStatus.Syncing,
-            onRefresh = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            // Swipeable content
-            HorizontalPager(
-                state = pagerState,
+            // Pull-to-refresh wraps entire pager (syncs all data)
+            PullToRefreshBox(
+                isRefreshing = syncState is SyncStatus.Syncing,
+                onRefresh = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
                 modifier = Modifier.fillMaxSize(),
-            ) { page ->
-                when (LibraryTab.entries[page]) {
-                    LibraryTab.Books -> {
-                        BooksContent(
-                            books = books,
-                            hasLoadedBooks = hasLoadedBooks,
-                            syncState = syncState,
-                            sortState = booksSortState,
-                            ignoreTitleArticles = ignoreTitleArticles,
-                            bookProgress = bookProgress,
-                            isInSelectionMode = isInSelectionMode,
-                            selectedBookIds = selectedBookIds,
-                            onCategorySelected = { category ->
-                                viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
-                            },
-                            onDirectionToggle = {
-                                viewModel.onEvent(LibraryUiEvent.BooksDirectionToggled)
-                            },
-                            onToggleIgnoreArticles = {
-                                viewModel.onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
-                            },
-                            onBookClick = { bookId ->
-                                if (isInSelectionMode) {
-                                    viewModel.toggleBookSelection(bookId)
-                                } else {
-                                    onBookClick(bookId)
-                                }
-                            },
-                            onBookLongPress = { bookId ->
-                                viewModel.enterSelectionMode(bookId)
-                            },
-                            onRetry = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
-                        )
-                    }
+            ) {
+                // Swipeable content
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                ) { page ->
+                    when (LibraryTab.entries[page]) {
+                        LibraryTab.Books -> {
+                            BooksContent(
+                                books = books,
+                                hasLoadedBooks = hasLoadedBooks,
+                                syncState = syncState,
+                                sortState = booksSortState,
+                                ignoreTitleArticles = ignoreTitleArticles,
+                                bookProgress = bookProgress,
+                                isInSelectionMode = isInSelectionMode,
+                                selectedBookIds = selectedBookIds,
+                                onCategorySelected = { category ->
+                                    viewModel.onEvent(LibraryUiEvent.BooksCategoryChanged(category))
+                                },
+                                onDirectionToggle = {
+                                    viewModel.onEvent(LibraryUiEvent.BooksDirectionToggled)
+                                },
+                                onToggleIgnoreArticles = {
+                                    viewModel.onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
+                                },
+                                onBookClick = { bookId ->
+                                    if (isInSelectionMode) {
+                                        viewModel.toggleBookSelection(bookId)
+                                    } else {
+                                        onBookClick(bookId)
+                                    }
+                                },
+                                onBookLongPress = { bookId ->
+                                    viewModel.enterSelectionMode(bookId)
+                                },
+                                onRetry = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
+                            )
+                        }
 
-                    LibraryTab.Series -> {
-                        SeriesContent(
-                            series = series,
-                            sortState = seriesSortState,
-                            onCategorySelected = { category ->
-                                viewModel.onEvent(LibraryUiEvent.SeriesCategoryChanged(category))
-                            },
-                            onDirectionToggle = {
-                                viewModel.onEvent(LibraryUiEvent.SeriesDirectionToggled)
-                            },
-                            onSeriesClick = onSeriesClick,
-                        )
-                    }
+                        LibraryTab.Series -> {
+                            SeriesContent(
+                                series = series,
+                                sortState = seriesSortState,
+                                onCategorySelected = { category ->
+                                    viewModel.onEvent(LibraryUiEvent.SeriesCategoryChanged(category))
+                                },
+                                onDirectionToggle = {
+                                    viewModel.onEvent(LibraryUiEvent.SeriesDirectionToggled)
+                                },
+                                onSeriesClick = onSeriesClick,
+                            )
+                        }
 
-                    LibraryTab.Authors -> {
-                        AuthorsContent(
-                            authors = authors,
-                            sortState = authorsSortState,
-                            onCategorySelected = { category ->
-                                viewModel.onEvent(LibraryUiEvent.AuthorsCategoryChanged(category))
-                            },
-                            onDirectionToggle = {
-                                viewModel.onEvent(LibraryUiEvent.AuthorsDirectionToggled)
-                            },
-                            onAuthorClick = onAuthorClick,
-                        )
-                    }
+                        LibraryTab.Authors -> {
+                            AuthorsContent(
+                                authors = authors,
+                                sortState = authorsSortState,
+                                onCategorySelected = { category ->
+                                    viewModel.onEvent(LibraryUiEvent.AuthorsCategoryChanged(category))
+                                },
+                                onDirectionToggle = {
+                                    viewModel.onEvent(LibraryUiEvent.AuthorsDirectionToggled)
+                                },
+                                onAuthorClick = onAuthorClick,
+                            )
+                        }
 
-                    LibraryTab.Narrators -> {
-                        NarratorsContent(
-                            narrators = narrators,
-                            sortState = narratorsSortState,
-                            onCategorySelected = { category ->
-                                viewModel.onEvent(LibraryUiEvent.NarratorsCategoryChanged(category))
-                            },
-                            onDirectionToggle = {
-                                viewModel.onEvent(LibraryUiEvent.NarratorsDirectionToggled)
-                            },
-                            onNarratorClick = onNarratorClick,
-                        )
+                        LibraryTab.Narrators -> {
+                            NarratorsContent(
+                                narrators = narrators,
+                                sortState = narratorsSortState,
+                                onCategorySelected = { category ->
+                                    viewModel.onEvent(LibraryUiEvent.NarratorsCategoryChanged(category))
+                                },
+                                onDirectionToggle = {
+                                    viewModel.onEvent(LibraryUiEvent.NarratorsDirectionToggled)
+                                },
+                                onNarratorClick = onNarratorClick,
+                            )
+                        }
                     }
                 }
             }
-        }
         }
 
         // Selection toolbar (overlays at top)
@@ -278,7 +293,12 @@ fun LibraryScreen(
             SelectionToolbar(
                 selectedCount = selectedBookIds.size,
                 onAddToLens = { showLensPicker = true },
-                onAddToCollection = if (isAdmin) {{ showCollectionPicker = true }} else null,
+                onAddToCollection =
+                    if (isAdmin) {
+                        { showCollectionPicker = true }
+                    } else {
+                        null
+                    },
                 onClose = { viewModel.exitSelectionMode() },
             )
         }

@@ -47,7 +47,10 @@ interface AdminCollectionApiContract {
     /**
      * Update a collection's name.
      */
-    suspend fun updateCollection(collectionId: String, name: String): AdminCollectionResponse
+    suspend fun updateCollection(
+        collectionId: String,
+        name: String,
+    ): AdminCollectionResponse
 
     /**
      * Delete a collection.
@@ -57,12 +60,18 @@ interface AdminCollectionApiContract {
     /**
      * Add books to a collection.
      */
-    suspend fun addBooks(collectionId: String, bookIds: List<String>)
+    suspend fun addBooks(
+        collectionId: String,
+        bookIds: List<String>,
+    )
 
     /**
      * Remove a book from a collection.
      */
-    suspend fun removeBook(collectionId: String, bookId: String)
+    suspend fun removeBook(
+        collectionId: String,
+        bookId: String,
+    )
 
     /**
      * Get shares for a collection.
@@ -72,7 +81,11 @@ interface AdminCollectionApiContract {
     /**
      * Share a collection with a user.
      */
-    suspend fun shareCollection(collectionId: String, userId: String, permission: String = "read"): ShareResponse
+    suspend fun shareCollection(
+        collectionId: String,
+        userId: String,
+        permission: String = "read",
+    ): ShareResponse
 
     /**
      * Remove a share.
@@ -136,7 +149,10 @@ class AdminCollectionApi(
         }
     }
 
-    override suspend fun updateCollection(collectionId: String, name: String): AdminCollectionResponse {
+    override suspend fun updateCollection(
+        collectionId: String,
+        name: String,
+    ): AdminCollectionResponse {
         val client = clientFactory.getClient()
         val response: ApiResponse<AdminCollectionResponse> =
             client
@@ -158,29 +174,42 @@ class AdminCollectionApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
         // 204 No Content - success
     }
 
-    override suspend fun addBooks(collectionId: String, bookIds: List<String>) {
+    override suspend fun addBooks(
+        collectionId: String,
+        bookIds: List<String>,
+    ) {
         val client = clientFactory.getClient()
-        val response = client.post("/api/v1/admin/collections/$collectionId/books") {
-            setBody(AddBooksToCollectionRequest(bookIds))
-        }
+        val response =
+            client.post("/api/v1/admin/collections/$collectionId/books") {
+                setBody(AddBooksToCollectionRequest(bookIds))
+            }
 
         if (!response.status.isSuccess()) {
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
         // 200 OK with message - success
     }
 
-    override suspend fun removeBook(collectionId: String, bookId: String) {
+    override suspend fun removeBook(
+        collectionId: String,
+        bookId: String,
+    ) {
         val client = clientFactory.getClient()
         val response = client.delete("/api/v1/admin/collections/$collectionId/books/$bookId")
 
@@ -188,7 +217,10 @@ class AdminCollectionApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
         // 204 No Content - success
@@ -212,9 +244,10 @@ class AdminCollectionApi(
     ): ShareResponse {
         val client = clientFactory.getClient()
         val response: ApiResponse<ShareResponse> =
-            client.post("/api/v1/collections/$collectionId/shares") {
-                setBody(ShareCollectionRequest(userId, permission))
-            }.body()
+            client
+                .post("/api/v1/collections/$collectionId/shares") {
+                    setBody(ShareCollectionRequest(userId, permission))
+                }.body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
@@ -230,7 +263,10 @@ class AdminCollectionApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exception
+
+                is Failure -> {
+                    throw result.exception
+                }
             }
         }
         // Success
@@ -290,5 +326,5 @@ data class ShareResponse(
     @SerialName("shared_with_user_id") val sharedWithUserId: String,
     @SerialName("shared_by_user_id") val sharedByUserId: String,
     @SerialName("permission") val permission: String,
-    @SerialName("created_at") val createdAt: kotlinx.datetime.Instant,
+    @SerialName("created_at") val createdAt: kotlin.time.Instant,
 )

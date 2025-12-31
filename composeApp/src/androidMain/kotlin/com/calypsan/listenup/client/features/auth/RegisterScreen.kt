@@ -74,6 +74,7 @@ fun RegisterScreen(
                 snackbarHostState.showSnackbar(status.message)
                 viewModel.clearError()
             }
+
             // Success triggers AuthState change, navigation handles the rest
             else -> {}
         }

@@ -120,9 +120,7 @@ internal actual suspend fun createStreamingHttpClient(
  * without authentication. Used for endpoints like registration status
  * that don't require auth tokens.
  */
-internal actual fun createUnauthenticatedStreamingHttpClient(
-    serverUrl: ServerUrl,
-): HttpClient =
+internal actual fun createUnauthenticatedStreamingHttpClient(serverUrl: ServerUrl): HttpClient =
     HttpClient(Darwin) {
         // Configure Darwin engine with infinite timeouts for streaming
         engine {

@@ -110,7 +110,9 @@ class SyncManager(
             // Phase 0: Verify library identity
             val mismatch = verifyLibraryIdentity()
             if (mismatch != null) {
-                logger.warn { "Library mismatch detected: expected=${mismatch.expectedLibraryId}, actual=${mismatch.actualLibraryId}" }
+                logger.warn {
+                    "Library mismatch detected: expected=${mismatch.expectedLibraryId}, actual=${mismatch.actualLibraryId}"
+                }
                 _syncState.value = mismatch
                 return Result.Failure(
                     exception = LibraryMismatchException(mismatch.expectedLibraryId, mismatch.actualLibraryId),

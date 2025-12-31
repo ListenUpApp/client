@@ -375,9 +375,10 @@ private fun BookGrid(
                             progress = bookProgress[bookId],
                             isInSelectionMode = isInSelectionMode,
                             isSelected = bookId in selectedBookIds,
-                            onLongPress = onBookLongPress?.let { callback ->
-                                { callback(bookId) }
-                            },
+                            onLongPress =
+                                onBookLongPress?.let { callback ->
+                                    { callback(bookId) }
+                                },
                             modifier = Modifier.animateItem(),
                         )
                     }

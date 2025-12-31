@@ -58,13 +58,14 @@ fun LensCard(
     )
 
     // Parse avatar color from hex string
-    val avatarColor = remember(lens.ownerAvatarColor) {
-        try {
-            Color(android.graphics.Color.parseColor(lens.ownerAvatarColor))
-        } catch (_: Exception) {
-            Color(0xFF6B7280) // Fallback gray
+    val avatarColor =
+        remember(lens.ownerAvatarColor) {
+            try {
+                Color(android.graphics.Color.parseColor(lens.ownerAvatarColor))
+            } catch (_: Exception) {
+                Color(0xFF6B7280) // Fallback gray
+            }
         }
-    }
 
     Column(
         modifier =
@@ -73,8 +74,7 @@ fun LensCard(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                }
-                .clickable(
+                }.clickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick,

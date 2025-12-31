@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.auth
 
+import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.data.local.db.UserDao
@@ -135,10 +136,9 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.ValidationError>(status.type)
-            assertEquals(LoginField.EMAIL, (status.type as LoginErrorType.ValidationError).field)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            val validation = assertIs<LoginErrorType.ValidationError>(error.type)
+            assertEquals(LoginField.EMAIL, validation.field)
         }
 
     @Test
@@ -153,10 +153,9 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.ValidationError>(status.type)
-            assertEquals(LoginField.EMAIL, (status.type as LoginErrorType.ValidationError).field)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            val validation = assertIs<LoginErrorType.ValidationError>(error.type)
+            assertEquals(LoginField.EMAIL, validation.field)
         }
 
     @Test
@@ -171,10 +170,9 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.ValidationError>(status.type)
-            assertEquals(LoginField.EMAIL, (status.type as LoginErrorType.ValidationError).field)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            val validation = assertIs<LoginErrorType.ValidationError>(error.type)
+            assertEquals(LoginField.EMAIL, validation.field)
         }
 
     @Test
@@ -190,8 +188,7 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then - should proceed to API call, not validation error
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Success>(status)
+            checkIs<LoginStatus.Success>(viewModel.state.value.status)
         }
 
     @Test
@@ -207,7 +204,7 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then - should succeed (trimmed email is valid)
-            assertIs<LoginStatus.Success>(viewModel.state.value.status)
+            checkIs<LoginStatus.Success>(viewModel.state.value.status)
             verifySuspend { fixture.authApi.login("user@example.com", "password123") }
         }
 
@@ -225,10 +222,9 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.ValidationError>(status.type)
-            assertEquals(LoginField.PASSWORD, (status.type as LoginErrorType.ValidationError).field)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            val validation = assertIs<LoginErrorType.ValidationError>(error.type)
+            assertEquals(LoginField.PASSWORD, validation.field)
         }
 
     @Test
@@ -244,7 +240,7 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then - should proceed (single char password is valid)
-            assertIs<LoginStatus.Success>(viewModel.state.value.status)
+            checkIs<LoginStatus.Success>(viewModel.state.value.status)
         }
 
     // ========== Successful Login Flow Tests ==========
@@ -264,7 +260,7 @@ class LoginViewModelTest {
             // Note: This is hard to test precisely since state changes quickly
             // We verify the final state is Success which implies it went through Loading
             advanceUntilIdle()
-            assertIs<LoginStatus.Success>(viewModel.state.value.status)
+            checkIs<LoginStatus.Success>(viewModel.state.value.status)
         }
 
     @Test
@@ -326,7 +322,7 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertIs<LoginStatus.Success>(viewModel.state.value.status)
+            checkIs<LoginStatus.Success>(viewModel.state.value.status)
         }
 
     // ========== Error Classification Tests ==========
@@ -344,9 +340,8 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.InvalidCredentials>(status.type)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            checkIs<LoginErrorType.InvalidCredentials>(error.type)
         }
 
     @Test
@@ -362,9 +357,8 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.InvalidCredentials>(status.type)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            checkIs<LoginErrorType.InvalidCredentials>(error.type)
         }
 
     @Test
@@ -380,10 +374,9 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.NetworkError>(status.type)
-            assertEquals("Connection refused. Is the server running?", (status.type as LoginErrorType.NetworkError).detail)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            val networkError = assertIs<LoginErrorType.NetworkError>(error.type)
+            assertEquals("Connection refused. Is the server running?", networkError.detail)
         }
 
     @Test
@@ -399,10 +392,9 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.NetworkError>(status.type)
-            assertEquals("Connection timed out. Check server address.", (status.type as LoginErrorType.NetworkError).detail)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            val networkError = assertIs<LoginErrorType.NetworkError>(error.type)
+            assertEquals("Connection timed out. Check server address.", networkError.detail)
         }
 
     @Test
@@ -418,10 +410,9 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.NetworkError>(status.type)
-            assertEquals("Server not found. Check the address.", (status.type as LoginErrorType.NetworkError).detail)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            val networkError = assertIs<LoginErrorType.NetworkError>(error.type)
+            assertEquals("Server not found. Check the address.", networkError.detail)
         }
 
     @Test
@@ -437,10 +428,9 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.ServerError>(status.type)
-            assertEquals("Server error (500)", (status.type as LoginErrorType.ServerError).detail)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            val serverError = assertIs<LoginErrorType.ServerError>(error.type)
+            assertEquals("Server error (500)", serverError.detail)
         }
 
     @Test
@@ -456,10 +446,9 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.ServerError>(status.type)
-            assertEquals("Server error (503)", (status.type as LoginErrorType.ServerError).detail)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            val serverError = assertIs<LoginErrorType.ServerError>(error.type)
+            assertEquals("Server error (503)", serverError.detail)
         }
 
     @Test
@@ -475,10 +464,9 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val status = viewModel.state.value.status
-            assertIs<LoginStatus.Error>(status)
-            assertIs<LoginErrorType.ServerError>(status.type)
-            assertEquals("Something unexpected happened", (status.type as LoginErrorType.ServerError).detail)
+            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            val serverError = assertIs<LoginErrorType.ServerError>(error.type)
+            assertEquals("Something unexpected happened", serverError.detail)
         }
 
     // ========== clearError Tests ==========
@@ -492,7 +480,7 @@ class LoginViewModelTest {
             val viewModel = fixture.build()
             viewModel.onLoginSubmit(email = "user@example.com", password = "password")
             advanceUntilIdle()
-            assertIs<LoginStatus.Error>(viewModel.state.value.status)
+            checkIs<LoginStatus.Error>(viewModel.state.value.status)
 
             // When
             viewModel.clearError()
@@ -525,12 +513,12 @@ class LoginViewModelTest {
             val viewModel = fixture.build()
             viewModel.onLoginSubmit(email = "user@example.com", password = "password")
             advanceUntilIdle()
-            assertIs<LoginStatus.Success>(viewModel.state.value.status)
+            checkIs<LoginStatus.Success>(viewModel.state.value.status)
 
             // When
             viewModel.clearError()
 
             // Then - still Success
-            assertIs<LoginStatus.Success>(viewModel.state.value.status)
+            checkIs<LoginStatus.Success>(viewModel.state.value.status)
         }
 }

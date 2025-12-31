@@ -48,15 +48,17 @@ class TagPuller(
             logger.info { "Fetched ${tags.size} global tags" }
 
             // Convert to entities and upsert
-            val tagEntities = tags.map { tag ->
-                TagEntity(
-                    id = tag.id,
-                    slug = tag.slug,
-                    bookCount = tag.bookCount,
-                    createdAt = tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
-                        ?: Timestamp.now(),
-                )
-            }
+            val tagEntities =
+                tags.map { tag ->
+                    TagEntity(
+                        id = tag.id,
+                        slug = tag.slug,
+                        bookCount = tag.bookCount,
+                        createdAt =
+                            tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
+                                ?: Timestamp.now(),
+                    )
+                }
             tagDao.upsertAll(tagEntities)
             logger.info { "Tag sync complete: ${tagEntities.size} tags synced" }
         } catch (e: Exception) {
