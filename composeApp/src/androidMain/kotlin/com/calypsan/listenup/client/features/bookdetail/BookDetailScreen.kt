@@ -157,7 +157,7 @@ fun BookDetailScreen(
                     bookId = bookId,
                     state = state,
                     downloadStatus = downloadStatus,
-                    isComplete = false, // TODO: Add completion tracking
+                    isComplete = state.isComplete,
                     isAdmin = isAdmin,
                     isWaitingForWifi = isWaitingForWifi,
                     onBackClick = onBackClick,

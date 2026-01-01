@@ -73,16 +73,22 @@ fun YourReadingHistory(
                     } else {
                         append("In progress")
                     }
-                    append(" · ")
-                    // Format total listening time
-                    val totalHours = totalListenTimeMs.milliseconds.inWholeHours
-                    if (totalHours > 0) {
-                        append("${totalHours}h")
-                    } else {
-                        val totalMinutes = totalListenTimeMs.milliseconds.inWholeMinutes
-                        append("${totalMinutes}m")
+
+                    // Format total listening time (with sanity check for corrupted data)
+                    // Max reasonable value: 1000 hours = 3,600,000,000 ms
+                    val maxReasonableMs = 3_600_000_000L
+                    if (totalListenTimeMs in 1 until maxReasonableMs) {
+                        append(" · ")
+                        val totalHours = totalListenTimeMs.milliseconds.inWholeHours
+                        if (totalHours > 0) {
+                            append("${totalHours}h")
+                        } else {
+                            val totalMinutes = totalListenTimeMs.milliseconds.inWholeMinutes
+                            append("${totalMinutes}m")
+                        }
+                        append(" total listening time")
                     }
-                    append(" total listening time")
+                    // If listen time is 0 or corrupted (> 1000 hours), don't show it
                 }
 
             Text(

@@ -364,10 +364,13 @@ class ProgressTracker(
     /**
      * Mark a book as finished.
      * Called when playback reaches the end.
+     *
+     * @param bookId The book that finished
+     * @param finalPositionMs The final position (typically the book's total duration)
      */
-    fun onBookFinished(bookId: BookId) {
+    fun onBookFinished(bookId: BookId, finalPositionMs: Long) {
         scope.launch {
-            logger.info { "Book finished: ${bookId.value}" }
+            logger.info { "Book finished: ${bookId.value}, finalPosition=$finalPositionMs" }
 
             // Record completion event
             currentSession?.let { session ->
@@ -375,7 +378,7 @@ class ProgressTracker(
                     queueListeningEvent(
                         bookId = bookId,
                         startPositionMs = session.startPositionMs,
-                        endPositionMs = Long.MAX_VALUE, // Indicates completion
+                        endPositionMs = finalPositionMs,
                         startedAt = session.startedAt,
                         endedAt = Clock.System.now().toEpochMilliseconds(),
                         playbackSpeed = session.playbackSpeed,

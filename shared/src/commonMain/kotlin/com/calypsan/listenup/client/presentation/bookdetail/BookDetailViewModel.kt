@@ -82,9 +82,12 @@ class BookDetailViewModel(
                         null
                     }
 
-                // Calculate time remaining if there's progress
+                // Check if book is complete (99%+ progress)
+                val isComplete = progress != null && progress >= 0.99f
+
+                // Calculate time remaining if there's progress (but not complete)
                 val timeRemaining =
-                    if (progress != null && progress > 0f && progress < 0.99f) {
+                    if (progress != null && progress > 0f && !isComplete) {
                         val remainingMs = book.duration - (position?.positionMs ?: 0L)
                         formatTimeRemaining(remainingMs)
                     } else {
@@ -102,7 +105,8 @@ class BookDetailViewModel(
                         year = book.publishYear,
                         rating = book.rating,
                         chapters = chapters,
-                        progress = if (progress != null && progress > 0f && progress < 0.99f) progress else null,
+                        isComplete = isComplete,
+                        progress = if (progress != null && progress > 0f && !isComplete) progress else null,
                         timeRemainingFormatted = timeRemaining,
                     )
 
