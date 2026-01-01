@@ -671,6 +671,48 @@ data class SSEInboxBookReleasedEvent(
 )
 
 // =============================================================================
+// Listening SSE Events
+// =============================================================================
+
+/**
+ * SSE progress updated event data.
+ * Sent when a user's playback progress is updated (from any device).
+ */
+@Serializable
+data class SSEProgressUpdatedEvent(
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("current_position_ms")
+    val currentPositionMs: Long,
+    @SerialName("progress")
+    val progress: Double,
+    @SerialName("total_listen_time_ms")
+    val totalListenTimeMs: Long,
+    @SerialName("is_finished")
+    val isFinished: Boolean,
+    @SerialName("last_played_at")
+    val lastPlayedAt: String,
+)
+
+/**
+ * SSE reading session updated event data.
+ * Sent when a reading session is created or completed.
+ */
+@Serializable
+data class SSEReadingSessionUpdatedEvent(
+    @SerialName("session_id")
+    val sessionId: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("is_completed")
+    val isCompleted: Boolean,
+    @SerialName("listen_time_ms")
+    val listenTimeMs: Long,
+    @SerialName("finished_at")
+    val finishedAt: String? = null,
+)
+
+// =============================================================================
 // Single Book Endpoint Models (GET /api/v1/books/{id})
 // =============================================================================
 

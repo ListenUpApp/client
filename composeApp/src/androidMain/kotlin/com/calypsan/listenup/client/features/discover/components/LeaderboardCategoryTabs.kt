@@ -23,11 +23,12 @@ fun LeaderboardCategoryTabs(
     onCategorySelected: (LeaderboardCategory) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val categories = listOf(
-        LeaderboardCategory.TIME to "Time",
-        LeaderboardCategory.BOOKS to "Books",
-        LeaderboardCategory.STREAK to "Streak",
-    )
+    val categories =
+        listOf(
+            LeaderboardCategory.TIME to "Time",
+            LeaderboardCategory.BOOKS to "Books",
+            LeaderboardCategory.STREAK to "Streak",
+        )
 
     val selectedIndex = categories.indexOfFirst { it.first == selectedCategory }
 

@@ -10,7 +10,9 @@ import kotlinx.serialization.Serializable
 /**
  * Leaderboard category for ranking.
  */
-enum class LeaderboardCategory(val value: String) {
+enum class LeaderboardCategory(
+    val value: String,
+) {
     TIME("time"),
     BOOKS("books"),
     STREAK("streak"),
@@ -63,11 +65,13 @@ class LeaderboardApi(
         limit: Int,
     ): LeaderboardResponse {
         val client = clientFactory.getClient()
-        val response: ApiResponse<LeaderboardResponse> = client.get("/api/v1/social/leaderboard") {
-            parameter("period", period.value)
-            parameter("category", category.value)
-            parameter("limit", limit)
-        }.body()
+        val response: ApiResponse<LeaderboardResponse> =
+            client
+                .get("/api/v1/social/leaderboard") {
+                    parameter("period", period.value)
+                    parameter("category", category.value)
+                    parameter("limit", limit)
+                }.body()
 
         if (!response.success || response.data == null) {
             throw RuntimeException("Leaderboard API error: ${response.error ?: "Unknown error"}")
@@ -84,22 +88,16 @@ class LeaderboardApi(
 data class LeaderboardEntryResponse(
     @SerialName("rank")
     val rank: Int,
-
     @SerialName("user_id")
     val userId: String,
-
     @SerialName("display_name")
     val displayName: String,
-
     @SerialName("avatar_url")
     val avatarUrl: String? = null,
-
     @SerialName("value")
     val value: Long,
-
     @SerialName("value_label")
     val valueLabel: String,
-
     @SerialName("is_current_user")
     val isCurrentUser: Boolean,
 )
@@ -111,16 +109,12 @@ data class LeaderboardEntryResponse(
 data class CommunityStatsResponse(
     @SerialName("total_time_ms")
     val totalTimeMs: Long,
-
     @SerialName("total_time_label")
     val totalTimeLabel: String,
-
     @SerialName("total_books")
     val totalBooks: Int,
-
     @SerialName("average_streak")
     val averageStreak: Double,
-
     @SerialName("active_users_count")
     val activeUsersCount: Int,
 )
@@ -132,13 +126,10 @@ data class CommunityStatsResponse(
 data class LeaderboardResponse(
     @SerialName("category")
     val category: String,
-
     @SerialName("period")
     val period: String,
-
     @SerialName("entries")
     val entries: List<LeaderboardEntryResponse>,
-
     @SerialName("community_stats")
     val communityStats: CommunityStatsResponse,
 )

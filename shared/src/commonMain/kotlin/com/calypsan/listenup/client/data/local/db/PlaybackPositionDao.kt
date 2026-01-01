@@ -78,12 +78,15 @@ interface PlaybackPositionDao {
 
     /**
      * Get recently played books for "Continue Listening" section.
-     * Returns positions ordered by most recently updated, limited to specified count.
+     * Returns positions ordered by most recently played, limited to specified count.
+     *
+     * Uses COALESCE to handle legacy data where lastPlayedAt may be null,
+     * falling back to updatedAt in those cases.
      *
      * @param limit Maximum number of positions to return
-     * @return List of positions ordered by updatedAt descending
+     * @return List of positions ordered by lastPlayedAt descending (with updatedAt fallback)
      */
-    @Query("SELECT * FROM playback_positions ORDER BY updatedAt DESC LIMIT :limit")
+    @Query("SELECT * FROM playback_positions ORDER BY COALESCE(lastPlayedAt, updatedAt) DESC LIMIT :limit")
     suspend fun getRecentPositions(limit: Int): List<PlaybackPositionEntity>
 
     /**

@@ -177,6 +177,10 @@ class LibraryViewModel(
      * Observable progress data for all books.
      * Maps bookId -> progress (0.0 to 1.0).
      * Used for showing progress indicators on book cards.
+     *
+     * Includes both in-progress books (< 99%) and completed books (>= 99%).
+     * BookCard uses this to show progress overlay for in-progress,
+     * and a completion badge for completed books.
      */
     val bookProgress: StateFlow<Map<String, Float>> =
         combine(
@@ -194,8 +198,8 @@ class LibraryViewModel(
                     if (duration <= 0) continue
 
                     val progress = (position.positionMs.toFloat() / duration).coerceIn(0f, 1f)
-                    // Only include books with meaningful progress (> 0% and < 99%)
-                    if (progress > 0f && progress < PROGRESS_COMPLETE_THRESHOLD) {
+                    // Include all books with any progress (both in-progress and completed)
+                    if (progress > 0f) {
                         put(bookId, progress)
                     }
                 }

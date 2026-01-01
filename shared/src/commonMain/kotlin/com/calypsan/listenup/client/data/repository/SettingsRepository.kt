@@ -556,14 +556,13 @@ class SettingsRepository(
             return AuthState.Authenticated(userId, sessionId)
         }
 
-        // URL + Token but missing userId/sessionId → still trust it
-        // This handles edge cases where session data wasn't fully persisted
+        // URL + Token but missing userId/sessionId → inconsistent state
+        // This can happen if app crashed during token save or storage was corrupted.
+        // Clear the invalid tokens and require fresh login - never use placeholders
+        // as they cause "Unknown User" to appear in the UI.
         if (hasToken) {
-            // Use placeholder values - will be refreshed on first successful API call
-            return AuthState.Authenticated(
-                userId = userId ?: "pending",
-                sessionId = sessionId ?: "pending",
-            )
+            clearAuthTokens()
+            return AuthState.NeedsLogin(openRegistration = getCachedOpenRegistration())
         }
 
         // Check for pending registration (user registered but waiting for approval)

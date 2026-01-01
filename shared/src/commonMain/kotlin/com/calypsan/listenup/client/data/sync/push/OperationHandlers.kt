@@ -3,8 +3,12 @@ package com.calypsan.listenup.client.data.sync.push
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 import com.calypsan.listenup.client.data.remote.BookApiContract
 import com.calypsan.listenup.client.data.remote.BookUpdateRequest
 import com.calypsan.listenup.client.data.remote.ContributorApiContract
@@ -17,7 +21,10 @@ import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesRequest
 import kotlinx.serialization.json.Json
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+
 private val json = Json { ignoreUnknownKeys = true }
+private val logger = KotlinLogging.logger {}
 
 /**
  * Handler for BOOK_UPDATE operations.
@@ -307,9 +314,13 @@ class UnmergeContributorHandler(
  * Handler for LISTENING_EVENT operations.
  * Never coalesces - each event is unique.
  * Batches together for efficient submission.
+ *
+ * After successful submission, marks the playback position as synced
+ * so other parts of the system know the server has the latest data.
  */
 class ListeningEventHandler(
     private val api: SyncApiContract,
+    private val positionDao: PlaybackPositionDao,
 ) : OperationHandler<ListeningEventPayload> {
     override val operationType = OperationType.LISTENING_EVENT
 
@@ -334,6 +345,9 @@ class ListeningEventHandler(
         return when (val result = api.submitListeningEvents(request)) {
             is Success -> {
                 if (payload.id in result.data.acknowledged) {
+                    // Mark position as synced so other parts of the system know
+                    // the server has the latest data for this book
+                    markPositionSynced(payload.bookId)
                     Success(Unit)
                 } else {
                     Failure(Exception("Event not acknowledged by server"))
@@ -349,14 +363,19 @@ class ListeningEventHandler(
     override suspend fun executeBatch(
         operations: List<Pair<PendingOperationEntity, ListeningEventPayload>>,
     ): Map<String, Result<Unit>> {
+        logger.info { "📤 LISTENING EVENTS: Submitting ${operations.size} events to server" }
         val requests = operations.map { (_, payload) -> payload.toApiRequest() }
+        logger.info { "📤 LISTENING EVENTS: Event IDs: ${requests.map { it.id }}" }
 
         return when (val result = api.submitListeningEvents(requests)) {
             is Success -> {
+                logger.info { "📤 LISTENING EVENTS: Server acknowledged ${result.data.acknowledged.size} events, failed ${result.data.failed.size}" }
                 val acknowledged = result.data.acknowledged.toSet()
                 operations.associate { (op, payload) ->
                     op.id to
                         if (payload.id in acknowledged) {
+                            // Mark position as synced for this book
+                            markPositionSynced(payload.bookId)
                             Success(Unit)
                         } else {
                             Failure(Exception("Event not acknowledged"))
@@ -365,9 +384,22 @@ class ListeningEventHandler(
             }
 
             is Failure -> {
+                logger.error(result.exception) { "📤 LISTENING EVENTS: Submission failed" }
                 operations.associate { (op, _) -> op.id to Failure(result.exception) }
             }
         }
+    }
+
+    /**
+     * Marks the playback position for a book as synced.
+     * Called after successful event submission to indicate the server has the latest data.
+     */
+    @OptIn(ExperimentalTime::class)
+    private suspend fun markPositionSynced(bookId: String) {
+        positionDao.markSynced(
+            bookId = BookId(bookId),
+            syncedAt = Clock.System.now().toEpochMilliseconds(),
+        )
     }
 
     private fun ListeningEventPayload.toApiRequest() =

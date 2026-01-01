@@ -60,9 +60,8 @@ class LeaderboardViewModel(
     /**
      * Get entries for a specific category (for pager pages).
      */
-    fun getEntriesForCategory(category: LeaderboardCategory): List<LeaderboardEntryResponse> {
-        return entriesByCategory[category] ?: emptyList()
-    }
+    fun getEntriesForCategory(category: LeaderboardCategory): List<LeaderboardEntryResponse> =
+        entriesByCategory[category] ?: emptyList()
 
     /**
      * Select a new period (refetches all categories).
@@ -96,21 +95,23 @@ class LeaderboardViewModel(
                 val currentCategory = state.value.selectedCategory
 
                 // Fetch all categories in parallel
-                val categories = listOf(
-                    LeaderboardCategory.TIME,
-                    LeaderboardCategory.BOOKS,
-                    LeaderboardCategory.STREAK,
-                )
+                val categories =
+                    listOf(
+                        LeaderboardCategory.TIME,
+                        LeaderboardCategory.BOOKS,
+                        LeaderboardCategory.STREAK,
+                    )
 
                 var communityStats: CommunityStatsResponse? = null
 
                 categories.forEach { category ->
                     try {
-                        val response = leaderboardApi.getLeaderboard(
-                            period = period,
-                            category = category,
-                            limit = 10,
-                        )
+                        val response =
+                            leaderboardApi.getLeaderboard(
+                                period = period,
+                                category = category,
+                                limit = 10,
+                            )
                         entriesByCategory[category] = response.entries
                         // Use community stats from any category (they should be the same)
                         if (communityStats == null) {

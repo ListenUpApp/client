@@ -68,6 +68,7 @@ import com.calypsan.listenup.client.presentation.bookdetail.ChapterUiModel
 @Suppress("LongParameterList")
 @Composable
 fun TwoPaneBookDetail(
+    bookId: String,
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
@@ -124,6 +125,7 @@ fun TwoPaneBookDetail(
 
         // Right pane - Content section with surface background
         TwoPaneRightPane(
+            bookId = bookId,
             state = state,
             onSeriesClick = onSeriesClick,
             onTagClick = onTagClick,
@@ -338,6 +340,7 @@ private fun TwoPaneLeftPane(
 
 @Composable
 private fun TwoPaneRightPane(
+    bookId: String,
     state: BookDetailUiState,
     onSeriesClick: (seriesId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
@@ -390,6 +393,11 @@ private fun TwoPaneRightPane(
                     onTagClick = { tag -> onTagClick(tag.id) },
                 )
             }
+        }
+
+        // Readers
+        item {
+            BookReadersSection(bookId = bookId)
         }
 
         // Chapters

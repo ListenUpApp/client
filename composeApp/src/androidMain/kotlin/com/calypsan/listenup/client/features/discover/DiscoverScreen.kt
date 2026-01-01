@@ -94,9 +94,10 @@ fun DiscoverScreen(
 @Composable
 private fun EmptyLensesState(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(48.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -150,9 +151,10 @@ private fun DiscoverContent(
             isLoading && users.isEmpty() -> {
                 item {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(48.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(48.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         ListenUpLoadingIndicator()
@@ -163,9 +165,10 @@ private fun DiscoverContent(
             error != null -> {
                 item {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(48.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(48.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(

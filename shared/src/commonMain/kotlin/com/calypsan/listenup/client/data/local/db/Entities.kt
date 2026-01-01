@@ -200,10 +200,14 @@ data class PlaybackPositionEntity(
     val playbackSpeed: Float,
     // Whether user explicitly set a custom speed for this book (vs using universal default)
     val hasCustomSpeed: Boolean = false,
-    // Local timestamp (epoch ms)
+    // Local timestamp when entity was modified (epoch ms)
     val updatedAt: Long,
     // When last synced to server (null if not synced)
     val syncedAt: Long? = null,
+    // When user actually last played this book (epoch ms)
+    // Used for "Continue Listening" ordering and social features ("last read")
+    // Falls back to updatedAt if null (legacy data before migration)
+    val lastPlayedAt: Long? = null,
 )
 
 /**

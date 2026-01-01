@@ -43,6 +43,7 @@ import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.design.components.rememberCoverColors
 import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.download.DownloadResult
+import com.calypsan.listenup.client.features.bookdetail.components.BookReadersSection
 import com.calypsan.listenup.client.features.bookdetail.components.ChapterListItem
 import com.calypsan.listenup.client.features.bookdetail.components.ChaptersHeader
 import com.calypsan.listenup.client.features.bookdetail.components.ContextMetadataSection
@@ -153,6 +154,7 @@ fun BookDetailScreen(
 
             else -> {
                 BookDetailContent(
+                    bookId = bookId,
                     state = state,
                     downloadStatus = downloadStatus,
                     isComplete = false, // TODO: Add completion tracking
@@ -224,6 +226,7 @@ fun BookDetailScreen(
 @Suppress("LongParameterList")
 @Composable
 fun BookDetailContent(
+    bookId: String,
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
@@ -253,6 +256,7 @@ fun BookDetailContent(
 
     if (useTwoPane) {
         TwoPaneBookDetail(
+            bookId = bookId,
             state = state,
             downloadStatus = downloadStatus,
             isComplete = isComplete,
@@ -274,6 +278,7 @@ fun BookDetailContent(
         )
     } else {
         ImmersiveBookDetail(
+            bookId = bookId,
             state = state,
             downloadStatus = downloadStatus,
             isComplete = isComplete,
@@ -307,6 +312,7 @@ fun BookDetailContent(
 @Suppress("LongParameterList")
 @Composable
 private fun ImmersiveBookDetail(
+    bookId: String,
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
@@ -426,7 +432,15 @@ private fun ImmersiveBookDetail(
             }
         }
 
-        // 7. CHAPTERS - Deep dive
+        // 7. READERS - Social reading activity
+        item {
+            BookReadersSection(
+                bookId = bookId,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+        }
+
+        // 8. CHAPTERS - Deep dive
         item {
             Spacer(modifier = Modifier.height(16.dp))
             ChaptersHeader(

@@ -24,6 +24,7 @@ import androidx.room.TypeConverters
  * - v17: Added collections table for admin collection management
  * - v18: Added lenses table for personal curation and social discovery
  * - v19: Added tags and book_tags tables for community tagging
+ * - v20: Added lastPlayedAt column to playback_positions for accurate "last read" tracking
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -47,7 +48,7 @@ import androidx.room.TypeConverters
         TagEntity::class,
         BookTagCrossRef::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)

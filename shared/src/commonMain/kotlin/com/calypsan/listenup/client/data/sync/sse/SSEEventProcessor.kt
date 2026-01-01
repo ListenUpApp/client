@@ -160,6 +160,14 @@ class SSEEventProcessor(
                 is SSEEventType.BookTagRemoved -> {
                     handleBookTagRemoved(event)
                 }
+
+                is SSEEventType.ProgressUpdated -> {
+                    handleProgressUpdated(event)
+                }
+
+                is SSEEventType.ReadingSessionUpdated -> {
+                    handleReadingSessionUpdated(event)
+                }
             }
         } catch (e: Exception) {
             logger.error(e) { "Failed to process SSE event: $event" }
@@ -494,6 +502,20 @@ class SSEEventProcessor(
         } catch (e: Exception) {
             logger.warn(e) { "Failed to touch book ${event.bookId} after tag removed" }
         }
+    }
+
+    // ========== Listening Event Handlers ==========
+
+    private fun handleProgressUpdated(event: SSEEventType.ProgressUpdated) {
+        logger.info { "SSE: Progress updated for book ${event.bookId} - ${(event.progress * 100).toInt()}% (from another device)" }
+        // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
+        // Stats/Continue Listening screens can listen for this to refresh
+    }
+
+    private fun handleReadingSessionUpdated(event: SSEEventType.ReadingSessionUpdated) {
+        logger.info { "SSE: Reading session ${event.sessionId} updated for book ${event.bookId} - completed=${event.isCompleted}" }
+        // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
+        // Book detail/readers screens can listen for this to refresh
     }
 }
 

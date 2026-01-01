@@ -86,18 +86,20 @@ private fun GenreBar(
 
         // Progress bar
         Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(fraction)
+            modifier =
+                Modifier
+                    .weight(1f)
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(fraction)
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.primary),
             )
         }
 

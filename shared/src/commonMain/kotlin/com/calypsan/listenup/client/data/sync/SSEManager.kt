@@ -20,6 +20,8 @@ import com.calypsan.listenup.client.data.remote.model.SSELensDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEProgressUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEReadingSessionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserData
@@ -477,6 +479,37 @@ class SSEManager(
                         )
                     }
 
+                    "listening.progress_updated" -> {
+                        val progressEvent =
+                            json.decodeFromJsonElement(
+                                SSEProgressUpdatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ProgressUpdated(
+                            bookId = progressEvent.bookId,
+                            currentPositionMs = progressEvent.currentPositionMs,
+                            progress = progressEvent.progress,
+                            totalListenTimeMs = progressEvent.totalListenTimeMs,
+                            isFinished = progressEvent.isFinished,
+                            lastPlayedAt = progressEvent.lastPlayedAt,
+                        )
+                    }
+
+                    "reading_session.updated" -> {
+                        val sessionEvent =
+                            json.decodeFromJsonElement(
+                                SSEReadingSessionUpdatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ReadingSessionUpdated(
+                            sessionId = sessionEvent.sessionId,
+                            bookId = sessionEvent.bookId,
+                            isCompleted = sessionEvent.isCompleted,
+                            listenTimeMs = sessionEvent.listenTimeMs,
+                            finishedAt = sessionEvent.finishedAt,
+                        )
+                    }
+
                     else -> {
                         logger.debug { "Unknown event type: ${sseEvent.type}" }
                         return
@@ -688,5 +721,32 @@ sealed class SSEEventType {
      */
     data class InboxBookReleased(
         val bookId: String,
+    ) : SSEEventType()
+
+    // Listening events
+
+    /**
+     * User's playback progress was updated.
+     * Used to refresh stats and continue listening.
+     */
+    data class ProgressUpdated(
+        val bookId: String,
+        val currentPositionMs: Long,
+        val progress: Double,
+        val totalListenTimeMs: Long,
+        val isFinished: Boolean,
+        val lastPlayedAt: String,
+    ) : SSEEventType()
+
+    /**
+     * A reading session was created or updated.
+     * Used to refresh book readers list.
+     */
+    data class ReadingSessionUpdated(
+        val sessionId: String,
+        val bookId: String,
+        val isCompleted: Boolean,
+        val listenTimeMs: Long,
+        val finishedAt: String?,
     ) : SSEEventType()
 }

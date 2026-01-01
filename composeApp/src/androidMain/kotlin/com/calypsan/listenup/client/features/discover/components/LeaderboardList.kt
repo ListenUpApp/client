@@ -47,18 +47,20 @@ private fun LeaderboardEntry(
     entry: LeaderboardEntryResponse,
     modifier: Modifier = Modifier,
 ) {
-    val backgroundColor = if (entry.isCurrentUser) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerLow
-    }
+    val backgroundColor =
+        if (entry.isCurrentUser) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        }
 
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.small)
-            .background(backgroundColor)
-            .padding(12.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.small)
+                .background(backgroundColor)
+                .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Rank badge
@@ -81,11 +83,12 @@ private fun LeaderboardEntry(
             text = entry.valueLabel,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = if (entry.isCurrentUser) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
+            color =
+                if (entry.isCurrentUser) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
         )
     }
 }
@@ -95,28 +98,40 @@ private fun RankBadge(
     rank: Int,
     modifier: Modifier = Modifier,
 ) {
-    val (backgroundColor, textColor, emoji) = when (rank) {
-        1 -> Triple(
-            MaterialTheme.colorScheme.tertiaryContainer,
-            MaterialTheme.colorScheme.onTertiaryContainer,
-            "\uD83E\uDD47", // Gold medal
-        )
-        2 -> Triple(
-            MaterialTheme.colorScheme.secondaryContainer,
-            MaterialTheme.colorScheme.onSecondaryContainer,
-            "\uD83E\uDD48", // Silver medal
-        )
-        3 -> Triple(
-            MaterialTheme.colorScheme.surfaceContainerHighest,
-            MaterialTheme.colorScheme.onSurface,
-            "\uD83E\uDD49", // Bronze medal
-        )
-        else -> Triple(
-            MaterialTheme.colorScheme.surfaceContainerHigh,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            null,
-        )
-    }
+    val (backgroundColor, textColor, emoji) =
+        when (rank) {
+            1 -> {
+                Triple(
+                    MaterialTheme.colorScheme.tertiaryContainer,
+                    MaterialTheme.colorScheme.onTertiaryContainer,
+                    "\uD83E\uDD47", // Gold medal
+                )
+            }
+
+            2 -> {
+                Triple(
+                    MaterialTheme.colorScheme.secondaryContainer,
+                    MaterialTheme.colorScheme.onSecondaryContainer,
+                    "\uD83E\uDD48", // Silver medal
+                )
+            }
+
+            3 -> {
+                Triple(
+                    MaterialTheme.colorScheme.surfaceContainerHighest,
+                    MaterialTheme.colorScheme.onSurface,
+                    "\uD83E\uDD49", // Bronze medal
+                )
+            }
+
+            else -> {
+                Triple(
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    null,
+                )
+            }
+        }
 
     if (emoji != null) {
         Text(
@@ -126,10 +141,11 @@ private fun RankBadge(
         )
     } else {
         androidx.compose.foundation.layout.Box(
-            modifier = modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(backgroundColor),
+            modifier =
+                modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(backgroundColor),
             contentAlignment = Alignment.Center,
         ) {
             Text(

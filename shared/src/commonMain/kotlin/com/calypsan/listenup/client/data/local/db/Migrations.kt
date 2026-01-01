@@ -786,3 +786,28 @@ val MIGRATION_18_19 =
             )
         }
     }
+
+/**
+ * Migration from version 19 to version 20.
+ *
+ * Changes:
+ * - Add lastPlayedAt column to playback_positions table
+ *
+ * This enables proper tracking of when the user actually last played a book,
+ * separate from when the local entity was modified. Used for:
+ * - Ordering "Continue Listening" by actual play time
+ * - Social features showing "last read" timestamps to other users
+ *
+ * For existing data, lastPlayedAt will be NULL and code falls back to updatedAt.
+ */
+val MIGRATION_19_20 =
+    object : Migration(19, 20) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add lastPlayedAt column (nullable for existing rows)
+            connection.execSQL(
+                """
+                ALTER TABLE playback_positions ADD COLUMN lastPlayedAt INTEGER DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }

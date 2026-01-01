@@ -830,6 +830,45 @@ interface UserPreferencesApiContract {
 }
 
 /**
+ * Contract interface for reading session API operations.
+ *
+ * Handles fetching reading history and session data for social features.
+ */
+interface SessionApiContract {
+    /**
+     * Get list of readers for a specific book.
+     *
+     * Returns the current user's sessions along with other readers who
+     * have also read or are currently reading the book.
+     *
+     * Endpoint: GET /api/v1/sessions/books/{bookId}/readers
+     * Auth: Required
+     *
+     * @param bookId Book ID to get readers for
+     * @param limit Maximum number of other readers to return (default 10)
+     * @return Result containing BookReadersResponse or error
+     */
+    suspend fun getBookReaders(
+        bookId: String,
+        limit: Int = 10,
+    ): Result<BookReadersResponse>
+
+    /**
+     * Get the current user's reading history.
+     *
+     * Returns a list of all sessions for the current user,
+     * sorted by most recently started.
+     *
+     * Endpoint: GET /api/v1/sessions/history
+     * Auth: Required
+     *
+     * @param limit Maximum number of sessions to return (default 20)
+     * @return Result containing UserReadingHistoryResponse or error
+     */
+    suspend fun getUserReadingHistory(limit: Int = 20): Result<UserReadingHistoryResponse>
+}
+
+/**
  * Response from user settings endpoint.
  *
  * Contains all user-level playback settings that sync across devices.
@@ -1033,4 +1072,78 @@ data class ReleaseInboxBooksResponse(
     val public: Int,
     /** Number of collection assignments made */
     val toCollections: Int,
+)
+
+// =============================================================================
+// Session API Response Types
+// =============================================================================
+
+/**
+ * Response from book readers endpoint.
+ *
+ * Contains the current user's sessions and other readers for a book.
+ */
+data class BookReadersResponse(
+    /** User's own sessions for this book */
+    val yourSessions: List<SessionSummary>,
+    /** Other users who have read this book */
+    val otherReaders: List<ReaderSummary>,
+    /** Total number of unique readers */
+    val totalReaders: Int,
+    /** Total number of completions across all readers */
+    val totalCompletions: Int,
+)
+
+/**
+ * Summary of a single reading session.
+ */
+data class SessionSummary(
+    val id: String,
+    val startedAt: String,
+    val finishedAt: String? = null,
+    val isCompleted: Boolean,
+    val listenTimeMs: Long,
+)
+
+/**
+ * Summary of another reader for a book.
+ */
+data class ReaderSummary(
+    val userId: String,
+    val displayName: String,
+    val avatarColor: String,
+    val isCurrentlyReading: Boolean,
+    val currentProgress: Double = 0.0,
+    val startedAt: String,
+    val finishedAt: String? = null,
+    val completionCount: Int,
+)
+
+/**
+ * Response from user reading history endpoint.
+ */
+data class UserReadingHistoryResponse(
+    /** List of sessions for the current user */
+    val sessions: List<ReadingHistorySession>,
+    /** Total number of sessions */
+    val totalSessions: Int,
+    /** Total number of completed books */
+    val totalCompleted: Int,
+)
+
+/**
+ * A session in the user's reading history.
+ *
+ * Contains embedded book details for display.
+ */
+data class ReadingHistorySession(
+    val id: String,
+    val bookId: String,
+    val bookTitle: String,
+    val bookAuthor: String = "",
+    val coverPath: String? = null,
+    val startedAt: String,
+    val finishedAt: String? = null,
+    val isCompleted: Boolean,
+    val listenTimeMs: Long,
 )

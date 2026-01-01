@@ -39,17 +39,20 @@ fun HomeStatsSection(
 
     // Always show the card - different content based on state
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Section title
@@ -68,6 +71,7 @@ fun HomeStatsSection(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+
                 state.error != null -> {
                     // Error state - SHOW the error so we can debug
                     Text(
@@ -76,10 +80,12 @@ fun HomeStatsSection(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
+
                 state.hasData -> {
                     // Stats content
                     HomeStatsContent(state = state)
                 }
+
                 else -> {
                     // Empty state
                     Text(
@@ -97,9 +103,7 @@ fun HomeStatsSection(
  * Stats content when data is available.
  */
 @Composable
-private fun HomeStatsContent(
-    state: com.calypsan.listenup.client.presentation.home.HomeStatsUiState,
-) {
+private fun HomeStatsContent(state: com.calypsan.listenup.client.presentation.home.HomeStatsUiState) {
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {

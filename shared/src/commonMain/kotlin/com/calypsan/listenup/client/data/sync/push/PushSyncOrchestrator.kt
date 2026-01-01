@@ -68,26 +68,33 @@ class PushSyncOrchestrator(
      * Failed operations are marked for user review after MAX_RETRIES.
      */
     override suspend fun flush() {
+        logger.info { "🔄 PUSH SYNC: flush() called, isOnline=${networkMonitor.isOnline()}" }
+
         if (!networkMonitor.isOnline()) {
-            logger.debug { "Offline - skipping push sync flush" }
+            logger.warn { "🔄 PUSH SYNC: Offline - skipping flush" }
             return
         }
 
         if (_isFlushing.value) {
-            logger.debug { "Already flushing - skipping" }
+            logger.info { "🔄 PUSH SYNC: Already flushing - skipping" }
             return
         }
 
         _isFlushing.value = true
-        logger.debug { "Starting push sync flush" }
+        logger.info { "🔄 PUSH SYNC: Starting flush..." }
 
         try {
             var processed = 0
             while (true) {
                 val batch = repository.getNextBatch(limit = 50)
-                if (batch.isEmpty()) break
+                logger.info { "🔄 PUSH SYNC: Got batch of ${batch.size} operations" }
+                if (batch.isEmpty()) {
+                    logger.info { "🔄 PUSH SYNC: No more operations to process" }
+                    break
+                }
 
                 val ids = batch.map { it.id }
+                logger.info { "🔄 PUSH SYNC: Processing operations: ${batch.map { "${it.operationType}:${it.id}" }}" }
                 repository.markInProgress(ids)
 
                 // Check for conflicts (only for entity operations)

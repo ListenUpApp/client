@@ -6,9 +6,12 @@ import com.calypsan.listenup.client.data.remote.DailyListeningResponse
 import com.calypsan.listenup.client.data.remote.GenreListeningResponse
 import com.calypsan.listenup.client.data.remote.StatsApiContract
 import com.calypsan.listenup.client.data.remote.StatsPeriod
+import com.calypsan.listenup.client.data.sync.SSEEventType
+import com.calypsan.listenup.client.data.sync.SSEManagerContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -23,17 +26,35 @@ private val logger = KotlinLogging.logger {}
  * - Top 3 genres breakdown
  *
  * Always loads weekly stats (7 days) for the home section.
+ * Automatically refreshes when receiving SSE progress events.
  *
  * @property statsApi API client for fetching stats
+ * @property sseManager SSE manager for real-time updates
  */
 class HomeStatsViewModel(
     private val statsApi: StatsApiContract,
+    private val sseManager: SSEManagerContract,
 ) : ViewModel() {
     val state: StateFlow<HomeStatsUiState>
         field = MutableStateFlow(HomeStatsUiState())
 
     init {
         loadStats()
+        observeProgressUpdates()
+    }
+
+    /**
+     * Listen for SSE progress updates and refresh stats when received.
+     */
+    private fun observeProgressUpdates() {
+        viewModelScope.launch {
+            sseManager.eventFlow
+                .filterIsInstance<SSEEventType.ProgressUpdated>()
+                .collect { event ->
+                    logger.info { "Received progress update SSE event, refreshing stats" }
+                    loadStats()
+                }
+        }
     }
 
     /**
@@ -50,12 +71,12 @@ class HomeStatsViewModel(
      */
     private fun loadStats() {
         viewModelScope.launch {
-            state.update { it.copy(isLoading = true, error = null) }
+            field.update { it.copy(isLoading = true, error = null) }
 
             try {
                 val response = statsApi.getUserStats(StatsPeriod.WEEK)
 
-                state.update {
+                field.update {
                     it.copy(
                         isLoading = false,
                         error = null,
@@ -66,10 +87,12 @@ class HomeStatsViewModel(
                         genreBreakdown = response.genreBreakdown.take(3),
                     )
                 }
-                logger.debug { "Home stats loaded: ${response.totalListenTimeMs}ms total, streak: ${response.currentStreakDays}" }
+                logger.debug {
+                    "Home stats loaded: ${response.totalListenTimeMs}ms total, streak: ${response.currentStreakDays}"
+                }
             } catch (e: Exception) {
                 val errorMessage = "Failed to load stats: ${e.message}"
-                state.update {
+                field.update {
                     it.copy(
                         isLoading = false,
                         error = errorMessage,
@@ -89,12 +112,10 @@ class HomeStatsViewModel(
 data class HomeStatsUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
-
     // Stats data
     val totalListenTimeMs: Long = 0,
     val currentStreakDays: Int = 0,
     val longestStreakDays: Int = 0,
-
     // Chart data
     val dailyListening: List<DailyListeningResponse> = emptyList(),
     val genreBreakdown: List<GenreListeningResponse> = emptyList(),

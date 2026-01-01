@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
@@ -10,6 +12,8 @@ import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 /**
  * Contract interface for home repository operations.
@@ -168,6 +172,10 @@ class HomeRepository(
                     return@mapNotNull null
                 }
 
+                // Use lastPlayedAt if available, fall back to updatedAt for legacy data
+                val lastPlayedAtMs = position.lastPlayedAt ?: position.updatedAt
+                val lastPlayedAtIso = Instant.fromEpochMilliseconds(lastPlayedAtMs).toString()
+
                 ContinueListeningBook(
                     bookId = bookIdStr,
                     title = book.title,
@@ -177,7 +185,7 @@ class HomeRepository(
                     progress = progress,
                     currentPositionMs = position.positionMs,
                     totalDurationMs = book.duration,
-                    lastPlayedAt = position.updatedAt.toString(),
+                    lastPlayedAt = lastPlayedAtIso,
                 )
             }
 

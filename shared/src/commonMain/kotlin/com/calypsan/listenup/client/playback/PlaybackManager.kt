@@ -508,6 +508,7 @@ class PlaybackManager(
                 // Return the audio files JSON
                 entity.audioFilesJson
             }
+
             is Failure -> {
                 logger.error(result.exception) { "Failed to fetch book from server: ${bookId.value}" }
                 null

@@ -42,17 +42,20 @@ fun DiscoverLeaderboardSection(
 
     // Always show the card - different content based on state
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Header with title and period selector
@@ -70,6 +73,7 @@ fun DiscoverLeaderboardSection(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+
                 state.error != null -> {
                     // Error state - SHOW the error so we can debug
                     Text(
@@ -78,17 +82,20 @@ fun DiscoverLeaderboardSection(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-                state.hasData -> {
-                    val categories = listOf(
-                        LeaderboardCategory.TIME,
-                        LeaderboardCategory.BOOKS,
-                        LeaderboardCategory.STREAK,
-                    )
 
-                    val pagerState = rememberPagerState(
-                        initialPage = categories.indexOf(state.selectedCategory).coerceAtLeast(0),
-                        pageCount = { categories.size },
-                    )
+                state.hasData -> {
+                    val categories =
+                        listOf(
+                            LeaderboardCategory.TIME,
+                            LeaderboardCategory.BOOKS,
+                            LeaderboardCategory.STREAK,
+                        )
+
+                    val pagerState =
+                        rememberPagerState(
+                            initialPage = categories.indexOf(state.selectedCategory).coerceAtLeast(0),
+                            pageCount = { categories.size },
+                        )
 
                     // Sync pager with tab selection
                     LaunchedEffect(state.selectedCategory) {
@@ -129,6 +136,7 @@ fun DiscoverLeaderboardSection(
                         CommunityStatsRow(stats = state.communityStats!!)
                     }
                 }
+
                 else -> {
                     // Empty state
                     Text(

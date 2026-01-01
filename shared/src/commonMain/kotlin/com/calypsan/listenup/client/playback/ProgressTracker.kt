@@ -72,7 +72,7 @@ class ProgressTracker(
                 startedAt = Clock.System.now().toEpochMilliseconds(),
                 playbackSpeed = speed,
             )
-        logger.debug { "Playback started: book=${bookId.value}, position=$positionMs" }
+        logger.info { "🎧 LISTENING SESSION STARTED: book=${bookId.value}, position=$positionMs, speed=$speed" }
     }
 
     /**
@@ -84,30 +84,38 @@ class ProgressTracker(
         positionMs: Long,
         speed: Float,
     ) {
+        logger.info { "🎧 PLAYBACK PAUSED: book=${bookId.value}, position=$positionMs, hasSession=${currentSession != null}" }
+
         scope.launch {
             // CONCERN 1: Save position immediately (local, fast)
             savePosition(bookId, positionMs, speed)
 
             // CONCERN 2: Queue listening event (if meaningful session)
-            currentSession?.let { session ->
-                if (session.bookId == bookId) {
-                    val durationMs = positionMs - session.startPositionMs
+            val session = currentSession
+            if (session == null) {
+                logger.warn { "🎧 NO ACTIVE SESSION - cannot record listening event" }
+            } else if (session.bookId != bookId) {
+                logger.warn { "🎧 SESSION BOOK MISMATCH: session=${session.bookId.value}, paused=${bookId.value}" }
+            } else {
+                val durationMs = positionMs - session.startPositionMs
+                logger.info { "🎧 SESSION DURATION: ${durationMs}ms (need >=10000ms to record)" }
 
-                    // Only record if listened for at least 10 seconds
-                    if (durationMs >= 10_000) {
-                        queueListeningEvent(
-                            bookId = bookId,
-                            startPositionMs = session.startPositionMs,
-                            endPositionMs = positionMs,
-                            startedAt = session.startedAt,
-                            endedAt = Clock.System.now().toEpochMilliseconds(),
-                            playbackSpeed = session.playbackSpeed,
-                        )
-                        logger.debug { "Listening event queued: duration=${durationMs}ms" }
+                // Only record if listened for at least 10 seconds
+                if (durationMs >= 10_000) {
+                    queueListeningEvent(
+                        bookId = bookId,
+                        startPositionMs = session.startPositionMs,
+                        endPositionMs = positionMs,
+                        startedAt = session.startedAt,
+                        endedAt = Clock.System.now().toEpochMilliseconds(),
+                        playbackSpeed = session.playbackSpeed,
+                    )
+                    logger.info { "🎧 LISTENING EVENT QUEUED: duration=${durationMs}ms, triggering sync..." }
 
-                        // Fire-and-forget sync attempt
-                        trySyncEvents()
-                    }
+                    // Fire-and-forget sync attempt
+                    trySyncEvents()
+                } else {
+                    logger.info { "🎧 SESSION TOO SHORT: ${durationMs}ms < 10000ms - not recording" }
                 }
             }
 
@@ -117,7 +125,8 @@ class ProgressTracker(
 
     /**
      * Called periodically during playback (every 30 seconds).
-     * Updates local position, but doesn't create events.
+     * Updates local position AND flushes the current session as a listening event.
+     * This enables real-time stats updates during playback.
      */
     fun onPositionUpdate(
         bookId: BookId,
@@ -125,7 +134,40 @@ class ProgressTracker(
         speed: Float,
     ) {
         scope.launch {
+            // Save position locally
             savePosition(bookId, positionMs, speed)
+
+            // Flush current session as a listening event and start a new one
+            val session = currentSession
+            if (session != null && session.bookId == bookId) {
+                val durationMs = positionMs - session.startPositionMs
+                logger.debug { "🎧 PERIODIC UPDATE: ${durationMs}ms listened since session start" }
+
+                // Only record if listened for at least 10 seconds
+                if (durationMs >= 10_000) {
+                    val now = Clock.System.now().toEpochMilliseconds()
+                    queueListeningEvent(
+                        bookId = bookId,
+                        startPositionMs = session.startPositionMs,
+                        endPositionMs = positionMs,
+                        startedAt = session.startedAt,
+                        endedAt = now,
+                        playbackSpeed = session.playbackSpeed,
+                    )
+                    logger.info { "🎧 PERIODIC EVENT QUEUED: duration=${durationMs}ms, triggering sync..." }
+
+                    // Start a new session from the current position
+                    currentSession = ListeningSession(
+                        bookId = bookId,
+                        startPositionMs = positionMs,
+                        startedAt = now,
+                        playbackSpeed = speed,
+                    )
+
+                    // Fire-and-forget sync attempt
+                    trySyncEvents()
+                }
+            }
         }
     }
 
@@ -141,14 +183,16 @@ class ProgressTracker(
         try {
             // Preserve existing hasCustomSpeed value
             val existing = positionDao.get(bookId)
+            val now = Clock.System.now().toEpochMilliseconds()
             positionDao.save(
                 PlaybackPositionEntity(
                     bookId = bookId,
                     positionMs = positionMs,
                     playbackSpeed = speed,
                     hasCustomSpeed = existing?.hasCustomSpeed ?: false,
-                    updatedAt = Clock.System.now().toEpochMilliseconds(),
+                    updatedAt = now,
                     syncedAt = null,
+                    lastPlayedAt = now, // Track actual play time
                 ),
             )
             logger.debug { "Position saved: book=${bookId.value}, position=$positionMs" }
@@ -167,14 +211,16 @@ class ProgressTracker(
         newSpeed: Float,
     ) {
         scope.launch {
+            val now = Clock.System.now().toEpochMilliseconds()
             positionDao.save(
                 PlaybackPositionEntity(
                     bookId = bookId,
                     positionMs = positionMs,
                     playbackSpeed = newSpeed,
                     hasCustomSpeed = true, // User explicitly set this speed
-                    updatedAt = Clock.System.now().toEpochMilliseconds(),
+                    updatedAt = now,
                     syncedAt = null,
+                    lastPlayedAt = now, // Track actual play time
                 ),
             )
             logger.debug { "Speed changed: book=${bookId.value}, speed=$newSpeed, hasCustomSpeed=true" }
@@ -191,14 +237,16 @@ class ProgressTracker(
         defaultSpeed: Float,
     ) {
         scope.launch {
+            val now = Clock.System.now().toEpochMilliseconds()
             positionDao.save(
                 PlaybackPositionEntity(
                     bookId = bookId,
                     positionMs = positionMs,
                     playbackSpeed = defaultSpeed,
                     hasCustomSpeed = false, // Now using universal default
-                    updatedAt = Clock.System.now().toEpochMilliseconds(),
+                    updatedAt = now,
                     syncedAt = null,
+                    lastPlayedAt = now, // Track actual play time
                 ),
             )
             logger.debug { "Speed reset to default: book=${bookId.value}, speed=$defaultSpeed, hasCustomSpeed=false" }
@@ -391,9 +439,12 @@ class ProgressTracker(
         endedAt: Long,
         playbackSpeed: Float,
     ) {
+        val eventId = NanoId.generate("evt")
+        logger.info { "🎧 CREATING EVENT: id=$eventId, book=${bookId.value}, start=$startPositionMs, end=$endPositionMs" }
+
         val payload =
             ListeningEventPayload(
-                id = NanoId.generate("evt"),
+                id = eventId,
                 bookId = bookId.value,
                 startPositionMs = startPositionMs,
                 endPositionMs = endPositionMs,
@@ -403,21 +454,32 @@ class ProgressTracker(
                 deviceId = deviceId,
             )
 
-        pendingOperationRepository.queue(
-            type = OperationType.LISTENING_EVENT,
-            entityType = null, // Events don't target a specific entity type
-            entityId = null, // Events batch together, not by entity
-            payload = payload,
-            handler = listeningEventHandler,
-        )
+        try {
+            pendingOperationRepository.queue(
+                type = OperationType.LISTENING_EVENT,
+                entityType = null, // Events don't target a specific entity type
+                entityId = null, // Events batch together, not by entity
+                payload = payload,
+                handler = listeningEventHandler,
+            )
+            logger.info { "🎧 EVENT QUEUED SUCCESSFULLY: id=$eventId" }
+        } catch (e: Exception) {
+            logger.error(e) { "🎧 FAILED TO QUEUE EVENT: id=$eventId" }
+        }
     }
 
     /**
      * Fire-and-forget sync attempt via the push sync orchestrator.
      */
     private fun trySyncEvents() {
+        logger.info { "🎧 TRIGGERING SYNC FLUSH..." }
         scope.launch {
-            pushSyncOrchestrator.flush()
+            try {
+                pushSyncOrchestrator.flush()
+                logger.info { "🎧 SYNC FLUSH COMPLETED" }
+            } catch (e: Exception) {
+                logger.error(e) { "🎧 SYNC FLUSH FAILED" }
+            }
         }
     }
 }

@@ -21,6 +21,8 @@ import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.remote.InstanceApiContract
 import com.calypsan.listenup.client.data.remote.InviteApi
 import com.calypsan.listenup.client.data.remote.InviteApiContract
+import com.calypsan.listenup.client.data.remote.LeaderboardApi
+import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
 import com.calypsan.listenup.client.data.remote.LensApi
 import com.calypsan.listenup.client.data.remote.LensApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
@@ -31,8 +33,6 @@ import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.StatsApi
 import com.calypsan.listenup.client.data.remote.StatsApiContract
-import com.calypsan.listenup.client.data.remote.LeaderboardApi
-import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
 import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.TagApi
@@ -411,6 +411,11 @@ val presentationModule =
             )
         }
         factory {
+            com.calypsan.listenup.client.presentation.bookdetail.BookReadersViewModel(
+                sessionApi = get(),
+            )
+        }
+        factory {
             com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel(
                 seriesDao = get(),
                 bookRepository = get(),
@@ -527,7 +532,7 @@ val presentationModule =
         single { SyncIndicatorViewModel(pendingOperationRepository = get()) }
 
         // HomeStatsViewModel for home screen stats section
-        factory { HomeStatsViewModel(statsApi = get()) }
+        factory { HomeStatsViewModel(statsApi = get(), sseManager = get()) }
 
         // LeaderboardViewModel for discover screen leaderboard
         factory { LeaderboardViewModel(leaderboardApi = get()) }
@@ -611,6 +616,12 @@ val syncModule =
         single {
             LeaderboardApi(clientFactory = get())
         } bind LeaderboardApiContract::class
+
+        // SessionApi for reading session operations
+        single {
+            com.calypsan.listenup.client.data.remote
+                .SessionApi(clientFactory = get())
+        } bind com.calypsan.listenup.client.data.remote.SessionApiContract::class
 
         // AdminApi for admin operations (user/invite management)
         single {
@@ -798,7 +809,7 @@ val syncModule =
         single { SetBookSeriesHandler(api = get()) }
         single { MergeContributorHandler(api = get()) }
         single { UnmergeContributorHandler(api = get()) }
-        single { ListeningEventHandler(api = get()) }
+        single { ListeningEventHandler(api = get(), positionDao = get()) }
         single { PlaybackPositionHandler(api = get()) }
         single { UserPreferencesHandler(api = get()) }
 

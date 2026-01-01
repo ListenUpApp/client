@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +31,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -49,9 +59,15 @@ import com.calypsan.listenup.client.domain.model.Book
  * A soft glow radiates from behind, creating depth without harsh shadows.
  * Press interaction uses scale animation for tactile feedback.
  *
+ * Visual states:
+ * - In Progress (0-99%): Shows progress overlay at bottom
+ * - Completed (99%+): Shows squiggly completion badge in top-right, no progress overlay
+ * - Selection mode: Shows selection indicator instead of completion badge
+ *
  * @param book The book to display
  * @param onClick Callback when card is clicked
- * @param progress Optional progress (0.0-1.0) to show overlay. Null = no overlay.
+ * @param progress Optional progress (0.0-1.0). Shows progress overlay if 0-0.99,
+ *                 completion badge if >= 0.99. Null = no overlay or badge.
  * @param timeRemaining Optional formatted time remaining (e.g., "2h 15m left")
  * @param isInSelectionMode Whether multi-select mode is active
  * @param isSelected Whether this book is currently selected
@@ -114,14 +130,18 @@ fun BookCard(
                     },
                 ),
     ) {
-        // Cover with glow, optional progress overlay, and selection indicator
+        // Cover with glow, optional progress overlay, and selection/completion indicators
         Box {
+            // Determine if book is completed (99%+ progress)
+            val isCompleted = progress != null && progress >= 0.99f
+
             CoverWithGlow(
                 coverPath = book.coverPath,
                 blurHash = book.coverBlurHash,
                 contentDescription = book.title,
-                progress = progress,
-                timeRemaining = timeRemaining,
+                // Don't show progress overlay for completed books
+                progress = if (isCompleted) null else progress,
+                timeRemaining = if (isCompleted) null else timeRemaining,
                 isSelected = isSelected,
                 borderColor = borderColor,
                 modifier =
@@ -130,10 +150,18 @@ fun BookCard(
                         .aspectRatio(1f),
             )
 
-            // Selection checkbox indicator
+            // Selection checkbox indicator takes precedence over completion badge
             if (isInSelectionMode) {
                 SelectionIndicator(
                     isSelected = isSelected,
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp),
+                )
+            } else if (isCompleted) {
+                // Show completion badge for finished books
+                CompletionBadge(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
@@ -327,5 +355,84 @@ private fun SelectionIndicator(
                 modifier = Modifier.size(20.dp),
             )
         }
+    }
+}
+
+/**
+ * Organic blob shape inspired by Material 3 Expressive design.
+ *
+ * Creates a wobbly, hand-drawn feeling circle using sine wave perturbations.
+ * The shape feels playful and organic, avoiding the rigidity of perfect geometry.
+ *
+ * @param wobbleAmount How much the edge deviates from a circle (0.0-0.3 recommended)
+ * @param waves Number of wobbles around the perimeter
+ */
+private class SquigglyShape(
+    private val wobbleAmount: Float = 0.12f,
+    private val waves: Int = 6,
+) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density,
+    ): Outline {
+        val path = Path()
+        val centerX = size.width / 2
+        val centerY = size.height / 2
+        val baseRadius = minOf(size.width, size.height) / 2
+
+        // Create an organic blob using sine wave perturbations
+        val points = 72 // Smoothness of curve
+        for (i in 0..points) {
+            val angle = (i.toFloat() / points) * 2 * PI
+            // Add multiple sine waves for organic feel
+            val wobble = 1f + wobbleAmount * sin(waves * angle).toFloat() +
+                (wobbleAmount / 2) * cos((waves * 2 + 1) * angle).toFloat()
+            val radius = baseRadius * wobble
+
+            val x = centerX + (radius * cos(angle)).toFloat()
+            val y = centerY + (radius * sin(angle)).toFloat()
+
+            if (i == 0) {
+                path.moveTo(x, y)
+            } else {
+                path.lineTo(x, y)
+            }
+        }
+        path.close()
+
+        return Outline.Generic(path)
+    }
+}
+
+/**
+ * Completion badge shown when a book is finished (progress >= 99%).
+ *
+ * Uses a squiggly organic shape to feel playful and celebratory.
+ * Positioned in top-right corner of book cover.
+ */
+@Composable
+private fun CompletionBadge(modifier: Modifier = Modifier) {
+    val squigglyShape = remember { SquigglyShape(wobbleAmount = 0.1f, waves = 5) }
+
+    Box(
+        modifier =
+            modifier
+                .size(28.dp)
+                .shadow(
+                    elevation = 3.dp,
+                    shape = squigglyShape,
+                ).background(
+                    color = MaterialTheme.colorScheme.tertiary,
+                    shape = squigglyShape,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = "Completed",
+            tint = MaterialTheme.colorScheme.onTertiary,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
