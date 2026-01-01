@@ -1,18 +1,39 @@
 package com.calypsan.listenup.client.features.discover.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,8 +42,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calypsan.listenup.client.data.remote.LeaderboardEntryResponse
 
+/** Number of entries to show when collapsed */
+private const val COLLAPSED_COUNT = 4
+
+/** Height per entry row (including spacing) */
+private val ENTRY_HEIGHT = 56.dp
+
 /**
- * Leaderboard list showing ranked users.
+ * Leaderboard list showing ranked users with animated position changes.
+ *
+ * Shows top 4 entries by default with an expand/collapse option to see more.
+ * Uses LazyColumn with animateItem() for smooth position animations when
+ * users move up or down in the rankings.
  *
  * @param entries List of leaderboard entries
  * @param modifier Modifier from parent
@@ -32,12 +63,58 @@ fun LeaderboardList(
     entries: List<LeaderboardEntryResponse>,
     modifier: Modifier = Modifier,
 ) {
+    var isExpanded by rememberSaveable { mutableStateOf(false) }
+    val hasMoreEntries = entries.size > COLLAPSED_COUNT
+    val visibleEntries = if (isExpanded) entries else entries.take(COLLAPSED_COUNT)
+
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        entries.forEach { entry ->
-            LeaderboardEntry(entry = entry)
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            // Disable scrolling - parent pager handles it, and we show limited items
+            userScrollEnabled = false,
+            contentPadding = PaddingValues(vertical = 0.dp),
+        ) {
+            items(
+                items = visibleEntries,
+                key = { it.userId },
+            ) { entry ->
+                LeaderboardEntry(
+                    entry = entry,
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        fadeOutSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        placementSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow,
+                        ),
+                    ),
+                )
+            }
+        }
+
+        // Expand/Collapse button
+        if (hasMoreEntries) {
+            TextButton(
+                onClick = { isExpanded = !isExpanded },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            ) {
+                Text(
+                    text = if (isExpanded) "Show less" else "Show all ${entries.size}",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Icon(
+                    imageVector = if (isExpanded) {
+                        Icons.Default.KeyboardArrowUp
+                    } else {
+                        Icons.Default.KeyboardArrowDown
+                    },
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }
@@ -63,8 +140,24 @@ private fun LeaderboardEntry(
                 .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Rank badge
-        RankBadge(rank = entry.rank)
+        // Animated rank badge - slides up/down when rank changes
+        AnimatedContent(
+            targetState = entry.rank,
+            transitionSpec = {
+                if (targetState < initialState) {
+                    // Moving up - slide in from top
+                    (slideInVertically { -it } + fadeIn()) togetherWith
+                        (slideOutVertically { it } + fadeOut())
+                } else {
+                    // Moving down - slide in from bottom
+                    (slideInVertically { it } + fadeIn()) togetherWith
+                        (slideOutVertically { -it } + fadeOut())
+                }
+            },
+            label = "rank",
+        ) { rank ->
+            RankBadge(rank = rank)
+        }
 
         Spacer(Modifier.width(12.dp))
 
@@ -78,18 +171,27 @@ private fun LeaderboardEntry(
             )
         }
 
-        // Value
-        Text(
-            text = entry.valueLabel,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color =
-                if (entry.isCurrentUser) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-        )
+        // Animated value label - fades when value changes
+        AnimatedContent(
+            targetState = entry.valueLabel,
+            transitionSpec = {
+                fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow)) togetherWith
+                    fadeOut(animationSpec = spring(stiffness = Spring.StiffnessLow))
+            },
+            label = "value",
+        ) { value ->
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color =
+                    if (entry.isCurrentUser) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+            )
+        }
     }
 }
 
@@ -140,7 +242,7 @@ private fun RankBadge(
             modifier = modifier.size(32.dp),
         )
     } else {
-        androidx.compose.foundation.layout.Box(
+        Box(
             modifier =
                 modifier
                     .size(32.dp)

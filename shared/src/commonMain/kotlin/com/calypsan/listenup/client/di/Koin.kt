@@ -72,6 +72,8 @@ import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
 import com.calypsan.listenup.client.data.repository.ServerUrlChangeListener
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.data.repository.StatsRepository
+import com.calypsan.listenup.client.data.repository.StatsRepositoryContract
 import com.calypsan.listenup.client.data.sync.FtsPopulator
 import com.calypsan.listenup.client.data.sync.FtsPopulatorContract
 import com.calypsan.listenup.client.data.sync.ImageDownloader
@@ -87,6 +89,7 @@ import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
+import com.calypsan.listenup.client.data.sync.pull.ListeningEventPuller
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
@@ -260,6 +263,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().collectionDao() }
         single { get<ListenUpDatabase>().lensDao() }
         single { get<ListenUpDatabase>().tagDao() }
+        single { get<ListenUpDatabase>().listeningEventDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
         // When active server's URL changes via mDNS rediscovery, updates SettingsRepository
@@ -531,11 +535,12 @@ val presentationModule =
         // SyncIndicatorViewModel as singleton for app-wide sync status
         single { SyncIndicatorViewModel(pendingOperationRepository = get()) }
 
-        // HomeStatsViewModel for home screen stats section
-        factory { HomeStatsViewModel(statsApi = get(), sseManager = get()) }
+        // HomeStatsViewModel for home screen stats section (observes local stats)
+        factory { HomeStatsViewModel(statsRepository = get()) }
 
         // LeaderboardViewModel for discover screen leaderboard
-        factory { LeaderboardViewModel(leaderboardApi = get()) }
+        // Observes local events to trigger refresh when new listening sessions occur
+        factory { LeaderboardViewModel(leaderboardApi = get(), listeningEventDao = get()) }
     }
 
 /**
@@ -686,6 +691,7 @@ val syncModule =
                 collectionDao = get(),
                 lensDao = get(),
                 tagDao = get(),
+                listeningEventDao = get(),
                 imageDownloader = get(),
                 playbackStateProvider = get<PlaybackManager>(),
                 downloadService = get(),
@@ -769,6 +775,17 @@ val syncModule =
             )
         }
 
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("listeningEventPuller"),
+        ) {
+            ListeningEventPuller(
+                syncApi = get(),
+                listeningEventDao = get(),
+            )
+        }
+
         // PullSyncOrchestrator - coordinates parallel entity pulls
         single {
             PullSyncOrchestrator(
@@ -795,6 +812,12 @@ val syncModule =
                         qualifier =
                             org.koin.core.qualifier
                                 .named("tagPuller"),
+                    ),
+                listeningEventPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("listeningEventPuller"),
                     ),
                 coordinator = get(),
                 syncDao = get(),
@@ -945,6 +968,14 @@ val syncModule =
                 networkMonitor = get(),
             )
         } bind HomeRepositoryContract::class
+
+        // StatsRepository for computing listening stats locally from events
+        single {
+            StatsRepository(
+                listeningEventDao = get(),
+                bookDao = get(),
+            )
+        } bind StatsRepositoryContract::class
 
         // ContributorRepository for contributor search with offline fallback
         single {

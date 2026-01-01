@@ -76,6 +76,7 @@ val iosPlaybackModule: Module =
             ProgressTracker(
                 positionDao = get(),
                 downloadDao = get(),
+                listeningEventDao = get(),
                 syncApi = get(),
                 pendingOperationRepository = get(),
                 listeningEventHandler = get(),

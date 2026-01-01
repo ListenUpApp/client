@@ -6,9 +6,12 @@ package com.calypsan.listenup.client.playback
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.DownloadDao
+import com.calypsan.listenup.client.data.local.db.ListeningEventDao
+import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
+import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.data.sync.push.ListeningEventPayload
@@ -37,6 +40,7 @@ private val logger = KotlinLogging.logger {}
 class ProgressTracker(
     private val positionDao: PlaybackPositionDao,
     private val downloadDao: DownloadDao,
+    private val listeningEventDao: ListeningEventDao,
     private val syncApi: SyncApiContract,
     private val pendingOperationRepository: PendingOperationRepositoryContract,
     private val listeningEventHandler: OperationHandler<ListeningEventPayload>,
@@ -429,7 +433,10 @@ class ProgressTracker(
     )
 
     /**
-     * Queue a listening event via the unified push sync system.
+     * Save a listening event to Room and queue for server sync.
+     *
+     * Offline-first: Event is saved locally first, then queued for sync.
+     * This ensures stats are immediately available even when offline.
      */
     private suspend fun queueListeningEvent(
         bookId: BookId,
@@ -440,8 +447,32 @@ class ProgressTracker(
         playbackSpeed: Float,
     ) {
         val eventId = NanoId.generate("evt")
+        val now = Clock.System.now().toEpochMilliseconds()
         logger.info { "🎧 CREATING EVENT: id=$eventId, book=${bookId.value}, start=$startPositionMs, end=$endPositionMs" }
 
+        // 1. Save to Room first (offline-first)
+        val entity = ListeningEventEntity(
+            id = eventId,
+            bookId = bookId.value,
+            startPositionMs = startPositionMs,
+            endPositionMs = endPositionMs,
+            startedAt = startedAt,
+            endedAt = endedAt,
+            playbackSpeed = playbackSpeed,
+            deviceId = deviceId,
+            syncState = SyncState.NOT_SYNCED,
+            createdAt = now,
+        )
+
+        try {
+            listeningEventDao.upsert(entity)
+            logger.info { "🎧 EVENT SAVED TO ROOM: id=$eventId" }
+        } catch (e: Exception) {
+            logger.error(e) { "🎧 FAILED TO SAVE EVENT TO ROOM: id=$eventId" }
+            // Continue to queue for sync anyway - worst case it syncs without local storage
+        }
+
+        // 2. Queue for server sync
         val payload =
             ListeningEventPayload(
                 id = eventId,
@@ -462,9 +493,9 @@ class ProgressTracker(
                 payload = payload,
                 handler = listeningEventHandler,
             )
-            logger.info { "🎧 EVENT QUEUED SUCCESSFULLY: id=$eventId" }
+            logger.info { "🎧 EVENT QUEUED FOR SYNC: id=$eventId" }
         } catch (e: Exception) {
-            logger.error(e) { "🎧 FAILED TO QUEUE EVENT: id=$eventId" }
+            logger.error(e) { "🎧 FAILED TO QUEUE EVENT FOR SYNC: id=$eventId" }
         }
     }
 

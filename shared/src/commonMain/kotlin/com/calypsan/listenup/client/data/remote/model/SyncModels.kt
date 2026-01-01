@@ -671,6 +671,43 @@ data class SSEInboxBookReleasedEvent(
 )
 
 // =============================================================================
+// Listening Events Sync Response
+// =============================================================================
+
+/**
+ * Response from GET /api/v1/listening/events endpoint.
+ * Used for initial sync of listening events from other devices.
+ */
+@Serializable
+data class SyncListeningEventsResponse(
+    @SerialName("events")
+    val events: List<SyncListeningEventItem>,
+)
+
+/**
+ * A single listening event from the sync endpoint.
+ */
+@Serializable
+data class SyncListeningEventItem(
+    @SerialName("id")
+    val id: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("start_position_ms")
+    val startPositionMs: Long,
+    @SerialName("end_position_ms")
+    val endPositionMs: Long,
+    @SerialName("started_at")
+    val startedAt: String,
+    @SerialName("ended_at")
+    val endedAt: String,
+    @SerialName("playback_speed")
+    val playbackSpeed: Float,
+    @SerialName("device_id")
+    val deviceId: String,
+)
+
+// =============================================================================
 // Listening SSE Events
 // =============================================================================
 
@@ -710,6 +747,33 @@ data class SSEReadingSessionUpdatedEvent(
     val listenTimeMs: Long,
     @SerialName("finished_at")
     val finishedAt: String? = null,
+)
+
+/**
+ * SSE listening event created event data.
+ * Sent when a listening event is recorded on another device.
+ * Used to sync events for offline stats computation.
+ */
+@Serializable
+data class SSEListeningEventCreatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("start_position_ms")
+    val startPositionMs: Long,
+    @SerialName("end_position_ms")
+    val endPositionMs: Long,
+    @SerialName("started_at")
+    val startedAt: String,
+    @SerialName("ended_at")
+    val endedAt: String,
+    @SerialName("playback_speed")
+    val playbackSpeed: Float,
+    @SerialName("device_id")
+    val deviceId: String,
+    @SerialName("created_at")
+    val createdAt: String,
 )
 
 // =============================================================================

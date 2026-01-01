@@ -25,6 +25,7 @@ import androidx.room.TypeConverters
  * - v18: Added lenses table for personal curation and social discovery
  * - v19: Added tags and book_tags tables for community tagging
  * - v20: Added lastPlayedAt column to playback_positions for accurate "last read" tracking
+ * - v21: Added listening_events table for offline-first stats
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -47,8 +48,9 @@ import androidx.room.TypeConverters
         LensEntity::class,
         TagEntity::class,
         BookTagCrossRef::class,
+        ListeningEventEntity::class,
     ],
-    version = 20,
+    version = 21,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)
@@ -85,6 +87,8 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun lensDao(): LensDao
 
     abstract fun tagDao(): TagDao
+
+    abstract fun listeningEventDao(): ListeningEventDao
 }
 
 /**

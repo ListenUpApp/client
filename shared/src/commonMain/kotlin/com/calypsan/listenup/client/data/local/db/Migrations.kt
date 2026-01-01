@@ -811,3 +811,56 @@ val MIGRATION_19_20 =
             )
         }
     }
+
+/**
+ * Migration from version 20 to version 21.
+ *
+ * Changes:
+ * - Add listening_events table for offline-first stats
+ *
+ * Listening events are append-only records of time spent listening.
+ * Used to compute stats locally and sync bidirectionally with server.
+ */
+val MIGRATION_20_21 =
+    object : Migration(20, 21) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create listening_events table
+            // Note: syncState is stored as INTEGER (enum ordinal)
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS listening_events (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    bookId TEXT NOT NULL,
+                    startPositionMs INTEGER NOT NULL,
+                    endPositionMs INTEGER NOT NULL,
+                    startedAt INTEGER NOT NULL,
+                    endedAt INTEGER NOT NULL,
+                    playbackSpeed REAL NOT NULL,
+                    deviceId TEXT NOT NULL,
+                    syncState INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+
+            // Create indices for efficient queries
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_listening_events_bookId
+                ON listening_events(bookId)
+                """.trimIndent(),
+            )
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_listening_events_endedAt
+                ON listening_events(endedAt)
+                """.trimIndent(),
+            )
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_listening_events_syncState
+                ON listening_events(syncState)
+                """.trimIndent(),
+            )
+        }
+    }

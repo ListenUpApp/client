@@ -12,6 +12,9 @@ import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.data.local.db.ListeningEventDao
+import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
+import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
@@ -60,6 +63,7 @@ class SSEEventProcessor(
     private val collectionDao: CollectionDao,
     private val lensDao: LensDao,
     private val tagDao: TagDao,
+    private val listeningEventDao: ListeningEventDao,
     private val imageDownloader: ImageDownloaderContract,
     private val playbackStateProvider: PlaybackStateProvider,
     private val downloadService: DownloadService,
@@ -167,6 +171,10 @@ class SSEEventProcessor(
 
                 is SSEEventType.ReadingSessionUpdated -> {
                     handleReadingSessionUpdated(event)
+                }
+
+                is SSEEventType.ListeningEventCreated -> {
+                    handleListeningEventCreated(event)
                 }
             }
         } catch (e: Exception) {
@@ -516,6 +524,36 @@ class SSEEventProcessor(
         logger.info { "SSE: Reading session ${event.sessionId} updated for book ${event.bookId} - completed=${event.isCompleted}" }
         // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
         // Book detail/readers screens can listen for this to refresh
+    }
+
+    private suspend fun handleListeningEventCreated(event: SSEEventType.ListeningEventCreated) {
+        logger.info { "SSE: Listening event ${event.id} received for book ${event.bookId} (from another device)" }
+
+        // Convert ISO timestamps to epoch ms
+        val startedAtMs = parseTimestamp(event.startedAt).epochMillis
+        val endedAtMs = parseTimestamp(event.endedAt).epochMillis
+        val createdAtMs = parseTimestamp(event.createdAt).epochMillis
+
+        // Save to Room - this triggers stats to auto-update via Flow
+        val entity = ListeningEventEntity(
+            id = event.id,
+            bookId = event.bookId,
+            startPositionMs = event.startPositionMs,
+            endPositionMs = event.endPositionMs,
+            startedAt = startedAtMs,
+            endedAt = endedAtMs,
+            playbackSpeed = event.playbackSpeed,
+            deviceId = event.deviceId,
+            syncState = SyncState.SYNCED, // Already synced since it came from server
+            createdAt = createdAtMs,
+        )
+
+        try {
+            listeningEventDao.upsert(entity)
+            logger.debug { "SSE: Saved listening event ${event.id} to Room" }
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to save listening event ${event.id}" }
+        }
     }
 }
 

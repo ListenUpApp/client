@@ -2,18 +2,26 @@ package com.calypsan.listenup.client.presentation.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.remote.CommunityStatsResponse
 import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
 import com.calypsan.listenup.client.data.remote.LeaderboardCategory
 import com.calypsan.listenup.client.data.remote.LeaderboardEntryResponse
 import com.calypsan.listenup.client.data.remote.StatsPeriod
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
+
+/** Debounce delay for refreshing after events change */
+private const val REFRESH_DEBOUNCE_MS = 2_000L
 
 /**
  * ViewModel for the Discover screen leaderboard section.
@@ -27,10 +35,15 @@ private val logger = KotlinLogging.logger {}
  * Caches entries by category so switching tabs doesn't trigger a refresh.
  * Only refetches when the period changes or on explicit refresh.
  *
+ * Also observes local listening events and refreshes the leaderboard
+ * after new events are created, so stats update in near real-time.
+ *
  * @property leaderboardApi API client for fetching leaderboard data
+ * @property listeningEventDao DAO for observing local events
  */
 class LeaderboardViewModel(
     private val leaderboardApi: LeaderboardApiContract,
+    private val listeningEventDao: ListeningEventDao,
 ) : ViewModel() {
     val state: StateFlow<LeaderboardUiState>
         field = MutableStateFlow(LeaderboardUiState())
@@ -38,8 +51,42 @@ class LeaderboardViewModel(
     // Cache entries by category to avoid refetching when switching tabs
     private val entriesByCategory = mutableMapOf<LeaderboardCategory, List<LeaderboardEntryResponse>>()
 
+    // Debounce job for event-triggered refreshes
+    private var refreshJob: Job? = null
+
     init {
-        loadAllCategories()
+        loadAllCategories(showLoading = true) // Initial load shows loading state
+        observeLocalEvents()
+    }
+
+    /**
+     * Observe local listening events and refresh leaderboard when new events are added.
+     * This provides near real-time stats updates on the Discover page.
+     * Debounced to avoid excessive API calls during active listening.
+     */
+    private fun observeLocalEvents() {
+        viewModelScope.launch {
+            // Observe event count changes (simpler than observing full list)
+            listeningEventDao.observeEventsSince(0)
+                .map { it.size }
+                .distinctUntilChanged()
+                .collect { eventCount ->
+                    logger.debug { "Local event count changed to $eventCount, scheduling refresh" }
+                    scheduleRefresh()
+                }
+        }
+    }
+
+    /**
+     * Schedule a debounced refresh to avoid excessive API calls.
+     */
+    private fun scheduleRefresh() {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            delay(REFRESH_DEBOUNCE_MS)
+            logger.debug { "Debounced refresh triggered" }
+            loadAllCategories()
+        }
     }
 
     /**
@@ -71,7 +118,7 @@ class LeaderboardViewModel(
 
         state.update { it.copy(selectedPeriod = period) }
         entriesByCategory.clear()
-        loadAllCategories()
+        loadAllCategories(showLoading = true) // User-initiated, show loading
     }
 
     /**
@@ -79,16 +126,21 @@ class LeaderboardViewModel(
      */
     fun refresh() {
         entriesByCategory.clear()
-        loadAllCategories()
+        loadAllCategories(showLoading = true) // User-initiated, show loading
     }
 
     /**
      * Load leaderboard data for all categories.
      * This pre-fetches all categories so tab switching is instant.
+     *
+     * @param showLoading Whether to show loading indicator (false for background refreshes)
      */
-    private fun loadAllCategories() {
+    private fun loadAllCategories(showLoading: Boolean = false) {
         viewModelScope.launch {
-            state.update { it.copy(isLoading = true, error = null) }
+            // Only show loading on initial load, not background refreshes
+            if (showLoading) {
+                state.update { it.copy(isLoading = true, error = null) }
+            }
 
             try {
                 val period = state.value.selectedPeriod

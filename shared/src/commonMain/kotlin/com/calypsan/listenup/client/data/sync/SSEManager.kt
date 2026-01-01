@@ -21,6 +21,7 @@ import com.calypsan.listenup.client.data.remote.model.SSELensUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEProgressUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEListeningEventCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEReadingSessionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
@@ -510,6 +511,25 @@ class SSEManager(
                         )
                     }
 
+                    "listening.event_created" -> {
+                        val listeningEvent =
+                            json.decodeFromJsonElement(
+                                SSEListeningEventCreatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ListeningEventCreated(
+                            id = listeningEvent.id,
+                            bookId = listeningEvent.bookId,
+                            startPositionMs = listeningEvent.startPositionMs,
+                            endPositionMs = listeningEvent.endPositionMs,
+                            startedAt = listeningEvent.startedAt,
+                            endedAt = listeningEvent.endedAt,
+                            playbackSpeed = listeningEvent.playbackSpeed,
+                            deviceId = listeningEvent.deviceId,
+                            createdAt = listeningEvent.createdAt,
+                        )
+                    }
+
                     else -> {
                         logger.debug { "Unknown event type: ${sseEvent.type}" }
                         return
@@ -748,5 +768,21 @@ sealed class SSEEventType {
         val isCompleted: Boolean,
         val listenTimeMs: Long,
         val finishedAt: String?,
+    ) : SSEEventType()
+
+    /**
+     * A listening event was created on another device.
+     * Used to sync events for offline stats computation.
+     */
+    data class ListeningEventCreated(
+        val id: String,
+        val bookId: String,
+        val startPositionMs: Long,
+        val endPositionMs: Long,
+        val startedAt: String,
+        val endedAt: String,
+        val playbackSpeed: Float,
+        val deviceId: String,
+        val createdAt: String,
     ) : SSEEventType()
 }

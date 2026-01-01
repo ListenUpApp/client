@@ -11,6 +11,7 @@ import com.calypsan.listenup.client.data.remote.model.ContinueListeningResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
 import com.calypsan.listenup.client.data.remote.model.SyncContributorsResponse
+import com.calypsan.listenup.client.data.remote.model.SyncListeningEventsResponse
 import com.calypsan.listenup.client.data.remote.model.SyncManifestResponse
 import com.calypsan.listenup.client.data.remote.model.SyncSeriesResponse
 import io.ktor.client.call.body
@@ -312,6 +313,43 @@ class SyncApi(
             val response: ApiResponse<com.calypsan.listenup.client.data.remote.model.SingleBookResponse> =
                 client.get("/api/v1/books/$bookId").body()
             response.toResult().getOrThrow().toBookResponse()
+        }
+
+    /**
+     * Get listening events for initial sync.
+     *
+     * Fetches all listening events for the current user, optionally filtered
+     * by a since timestamp for delta sync.
+     *
+     * Endpoint: GET /api/v1/listening/events
+     * Auth: Required
+     *
+     * @param sinceMs Only return events created after this timestamp (epoch ms), null for all events
+     * @return Result containing list of listening events
+     */
+    override suspend fun getListeningEvents(sinceMs: Long?): Result<ListeningEventsApiResponse> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            val response: ApiResponse<SyncListeningEventsResponse> =
+                client
+                    .get("/api/v1/listening/events") {
+                        sinceMs?.let { parameter("since", it) }
+                    }.body()
+            val syncResponse = response.toResult().getOrThrow()
+            ListeningEventsApiResponse(
+                events = syncResponse.events.map { event ->
+                    ListeningEventApiResponse(
+                        id = event.id,
+                        bookId = event.bookId,
+                        startPositionMs = event.startPositionMs,
+                        endPositionMs = event.endPositionMs,
+                        startedAt = event.startedAt,
+                        endedAt = event.endedAt,
+                        playbackSpeed = event.playbackSpeed,
+                        deviceId = event.deviceId,
+                    )
+                },
+            )
         }
 }
 

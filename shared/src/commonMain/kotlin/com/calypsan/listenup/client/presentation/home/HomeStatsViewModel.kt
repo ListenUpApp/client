@@ -4,14 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.remote.DailyListeningResponse
 import com.calypsan.listenup.client.data.remote.GenreListeningResponse
-import com.calypsan.listenup.client.data.remote.StatsApiContract
-import com.calypsan.listenup.client.data.remote.StatsPeriod
-import com.calypsan.listenup.client.data.sync.SSEEventType
-import com.calypsan.listenup.client.data.sync.SSEManagerContract
+import com.calypsan.listenup.client.data.repository.StatsRepositoryContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -25,34 +22,54 @@ private val logger = KotlinLogging.logger {}
  * - Current/longest streak display
  * - Top 3 genres breakdown
  *
- * Always loads weekly stats (7 days) for the home section.
- * Automatically refreshes when receiving SSE progress events.
+ * Stats are computed locally from ListeningEventEntity records stored in Room.
+ * Updates automatically when new listening events are added (local or via SSE).
  *
- * @property statsApi API client for fetching stats
- * @property sseManager SSE manager for real-time updates
+ * @property statsRepository Repository for computing local stats
  */
 class HomeStatsViewModel(
-    private val statsApi: StatsApiContract,
-    private val sseManager: SSEManagerContract,
+    private val statsRepository: StatsRepositoryContract,
 ) : ViewModel() {
-    val state: StateFlow<HomeStatsUiState>
-        field = MutableStateFlow(HomeStatsUiState())
+    private val _state = MutableStateFlow(HomeStatsUiState())
+    val state: StateFlow<HomeStatsUiState> = _state
 
     init {
-        loadStats()
-        observeProgressUpdates()
+        observeStats()
     }
 
     /**
-     * Listen for SSE progress updates and refresh stats when received.
+     * Observe stats from the repository.
+     *
+     * Stats update automatically when listening events change in Room.
+     * No need for manual refresh or SSE observation - the Flow handles it.
      */
-    private fun observeProgressUpdates() {
+    private fun observeStats() {
         viewModelScope.launch {
-            sseManager.eventFlow
-                .filterIsInstance<SSEEventType.ProgressUpdated>()
-                .collect { event ->
-                    logger.info { "Received progress update SSE event, refreshing stats" }
-                    loadStats()
+            statsRepository.observeWeeklyStats()
+                .catch { e ->
+                    logger.error(e) { "Error observing stats" }
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Failed to load stats: ${e.message}",
+                        )
+                    }
+                }
+                .collect { stats ->
+                    logger.debug {
+                        "Stats updated: ${stats.totalListenTimeMs}ms total, streak=${stats.currentStreakDays}"
+                    }
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = null,
+                            totalListenTimeMs = stats.totalListenTimeMs,
+                            currentStreakDays = stats.currentStreakDays,
+                            longestStreakDays = stats.longestStreakDays,
+                            dailyListening = stats.dailyListening,
+                            genreBreakdown = stats.genreBreakdown,
+                        )
+                    }
                 }
         }
     }
@@ -60,47 +77,15 @@ class HomeStatsViewModel(
     /**
      * Refresh stats.
      *
-     * Called by pull-to-refresh on home screen.
+     * Since stats are computed from local Room data, this is a no-op.
+     * The Flow automatically updates when events change.
+     * Pull-to-refresh on home screen triggers sync which adds new events.
      */
     fun refresh() {
-        loadStats()
-    }
-
-    /**
-     * Load weekly stats from the server.
-     */
-    private fun loadStats() {
-        viewModelScope.launch {
-            field.update { it.copy(isLoading = true, error = null) }
-
-            try {
-                val response = statsApi.getUserStats(StatsPeriod.WEEK)
-
-                field.update {
-                    it.copy(
-                        isLoading = false,
-                        error = null,
-                        totalListenTimeMs = response.totalListenTimeMs,
-                        currentStreakDays = response.currentStreakDays,
-                        longestStreakDays = response.longestStreakDays,
-                        dailyListening = response.dailyListening,
-                        genreBreakdown = response.genreBreakdown.take(3),
-                    )
-                }
-                logger.debug {
-                    "Home stats loaded: ${response.totalListenTimeMs}ms total, streak: ${response.currentStreakDays}"
-                }
-            } catch (e: Exception) {
-                val errorMessage = "Failed to load stats: ${e.message}"
-                field.update {
-                    it.copy(
-                        isLoading = false,
-                        error = errorMessage,
-                    )
-                }
-                logger.error(e) { "Failed to load stats - full exception: ${e.stackTraceToString()}" }
-            }
-        }
+        // No-op - stats auto-update from Room Flow
+        // Pull-to-refresh triggers sync elsewhere, which adds events to Room,
+        // causing this Flow to emit new computed stats
+        logger.debug { "Refresh requested - stats will update automatically from Room" }
     }
 }
 

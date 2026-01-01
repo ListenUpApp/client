@@ -1,0 +1,277 @@
+@file:OptIn(ExperimentalTime::class)
+
+package com.calypsan.listenup.client.data.repository
+
+import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.ListeningEventDao
+import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
+import com.calypsan.listenup.client.data.remote.DailyListeningResponse
+import com.calypsan.listenup.client.data.remote.GenreListeningResponse
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+
+private val logger = KotlinLogging.logger {}
+
+/** Milliseconds in a day */
+private const val MS_PER_DAY = 86_400_000L
+
+/**
+ * Contract interface for stats repository operations.
+ */
+interface StatsRepositoryContract {
+    /**
+     * Observe weekly stats (7 days) for the home screen.
+     *
+     * Emits new values whenever listening events are added or modified.
+     */
+    fun observeWeeklyStats(): Flow<HomeStats>
+}
+
+/**
+ * Computed stats for the home screen.
+ *
+ * All stats are computed locally from listening events.
+ */
+data class HomeStats(
+    val totalListenTimeMs: Long,
+    val currentStreakDays: Int,
+    val longestStreakDays: Int,
+    val dailyListening: List<DailyListeningResponse>,
+    val genreBreakdown: List<GenreListeningResponse>,
+)
+
+/**
+ * Repository for computing listening statistics from local events.
+ *
+ * Stats are computed entirely from ListeningEventEntity records:
+ * - Daily listening: group events by day, sum durations
+ * - Total time: sum all event durations in period
+ * - Streaks: count consecutive days with listening activity
+ * - Genres: join with BookDao to get genre data, aggregate by genre
+ *
+ * This enables offline-first stats that update instantly when events are added.
+ *
+ * @property listeningEventDao DAO for listening events
+ * @property bookDao DAO for book metadata (genres)
+ */
+class StatsRepository(
+    private val listeningEventDao: ListeningEventDao,
+    private val bookDao: BookDao,
+) : StatsRepositoryContract {
+
+    /**
+     * Observe weekly stats (7 days) for the home screen.
+     *
+     * Automatically recomputes when events change.
+     * Uses observeEventsSince (no upper bound) so new events trigger updates.
+     */
+    override fun observeWeeklyStats(): Flow<HomeStats> {
+        val weekAgo = Clock.System.now().toEpochMilliseconds() - (7 * MS_PER_DAY)
+
+        return listeningEventDao.observeEventsSince(weekAgo).map { events ->
+            // Filter to exactly 7 days and compute stats with current time
+            val now = Clock.System.now().toEpochMilliseconds()
+            val filteredEvents = events.filter { it.endedAt <= now }
+            computeStats(filteredEvents, weekAgo, now)
+        }
+    }
+
+    /**
+     * Compute all stats from a list of events.
+     */
+    private suspend fun computeStats(
+        events: List<ListeningEventEntity>,
+        startMs: Long,
+        endMs: Long,
+    ): HomeStats {
+        logger.debug { "Computing stats from ${events.size} events" }
+
+        val totalTime = events.sumOf { it.durationMs }
+        val dailyListening = computeDailyListening(events, startMs, endMs)
+        val genreBreakdown = computeGenreBreakdown(events)
+        val (currentStreak, longestStreak) = computeStreaks()
+
+        logger.debug {
+            "Stats computed: ${totalTime}ms total, streak=$currentStreak, genres=${genreBreakdown.size}"
+        }
+
+        return HomeStats(
+            totalListenTimeMs = totalTime,
+            currentStreakDays = currentStreak,
+            longestStreakDays = longestStreak,
+            dailyListening = dailyListening,
+            genreBreakdown = genreBreakdown.take(3),
+        )
+    }
+
+    /**
+     * Group events by day and compute totals for bar chart.
+     *
+     * Returns 7 entries, one for each day in the period.
+     */
+    private fun computeDailyListening(
+        events: List<ListeningEventEntity>,
+        startMs: Long,
+        endMs: Long,
+    ): List<DailyListeningResponse> {
+        // Group events by day
+        val byDay = events.groupBy { event ->
+            // Floor to start of day
+            (event.endedAt / MS_PER_DAY) * MS_PER_DAY
+        }
+
+        // Generate 7 days, filling in zeros for days without activity
+        val result = mutableListOf<DailyListeningResponse>()
+        var dayStart = (startMs / MS_PER_DAY) * MS_PER_DAY
+
+        while (dayStart < endMs) {
+            val dayEvents = byDay[dayStart] ?: emptyList()
+            val totalMs = dayEvents.sumOf { it.durationMs }
+            val booksListened = dayEvents.map { it.bookId }.distinct().size
+
+            result.add(
+                DailyListeningResponse(
+                    date = formatDate(dayStart),
+                    listenTimeMs = totalMs,
+                    booksListened = booksListened,
+                )
+            )
+
+            dayStart += MS_PER_DAY
+        }
+
+        return result
+    }
+
+    /**
+     * Compute genre breakdown by joining events with book metadata.
+     */
+    private suspend fun computeGenreBreakdown(
+        events: List<ListeningEventEntity>,
+    ): List<GenreListeningResponse> {
+        if (events.isEmpty()) return emptyList()
+
+        // Group by book first
+        val byBook = events.groupBy { it.bookId }
+        val bookDurations = byBook.mapValues { (_, bookEvents) ->
+            bookEvents.sumOf { it.durationMs }
+        }
+
+        // Get genre info for each book
+        val genreDurations = mutableMapOf<String, Long>()
+
+        for ((bookIdStr, durationMs) in bookDurations) {
+            val book = bookDao.getById(BookId(bookIdStr))
+            val genres = book?.genres?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+
+            if (genres.isNullOrEmpty()) {
+                // Unknown genre
+                genreDurations["Unknown"] = (genreDurations["Unknown"] ?: 0L) + durationMs
+            } else {
+                // Distribute time across all genres (could also just use first)
+                val perGenre = durationMs / genres.size
+                for (genre in genres) {
+                    genreDurations[genre] = (genreDurations[genre] ?: 0L) + perGenre
+                }
+            }
+        }
+
+        // Sort by duration and compute percentages
+        val totalMs = genreDurations.values.sum()
+        return genreDurations
+            .entries
+            .sortedByDescending { it.value }
+            .map { (genre, durationMs) ->
+                GenreListeningResponse(
+                    genreSlug = genre.lowercase().replace(" ", "-"),
+                    genreName = genre,
+                    listenTimeMs = durationMs,
+                    percentage = if (totalMs > 0) (durationMs.toDouble() / totalMs) * 100 else 0.0,
+                )
+            }
+    }
+
+    /**
+     * Compute current and longest streak from all listening events.
+     *
+     * A streak is defined as consecutive calendar days with listening activity.
+     * Uses all events (not just weekly) for accurate streak tracking.
+     */
+    private suspend fun computeStreaks(): Pair<Int, Int> {
+        // Get all days with activity (going back far enough for longest streak)
+        val ninetyDaysAgo = Clock.System.now().toEpochMilliseconds() - (90 * MS_PER_DAY)
+        val daysWithActivity = listeningEventDao.getDistinctDaysWithActivity(ninetyDaysAgo)
+
+        if (daysWithActivity.isEmpty()) {
+            return Pair(0, 0)
+        }
+
+        val todayStart = (Clock.System.now().toEpochMilliseconds() / MS_PER_DAY) * MS_PER_DAY
+        val yesterdayStart = todayStart - MS_PER_DAY
+
+        // Convert to set for O(1) lookup
+        val activeDays = daysWithActivity.toSet()
+
+        // Compute current streak (must include today or yesterday)
+        var currentStreak = 0
+        if (todayStart in activeDays || yesterdayStart in activeDays) {
+            // Start from today if active, otherwise yesterday
+            var day = if (todayStart in activeDays) todayStart else yesterdayStart
+            while (day in activeDays) {
+                currentStreak++
+                day -= MS_PER_DAY
+            }
+        }
+
+        // Compute longest streak
+        var longestStreak = 0
+        var streakCount = 0
+        var prevDay: Long? = null
+
+        // Days are sorted descending, so iterate in reverse for chronological order
+        for (day in daysWithActivity.reversed()) {
+            if (prevDay == null || day - prevDay == MS_PER_DAY) {
+                // Consecutive day
+                streakCount++
+            } else {
+                // Gap - start new streak
+                longestStreak = maxOf(longestStreak, streakCount)
+                streakCount = 1
+            }
+            prevDay = day
+        }
+        longestStreak = maxOf(longestStreak, streakCount)
+
+        return Pair(currentStreak, longestStreak)
+    }
+
+    /**
+     * Format epoch ms as YYYY-MM-DD string.
+     */
+    private fun formatDate(epochMs: Long): String {
+        // Simple calculation without datetime library
+        // Days since Unix epoch
+        val daysSinceEpoch = epochMs / MS_PER_DAY
+
+        // Calculate year, month, day
+        // This is a simplified calculation - using kotlinx-datetime would be better
+        // but keeping it simple for now
+        var days = daysSinceEpoch.toInt() + 719528 // Days from year 0 to 1970
+        var year = (10000 * days.toLong() + 14780) / 3652425
+        var doy = days - (365 * year + year / 4 - year / 100 + year / 400).toInt()
+        if (doy < 0) {
+            year--
+            doy = days - (365 * year + year / 4 - year / 100 + year / 400).toInt()
+        }
+        val mi = (100 * doy + 52) / 3060
+        val month = (mi + 2) % 12 + 1
+        year += (mi + 2) / 12
+        val day = doy - (mi * 306 + 5) / 10 + 1
+
+        return "${year.toInt()}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}"
+    }
+}

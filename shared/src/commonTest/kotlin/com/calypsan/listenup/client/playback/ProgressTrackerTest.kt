@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.DownloadDao
+import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
@@ -48,6 +49,7 @@ class ProgressTrackerTest {
 
         val positionDao: PlaybackPositionDao = mock()
         val downloadDao: DownloadDao = mock()
+        val listeningEventDao: ListeningEventDao = mock()
         val syncApi: SyncApiContract = mock()
         val pendingOperationRepository: PendingOperationRepositoryContract = mock()
         val listeningEventHandler: OperationHandler<ListeningEventPayload> = mock()
@@ -57,6 +59,7 @@ class ProgressTrackerTest {
             ProgressTracker(
                 positionDao = positionDao,
                 downloadDao = downloadDao,
+                listeningEventDao = listeningEventDao,
                 syncApi = syncApi,
                 pendingOperationRepository = pendingOperationRepository,
                 listeningEventHandler = listeningEventHandler,

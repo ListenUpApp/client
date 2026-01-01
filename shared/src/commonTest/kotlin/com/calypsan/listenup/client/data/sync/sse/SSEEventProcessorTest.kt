@@ -13,6 +13,8 @@ import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.data.local.db.ListeningEventDao
+import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
@@ -106,6 +108,7 @@ class SSEEventProcessorTest {
         val collectionDao: CollectionDao = mock()
         val lensDao: LensDao = mock()
         val tagDao: TagDao = mock()
+        val listeningEventDao: ListeningEventDao = mock()
         val imageDownloader: ImageDownloaderContract = mock()
         val playbackStateProvider: PlaybackStateProvider = mock()
         val downloadService: DownloadService = mock()
@@ -132,6 +135,7 @@ class SSEEventProcessorTest {
             everySuspend { tagDao.insertBookTag(any<BookTagCrossRef>()) } returns Unit
             everySuspend { tagDao.deleteBookTag(any(), any()) } returns Unit
             everySuspend { tagDao.getById(any()) } returns null
+            everySuspend { listeningEventDao.upsert(any<ListeningEventEntity>()) } returns Unit
             everySuspend { imageDownloader.downloadCover(any()) } returns Result.Success(false)
 
             // PlaybackStateProvider stubs
@@ -161,6 +165,7 @@ class SSEEventProcessorTest {
                 collectionDao = collectionDao,
                 lensDao = lensDao,
                 tagDao = tagDao,
+                listeningEventDao = listeningEventDao,
                 imageDownloader = imageDownloader,
                 playbackStateProvider = playbackStateProvider,
                 downloadService = downloadService,

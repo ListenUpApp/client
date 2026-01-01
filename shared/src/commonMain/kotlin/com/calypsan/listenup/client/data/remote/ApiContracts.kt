@@ -160,6 +160,20 @@ interface SyncApiContract {
      * @return Result containing BookResponse (converted from SingleBookResponse) or error
      */
     suspend fun getBook(bookId: String): Result<com.calypsan.listenup.client.data.remote.model.BookResponse>
+
+    /**
+     * Get listening events for initial sync.
+     *
+     * Fetches all listening events for the current user, optionally filtered
+     * by a since timestamp for delta sync.
+     *
+     * Endpoint: GET /api/v1/listening/events
+     * Auth: Required
+     *
+     * @param sinceMs Only return events created after this timestamp (epoch ms), null for all events
+     * @return Result containing list of listening events
+     */
+    suspend fun getListeningEvents(sinceMs: Long? = null): Result<ListeningEventsApiResponse>
 }
 
 /**
@@ -1146,4 +1160,29 @@ data class ReadingHistorySession(
     val finishedAt: String? = null,
     val isCompleted: Boolean,
     val listenTimeMs: Long,
+)
+
+// =============================================================================
+// Listening Events API Response Types
+// =============================================================================
+
+/**
+ * Response from GET /listening/events endpoint.
+ */
+data class ListeningEventsApiResponse(
+    val events: List<ListeningEventApiResponse>,
+)
+
+/**
+ * A single listening event from the API.
+ */
+data class ListeningEventApiResponse(
+    val id: String,
+    val bookId: String,
+    val startPositionMs: Long,
+    val endPositionMs: Long,
+    val startedAt: String,
+    val endedAt: String,
+    val playbackSpeed: Float,
+    val deviceId: String,
 )
