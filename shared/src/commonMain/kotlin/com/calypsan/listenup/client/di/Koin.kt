@@ -417,6 +417,7 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.bookdetail.BookReadersViewModel(
                 sessionApi = get(),
+                sseManager = get(),
             )
         }
         factory {

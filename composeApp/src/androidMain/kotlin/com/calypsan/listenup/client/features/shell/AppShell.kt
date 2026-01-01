@@ -21,11 +21,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
+import com.calypsan.listenup.client.data.remote.SessionApiContract
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SyncManager
+import io.github.oshai.kotlinlogging.KotlinLogging
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
@@ -46,6 +50,8 @@ import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Main app shell providing persistent navigation frame.
@@ -85,6 +91,7 @@ fun AppShell(
     val userDao: UserDao = koinInject()
     val settingsRepository: SettingsRepository = koinInject()
     val syncDao: SyncDao = koinInject()
+    val sessionApi: SessionApiContract = koinInject()
     val searchViewModel: SearchViewModel = koinViewModel()
     val syncIndicatorViewModel: SyncIndicatorViewModel = koinViewModel()
 
@@ -100,6 +107,35 @@ fun AppShell(
         val lastSyncTime = syncDao.getLastSyncTime()
         if (isAuthenticated && lastSyncTime == null) {
             syncManager.sync()
+        }
+    }
+
+    // Fetch user data if missing from database but authenticated
+    // This handles the case where database was cleared but tokens remain
+    LaunchedEffect(Unit) {
+        val hasTokens = settingsRepository.getAccessToken() != null
+        val existingUser = userDao.getCurrentUser()
+
+        if (hasTokens && existingUser == null) {
+            logger.info { "User data missing but authenticated, fetching from server..." }
+            when (val result = sessionApi.getCurrentUser()) {
+                is Success -> {
+                    val userData = result.data
+                    val userEntity = UserEntity(
+                        id = userData.id,
+                        email = userData.email,
+                        displayName = userData.displayName,
+                        isRoot = userData.isRoot,
+                        createdAt = userData.createdAt,
+                        updatedAt = userData.updatedAt,
+                    )
+                    userDao.upsert(userEntity)
+                    logger.info { "User data restored: ${userData.email}" }
+                }
+                else -> {
+                    logger.warn { "Failed to fetch user data, user may see loading state" }
+                }
+            }
         }
     }
 

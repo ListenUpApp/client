@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.BookReadersApiResponse
+import com.calypsan.listenup.client.data.remote.model.CurrentUserApiResponse
 import com.calypsan.listenup.client.data.remote.model.UserReadingHistoryApiResponse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.call.body
@@ -59,6 +60,23 @@ class SessionApi(
                         parameter("limit", limit)
                     }.body()
             logger.debug { "Fetched ${response.data?.sessions?.size ?: 0} sessions" }
+            response.toResult().getOrThrow().toDomain()
+        }
+
+    /**
+     * Get the current authenticated user's profile.
+     *
+     * Used to fetch user data if missing from local database.
+     *
+     * Endpoint: GET /api/v1/users/me
+     */
+    override suspend fun getCurrentUser(): Result<CurrentUserResponse> =
+        suspendRunCatching {
+            logger.debug { "Fetching current user profile" }
+            val client = clientFactory.getClient()
+            val response: ApiResponse<CurrentUserApiResponse> =
+                client.get("/api/v1/users/me").body()
+            logger.debug { "Fetched user: ${response.data?.email}" }
             response.toResult().getOrThrow().toDomain()
         }
 }

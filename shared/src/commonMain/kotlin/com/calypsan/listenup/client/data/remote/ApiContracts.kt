@@ -880,7 +880,34 @@ interface SessionApiContract {
      * @return Result containing UserReadingHistoryResponse or error
      */
     suspend fun getUserReadingHistory(limit: Int = 20): Result<UserReadingHistoryResponse>
+
+    /**
+     * Get the current authenticated user's profile.
+     *
+     * Used to fetch user data if missing from local database
+     * (e.g., after database was cleared but tokens remain).
+     *
+     * Endpoint: GET /api/v1/users/me
+     * Auth: Required
+     *
+     * @return Result containing CurrentUserResponse or error
+     */
+    suspend fun getCurrentUser(): Result<CurrentUserResponse>
 }
+
+/**
+ * Response from GET /api/v1/users/me endpoint.
+ */
+data class CurrentUserResponse(
+    val id: String,
+    val email: String,
+    val displayName: String,
+    val firstName: String?,
+    val lastName: String?,
+    val isRoot: Boolean,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
 
 /**
  * Response from user settings endpoint.

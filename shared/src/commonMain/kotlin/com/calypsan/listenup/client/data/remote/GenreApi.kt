@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.remote
 
+import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Genre
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -53,8 +54,11 @@ class GenreApi(
      */
     override suspend fun listGenres(): List<Genre> {
         val client = clientFactory.getClient()
-        val response: GenreListResponse = client.get("/api/v1/genres/").body()
-        return response.data.map { it.toDomain() }
+        val response: ApiResponse<GenreListResponse> = client.get("/api/v1/genres/").body()
+        if (!response.success || response.data == null) {
+            throw GenreApiException(response.error ?: "Failed to list genres")
+        }
+        return response.data.genres.map { it.toDomain() }
     }
 
     /**
@@ -85,17 +89,23 @@ class GenreApi(
      */
     override suspend fun getBookGenres(bookId: String): List<Genre> {
         val client = clientFactory.getClient()
-        val response: GenreListResponse = client.get("/api/v1/books/$bookId/genres").body()
-        return response.data.map { it.toDomain() }
+        val response: ApiResponse<GenreListResponse> = client.get("/api/v1/books/$bookId/genres").body()
+        if (!response.success || response.data == null) {
+            throw GenreApiException(response.error ?: "Failed to get book genres")
+        }
+        return response.data.genres.map { it.toDomain() }
     }
 }
 
 /**
  * Wrapper for genre list response.
+ *
+ * Server returns: {"genres": [...]}
+ * After envelope wrapping: {"success": true, "data": {"genres": [...]}}
  */
 @Serializable
 internal data class GenreListResponse(
-    val data: List<GenreResponse>,
+    val genres: List<GenreResponse>,
 )
 
 /**
@@ -134,3 +144,10 @@ internal data class SetBookGenresRequest(
     @SerialName("genre_ids")
     val genreIds: List<String>,
 )
+
+/**
+ * Exception thrown when a genre API call fails.
+ */
+class GenreApiException(
+    message: String,
+) : Exception(message)

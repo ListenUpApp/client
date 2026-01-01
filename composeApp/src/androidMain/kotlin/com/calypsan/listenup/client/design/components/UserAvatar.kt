@@ -79,15 +79,24 @@ fun UserAvatar(
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Text(
-                    text = user?.displayName ?: "Unknown",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = user?.email ?: "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (user != null) {
+                    Text(
+                        text = user.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = user.email,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    // Loading state - user data not yet available
+                    Text(
+                        text = "Loading...",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             HorizontalDivider()

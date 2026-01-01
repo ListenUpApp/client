@@ -125,15 +125,18 @@ class AdminCollectionDetailViewModel(
 
     /**
      * Convert API response to UI model.
+     *
+     * Uses display name > first+last name > email > truncated ID as fallback chain.
      */
     private fun ShareResponse.toShareItem(user: AdminUser?) =
         CollectionShareItem(
             id = id,
             userId = sharedWithUserId,
-            userName =
-                user
-                    ?.let { it.displayName ?: "${it.firstName ?: ""} ${it.lastName ?: ""}".trim() }
-                    ?.takeIf { it.isNotBlank() } ?: "Unknown User",
+            userName = user?.let {
+                it.displayName?.takeIf { name -> name.isNotBlank() }
+                    ?: "${it.firstName ?: ""} ${it.lastName ?: ""}".trim().takeIf { name -> name.isNotBlank() }
+                    ?: it.email
+            } ?: "User ${sharedWithUserId.take(8)}...", // Fallback to truncated ID
             userEmail = user?.email ?: "",
             permission = permission,
         )
