@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -18,6 +19,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.features.home.components.ContinueListeningRow
 import com.calypsan.listenup.client.features.home.components.EmptyContinueListening
 import com.calypsan.listenup.client.features.home.components.HomeHeader
+import com.calypsan.listenup.client.features.home.components.HomeStatsSection
 import com.calypsan.listenup.client.features.home.components.MyLensesRow
 import com.calypsan.listenup.client.presentation.home.HomeViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -27,6 +29,7 @@ import org.koin.compose.viewmodel.koinViewModel
  *
  * Features:
  * - Time-aware greeting (Good morning/afternoon/evening/night)
+ * - Weekly stats section with listening chart, streak, and genres
  * - Continue Listening section with in-progress audiobooks
  * - My Lenses section with user's personal curation lenses
  * - Pull-to-refresh to reload data
@@ -74,11 +77,15 @@ fun HomeScreen(
                     books = state.continueListening,
                     onBookClick = onBookClick,
                 )
+                Spacer(modifier = Modifier.height(16.dp))
             } else if (!state.isLoading) {
                 EmptyContinueListening(
                     onBrowseLibrary = onNavigateToLibrary,
                 )
             }
+
+            // Stats section (below continue listening)
+            HomeStatsSection()
 
             // My Lenses section
             if (state.hasMyLenses) {

@@ -127,6 +127,7 @@ val playbackModule =
                 downloadService = get(),
                 playbackApi = get(),
                 capabilityDetector = get(),
+                syncApi = get(),
                 scope = get(),
             )
         }

@@ -146,6 +146,20 @@ interface SyncApiContract {
      * @return Result containing list of ContinueListeningItemResponse
      */
     suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningItemResponse>>
+
+    /**
+     * Get a single book by ID.
+     *
+     * Used to fetch book data on-demand when local data is incomplete
+     * (e.g., audioFilesJson is missing during playback).
+     *
+     * Endpoint: GET /api/v1/books/{id}
+     * Auth: Required
+     *
+     * @param bookId Book ID to fetch
+     * @return Result containing BookResponse (converted from SingleBookResponse) or error
+     */
+    suspend fun getBook(bookId: String): Result<com.calypsan.listenup.client.data.remote.model.BookResponse>
 }
 
 /**
@@ -398,7 +412,7 @@ data class ImageUploadResponse(
 /**
  * Contract interface for instance-level API operations.
  *
- * Handles server instance information and user-specific listening data.
+ * Handles server instance information.
  */
 interface InstanceApiContract {
     /**
@@ -409,17 +423,6 @@ interface InstanceApiContract {
      * @return Result containing the Instance on success, or an error on failure
      */
     suspend fun getInstance(): Result<Instance>
-
-    /**
-     * Fetch books the user is currently listening to.
-     *
-     * This is an authenticated endpoint - requires valid access token.
-     * Returns playback progress for books sorted by last played time.
-     *
-     * @param limit Maximum number of books to return (default 10)
-     * @return Result containing list of PlaybackProgressResponse on success
-     */
-    suspend fun getContinueListening(limit: Int = 10): Result<List<PlaybackProgressResponse>>
 }
 
 /**

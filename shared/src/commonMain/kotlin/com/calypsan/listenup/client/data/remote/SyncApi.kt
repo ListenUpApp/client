@@ -7,6 +7,7 @@ import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
+import com.calypsan.listenup.client.data.remote.model.ContinueListeningResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
 import com.calypsan.listenup.client.data.remote.model.SyncContributorsResponse
@@ -259,7 +260,7 @@ class SyncApi(
     override suspend fun getProgress(bookId: String): Result<PlaybackProgressResponse?> =
         suspendRunCatching {
             val client = clientFactory.getClient()
-            val httpResponse: HttpResponse = client.get("/api/v1/listening/progress/$bookId")
+            val httpResponse: HttpResponse = client.get("/api/v1/books/$bookId/progress")
 
             // Handle 404 as null (no progress yet)
             if (httpResponse.status == HttpStatusCode.NotFound) {
@@ -285,12 +286,32 @@ class SyncApi(
     override suspend fun getContinueListening(limit: Int): Result<List<ContinueListeningItemResponse>> =
         suspendRunCatching {
             val client = clientFactory.getClient()
-            val response: ApiResponse<List<ContinueListeningItemResponse>> =
+            val response: ApiResponse<ContinueListeningResponse> =
                 client
                     .get("/api/v1/listening/continue") {
                         parameter("limit", limit)
                     }.body()
-            response.toResult().getOrThrow()
+            response.toResult().getOrThrow().items
+        }
+
+    /**
+     * Get a single book by ID.
+     *
+     * Used to fetch book data on-demand when local data is incomplete
+     * (e.g., audioFilesJson is missing during playback).
+     *
+     * Endpoint: GET /api/v1/books/{id}
+     * Auth: Required
+     *
+     * @param bookId Book ID to fetch
+     * @return Result containing BookResponse (converted from SingleBookResponse) or error
+     */
+    override suspend fun getBook(bookId: String): Result<com.calypsan.listenup.client.data.remote.model.BookResponse> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            val response: ApiResponse<com.calypsan.listenup.client.data.remote.model.SingleBookResponse> =
+                client.get("/api/v1/books/$bookId").body()
+            response.toResult().getOrThrow().toBookResponse()
         }
 }
 

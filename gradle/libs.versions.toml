@@ -30,6 +30,7 @@ media3 = "1.9.0"
 concurrent-futures = "1.3.0"
 markdown-renderer = "0.39.0"
 blurhash = "0.3.0"
+vico = "2.3.6"
 
 # Quality Tools
 detekt = "1.23.8"
@@ -125,6 +126,9 @@ markdown-renderer-m3 = { module = "com.mikepenz:multiplatform-markdown-renderer-
 
 # BlurHash (image placeholders)
 blurhash = { module = "com.vanniktech:blurhash", version.ref = "blurhash" }
+
+# Vico Charts
+vico-compose-m3 = { module = "com.patrykandpatrick.vico:compose-m3", version.ref = "vico" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

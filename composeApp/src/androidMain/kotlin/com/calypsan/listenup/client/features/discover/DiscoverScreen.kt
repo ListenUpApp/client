@@ -45,13 +45,15 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.remote.LensResponse
 import com.calypsan.listenup.client.data.remote.UserLensesResponse
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.features.discover.components.DiscoverLeaderboardSection
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Discover screen - browse lenses from other users.
+ * Discover screen - browse lenses from other users and view community leaderboard.
  *
  * Features:
+ * - Community leaderboard with gamified rankings
  * - Pull to refresh
  * - Users grouped with their lenses
  * - Click lens to view details
@@ -73,56 +75,40 @@ fun DiscoverScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        when {
-            state.isLoading && state.users.isEmpty() -> {
-                ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
-            }
-
-            state.isEmpty -> {
-                EmptyDiscoverState(modifier = Modifier.align(Alignment.Center))
-            }
-
-            state.error != null -> {
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = state.error ?: "Unknown error",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-
-            else -> {
-                DiscoverContent(
-                    users = state.users,
-                    onLensClick = onLensClick,
-                )
-            }
-        }
+        // Discover content with leaderboard (always shows) and user lenses
+        DiscoverContent(
+            isLoading = state.isLoading,
+            users = state.users,
+            isEmpty = state.isEmpty,
+            error = state.error,
+            onLensClick = onLensClick,
+        )
     }
 }
 
 /**
- * Empty state when no lenses are discoverable.
+ * Empty state when no lenses are discoverable from other users.
+ *
+ * This is shown below the leaderboard when there are no shared lenses.
  */
 @Composable
-private fun EmptyDiscoverState(modifier: Modifier = Modifier) {
+private fun EmptyLensesState(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.padding(48.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Icon(
             imageVector = Icons.Filled.Explore,
             contentDescription = null,
-            modifier = Modifier.size(64.dp),
+            modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         )
         Text(
-            text = "No Lenses to Discover",
-            style = MaterialTheme.typography.headlineSmall,
+            text = "No Lenses to Discover Yet",
+            style = MaterialTheme.typography.titleMedium,
         )
         Text(
             text = "When other users create lenses with books you can access, they'll appear here.",
@@ -134,11 +120,19 @@ private fun EmptyDiscoverState(modifier: Modifier = Modifier) {
 }
 
 /**
- * Main content showing users with their lenses.
+ * Main content showing leaderboard and users with their lenses.
+ *
+ * The leaderboard always shows at the top. Below it:
+ * - If loading initial data, show loading indicator
+ * - If empty, show empty state message
+ * - If has users, show their lenses
  */
 @Composable
 private fun DiscoverContent(
+    isLoading: Boolean,
     users: List<UserLensesResponse>,
+    isEmpty: Boolean,
+    error: String?,
     onLensClick: (String) -> Unit,
 ) {
     LazyColumn(
@@ -146,14 +140,60 @@ private fun DiscoverContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        items(
-            items = users,
-            key = { it.user.id },
-        ) { userLenses ->
-            UserLensesSection(
-                userLenses = userLenses,
-                onLensClick = onLensClick,
-            )
+        // Leaderboard section at top - always shows
+        item {
+            DiscoverLeaderboardSection()
+        }
+
+        // Content below leaderboard depends on state
+        when {
+            isLoading && users.isEmpty() -> {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        ListenUpLoadingIndicator()
+                    }
+                }
+            }
+
+            error != null -> {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(48.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+
+            isEmpty -> {
+                item {
+                    EmptyLensesState()
+                }
+            }
+
+            else -> {
+                // Users with lenses
+                items(
+                    items = users,
+                    key = { it.user.id },
+                ) { userLenses ->
+                    UserLensesSection(
+                        userLenses = userLenses,
+                        onLensClick = onLensClick,
+                    )
+                }
+            }
         }
     }
 }

@@ -134,7 +134,9 @@ class HomeViewModel(
      *
      * Called by pull-to-refresh.
      */
-    fun refresh() = loadHomeData()
+    fun refresh() {
+        loadHomeData()
+    }
 
     /**
      * Extract first name from a full display name.

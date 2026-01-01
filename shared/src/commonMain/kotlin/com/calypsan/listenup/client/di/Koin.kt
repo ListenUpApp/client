@@ -29,6 +29,10 @@ import com.calypsan.listenup.client.data.remote.MetadataApiContract
 import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
+import com.calypsan.listenup.client.data.remote.StatsApi
+import com.calypsan.listenup.client.data.remote.StatsApiContract
+import com.calypsan.listenup.client.data.remote.LeaderboardApi
+import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
 import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.TagApi
@@ -113,6 +117,8 @@ import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
+import com.calypsan.listenup.client.presentation.discover.LeaderboardViewModel
+import com.calypsan.listenup.client.presentation.home.HomeStatsViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
@@ -519,6 +525,12 @@ val presentationModule =
         }
         // SyncIndicatorViewModel as singleton for app-wide sync status
         single { SyncIndicatorViewModel(pendingOperationRepository = get()) }
+
+        // HomeStatsViewModel for home screen stats section
+        factory { HomeStatsViewModel(statsApi = get()) }
+
+        // LeaderboardViewModel for discover screen leaderboard
+        factory { LeaderboardViewModel(leaderboardApi = get()) }
     }
 
 /**
@@ -589,6 +601,16 @@ val syncModule =
         single {
             GenreApi(clientFactory = get())
         } bind GenreApiContract::class
+
+        // StatsApi for listening statistics
+        single {
+            StatsApi(clientFactory = get())
+        } bind StatsApiContract::class
+
+        // LeaderboardApi for social leaderboard
+        single {
+            LeaderboardApi(clientFactory = get())
+        } bind LeaderboardApiContract::class
 
         // AdminApi for admin operations (user/invite management)
         single {

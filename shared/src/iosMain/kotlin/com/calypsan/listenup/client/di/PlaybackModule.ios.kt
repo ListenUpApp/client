@@ -104,6 +104,7 @@ val iosPlaybackModule: Module =
                 downloadService = get(),
                 playbackApi = null, // iOS uses native AVPlayer, no transcoding API needed
                 capabilityDetector = null, // iOS doesn't need codec detection
+                syncApi = get(),
                 scope = get(qualifier = named("playbackScope")),
             )
         }
