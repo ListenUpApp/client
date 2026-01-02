@@ -23,6 +23,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -351,7 +352,39 @@ class SyncApi(
                 },
             )
         }
+
+    /**
+     * End a playback session and record listening activity.
+     *
+     * Called when the user pauses or stops playback to create a
+     * listening_session activity in the activity feed.
+     *
+     * Endpoint: POST /api/v1/listening/session/end
+     * Auth: Required
+     *
+     * @param bookId Book that was being played
+     * @param durationMs Duration listened in this session (milliseconds)
+     * @return Result containing Unit on success or error
+     */
+    override suspend fun endPlaybackSession(bookId: String, durationMs: Long): Result<Unit> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            client.post("/api/v1/listening/session/end") {
+                contentType(ContentType.Application.Json)
+                setBody(EndPlaybackSessionRequest(bookId = bookId, durationMs = durationMs))
+            }
+            Unit
+        }
 }
+
+/**
+ * Request body for ending a playback session.
+ */
+@Serializable
+data class EndPlaybackSessionRequest(
+    @SerialName("book_id") val bookId: String,
+    @SerialName("duration_ms") val durationMs: Long,
+)
 
 /**
  * Request body for submitting listening events.

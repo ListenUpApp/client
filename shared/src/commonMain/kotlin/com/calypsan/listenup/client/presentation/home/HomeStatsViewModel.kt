@@ -127,7 +127,7 @@ data class HomeStatsUiState(
      * Whether there is any data to display.
      */
     val hasData: Boolean
-        get() = totalListenTimeMs > 0 || dailyListening.isNotEmpty() || currentStreakDays > 0
+        get() = totalListenTimeMs > 0 || dailyListening.isNotEmpty() || currentStreakDays > 0 || longestStreakDays > 0
 
     /**
      * Whether there is genre data to display.
@@ -142,8 +142,8 @@ data class HomeStatsUiState(
         get() = dailyListening.maxOfOrNull { it.listenTimeMs } ?: 0
 
     /**
-     * Whether to show the streak (current streak > 0).
+     * Whether to show the streak section (current or longest streak > 0).
      */
     val hasStreak: Boolean
-        get() = currentStreakDays > 0
+        get() = currentStreakDays > 0 || longestStreakDays > 0
 }

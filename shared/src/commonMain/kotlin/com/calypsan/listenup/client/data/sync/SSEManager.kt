@@ -21,6 +21,7 @@ import com.calypsan.listenup.client.data.remote.model.SSELensUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEProgressUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEActivityCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEListeningEventCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEReadingSessionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
@@ -530,6 +531,32 @@ class SSEManager(
                         )
                     }
 
+                    "activity.created" -> {
+                        val activityEvent =
+                            json.decodeFromJsonElement(
+                                SSEActivityCreatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ActivityCreated(
+                            id = activityEvent.id,
+                            userId = activityEvent.userId,
+                            type = activityEvent.type,
+                            createdAt = activityEvent.createdAt,
+                            userDisplayName = activityEvent.userDisplayName,
+                            userAvatarColor = activityEvent.userAvatarColor,
+                            bookId = activityEvent.bookId,
+                            bookTitle = activityEvent.bookTitle,
+                            bookAuthorName = activityEvent.bookAuthorName,
+                            bookCoverPath = activityEvent.bookCoverPath,
+                            isReread = activityEvent.isReread,
+                            durationMs = activityEvent.durationMs,
+                            milestoneValue = activityEvent.milestoneValue,
+                            milestoneUnit = activityEvent.milestoneUnit,
+                            lensId = activityEvent.lensId,
+                            lensName = activityEvent.lensName,
+                        )
+                    }
+
                     else -> {
                         logger.debug { "Unknown event type: ${sseEvent.type}" }
                         return
@@ -784,5 +811,30 @@ sealed class SSEEventType {
         val playbackSpeed: Float,
         val deviceId: String,
         val createdAt: String,
+    ) : SSEEventType()
+
+    // Activity events
+
+    /**
+     * A new activity was created (started book, finished book, milestone, listening session, lens created, etc.).
+     * Used for real-time activity feed updates.
+     */
+    data class ActivityCreated(
+        val id: String,
+        val userId: String,
+        val type: String,
+        val createdAt: String,
+        val userDisplayName: String,
+        val userAvatarColor: String,
+        val bookId: String? = null,
+        val bookTitle: String? = null,
+        val bookAuthorName: String? = null,
+        val bookCoverPath: String? = null,
+        val isReread: Boolean = false,
+        val durationMs: Long = 0,
+        val milestoneValue: Int = 0,
+        val milestoneUnit: String? = null,
+        val lensId: String? = null,
+        val lensName: String? = null,
     ) : SSEEventType()
 }

@@ -12,15 +12,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -69,30 +66,14 @@ fun LeaderboardList(
 
     Column(
         modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            // Disable scrolling - parent pager handles it, and we show limited items
-            userScrollEnabled = false,
-            contentPadding = PaddingValues(vertical = 0.dp),
-        ) {
-            items(
-                items = visibleEntries,
-                key = { it.userId },
-            ) { entry ->
-                LeaderboardEntry(
-                    entry = entry,
-                    modifier = Modifier.animateItem(
-                        fadeInSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        fadeOutSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        placementSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessLow,
-                        ),
-                    ),
-                )
-            }
+        // Use regular Column instead of LazyColumn to avoid nested scrollable crash
+        // when this is inside HorizontalPager inside LazyColumn (DiscoverScreen)
+        visibleEntries.forEach { entry ->
+            LeaderboardEntry(
+                entry = entry,
+            )
         }
 
         // Expand/Collapse button

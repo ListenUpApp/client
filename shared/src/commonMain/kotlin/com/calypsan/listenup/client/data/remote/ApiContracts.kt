@@ -174,6 +174,21 @@ interface SyncApiContract {
      * @return Result containing list of listening events
      */
     suspend fun getListeningEvents(sinceMs: Long? = null): Result<ListeningEventsApiResponse>
+
+    /**
+     * End a playback session and record listening activity.
+     *
+     * Called by the client when playback is paused or stopped.
+     * Records a listening_session activity in the activity feed.
+     *
+     * Endpoint: POST /api/v1/listening/session/end
+     * Auth: Required
+     *
+     * @param bookId Book that was being played
+     * @param durationMs Duration listened in this session (milliseconds)
+     * @return Result containing success message or error
+     */
+    suspend fun endPlaybackSession(bookId: String, durationMs: Long): Result<Unit>
 }
 
 /**

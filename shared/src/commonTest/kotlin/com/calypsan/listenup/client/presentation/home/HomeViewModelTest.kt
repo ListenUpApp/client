@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.home
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
@@ -50,6 +51,7 @@ class HomeViewModelTest {
 
     private class TestFixture {
         val homeRepository: HomeRepositoryContract = mock()
+        val bookDao: BookDao = mock()
         val lensDao: LensDao = mock()
         val userFlow = MutableStateFlow<UserEntity?>(null)
         var currentHour: Int = 10 // Default to morning
@@ -57,6 +59,7 @@ class HomeViewModelTest {
         fun build(): HomeViewModel =
             HomeViewModel(
                 homeRepository = homeRepository,
+                bookDao = bookDao,
                 lensDao = lensDao,
                 currentHour = { currentHour },
             )
@@ -68,6 +71,7 @@ class HomeViewModelTest {
         // Default stubs
         every { fixture.homeRepository.observeCurrentUser() } returns fixture.userFlow
         everySuspend { fixture.homeRepository.getContinueListening(any()) } returns Success(emptyList())
+        every { fixture.bookDao.observeAll() } returns flowOf(emptyList())
         every { fixture.lensDao.observeMyLenses(any()) } returns flowOf(emptyList())
 
         return fixture

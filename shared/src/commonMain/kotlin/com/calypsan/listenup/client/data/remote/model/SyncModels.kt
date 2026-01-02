@@ -776,6 +776,46 @@ data class SSEListeningEventCreatedEvent(
     val createdAt: String,
 )
 
+/**
+ * SSE activity created event data.
+ * Sent when a new social activity is recorded (started book, finished book, milestone, listening session, etc.).
+ */
+@Serializable
+data class SSEActivityCreatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("type")
+    val type: String,
+    @SerialName("created_at")
+    val createdAt: String,
+    @SerialName("user_display_name")
+    val userDisplayName: String,
+    @SerialName("user_avatar_color")
+    val userAvatarColor: String,
+    @SerialName("book_id")
+    val bookId: String? = null,
+    @SerialName("book_title")
+    val bookTitle: String? = null,
+    @SerialName("book_author_name")
+    val bookAuthorName: String? = null,
+    @SerialName("book_cover_path")
+    val bookCoverPath: String? = null,
+    @SerialName("is_reread")
+    val isReread: Boolean = false,
+    @SerialName("duration_ms")
+    val durationMs: Long = 0,
+    @SerialName("milestone_value")
+    val milestoneValue: Int = 0,
+    @SerialName("milestone_unit")
+    val milestoneUnit: String? = null,
+    @SerialName("lens_id")
+    val lensId: String? = null,
+    @SerialName("lens_name")
+    val lensName: String? = null,
+)
+
 // =============================================================================
 // Single Book Endpoint Models (GET /api/v1/books/{id})
 // =============================================================================

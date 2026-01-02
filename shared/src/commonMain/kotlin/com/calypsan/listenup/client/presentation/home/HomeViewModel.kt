@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentHourOfDay
+import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
@@ -11,6 +12,8 @@ import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -26,10 +29,12 @@ private val logger = KotlinLogging.logger {}
  * - Loading and error states
  *
  * @property homeRepository Repository for home screen data
+ * @property bookDao DAO for observing book changes (cover downloads)
  * @property lensDao DAO for lens data
  */
 class HomeViewModel(
     private val homeRepository: HomeRepositoryContract,
+    private val bookDao: BookDao,
     private val lensDao: LensDao,
     private val currentHour: () -> Int = { currentHourOfDay() },
 ) : ViewModel() {
@@ -42,6 +47,7 @@ class HomeViewModel(
     init {
         observeUser()
         loadHomeData()
+        observeBookChanges()
     }
 
     /**
@@ -91,6 +97,30 @@ class HomeViewModel(
                 state.update { it.copy(myLenses = lenses) }
                 logger.debug { "My lenses updated: ${lenses.size}" }
             }
+        }
+    }
+
+    /**
+     * Observe book changes to refresh Continue Listening when covers download.
+     *
+     * When cover images are downloaded, bookDao.touchUpdatedAt() is called,
+     * which triggers this observer. We reload Continue Listening to pick up
+     * the new cover paths.
+     */
+    private fun observeBookChanges() {
+        viewModelScope.launch {
+            // Observe book count changes (crude but effective trigger)
+            // This detects when books are added/modified
+            bookDao.observeAll()
+                .map { books -> books.maxOfOrNull { it.updatedAt } ?: 0L }
+                .distinctUntilChanged()
+                .collect { latestUpdate ->
+                    // Skip initial load (handled by loadHomeData)
+                    if (state.value.continueListening.isNotEmpty()) {
+                        logger.debug { "Book data changed, reloading Continue Listening" }
+                        loadHomeData()
+                    }
+                }
         }
     }
 

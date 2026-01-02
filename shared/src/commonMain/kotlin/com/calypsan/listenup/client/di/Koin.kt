@@ -21,6 +21,8 @@ import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.remote.InstanceApiContract
 import com.calypsan.listenup.client.data.remote.InviteApi
 import com.calypsan.listenup.client.data.remote.InviteApiContract
+import com.calypsan.listenup.client.data.remote.ActivityFeedApi
+import com.calypsan.listenup.client.data.remote.ActivityFeedApiContract
 import com.calypsan.listenup.client.data.remote.LeaderboardApi
 import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
 import com.calypsan.listenup.client.data.remote.LensApi
@@ -120,6 +122,7 @@ import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
+import com.calypsan.listenup.client.presentation.discover.ActivityFeedViewModel
 import com.calypsan.listenup.client.presentation.discover.LeaderboardViewModel
 import com.calypsan.listenup.client.presentation.home.HomeStatsViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
@@ -480,6 +483,7 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.home.HomeViewModel(
                 homeRepository = get(),
+                bookDao = get(),
                 lensDao = get(),
             )
         }
@@ -542,6 +546,10 @@ val presentationModule =
         // LeaderboardViewModel for discover screen leaderboard
         // Observes local events to trigger refresh when new listening sessions occur
         factory { LeaderboardViewModel(leaderboardApi = get(), listeningEventDao = get()) }
+
+        // ActivityFeedViewModel for discover screen activity feed
+        // Observes SSE events for real-time updates
+        factory { ActivityFeedViewModel(activityFeedApi = get(), sseManager = get()) }
     }
 
 /**
@@ -622,6 +630,11 @@ val syncModule =
         single {
             LeaderboardApi(clientFactory = get())
         } bind LeaderboardApiContract::class
+
+        // ActivityFeedApi for social activity feed
+        single {
+            ActivityFeedApi(clientFactory = get())
+        } bind ActivityFeedApiContract::class
 
         // SessionApi for reading session operations
         single {
@@ -784,6 +797,7 @@ val syncModule =
             ListeningEventPuller(
                 syncApi = get(),
                 listeningEventDao = get(),
+                playbackPositionDao = get(),
             )
         }
 

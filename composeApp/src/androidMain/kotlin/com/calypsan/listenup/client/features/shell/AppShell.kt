@@ -322,6 +322,7 @@ fun AppShell(
                 ShellDestination.Discover -> {
                     DiscoverScreen(
                         onLensClick = onLensClick,
+                        onBookClick = onBookClick,
                         modifier = Modifier.padding(padding),
                     )
                 }

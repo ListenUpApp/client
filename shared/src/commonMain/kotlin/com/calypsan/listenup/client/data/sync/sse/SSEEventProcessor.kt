@@ -176,6 +176,12 @@ class SSEEventProcessor(
                 is SSEEventType.ListeningEventCreated -> {
                     handleListeningEventCreated(event)
                 }
+
+                is SSEEventType.ActivityCreated -> {
+                    // Activity events are handled by ActivityFeedViewModel directly
+                    // No local persistence needed - feed is fetched from server
+                    logger.debug { "SSE: Activity created - ${event.type} by ${event.userDisplayName}" }
+                }
             }
         } catch (e: Exception) {
             logger.error(e) { "Failed to process SSE event: $event" }

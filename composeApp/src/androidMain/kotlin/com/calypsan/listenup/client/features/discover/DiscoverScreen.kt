@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.remote.LensResponse
 import com.calypsan.listenup.client.data.remote.UserLensesResponse
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.features.discover.components.ActivityFeedSection
 import com.calypsan.listenup.client.features.discover.components.DiscoverLeaderboardSection
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -62,6 +63,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun DiscoverScreen(
     onLensClick: (String) -> Unit,
+    onBookClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DiscoverViewModel = koinViewModel(),
 ) {
@@ -82,6 +84,7 @@ fun DiscoverScreen(
             isEmpty = state.isEmpty,
             error = state.error,
             onLensClick = onLensClick,
+            onBookClick = onBookClick,
         )
     }
 }
@@ -135,6 +138,7 @@ private fun DiscoverContent(
     isEmpty: Boolean,
     error: String?,
     onLensClick: (String) -> Unit,
+    onBookClick: (String) -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(vertical = 16.dp),
@@ -146,7 +150,15 @@ private fun DiscoverContent(
             DiscoverLeaderboardSection()
         }
 
-        // Content below leaderboard depends on state
+        // Activity feed section - below leaderboard
+        item {
+            ActivityFeedSection(
+                onBookClick = onBookClick,
+                onLensClick = onLensClick,
+            )
+        }
+
+        // Content below activity feed depends on state
         when {
             isLoading && users.isEmpty() -> {
                 item {
