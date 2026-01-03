@@ -111,7 +111,8 @@ class HomeViewModel(
         viewModelScope.launch {
             // Observe book count changes (crude but effective trigger)
             // This detects when books are added/modified
-            bookDao.observeAll()
+            bookDao
+                .observeAll()
                 .map { books -> books.maxOfOrNull { it.updatedAt } ?: 0L }
                 .distinctUntilChanged()
                 .collect { latestUpdate ->

@@ -45,7 +45,8 @@ class HomeStatsViewModel(
      */
     private fun observeStats() {
         viewModelScope.launch {
-            statsRepository.observeWeeklyStats()
+            statsRepository
+                .observeWeeklyStats()
                 .catch { e ->
                     logger.error(e) { "Error observing stats" }
                     _state.update {
@@ -54,8 +55,7 @@ class HomeStatsViewModel(
                             error = "Failed to load stats: ${e.message}",
                         )
                     }
-                }
-                .collect { stats ->
+                }.collect { stats ->
                     logger.debug {
                         "Stats updated: ${stats.totalListenTimeMs}ms total, streak=${stats.currentStreakDays}"
                     }

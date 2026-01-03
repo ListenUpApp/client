@@ -122,6 +122,7 @@ class BookReadersViewModel(
                     }
                     logger.debug { "SSE refresh: Updated readers list" }
                 }
+
                 is Result.Failure -> {
                     // Silently ignore refresh failures - user still has existing data
                     logger.warn { "SSE refresh failed: ${result.message}" }

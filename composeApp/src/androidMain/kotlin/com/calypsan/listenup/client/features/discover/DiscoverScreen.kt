@@ -19,12 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.remote.LensResponse
 import com.calypsan.listenup.client.data.remote.UserLensesResponse
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.ProfileAvatar
 import com.calypsan.listenup.client.features.discover.components.ActivityFeedSection
 import com.calypsan.listenup.client.features.discover.components.CurrentlyListeningSection
 import com.calypsan.listenup.client.features.discover.components.DiscoverBooksSection
@@ -66,6 +65,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun DiscoverScreen(
     onLensClick: (String) -> Unit,
     onBookClick: (String) -> Unit,
+    onUserProfileClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DiscoverViewModel = koinViewModel(),
 ) {
@@ -87,6 +87,7 @@ fun DiscoverScreen(
             error = state.error,
             onLensClick = onLensClick,
             onBookClick = onBookClick,
+            onUserProfileClick = onUserProfileClick,
         )
     }
 }
@@ -141,6 +142,7 @@ private fun DiscoverContent(
     error: String?,
     onLensClick: (String) -> Unit,
     onBookClick: (String) -> Unit,
+    onUserProfileClick: (String) -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(vertical = 16.dp),
@@ -163,7 +165,9 @@ private fun DiscoverContent(
 
         // Community leaderboard
         item {
-            DiscoverLeaderboardSection()
+            DiscoverLeaderboardSection(
+                onUserClick = onUserProfileClick,
+            )
         }
 
         // Activity feed section
@@ -255,22 +259,13 @@ private fun UserLensesSection(
                     .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Avatar
-            Box(
-                modifier =
-                    Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(avatarColor),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+            // Avatar - uses ProfileAvatar for offline-first avatar display
+            ProfileAvatar(
+                userId = userLenses.user.id,
+                displayName = userLenses.user.displayName,
+                avatarColor = userLenses.user.avatarColor,
+                size = 40.dp,
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 

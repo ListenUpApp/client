@@ -2,6 +2,7 @@
 
 package com.calypsan.listenup.client.features.bookdetail.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,55 +16,103 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.calypsan.listenup.client.data.remote.ReaderSummary
+import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.design.components.getInitials
 import com.calypsan.listenup.client.util.toRelativeOrMonthYear
+import org.koin.compose.koinInject
 
 /**
  * Row displaying another reader's status with a book.
  *
  * Shows:
- * - Avatar with generated color and initials
+ * - Avatar with generated color and initials (or image if user has uploaded one)
  * - Display name
  * - Reading status (currently reading or finished)
  * - Progress percentage if currently reading
  * - Completion count if multiple completions
+ *
+ * @param reader The reader summary data
+ * @param onUserClick Optional callback when the reader row is clicked (navigates to profile)
+ * @param modifier Optional modifier
  */
 @Composable
 fun ReaderRow(
     reader: ReaderSummary,
     modifier: Modifier = Modifier,
+    onUserClick: ((String) -> Unit)? = null,
 ) {
+    val context = LocalContext.current
+    val settingsRepository: SettingsRepository = koinInject()
+    val serverUrl by produceState<String?>(null) {
+        value = settingsRepository.getServerUrl()?.value
+    }
+
+    val hasImageAvatar = reader.avatarType == "image" && !reader.avatarValue.isNullOrEmpty()
+
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .then(
+                    if (onUserClick != null) {
+                        Modifier.clickable { onUserClick(reader.userId) }
+                    } else {
+                        Modifier
+                    },
+                ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start,
     ) {
-        // Avatar with generated color
-        // Note: avatarColor is a hex string like "#FF5722"
-        val avatarColorParsed =
-            try {
-                Color(android.graphics.Color.parseColor(reader.avatarColor))
-            } catch (e: Exception) {
-                MaterialTheme.colorScheme.primaryContainer
-            }
+        // Avatar - either image or generated with initials
+        if (hasImageAvatar && serverUrl != null) {
+            val avatarUrl = "$serverUrl${reader.avatarValue}"
+            AsyncImage(
+                model =
+                    ImageRequest
+                        .Builder(context)
+                        .data(avatarUrl)
+                        .build(),
+                contentDescription = "${reader.displayName} avatar",
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            // Auto-generated avatar with initials
+            val avatarColorParsed =
+                try {
+                    Color(android.graphics.Color.parseColor(reader.avatarColor))
+                } catch (e: Exception) {
+                    MaterialTheme.colorScheme.primaryContainer
+                }
 
-        Surface(
-            shape = CircleShape,
-            color = avatarColorParsed,
-            modifier = Modifier.size(40.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = getInitials(reader.displayName),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = Color.White,
-                )
+            Surface(
+                shape = CircleShape,
+                color = avatarColorParsed,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = getInitials(reader.displayName),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color.White,
+                    )
+                }
             }
         }
 

@@ -11,11 +11,13 @@ import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.conflict.PushConflict
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.sequentially
+import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import dev.mokkery.verifySuspend
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -72,11 +74,13 @@ class PushSyncOrchestratorTest {
         val networkMonitor: NetworkMonitor = mock()
 
         val isOnlineFlow = MutableStateFlow(true)
+        val newOperationQueuedFlow = MutableSharedFlow<Unit>()
 
         init {
             // Default stubs
             everySuspend { networkMonitor.isOnlineFlow } returns isOnlineFlow
             everySuspend { networkMonitor.isOnline() } returns true
+            every { repository.newOperationQueued } returns newOperationQueuedFlow
             everySuspend { repository.resetStuckOperations() } returns Unit
             everySuspend { repository.getNextBatch(any()) } returns emptyList()
         }

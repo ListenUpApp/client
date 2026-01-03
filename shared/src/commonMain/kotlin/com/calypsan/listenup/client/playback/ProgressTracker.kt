@@ -92,11 +92,12 @@ class ProgressTracker(
                 playbackSpeed = speed,
             )
         // Also track the full playback session for activity feed
-        playbackSessionStart = PlaybackSessionStart(
-            bookId = bookId,
-            startPositionMs = positionMs,
-            startedAt = now,
-        )
+        playbackSessionStart =
+            PlaybackSessionStart(
+                bookId = bookId,
+                startPositionMs = positionMs,
+                startedAt = now,
+            )
         logger.info { "🎧 LISTENING SESSION STARTED: book=${bookId.value}, position=$positionMs, speed=$speed" }
     }
 
@@ -114,7 +115,7 @@ class ProgressTracker(
 
         logger.info {
             "🎧 PLAYBACK PAUSED: book=${bookId.value}, position=$positionMs, " +
-            "hasSession=${currentSession != null}, hasPlaybackStart=${playbackStart != null}"
+                "hasSession=${currentSession != null}, hasPlaybackStart=${playbackStart != null}"
         }
 
         scope.launch {
@@ -156,14 +157,16 @@ class ProgressTracker(
                 val totalDurationMs = positionMs - playbackStart.startPositionMs
                 logger.info {
                     "🎧 FULL PLAYBACK SESSION: startPos=${playbackStart.startPositionMs}, " +
-                    "endPos=$positionMs, totalDuration=${totalDurationMs}ms"
+                        "endPos=$positionMs, totalDuration=${totalDurationMs}ms"
                 }
 
                 // Only record if listened for at least 30 seconds (matches server threshold)
                 if (totalDurationMs >= 30_000) {
                     try {
                         syncApi.endPlaybackSession(bookId.value, totalDurationMs)
-                        logger.info { "🎧 ACTIVITY RECORDED: listened to ${totalDurationMs / 1000}s of ${bookId.value}" }
+                        logger.info {
+                            "🎧 ACTIVITY RECORDED: listened to ${totalDurationMs / 1000}s of ${bookId.value}"
+                        }
                     } catch (e: Exception) {
                         logger.warn { "🎧 Failed to record activity: ${e.message}" }
                     }
@@ -213,12 +216,13 @@ class ProgressTracker(
                     logger.info { "🎧 PERIODIC EVENT QUEUED: duration=${durationMs}ms, triggering sync..." }
 
                     // Start a new session from the current position
-                    currentSession = ListeningSession(
-                        bookId = bookId,
-                        startPositionMs = positionMs,
-                        startedAt = now,
-                        playbackSpeed = speed,
-                    )
+                    currentSession =
+                        ListeningSession(
+                            bookId = bookId,
+                            startPositionMs = positionMs,
+                            startedAt = now,
+                            playbackSpeed = speed,
+                        )
 
                     // Fire-and-forget sync attempt
                     trySyncEvents()
@@ -420,7 +424,10 @@ class ProgressTracker(
      * @param bookId The book that finished
      * @param finalPositionMs The final position (typically the book's total duration)
      */
-    fun onBookFinished(bookId: BookId, finalPositionMs: Long) {
+    fun onBookFinished(
+        bookId: BookId,
+        finalPositionMs: Long,
+    ) {
         // Capture before launching coroutine
         val playbackStart = playbackSessionStart
 
@@ -521,21 +528,24 @@ class ProgressTracker(
     ) {
         val eventId = NanoId.generate("evt")
         val now = Clock.System.now().toEpochMilliseconds()
-        logger.info { "🎧 CREATING EVENT: id=$eventId, book=${bookId.value}, start=$startPositionMs, end=$endPositionMs" }
+        logger.info {
+            "🎧 CREATING EVENT: id=$eventId, book=${bookId.value}, start=$startPositionMs, end=$endPositionMs"
+        }
 
         // 1. Save to Room first (offline-first)
-        val entity = ListeningEventEntity(
-            id = eventId,
-            bookId = bookId.value,
-            startPositionMs = startPositionMs,
-            endPositionMs = endPositionMs,
-            startedAt = startedAt,
-            endedAt = endedAt,
-            playbackSpeed = playbackSpeed,
-            deviceId = deviceId,
-            syncState = SyncState.NOT_SYNCED,
-            createdAt = now,
-        )
+        val entity =
+            ListeningEventEntity(
+                id = eventId,
+                bookId = bookId.value,
+                startPositionMs = startPositionMs,
+                endPositionMs = endPositionMs,
+                startedAt = startedAt,
+                endedAt = endedAt,
+                playbackSpeed = playbackSpeed,
+                deviceId = deviceId,
+                syncState = SyncState.NOT_SYNCED,
+                createdAt = now,
+            )
 
         try {
             listeningEventDao.upsert(entity)

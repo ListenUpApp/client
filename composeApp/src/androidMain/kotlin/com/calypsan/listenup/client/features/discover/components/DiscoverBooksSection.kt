@@ -41,8 +41,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.presentation.discover.DiscoverUiBook
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.presentation.discover.DiscoverUiBook
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -67,18 +67,20 @@ fun DiscoverBooksSection(
     Column(modifier = modifier) {
         // Section header with refresh button
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "Discover Something New",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.2).sp,
-                ),
+                style =
+                    MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp,
+                    ),
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
@@ -137,17 +139,17 @@ private fun DiscoverBookCard(
     )
 
     Column(
-        modifier = modifier
-            .width(140.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            ),
+        modifier =
+            modifier
+                .width(140.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }.clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
     ) {
         // Cover image
         BookCover(
@@ -163,10 +165,11 @@ private fun DiscoverBookCard(
         Column(modifier = Modifier.padding(horizontal = 2.dp)) {
             Text(
                 text = book.title,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.2).sp,
-                ),
+                style =
+                    MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp,
+                    ),
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -209,10 +212,11 @@ private fun BookCover(
     val shape = MaterialTheme.shapes.medium
 
     Box(
-        modifier = modifier
-            .shadow(elevation = 6.dp, shape = shape)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        modifier =
+            modifier
+                .shadow(elevation = 6.dp, shape = shape)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         if (coverPath != null || blurHash != null) {
             ListenUpAsyncImage(
@@ -224,16 +228,18 @@ private fun BookCover(
         } else {
             // Gradient placeholder
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                MaterialTheme.colorScheme.surfaceContainer,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors =
+                                    listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.surfaceContainer,
+                                    ),
                             ),
                         ),
-                    ),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

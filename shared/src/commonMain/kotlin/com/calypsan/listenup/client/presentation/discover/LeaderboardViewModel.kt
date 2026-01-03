@@ -67,7 +67,8 @@ class LeaderboardViewModel(
     private fun observeLocalEvents() {
         viewModelScope.launch {
             // Observe event count changes (simpler than observing full list)
-            listeningEventDao.observeEventsSince(0)
+            listeningEventDao
+                .observeEventsSince(0)
                 .map { it.size }
                 .distinctUntilChanged()
                 .collect { eventCount ->
@@ -82,11 +83,12 @@ class LeaderboardViewModel(
      */
     private fun scheduleRefresh() {
         refreshJob?.cancel()
-        refreshJob = viewModelScope.launch {
-            delay(REFRESH_DEBOUNCE_MS)
-            logger.debug { "Debounced refresh triggered" }
-            loadAllCategories()
-        }
+        refreshJob =
+            viewModelScope.launch {
+                delay(REFRESH_DEBOUNCE_MS)
+                logger.debug { "Debounced refresh triggered" }
+                loadAllCategories()
+            }
     }
 
     /**

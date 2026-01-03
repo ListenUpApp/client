@@ -2,7 +2,6 @@
 
 package com.calypsan.listenup.client.features.discover.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,16 +13,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,13 +34,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.data.remote.ActivityResponse
+import com.calypsan.listenup.client.design.components.ProfileAvatar
 import com.calypsan.listenup.client.presentation.discover.ActivityFeedViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -71,17 +68,20 @@ fun ActivityFeedSection(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Header
@@ -94,9 +94,10 @@ fun ActivityFeedSection(
             when {
                 state.isLoading -> {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(100.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
@@ -168,56 +169,41 @@ private fun ActivityItem(
     onLensClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val avatarColor = remember(activity.userAvatarColor) {
-        try {
-            Color(android.graphics.Color.parseColor(activity.userAvatarColor))
-        } catch (_: Exception) {
-            Color(0xFF6B7280)
+    val (icon, description) =
+        remember(activity) {
+            getActivityIconAndDescription(activity)
         }
-    }
-
-    val (icon, description) = remember(activity) {
-        getActivityIconAndDescription(activity)
-    }
 
     val bookId = activity.bookId
     val lensId = activity.lensId
     val isClickable = bookId != null || lensId != null
 
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .then(
-                if (isClickable) {
-                    Modifier.clickable {
-                        when {
-                            bookId != null -> onBookClick(bookId)
-                            lensId != null -> onLensClick(lensId)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .then(
+                    if (isClickable) {
+                        Modifier.clickable {
+                            when {
+                                bookId != null -> onBookClick(bookId)
+                                lensId != null -> onLensClick(lensId)
+                            }
                         }
-                    }
-                } else {
-                    Modifier
-                }
-            )
-            .padding(8.dp),
+                    } else {
+                        Modifier
+                    },
+                ).padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // User avatar
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(avatarColor),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp),
-            )
-        }
+        // User avatar - uses ProfileAvatar for offline-first avatar display
+        ProfileAvatar(
+            userId = activity.userId,
+            displayName = activity.userDisplayName,
+            avatarColor = activity.userAvatarColor,
+            size = 36.dp,
+        )
 
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -259,8 +245,8 @@ private fun ActivityItem(
 /**
  * Get the icon and description for an activity.
  */
-private fun getActivityIconAndDescription(activity: ActivityResponse): Pair<ImageVector, String> {
-    return when (activity.type) {
+private fun getActivityIconAndDescription(activity: ActivityResponse): Pair<ImageVector, String> =
+    when (activity.type) {
         "started_book" -> {
             val prefix = if (activity.isReread) "Started re-reading" else "Started reading"
             val bookInfo = activity.bookTitle ?: "a book"
@@ -299,7 +285,6 @@ private fun getActivityIconAndDescription(activity: ActivityResponse): Pair<Imag
             Icons.Default.Celebration to "Did something awesome!"
         }
     }
-}
 
 /**
  * Format duration in milliseconds to a human-readable string.

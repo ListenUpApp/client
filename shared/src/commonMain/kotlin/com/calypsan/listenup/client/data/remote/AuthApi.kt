@@ -350,6 +350,9 @@ data class AuthUser(
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
     @SerialName("last_login_at") val lastLoginAt: String,
+    @SerialName("avatar_type") val avatarType: String = "auto",
+    @SerialName("avatar_value") val avatarValue: String? = null,
+    @SerialName("avatar_color") val avatarColor: String = "#6B7280",
 )
 
 /**

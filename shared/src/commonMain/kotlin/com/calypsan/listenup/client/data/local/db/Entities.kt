@@ -28,6 +28,56 @@ data class UserEntity(
      * Use kotlin.time.Instant for domain model conversion.
      */
     val updatedAt: Long,
+    /**
+     * Avatar type: "auto" for generated avatar, "image" for uploaded image.
+     */
+    val avatarType: String = "auto",
+    /**
+     * Avatar image path on server (only used when avatarType is "image").
+     */
+    val avatarValue: String? = null,
+    /**
+     * Generated avatar background color (hex format like "#6B7280").
+     */
+    val avatarColor: String = "#6B7280",
+    /**
+     * User's profile tagline/bio (max 60 chars).
+     */
+    val tagline: String? = null,
+)
+
+/**
+ * Cached profile data for any user (not just the current user).
+ *
+ * Used to display user information in:
+ * - Activity feed
+ * - "What others are listening to" section
+ * - Reader lists on book details
+ *
+ * Updated via SSE profile.updated events and API responses.
+ * Enables fully offline display of user avatars and names.
+ */
+@Entity(tableName = "user_profiles")
+data class UserProfileEntity(
+    @PrimaryKey
+    val id: String,
+    val displayName: String,
+    /**
+     * Avatar type: "auto" for generated avatar, "image" for uploaded image.
+     */
+    val avatarType: String = "auto",
+    /**
+     * Avatar image path on server (only used when avatarType is "image").
+     */
+    val avatarValue: String? = null,
+    /**
+     * Generated avatar background color (hex format like "#6B7280").
+     */
+    val avatarColor: String = "#6B7280",
+    /**
+     * Last update timestamp in Unix epoch milliseconds.
+     */
+    val updatedAt: Long,
 )
 
 /**

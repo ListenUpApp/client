@@ -44,6 +44,7 @@ fun AppNavigationDrawer(
     onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
+    onMyProfileClick: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -83,6 +84,7 @@ fun AppNavigationDrawer(
                     user = user,
                     expanded = isAvatarMenuExpanded,
                     onExpandedChange = onAvatarMenuExpandedChange,
+                    onMyProfileClick = onMyProfileClick,
                     onAdminClick = onAdminClick,
                     onSettingsClick = onSettingsClick,
                     onSignOutClick = onSignOutClick,

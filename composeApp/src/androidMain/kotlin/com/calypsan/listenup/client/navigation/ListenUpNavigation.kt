@@ -356,6 +356,9 @@ private fun AuthenticatedNavigation(
     // Track shell tab state here so it survives navigation to detail screens
     var currentShellDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
 
+    // Track profile refresh - incremented when profile is updated to trigger refresh
+    var profileRefreshKey by remember { mutableStateOf(0) }
+
     // App-wide snackbar state - provided to all screens via CompositionLocal
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -416,6 +419,40 @@ private fun AuthenticatedNavigation(
                                         settingsRepository.clearAuthTokens()
                                     }
                                 },
+                                onUserProfileClick = { userId ->
+                                    backStack.add(UserProfile(userId))
+                                },
+                            )
+                        }
+                        entry<UserProfile> { args ->
+                            com.calypsan.listenup.client.features.profile.UserProfileScreen(
+                                userId = args.userId,
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onEditClick = {
+                                    backStack.add(EditProfile)
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(BookDetail(bookId))
+                                },
+                                onLensClick = { lensId ->
+                                    backStack.add(LensDetail(lensId))
+                                },
+                                onCreateLensClick = {
+                                    backStack.add(CreateLens)
+                                },
+                                refreshKey = profileRefreshKey,
+                            )
+                        }
+                        entry<EditProfile> {
+                            com.calypsan.listenup.client.features.profile.EditProfileScreen(
+                                onBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onProfileUpdated = {
+                                    profileRefreshKey++
+                                },
                             )
                         }
                         entry<BookDetail> { args ->
@@ -438,6 +475,9 @@ private fun AuthenticatedNavigation(
                                 },
                                 onTagClick = { tagId ->
                                     backStack.add(TagDetail(tagId))
+                                },
+                                onUserProfileClick = { userId ->
+                                    backStack.add(UserProfile(userId))
                                 },
                             )
                         }

@@ -183,6 +183,46 @@ interface ImageStorage {
      */
     suspend fun deleteSeriesCover(seriesId: String): Result<Unit>
 
+    // ========== User Avatar Methods ==========
+
+    /**
+     * Save user avatar image to local storage.
+     *
+     * @param userId Unique identifier for the user
+     * @param imageData Raw image bytes
+     * @return Result indicating success or failure
+     */
+    suspend fun saveUserAvatar(
+        userId: String,
+        imageData: ByteArray,
+    ): Result<Unit>
+
+    /**
+     * Get the local file path for a user's avatar image.
+     * Does not verify if the file exists.
+     *
+     * @param userId Unique identifier for the user
+     * @return Absolute file path where the avatar is/would be stored
+     */
+    fun getUserAvatarPath(userId: String): String
+
+    /**
+     * Check if a user avatar image exists locally.
+     *
+     * @param userId Unique identifier for the user
+     * @return true if avatar exists on disk, false otherwise
+     */
+    fun userAvatarExists(userId: String): Boolean
+
+    /**
+     * Delete a user avatar image from local storage.
+     * No-op if the avatar doesn't exist.
+     *
+     * @param userId Unique identifier for the user
+     * @return Result indicating success or failure
+     */
+    suspend fun deleteUserAvatar(userId: String): Result<Unit>
+
     // ========== Series Cover Staging Methods ==========
 
     /**

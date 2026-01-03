@@ -338,18 +338,19 @@ class SyncApi(
                     }.body()
             val syncResponse = response.toResult().getOrThrow()
             ListeningEventsApiResponse(
-                events = syncResponse.events.map { event ->
-                    ListeningEventApiResponse(
-                        id = event.id,
-                        bookId = event.bookId,
-                        startPositionMs = event.startPositionMs,
-                        endPositionMs = event.endPositionMs,
-                        startedAt = event.startedAt,
-                        endedAt = event.endedAt,
-                        playbackSpeed = event.playbackSpeed,
-                        deviceId = event.deviceId,
-                    )
-                },
+                events =
+                    syncResponse.events.map { event ->
+                        ListeningEventApiResponse(
+                            id = event.id,
+                            bookId = event.bookId,
+                            startPositionMs = event.startPositionMs,
+                            endPositionMs = event.endPositionMs,
+                            startedAt = event.startedAt,
+                            endedAt = event.endedAt,
+                            playbackSpeed = event.playbackSpeed,
+                            deviceId = event.deviceId,
+                        )
+                    },
             )
         }
 
@@ -366,7 +367,10 @@ class SyncApi(
      * @param durationMs Duration listened in this session (milliseconds)
      * @return Result containing Unit on success or error
      */
-    override suspend fun endPlaybackSession(bookId: String, durationMs: Long): Result<Unit> =
+    override suspend fun endPlaybackSession(
+        bookId: String,
+        durationMs: Long,
+    ): Result<Unit> =
         suspendRunCatching {
             val client = clientFactory.getClient()
             client.post("/api/v1/listening/session/end") {

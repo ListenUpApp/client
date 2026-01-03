@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
+import com.calypsan.listenup.client.data.remote.model.SSEActivityCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookTagAddedEvent
@@ -20,9 +21,9 @@ import com.calypsan.listenup.client.data.remote.model.SSELensDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEProgressUpdatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSEActivityCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEListeningEventCreatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEProfileUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEProgressUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEReadingSessionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
@@ -557,6 +558,22 @@ class SSEManager(
                         )
                     }
 
+                    "profile.updated" -> {
+                        val profileEvent =
+                            json.decodeFromJsonElement(
+                                SSEProfileUpdatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ProfileUpdated(
+                            userId = profileEvent.userId,
+                            displayName = profileEvent.displayName,
+                            avatarType = profileEvent.avatarType,
+                            avatarValue = profileEvent.avatarValue,
+                            avatarColor = profileEvent.avatarColor,
+                            tagline = profileEvent.tagline,
+                        )
+                    }
+
                     else -> {
                         logger.debug { "Unknown event type: ${sseEvent.type}" }
                         return
@@ -836,5 +853,20 @@ sealed class SSEEventType {
         val milestoneUnit: String? = null,
         val lensId: String? = null,
         val lensName: String? = null,
+    ) : SSEEventType()
+
+    // Profile events
+
+    /**
+     * A user's profile was updated.
+     * Used to refresh profile data in UI.
+     */
+    data class ProfileUpdated(
+        val userId: String,
+        val displayName: String,
+        val avatarType: String,
+        val avatarValue: String?,
+        val avatarColor: String,
+        val tagline: String?,
     ) : SSEEventType()
 }

@@ -9,6 +9,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,11 +54,13 @@ private val ENTRY_HEIGHT = 56.dp
  * users move up or down in the rankings.
  *
  * @param entries List of leaderboard entries
+ * @param onUserClick Callback when a user row is clicked
  * @param modifier Modifier from parent
  */
 @Composable
 fun LeaderboardList(
     entries: List<LeaderboardEntryResponse>,
+    onUserClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isExpanded by rememberSaveable { mutableStateOf(false) }
@@ -73,6 +76,7 @@ fun LeaderboardList(
         visibleEntries.forEach { entry ->
             LeaderboardEntry(
                 entry = entry,
+                onClick = { onUserClick(entry.userId) },
             )
         }
 
@@ -87,11 +91,12 @@ fun LeaderboardList(
                     style = MaterialTheme.typography.labelMedium,
                 )
                 Icon(
-                    imageVector = if (isExpanded) {
-                        Icons.Default.KeyboardArrowUp
-                    } else {
-                        Icons.Default.KeyboardArrowDown
-                    },
+                    imageVector =
+                        if (isExpanded) {
+                            Icons.Default.KeyboardArrowUp
+                        } else {
+                            Icons.Default.KeyboardArrowDown
+                        },
                     contentDescription = if (isExpanded) "Collapse" else "Expand",
                     modifier = Modifier.size(18.dp),
                 )
@@ -103,6 +108,7 @@ fun LeaderboardList(
 @Composable
 private fun LeaderboardEntry(
     entry: LeaderboardEntryResponse,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val backgroundColor =
@@ -117,6 +123,7 @@ private fun LeaderboardEntry(
             modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.small)
+                .clickable(onClick = onClick)
                 .background(backgroundColor)
                 .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,

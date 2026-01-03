@@ -32,25 +32,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.domain.model.Book
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Floating book card with editorial design.
@@ -386,8 +386,9 @@ private class SquigglyShape(
         for (i in 0..points) {
             val angle = (i.toFloat() / points) * 2 * PI
             // Add multiple sine waves for organic feel
-            val wobble = 1f + wobbleAmount * sin(waves * angle).toFloat() +
-                (wobbleAmount / 2) * cos((waves * 2 + 1) * angle).toFloat()
+            val wobble =
+                1f + wobbleAmount * sin(waves * angle).toFloat() +
+                    (wobbleAmount / 2) * cos((waves * 2 + 1) * angle).toFloat()
             val radius = baseRadius * wobble
 
             val x = centerX + (radius * cos(angle)).toFloat()

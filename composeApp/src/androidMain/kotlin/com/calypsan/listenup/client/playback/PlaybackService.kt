@@ -371,9 +371,10 @@ class PlaybackService : MediaSessionService() {
                     currentBookId?.let { bookId ->
                         val p = this@PlaybackService.player
                         val timeline = playbackManager.currentTimeline.value
-                        val finalPosition = timeline?.totalDurationMs
-                            ?: p?.duration
-                            ?: 0L
+                        val finalPosition =
+                            timeline?.totalDurationMs
+                                ?: p?.duration
+                                ?: 0L
                         progressTracker.onBookFinished(bookId, finalPosition)
                     }
                     startIdleTimer(IDLE_TIMEOUT_LONG, "book_finished")

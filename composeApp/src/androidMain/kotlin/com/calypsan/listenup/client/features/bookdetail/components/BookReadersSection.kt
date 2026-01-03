@@ -32,10 +32,16 @@ import org.koin.compose.viewmodel.koinViewModel
  * - "See all" link if more than 3 other readers
  *
  * Does not render if there are no readers (including the user).
+ *
+ * @param bookId The book ID to load readers for
+ * @param onUserClick Callback when a reader row is clicked (navigates to user profile)
+ * @param modifier Optional modifier
+ * @param viewModel The ViewModel for loading readers data
  */
 @Composable
 fun BookReadersSection(
     bookId: String,
+    onUserClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: BookReadersViewModel = koinViewModel(),
 ) {
@@ -110,6 +116,7 @@ fun BookReadersSection(
         displayedReaders.forEach { reader ->
             ReaderRow(
                 reader = reader,
+                onUserClick = onUserClick,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(8.dp))

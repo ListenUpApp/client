@@ -30,11 +30,13 @@ import org.koin.compose.viewmodel.koinViewModel
  * - Ranked list of users
  * - Community aggregate stats
  *
+ * @param onUserClick Callback when a user is clicked (navigates to profile)
  * @param modifier Modifier from parent
  * @param viewModel LeaderboardViewModel injected via Koin
  */
 @Composable
 fun DiscoverLeaderboardSection(
+    onUserClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LeaderboardViewModel = koinViewModel(),
 ) {
@@ -128,7 +130,10 @@ fun DiscoverLeaderboardSection(
                     ) { page ->
                         val category = categories[page]
                         val entries = viewModel.getEntriesForCategory(category)
-                        LeaderboardList(entries = entries)
+                        LeaderboardList(
+                            entries = entries,
+                            onUserClick = onUserClick,
+                        )
                     }
 
                     // Community stats

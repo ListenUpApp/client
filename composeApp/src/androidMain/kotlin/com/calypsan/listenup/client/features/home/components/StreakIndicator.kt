@@ -41,11 +41,12 @@ fun StreakIndicator(
         Spacer(Modifier.width(8.dp))
 
         // Current streak text
-        val streakText = when {
-            currentStreak == 0 && longestStreak > 0 -> "Best: $longestStreak day streak"
-            currentStreak == 1 -> "1 day streak"
-            else -> "$currentStreak day streak"
-        }
+        val streakText =
+            when {
+                currentStreak == 0 && longestStreak > 0 -> "Best: $longestStreak day streak"
+                currentStreak == 1 -> "1 day streak"
+                else -> "$currentStreak day streak"
+            }
         Text(
             text = streakText,
             style = MaterialTheme.typography.titleMedium,

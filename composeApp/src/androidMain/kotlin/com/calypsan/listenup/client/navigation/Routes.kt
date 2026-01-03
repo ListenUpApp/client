@@ -320,3 +320,26 @@ data object CreateLens : Route
 data class LensEdit(
     val lensId: String,
 ) : Route
+
+// Profile Routes
+
+/**
+ * User profile screen - displays a user's full profile with stats and activity.
+ *
+ * Shows avatar, display name, tagline, listening stats, recent books,
+ * and public lenses. If viewing own profile, shows edit option.
+ *
+ * @property userId The unique ID of the user to display.
+ */
+@Serializable
+data class UserProfile(
+    val userId: String,
+) : Route
+
+/**
+ * Edit profile screen - edit own profile settings.
+ *
+ * Allows changing tagline and avatar (upload image or revert to auto).
+ */
+@Serializable
+data object EditProfile : Route

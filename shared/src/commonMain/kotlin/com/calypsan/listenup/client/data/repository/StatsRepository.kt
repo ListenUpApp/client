@@ -62,7 +62,6 @@ class StatsRepository(
     private val listeningEventDao: ListeningEventDao,
     private val bookDao: BookDao,
 ) : StatsRepositoryContract {
-
     /**
      * Observe weekly stats (7 days) for the home screen.
      *
@@ -119,10 +118,11 @@ class StatsRepository(
         endMs: Long,
     ): List<DailyListeningResponse> {
         // Group events by day
-        val byDay = events.groupBy { event ->
-            // Floor to start of day
-            (event.endedAt / MS_PER_DAY) * MS_PER_DAY
-        }
+        val byDay =
+            events.groupBy { event ->
+                // Floor to start of day
+                (event.endedAt / MS_PER_DAY) * MS_PER_DAY
+            }
 
         // Generate 7 days, filling in zeros for days without activity
         val result = mutableListOf<DailyListeningResponse>()
@@ -138,7 +138,7 @@ class StatsRepository(
                     date = formatDate(dayStart),
                     listenTimeMs = totalMs,
                     booksListened = booksListened,
-                )
+                ),
             )
 
             dayStart += MS_PER_DAY
@@ -150,23 +150,27 @@ class StatsRepository(
     /**
      * Compute genre breakdown by joining events with book metadata.
      */
-    private suspend fun computeGenreBreakdown(
-        events: List<ListeningEventEntity>,
-    ): List<GenreListeningResponse> {
+    private suspend fun computeGenreBreakdown(events: List<ListeningEventEntity>): List<GenreListeningResponse> {
         if (events.isEmpty()) return emptyList()
 
         // Group by book first
         val byBook = events.groupBy { it.bookId }
-        val bookDurations = byBook.mapValues { (_, bookEvents) ->
-            bookEvents.sumOf { it.durationMs }
-        }
+        val bookDurations =
+            byBook.mapValues { (_, bookEvents) ->
+                bookEvents.sumOf { it.durationMs }
+            }
 
         // Get genre info for each book
         val genreDurations = mutableMapOf<String, Long>()
 
         for ((bookIdStr, durationMs) in bookDurations) {
             val book = bookDao.getById(BookId(bookIdStr))
-            val genres = book?.genres?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+            val genres =
+                book
+                    ?.genres
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
 
             if (genres.isNullOrEmpty()) {
                 // Unknown genre

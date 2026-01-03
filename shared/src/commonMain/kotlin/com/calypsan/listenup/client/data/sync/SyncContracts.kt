@@ -91,6 +91,34 @@ interface ImageDownloaderContract {
      * @return Result containing list of series IDs that were successfully downloaded
      */
     suspend fun downloadSeriesCovers(seriesIds: List<String>): Result<List<String>>
+
+    /**
+     * Download and save a user's avatar image.
+     *
+     * @param userId Unique identifier for the user
+     * @param forceRefresh If true, re-downloads even if avatar exists locally
+     * @return Result indicating if avatar was successfully downloaded (true) or already existed/unavailable (false)
+     */
+    suspend fun downloadUserAvatar(
+        userId: String,
+        forceRefresh: Boolean = false,
+    ): Result<Boolean>
+
+    /**
+     * Get the local file path for a user's avatar image.
+     *
+     * @param userId Unique identifier for the user
+     * @return Absolute file path where the avatar is stored, or null if not available
+     */
+    fun getUserAvatarPath(userId: String): String?
+
+    /**
+     * Delete a user's avatar from local storage.
+     *
+     * @param userId Unique identifier for the user
+     * @return Result indicating success or failure
+     */
+    suspend fun deleteUserAvatar(userId: String): Result<Unit>
 }
 
 /**

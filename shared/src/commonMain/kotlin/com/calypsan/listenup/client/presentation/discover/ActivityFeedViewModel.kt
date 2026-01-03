@@ -2,6 +2,9 @@ package com.calypsan.listenup.client.presentation.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.currentEpochMilliseconds
+import com.calypsan.listenup.client.data.local.db.UserProfileDao
+import com.calypsan.listenup.client.data.local.db.UserProfileEntity
 import com.calypsan.listenup.client.data.remote.ActivityFeedApiContract
 import com.calypsan.listenup.client.data.remote.ActivityResponse
 import com.calypsan.listenup.client.data.sync.SSEEventType
@@ -31,6 +34,7 @@ private const val PAGE_SIZE = 10
 class ActivityFeedViewModel(
     private val activityFeedApi: ActivityFeedApiContract,
     private val sseManager: SSEManagerContract,
+    private val userProfileDao: UserProfileDao,
 ) : ViewModel() {
     val state: StateFlow<ActivityFeedUiState>
         field = MutableStateFlow(ActivityFeedUiState())
@@ -57,6 +61,7 @@ class ActivityFeedViewModel(
                             )
                         }
                     }
+
                     else -> {
                         // Ignore other events
                     }
@@ -74,6 +79,10 @@ class ActivityFeedViewModel(
 
             try {
                 val response = activityFeedApi.getFeed(limit = PAGE_SIZE)
+
+                // Cache user profiles for offline support
+                cacheUserProfiles(response.activities)
+
                 state.update {
                     it.copy(
                         isLoading = false,
@@ -108,10 +117,15 @@ class ActivityFeedViewModel(
             state.update { it.copy(isLoadingMore = true) }
 
             try {
-                val response = activityFeedApi.getFeed(
-                    limit = PAGE_SIZE,
-                    before = currentState.nextCursor,
-                )
+                val response =
+                    activityFeedApi.getFeed(
+                        limit = PAGE_SIZE,
+                        before = currentState.nextCursor,
+                    )
+
+                // Cache user profiles for offline support
+                cacheUserProfiles(response.activities)
+
                 state.update {
                     it.copy(
                         isLoadingMore = false,
@@ -133,6 +147,47 @@ class ActivityFeedViewModel(
      */
     fun refresh() {
         loadFeed()
+    }
+
+    /**
+     * Cache user profiles from activity responses.
+     *
+     * Activity API only provides displayName and avatarColor (no avatarType/Value).
+     * We use a two-step approach to avoid overwriting existing image avatar data:
+     * 1. Insert new profiles with default "auto" avatar type
+     * 2. Update existing profiles but preserve their avatarType/avatarValue
+     *
+     * This ensures that if a profile was previously cached with full avatar data
+     * (from SSE ProfileUpdated or CurrentlyListening API), we don't lose it.
+     */
+    private suspend fun cacheUserProfiles(activities: List<ActivityResponse>) {
+        if (activities.isEmpty()) return
+
+        val now = currentEpochMilliseconds()
+        val uniqueUsers = activities.distinctBy { it.userId }
+
+        for (user in uniqueUsers) {
+            // Try to insert if not exists (with defaults for missing avatar data)
+            val inserted = userProfileDao.insertIfNotExists(
+                userId = user.userId,
+                displayName = user.userDisplayName,
+                avatarType = "auto",
+                avatarValue = null,
+                avatarColor = user.userAvatarColor,
+                updatedAt = now,
+            )
+
+            // If already exists (inserted == -1), update only the partial fields
+            if (inserted == -1L) {
+                userProfileDao.updatePartial(
+                    userId = user.userId,
+                    displayName = user.userDisplayName,
+                    avatarColor = user.userAvatarColor,
+                    updatedAt = now,
+                )
+            }
+        }
+        logger.debug { "Cached ${uniqueUsers.size} user profiles from activity feed" }
     }
 }
 

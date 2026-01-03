@@ -59,7 +59,10 @@ interface ListeningEventDao {
      * Returns Flow for automatic UI updates when events are added.
      */
     @Query("SELECT * FROM listening_events WHERE endedAt >= :startMs AND endedAt < :endMs ORDER BY endedAt DESC")
-    fun observeEventsInRange(startMs: Long, endMs: Long): Flow<List<ListeningEventEntity>>
+    fun observeEventsInRange(
+        startMs: Long,
+        endMs: Long,
+    ): Flow<List<ListeningEventEntity>>
 
     /**
      * Get all events since a timestamp for stats computation.
@@ -109,7 +112,10 @@ interface ListeningEventDao {
      * Update sync state for an event.
      */
     @Query("UPDATE listening_events SET syncState = :state WHERE id = :id")
-    suspend fun updateSyncState(id: String, state: SyncState)
+    suspend fun updateSyncState(
+        id: String,
+        state: SyncState,
+    )
 
     /**
      * Get the most recent event timestamp for sync cursor.
@@ -121,25 +127,32 @@ interface ListeningEventDao {
      * Get distinct dates with listening activity for streak calculation.
      * Returns dates as epoch milliseconds (start of day).
      */
-    @Query("""
+    @Query(
+        """
         SELECT DISTINCT (endedAt / 86400000) * 86400000 as dayStart
         FROM listening_events
         WHERE endedAt >= :startMs
         ORDER BY dayStart DESC
-    """)
+    """,
+    )
     suspend fun getDistinctDaysWithActivity(startMs: Long): List<Long>
 
     /**
      * Get total duration grouped by book for a date range.
      */
-    @Query("""
+    @Query(
+        """
         SELECT bookId, SUM(endPositionMs - startPositionMs) as totalMs
         FROM listening_events
         WHERE endedAt >= :startMs AND endedAt < :endMs
         GROUP BY bookId
         ORDER BY totalMs DESC
-    """)
-    suspend fun getDurationByBook(startMs: Long, endMs: Long): List<BookDuration>
+    """,
+    )
+    suspend fun getDurationByBook(
+        startMs: Long,
+        endMs: Long,
+    ): List<BookDuration>
 }
 
 /**

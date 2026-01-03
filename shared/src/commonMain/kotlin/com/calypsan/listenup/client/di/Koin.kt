@@ -5,6 +5,8 @@ package com.calypsan.listenup.client.di
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
+import com.calypsan.listenup.client.data.remote.ActivityFeedApi
+import com.calypsan.listenup.client.data.remote.ActivityFeedApiContract
 import com.calypsan.listenup.client.data.remote.AdminApi
 import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.AdminCollectionApi
@@ -23,8 +25,6 @@ import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.remote.InstanceApiContract
 import com.calypsan.listenup.client.data.remote.InviteApi
 import com.calypsan.listenup.client.data.remote.InviteApiContract
-import com.calypsan.listenup.client.data.remote.ActivityFeedApi
-import com.calypsan.listenup.client.data.remote.ActivityFeedApiContract
 import com.calypsan.listenup.client.data.remote.LeaderboardApi
 import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
 import com.calypsan.listenup.client.data.remote.LensApi
@@ -32,6 +32,8 @@ import com.calypsan.listenup.client.data.remote.LensApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.MetadataApi
 import com.calypsan.listenup.client.data.remote.MetadataApiContract
+import com.calypsan.listenup.client.data.remote.ProfileApi
+import com.calypsan.listenup.client.data.remote.ProfileApiContract
 import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
@@ -63,6 +65,8 @@ import com.calypsan.listenup.client.data.repository.LocalPreferencesContract
 import com.calypsan.listenup.client.data.repository.MetadataRepository
 import com.calypsan.listenup.client.data.repository.MetadataRepositoryContract
 import com.calypsan.listenup.client.data.repository.PlaybackPreferencesContract
+import com.calypsan.listenup.client.data.repository.ProfileEditRepository
+import com.calypsan.listenup.client.data.repository.ProfileEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.SearchRepository
 import com.calypsan.listenup.client.data.repository.SearchRepositoryContract
 import com.calypsan.listenup.client.data.repository.SeriesEditRepository
@@ -108,6 +112,8 @@ import com.calypsan.listenup.client.data.sync.push.PendingOperationRepository
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PlaybackPositionHandler
 import com.calypsan.listenup.client.data.sync.push.PreferencesSyncObserver
+import com.calypsan.listenup.client.data.sync.push.ProfileAvatarHandler
+import com.calypsan.listenup.client.data.sync.push.ProfileUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.data.sync.push.SeriesUpdateHandler
@@ -253,6 +259,7 @@ val repositoryModule =
 
         // Provide DAOs from database
         single { get<ListenUpDatabase>().userDao() }
+        single { get<ListenUpDatabase>().userProfileDao() }
         single { get<ListenUpDatabase>().bookDao() }
         single { get<ListenUpDatabase>().syncDao() }
         single { get<ListenUpDatabase>().chapterDao() }
@@ -458,6 +465,7 @@ val presentationModule =
                 discoveryApi = get(),
                 sseManager = get(),
                 imageStorage = get(),
+                userProfileDao = get(),
             )
         }
         factory {
@@ -553,8 +561,28 @@ val presentationModule =
         factory { LeaderboardViewModel(leaderboardApi = get(), listeningEventDao = get()) }
 
         // ActivityFeedViewModel for discover screen activity feed
-        // Observes SSE events for real-time updates
-        factory { ActivityFeedViewModel(activityFeedApi = get(), sseManager = get()) }
+        // Observes SSE events for real-time updates, caches user profiles for offline
+        factory { ActivityFeedViewModel(activityFeedApi = get(), sseManager = get(), userProfileDao = get()) }
+
+        // UserProfileViewModel for viewing user profiles
+        // Uses local cache for own profile, downloads and caches avatars for offline access
+        factory {
+            com.calypsan.listenup.client.presentation.profile.UserProfileViewModel(
+                profileApi = get(),
+                userDao = get(),
+                imageStorage = get(),
+                imageDownloader = get(),
+            )
+        }
+
+        // EditProfileViewModel for editing own profile (offline-first, local cache only)
+        factory {
+            com.calypsan.listenup.client.presentation.profile.EditProfileViewModel(
+                profileEditRepository = get(),
+                userDao = get(),
+                imageStorage = get(),
+            )
+        }
     }
 
 /**
@@ -682,6 +710,11 @@ val syncModule =
             LensApi(clientFactory = get())
         } bind LensApiContract::class
 
+        // ProfileApi for user profile operations
+        single {
+            ProfileApi(clientFactory = get())
+        } bind ProfileApiContract::class
+
         // FtsPopulator for rebuilding FTS tables after sync
         single {
             FtsPopulator(
@@ -716,6 +749,8 @@ val syncModule =
                 lensDao = get(),
                 tagDao = get(),
                 listeningEventDao = get(),
+                userDao = get(),
+                userProfileDao = get(),
                 imageDownloader = get(),
                 playbackStateProvider = get<PlaybackManager>(),
                 downloadService = get(),
@@ -860,6 +895,8 @@ val syncModule =
         single { ListeningEventHandler(api = get(), positionDao = get()) }
         single { PlaybackPositionHandler(api = get()) }
         single { UserPreferencesHandler(api = get()) }
+        single { ProfileUpdateHandler(api = get(), userDao = get()) }
+        single { ProfileAvatarHandler(api = get(), userDao = get(), imageDownloader = get()) }
 
         // PreferencesSyncObserver - observes SettingsRepository.preferenceChanges and queues sync operations.
         // This breaks the circular dependency between SettingsRepository and the sync layer.
@@ -894,6 +931,8 @@ val syncModule =
                 listeningEventHandler = get(),
                 playbackPositionHandler = get(),
                 userPreferencesHandler = get(),
+                profileUpdateHandler = get(),
+                profileAvatarHandler = get(),
             )
         } bind OperationExecutorContract::class
 
@@ -1052,6 +1091,16 @@ val syncModule =
                 unmergeContributorHandler = get(),
             )
         } bind ContributorEditRepositoryContract::class
+
+        // ProfileEditRepository for profile editing operations (offline-first)
+        single {
+            ProfileEditRepository(
+                userDao = get(),
+                pendingOperationRepository = get(),
+                profileUpdateHandler = get(),
+                profileAvatarHandler = get(),
+            )
+        } bind ProfileEditRepositoryContract::class
     }
 
 /**

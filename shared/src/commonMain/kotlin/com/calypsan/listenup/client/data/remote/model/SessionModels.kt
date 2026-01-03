@@ -47,6 +47,10 @@ internal data class ReaderSummaryResponse(
     val userId: String,
     @SerialName("display_name")
     val displayName: String,
+    @SerialName("avatar_type")
+    val avatarType: String = "auto",
+    @SerialName("avatar_value")
+    val avatarValue: String? = null,
     @SerialName("avatar_color")
     val avatarColor: String,
     @SerialName("is_currently_reading")
@@ -64,6 +68,8 @@ internal data class ReaderSummaryResponse(
         ReaderSummary(
             userId = userId,
             displayName = displayName,
+            avatarType = avatarType,
+            avatarValue = avatarValue,
             avatarColor = avatarColor,
             isCurrentlyReading = isCurrentlyReading,
             currentProgress = currentProgress,
@@ -183,6 +189,12 @@ internal data class CurrentUserApiResponse(
     val createdAt: String,
     @SerialName("updated_at")
     val updatedAt: String,
+    @SerialName("avatar_type")
+    val avatarType: String = "auto",
+    @SerialName("avatar_value")
+    val avatarValue: String? = null,
+    @SerialName("avatar_color")
+    val avatarColor: String = "#6B7280",
 ) {
     fun toDomain(): com.calypsan.listenup.client.data.remote.CurrentUserResponse =
         com.calypsan.listenup.client.data.remote.CurrentUserResponse(
@@ -194,11 +206,16 @@ internal data class CurrentUserApiResponse(
             isRoot = isRoot,
             createdAt = parseTimestamp(createdAt),
             updatedAt = parseTimestamp(updatedAt),
+            avatarType = avatarType,
+            avatarValue = avatarValue,
+            avatarColor = avatarColor,
         )
 
     private fun parseTimestamp(timestamp: String): Long =
         try {
-            kotlin.time.Instant.parse(timestamp).toEpochMilliseconds()
+            kotlin.time.Instant
+                .parse(timestamp)
+                .toEpochMilliseconds()
         } catch (e: Exception) {
             0L
         }

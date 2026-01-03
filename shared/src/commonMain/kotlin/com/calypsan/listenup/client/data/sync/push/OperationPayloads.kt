@@ -145,3 +145,30 @@ data class UserPreferencesPayload(
     @SerialName("default_playback_speed")
     val defaultPlaybackSpeed: Float? = null,
 )
+
+/**
+ * Payload for PROFILE_UPDATE operations.
+ *
+ * Coalesces by user - only the final values matter.
+ * Used for tagline and avatar type updates.
+ */
+@Serializable
+data class ProfileUpdatePayload(
+    val tagline: String? = null,
+    @SerialName("avatar_type")
+    val avatarType: String? = null,
+)
+
+/**
+ * Payload for PROFILE_AVATAR operations.
+ *
+ * Contains Base64-encoded image data for offline storage.
+ * Does not coalesce - each avatar upload replaces previous.
+ */
+@Serializable
+data class ProfileAvatarPayload(
+    @SerialName("image_data_base64")
+    val imageDataBase64: String,
+    @SerialName("content_type")
+    val contentType: String,
+)

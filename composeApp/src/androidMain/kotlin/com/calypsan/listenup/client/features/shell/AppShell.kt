@@ -29,7 +29,6 @@ import com.calypsan.listenup.client.data.local.db.getLastSyncTime
 import com.calypsan.listenup.client.data.remote.SessionApiContract
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SyncManager
-import io.github.oshai.kotlinlogging.KotlinLogging
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
@@ -47,6 +46,7 @@ import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiEvent
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -85,6 +85,7 @@ fun AppShell(
     onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSignOut: () -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
 ) {
     // Inject dependencies
     val syncManager: SyncManager = koinInject()
@@ -121,17 +122,22 @@ fun AppShell(
             when (val result = sessionApi.getCurrentUser()) {
                 is Success -> {
                     val userData = result.data
-                    val userEntity = UserEntity(
-                        id = userData.id,
-                        email = userData.email,
-                        displayName = userData.displayName,
-                        isRoot = userData.isRoot,
-                        createdAt = userData.createdAt,
-                        updatedAt = userData.updatedAt,
-                    )
+                    val userEntity =
+                        UserEntity(
+                            id = userData.id,
+                            email = userData.email,
+                            displayName = userData.displayName,
+                            isRoot = userData.isRoot,
+                            createdAt = userData.createdAt,
+                            updatedAt = userData.updatedAt,
+                            avatarType = userData.avatarType,
+                            avatarValue = userData.avatarValue,
+                            avatarColor = userData.avatarColor,
+                        )
                     userDao.upsert(userEntity)
                     logger.info { "User data restored: ${userData.email}" }
                 }
+
                 else -> {
                     logger.warn { "Failed to fetch user data, user may see loading state" }
                 }
@@ -266,6 +272,7 @@ fun AppShell(
             onAdminClick = onAdminClick,
             onSettingsClick = onSettingsClick,
             onSignOutClick = onSignOut,
+            onMyProfileClick = { user?.id?.let(onUserProfileClick) },
             onSyncIndicatorClick = { syncIndicatorViewModel.toggleExpanded() },
             scrollBehavior = scrollBehavior,
             showAvatar = showAvatarInTopBar,
@@ -323,6 +330,7 @@ fun AppShell(
                     DiscoverScreen(
                         onLensClick = onLensClick,
                         onBookClick = onBookClick,
+                        onUserProfileClick = onUserProfileClick,
                         modifier = Modifier.padding(padding),
                     )
                 }
@@ -377,6 +385,7 @@ fun AppShell(
                     onAdminClick = onAdminClick,
                     onSettingsClick = onSettingsClick,
                     onSignOutClick = onSignOut,
+                    onMyProfileClick = { user?.id?.let(onUserProfileClick) },
                 )
                 Scaffold(
                     modifier =
@@ -400,6 +409,7 @@ fun AppShell(
                 onAdminClick = onAdminClick,
                 onSettingsClick = onSettingsClick,
                 onSignOutClick = onSignOut,
+                onMyProfileClick = { user?.id?.let(onUserProfileClick) },
             ) {
                 Scaffold(
                     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),

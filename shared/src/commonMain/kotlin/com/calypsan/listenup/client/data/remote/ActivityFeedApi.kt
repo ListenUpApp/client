@@ -10,7 +10,9 @@ import kotlinx.serialization.Serializable
 /**
  * Type of activity in the social feed.
  */
-enum class ActivityType(val value: String) {
+enum class ActivityType(
+    val value: String,
+) {
     STARTED_BOOK("started_book"),
     FINISHED_BOOK("finished_book"),
     STREAK_MILESTONE("streak_milestone"),

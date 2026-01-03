@@ -87,6 +87,7 @@ fun TwoPaneBookDetail(
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
 ) {
     val coverColors =
         rememberCoverColors(
@@ -129,6 +130,7 @@ fun TwoPaneBookDetail(
             state = state,
             onSeriesClick = onSeriesClick,
             onTagClick = onTagClick,
+            onUserProfileClick = onUserProfileClick,
             modifier =
                 Modifier
                     .weight(1f)
@@ -344,6 +346,7 @@ private fun TwoPaneRightPane(
     state: BookDetailUiState,
     onSeriesClick: (seriesId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
@@ -397,7 +400,10 @@ private fun TwoPaneRightPane(
 
         // Readers
         item {
-            BookReadersSection(bookId = bookId)
+            BookReadersSection(
+                bookId = bookId,
+                onUserClick = onUserProfileClick,
+            )
         }
 
         // Chapters

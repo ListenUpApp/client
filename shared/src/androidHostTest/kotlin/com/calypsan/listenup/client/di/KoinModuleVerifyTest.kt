@@ -19,6 +19,7 @@ import com.calypsan.listenup.client.data.local.db.ServerDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.UserProfileDao
 import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
@@ -98,6 +99,7 @@ class KoinModuleVerifyTest {
                     LensDao::class,
                     ListeningEventDao::class,
                     TagDao::class,
+                    UserProfileDao::class,
                     PlaybackPositionDao::class,
                     PendingOperationDao::class,
                     DownloadDao::class,

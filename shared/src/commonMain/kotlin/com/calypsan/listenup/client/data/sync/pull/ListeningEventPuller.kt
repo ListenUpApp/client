@@ -72,20 +72,21 @@ class ListeningEventPuller(
                     }
 
                     // Convert to entities and upsert
-                    val entities = events.map { event ->
-                        ListeningEventEntity(
-                            id = event.id,
-                            bookId = event.bookId,
-                            startPositionMs = event.startPositionMs,
-                            endPositionMs = event.endPositionMs,
-                            startedAt = parseTimestamp(event.startedAt),
-                            endedAt = parseTimestamp(event.endedAt),
-                            playbackSpeed = event.playbackSpeed,
-                            deviceId = event.deviceId,
-                            syncState = SyncState.SYNCED, // Already on server
-                            createdAt = parseTimestamp(event.endedAt), // Use endedAt as createdAt
-                        )
-                    }
+                    val entities =
+                        events.map { event ->
+                            ListeningEventEntity(
+                                id = event.id,
+                                bookId = event.bookId,
+                                startPositionMs = event.startPositionMs,
+                                endPositionMs = event.endPositionMs,
+                                startedAt = parseTimestamp(event.startedAt),
+                                endedAt = parseTimestamp(event.endedAt),
+                                playbackSpeed = event.playbackSpeed,
+                                deviceId = event.deviceId,
+                                syncState = SyncState.SYNCED, // Already on server
+                                createdAt = parseTimestamp(event.endedAt), // Use endedAt as createdAt
+                            )
+                        }
 
                     listeningEventDao.upsertAll(entities)
                     logger.info { "Listening events sync complete: ${entities.size} events synced" }
@@ -118,17 +119,18 @@ class ListeningEventPuller(
         if (events.isEmpty()) return
 
         // Group events by book and find the latest state for each
-        val bookPositions = events
-            .groupBy { it.bookId }
-            .mapValues { (_, bookEvents) ->
-                // Find the event with the latest endedAt (most recent play time)
-                val latestEvent = bookEvents.maxByOrNull { it.endedAt }!!
-                BookPositionInfo(
-                    positionMs = latestEvent.endPositionMs,
-                    lastPlayedAt = latestEvent.endedAt,
-                    playbackSpeed = latestEvent.playbackSpeed,
-                )
-            }
+        val bookPositions =
+            events
+                .groupBy { it.bookId }
+                .mapValues { (_, bookEvents) ->
+                    // Find the event with the latest endedAt (most recent play time)
+                    val latestEvent = bookEvents.maxByOrNull { it.endedAt }!!
+                    BookPositionInfo(
+                        positionMs = latestEvent.endPositionMs,
+                        lastPlayedAt = latestEvent.endedAt,
+                        playbackSpeed = latestEvent.playbackSpeed,
+                    )
+                }
 
         var created = 0
         var updated = 0
@@ -148,7 +150,7 @@ class ListeningEventPuller(
                         updatedAt = info.lastPlayedAt,
                         syncedAt = currentEpochMilliseconds(),
                         lastPlayedAt = info.lastPlayedAt,
-                    )
+                    ),
                 )
                 created++
             } else if (info.lastPlayedAt > (existing.lastPlayedAt ?: existing.updatedAt)) {
@@ -160,7 +162,7 @@ class ListeningEventPuller(
                         updatedAt = info.lastPlayedAt,
                         syncedAt = currentEpochMilliseconds(),
                         lastPlayedAt = info.lastPlayedAt,
-                    )
+                    ),
                 )
                 updated++
             } else {
@@ -183,12 +185,11 @@ class ListeningEventPuller(
     /**
      * Parse ISO timestamp string to epoch milliseconds.
      */
-    private fun parseTimestamp(isoTimestamp: String): Long {
-        return try {
+    private fun parseTimestamp(isoTimestamp: String): Long =
+        try {
             Instant.parse(isoTimestamp).toEpochMilliseconds()
         } catch (e: Exception) {
             logger.warn { "Failed to parse timestamp: $isoTimestamp, using current time" }
             currentEpochMilliseconds()
         }
-    }
 }

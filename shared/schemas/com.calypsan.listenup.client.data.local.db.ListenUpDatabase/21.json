@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 21,
-    "identityHash": "cca88c72a0a6149bbfe4230f78664e2b",
+    "identityHash": "b3b5356e54e97609fb032c1d257eac41",
     "entities": [
       {
         "tableName": "users",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `email` TEXT NOT NULL, `displayName` TEXT NOT NULL, `isRoot` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `email` TEXT NOT NULL, `displayName` TEXT NOT NULL, `isRoot` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `avatarType` TEXT NOT NULL, `avatarValue` TEXT, `avatarColor` TEXT NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -42,6 +42,23 @@
             "fieldPath": "updatedAt",
             "columnName": "updatedAt",
             "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avatarType",
+            "columnName": "avatarType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avatarValue",
+            "columnName": "avatarValue",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "avatarColor",
+            "columnName": "avatarColor",
+            "affinity": "TEXT",
             "notNull": true
           }
         ],
@@ -1327,7 +1344,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cca88c72a0a6149bbfe4230f78664e2b')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b3b5356e54e97609fb032c1d257eac41')"
     ]
   }
 }

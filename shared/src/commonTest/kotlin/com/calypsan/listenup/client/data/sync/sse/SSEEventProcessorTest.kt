@@ -17,6 +17,9 @@ import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
+import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.UserProfileDao
+import com.calypsan.listenup.client.data.local.db.UserProfileEntity
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
@@ -109,6 +112,8 @@ class SSEEventProcessorTest {
         val lensDao: LensDao = mock()
         val tagDao: TagDao = mock()
         val listeningEventDao: ListeningEventDao = mock()
+        val userDao: UserDao = mock()
+        val userProfileDao: UserProfileDao = mock()
         val imageDownloader: ImageDownloaderContract = mock()
         val playbackStateProvider: PlaybackStateProvider = mock()
         val downloadService: DownloadService = mock()
@@ -136,7 +141,13 @@ class SSEEventProcessorTest {
             everySuspend { tagDao.deleteBookTag(any(), any()) } returns Unit
             everySuspend { tagDao.getById(any()) } returns null
             everySuspend { listeningEventDao.upsert(any<ListeningEventEntity>()) } returns Unit
+            everySuspend { userDao.getCurrentUser() } returns null
+            everySuspend { userDao.updateAvatar(any(), any(), any(), any(), any()) } returns Unit
+            everySuspend { userDao.updateTagline(any(), any(), any()) } returns Unit
+            everySuspend { userProfileDao.upsert(any<UserProfileEntity>()) } returns Unit
             everySuspend { imageDownloader.downloadCover(any()) } returns Result.Success(false)
+            everySuspend { imageDownloader.downloadUserAvatar(any(), any()) } returns Result.Success(false)
+            everySuspend { imageDownloader.deleteUserAvatar(any()) } returns Result.Success(Unit)
 
             // PlaybackStateProvider stubs
             every { playbackStateProvider.currentBookId } returns currentBookIdFlow
@@ -166,6 +177,8 @@ class SSEEventProcessorTest {
                 lensDao = lensDao,
                 tagDao = tagDao,
                 listeningEventDao = listeningEventDao,
+                userDao = userDao,
+                userProfileDao = userProfileDao,
                 imageDownloader = imageDownloader,
                 playbackStateProvider = playbackStateProvider,
                 downloadService = downloadService,

@@ -99,6 +99,10 @@ data class CurrentlyListeningReaderResponse(
     val displayName: String,
     @SerialName("avatar_color")
     val avatarColor: String,
+    @SerialName("avatar_type")
+    val avatarType: String = "auto",
+    @SerialName("avatar_value")
+    val avatarValue: String? = null,
 )
 
 /**

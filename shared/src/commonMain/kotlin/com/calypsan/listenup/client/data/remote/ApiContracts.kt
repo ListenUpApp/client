@@ -188,7 +188,10 @@ interface SyncApiContract {
      * @param durationMs Duration listened in this session (milliseconds)
      * @return Result containing success message or error
      */
-    suspend fun endPlaybackSession(bookId: String, durationMs: Long): Result<Unit>
+    suspend fun endPlaybackSession(
+        bookId: String,
+        durationMs: Long,
+    ): Result<Unit>
 }
 
 /**
@@ -425,6 +428,14 @@ interface ImageApiContract {
      * @return Result containing map of contributorId to image bytes for successfully downloaded images
      */
     suspend fun downloadContributorImageBatch(contributorIds: List<String>): Result<Map<String, ByteArray>>
+
+    /**
+     * Download avatar image for a user.
+     *
+     * @param userId Unique identifier for the user
+     * @return Result containing image bytes or error
+     */
+    suspend fun downloadUserAvatar(userId: String): Result<ByteArray>
 }
 
 /**
@@ -922,7 +933,76 @@ data class CurrentUserResponse(
     val isRoot: Boolean,
     val createdAt: Long,
     val updatedAt: Long,
+    val avatarType: String = "auto",
+    val avatarValue: String? = null,
+    val avatarColor: String = "#6B7280",
 )
+
+// =============================================================================
+// Profile API Contract
+// =============================================================================
+
+/**
+ * Contract interface for user profile API operations.
+ *
+ * Handles profile viewing and editing, including avatar management.
+ */
+interface ProfileApiContract {
+    /**
+     * Get the authenticated user's own profile.
+     *
+     * Endpoint: GET /api/v1/profile
+     * Auth: Required
+     *
+     * @return Result containing ProfileResponse or error
+     */
+    suspend fun getMyProfile(): Result<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
+
+    /**
+     * Update the authenticated user's profile.
+     *
+     * Endpoint: PATCH /api/v1/profile
+     * Auth: Required
+     *
+     * Uses PATCH semantics - only non-null fields are updated.
+     *
+     * @param avatarType Optional avatar type to set ("auto" or "image")
+     * @param tagline Optional tagline to set (max 60 chars)
+     * @return Result containing updated ProfileResponse or error
+     */
+    suspend fun updateMyProfile(
+        avatarType: String? = null,
+        tagline: String? = null,
+    ): Result<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
+
+    /**
+     * Upload avatar image for the authenticated user.
+     *
+     * Endpoint: POST /api/v1/profile/avatar
+     * Auth: Required
+     *
+     * @param imageData Raw image bytes (JPEG, PNG, or WebP)
+     * @param contentType MIME type of the image
+     * @return Result containing updated ProfileResponse or error
+     */
+    suspend fun uploadAvatar(
+        imageData: ByteArray,
+        contentType: String,
+    ): Result<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
+
+    /**
+     * Get a user's full profile with stats and activity.
+     *
+     * Endpoint: GET /api/v1/users/{id}/profile
+     * Auth: Required
+     *
+     * @param userId User ID to fetch profile for
+     * @return Result containing FullProfileResponse or error
+     */
+    suspend fun getUserProfile(
+        userId: String,
+    ): Result<com.calypsan.listenup.client.data.remote.model.FullProfileResponse>
+}
 
 /**
  * Response from user settings endpoint.
@@ -1167,6 +1247,8 @@ data class SessionSummary(
 data class ReaderSummary(
     val userId: String,
     val displayName: String,
+    val avatarType: String = "auto",
+    val avatarValue: String? = null,
     val avatarColor: String,
     val isCurrentlyReading: Boolean,
     val currentProgress: Double = 0.0,

@@ -36,9 +36,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.presentation.discover.CurrentlyListeningUiBook
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.StackedAvatarsOverlay
+import com.calypsan.listenup.client.presentation.discover.CurrentlyListeningUiBook
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -63,10 +63,11 @@ fun CurrentlyListeningSection(
         // Section header
         Text(
             text = "What Others Are Listening To",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.2).sp,
-            ),
+            style =
+                MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.2).sp,
+                ),
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
@@ -113,17 +114,17 @@ private fun CurrentlyListeningCard(
     )
 
     Column(
-        modifier = modifier
-            .width(140.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            ),
+        modifier =
+            modifier
+                .width(140.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }.clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
     ) {
         // Cover with avatar overlay
         CoverWithAvatarOverlay(
@@ -141,10 +142,11 @@ private fun CurrentlyListeningCard(
         Column(modifier = Modifier.padding(horizontal = 2.dp)) {
             Text(
                 text = book.title,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.2).sp,
-                ),
+                style =
+                    MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp,
+                    ),
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -178,10 +180,11 @@ private fun CoverWithAvatarOverlay(
     val shape = MaterialTheme.shapes.medium
 
     Box(
-        modifier = modifier
-            .shadow(elevation = 6.dp, shape = shape)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        modifier =
+            modifier
+                .shadow(elevation = 6.dp, shape = shape)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         // Cover image
         if (coverPath != null || blurHash != null) {
@@ -194,16 +197,18 @@ private fun CoverWithAvatarOverlay(
         } else {
             // Gradient placeholder
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                MaterialTheme.colorScheme.surfaceContainer,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors =
+                                    listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.surfaceContainer,
+                                    ),
                             ),
                         ),
-                    ),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

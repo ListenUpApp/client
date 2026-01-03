@@ -210,4 +210,7 @@ private fun AuthUser.toEntity(): UserEntity =
         isRoot = isRoot,
         createdAt = Instant.parse(createdAt).toEpochMilliseconds(),
         updatedAt = Instant.parse(updatedAt).toEpochMilliseconds(),
+        avatarType = avatarType,
+        avatarValue = avatarValue,
+        avatarColor = avatarColor,
     )

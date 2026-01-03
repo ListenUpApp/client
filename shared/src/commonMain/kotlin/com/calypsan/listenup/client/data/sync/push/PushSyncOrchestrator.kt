@@ -55,6 +55,18 @@ class PushSyncOrchestrator(
                 }
         }
 
+        // Auto-flush when new operation is queued (if online)
+        scope.launch {
+            repository.newOperationQueued.collect {
+                if (networkMonitor.isOnline()) {
+                    logger.debug { "New operation queued - triggering push sync flush" }
+                    flush()
+                } else {
+                    logger.debug { "New operation queued but offline - will sync when connected" }
+                }
+            }
+        }
+
         // Reset any stuck operations from previous session
         scope.launch {
             repository.resetStuckOperations()

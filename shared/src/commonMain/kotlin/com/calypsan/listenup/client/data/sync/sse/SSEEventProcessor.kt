@@ -18,6 +18,9 @@ import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.UserProfileDao
+import com.calypsan.listenup.client.data.local.db.UserProfileEntity
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
@@ -64,6 +67,8 @@ class SSEEventProcessor(
     private val lensDao: LensDao,
     private val tagDao: TagDao,
     private val listeningEventDao: ListeningEventDao,
+    private val userDao: UserDao,
+    private val userProfileDao: UserProfileDao,
     private val imageDownloader: ImageDownloaderContract,
     private val playbackStateProvider: PlaybackStateProvider,
     private val downloadService: DownloadService,
@@ -181,6 +186,10 @@ class SSEEventProcessor(
                     // Activity events are handled by ActivityFeedViewModel directly
                     // No local persistence needed - feed is fetched from server
                     logger.debug { "SSE: Activity created - ${event.type} by ${event.userDisplayName}" }
+                }
+
+                is SSEEventType.ProfileUpdated -> {
+                    handleProfileUpdated(event)
                 }
             }
         } catch (e: Exception) {
@@ -521,13 +530,17 @@ class SSEEventProcessor(
     // ========== Listening Event Handlers ==========
 
     private fun handleProgressUpdated(event: SSEEventType.ProgressUpdated) {
-        logger.info { "SSE: Progress updated for book ${event.bookId} - ${(event.progress * 100).toInt()}% (from another device)" }
+        logger.info {
+            "SSE: Progress updated for book ${event.bookId} - ${(event.progress * 100).toInt()}% (from another device)"
+        }
         // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
         // Stats/Continue Listening screens can listen for this to refresh
     }
 
     private fun handleReadingSessionUpdated(event: SSEEventType.ReadingSessionUpdated) {
-        logger.info { "SSE: Reading session ${event.sessionId} updated for book ${event.bookId} - completed=${event.isCompleted}" }
+        logger.info {
+            "SSE: Reading session ${event.sessionId} updated for book ${event.bookId} - completed=${event.isCompleted}"
+        }
         // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
         // Book detail/readers screens can listen for this to refresh
     }
@@ -541,24 +554,109 @@ class SSEEventProcessor(
         val createdAtMs = parseTimestamp(event.createdAt).epochMillis
 
         // Save to Room - this triggers stats to auto-update via Flow
-        val entity = ListeningEventEntity(
-            id = event.id,
-            bookId = event.bookId,
-            startPositionMs = event.startPositionMs,
-            endPositionMs = event.endPositionMs,
-            startedAt = startedAtMs,
-            endedAt = endedAtMs,
-            playbackSpeed = event.playbackSpeed,
-            deviceId = event.deviceId,
-            syncState = SyncState.SYNCED, // Already synced since it came from server
-            createdAt = createdAtMs,
-        )
+        val entity =
+            ListeningEventEntity(
+                id = event.id,
+                bookId = event.bookId,
+                startPositionMs = event.startPositionMs,
+                endPositionMs = event.endPositionMs,
+                startedAt = startedAtMs,
+                endedAt = endedAtMs,
+                playbackSpeed = event.playbackSpeed,
+                deviceId = event.deviceId,
+                syncState = SyncState.SYNCED, // Already synced since it came from server
+                createdAt = createdAtMs,
+            )
 
         try {
             listeningEventDao.upsert(entity)
             logger.debug { "SSE: Saved listening event ${event.id} to Room" }
         } catch (e: Exception) {
             logger.error(e) { "SSE: Failed to save listening event ${event.id}" }
+        }
+    }
+
+    // ========== Profile Event Handlers ==========
+
+    /**
+     * Handle profile updated SSE event.
+     *
+     * For current user's profile:
+     * - Updates local UserEntity so UI observing it sees the new avatar
+     *
+     * For any user (including current user):
+     * - Caches the user profile in UserProfileEntity for offline access
+     * - Downloads the avatar image locally for offline access
+     *
+     * This enables fully offline profile viewing for any user whose
+     * profile update was received while online.
+     */
+    private suspend fun handleProfileUpdated(event: SSEEventType.ProfileUpdated) {
+        logger.info { "SSE: Profile updated - ${event.displayName} (${event.userId})" }
+
+        val currentUser = userDao.getCurrentUser()
+        val isCurrentUser = currentUser != null && event.userId == currentUser.id
+
+        // IMPORTANT: Download/delete avatar FIRST, before updating userDao
+        // This ensures the local file exists when the UI Flow emits after userDao update.
+        // If we update userDao first, the UI checks for the file before it's downloaded.
+        if (event.avatarType == "image" && event.avatarValue != null) {
+            try {
+                imageDownloader.downloadUserAvatar(event.userId, forceRefresh = true)
+                logger.info { "SSE: Downloaded avatar image for user ${event.userId}" }
+            } catch (e: Exception) {
+                logger.warn(e) { "SSE: Failed to download avatar for user ${event.userId}" }
+            }
+        } else if (event.avatarType == "auto") {
+            // User reverted to auto avatar, delete the local image file
+            try {
+                imageDownloader.deleteUserAvatar(event.userId)
+                logger.info { "SSE: Deleted local avatar for user ${event.userId} (reverted to auto)" }
+            } catch (e: Exception) {
+                logger.warn(e) { "SSS: Failed to delete avatar for user ${event.userId}" }
+            }
+        }
+
+        // Cache user profile for offline display (for ALL users, not just current)
+        try {
+            userProfileDao.upsert(
+                UserProfileEntity(
+                    id = event.userId,
+                    displayName = event.displayName,
+                    avatarType = event.avatarType,
+                    avatarValue = event.avatarValue,
+                    avatarColor = event.avatarColor,
+                    updatedAt = Timestamp.now().epochMillis,
+                ),
+            )
+            logger.debug { "SSE: Cached user profile for ${event.userId}" }
+        } catch (e: Exception) {
+            logger.warn(e) { "SSE: Failed to cache user profile for ${event.userId}" }
+        }
+
+        // Now update local UserEntity for current user - avatar file is already ready
+        if (isCurrentUser && currentUser != null) {
+            try {
+                userDao.updateAvatar(
+                    userId = event.userId,
+                    avatarType = event.avatarType,
+                    avatarValue = event.avatarValue,
+                    avatarColor = event.avatarColor,
+                    updatedAt = Timestamp.now().epochMillis,
+                )
+                if (event.tagline != null || currentUser.tagline != null) {
+                    userDao.updateTagline(
+                        userId = event.userId,
+                        tagline = event.tagline,
+                        updatedAt = Timestamp.now().epochMillis,
+                    )
+                }
+                logger.info {
+                    "SSE: Updated local UserEntity with profile changes - avatar=${event.avatarType}/${event.avatarValue}"
+                }
+            } catch (e: Exception) {
+                logger.error(e) { "SSE: Failed to update local UserEntity for profile event" }
+            }
         }
     }
 }

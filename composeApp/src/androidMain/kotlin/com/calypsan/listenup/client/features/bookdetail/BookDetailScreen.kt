@@ -84,6 +84,7 @@ fun BookDetailScreen(
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
     viewModel: BookDetailViewModel = koinViewModel(),
     playerViewModel: PlayerViewModel = koinViewModel(),
 ) {
@@ -167,6 +168,7 @@ fun BookDetailScreen(
                     onAddToCollectionClick = { /* TODO: Implement */ },
                     onDeleteBookClick = { /* TODO: Implement */ },
                     onPlayClick = { playerViewModel.playBook(BookId(bookId)) },
+                    onUserProfileClick = onUserProfileClick,
                     onDownloadClick = {
                         scope.launch {
                             when (val result = downloadManager.downloadBook(BookId(bookId))) {
@@ -245,6 +247,7 @@ fun BookDetailContent(
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
 ) {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
 
@@ -275,6 +278,7 @@ fun BookDetailContent(
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
             onTagClick = onTagClick,
+            onUserProfileClick = onUserProfileClick,
         )
     } else {
         ImmersiveBookDetail(
@@ -297,6 +301,7 @@ fun BookDetailContent(
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
             onTagClick = onTagClick,
+            onUserProfileClick = onUserProfileClick,
         )
     }
 }
@@ -331,6 +336,7 @@ private fun ImmersiveBookDetail(
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
@@ -436,6 +442,7 @@ private fun ImmersiveBookDetail(
         item {
             BookReadersSection(
                 bookId = bookId,
+                onUserClick = onUserProfileClick,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
         }

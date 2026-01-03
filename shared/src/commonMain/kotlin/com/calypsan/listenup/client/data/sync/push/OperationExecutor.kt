@@ -105,6 +105,8 @@ class OperationExecutor(
             listeningEventHandler: ListeningEventHandler,
             playbackPositionHandler: PlaybackPositionHandler,
             userPreferencesHandler: UserPreferencesHandler,
+            profileUpdateHandler: ProfileUpdateHandler,
+            profileAvatarHandler: ProfileAvatarHandler,
         ): OperationExecutor =
             OperationExecutor(
                 mapOf(
@@ -118,6 +120,8 @@ class OperationExecutor(
                     OperationType.LISTENING_EVENT to listeningEventHandler,
                     OperationType.PLAYBACK_POSITION to playbackPositionHandler,
                     OperationType.USER_PREFERENCES to userPreferencesHandler,
+                    OperationType.PROFILE_UPDATE to profileUpdateHandler,
+                    OperationType.PROFILE_AVATAR to profileAvatarHandler,
                 ),
             )
     }

@@ -26,6 +26,9 @@ import androidx.room.TypeConverters
  * - v19: Added tags and book_tags tables for community tagging
  * - v20: Added lastPlayedAt column to playback_positions for accurate "last read" tracking
  * - v21: Added listening_events table for offline-first stats
+ * - v22: Added avatarType, avatarValue, avatarColor columns to users table
+ * - v23: Added tagline column to users table for profile bio
+ * - v24: Added user_profiles table for caching other users' profile data
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -33,6 +36,7 @@ import androidx.room.TypeConverters
 @Database(
     entities = [
         UserEntity::class,
+        UserProfileEntity::class,
         BookEntity::class,
         SyncMetadataEntity::class,
         ChapterEntity::class,
@@ -50,13 +54,15 @@ import androidx.room.TypeConverters
         BookTagCrossRef::class,
         ListeningEventEntity::class,
     ],
-    version = 21,
+    version = 24,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)
 @ConstructedBy(ListenUpDatabaseConstructor::class)
 abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
+
+    abstract fun userProfileDao(): UserProfileDao
 
     abstract fun bookDao(): BookDao
 

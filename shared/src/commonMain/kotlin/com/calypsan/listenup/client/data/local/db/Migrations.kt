@@ -864,3 +864,87 @@ val MIGRATION_20_21 =
             )
         }
     }
+
+/**
+ * Migration from version 21 to version 22.
+ *
+ * Changes:
+ * - Add avatarType column to users table (defaults to "auto")
+ * - Add avatarValue column to users table (image path, nullable)
+ * - Add avatarColor column to users table (hex color, defaults to gray)
+ *
+ * These columns store the user's avatar configuration:
+ * - avatarType: "auto" for generated initials, "image" for uploaded photo
+ * - avatarValue: Path to avatar image (only set when type is "image")
+ * - avatarColor: Hex color for auto-generated avatar background
+ */
+val MIGRATION_21_22 =
+    object : Migration(21, 22) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add avatarType column (defaults to "auto")
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN avatarType TEXT NOT NULL DEFAULT 'auto'
+                """.trimIndent(),
+            )
+
+            // Add avatarValue column (nullable - only set for image avatars)
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN avatarValue TEXT DEFAULT NULL
+                """.trimIndent(),
+            )
+
+            // Add avatarColor column (defaults to a neutral gray)
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN avatarColor TEXT NOT NULL DEFAULT '#6B7280'
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 22 to version 23.
+ *
+ * Changes:
+ * - Add tagline column to users table for profile bio
+ */
+val MIGRATION_22_23 =
+    object : Migration(22, 23) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN tagline TEXT DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 23 to version 24.
+ *
+ * Changes:
+ * - Add user_profiles table for caching other users' profile data
+ *
+ * Purpose:
+ * Enables offline display of user avatars and names throughout the app.
+ * Profiles are cached from activity feed, discovery, book details, and SSE events.
+ */
+val MIGRATION_23_24 =
+    object : Migration(23, 24) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS user_profiles (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    displayName TEXT NOT NULL,
+                    avatarType TEXT NOT NULL DEFAULT 'auto',
+                    avatarValue TEXT DEFAULT NULL,
+                    avatarColor TEXT NOT NULL DEFAULT '#6B7280',
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+        }
+    }

@@ -132,11 +132,13 @@ class AdminCollectionDetailViewModel(
         CollectionShareItem(
             id = id,
             userId = sharedWithUserId,
-            userName = user?.let {
-                it.displayName?.takeIf { name -> name.isNotBlank() }
-                    ?: "${it.firstName ?: ""} ${it.lastName ?: ""}".trim().takeIf { name -> name.isNotBlank() }
-                    ?: it.email
-            } ?: "User ${sharedWithUserId.take(8)}...", // Fallback to truncated ID
+            userName =
+                user?.let {
+                    it.displayName?.takeIf { name -> name.isNotBlank() }
+                        ?: "${it.firstName ?: ""} ${it.lastName ?: ""}".trim().takeIf { name -> name.isNotBlank() }
+                        ?: it.email
+                } ?: "User ${sharedWithUserId.take(8)}...",
+            // Fallback to truncated ID
             userEmail = user?.email ?: "",
             permission = permission,
         )
