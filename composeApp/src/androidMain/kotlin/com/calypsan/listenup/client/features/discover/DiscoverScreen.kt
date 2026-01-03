@@ -46,6 +46,8 @@ import com.calypsan.listenup.client.data.remote.LensResponse
 import com.calypsan.listenup.client.data.remote.UserLensesResponse
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.features.discover.components.ActivityFeedSection
+import com.calypsan.listenup.client.features.discover.components.CurrentlyListeningSection
+import com.calypsan.listenup.client.features.discover.components.DiscoverBooksSection
 import com.calypsan.listenup.client.features.discover.components.DiscoverLeaderboardSection
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -145,12 +147,26 @@ private fun DiscoverContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        // Leaderboard section at top - always shows
+        // Discover Something New - random book discovery (top section)
+        item {
+            DiscoverBooksSection(
+                onBookClick = onBookClick,
+            )
+        }
+
+        // What Others Are Listening To - social proof section
+        item {
+            CurrentlyListeningSection(
+                onBookClick = onBookClick,
+            )
+        }
+
+        // Community leaderboard
         item {
             DiscoverLeaderboardSection()
         }
 
-        // Activity feed section - below leaderboard
+        // Activity feed section
         item {
             ActivityFeedSection(
                 onBookClick = onBookClick,

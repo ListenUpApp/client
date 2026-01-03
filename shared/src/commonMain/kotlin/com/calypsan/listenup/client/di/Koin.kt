@@ -14,6 +14,8 @@ import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.AuthApiContract
 import com.calypsan.listenup.client.data.remote.BookApiContract
 import com.calypsan.listenup.client.data.remote.ContributorApiContract
+import com.calypsan.listenup.client.data.remote.DiscoveryApi
+import com.calypsan.listenup.client.data.remote.DiscoveryApiContract
 import com.calypsan.listenup.client.data.remote.GenreApi
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.ImageApi
@@ -453,6 +455,9 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.discover.DiscoverViewModel(
                 lensApi = get(),
+                discoveryApi = get(),
+                sseManager = get(),
+                imageStorage = get(),
             )
         }
         factory {
@@ -635,6 +640,11 @@ val syncModule =
         single {
             ActivityFeedApi(clientFactory = get())
         } bind ActivityFeedApiContract::class
+
+        // DiscoveryApi for social discovery features
+        single {
+            DiscoveryApi(clientFactory = get())
+        } bind DiscoveryApiContract::class
 
         // SessionApi for reading session operations
         single {
