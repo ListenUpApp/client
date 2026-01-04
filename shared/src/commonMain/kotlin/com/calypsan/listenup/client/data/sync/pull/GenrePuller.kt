@@ -1,0 +1,97 @@
+package com.calypsan.listenup.client.data.sync.pull
+
+import com.calypsan.listenup.client.data.local.db.GenreDao
+import com.calypsan.listenup.client.data.local.db.GenreEntity
+import com.calypsan.listenup.client.data.remote.GenreApiContract
+import com.calypsan.listenup.client.data.sync.model.SyncPhase
+import com.calypsan.listenup.client.data.sync.model.SyncStatus
+import com.calypsan.listenup.client.domain.model.Genre
+import io.github.oshai.kotlinlogging.KotlinLogging
+
+private val logger = KotlinLogging.logger {}
+
+/**
+ * Handles syncing global genres from server.
+ *
+ * Genres are system-controlled categories that form a hierarchy.
+ * Only syncs the global genre list. Book-genre relationships are synced inline
+ * with books via BookPuller when the server includes genres in BookResponse.
+ */
+class GenrePuller(
+    private val genreApi: GenreApiContract,
+    private val genreDao: GenreDao,
+) : Puller {
+    /**
+     * Pull global genres from server.
+     *
+     * @param updatedAfter ISO timestamp for delta sync (currently ignored - full sync only)
+     * @param onProgress Callback for progress updates
+     */
+    override suspend fun pull(
+        updatedAfter: String?,
+        onProgress: (SyncStatus) -> Unit,
+    ) {
+        logger.debug { "Starting genre sync..." }
+
+        onProgress(
+            SyncStatus.Progress(
+                phase = SyncPhase.SYNCING_GENRES,
+                current = 0,
+                total = -1,
+                message = "Syncing genres...",
+            ),
+        )
+
+        try {
+            val genres = genreApi.listGenres()
+            logger.info { "Fetched ${genres.size} global genres" }
+
+            // Convert to entities and upsert
+            val genreEntities = genres.map { it.toEntity() }
+            genreDao.upsertAll(genreEntities)
+            logger.info { "Genre sync complete: ${genreEntities.size} genres synced" }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to fetch global genres" }
+            // Don't throw - genres are not critical for sync
+        }
+    }
+
+    /**
+     * Convert domain Genre to GenreEntity.
+     *
+     * Computes parentId, depth, and sortOrder from the path.
+     */
+    private fun Genre.toEntity(): GenreEntity {
+        val segments = path.trim('/').split('/')
+        val parentPath =
+            if (segments.size > 1) {
+                "/" + segments.dropLast(1).joinToString("/")
+            } else {
+                null
+            }
+
+        return GenreEntity(
+            id = id,
+            name = name,
+            slug = slug,
+            path = path,
+            bookCount = bookCount,
+            parentId = parentPath?.let { findParentIdFromPath(it) },
+            depth = segments.size - 1,
+            sortOrder = 0, // Server doesn't provide this, use default
+        )
+    }
+
+    /**
+     * Find parent ID from parent path by looking up existing genres.
+     *
+     * Since we're doing a full sync, parents may not exist yet during conversion.
+     * Returns null for now - a second pass could update parent IDs if needed.
+     */
+    @Suppress("UnusedParameter")
+    private fun findParentIdFromPath(parentPath: String): String? {
+        // Parent IDs can be computed later if needed
+        // For now, we rely on path-based hierarchy traversal
+        return null
+    }
+}

@@ -9,6 +9,8 @@ import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
+import com.calypsan.listenup.client.data.local.db.GenreDao
+import com.calypsan.listenup.client.data.local.db.GenreEntity
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
@@ -62,6 +64,7 @@ class BookEditViewModel(
     private val contributorRepository: ContributorRepositoryContract,
     private val seriesRepository: SeriesRepositoryContract,
     private val genreApi: GenreApiContract,
+    private val genreDao: GenreDao,
     private val tagApi: TagApiContract,
     private val tagDao: TagDao,
     private val imageApi: ImageApiContract,
@@ -405,20 +408,25 @@ class BookEditViewModel(
 
     // ========== Private Methods ==========
 
+    /**
+     * Load genres for book editing from Room (offline-first).
+     *
+     * Genres are synced during initial sync, so Room data is authoritative.
+     */
     private suspend fun loadGenresForBook(bookId: String): Pair<List<EditableGenre>, List<EditableGenre>> {
         val allGenres =
             try {
-                genreApi.listGenres().map { it.toEditable() }
+                genreDao.getAllGenres().map { it.toEditable() }
             } catch (e: Exception) {
-                logger.error(e) { "Failed to load all genres" }
+                logger.error(e) { "Failed to load all genres from Room" }
                 emptyList()
             }
 
         val bookGenres =
             try {
-                genreApi.getBookGenres(bookId).map { it.toEditable() }
+                genreDao.getGenresForBook(BookId(bookId)).map { it.toEditable() }
             } catch (e: Exception) {
-                logger.error(e) { "Failed to load book genres" }
+                logger.error(e) { "Failed to load book genres from Room" }
                 emptyList()
             }
 
@@ -453,6 +461,8 @@ class BookEditViewModel(
     private fun TagEntity.toEditable() = EditableTag(id = id, slug = slug)
 
     private fun Genre.toEditable() = EditableGenre(id = id, name = name, path = path)
+
+    private fun GenreEntity.toEditable() = EditableGenre(id = id, name = name, path = path)
 
     private fun Tag.toEditable() = EditableTag(id = id, slug = slug)
 
@@ -604,6 +614,11 @@ class BookEditViewModel(
                 if (current.genres != originalGenres) {
                     try {
                         genreApi.setBookGenres(current.bookId, current.genres.map { it.id })
+                        // Update Room with new book-genre relationships
+                        genreDao.replaceGenresForBook(
+                            BookId(current.bookId),
+                            current.genres.map { it.id },
+                        )
                         logger.info { "Book genres updated" }
                     } catch (e: Exception) {
                         logger.error(e) { "Failed to save genres" }
@@ -633,13 +648,15 @@ class BookEditViewModel(
                         for (slug in addedSlugs) {
                             val tag = tagApi.addTagToBook(current.bookId, slug)
                             // Update Room with returned tag
-                            val entity = TagEntity(
-                                id = tag.id,
-                                slug = tag.slug,
-                                bookCount = tag.bookCount,
-                                createdAt = tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
-                                    ?: Timestamp.now(),
-                            )
+                            val entity =
+                                TagEntity(
+                                    id = tag.id,
+                                    slug = tag.slug,
+                                    bookCount = tag.bookCount,
+                                    createdAt =
+                                        tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
+                                            ?: Timestamp.now(),
+                                )
                             tagDao.upsert(entity)
                             tagDao.insertBookTag(BookTagCrossRef(bookId = bookIdTyped, tagId = tag.id))
                         }

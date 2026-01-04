@@ -4,12 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
+import com.calypsan.listenup.client.data.local.db.GenreDao
+import com.calypsan.listenup.client.data.local.db.GenreEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
@@ -30,7 +31,7 @@ private val logger = KotlinLogging.logger {}
  */
 class BookDetailViewModel(
     private val bookRepository: BookRepositoryContract,
-    private val genreApi: GenreApiContract,
+    private val genreDao: GenreDao,
     private val tagApi: TagApiContract,
     private val tagDao: TagDao,
     private val playbackPositionDao: PlaybackPositionDao,
@@ -40,6 +41,7 @@ class BookDetailViewModel(
         field = MutableStateFlow(BookDetailUiState())
 
     private var tagObserverJob: Job? = null
+    private var genreObserverJob: Job? = null
 
     init {
         // Observe admin status
@@ -129,24 +131,42 @@ class BookDetailViewModel(
 
     /**
      * Load genres for the current book.
-     * Genres are optional - failures don't affect the main screen.
+     *
+     * Offline-first: All genre data comes from Room.
+     * - Book genres: Observed reactively for instant UI updates
+     *
+     * Genres are synced to Room during initial sync and via SSE events.
      */
     private fun loadGenres(bookId: String) {
-        viewModelScope.launch {
-            try {
-                val bookGenres = genreApi.getBookGenres(bookId)
-                state.update {
-                    it.copy(
-                        genres = bookGenres,
-                        genresList = bookGenres.map { g -> g.name },
-                    )
+        // Cancel any previous observer
+        genreObserverJob?.cancel()
+
+        genreObserverJob =
+            viewModelScope.launch {
+                // Observe book-specific genres from Room
+                genreDao.observeGenresForBook(BookId(bookId)).collect { localGenres ->
+                    val domainGenres = localGenres.map { it.toDomain() }
+                    state.update {
+                        it.copy(
+                            genres = domainGenres,
+                            genresList = domainGenres.map { g -> g.name },
+                        )
+                    }
                 }
-            } catch (e: Exception) {
-                // Genres are optional - don't fail the whole screen
-                logger.warn(e) { "Failed to load genres" }
             }
-        }
     }
+
+    /**
+     * Convert GenreEntity to domain Genre.
+     */
+    private fun GenreEntity.toDomain(): Genre =
+        Genre(
+            id = id,
+            name = name,
+            slug = slug,
+            path = path,
+            bookCount = bookCount,
+        )
 
     /**
      * Load tags for the current book.
@@ -232,13 +252,15 @@ class BookDetailViewModel(
             try {
                 val tag = tagApi.addTagToBook(bookId, slug)
                 // Update local Room - observer will update UI automatically
-                val entity = TagEntity(
-                    id = tag.id,
-                    slug = tag.slug,
-                    bookCount = tag.bookCount,
-                    createdAt = tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
-                        ?: Timestamp.now(),
-                )
+                val entity =
+                    TagEntity(
+                        id = tag.id,
+                        slug = tag.slug,
+                        bookCount = tag.bookCount,
+                        createdAt =
+                            tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
+                                ?: Timestamp.now(),
+                    )
                 tagDao.upsert(entity)
                 tagDao.insertBookTag(BookTagCrossRef(bookId = BookId(bookId), tagId = tag.id))
             } catch (e: Exception) {
@@ -287,13 +309,15 @@ class BookDetailViewModel(
             try {
                 val tag = tagApi.addTagToBook(bookId, rawInput)
                 // Update local Room - observer will update UI automatically
-                val entity = TagEntity(
-                    id = tag.id,
-                    slug = tag.slug,
-                    bookCount = tag.bookCount,
-                    createdAt = tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
-                        ?: Timestamp.now(),
-                )
+                val entity =
+                    TagEntity(
+                        id = tag.id,
+                        slug = tag.slug,
+                        bookCount = tag.bookCount,
+                        createdAt =
+                            tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
+                                ?: Timestamp.now(),
+                    )
                 tagDao.upsert(entity)
                 tagDao.insertBookTag(BookTagCrossRef(bookId = BookId(bookId), tagId = tag.id))
                 hideTagPicker()

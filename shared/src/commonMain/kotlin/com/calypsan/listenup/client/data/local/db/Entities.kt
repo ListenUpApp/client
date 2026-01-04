@@ -376,6 +376,50 @@ data class TagEntity(
 }
 
 /**
+ * Genre entity for offline-first genre display.
+ *
+ * Genres are system-defined hierarchical categories (e.g., Fiction > Fantasy > Epic).
+ * Synced during initial sync via GenrePuller.
+ * Book-genre relationships stored in book_genres junction table.
+ */
+@Entity(
+    tableName = "genres",
+    indices = [
+        Index(value = ["slug"], unique = true),
+        Index(value = ["path"]),
+    ],
+)
+data class GenreEntity(
+    @PrimaryKey val id: String,
+    /** Display name: "Epic Fantasy" */
+    val name: String,
+    /** URL-safe key: "epic-fantasy" */
+    val slug: String,
+    /** Materialized path: "/fiction/fantasy/epic-fantasy" */
+    val path: String,
+    /** Number of books with this genre (denormalized for sorting) */
+    val bookCount: Int = 0,
+    /** Parent genre ID for hierarchy traversal */
+    val parentId: String? = null,
+    /** Depth in hierarchy (0 = root) */
+    val depth: Int = 0,
+    /** Sort order within parent */
+    val sortOrder: Int = 0,
+) {
+    /**
+     * Returns the parent path for display context.
+     * "/fiction/fantasy/epic-fantasy" -> "Fiction > Fantasy"
+     */
+    fun parentPath(): String? {
+        val segments = path.trim('/').split('/')
+        if (segments.size <= 1) return null
+        return segments
+            .dropLast(1)
+            .joinToString(" > ") { it.replaceFirstChar { c -> c.uppercase() } }
+    }
+}
+
+/**
  * Tracks active reading sessions from other users.
  *
  * Populated via SSE session.started/ended events.

@@ -27,10 +27,11 @@ object QueryUtils {
     fun sanitize(
         query: String,
         maxLength: Int = MAX_QUERY_LENGTH,
-    ): String = query
-        .trim()
-        .replace(FTS_SPECIAL_CHARS, "")
-        .take(maxLength)
+    ): String =
+        query
+            .trim()
+            .replace(FTS_SPECIAL_CHARS, "")
+            .take(maxLength)
 
     /**
      * Convert a user query to FTS5 prefix-match syntax.
@@ -43,10 +44,11 @@ object QueryUtils {
      * @param query Sanitized query (should call [sanitize] first)
      * @return FTS5-formatted query with prefix matching
      */
-    fun toFtsQuery(query: String): String = query
-        .split(Regex("\\s+"))
-        .filter { it.isNotBlank() }
-        .joinToString(" ") { "$it*" }
+    fun toFtsQuery(query: String): String =
+        query
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { "$it*" }
 
     /**
      * Convert to FTS5 query with sanitization in one step.

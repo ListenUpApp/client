@@ -3,11 +3,11 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.repository.common.QueryUtils
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.SeriesSearchResult
+import com.calypsan.listenup.client.data.repository.common.QueryUtils
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.withContext
 import kotlin.time.measureTimedValue
@@ -159,7 +159,6 @@ class SeriesRepository(
                 tookMs = duration.inWholeMilliseconds,
             )
         }
-
 }
 
 /**

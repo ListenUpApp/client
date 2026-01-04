@@ -5,7 +5,6 @@ import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.data.repository.common.QueryUtils
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.remote.ApplyContributorMetadataResult
@@ -13,6 +12,7 @@ import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
 import com.calypsan.listenup.client.data.remote.MetadataApiContract
 import com.calypsan.listenup.client.data.remote.model.ContributorMetadataSearchResult
+import com.calypsan.listenup.client.data.repository.common.QueryUtils
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.withContext
 import kotlin.time.measureTimedValue

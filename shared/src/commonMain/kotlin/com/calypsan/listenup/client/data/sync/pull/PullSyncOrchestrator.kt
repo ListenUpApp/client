@@ -21,6 +21,7 @@ class PullSyncOrchestrator(
     private val seriesPuller: Puller,
     private val contributorPuller: Puller,
     private val tagPuller: Puller,
+    private val genrePuller: Puller,
     private val listeningEventPuller: Puller,
     private val activeSessionsPuller: Puller,
     private val coordinator: SyncCoordinator,
@@ -78,6 +79,9 @@ class PullSyncOrchestrator(
 
                 // Pull tags after books are synced (tags need book data)
                 tagPuller.pull(updatedAfter, onProgress)
+
+                // Pull genres after books (genres are book categorization)
+                genrePuller.pull(updatedAfter, onProgress)
 
                 // Pull listening events (from other devices) for offline stats
                 listeningEventPuller.pull(updatedAfter, onProgress)

@@ -799,7 +799,8 @@ class SSEEventProcessor(
         }
 
         // Now update local UserEntity for current user - avatar file is already ready
-        if (isCurrentUser && currentUser != null) {
+        // Note: isCurrentUser being true implies currentUser != null (see definition above)
+        if (isCurrentUser) {
             try {
                 // Update name fields
                 userDao.updateName(

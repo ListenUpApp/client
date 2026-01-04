@@ -1100,3 +1100,73 @@ val MIGRATION_27_28 =
             )
         }
     }
+
+/**
+ * Migration from version 28 to 29.
+ *
+ * Changes:
+ * - Add genres table for offline genre support
+ * - Add book_genres junction table for book-genre relationships
+ *
+ * Genres are now synced during initial sync (via GenrePuller) and book sync.
+ * This enables offline-first genre display without API calls.
+ */
+val MIGRATION_28_29 =
+    object : Migration(28, 29) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create genres table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS genres (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    slug TEXT NOT NULL,
+                    path TEXT NOT NULL,
+                    bookCount INTEGER NOT NULL DEFAULT 0,
+                    parentId TEXT,
+                    depth INTEGER NOT NULL DEFAULT 0,
+                    sortOrder INTEGER NOT NULL DEFAULT 0
+                )
+                """.trimIndent(),
+            )
+
+            // Create indices for genres
+            connection.execSQL(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS index_genres_slug ON genres (slug)
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_genres_path ON genres (path)
+                """.trimIndent(),
+            )
+
+            // Create book_genres junction table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS book_genres (
+                    bookId TEXT NOT NULL,
+                    genreId TEXT NOT NULL,
+                    PRIMARY KEY (bookId, genreId),
+                    FOREIGN KEY (bookId) REFERENCES books(id) ON DELETE CASCADE,
+                    FOREIGN KEY (genreId) REFERENCES genres(id) ON DELETE CASCADE
+                )
+                """.trimIndent(),
+            )
+
+            // Create indices for book_genres
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_book_genres_bookId ON book_genres (bookId)
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_book_genres_genreId ON book_genres (genreId)
+                """.trimIndent(),
+            )
+        }
+    }

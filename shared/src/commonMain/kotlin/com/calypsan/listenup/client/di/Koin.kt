@@ -98,6 +98,7 @@ import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
+import com.calypsan.listenup.client.data.sync.pull.GenrePuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPuller
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
@@ -264,6 +265,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().collectionDao() }
         single { get<ListenUpDatabase>().lensDao() }
         single { get<ListenUpDatabase>().tagDao() }
+        single { get<ListenUpDatabase>().genreDao() }
         single { get<ListenUpDatabase>().listeningEventDao() }
         single { get<ListenUpDatabase>().activeSessionDao() }
         single { get<ListenUpDatabase>().activityDao() }
@@ -561,6 +563,17 @@ val syncModule =
         single<Puller>(
             qualifier =
                 org.koin.core.qualifier
+                    .named("genrePuller"),
+        ) {
+            GenrePuller(
+                genreApi = get(),
+                genreDao = get(),
+            )
+        }
+
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
                     .named("listeningEventPuller"),
         ) {
             ListeningEventPuller(
@@ -611,6 +624,12 @@ val syncModule =
                         qualifier =
                             org.koin.core.qualifier
                                 .named("tagPuller"),
+                    ),
+                genrePuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("genrePuller"),
                     ),
                 listeningEventPuller =
                     get(

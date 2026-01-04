@@ -109,7 +109,10 @@ class DebouncedSearch<K, R>(
      * @param key The search key (use Unit for single-channel search)
      * @param query The search query
      */
-    fun setQuery(key: K, query: String) {
+    fun setQuery(
+        key: K,
+        query: String,
+    ) {
         ensureSetup(key)
         queryFlows[key]?.value = query
     }
@@ -175,25 +178,28 @@ class DebouncedSearch<K, R>(
                 } else {
                     performSearch(key, query)
                 }
-            }
-            .launchIn(scope)
+            }.launchIn(scope)
     }
 
-    private fun performSearch(key: K, query: String) {
+    private fun performSearch(
+        key: K,
+        query: String,
+    ) {
         searchJobs[key]?.cancel()
-        searchJobs[key] = scope.launch {
-            onLoadingChange?.invoke(key, true)
-            try {
-                val result = onSearch(key, query)
-                onResult(key, result)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e // Preserve cancellation
-            } catch (e: Exception) {
-                onError?.invoke(key, e)
-            } finally {
-                onLoadingChange?.invoke(key, false)
+        searchJobs[key] =
+            scope.launch {
+                onLoadingChange?.invoke(key, true)
+                try {
+                    val result = onSearch(key, query)
+                    onResult(key, result)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e // Preserve cancellation
+                } catch (e: Exception) {
+                    onError?.invoke(key, e)
+                } finally {
+                    onLoadingChange?.invoke(key, false)
+                }
             }
-        }
     }
 }
 
@@ -223,16 +229,17 @@ class SingleDebouncedSearch<R>(
     onLoadingChange: ((isLoading: Boolean) -> Unit)? = null,
     onError: ((error: Exception) -> Unit)? = null,
 ) {
-    private val delegate = DebouncedSearch<Unit, R>(
-        scope = scope,
-        debounceMs = debounceMs,
-        minQueryLength = minQueryLength,
-        onSearch = { _, query -> onSearch(query) },
-        onResult = { _, result -> onResult(result) },
-        onClear = { onClear() },
-        onLoadingChange = onLoadingChange?.let { callback -> { _, loading -> callback(loading) } },
-        onError = onError?.let { callback -> { _, error -> callback(error) } },
-    )
+    private val delegate =
+        DebouncedSearch<Unit, R>(
+            scope = scope,
+            debounceMs = debounceMs,
+            minQueryLength = minQueryLength,
+            onSearch = { _, query -> onSearch(query) },
+            onResult = { _, result -> onResult(result) },
+            onClear = { onClear() },
+            onLoadingChange = onLoadingChange?.let { callback -> { _, loading -> callback(loading) } },
+            onError = onError?.let { callback -> { _, error -> callback(error) } },
+        )
 
     /** Current query string. */
     val query: String get() = delegate.getQuery(Unit)

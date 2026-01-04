@@ -1,6 +1,8 @@
 package com.calypsan.listenup.client.presentation.bookdetail
 
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.GenreDao
+import com.calypsan.listenup.client.data.local.db.GenreEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.TagDao
@@ -8,7 +10,6 @@ import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
@@ -63,7 +64,7 @@ class BookDetailViewModelTest {
 
     private class TestFixture {
         val bookRepository: BookRepositoryContract = mock()
-        val genreApi: GenreApiContract = mock()
+        val genreDao: GenreDao = mock()
         val tagApi: TagApiContract = mock()
         val tagDao: TagDao = mock()
         val playbackPositionDao: PlaybackPositionDao = mock()
@@ -72,7 +73,7 @@ class BookDetailViewModelTest {
         fun build(): BookDetailViewModel =
             BookDetailViewModel(
                 bookRepository = bookRepository,
-                genreApi = genreApi,
+                genreDao = genreDao,
                 tagApi = tagApi,
                 tagDao = tagDao,
                 playbackPositionDao = playbackPositionDao,
@@ -84,11 +85,12 @@ class BookDetailViewModelTest {
         val fixture = TestFixture()
 
         // Default stubs for genre and tag operations
-        everySuspend { fixture.genreApi.getBookGenres(any()) } returns emptyList()
+        every { fixture.genreDao.observeGenresForBook(any()) } returns flowOf(emptyList())
         everySuspend { fixture.tagApi.getBookTags(any()) } returns emptyList()
         everySuspend { fixture.tagApi.listTags() } returns emptyList()
         everySuspend { fixture.playbackPositionDao.get(any()) } returns null
         every { fixture.tagDao.observeTagsForBook(any()) } returns flowOf(emptyList())
+        every { fixture.tagDao.observeAllTags() } returns flowOf(emptyList())
         every { fixture.userDao.observeCurrentUser() } returns flowOf(null)
 
         return fixture
@@ -342,9 +344,13 @@ class BookDetailViewModelTest {
                     createGenre(id = "g2", name = "Fantasy", slug = "fantasy", path = "/fiction/fantasy"),
                     createGenre(id = "g3", name = "Adventure", slug = "adventure", path = "/fiction/adventure"),
                 )
+            val genreEntities =
+                bookGenres.map { g ->
+                    GenreEntity(id = g.id, name = g.name, slug = g.slug, path = g.path, bookCount = g.bookCount)
+                }
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.genreApi.getBookGenres(any()) } returns bookGenres
+            every { fixture.genreDao.observeGenresForBook(any()) } returns flowOf(genreEntities)
             val viewModel = fixture.build()
 
             // When
@@ -367,7 +373,7 @@ class BookDetailViewModelTest {
             val book = createBook()
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.genreApi.getBookGenres(any()) } returns emptyList()
+            // genreDao.observeGenresForBook already returns empty list from createFixture()
             val viewModel = fixture.build()
 
             // When
@@ -384,12 +390,12 @@ class BookDetailViewModelTest {
     @Test
     fun `loadBook handles genre loading failure gracefully`() =
         runTest {
-            // Given
+            // Given - genres come from Room, no network involved, so simulate empty flow
             val fixture = createFixture()
             val book = createBook()
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.genreApi.getBookGenres(any()) } throws Exception("Network error")
+            // genreDao.observeGenresForBook already returns empty list from createFixture()
             val viewModel = fixture.build()
 
             // When
@@ -545,15 +551,22 @@ class BookDetailViewModelTest {
     @Test
     fun `loadBook loads tags for book`() =
         runTest {
-            // Given
+            // Given - tags come from Room flows (offline-first)
             val fixture = createFixture()
             val book = createBook()
-            val bookTags = listOf(createTag(id = "tag-1", slug = "favorites"))
-            val allTags = listOf(createTag(id = "tag-1", slug = "favorites"), createTag(id = "tag-2", slug = "to-read"))
+            val bookTagEntities =
+                listOf(
+                    TagEntity(id = "tag-1", slug = "favorites", bookCount = 5, createdAt = Timestamp.now()),
+                )
+            val allTagEntities =
+                listOf(
+                    TagEntity(id = "tag-1", slug = "favorites", bookCount = 5, createdAt = Timestamp.now()),
+                    TagEntity(id = "tag-2", slug = "to-read", bookCount = 3, createdAt = Timestamp.now()),
+                )
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
-            everySuspend { fixture.tagApi.getBookTags(any()) } returns bookTags
-            everySuspend { fixture.tagApi.listTags() } returns allTags
+            every { fixture.tagDao.observeTagsForBook(any()) } returns flowOf(bookTagEntities)
+            every { fixture.tagDao.observeAllTags() } returns flowOf(allTagEntities)
             val viewModel = fixture.build()
 
             // When
@@ -595,17 +608,21 @@ class BookDetailViewModelTest {
     @Test
     fun `removeTag calls API and refreshes tags`() =
         runTest {
-            // Given
+            // Given - need tags in state for removeTag to find the tag by slug
             val fixture = createFixture()
             val book = createBook(id = "book-1")
+            val bookTagEntities =
+                listOf(TagEntity(id = "tag-1", slug = "favorites", bookCount = 5, createdAt = Timestamp.now()))
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
+            every { fixture.tagDao.observeTagsForBook(any()) } returns flowOf(bookTagEntities)
             everySuspend { fixture.tagApi.removeTagFromBook(any(), any()) } returns Unit
+            everySuspend { fixture.tagDao.deleteBookTag(any(), any()) } returns Unit
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
 
-            // When - removeTag now takes a slug
+            // When - removeTag takes a slug and finds tag ID from state
             viewModel.removeTag("favorites")
             advanceUntilIdle()
 
@@ -623,6 +640,8 @@ class BookDetailViewModelTest {
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.tagApi.addTagToBook(any(), any()) } returns newTag
+            everySuspend { fixture.tagDao.upsert(any()) } returns Unit
+            everySuspend { fixture.tagDao.insertBookTag(any()) } returns Unit
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()

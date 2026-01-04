@@ -138,7 +138,7 @@ val bookPresentationModule =
         factory {
             com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel(
                 bookRepository = get(),
-                genreApi = get(),
+                genreDao = get(),
                 tagApi = get(),
                 tagDao = get(),
                 playbackPositionDao = get(),
@@ -158,6 +158,7 @@ val bookPresentationModule =
                 contributorRepository = get(),
                 seriesRepository = get(),
                 genreApi = get(),
+                genreDao = get(),
                 tagApi = get(),
                 tagDao = get(),
                 imageApi = get(),

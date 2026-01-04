@@ -3,7 +3,6 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.IODispatcher
-import com.calypsan.listenup.client.data.repository.common.QueryUtils
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookSearchResult
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
@@ -15,6 +14,7 @@ import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SearchFacetsResponse
 import com.calypsan.listenup.client.data.remote.SearchHitResponse
 import com.calypsan.listenup.client.data.remote.SearchResponse
+import com.calypsan.listenup.client.data.repository.common.QueryUtils
 import com.calypsan.listenup.client.domain.model.FacetCount
 import com.calypsan.listenup.client.domain.model.SearchFacets
 import com.calypsan.listenup.client.domain.model.SearchHit
@@ -211,7 +211,6 @@ class SearchRepository(
                 isOfflineResult = true,
             )
         }
-
 }
 
 // --- Extension functions for mapping ---
