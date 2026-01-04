@@ -3,6 +3,7 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.IODispatcher
+import com.calypsan.listenup.client.data.repository.common.QueryUtils
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookSearchResult
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
@@ -95,7 +96,7 @@ class SearchRepository(
         limit: Int,
     ): SearchResult {
         // Sanitize query
-        val sanitizedQuery = sanitizeQuery(query)
+        val sanitizedQuery = QueryUtils.sanitize(query)
         if (sanitizedQuery.isBlank()) {
             return SearchResult(
                 query = query,
@@ -157,7 +158,7 @@ class SearchRepository(
         withContext(IODispatcher) {
             val (result, duration) =
                 measureTimedValue {
-                    val ftsQuery = toFtsQuery(query)
+                    val ftsQuery = QueryUtils.toFtsQuery(query)
                     val searchTypes = types ?: SearchHitType.entries
 
                     buildList {
@@ -211,27 +212,6 @@ class SearchRepository(
             )
         }
 
-    /**
-     * Sanitize search query to prevent injection and handle special chars.
-     */
-    private fun sanitizeQuery(query: String): String {
-        return query
-            .trim()
-            .replace(Regex("[\"*():]"), "") // Remove FTS special chars
-            .take(100) // Limit length
-    }
-
-    /**
-     * Convert user query to FTS5 query syntax.
-     *
-     * "brandon sanderson" -> "brandon* sanderson*"
-     * Adds prefix matching for partial word search.
-     */
-    private fun toFtsQuery(query: String): String =
-        query
-            .split(Regex("\\s+"))
-            .filter { it.isNotBlank() }
-            .joinToString(" ") { "$it*" }
 }
 
 // --- Extension functions for mapping ---

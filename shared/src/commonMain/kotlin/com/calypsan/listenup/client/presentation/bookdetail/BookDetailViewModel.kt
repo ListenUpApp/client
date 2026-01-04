@@ -3,8 +3,11 @@ package com.calypsan.listenup.client.presentation.bookdetail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.TagDao
+import com.calypsan.listenup.client.data.local.db.TagEntity
+import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.TagApiContract
@@ -147,30 +150,31 @@ class BookDetailViewModel(
 
     /**
      * Load tags for the current book.
-     * Tags are optional - failures don't affect the main screen.
      *
-     * This method:
-     * 1. Fetches initial tags from the API
-     * 2. Starts observing local storage for real-time SSE updates
+     * Offline-first: All tag data comes from Room.
+     * - Book tags: Observed reactively for instant UI updates
+     * - All tags: Observed reactively for tag picker
+     *
+     * Tags are synced to Room during initial sync and via SSE events.
      */
     private fun loadTags(bookId: String) {
         // Cancel any previous observer
         tagObserverJob?.cancel()
 
-        // Start observing local database for real-time updates
         tagObserverJob =
             viewModelScope.launch {
-                tagDao.observeTagsForBook(BookId(bookId)).collect { localTags ->
-                    val domainTags =
-                        localTags.map { entity ->
-                            Tag(
-                                id = entity.id,
-                                slug = entity.slug,
-                                bookCount = entity.bookCount,
-                                createdAt = Instant.fromEpochMilliseconds(entity.createdAt.epochMillis),
-                            )
-                        }
-                    if (domainTags.isNotEmpty()) {
+                // Observe book-specific tags from Room
+                launch {
+                    tagDao.observeTagsForBook(BookId(bookId)).collect { localTags ->
+                        val domainTags =
+                            localTags.map { entity ->
+                                Tag(
+                                    id = entity.id,
+                                    slug = entity.slug,
+                                    bookCount = entity.bookCount,
+                                    createdAt = Instant.fromEpochMilliseconds(entity.createdAt.epochMillis),
+                                )
+                            }
                         state.update {
                             it.copy(
                                 tags = domainTags,
@@ -179,27 +183,23 @@ class BookDetailViewModel(
                         }
                     }
                 }
-            }
 
-        // Also fetch from API to get latest data and allTags
-        viewModelScope.launch {
-            state.update { it.copy(isLoadingTags = true) }
-            try {
-                val bookTags = tagApi.getBookTags(bookId)
-                val allTags = tagApi.listTags()
-                state.update {
-                    it.copy(
-                        tags = bookTags,
-                        allTags = allTags,
-                        isLoadingTags = false,
-                    )
+                // Observe all available tags from Room for tag picker
+                launch {
+                    tagDao.observeAllTags().collect { allLocalTags ->
+                        val allDomainTags =
+                            allLocalTags.map { entity ->
+                                Tag(
+                                    id = entity.id,
+                                    slug = entity.slug,
+                                    bookCount = entity.bookCount,
+                                    createdAt = Instant.fromEpochMilliseconds(entity.createdAt.epochMillis),
+                                )
+                            }
+                        state.update { it.copy(allTags = allDomainTags) }
+                    }
                 }
-            } catch (e: Exception) {
-                // Tags are optional - don't fail the whole screen
-                logger.warn(e) { "Failed to load tags from API" }
-                state.update { it.copy(isLoadingTags = false) }
             }
-        }
     }
 
     /**
@@ -219,6 +219,8 @@ class BookDetailViewModel(
     /**
      * Add a tag to the current book.
      *
+     * Calls API then updates local Room for immediate reactivity.
+     *
      * @param slug The tag slug to add
      */
     fun addTag(slug: String) {
@@ -228,8 +230,17 @@ class BookDetailViewModel(
                 ?.value ?: return
         viewModelScope.launch {
             try {
-                tagApi.addTagToBook(bookId, slug)
-                loadTags(bookId) // Refresh
+                val tag = tagApi.addTagToBook(bookId, slug)
+                // Update local Room - observer will update UI automatically
+                val entity = TagEntity(
+                    id = tag.id,
+                    slug = tag.slug,
+                    bookCount = tag.bookCount,
+                    createdAt = tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
+                        ?: Timestamp.now(),
+                )
+                tagDao.upsert(entity)
+                tagDao.insertBookTag(BookTagCrossRef(bookId = BookId(bookId), tagId = tag.id))
             } catch (e: Exception) {
                 logger.error(e) { "Failed to add tag '$slug' to book $bookId" }
             }
@@ -239,17 +250,20 @@ class BookDetailViewModel(
     /**
      * Remove a tag from the current book.
      *
+     * Calls API then updates local Room for immediate reactivity.
+     *
      * @param slug The tag slug to remove
      */
     fun removeTag(slug: String) {
-        val bookId =
-            state.value.book
-                ?.id
-                ?.value ?: return
+        val book = state.value.book ?: return
+        val bookId = book.id.value
+        // Find the tag ID from current tags
+        val tag = state.value.tags.find { it.slug == slug } ?: return
         viewModelScope.launch {
             try {
                 tagApi.removeTagFromBook(bookId, slug)
-                loadTags(bookId) // Refresh
+                // Update local Room - observer will update UI automatically
+                tagDao.deleteBookTag(book.id, tag.id)
             } catch (e: Exception) {
                 logger.error(e) { "Failed to remove tag '$slug' from book $bookId" }
             }
@@ -271,8 +285,17 @@ class BookDetailViewModel(
                 ?.value ?: return
         viewModelScope.launch {
             try {
-                tagApi.addTagToBook(bookId, rawInput)
-                loadTags(bookId) // Refresh
+                val tag = tagApi.addTagToBook(bookId, rawInput)
+                // Update local Room - observer will update UI automatically
+                val entity = TagEntity(
+                    id = tag.id,
+                    slug = tag.slug,
+                    bookCount = tag.bookCount,
+                    createdAt = tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
+                        ?: Timestamp.now(),
+                )
+                tagDao.upsert(entity)
+                tagDao.insertBookTag(BookTagCrossRef(bookId = BookId(bookId), tagId = tag.id))
                 hideTagPicker()
             } catch (e: Exception) {
                 logger.error(e) { "Failed to add tag '$rawInput' to book $bookId" }

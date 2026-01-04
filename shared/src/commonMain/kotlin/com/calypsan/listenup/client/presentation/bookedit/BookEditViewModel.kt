@@ -8,6 +8,10 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
+import com.calypsan.listenup.client.data.local.db.TagDao
+import com.calypsan.listenup.client.data.local.db.TagEntity
+import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.BookUpdateRequest
 import com.calypsan.listenup.client.data.remote.ContributorInput
@@ -59,6 +63,7 @@ class BookEditViewModel(
     private val seriesRepository: SeriesRepositoryContract,
     private val genreApi: GenreApiContract,
     private val tagApi: TagApiContract,
+    private val tagDao: TagDao,
     private val imageApi: ImageApiContract,
     private val imageStorage: ImageStorage,
 ) : ViewModel() {
@@ -420,25 +425,32 @@ class BookEditViewModel(
         return allGenres to bookGenres
     }
 
+    /**
+     * Load tags for book editing from Room (offline-first).
+     *
+     * Tags are synced during initial sync, so Room data is authoritative.
+     */
     private suspend fun loadTagsForBook(bookId: String): Pair<List<EditableTag>, List<EditableTag>> {
         val allTags =
             try {
-                tagApi.listTags().map { it.toEditable() }
+                tagDao.getAllTags().map { it.toEditable() }
             } catch (e: Exception) {
-                logger.error(e) { "Failed to load all tags" }
+                logger.error(e) { "Failed to load all tags from Room" }
                 emptyList()
             }
 
         val bookTags =
             try {
-                tagApi.getBookTags(bookId).map { it.toEditable() }
+                tagDao.getTagsForBook(BookId(bookId)).map { it.toEditable() }
             } catch (e: Exception) {
-                logger.error(e) { "Failed to load book tags" }
+                logger.error(e) { "Failed to load book tags from Room" }
                 emptyList()
             }
 
         return allTags to bookTags
     }
+
+    private fun TagEntity.toEditable() = EditableTag(id = id, slug = slug)
 
     private fun Genre.toEditable() = EditableGenre(id = id, name = name, path = path)
 
@@ -605,15 +617,31 @@ class BookEditViewModel(
                     try {
                         val currentSlugs = current.tags.map { it.slug }.toSet()
                         val originalSlugs = originalTags.map { it.slug }.toSet()
+                        val bookIdTyped = BookId(current.bookId)
 
                         val removedSlugs = originalSlugs - currentSlugs
                         for (slug in removedSlugs) {
                             tagApi.removeTagFromBook(current.bookId, slug)
+                            // Update Room - find tag ID from original tags
+                            val tagId = originalTags.find { it.slug == slug }?.id
+                            if (tagId != null) {
+                                tagDao.deleteBookTag(bookIdTyped, tagId)
+                            }
                         }
 
                         val addedSlugs = currentSlugs - originalSlugs
                         for (slug in addedSlugs) {
-                            tagApi.addTagToBook(current.bookId, slug)
+                            val tag = tagApi.addTagToBook(current.bookId, slug)
+                            // Update Room with returned tag
+                            val entity = TagEntity(
+                                id = tag.id,
+                                slug = tag.slug,
+                                bookCount = tag.bookCount,
+                                createdAt = tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
+                                    ?: Timestamp.now(),
+                            )
+                            tagDao.upsert(entity)
+                            tagDao.insertBookTag(BookTagCrossRef(bookId = bookIdTyped, tagId = tag.id))
                         }
 
                         logger.info { "Book tags updated: +${addedSlugs.size}, -${removedSlugs.size}" }

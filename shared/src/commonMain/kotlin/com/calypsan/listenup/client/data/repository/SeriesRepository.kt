@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.repository.common.QueryUtils
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
@@ -77,7 +78,7 @@ class SeriesRepository(
         limit: Int,
     ): SeriesSearchResponse {
         // Sanitize query
-        val sanitizedQuery = sanitizeQuery(query)
+        val sanitizedQuery = QueryUtils.sanitize(query)
         if (sanitizedQuery.isBlank() || sanitizedQuery.length < 2) {
             return SeriesSearchResponse(
                 series = emptyList(),
@@ -137,7 +138,7 @@ class SeriesRepository(
         withContext(IODispatcher) {
             val (entities, duration) =
                 measureTimedValue {
-                    val ftsQuery = toFtsQuery(query)
+                    val ftsQuery = QueryUtils.toFtsQuery(query)
                     try {
                         searchDao.searchSeries(ftsQuery, limit)
                     } catch (e: Exception) {
@@ -159,23 +160,6 @@ class SeriesRepository(
             )
         }
 
-    /**
-     * Sanitize search query to prevent injection and handle special chars.
-     */
-    private fun sanitizeQuery(query: String): String =
-        query
-            .trim()
-            .replace(Regex("[\"*():]"), "") // Remove FTS special chars
-            .take(100) // Limit length
-
-    /**
-     * Convert user query to FTS5 query syntax.
-     */
-    private fun toFtsQuery(query: String): String =
-        query
-            .split(Regex("\\s+"))
-            .filter { it.isNotBlank() }
-            .joinToString(" ") { "$it*" }
 }
 
 /**

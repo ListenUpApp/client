@@ -159,6 +159,7 @@ val bookPresentationModule =
                 seriesRepository = get(),
                 genreApi = get(),
                 tagApi = get(),
+                tagDao = get(),
                 imageApi = get(),
                 imageStorage = get(),
             )
