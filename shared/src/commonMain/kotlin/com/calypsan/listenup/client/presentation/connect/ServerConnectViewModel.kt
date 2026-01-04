@@ -2,11 +2,11 @@ package com.calypsan.listenup.client.presentation.connect
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.ApiResponse
 import com.calypsan.listenup.client.core.PlatformUtils
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.error.ErrorMapper
 import com.calypsan.listenup.client.core.error.ServerConnectError
+import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.domain.model.Instance
 import io.github.oshai.kotlinlogging.KotlinLogging
