@@ -82,4 +82,27 @@ interface UserDao {
         tagline: String?,
         updatedAt: Long,
     )
+
+    /**
+     * Update name fields for a user.
+     * Called when firstName/lastName is changed in profile settings.
+     * Also updates displayName which is computed from firstName + lastName.
+     */
+    @Query(
+        """
+        UPDATE users
+        SET firstName = :firstName,
+            lastName = :lastName,
+            displayName = :displayName,
+            updatedAt = :updatedAt
+        WHERE id = :userId
+        """,
+    )
+    suspend fun updateName(
+        userId: String,
+        firstName: String,
+        lastName: String,
+        displayName: String,
+        updatedAt: Long,
+    )
 }

@@ -988,11 +988,17 @@ interface ProfileApiContract {
      *
      * @param avatarType Optional avatar type to set ("auto" or "image")
      * @param tagline Optional tagline to set (max 60 chars)
+     * @param firstName Optional first name to set
+     * @param lastName Optional last name to set
+     * @param newPassword New password (min 8 chars)
      * @return Result containing updated ProfileResponse or error
      */
     suspend fun updateMyProfile(
         avatarType: String? = null,
         tagline: String? = null,
+        firstName: String? = null,
+        lastName: String? = null,
+        newPassword: String? = null,
     ): Result<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
 
     /**

@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.local.db.EntityType
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.remote.ProfileApiContract
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.ProfileAvatarHandler
 import com.calypsan.listenup.client.data.sync.push.ProfileAvatarPayload
@@ -61,6 +62,31 @@ interface ProfileEditRepositoryContract {
      * @return Result indicating success or failure
      */
     suspend fun revertToAutoAvatar(): Result<Unit>
+
+    /**
+     * Update the user's name.
+     *
+     * Queues update for server sync. Server computes displayName from firstName + lastName.
+     * Local cache is updated when sync completes.
+     *
+     * @param firstName The user's first name
+     * @param lastName The user's last name
+     * @return Result indicating success or failure
+     */
+    suspend fun updateName(
+        firstName: String,
+        lastName: String,
+    ): Result<Unit>
+
+    /**
+     * Change the user's password.
+     *
+     * This is NOT an offline-first operation - requires immediate server confirmation.
+     *
+     * @param newPassword The new password to set
+     * @return Result indicating success or failure
+     */
+    suspend fun changePassword(newPassword: String): Result<Unit>
 }
 
 /**
@@ -80,6 +106,7 @@ class ProfileEditRepository(
     private val pendingOperationRepository: PendingOperationRepositoryContract,
     private val profileUpdateHandler: ProfileUpdateHandler,
     private val profileAvatarHandler: ProfileAvatarHandler,
+    private val profileApi: ProfileApiContract,
 ) : ProfileEditRepositoryContract {
     /**
      * Update the user's tagline.
@@ -200,5 +227,80 @@ class ProfileEditRepository(
 
             logger.info { "Revert to auto avatar queued" }
             Success(Unit)
+        }
+
+    /**
+     * Update the user's name.
+     *
+     * Applies optimistic update locally, then queues for server sync.
+     */
+    override suspend fun updateName(
+        firstName: String,
+        lastName: String,
+    ): Result<Unit> =
+        withContext(IODispatcher) {
+            logger.debug { "Updating name (offline-first)" }
+
+            // Get current user
+            val user = userDao.getCurrentUser()
+            if (user == null) {
+                logger.error { "No current user found" }
+                return@withContext Failure(Exception("No current user"))
+            }
+
+            // Apply optimistic update - compute displayName locally
+            val displayName = "$firstName $lastName".trim()
+            userDao.updateName(
+                userId = user.id,
+                firstName = firstName,
+                lastName = lastName,
+                displayName = displayName,
+                updatedAt = currentEpochMilliseconds(),
+            )
+
+            // Queue operation (coalesces with any pending name update)
+            val payload =
+                ProfileUpdatePayload(
+                    firstName = firstName,
+                    lastName = lastName,
+                )
+            pendingOperationRepository.queue(
+                type = OperationType.PROFILE_UPDATE,
+                entityType = EntityType.USER,
+                entityId = user.id,
+                payload = payload,
+                handler = profileUpdateHandler,
+            )
+
+            logger.info { "Name update queued" }
+            Success(Unit)
+        }
+
+    /**
+     * Change the user's password.
+     *
+     * This is NOT an offline-first operation - requires immediate server confirmation.
+     */
+    override suspend fun changePassword(newPassword: String): Result<Unit> =
+        withContext(IODispatcher) {
+            logger.debug { "Changing password (requires server)" }
+
+            // Password change requires immediate server confirmation
+            when (
+                val result =
+                    profileApi.updateMyProfile(
+                        newPassword = newPassword,
+                    )
+            ) {
+                is Success -> {
+                    logger.info { "Password changed successfully" }
+                    Success(Unit)
+                }
+
+                is Failure -> {
+                    logger.error { "Password change failed: ${result.exception.message}" }
+                    Failure(result.exception)
+                }
+            }
         }
 }

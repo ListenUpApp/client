@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.presentation.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
@@ -65,12 +66,24 @@ class EditProfileViewModel(
                             isLoading = false,
                             user = user,
                             localAvatarPath = localAvatarPath,
-                            // Only set editedTagline from DB on first load
+                            // Only set edited fields from DB on first load
                             editedTagline =
                                 if (currentState.user == null) {
                                     user.tagline ?: ""
                                 } else {
                                     currentState.editedTagline
+                                },
+                            editedFirstName =
+                                if (currentState.user == null) {
+                                    user.firstName ?: ""
+                                } else {
+                                    currentState.editedFirstName
+                                },
+                            editedLastName =
+                                if (currentState.user == null) {
+                                    user.lastName ?: ""
+                                } else {
+                                    currentState.editedLastName
                                 },
                             error = null,
                         )
@@ -227,6 +240,126 @@ class EditProfileViewModel(
         state.update { it.copy(error = null) }
     }
 
+    /**
+     * Update the first name input field.
+     */
+    fun onFirstNameChange(newFirstName: String) {
+        state.update { it.copy(editedFirstName = newFirstName) }
+    }
+
+    /**
+     * Update the last name input field.
+     */
+    fun onLastNameChange(newLastName: String) {
+        state.update { it.copy(editedLastName = newLastName) }
+    }
+
+    /**
+     * Save the updated name using offline-first pattern.
+     */
+    fun saveName() {
+        val firstName = state.value.editedFirstName
+        val lastName = state.value.editedLastName
+
+        // Skip if both are empty
+        if (firstName.isBlank() && lastName.isBlank()) return
+
+        viewModelScope.launch {
+            state.update { it.copy(isSaving = true, error = null) }
+
+            when (profileEditRepository.updateName(firstName, lastName)) {
+                is Success -> {
+                    // DB is updated optimistically, observeUser() will receive the update
+                    state.update {
+                        it.copy(
+                            isSaving = false,
+                            saveSuccess = true,
+                        )
+                    }
+                    logger.info { "Name update saved" }
+                }
+
+                else -> {
+                    logger.error { "Failed to save name" }
+                    state.update {
+                        it.copy(
+                            isSaving = false,
+                            error = "Failed to save name",
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Update the new password input field.
+     */
+    fun onNewPasswordChange(newPassword: String) {
+        state.update { it.copy(newPassword = newPassword) }
+    }
+
+    /**
+     * Update the confirm password input field.
+     */
+    fun onConfirmPasswordChange(confirmPassword: String) {
+        state.update { it.copy(confirmPassword = confirmPassword) }
+    }
+
+    /**
+     * Change the user's password.
+     * Requires server confirmation - not offline-first.
+     */
+    fun changePassword() {
+        val newPassword = state.value.newPassword
+        val confirmPassword = state.value.confirmPassword
+
+        // Validate
+        if (newPassword.length < 8) {
+            state.update { it.copy(error = "Password must be at least 8 characters") }
+            return
+        }
+        if (newPassword != confirmPassword) {
+            state.update { it.copy(error = "Passwords do not match") }
+            return
+        }
+
+        viewModelScope.launch {
+            state.update { it.copy(isSaving = true, error = null) }
+
+            when (profileEditRepository.changePassword(newPassword)) {
+                is Success -> {
+                    state.update {
+                        it.copy(
+                            isSaving = false,
+                            passwordChangeSuccess = true,
+                            newPassword = "",
+                            confirmPassword = "",
+                        )
+                    }
+                    logger.info { "Password changed successfully" }
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to change password" }
+                    state.update {
+                        it.copy(
+                            isSaving = false,
+                            error = "Failed to change password",
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Clear the password change success flag after showing feedback.
+     */
+    fun clearPasswordChangeSuccess() {
+        state.update { it.copy(passwordChangeSuccess = false) }
+    }
+
     companion object {
         const val MAX_TAGLINE_LENGTH = 60
     }
@@ -241,8 +374,13 @@ data class EditProfileUiState(
     val user: UserEntity? = null,
     val localAvatarPath: String? = null,
     val editedTagline: String = "",
+    val editedFirstName: String = "",
+    val editedLastName: String = "",
+    val newPassword: String = "",
+    val confirmPassword: String = "",
     val error: String? = null,
     val saveSuccess: Boolean = false,
+    val passwordChangeSuccess: Boolean = false,
 ) {
     val displayName: String get() = user?.displayName ?: ""
     val avatarType: String get() = user?.avatarType ?: "auto"
@@ -252,4 +390,11 @@ data class EditProfileUiState(
     val hasTaglineChanged: Boolean get() = editedTagline != currentTagline
     val taglineCharCount: Int get() = editedTagline.length
     val hasImageAvatar: Boolean get() = avatarType == "image"
+    val currentFirstName: String get() = user?.firstName ?: ""
+    val currentLastName: String get() = user?.lastName ?: ""
+    val hasNameChanged: Boolean
+        get() = editedFirstName != currentFirstName || editedLastName != currentLastName
+    val passwordsMatch: Boolean get() = newPassword == confirmPassword
+    val isPasswordValid: Boolean get() = newPassword.length >= 8
+    val canSavePassword: Boolean get() = newPassword.isNotEmpty() && passwordsMatch && isPasswordValid
 }

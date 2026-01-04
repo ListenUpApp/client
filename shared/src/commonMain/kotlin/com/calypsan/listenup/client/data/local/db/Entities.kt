@@ -17,6 +17,14 @@ data class UserEntity(
     val id: String,
     val email: String,
     val displayName: String,
+    /**
+     * User's first name.
+     */
+    val firstName: String? = null,
+    /**
+     * User's last name.
+     */
+    val lastName: String? = null,
     val isRoot: Boolean,
     /**
      * Creation timestamp in Unix epoch milliseconds.

@@ -532,10 +532,14 @@ class ProfileUpdateHandler(
         newPayload: ProfileUpdatePayload,
     ): ProfileUpdatePayload? {
         if (existing.operationType != OperationType.PROFILE_UPDATE) return null
+        // Don't coalesce if either has password change - passwords are independent operations
+        if (existingPayload.newPassword != null || newPayload.newPassword != null) return null
         // Merge fields - new values override existing
         return ProfileUpdatePayload(
             tagline = newPayload.tagline ?: existingPayload.tagline,
             avatarType = newPayload.avatarType ?: existingPayload.avatarType,
+            firstName = newPayload.firstName ?: existingPayload.firstName,
+            lastName = newPayload.lastName ?: existingPayload.lastName,
         )
     }
 
@@ -543,7 +547,16 @@ class ProfileUpdateHandler(
         operation: PendingOperationEntity,
         payload: ProfileUpdatePayload,
     ): Result<Unit> =
-        when (val result = api.updateMyProfile(avatarType = payload.avatarType, tagline = payload.tagline)) {
+        when (
+            val result =
+                api.updateMyProfile(
+                    avatarType = payload.avatarType,
+                    tagline = payload.tagline,
+                    firstName = payload.firstName,
+                    lastName = payload.lastName,
+                    newPassword = payload.newPassword,
+                )
+        ) {
             is Success -> {
                 // Sync server response to local cache
                 val profile = result.data
@@ -559,6 +572,16 @@ class ProfileUpdateHandler(
                         avatarType = profile.avatarType,
                         avatarValue = profile.avatarValue,
                         avatarColor = profile.avatarColor,
+                        updatedAt = currentEpochMilliseconds(),
+                    )
+                }
+                // If name was changed, update local user with firstName, lastName, and computed displayName
+                if (payload.firstName != null || payload.lastName != null) {
+                    userDao.updateName(
+                        userId = profile.userId,
+                        firstName = profile.firstName,
+                        lastName = profile.lastName,
+                        displayName = profile.displayName,
                         updatedAt = currentEpochMilliseconds(),
                     )
                 }

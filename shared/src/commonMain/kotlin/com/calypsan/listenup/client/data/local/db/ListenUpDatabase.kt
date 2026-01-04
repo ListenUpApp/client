@@ -32,6 +32,7 @@ import androidx.room.TypeConverters
  * - v25: Added active_sessions table for "What Others Are Listening To" feature
  * - v26: Added activities table for offline activity feed
  * - v27: Added user_stats table for offline leaderboard caching
+ * - v28: Added firstName, lastName columns to users table
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -60,7 +61,7 @@ import androidx.room.TypeConverters
         ActivityEntity::class,
         UserStatsEntity::class,
     ],
-    version = 27,
+    version = 28,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)

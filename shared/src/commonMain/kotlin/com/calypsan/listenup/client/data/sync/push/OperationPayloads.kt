@@ -152,13 +152,19 @@ data class UserPreferencesPayload(
  * Payload for PROFILE_UPDATE operations.
  *
  * Coalesces by user - only the final values matter.
- * Used for tagline and avatar type updates.
+ * Used for tagline, avatar type, name, and password updates.
  */
 @Serializable
 data class ProfileUpdatePayload(
     val tagline: String? = null,
     @SerialName("avatar_type")
     val avatarType: String? = null,
+    @SerialName("first_name")
+    val firstName: String? = null,
+    @SerialName("last_name")
+    val lastName: String? = null,
+    @SerialName("new_password")
+    val newPassword: String? = null,
 )
 
 /**

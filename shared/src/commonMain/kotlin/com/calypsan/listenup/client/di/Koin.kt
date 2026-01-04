@@ -1136,6 +1136,7 @@ val syncModule =
                 pendingOperationRepository = get(),
                 profileUpdateHandler = get(),
                 profileAvatarHandler = get(),
+                profileApi = get(),
             )
         } bind ProfileEditRepositoryContract::class
     }

@@ -11,8 +11,10 @@ import kotlinx.serialization.Serializable
 data class ProfileResponse(
     @SerialName("user_id")
     val userId: String,
-    @SerialName("display_name")
-    val displayName: String,
+    @SerialName("first_name")
+    val firstName: String,
+    @SerialName("last_name")
+    val lastName: String,
     @SerialName("avatar_type")
     val avatarType: String,
     @SerialName("avatar_value")
@@ -21,7 +23,13 @@ data class ProfileResponse(
     val avatarColor: String,
     @SerialName("tagline")
     val tagline: String? = null,
-)
+) {
+    /**
+     * Computed display name from firstName + lastName.
+     */
+    val displayName: String
+        get() = "$firstName $lastName".trim()
+}
 
 /**
  * Request for PATCH /api/v1/profile (update own profile).
@@ -33,6 +41,12 @@ data class UpdateProfileRequest(
     val avatarType: String? = null,
     @SerialName("tagline")
     val tagline: String? = null,
+    @SerialName("first_name")
+    val firstName: String? = null,
+    @SerialName("last_name")
+    val lastName: String? = null,
+    @SerialName("new_password")
+    val newPassword: String? = null,
 )
 
 /**
@@ -111,8 +125,10 @@ data class LensSummaryResponse(
 data class SSEProfileUpdatedEvent(
     @SerialName("user_id")
     val userId: String,
-    @SerialName("display_name")
-    val displayName: String,
+    @SerialName("first_name")
+    val firstName: String,
+    @SerialName("last_name")
+    val lastName: String,
     @SerialName("avatar_type")
     val avatarType: String,
     @SerialName("avatar_value")
@@ -121,4 +137,10 @@ data class SSEProfileUpdatedEvent(
     val avatarColor: String,
     @SerialName("tagline")
     val tagline: String? = null,
-)
+) {
+    /**
+     * Computed display name from firstName + lastName.
+     */
+    val displayName: String
+        get() = "$firstName $lastName".trim()
+}

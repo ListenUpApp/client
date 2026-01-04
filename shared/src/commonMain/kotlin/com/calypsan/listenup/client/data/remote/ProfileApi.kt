@@ -53,14 +53,22 @@ class ProfileApi(
     override suspend fun updateMyProfile(
         avatarType: String?,
         tagline: String?,
+        firstName: String?,
+        lastName: String?,
+        newPassword: String?,
     ): Result<ProfileResponse> =
         suspendRunCatching {
-            logger.debug { "Updating own profile: avatarType=$avatarType, tagline=$tagline" }
+            logger.debug {
+                "Updating own profile: avatarType=$avatarType, tagline=$tagline, firstName=$firstName, lastName=$lastName"
+            }
             val client = clientFactory.getClient()
             val request =
                 UpdateProfileRequest(
                     avatarType = avatarType,
                     tagline = tagline,
+                    firstName = firstName,
+                    lastName = lastName,
+                    newPassword = newPassword,
                 )
             val response: ApiResponse<ProfileResponse> =
                 client

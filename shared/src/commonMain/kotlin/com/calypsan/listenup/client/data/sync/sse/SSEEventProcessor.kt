@@ -91,6 +91,14 @@ class SSEEventProcessor(
      */
     val accessRevokedEvents: SharedFlow<AccessRevokedEvent> = _accessRevokedEvents.asSharedFlow()
 
+    private val _userDeletedEvent = MutableSharedFlow<UserDeletedInfo>(extraBufferCapacity = 1)
+
+    /**
+     * Flow of user deletion events. Emitted when the current user's account is deleted.
+     * App should clear auth state and navigate to login when this emits.
+     */
+    val userDeletedEvent: SharedFlow<UserDeletedInfo> = _userDeletedEvent.asSharedFlow()
+
     /**
      * Process an incoming SSE event.
      */
@@ -125,6 +133,10 @@ class SSEEventProcessor(
                 is SSEEventType.InboxBookReleased,
                 -> {
                     // Admin-only events, handled by AdminViewModel/AdminInboxViewModel
+                }
+
+                is SSEEventType.UserDeleted -> {
+                    handleUserDeleted(event)
                 }
 
                 is SSEEventType.CollectionCreated -> {
@@ -785,6 +797,15 @@ class SSEEventProcessor(
         // Now update local UserEntity for current user - avatar file is already ready
         if (isCurrentUser && currentUser != null) {
             try {
+                // Update name fields
+                userDao.updateName(
+                    userId = event.userId,
+                    firstName = event.firstName,
+                    lastName = event.lastName,
+                    displayName = event.displayName,
+                    updatedAt = Timestamp.now().epochMillis,
+                )
+                // Update avatar
                 userDao.updateAvatar(
                     userId = event.userId,
                     avatarType = event.avatarType,
@@ -792,6 +813,7 @@ class SSEEventProcessor(
                     avatarColor = event.avatarColor,
                     updatedAt = Timestamp.now().epochMillis,
                 )
+                // Update tagline
                 if (event.tagline != null || currentUser.tagline != null) {
                     userDao.updateTagline(
                         userId = event.userId,
@@ -800,12 +822,32 @@ class SSEEventProcessor(
                     )
                 }
                 logger.info {
-                    "SSE: Updated local UserEntity with profile changes - avatar=${event.avatarType}/${event.avatarValue}"
+                    "SSE: Updated local UserEntity with profile changes - name=${event.displayName}, avatar=${event.avatarType}/${event.avatarValue}"
                 }
             } catch (e: Exception) {
                 logger.error(e) { "SSE: Failed to update local UserEntity for profile event" }
             }
         }
+    }
+
+    // ========== User Deletion Handler ==========
+
+    /**
+     * Handle user deleted SSE event.
+     *
+     * Emits to userDeletedEvent flow so the app can clear auth state
+     * and navigate to login. The SSE connection will be closed after this.
+     */
+    private suspend fun handleUserDeleted(event: SSEEventType.UserDeleted) {
+        logger.warn { "SSE: User account deleted - ${event.userId}, reason: ${event.reason}" }
+
+        // Emit event for app to handle (clear auth, navigate to login)
+        _userDeletedEvent.emit(
+            UserDeletedInfo(
+                userId = event.userId,
+                reason = event.reason,
+            ),
+        )
     }
 }
 
@@ -815,6 +857,15 @@ class SSEEventProcessor(
  */
 data class AccessRevokedEvent(
     val bookId: BookId,
+)
+
+/**
+ * Event emitted when the current user's account is deleted.
+ * The app should clear auth state and navigate to login.
+ */
+data class UserDeletedInfo(
+    val userId: String,
+    val reason: String?,
 )
 
 /**

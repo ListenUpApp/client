@@ -362,31 +362,33 @@ class LeaderboardRepository(
     override suspend fun fetchAndCacheUserStats(): Boolean =
         try {
             logger.debug { "Fetching initial user stats for All-time leaderboard" }
-            val response = leaderboardApi.getLeaderboard(
-                period = StatsPeriod.ALL,
-                category = LeaderboardCategory.TIME,
-                limit = 100, // Get all users for caching
-            )
-
-            val entities = response.entries.mapNotNull { entry ->
-                // Only cache entries that have All-time totals
-                if (entry.totalTimeMs == null || entry.totalBooks == null || entry.currentStreak == null) {
-                    logger.warn { "Skipping entry without All-time totals: ${entry.userId}" }
-                    return@mapNotNull null
-                }
-
-                UserStatsEntity(
-                    oduserId = entry.userId,
-                    displayName = entry.displayName,
-                    avatarColor = entry.avatarColor,
-                    avatarType = entry.avatarType,
-                    avatarValue = entry.avatarValue.takeIf { it.isNotEmpty() },
-                    totalTimeMs = entry.totalTimeMs,
-                    totalBooks = entry.totalBooks,
-                    currentStreak = entry.currentStreak,
-                    updatedAt = Timestamp.now().epochMillis,
+            val response =
+                leaderboardApi.getLeaderboard(
+                    period = StatsPeriod.ALL,
+                    category = LeaderboardCategory.TIME,
+                    limit = 100, // Get all users for caching
                 )
-            }
+
+            val entities =
+                response.entries.mapNotNull { entry ->
+                    // Only cache entries that have All-time totals
+                    if (entry.totalTimeMs == null || entry.totalBooks == null || entry.currentStreak == null) {
+                        logger.warn { "Skipping entry without All-time totals: ${entry.userId}" }
+                        return@mapNotNull null
+                    }
+
+                    UserStatsEntity(
+                        oduserId = entry.userId,
+                        displayName = entry.displayName,
+                        avatarColor = entry.avatarColor,
+                        avatarType = entry.avatarType,
+                        avatarValue = entry.avatarValue.takeIf { it.isNotEmpty() },
+                        totalTimeMs = entry.totalTimeMs,
+                        totalBooks = entry.totalBooks,
+                        currentStreak = entry.currentStreak,
+                        updatedAt = Timestamp.now().epochMillis,
+                    )
+                }
 
             userStatsDao.upsertAll(entities)
             logger.info { "Cached ${entities.size} user stats for All-time leaderboard" }
@@ -400,8 +402,7 @@ class LeaderboardRepository(
      * Check if user stats cache is empty.
      * Used to determine if initial fetch is needed for All-time period.
      */
-    override suspend fun isUserStatsCacheEmpty(): Boolean =
-        userStatsDao.count() == 0
+    override suspend fun isUserStatsCacheEmpty(): Boolean = userStatsDao.count() == 0
 }
 
 /**

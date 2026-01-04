@@ -30,10 +30,12 @@ import com.calypsan.listenup.client.data.remote.model.SSESessionStartedEvent
 import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserData
+import com.calypsan.listenup.client.data.remote.model.SSEUserDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserPendingEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserStatsUpdatedEvent
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.utils.io.ByteReadChannel
@@ -140,8 +142,20 @@ class SSEManager(
                         logger.debug { "Connection ended gracefully" }
                         break
                     } catch (e: Exception) {
-                        logger.warn(e) { "Connection error" }
                         _isConnected.value = false
+
+                        // Check for authentication errors - don't retry on 401/403
+                        if (e is ResponseException) {
+                            val statusCode = e.response.status.value
+                            if (statusCode == 401 || statusCode == 403) {
+                                logger.warn {
+                                    "SSE connection failed with auth error ($statusCode), not retrying"
+                                }
+                                break // Don't reconnect - auth is invalid
+                            }
+                        }
+
+                        logger.warn(e) { "Connection error" }
 
                         if (!isActive) {
                             break // Don't reconnect if job was cancelled
@@ -328,6 +342,14 @@ class SSEManager(
                     "user.approved" -> {
                         val userEvent = json.decodeFromJsonElement(SSEUserApprovedEvent.serializer(), sseEvent.data)
                         SSEEventType.UserApproved(userEvent.user)
+                    }
+
+                    "user.deleted" -> {
+                        val userEvent = json.decodeFromJsonElement(SSEUserDeletedEvent.serializer(), sseEvent.data)
+                        SSEEventType.UserDeleted(
+                            userId = userEvent.userId,
+                            reason = userEvent.reason,
+                        )
                     }
 
                     "collection.created" -> {
@@ -571,7 +593,8 @@ class SSEManager(
                             )
                         SSEEventType.ProfileUpdated(
                             userId = profileEvent.userId,
-                            displayName = profileEvent.displayName,
+                            firstName = profileEvent.firstName,
+                            lastName = profileEvent.lastName,
                             avatarType = profileEvent.avatarType,
                             avatarValue = profileEvent.avatarValue,
                             avatarColor = profileEvent.avatarColor,
@@ -679,6 +702,15 @@ sealed class SSEEventType {
      */
     data class UserApproved(
         val user: SSEUserData,
+    ) : SSEEventType()
+
+    /**
+     * Current user's account was deleted.
+     * Client should clear auth state and navigate to login.
+     */
+    data class UserDeleted(
+        val userId: String,
+        val reason: String?,
     ) : SSEEventType()
 
     // Collection events (admin-only)
@@ -913,12 +945,15 @@ sealed class SSEEventType {
      */
     data class ProfileUpdated(
         val userId: String,
-        val displayName: String,
+        val firstName: String,
+        val lastName: String,
         val avatarType: String,
         val avatarValue: String?,
         val avatarColor: String,
         val tagline: String?,
-    ) : SSEEventType()
+    ) : SSEEventType() {
+        val displayName: String get() = "$firstName $lastName".trim()
+    }
 
     // Active session events (for "What Others Are Listening To")
 

@@ -97,6 +97,17 @@ class SyncManager(
                 sseEventProcessor.process(event)
             }
         }
+
+        // Handle user deletion events
+        scope.launch {
+            sseEventProcessor.userDeletedEvent.collect { deletedInfo ->
+                logger.warn { "User account deleted: ${deletedInfo.userId}, reason: ${deletedInfo.reason}" }
+                // Disconnect SSE first to stop any further events
+                sseManager.disconnect()
+                // Clear auth tokens - this will trigger AuthState.NeedsLogin
+                settingsRepository.clearAuthTokens()
+            }
+        }
     }
 
     /**

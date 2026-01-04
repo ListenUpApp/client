@@ -381,6 +381,19 @@ data class SSEUserApprovedEvent(
 )
 
 /**
+ * SSE user deleted event.
+ * Sent when a user is deleted by an admin.
+ * Client should clear auth state and navigate to login.
+ */
+@Serializable
+data class SSEUserDeletedEvent(
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("reason")
+    val reason: String? = null,
+)
+
+/**
  * User data embedded in SSE user events.
  */
 @Serializable

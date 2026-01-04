@@ -127,6 +127,8 @@ fun AppShell(
                             id = userData.id,
                             email = userData.email,
                             displayName = userData.displayName,
+                            firstName = userData.firstName,
+                            lastName = userData.lastName,
                             isRoot = userData.isRoot,
                             createdAt = userData.createdAt,
                             updatedAt = userData.updatedAt,

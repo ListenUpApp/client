@@ -27,8 +27,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,8 +47,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +58,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -123,6 +130,14 @@ fun EditProfileScreen(
         }
     }
 
+    // Show snackbar on password change success
+    LaunchedEffect(state.passwordChangeSuccess) {
+        if (state.passwordChangeSuccess) {
+            snackbarHostState.showSnackbar("Password changed successfully")
+            viewModel.clearPasswordChangeSuccess()
+        }
+    }
+
     // Show snackbar on error
     LaunchedEffect(state.error) {
         state.error?.let { error ->
@@ -175,6 +190,12 @@ fun EditProfileScreen(
                             )
                         },
                         onRevertAvatar = viewModel::revertToAutoAvatar,
+                        onFirstNameChange = viewModel::onFirstNameChange,
+                        onLastNameChange = viewModel::onLastNameChange,
+                        onSaveName = viewModel::saveName,
+                        onNewPasswordChange = viewModel::onNewPasswordChange,
+                        onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+                        onChangePassword = viewModel::changePassword,
                     )
                 }
             }
@@ -202,6 +223,12 @@ private fun EditProfileContent(
     onSaveTagline: () -> Unit,
     onUploadAvatar: () -> Unit,
     onRevertAvatar: () -> Unit,
+    onFirstNameChange: (String) -> Unit,
+    onLastNameChange: (String) -> Unit,
+    onSaveName: () -> Unit,
+    onNewPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onChangePassword: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -355,6 +382,155 @@ private fun EditProfileContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Save Tagline")
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Name section
+        Text(
+            text = "Name",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Update your first and last name",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = state.editedFirstName,
+            onValueChange = onFirstNameChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("First Name") },
+            placeholder = { Text("Enter your first name") },
+            singleLine = true,
+            enabled = !state.isSaving,
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = state.editedLastName,
+            onValueChange = onLastNameChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Last Name") },
+            placeholder = { Text("Enter your last name") },
+            singleLine = true,
+            enabled = !state.isSaving,
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = onSaveName,
+            enabled = state.hasNameChanged && !state.isSaving,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Save Name")
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Password section
+        Text(
+            text = "Change Password",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Set a new password for your account",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        var newPasswordVisible by remember { mutableStateOf(false) }
+        var confirmPasswordVisible by remember { mutableStateOf(false) }
+
+        OutlinedTextField(
+            value = state.newPassword,
+            onValueChange = onNewPasswordChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("New Password") },
+            placeholder = { Text("Enter new password") },
+            singleLine = true,
+            enabled = !state.isSaving,
+            visualTransformation =
+                if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
+                    Icon(
+                        imageVector =
+                            if (newPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription =
+                            if (newPasswordVisible) "Hide password" else "Show password",
+                    )
+                }
+            },
+            supportingText = {
+                if (state.newPassword.isNotEmpty() && !state.isPasswordValid) {
+                    Text(
+                        text = "Must be at least 8 characters",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = state.confirmPassword,
+            onValueChange = onConfirmPasswordChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Confirm Password") },
+            placeholder = { Text("Re-enter new password") },
+            singleLine = true,
+            enabled = !state.isSaving,
+            visualTransformation =
+                if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                    Icon(
+                        imageVector =
+                            if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription =
+                            if (confirmPasswordVisible) "Hide password" else "Show password",
+                    )
+                }
+            },
+            supportingText = {
+                if (state.confirmPassword.isNotEmpty() && !state.passwordsMatch) {
+                    Text(
+                        text = "Passwords do not match",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = onChangePassword,
+            enabled = state.canSavePassword && !state.isSaving,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Change Password")
         }
     }
 }

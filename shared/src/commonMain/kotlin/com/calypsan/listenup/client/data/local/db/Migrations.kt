@@ -1071,3 +1071,32 @@ val MIGRATION_26_27 =
             )
         }
     }
+
+/**
+ * Migration from version 27 to version 28.
+ *
+ * Changes:
+ * - Add firstName column to users table
+ * - Add lastName column to users table
+ *
+ * These fields store the user's first and last name separately,
+ * enabling pre-population of the edit profile form fields.
+ */
+val MIGRATION_27_28 =
+    object : Migration(27, 28) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add firstName column (nullable)
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN firstName TEXT DEFAULT NULL
+                """.trimIndent(),
+            )
+
+            // Add lastName column (nullable)
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN lastName TEXT DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }
