@@ -55,10 +55,7 @@ class GenreApi(
     override suspend fun listGenres(): List<Genre> {
         val client = clientFactory.getClient()
         val response: ApiResponse<GenreListResponse> = client.get("/api/v1/genres/").body()
-        if (!response.success || response.data == null) {
-            throw GenreApiException(response.error ?: "Failed to list genres")
-        }
-        return response.data.genres.map { it.toDomain() }
+        return response.dataOrThrow { GenreApiException(it) }.genres.map { it.toDomain() }
     }
 
     /**
@@ -90,10 +87,7 @@ class GenreApi(
     override suspend fun getBookGenres(bookId: String): List<Genre> {
         val client = clientFactory.getClient()
         val response: ApiResponse<GenreListResponse> = client.get("/api/v1/books/$bookId/genres").body()
-        if (!response.success || response.data == null) {
-            throw GenreApiException(response.error ?: "Failed to get book genres")
-        }
-        return response.data.genres.map { it.toDomain() }
+        return response.dataOrThrow { GenreApiException(it) }.genres.map { it.toDomain() }
     }
 }
 

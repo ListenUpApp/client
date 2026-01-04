@@ -211,8 +211,8 @@ class LibraryViewModel(
         )
 
     // Selection mode for multi-select (admin only)
-    private val _selectionMode = MutableStateFlow<SelectionMode>(SelectionMode.None)
-    val selectionMode: StateFlow<SelectionMode> = _selectionMode
+    val selectionMode: StateFlow<SelectionMode>
+        field = MutableStateFlow<SelectionMode>(SelectionMode.None)
 
     /**
      * Whether the current user is an admin (isRoot).
@@ -242,8 +242,8 @@ class LibraryViewModel(
             )
 
     // State for collection add operation
-    private val _isAddingToCollection = MutableStateFlow(false)
-    val isAddingToCollection: StateFlow<Boolean> = _isAddingToCollection
+    val isAddingToCollection: StateFlow<Boolean>
+        field = MutableStateFlow(false)
 
     /**
      * Observable list of the current user's lenses for the lens picker.
@@ -266,8 +266,8 @@ class LibraryViewModel(
             )
 
     // State for lens add operation
-    private val _isAddingToLens = MutableStateFlow(false)
-    val isAddingToLens: StateFlow<Boolean> = _isAddingToLens
+    val isAddingToLens: StateFlow<Boolean>
+        field = MutableStateFlow(false)
 
     // Events for UI feedback
     private val _events = MutableSharedFlow<LibraryEvent>()
@@ -419,7 +419,7 @@ class LibraryViewModel(
      * @param initialBookId The ID of the book that was long-pressed
      */
     fun enterSelectionMode(initialBookId: String) {
-        _selectionMode.value = SelectionMode.Active(selectedIds = setOf(initialBookId))
+        selectionMode.value = SelectionMode.Active(selectedIds = setOf(initialBookId))
         logger.debug { "Entered selection mode with book: $initialBookId" }
         if (isAdmin.value) {
             refreshCollections()
@@ -470,7 +470,7 @@ class LibraryViewModel(
      * @param bookId The ID of the book to toggle
      */
     fun toggleBookSelection(bookId: String) {
-        val current = _selectionMode.value
+        val current = selectionMode.value
         if (current !is SelectionMode.Active) return
 
         val newSelectedIds =
@@ -484,7 +484,7 @@ class LibraryViewModel(
         if (newSelectedIds.isEmpty()) {
             exitSelectionMode()
         } else {
-            _selectionMode.value = SelectionMode.Active(selectedIds = newSelectedIds)
+            selectionMode.value = SelectionMode.Active(selectedIds = newSelectedIds)
         }
     }
 
@@ -492,7 +492,7 @@ class LibraryViewModel(
      * Exit selection mode and clear all selections.
      */
     fun exitSelectionMode() {
-        _selectionMode.value = SelectionMode.None
+        selectionMode.value = SelectionMode.None
         logger.debug { "Exited selection mode" }
     }
 
@@ -503,12 +503,12 @@ class LibraryViewModel(
      * @param collectionId The ID of the collection to add books to
      */
     fun addSelectedToCollection(collectionId: String) {
-        val current = _selectionMode.value
+        val current = selectionMode.value
         if (current !is SelectionMode.Active) return
         if (current.selectedIds.isEmpty()) return
 
         viewModelScope.launch {
-            _isAddingToCollection.value = true
+            isAddingToCollection.value = true
             try {
                 val bookIds = current.selectedIds.toList()
                 adminCollectionApi.addBooks(collectionId, bookIds)
@@ -519,7 +519,7 @@ class LibraryViewModel(
                 logger.error(e) { "Failed to add books to collection" }
                 _events.emit(LibraryEvent.AddToCollectionFailed(e.message ?: "Unknown error"))
             } finally {
-                _isAddingToCollection.value = false
+                isAddingToCollection.value = false
             }
         }
     }
@@ -531,12 +531,12 @@ class LibraryViewModel(
      * @param lensId The ID of the lens to add books to
      */
     fun addSelectedToLens(lensId: String) {
-        val current = _selectionMode.value
+        val current = selectionMode.value
         if (current !is SelectionMode.Active) return
         if (current.selectedIds.isEmpty()) return
 
         viewModelScope.launch {
-            _isAddingToLens.value = true
+            isAddingToLens.value = true
             try {
                 val bookIds = current.selectedIds.toList()
                 lensApi.addBooks(lensId, bookIds)
@@ -547,7 +547,7 @@ class LibraryViewModel(
                 logger.error(e) { "Failed to add books to lens" }
                 _events.emit(LibraryEvent.AddToLensFailed(e.message ?: "Unknown error"))
             } finally {
-                _isAddingToLens.value = false
+                isAddingToLens.value = false
             }
         }
     }
@@ -559,12 +559,12 @@ class LibraryViewModel(
      * @param name The name for the new lens
      */
     fun createLensAndAddBooks(name: String) {
-        val current = _selectionMode.value
+        val current = selectionMode.value
         if (current !is SelectionMode.Active) return
         if (current.selectedIds.isEmpty()) return
 
         viewModelScope.launch {
-            _isAddingToLens.value = true
+            isAddingToLens.value = true
             try {
                 val bookIds = current.selectedIds.toList()
                 // Create the lens
@@ -579,7 +579,7 @@ class LibraryViewModel(
                 logger.error(e) { "Failed to create lens and add books" }
                 _events.emit(LibraryEvent.AddToLensFailed(e.message ?: "Unknown error"))
             } finally {
-                _isAddingToLens.value = false
+                isAddingToLens.value = false
             }
         }
     }

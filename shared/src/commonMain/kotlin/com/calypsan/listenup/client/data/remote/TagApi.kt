@@ -36,10 +36,7 @@ class TagApi(
     override suspend fun listTags(): List<Tag> {
         val client = clientFactory.getClient()
         val response: ApiResponse<ListTagsResponse> = client.get("/api/v1/tags").body()
-        if (!response.success || response.data == null) {
-            throw TagApiException(response.error ?: "Failed to list tags")
-        }
-        return response.data.tags.map { it.toDomain() }
+        return response.dataOrThrow { TagApiException(it) }.tags.map { it.toDomain() }
     }
 
     /**
@@ -75,10 +72,7 @@ class TagApi(
     override suspend fun getBookTags(bookId: String): List<Tag> {
         val client = clientFactory.getClient()
         val response: ApiResponse<GetBookTagsResponse> = client.get("/api/v1/books/$bookId/tags").body()
-        if (!response.success || response.data == null) {
-            throw TagApiException(response.error ?: "Failed to get book tags")
-        }
-        return response.data.tags.map { it.toDomain() }
+        return response.dataOrThrow { TagApiException(it) }.tags.map { it.toDomain() }
     }
 
     /**
@@ -101,10 +95,7 @@ class TagApi(
                     contentType(ContentType.Application.Json)
                     setBody(AddTagRequest(tag = rawInput))
                 }.body()
-        if (!response.success || response.data == null) {
-            throw TagApiException(response.error ?: "Failed to add tag to book")
-        }
-        return response.data.toDomain()
+        return response.dataOrThrow { TagApiException(it) }.toDomain()
     }
 
     /**

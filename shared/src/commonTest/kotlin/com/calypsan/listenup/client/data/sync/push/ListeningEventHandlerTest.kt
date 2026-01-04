@@ -99,7 +99,8 @@ class ListeningEventHandlerTest {
             val results = handler.executeBatch(listOf(operation to payload))
 
             // Assert: submission succeeded
-            assertIs<Success<Unit>>(results["op-1"])
+            @Suppress("UNUSED_VARIABLE")
+            val success = assertIs<Success<Unit>>(results["op-1"])
 
             // Assert: markSynced was called for the book
             verifySuspend { positionDao.markSynced(BookId("book-1"), any()) }
@@ -125,7 +126,8 @@ class ListeningEventHandlerTest {
             val results = handler.executeBatch(listOf(operation to payload))
 
             // Assert: submission failed (not acknowledged)
-            assertIs<com.calypsan.listenup.client.core.Failure>(results["op-1"])
+            @Suppress("UNUSED_VARIABLE")
+            val failure = assertIs<com.calypsan.listenup.client.core.Failure>(results["op-1"])
 
             // Assert: markSynced was NOT called
             // (Mokkery will fail verification if it was called)
@@ -162,8 +164,11 @@ class ListeningEventHandlerTest {
                 )
 
             // Assert: both succeeded
-            assertIs<Success<Unit>>(results["op-1"])
-            assertIs<Success<Unit>>(results["op-2"])
+            @Suppress("UNUSED_VARIABLE")
+            val success1 = assertIs<Success<Unit>>(results["op-1"])
+
+            @Suppress("UNUSED_VARIABLE")
+            val success2 = assertIs<Success<Unit>>(results["op-2"])
 
             // Assert: markSynced was called for both books
             verifySuspend { positionDao.markSynced(BookId("book-1"), any()) }
@@ -192,7 +197,8 @@ class ListeningEventHandlerTest {
             val result = handler.execute(operation, payload)
 
             // Assert
-            assertIs<Success<Unit>>(result)
+            @Suppress("UNUSED_VARIABLE")
+            val success = assertIs<Success<Unit>>(result)
             verifySuspend { positionDao.markSynced(BookId("book-1"), any()) }
         }
 }

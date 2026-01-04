@@ -5,8 +5,7 @@ package com.calypsan.listenup.client.data.discovery
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.usePinned
+import kotlinx.cinterop.ObjCSignatureOverride
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -181,9 +180,23 @@ class IosDiscoveryService : ServerDiscoveryService {
             isDiscovering = false
         }
 
-        // Note: didFindService and didRemoveService are handled via the protocol
-        // but Kotlin/Native maps them to the same method signature.
-        // We use @HidesFromObjC to expose only one and handle via runtime
+        @ObjCSignatureOverride
+        override fun netServiceBrowser(
+            browser: NSNetServiceBrowser,
+            didFindService: NSNetService,
+            moreComing: Boolean,
+        ) {
+            onServiceFound(didFindService)
+        }
+
+        @ObjCSignatureOverride
+        override fun netServiceBrowser(
+            browser: NSNetServiceBrowser,
+            didRemoveService: NSNetService,
+            moreComing: Boolean,
+        ) {
+            onServiceRemoved(didRemoveService)
+        }
     }
 
     /**

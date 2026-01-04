@@ -68,8 +68,8 @@ class ApiResponseTest {
 
         val result = response.toResult()
 
-        assertIs<Success<String>>(result)
-        assertEquals("test data", result.data)
+        val success = assertIs<Success<String>>(result)
+        assertEquals("test data", success.data)
     }
 
     @Test
@@ -83,8 +83,8 @@ class ApiResponseTest {
 
         val result = response.toResult()
 
-        assertIs<Success<String?>>(result)
-        assertNull(result.data)
+        val success = assertIs<Success<String?>>(result)
+        assertNull(success.data)
     }
 
     // endregion
@@ -102,8 +102,8 @@ class ApiResponseTest {
 
         val result = response.toResult()
 
-        assertIs<Failure>(result)
-        assertEquals("Something went wrong", result.message)
+        val failure = assertIs<Failure>(result)
+        assertEquals("Something went wrong", failure.message)
     }
 
     @Test
@@ -117,8 +117,8 @@ class ApiResponseTest {
 
         val result = response.toResult()
 
-        assertIs<Failure>(result)
-        assertEquals("Unknown API error", result.message)
+        val failure = assertIs<Failure>(result)
+        assertEquals("Unknown API error", failure.message)
     }
 
     // endregion
@@ -136,10 +136,10 @@ class ApiResponseTest {
 
         val result = response.toResult()
 
-        assertIs<Failure>(result)
-        assertEquals("Entity already exists", result.message)
-        assertIs<ApiException>(result.exception)
-        assertEquals("conflict", (result.exception as ApiException).code)
+        val failure = assertIs<Failure>(result)
+        assertEquals("Entity already exists", failure.message)
+        val apiException = assertIs<ApiException>(failure.exception)
+        assertEquals("conflict", apiException.code)
     }
 
     @Test
@@ -155,8 +155,8 @@ class ApiResponseTest {
 
         val result = response.toResult()
 
-        assertIs<Failure>(result)
-        assertEquals("Invalid input", result.message)
+        val failure = assertIs<Failure>(result)
+        assertEquals("Invalid input", failure.message)
     }
 
     @Test
@@ -177,9 +177,9 @@ class ApiResponseTest {
 
         val result = response.toResult()
 
-        assertIs<Failure>(result)
-        assertEquals("Multiple matches found", result.message)
-        assertEquals("disambiguation_required", (result.exception as ApiException).code)
+        val failure = assertIs<Failure>(result)
+        assertEquals("Multiple matches found", failure.message)
+        assertEquals("disambiguation_required", (failure.exception as ApiException).code)
     }
 
     // endregion

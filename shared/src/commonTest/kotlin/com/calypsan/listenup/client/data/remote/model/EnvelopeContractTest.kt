@@ -51,9 +51,9 @@ class EnvelopeContractTest {
         assertTrue(response.success, "Success must be true")
         assertNotNull(response.data, "Data must be present")
         val result = response.toResult()
-        assertIs<Success<Map<String, String>>>(result)
-        assertEquals("test-123", result.data["id"])
-        assertEquals("Test Item", result.data["name"])
+        val success = assertIs<Success<Map<String, String>>>(result)
+        assertEquals("test-123", success.data["id"])
+        assertEquals("Test Item", success.data["name"])
     }
 
     @Test
@@ -62,7 +62,9 @@ class EnvelopeContractTest {
         assertEquals(1, response.version)
         assertTrue(response.success)
         val result = response.toResult()
-        assertIs<Success<Unit?>>(result)
+
+        @Suppress("UNUSED_VARIABLE")
+        val success = assertIs<Success<Unit?>>(result)
     }
 
     @Test
@@ -72,8 +74,8 @@ class EnvelopeContractTest {
         assertEquals(false, response.success)
         assertEquals("Resource not found", response.error)
         val result = response.toResult()
-        assertIs<Failure>(result)
-        assertEquals("Resource not found", result.message)
+        val failure = assertIs<Failure>(result)
+        assertEquals("Resource not found", failure.message)
     }
 
     @Test
@@ -84,10 +86,10 @@ class EnvelopeContractTest {
         assertEquals("Entity already exists", response.message)
         assertNotNull(response.details)
         val result = response.toResult()
-        assertIs<Failure>(result)
-        assertEquals("Entity already exists", result.message)
-        assertIs<ApiException>(result.exception)
-        assertEquals("conflict", (result.exception as ApiException).code)
+        val failure = assertIs<Failure>(result)
+        assertEquals("Entity already exists", failure.message)
+        val apiException = assertIs<ApiException>(failure.exception)
+        assertEquals("conflict", apiException.code)
     }
 
     @Test

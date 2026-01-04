@@ -30,8 +30,8 @@ private val logger = KotlinLogging.logger {}
 class HomeStatsViewModel(
     private val statsRepository: StatsRepositoryContract,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(HomeStatsUiState())
-    val state: StateFlow<HomeStatsUiState> = _state
+    val state: StateFlow<HomeStatsUiState>
+        field = MutableStateFlow(HomeStatsUiState())
 
     init {
         observeStats()
@@ -49,7 +49,7 @@ class HomeStatsViewModel(
                 .observeWeeklyStats()
                 .catch { e ->
                     logger.error(e) { "Error observing stats" }
-                    _state.update {
+                    state.update {
                         it.copy(
                             isLoading = false,
                             error = "Failed to load stats: ${e.message}",
@@ -59,7 +59,7 @@ class HomeStatsViewModel(
                     logger.debug {
                         "Stats updated: ${stats.totalListenTimeMs}ms total, streak=${stats.currentStreakDays}"
                     }
-                    _state.update {
+                    state.update {
                         it.copy(
                             isLoading = false,
                             error = null,
