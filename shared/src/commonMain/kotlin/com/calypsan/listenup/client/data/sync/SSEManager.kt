@@ -93,6 +93,9 @@ class SSEManager(
 
     private var connectionJob: Job? = null
 
+    /** Tracks if we've been connected before - used to detect reconnection vs initial connection. */
+    private var hasBeenConnected = false
+
     // JSON parser for manually parsing SSE event data field
     private val json =
         Json {
@@ -210,7 +213,18 @@ class SSEManager(
             logger.trace { "Got body channel, starting to read events..." }
 
             try {
+                // Check if this is a reconnection (we were previously connected)
+                val isReconnection = hasBeenConnected
+
                 _isConnected.value = true
+                hasBeenConnected = true
+
+                // Emit reconnection event so SyncManager can trigger delta sync
+                if (isReconnection) {
+                    logger.info { "SSE reconnected - emitting Reconnected event for delta sync" }
+                    _eventFlow.emit(SSEEventType.Reconnected)
+                }
+
                 parseSSEStream(channel)
                 logger.debug { "Stream reading ended gracefully" }
             } finally {
@@ -689,6 +703,12 @@ sealed class SSEEventType {
     ) : SSEEventType()
 
     data object Heartbeat : SSEEventType()
+
+    /**
+     * SSE connection was re-established after a disconnect.
+     * Triggers delta sync to catch up on missed events.
+     */
+    data object Reconnected : SSEEventType()
 
     /**
      * Admin-only: New user registered and is pending approval.

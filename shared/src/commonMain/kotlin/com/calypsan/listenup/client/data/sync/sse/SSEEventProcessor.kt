@@ -127,6 +127,10 @@ class SSEEventProcessor(
 
                 is SSEEventType.Heartbeat -> { /* Keep-alive, no action */ }
 
+                is SSEEventType.Reconnected -> {
+                    // Handled by SyncManager - triggers delta sync
+                }
+
                 is SSEEventType.UserPending,
                 is SSEEventType.UserApproved,
                 is SSEEventType.InboxBookAdded,

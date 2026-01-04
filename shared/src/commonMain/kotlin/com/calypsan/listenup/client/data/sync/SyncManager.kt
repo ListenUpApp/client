@@ -94,7 +94,12 @@ class SyncManager(
         // Route SSE events to processor
         scope.launch {
             sseManager.eventFlow.collect { event ->
-                sseEventProcessor.process(event)
+                // Handle reconnection event - trigger delta sync to catch missed events
+                if (event is SSEEventType.Reconnected) {
+                    handleReconnection()
+                } else {
+                    sseEventProcessor.process(event)
+                }
             }
         }
 
@@ -106,6 +111,41 @@ class SyncManager(
                 sseManager.disconnect()
                 // Clear auth tokens - this will trigger AuthState.NeedsLogin
                 settingsRepository.clearAuthTokens()
+            }
+        }
+    }
+
+    /**
+     * Handle SSE reconnection by triggering a delta sync.
+     *
+     * When SSE disconnects and reconnects, events during the gap are lost.
+     * We catch up by pulling changes since the last sync checkpoint.
+     */
+    private fun handleReconnection() {
+        logger.info { "SSE reconnected - triggering delta sync to catch missed events" }
+
+        // Launch delta sync in background (non-blocking)
+        scope.launch {
+            try {
+                // Only pull if we're not already syncing
+                if (_syncState.value is SyncStatus.Syncing) {
+                    logger.debug { "Skipping reconnection sync - already syncing" }
+                    return@launch
+                }
+
+                // Pull changes since last sync (uses syncDao.getLastSyncTime() internally)
+                pullOrchestrator.pull { /* suppress progress updates for background sync */ }
+
+                // Update sync timestamp
+                val now =
+                    com.calypsan.listenup.client.data.local.db.Timestamp
+                        .now()
+                syncDao.setLastSyncTime(now)
+
+                logger.info { "Reconnection delta sync completed" }
+            } catch (e: Exception) {
+                logger.warn(e) { "Reconnection delta sync failed, will retry on next reconnect" }
+                // Don't update sync state - this is a background operation
             }
         }
     }
