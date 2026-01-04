@@ -892,9 +892,10 @@ class LibraryViewModelTest {
         }
 
     @Test
-    fun `bookProgress excludes completed books`() =
+    fun `bookProgress includes completed books for completion badge`() =
         runTest {
-            // Given - book at 99%+ is considered complete and excluded
+            // Given - book at 99%+ is considered complete
+            // (UI uses this to show completion badge instead of progress overlay)
             val books =
                 listOf(
                     createTestBook(id = "book-1", duration = 10_000L),
@@ -903,7 +904,7 @@ class LibraryViewModelTest {
                 listOf(
                     PlaybackPositionEntity(
                         bookId = BookId("book-1"),
-                        positionMs = 9_950L, // 99.5% - should be excluded
+                        positionMs = 9_950L, // 99.5% - should be included for completion badge
                         playbackSpeed = 1.0f,
                         updatedAt = 0L,
                     ),
@@ -915,8 +916,8 @@ class LibraryViewModelTest {
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
 
-            // Then - completed book is excluded from progress map
+            // Then - completed book is included with its progress (for completion badge)
             val progress = viewModel.bookProgress.value
-            assertEquals(null, progress["book-1"])
+            assertEquals(0.995f, progress["book-1"])
         }
 }

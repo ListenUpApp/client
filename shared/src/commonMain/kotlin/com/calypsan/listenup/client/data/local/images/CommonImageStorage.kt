@@ -24,6 +24,7 @@ import kotlinx.io.write
  * - {filesDir}/contributors/{contributorId}.jpg - Contributor profile images
  * - {filesDir}/covers/series/{seriesId}.jpg - Series cover images
  * - {filesDir}/covers/series/{seriesId}_staging.jpg - Staging series covers
+ * - {filesDir}/avatars/{userId}.jpg - User profile avatar images
  */
 class CommonImageStorage(
     storagePaths: StoragePaths,
@@ -32,6 +33,7 @@ class CommonImageStorage(
     private val coversDir: Path = Path(filesDir.toString(), COVERS_DIR_NAME)
     private val contributorsDir: Path = Path(filesDir.toString(), CONTRIBUTORS_DIR_NAME)
     private val seriesCoversDir: Path = Path(filesDir.toString(), SERIES_COVERS_DIR_NAME)
+    private val avatarsDir: Path = Path(filesDir.toString(), AVATARS_DIR_NAME)
 
     // ========== Book Cover Methods ==========
 
@@ -126,6 +128,8 @@ class CommonImageStorage(
                 deletedCount += clearDirectory(contributorsDir)
                 // Clear series covers
                 deletedCount += clearDirectory(seriesCoversDir)
+                // Clear user avatars
+                deletedCount += clearDirectory(avatarsDir)
 
                 Result.Success(deletedCount)
             } catch (e: Exception) {
@@ -245,6 +249,36 @@ class CommonImageStorage(
             }
         }
 
+    // ========== User Avatar Methods ==========
+
+    override suspend fun saveUserAvatar(
+        userId: String,
+        imageData: ByteArray,
+    ): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val file = getUserAvatarFile(userId)
+                writeBytes(file, imageData)
+                Result.Success(Unit)
+            } catch (e: Exception) {
+                Result.Failure(IOException("Failed to save avatar for user $userId", e))
+            }
+        }
+
+    override fun getUserAvatarPath(userId: String): String = getUserAvatarFile(userId).toString()
+
+    override fun userAvatarExists(userId: String): Boolean = SystemFileSystem.exists(getUserAvatarFile(userId))
+
+    override suspend fun deleteUserAvatar(userId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                deleteIfExists(getUserAvatarFile(userId))
+                Result.Success(Unit)
+            } catch (e: Exception) {
+                Result.Failure(IOException("Failed to delete avatar for user $userId", e))
+            }
+        }
+
     // ========== Private Helpers ==========
 
     private fun getCoverFile(bookId: BookId): Path = Path(coversDir.toString(), "${bookId.value}.$FILE_EXTENSION")
@@ -260,6 +294,8 @@ class CommonImageStorage(
 
     private fun getSeriesCoverStagingFile(seriesId: String): Path =
         Path(seriesCoversDir.toString(), "${seriesId}_staging.$FILE_EXTENSION")
+
+    private fun getUserAvatarFile(userId: String): Path = Path(avatarsDir.toString(), "$userId.$FILE_EXTENSION")
 
     /**
      * Write bytes to a file, creating parent directories if needed.
@@ -315,6 +351,7 @@ class CommonImageStorage(
         private const val COVERS_DIR_NAME = "covers"
         private const val CONTRIBUTORS_DIR_NAME = "contributors"
         private const val SERIES_COVERS_DIR_NAME = "covers/series"
+        private const val AVATARS_DIR_NAME = "avatars"
         private const val FILE_EXTENSION = "jpg"
     }
 }

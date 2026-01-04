@@ -300,4 +300,126 @@ interface BookDao {
         contributorId: String,
         role: String,
     ): Flow<List<BookWithContributors>>
+
+    // ========== Discovery Queries ==========
+
+    /**
+     * Observe recently added books, newest first.
+     * Used for "Recently Added" section on Discover screen.
+     *
+     * @param limit Maximum number of books to return
+     * @return Flow emitting list of recently added books
+     */
+    @Query(
+        """
+        SELECT * FROM books
+        ORDER BY createdAt DESC
+        LIMIT :limit
+    """,
+    )
+    fun observeRecentlyAdded(limit: Int = 10): Flow<List<BookEntity>>
+
+    /**
+     * Observe random books the user hasn't started.
+     * Excludes books with playback position > 0.
+     * Used for "Discover Something New" section.
+     *
+     * Note: Uses SQLite RANDOM() which produces a new random set each query.
+     * Flow re-emits when books table changes, triggering new random selection.
+     *
+     * @param limit Maximum number of books to return
+     * @return Flow emitting list of random unstarted books
+     */
+    @Query(
+        """
+        SELECT b.* FROM books b
+        LEFT JOIN playback_positions p ON b.id = p.bookId
+        WHERE p.bookId IS NULL OR p.positionMs = 0
+        ORDER BY RANDOM()
+        LIMIT :limit
+    """,
+    )
+    fun observeRandomUnstartedBooks(limit: Int = 10): Flow<List<BookEntity>>
+
+    /**
+     * Get a snapshot of random unstarted books (non-reactive).
+     * Useful for manual refresh without reactive updates.
+     *
+     * @param limit Maximum number of books to return
+     * @return List of random unstarted books
+     */
+    @Query(
+        """
+        SELECT b.* FROM books b
+        LEFT JOIN playback_positions p ON b.id = p.bookId
+        WHERE p.bookId IS NULL OR p.positionMs = 0
+        ORDER BY RANDOM()
+        LIMIT :limit
+    """,
+    )
+    suspend fun getRandomUnstartedBooks(limit: Int = 10): List<BookEntity>
+
+    // ========== Discovery Queries with Author ==========
+
+    /**
+     * Observe recently added books with primary author, newest first.
+     * Used for "Recently Added" section on Discover screen.
+     *
+     * @param limit Maximum number of books to return
+     * @return Flow emitting list of recently added books with author
+     */
+    @Query(
+        """
+        SELECT
+            b.id, b.title, b.coverBlurHash, b.createdAt,
+            (
+                SELECT c.name FROM book_contributors bc
+                INNER JOIN contributors c ON bc.contributorId = c.id
+                WHERE bc.bookId = b.id AND bc.role = 'author'
+                LIMIT 1
+            ) as authorName
+        FROM books b
+        ORDER BY b.createdAt DESC
+        LIMIT :limit
+    """,
+    )
+    fun observeRecentlyAddedWithAuthor(limit: Int = 10): Flow<List<DiscoveryBookWithAuthor>>
+
+    /**
+     * Observe random unstarted books with primary author.
+     * Used for "Discover Something New" section.
+     *
+     * @param limit Maximum number of books to return
+     * @return Flow emitting list of random unstarted books with author
+     */
+    @Query(
+        """
+        SELECT
+            b.id, b.title, b.coverBlurHash, b.createdAt,
+            (
+                SELECT c.name FROM book_contributors bc
+                INNER JOIN contributors c ON bc.contributorId = c.id
+                WHERE bc.bookId = b.id AND bc.role = 'author'
+                LIMIT 1
+            ) as authorName
+        FROM books b
+        LEFT JOIN playback_positions p ON b.id = p.bookId
+        WHERE p.bookId IS NULL OR p.positionMs = 0
+        ORDER BY RANDOM()
+        LIMIT :limit
+    """,
+    )
+    fun observeRandomUnstartedBooksWithAuthor(limit: Int = 10): Flow<List<DiscoveryBookWithAuthor>>
 }
+
+/**
+ * Lightweight book data for discovery sections.
+ * Includes only the fields needed for display: ID, title, blurHash, createdAt, and author.
+ */
+data class DiscoveryBookWithAuthor(
+    val id: BookId,
+    val title: String,
+    val coverBlurHash: String?,
+    val createdAt: Timestamp,
+    val authorName: String?,
+)

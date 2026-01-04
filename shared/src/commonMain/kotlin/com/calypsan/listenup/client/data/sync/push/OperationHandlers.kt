@@ -3,21 +3,33 @@ package com.calypsan.listenup.client.data.sync.push
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.currentEpochMilliseconds
+import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
+import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.remote.BookApiContract
 import com.calypsan.listenup.client.data.remote.BookUpdateRequest
 import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.ListeningEventRequest
+import com.calypsan.listenup.client.data.remote.ProfileApiContract
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.SeriesUpdateRequest
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.UpdateContributorRequest
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesRequest
+import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.serialization.json.Json
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 private val json = Json { ignoreUnknownKeys = true }
+private val logger = KotlinLogging.logger {}
 
 /**
  * Handler for BOOK_UPDATE operations.
@@ -48,6 +60,7 @@ class BookUpdateHandler(
             isbn = newPayload.isbn ?: existingPayload.isbn,
             asin = newPayload.asin ?: existingPayload.asin,
             abridged = newPayload.abridged ?: existingPayload.abridged,
+            createdAt = newPayload.createdAt ?: existingPayload.createdAt,
         )
     }
 
@@ -66,6 +79,7 @@ class BookUpdateHandler(
                 isbn = payload.isbn,
                 asin = payload.asin,
                 abridged = payload.abridged,
+                createdAt = payload.createdAt,
             )
         return when (val result = api.updateBook(operation.entityId!!, request)) {
             is Success -> Success(Unit)
@@ -307,9 +321,13 @@ class UnmergeContributorHandler(
  * Handler for LISTENING_EVENT operations.
  * Never coalesces - each event is unique.
  * Batches together for efficient submission.
+ *
+ * After successful submission, marks the playback position as synced
+ * so other parts of the system know the server has the latest data.
  */
 class ListeningEventHandler(
     private val api: SyncApiContract,
+    private val positionDao: PlaybackPositionDao,
 ) : OperationHandler<ListeningEventPayload> {
     override val operationType = OperationType.LISTENING_EVENT
 
@@ -334,6 +352,9 @@ class ListeningEventHandler(
         return when (val result = api.submitListeningEvents(request)) {
             is Success -> {
                 if (payload.id in result.data.acknowledged) {
+                    // Mark position as synced so other parts of the system know
+                    // the server has the latest data for this book
+                    markPositionSynced(payload.bookId)
                     Success(Unit)
                 } else {
                     Failure(Exception("Event not acknowledged by server"))
@@ -349,14 +370,21 @@ class ListeningEventHandler(
     override suspend fun executeBatch(
         operations: List<Pair<PendingOperationEntity, ListeningEventPayload>>,
     ): Map<String, Result<Unit>> {
+        logger.info { "📤 LISTENING EVENTS: Submitting ${operations.size} events to server" }
         val requests = operations.map { (_, payload) -> payload.toApiRequest() }
+        logger.info { "📤 LISTENING EVENTS: Event IDs: ${requests.map { it.id }}" }
 
         return when (val result = api.submitListeningEvents(requests)) {
             is Success -> {
+                logger.info {
+                    "📤 LISTENING EVENTS: Server acknowledged ${result.data.acknowledged.size} events, failed ${result.data.failed.size}"
+                }
                 val acknowledged = result.data.acknowledged.toSet()
                 operations.associate { (op, payload) ->
                     op.id to
                         if (payload.id in acknowledged) {
+                            // Mark position as synced for this book
+                            markPositionSynced(payload.bookId)
                             Success(Unit)
                         } else {
                             Failure(Exception("Event not acknowledged"))
@@ -365,9 +393,22 @@ class ListeningEventHandler(
             }
 
             is Failure -> {
+                logger.error(result.exception) { "📤 LISTENING EVENTS: Submission failed" }
                 operations.associate { (op, _) -> op.id to Failure(result.exception) }
             }
         }
+    }
+
+    /**
+     * Marks the playback position for a book as synced.
+     * Called after successful event submission to indicate the server has the latest data.
+     */
+    @OptIn(ExperimentalTime::class)
+    private suspend fun markPositionSynced(bookId: String) {
+        positionDao.markSynced(
+            bookId = BookId(bookId),
+            syncedAt = Clock.System.now().toEpochMilliseconds(),
+        )
     }
 
     private fun ListeningEventPayload.toApiRequest() =
@@ -464,6 +505,156 @@ class UserPreferencesHandler(
         return when (val result = api.updatePreferences(request)) {
             is Success -> Success(Unit)
             is Failure -> Failure(result.exception)
+        }
+    }
+}
+
+/**
+ * Handler for PROFILE_UPDATE operations.
+ * Coalesces updates - only the final values matter.
+ *
+ * After successful push, syncs the server response to local UserEntity
+ * so all UI observing the local cache sees the update.
+ */
+class ProfileUpdateHandler(
+    private val api: ProfileApiContract,
+    private val userDao: UserDao,
+) : OperationHandler<ProfileUpdatePayload> {
+    override val operationType = OperationType.PROFILE_UPDATE
+
+    override fun parsePayload(json: String): ProfileUpdatePayload = Json.decodeFromString(json)
+
+    override fun serializePayload(payload: ProfileUpdatePayload): String = Json.encodeToString(payload)
+
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: ProfileUpdatePayload,
+        newPayload: ProfileUpdatePayload,
+    ): ProfileUpdatePayload? {
+        if (existing.operationType != OperationType.PROFILE_UPDATE) return null
+        // Don't coalesce if either has password change - passwords are independent operations
+        if (existingPayload.newPassword != null || newPayload.newPassword != null) return null
+        // Merge fields - new values override existing
+        return ProfileUpdatePayload(
+            tagline = newPayload.tagline ?: existingPayload.tagline,
+            avatarType = newPayload.avatarType ?: existingPayload.avatarType,
+            firstName = newPayload.firstName ?: existingPayload.firstName,
+            lastName = newPayload.lastName ?: existingPayload.lastName,
+        )
+    }
+
+    override suspend fun execute(
+        operation: PendingOperationEntity,
+        payload: ProfileUpdatePayload,
+    ): Result<Unit> =
+        when (
+            val result =
+                api.updateMyProfile(
+                    avatarType = payload.avatarType,
+                    tagline = payload.tagline,
+                    firstName = payload.firstName,
+                    lastName = payload.lastName,
+                    newPassword = payload.newPassword,
+                )
+        ) {
+            is Success -> {
+                // Sync server response to local cache
+                val profile = result.data
+                userDao.updateTagline(
+                    userId = profile.userId,
+                    tagline = profile.tagline,
+                    updatedAt = currentEpochMilliseconds(),
+                )
+                // If avatarType was changed (revert to auto), sync that too
+                if (payload.avatarType != null) {
+                    userDao.updateAvatar(
+                        userId = profile.userId,
+                        avatarType = profile.avatarType,
+                        avatarValue = profile.avatarValue,
+                        avatarColor = profile.avatarColor,
+                        updatedAt = currentEpochMilliseconds(),
+                    )
+                }
+                // If name was changed, update local user with firstName, lastName, and computed displayName
+                if (payload.firstName != null || payload.lastName != null) {
+                    userDao.updateName(
+                        userId = profile.userId,
+                        firstName = profile.firstName,
+                        lastName = profile.lastName,
+                        displayName = profile.displayName,
+                        updatedAt = currentEpochMilliseconds(),
+                    )
+                }
+                Success(Unit)
+            }
+
+            is Failure -> {
+                Failure(result.exception)
+            }
+        }
+}
+
+/**
+ * Handler for PROFILE_AVATAR operations.
+ * Replaces entirely - newer avatar upload wins.
+ *
+ * After successful upload:
+ * 1. Syncs the server response (including the new avatar path) to local UserEntity
+ * 2. Downloads the avatar image and saves it locally for offline access
+ */
+class ProfileAvatarHandler(
+    private val api: ProfileApiContract,
+    private val userDao: UserDao,
+    private val imageDownloader: ImageDownloaderContract,
+) : OperationHandler<ProfileAvatarPayload> {
+    override val operationType = OperationType.PROFILE_AVATAR
+
+    override fun parsePayload(json: String): ProfileAvatarPayload = Json.decodeFromString(json)
+
+    override fun serializePayload(payload: ProfileAvatarPayload): String = Json.encodeToString(payload)
+
+    override fun tryCoalesce(
+        existing: PendingOperationEntity,
+        existingPayload: ProfileAvatarPayload,
+        newPayload: ProfileAvatarPayload,
+    ): ProfileAvatarPayload? {
+        if (existing.operationType != OperationType.PROFILE_AVATAR) return null
+        // Full replacement - new avatar wins
+        return newPayload
+    }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    override suspend fun execute(
+        operation: PendingOperationEntity,
+        payload: ProfileAvatarPayload,
+    ): Result<Unit> {
+        val imageData = Base64.decode(payload.imageDataBase64)
+        return when (val result = api.uploadAvatar(imageData, payload.contentType)) {
+            is Success -> {
+                val profile = result.data
+
+                // IMPORTANT: Download avatar FIRST, before updating userDao
+                // This ensures the local file exists when the UI Flow emits.
+                // If we update userDao first, the UI checks for the file before it's downloaded.
+                imageDownloader.downloadUserAvatar(profile.userId, forceRefresh = true)
+                logger.info { "Avatar image downloaded locally for user ${profile.userId}" }
+
+                // Now update userDao - UI will observe this change and find the file ready
+                userDao.updateAvatar(
+                    userId = profile.userId,
+                    avatarType = profile.avatarType,
+                    avatarValue = profile.avatarValue,
+                    avatarColor = profile.avatarColor,
+                    updatedAt = currentEpochMilliseconds(),
+                )
+                logger.info { "Avatar synced to local cache: ${profile.avatarValue}" }
+
+                Success(Unit)
+            }
+
+            is Failure -> {
+                Failure(result.exception)
+            }
         }
     }
 }

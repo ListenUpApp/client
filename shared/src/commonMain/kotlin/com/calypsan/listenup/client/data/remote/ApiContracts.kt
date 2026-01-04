@@ -13,6 +13,8 @@ import com.calypsan.listenup.client.data.remote.model.SyncManifestResponse
 import com.calypsan.listenup.client.data.remote.model.SyncSeriesResponse
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.model.Tag
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * Contract interface for search API operations.
@@ -146,6 +148,65 @@ interface SyncApiContract {
      * @return Result containing list of ContinueListeningItemResponse
      */
     suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningItemResponse>>
+
+    /**
+     * Get a single book by ID.
+     *
+     * Used to fetch book data on-demand when local data is incomplete
+     * (e.g., audioFilesJson is missing during playback).
+     *
+     * Endpoint: GET /api/v1/books/{id}
+     * Auth: Required
+     *
+     * @param bookId Book ID to fetch
+     * @return Result containing BookResponse (converted from SingleBookResponse) or error
+     */
+    suspend fun getBook(bookId: String): Result<com.calypsan.listenup.client.data.remote.model.BookResponse>
+
+    /**
+     * Get listening events for initial sync.
+     *
+     * Fetches all listening events for the current user, optionally filtered
+     * by a since timestamp for delta sync.
+     *
+     * Endpoint: GET /api/v1/listening/events
+     * Auth: Required
+     *
+     * @param sinceMs Only return events created after this timestamp (epoch ms), null for all events
+     * @return Result containing list of listening events
+     */
+    suspend fun getListeningEvents(sinceMs: Long? = null): Result<ListeningEventsApiResponse>
+
+    /**
+     * End a playback session and record listening activity.
+     *
+     * Called by the client when playback is paused or stopped.
+     * Records a listening_session activity in the activity feed.
+     *
+     * Endpoint: POST /api/v1/listening/session/end
+     * Auth: Required
+     *
+     * @param bookId Book that was being played
+     * @param durationMs Duration listened in this session (milliseconds)
+     * @return Result containing success message or error
+     */
+    suspend fun endPlaybackSession(
+        bookId: String,
+        durationMs: Long,
+    ): Result<Unit>
+
+    /**
+     * Get all active reading sessions for discovery page sync.
+     *
+     * Returns all currently active reading sessions across all users.
+     * Used during initial sync to populate the "What Others Are Listening To" section.
+     *
+     * Endpoint: GET /api/v1/sync/active-sessions
+     * Auth: Required
+     *
+     * @return Result containing list of active sessions
+     */
+    suspend fun getActiveSessions(): Result<SyncActiveSessionsResponse>
 }
 
 /**
@@ -382,6 +443,14 @@ interface ImageApiContract {
      * @return Result containing map of contributorId to image bytes for successfully downloaded images
      */
     suspend fun downloadContributorImageBatch(contributorIds: List<String>): Result<Map<String, ByteArray>>
+
+    /**
+     * Download avatar image for a user.
+     *
+     * @param userId Unique identifier for the user
+     * @return Result containing image bytes or error
+     */
+    suspend fun downloadUserAvatar(userId: String): Result<ByteArray>
 }
 
 /**
@@ -398,7 +467,7 @@ data class ImageUploadResponse(
 /**
  * Contract interface for instance-level API operations.
  *
- * Handles server instance information and user-specific listening data.
+ * Handles server instance information.
  */
 interface InstanceApiContract {
     /**
@@ -409,17 +478,6 @@ interface InstanceApiContract {
      * @return Result containing the Instance on success, or an error on failure
      */
     suspend fun getInstance(): Result<Instance>
-
-    /**
-     * Fetch books the user is currently listening to.
-     *
-     * This is an authenticated endpoint - requires valid access token.
-     * Returns playback progress for books sorted by last played time.
-     *
-     * @param limit Maximum number of books to return (default 10)
-     * @return Result containing list of PlaybackProgressResponse on success
-     */
-    suspend fun getContinueListening(limit: Int = 10): Result<List<PlaybackProgressResponse>>
 }
 
 /**
@@ -665,18 +723,23 @@ data class SeriesSearchResult(
  * - null = don't change this field
  * - empty string = clear this field
  */
+@Serializable
 data class BookUpdateRequest(
     val title: String? = null,
     val subtitle: String? = null,
     val description: String? = null,
     val publisher: String? = null,
+    @SerialName("publish_year")
     val publishYear: String? = null,
     val language: String? = null,
     val isbn: String? = null,
     val asin: String? = null,
     val abridged: Boolean? = null,
+    @SerialName("series_id")
     val seriesId: String? = null,
     val sequence: String? = null,
+    @SerialName("created_at")
+    val createdAt: String? = null, // ISO8601 timestamp for when book was added to library
 )
 
 /**
@@ -824,6 +887,147 @@ interface UserPreferencesApiContract {
      * @return Result containing updated settings or error
      */
     suspend fun updatePreferences(request: UserPreferencesRequest): Result<UserPreferencesResponse>
+}
+
+/**
+ * Contract interface for reading session API operations.
+ *
+ * Handles fetching reading history and session data for social features.
+ */
+interface SessionApiContract {
+    /**
+     * Get list of readers for a specific book.
+     *
+     * Returns the current user's sessions along with other readers who
+     * have also read or are currently reading the book.
+     *
+     * Endpoint: GET /api/v1/sessions/books/{bookId}/readers
+     * Auth: Required
+     *
+     * @param bookId Book ID to get readers for
+     * @param limit Maximum number of other readers to return (default 10)
+     * @return Result containing BookReadersResponse or error
+     */
+    suspend fun getBookReaders(
+        bookId: String,
+        limit: Int = 10,
+    ): Result<BookReadersResponse>
+
+    /**
+     * Get the current user's reading history.
+     *
+     * Returns a list of all sessions for the current user,
+     * sorted by most recently started.
+     *
+     * Endpoint: GET /api/v1/sessions/history
+     * Auth: Required
+     *
+     * @param limit Maximum number of sessions to return (default 20)
+     * @return Result containing UserReadingHistoryResponse or error
+     */
+    suspend fun getUserReadingHistory(limit: Int = 20): Result<UserReadingHistoryResponse>
+
+    /**
+     * Get the current authenticated user's profile.
+     *
+     * Used to fetch user data if missing from local database
+     * (e.g., after database was cleared but tokens remain).
+     *
+     * Endpoint: GET /api/v1/users/me
+     * Auth: Required
+     *
+     * @return Result containing CurrentUserResponse or error
+     */
+    suspend fun getCurrentUser(): Result<CurrentUserResponse>
+}
+
+/**
+ * Response from GET /api/v1/users/me endpoint.
+ */
+data class CurrentUserResponse(
+    val id: String,
+    val email: String,
+    val displayName: String,
+    val firstName: String?,
+    val lastName: String?,
+    val isRoot: Boolean,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val avatarType: String = "auto",
+    val avatarValue: String? = null,
+    val avatarColor: String = "#6B7280",
+)
+
+// =============================================================================
+// Profile API Contract
+// =============================================================================
+
+/**
+ * Contract interface for user profile API operations.
+ *
+ * Handles profile viewing and editing, including avatar management.
+ */
+interface ProfileApiContract {
+    /**
+     * Get the authenticated user's own profile.
+     *
+     * Endpoint: GET /api/v1/profile
+     * Auth: Required
+     *
+     * @return Result containing ProfileResponse or error
+     */
+    suspend fun getMyProfile(): Result<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
+
+    /**
+     * Update the authenticated user's profile.
+     *
+     * Endpoint: PATCH /api/v1/profile
+     * Auth: Required
+     *
+     * Uses PATCH semantics - only non-null fields are updated.
+     *
+     * @param avatarType Optional avatar type to set ("auto" or "image")
+     * @param tagline Optional tagline to set (max 60 chars)
+     * @param firstName Optional first name to set
+     * @param lastName Optional last name to set
+     * @param newPassword New password (min 8 chars)
+     * @return Result containing updated ProfileResponse or error
+     */
+    suspend fun updateMyProfile(
+        avatarType: String? = null,
+        tagline: String? = null,
+        firstName: String? = null,
+        lastName: String? = null,
+        newPassword: String? = null,
+    ): Result<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
+
+    /**
+     * Upload avatar image for the authenticated user.
+     *
+     * Endpoint: POST /api/v1/profile/avatar
+     * Auth: Required
+     *
+     * @param imageData Raw image bytes (JPEG, PNG, or WebP)
+     * @param contentType MIME type of the image
+     * @return Result containing updated ProfileResponse or error
+     */
+    suspend fun uploadAvatar(
+        imageData: ByteArray,
+        contentType: String,
+    ): Result<com.calypsan.listenup.client.data.remote.model.ProfileResponse>
+
+    /**
+     * Get a user's full profile with stats and activity.
+     *
+     * Endpoint: GET /api/v1/users/{id}/profile
+     * Auth: Required
+     *
+     * @param userId User ID to fetch profile for
+     * @return Result containing FullProfileResponse or error
+     */
+    suspend fun getUserProfile(
+        userId: String,
+    ): Result<com.calypsan.listenup.client.data.remote.model.FullProfileResponse>
 }
 
 /**
@@ -1030,4 +1234,133 @@ data class ReleaseInboxBooksResponse(
     val public: Int,
     /** Number of collection assignments made */
     val toCollections: Int,
+)
+
+// =============================================================================
+// Session API Response Types
+// =============================================================================
+
+/**
+ * Response from book readers endpoint.
+ *
+ * Contains the current user's sessions and other readers for a book.
+ */
+data class BookReadersResponse(
+    /** User's own sessions for this book */
+    val yourSessions: List<SessionSummary>,
+    /** Other users who have read this book */
+    val otherReaders: List<ReaderSummary>,
+    /** Total number of unique readers */
+    val totalReaders: Int,
+    /** Total number of completions across all readers */
+    val totalCompletions: Int,
+)
+
+/**
+ * Summary of a single reading session.
+ */
+data class SessionSummary(
+    val id: String,
+    val startedAt: String,
+    val finishedAt: String? = null,
+    val isCompleted: Boolean,
+    val listenTimeMs: Long,
+)
+
+/**
+ * Summary of another reader for a book.
+ */
+data class ReaderSummary(
+    val userId: String,
+    val displayName: String,
+    val avatarType: String = "auto",
+    val avatarValue: String? = null,
+    val avatarColor: String,
+    val isCurrentlyReading: Boolean,
+    val currentProgress: Double = 0.0,
+    val startedAt: String,
+    val finishedAt: String? = null,
+    val completionCount: Int,
+)
+
+/**
+ * Response from user reading history endpoint.
+ */
+data class UserReadingHistoryResponse(
+    /** List of sessions for the current user */
+    val sessions: List<ReadingHistorySession>,
+    /** Total number of sessions */
+    val totalSessions: Int,
+    /** Total number of completed books */
+    val totalCompleted: Int,
+)
+
+/**
+ * A session in the user's reading history.
+ *
+ * Contains embedded book details for display.
+ */
+data class ReadingHistorySession(
+    val id: String,
+    val bookId: String,
+    val bookTitle: String,
+    val bookAuthor: String = "",
+    val coverPath: String? = null,
+    val startedAt: String,
+    val finishedAt: String? = null,
+    val isCompleted: Boolean,
+    val listenTimeMs: Long,
+)
+
+// =============================================================================
+// Listening Events API Response Types
+// =============================================================================
+
+/**
+ * Response from GET /listening/events endpoint.
+ */
+data class ListeningEventsApiResponse(
+    val events: List<ListeningEventApiResponse>,
+)
+
+/**
+ * A single listening event from the API.
+ */
+data class ListeningEventApiResponse(
+    val id: String,
+    val bookId: String,
+    val startPositionMs: Long,
+    val endPositionMs: Long,
+    val startedAt: String,
+    val endedAt: String,
+    val playbackSpeed: Float,
+    val deviceId: String,
+)
+
+// =============================================================================
+// Active Sessions API Response Types
+// =============================================================================
+
+/**
+ * Response from GET /sync/active-sessions endpoint.
+ *
+ * Contains all currently active reading sessions for the discovery page.
+ */
+data class SyncActiveSessionsResponse(
+    val sessions: List<ActiveSessionApiResponse>,
+)
+
+/**
+ * A single active reading session from the API.
+ * Includes user profile data for offline-first display.
+ */
+data class ActiveSessionApiResponse(
+    val sessionId: String,
+    val userId: String,
+    val bookId: String,
+    val startedAt: String,
+    val displayName: String,
+    val avatarType: String,
+    val avatarValue: String?,
+    val avatarColor: String,
 )

@@ -43,6 +43,7 @@ import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.design.components.rememberCoverColors
 import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.download.DownloadResult
+import com.calypsan.listenup.client.features.bookdetail.components.BookReadersSection
 import com.calypsan.listenup.client.features.bookdetail.components.ChapterListItem
 import com.calypsan.listenup.client.features.bookdetail.components.ChaptersHeader
 import com.calypsan.listenup.client.features.bookdetail.components.ContextMetadataSection
@@ -83,6 +84,7 @@ fun BookDetailScreen(
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
     viewModel: BookDetailViewModel = koinViewModel(),
     playerViewModel: PlayerViewModel = koinViewModel(),
 ) {
@@ -153,9 +155,10 @@ fun BookDetailScreen(
 
             else -> {
                 BookDetailContent(
+                    bookId = bookId,
                     state = state,
                     downloadStatus = downloadStatus,
-                    isComplete = false, // TODO: Add completion tracking
+                    isComplete = state.isComplete,
                     isAdmin = isAdmin,
                     isWaitingForWifi = isWaitingForWifi,
                     onBackClick = onBackClick,
@@ -165,6 +168,7 @@ fun BookDetailScreen(
                     onAddToCollectionClick = { /* TODO: Implement */ },
                     onDeleteBookClick = { /* TODO: Implement */ },
                     onPlayClick = { playerViewModel.playBook(BookId(bookId)) },
+                    onUserProfileClick = onUserProfileClick,
                     onDownloadClick = {
                         scope.launch {
                             when (val result = downloadManager.downloadBook(BookId(bookId))) {
@@ -224,6 +228,7 @@ fun BookDetailScreen(
 @Suppress("LongParameterList")
 @Composable
 fun BookDetailContent(
+    bookId: String,
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
@@ -242,6 +247,7 @@ fun BookDetailContent(
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
 ) {
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
 
@@ -253,6 +259,7 @@ fun BookDetailContent(
 
     if (useTwoPane) {
         TwoPaneBookDetail(
+            bookId = bookId,
             state = state,
             downloadStatus = downloadStatus,
             isComplete = isComplete,
@@ -271,9 +278,11 @@ fun BookDetailContent(
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
             onTagClick = onTagClick,
+            onUserProfileClick = onUserProfileClick,
         )
     } else {
         ImmersiveBookDetail(
+            bookId = bookId,
             state = state,
             downloadStatus = downloadStatus,
             isComplete = isComplete,
@@ -292,6 +301,7 @@ fun BookDetailContent(
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
             onTagClick = onTagClick,
+            onUserProfileClick = onUserProfileClick,
         )
     }
 }
@@ -307,6 +317,7 @@ fun BookDetailContent(
 @Suppress("LongParameterList")
 @Composable
 private fun ImmersiveBookDetail(
+    bookId: String,
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
@@ -325,6 +336,7 @@ private fun ImmersiveBookDetail(
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
     var isChaptersExpanded by rememberSaveable { mutableStateOf(false) }
@@ -396,6 +408,7 @@ private fun ImmersiveBookDetail(
                 rating = state.rating,
                 duration = state.book?.duration ?: 0,
                 year = state.year,
+                addedAt = state.addedAt,
                 genres = state.genresList,
                 onSeriesClick = onSeriesClick,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -426,7 +439,16 @@ private fun ImmersiveBookDetail(
             }
         }
 
-        // 7. CHAPTERS - Deep dive
+        // 7. READERS - Social reading activity
+        item {
+            BookReadersSection(
+                bookId = bookId,
+                onUserClick = onUserProfileClick,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+        }
+
+        // 8. CHAPTERS - Deep dive
         item {
             Spacer(modifier = Modifier.height(16.dp))
             ChaptersHeader(

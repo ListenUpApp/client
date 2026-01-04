@@ -19,12 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,16 +40,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.remote.LensResponse
-import com.calypsan.listenup.client.data.remote.UserLensesResponse
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.ProfileAvatar
+import com.calypsan.listenup.client.features.discover.components.ActivityFeedSection
+import com.calypsan.listenup.client.features.discover.components.CurrentlyListeningSection
+import com.calypsan.listenup.client.features.discover.components.DiscoverBooksSection
+import com.calypsan.listenup.client.features.discover.components.DiscoverLeaderboardSection
+import com.calypsan.listenup.client.features.discover.components.RecentlyAddedSection
+import com.calypsan.listenup.client.presentation.discover.DiscoverLensUi
+import com.calypsan.listenup.client.presentation.discover.DiscoverUserLenses
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Discover screen - browse lenses from other users.
+ * Discover screen - browse lenses from other users and view community leaderboard.
  *
  * Features:
+ * - Community leaderboard with gamified rankings
  * - Pull to refresh
  * - Users grouped with their lenses
  * - Click lens to view details
@@ -60,69 +65,57 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun DiscoverScreen(
     onLensClick: (String) -> Unit,
+    onBookClick: (String) -> Unit,
+    onUserProfileClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DiscoverViewModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsState()
+    val lensesState by viewModel.discoverLensesState.collectAsState()
 
     PullToRefreshBox(
-        isRefreshing = state.isLoading,
+        isRefreshing = lensesState.isLoading,
         onRefresh = { viewModel.refresh() },
         modifier =
             modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        when {
-            state.isLoading && state.users.isEmpty() -> {
-                ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
-            }
-
-            state.isEmpty -> {
-                EmptyDiscoverState(modifier = Modifier.align(Alignment.Center))
-            }
-
-            state.error != null -> {
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = state.error ?: "Unknown error",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-
-            else -> {
-                DiscoverContent(
-                    users = state.users,
-                    onLensClick = onLensClick,
-                )
-            }
-        }
+        // Discover content with leaderboard (always shows) and user lenses
+        DiscoverContent(
+            isLoading = lensesState.isLoading,
+            users = lensesState.users,
+            isEmpty = lensesState.isEmpty,
+            onLensClick = onLensClick,
+            onBookClick = onBookClick,
+            onUserProfileClick = onUserProfileClick,
+        )
     }
 }
 
 /**
- * Empty state when no lenses are discoverable.
+ * Empty state when no lenses are discoverable from other users.
+ *
+ * This is shown below the leaderboard when there are no shared lenses.
  */
 @Composable
-private fun EmptyDiscoverState(modifier: Modifier = Modifier) {
+private fun EmptyLensesState(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.padding(48.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Icon(
             imageVector = Icons.Filled.Explore,
             contentDescription = null,
-            modifier = Modifier.size(64.dp),
+            modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         )
         Text(
-            text = "No Lenses to Discover",
-            style = MaterialTheme.typography.headlineSmall,
+            text = "No Lenses to Discover Yet",
+            style = MaterialTheme.typography.titleMedium,
         )
         Text(
             text = "When other users create lenses with books you can access, they'll appear here.",
@@ -134,26 +127,97 @@ private fun EmptyDiscoverState(modifier: Modifier = Modifier) {
 }
 
 /**
- * Main content showing users with their lenses.
+ * Main content showing leaderboard and users with their lenses.
+ *
+ * The leaderboard always shows at the top. Below it:
+ * - If loading initial data, show loading indicator
+ * - If empty, show empty state message
+ * - If has users, show their lenses
  */
 @Composable
 private fun DiscoverContent(
-    users: List<UserLensesResponse>,
+    isLoading: Boolean,
+    users: List<DiscoverUserLenses>,
+    isEmpty: Boolean,
     onLensClick: (String) -> Unit,
+    onBookClick: (String) -> Unit,
+    onUserProfileClick: (String) -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        items(
-            items = users,
-            key = { it.user.id },
-        ) { userLenses ->
-            UserLensesSection(
-                userLenses = userLenses,
+        // Discover Something New - random book discovery (top section)
+        item {
+            DiscoverBooksSection(
+                onBookClick = onBookClick,
+            )
+        }
+
+        // Recently Added - newest books in library
+        item {
+            RecentlyAddedSection(
+                onBookClick = onBookClick,
+            )
+        }
+
+        // What Others Are Listening To - social proof section
+        item {
+            CurrentlyListeningSection(
+                onBookClick = onBookClick,
+            )
+        }
+
+        // Community leaderboard
+        item {
+            DiscoverLeaderboardSection(
+                onUserClick = onUserProfileClick,
+            )
+        }
+
+        // Activity feed section
+        item {
+            ActivityFeedSection(
+                onBookClick = onBookClick,
                 onLensClick = onLensClick,
             )
+        }
+
+        // Content below activity feed depends on state
+        when {
+            isLoading && users.isEmpty() -> {
+                item {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        ListenUpLoadingIndicator()
+                    }
+                }
+            }
+
+            isEmpty -> {
+                item {
+                    EmptyLensesState()
+                }
+            }
+
+            else -> {
+                // Users with lenses
+                items(
+                    items = users,
+                    key = { it.user.id },
+                ) { userLenses ->
+                    UserLensesSection(
+                        userLenses = userLenses,
+                        onLensClick = onLensClick,
+                    )
+                }
+            }
         }
     }
 }
@@ -163,7 +227,7 @@ private fun DiscoverContent(
  */
 @Composable
 private fun UserLensesSection(
-    userLenses: UserLensesResponse,
+    userLenses: DiscoverUserLenses,
     onLensClick: (String) -> Unit,
 ) {
     val avatarColor =
@@ -184,22 +248,13 @@ private fun UserLensesSection(
                     .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Avatar
-            Box(
-                modifier =
-                    Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(avatarColor),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+            // Avatar - uses ProfileAvatar for offline-first avatar display
+            ProfileAvatar(
+                userId = userLenses.user.id,
+                displayName = userLenses.user.displayName,
+                avatarColor = userLenses.user.avatarColor,
+                size = 40.dp,
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -243,7 +298,7 @@ private fun UserLensesSection(
  */
 @Composable
 private fun DiscoverLensCard(
-    lens: LensResponse,
+    lens: DiscoverLensUi,
     avatarColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,

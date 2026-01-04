@@ -21,9 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.local.db.getLastSyncTime
+import com.calypsan.listenup.client.data.remote.SessionApiContract
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
@@ -43,9 +46,12 @@ import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiEvent
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Main app shell providing persistent navigation frame.
@@ -79,12 +85,14 @@ fun AppShell(
     onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSignOut: () -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
 ) {
     // Inject dependencies
     val syncManager: SyncManager = koinInject()
     val userDao: UserDao = koinInject()
     val settingsRepository: SettingsRepository = koinInject()
     val syncDao: SyncDao = koinInject()
+    val sessionApi: SessionApiContract = koinInject()
     val searchViewModel: SearchViewModel = koinViewModel()
     val syncIndicatorViewModel: SyncIndicatorViewModel = koinViewModel()
 
@@ -100,6 +108,42 @@ fun AppShell(
         val lastSyncTime = syncDao.getLastSyncTime()
         if (isAuthenticated && lastSyncTime == null) {
             syncManager.sync()
+        }
+    }
+
+    // Fetch user data if missing from database but authenticated
+    // This handles the case where database was cleared but tokens remain
+    LaunchedEffect(Unit) {
+        val hasTokens = settingsRepository.getAccessToken() != null
+        val existingUser = userDao.getCurrentUser()
+
+        if (hasTokens && existingUser == null) {
+            logger.info { "User data missing but authenticated, fetching from server..." }
+            when (val result = sessionApi.getCurrentUser()) {
+                is Success -> {
+                    val userData = result.data
+                    val userEntity =
+                        UserEntity(
+                            id = userData.id,
+                            email = userData.email,
+                            displayName = userData.displayName,
+                            firstName = userData.firstName,
+                            lastName = userData.lastName,
+                            isRoot = userData.isRoot,
+                            createdAt = userData.createdAt,
+                            updatedAt = userData.updatedAt,
+                            avatarType = userData.avatarType,
+                            avatarValue = userData.avatarValue,
+                            avatarColor = userData.avatarColor,
+                        )
+                    userDao.upsert(userEntity)
+                    logger.info { "User data restored: ${userData.email}" }
+                }
+
+                else -> {
+                    logger.warn { "Failed to fetch user data, user may see loading state" }
+                }
+            }
         }
     }
 
@@ -230,6 +274,7 @@ fun AppShell(
             onAdminClick = onAdminClick,
             onSettingsClick = onSettingsClick,
             onSignOutClick = onSignOut,
+            onMyProfileClick = { user?.id?.let(onUserProfileClick) },
             onSyncIndicatorClick = { syncIndicatorViewModel.toggleExpanded() },
             scrollBehavior = scrollBehavior,
             showAvatar = showAvatarInTopBar,
@@ -286,6 +331,8 @@ fun AppShell(
                 ShellDestination.Discover -> {
                     DiscoverScreen(
                         onLensClick = onLensClick,
+                        onBookClick = onBookClick,
+                        onUserProfileClick = onUserProfileClick,
                         modifier = Modifier.padding(padding),
                     )
                 }
@@ -340,6 +387,7 @@ fun AppShell(
                     onAdminClick = onAdminClick,
                     onSettingsClick = onSettingsClick,
                     onSignOutClick = onSignOut,
+                    onMyProfileClick = { user?.id?.let(onUserProfileClick) },
                 )
                 Scaffold(
                     modifier =
@@ -363,6 +411,7 @@ fun AppShell(
                 onAdminClick = onAdminClick,
                 onSettingsClick = onSettingsClick,
                 onSignOutClick = onSignOut,
+                onMyProfileClick = { user?.id?.let(onUserProfileClick) },
             ) {
                 Scaffold(
                     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),

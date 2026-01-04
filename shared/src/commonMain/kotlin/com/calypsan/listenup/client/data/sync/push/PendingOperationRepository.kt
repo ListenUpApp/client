@@ -14,6 +14,9 @@ import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.util.NanoId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.map
 
 private val logger = KotlinLogging.logger {}
@@ -30,6 +33,12 @@ private val SILENT_TYPES =
  * Contract for pending operation repository.
  */
 interface PendingOperationRepositoryContract {
+    /**
+     * Flow that emits whenever a new operation is queued.
+     * Used by PushSyncOrchestrator to trigger immediate flush when online.
+     */
+    val newOperationQueued: kotlinx.coroutines.flow.Flow<Unit>
+
     /**
      * Queue an operation (coalesces if applicable).
      */
@@ -113,6 +122,9 @@ class PendingOperationRepository(
     private val contributorDao: ContributorDao,
     private val seriesDao: SeriesDao,
 ) : PendingOperationRepositoryContract {
+    private val _newOperationQueued = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val newOperationQueued: Flow<Unit> = _newOperationQueued.asSharedFlow()
+
     override suspend fun <P : Any> queue(
         type: OperationType,
         entityType: EntityType?,
@@ -164,6 +176,9 @@ class PendingOperationRepository(
             dao.insert(operation)
             logger.debug { "Queued operation: ${type.name} for entity $entityId (batch=$batchKey)" }
         }
+
+        // Notify orchestrator that a new operation was queued (triggers flush if online)
+        _newOperationQueued.tryEmit(Unit)
     }
 
     private suspend fun findExistingForCoalesce(
@@ -256,6 +271,11 @@ class PendingOperationRepository(
                         seriesDao.upsert(series.copy(syncState = SyncState.NOT_SYNCED))
                     }
                 }
+            }
+
+            EntityType.USER -> {
+                // User profile doesn't have syncState - profile will be refreshed
+                // from server on next app launch or profile screen open
             }
 
             null -> {

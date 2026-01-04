@@ -68,6 +68,7 @@ import com.calypsan.listenup.client.presentation.bookdetail.ChapterUiModel
 @Suppress("LongParameterList")
 @Composable
 fun TwoPaneBookDetail(
+    bookId: String,
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
@@ -86,6 +87,7 @@ fun TwoPaneBookDetail(
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
 ) {
     val coverColors =
         rememberCoverColors(
@@ -124,9 +126,11 @@ fun TwoPaneBookDetail(
 
         // Right pane - Content section with surface background
         TwoPaneRightPane(
+            bookId = bookId,
             state = state,
             onSeriesClick = onSeriesClick,
             onTagClick = onTagClick,
+            onUserProfileClick = onUserProfileClick,
             modifier =
                 Modifier
                     .weight(1f)
@@ -338,9 +342,11 @@ private fun TwoPaneLeftPane(
 
 @Composable
 private fun TwoPaneRightPane(
+    bookId: String,
     state: BookDetailUiState,
     onSeriesClick: (seriesId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
+    onUserProfileClick: (userId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isDescriptionExpanded by rememberSaveable { mutableStateOf(false) }
@@ -376,6 +382,7 @@ private fun TwoPaneRightPane(
                 rating = state.rating,
                 duration = state.book?.duration ?: 0,
                 year = state.year,
+                addedAt = state.addedAt,
                 genres = state.genresList,
                 onSeriesClick = onSeriesClick,
             )
@@ -390,6 +397,14 @@ private fun TwoPaneRightPane(
                     onTagClick = { tag -> onTagClick(tag.id) },
                 )
             }
+        }
+
+        // Readers
+        item {
+            BookReadersSection(
+                bookId = bookId,
+                onUserClick = onUserProfileClick,
+            )
         }
 
         // Chapters
@@ -433,6 +448,7 @@ private fun ContextMetadataSectionAligned(
     rating: Double?,
     duration: Long,
     year: Int?,
+    addedAt: Long?,
     genres: List<String>,
     onSeriesClick: (seriesId: String) -> Unit,
     modifier: Modifier = Modifier,
@@ -457,6 +473,7 @@ private fun ContextMetadataSectionAligned(
             rating = rating,
             duration = duration,
             year = year,
+            addedAt = addedAt,
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
         )
 

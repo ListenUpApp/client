@@ -15,11 +15,14 @@ private val logger = KotlinLogging.logger {}
 /**
  * Coordinates parallel entity pulls with retry logic and progress reporting.
  */
+@Suppress("LongParameterList")
 class PullSyncOrchestrator(
     private val bookPuller: Puller,
     private val seriesPuller: Puller,
     private val contributorPuller: Puller,
     private val tagPuller: Puller,
+    private val listeningEventPuller: Puller,
+    private val activeSessionsPuller: Puller,
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
 ) {
@@ -47,7 +50,7 @@ class PullSyncOrchestrator(
                 SyncStatus.Progress(
                     phase = SyncPhase.FETCHING_METADATA,
                     current = 0,
-                    total = 4,
+                    total = 5,
                     message = "Preparing sync...",
                 ),
             )
@@ -75,13 +78,19 @@ class PullSyncOrchestrator(
 
                 // Pull tags after books are synced (tags need book data)
                 tagPuller.pull(updatedAfter, onProgress)
+
+                // Pull listening events (from other devices) for offline stats
+                listeningEventPuller.pull(updatedAfter, onProgress)
+
+                // Pull active sessions for "What Others Are Listening To" discovery section
+                activeSessionsPuller.pull(updatedAfter, onProgress)
             }
 
             onProgress(
                 SyncStatus.Progress(
                     phase = SyncPhase.FINALIZING,
-                    current = 4,
-                    total = 4,
+                    current = 5,
+                    total = 5,
                     message = "Finalizing sync...",
                 ),
             )

@@ -381,6 +381,19 @@ data class SSEUserApprovedEvent(
 )
 
 /**
+ * SSE user deleted event.
+ * Sent when a user is deleted by an admin.
+ * Client should clear auth state and navigate to login.
+ */
+@Serializable
+data class SSEUserDeletedEvent(
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("reason")
+    val reason: String? = null,
+)
+
+/**
  * User data embedded in SSE user events.
  */
 @Serializable
@@ -668,4 +681,398 @@ data class SSEInboxBookAddedEvent(
 data class SSEInboxBookReleasedEvent(
     @SerialName("book_id")
     val bookId: String,
+)
+
+// =============================================================================
+// Listening Events Sync Response
+// =============================================================================
+
+/**
+ * Response from GET /api/v1/listening/events endpoint.
+ * Used for initial sync of listening events from other devices.
+ */
+@Serializable
+data class SyncListeningEventsResponse(
+    @SerialName("events")
+    val events: List<SyncListeningEventItem>,
+)
+
+/**
+ * A single listening event from the sync endpoint.
+ */
+@Serializable
+data class SyncListeningEventItem(
+    @SerialName("id")
+    val id: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("start_position_ms")
+    val startPositionMs: Long,
+    @SerialName("end_position_ms")
+    val endPositionMs: Long,
+    @SerialName("started_at")
+    val startedAt: String,
+    @SerialName("ended_at")
+    val endedAt: String,
+    @SerialName("playback_speed")
+    val playbackSpeed: Float,
+    @SerialName("device_id")
+    val deviceId: String,
+)
+
+// =============================================================================
+// Listening SSE Events
+// =============================================================================
+
+/**
+ * SSE progress updated event data.
+ * Sent when a user's playback progress is updated (from any device).
+ */
+@Serializable
+data class SSEProgressUpdatedEvent(
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("current_position_ms")
+    val currentPositionMs: Long,
+    @SerialName("progress")
+    val progress: Double,
+    @SerialName("total_listen_time_ms")
+    val totalListenTimeMs: Long,
+    @SerialName("is_finished")
+    val isFinished: Boolean,
+    @SerialName("last_played_at")
+    val lastPlayedAt: String,
+)
+
+/**
+ * SSE reading session updated event data.
+ * Sent when a reading session is created or completed.
+ */
+@Serializable
+data class SSEReadingSessionUpdatedEvent(
+    @SerialName("session_id")
+    val sessionId: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("is_completed")
+    val isCompleted: Boolean,
+    @SerialName("listen_time_ms")
+    val listenTimeMs: Long,
+    @SerialName("finished_at")
+    val finishedAt: String? = null,
+)
+
+/**
+ * SSE listening event created event data.
+ * Sent when a listening event is recorded on another device.
+ * Used to sync events for offline stats computation.
+ */
+@Serializable
+data class SSEListeningEventCreatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("start_position_ms")
+    val startPositionMs: Long,
+    @SerialName("end_position_ms")
+    val endPositionMs: Long,
+    @SerialName("started_at")
+    val startedAt: String,
+    @SerialName("ended_at")
+    val endedAt: String,
+    @SerialName("playback_speed")
+    val playbackSpeed: Float,
+    @SerialName("device_id")
+    val deviceId: String,
+    @SerialName("created_at")
+    val createdAt: String,
+)
+
+/**
+ * SSE activity created event data.
+ * Sent when a new social activity is recorded (started book, finished book, milestone, listening session, etc.).
+ */
+@Serializable
+data class SSEActivityCreatedEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("type")
+    val type: String,
+    @SerialName("created_at")
+    val createdAt: String,
+    @SerialName("user_display_name")
+    val userDisplayName: String,
+    @SerialName("user_avatar_color")
+    val userAvatarColor: String,
+    @SerialName("user_avatar_type")
+    val userAvatarType: String = "auto",
+    @SerialName("user_avatar_value")
+    val userAvatarValue: String? = null,
+    @SerialName("book_id")
+    val bookId: String? = null,
+    @SerialName("book_title")
+    val bookTitle: String? = null,
+    @SerialName("book_author_name")
+    val bookAuthorName: String? = null,
+    @SerialName("book_cover_path")
+    val bookCoverPath: String? = null,
+    @SerialName("is_reread")
+    val isReread: Boolean = false,
+    @SerialName("duration_ms")
+    val durationMs: Long = 0,
+    @SerialName("milestone_value")
+    val milestoneValue: Int = 0,
+    @SerialName("milestone_unit")
+    val milestoneUnit: String? = null,
+    @SerialName("lens_id")
+    val lensId: String? = null,
+    @SerialName("lens_name")
+    val lensName: String? = null,
+)
+
+/**
+ * SSE session started event data.
+ * Broadcast to all users when someone starts listening.
+ * Used for "What Others Are Listening To" feature.
+ */
+@Serializable
+data class SSESessionStartedEvent(
+    @SerialName("session_id")
+    val sessionId: String,
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("started_at")
+    val startedAt: String,
+)
+
+/**
+ * SSE session ended event data.
+ * Broadcast to all users when someone stops listening.
+ */
+@Serializable
+data class SSESessionEndedEvent(
+    @SerialName("session_id")
+    val sessionId: String,
+)
+
+/**
+ * SSE user stats updated event data.
+ * Broadcast to all users when someone's all-time stats change.
+ * Used for leaderboard caching.
+ */
+@Serializable
+data class SSEUserStatsUpdatedEvent(
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("display_name")
+    val displayName: String,
+    @SerialName("avatar_type")
+    val avatarType: String,
+    @SerialName("avatar_value")
+    val avatarValue: String? = null,
+    @SerialName("avatar_color")
+    val avatarColor: String,
+    @SerialName("total_time_ms")
+    val totalTimeMs: Long,
+    @SerialName("total_books")
+    val totalBooks: Int,
+    @SerialName("current_streak")
+    val currentStreak: Int,
+)
+
+// =============================================================================
+// Single Book Endpoint Models (GET /api/v1/books/{id})
+// =============================================================================
+
+/**
+ * Response from GET /api/v1/books/{id} endpoint.
+ *
+ * This endpoint returns a slightly different format than the sync endpoint,
+ * particularly for audio files (uses 'path' instead of 'filename').
+ */
+@Serializable
+data class SingleBookResponse(
+    @SerialName("id")
+    val id: String,
+    @SerialName("title")
+    val title: String,
+    @SerialName("subtitle")
+    val subtitle: String? = null,
+    @SerialName("description")
+    val description: String? = null,
+    @SerialName("publisher")
+    val publisher: String? = null,
+    @SerialName("publish_year")
+    val publishYear: String? = null,
+    @SerialName("language")
+    val language: String? = null,
+    @SerialName("duration")
+    val duration: Long,
+    @SerialName("size")
+    val size: Long = 0,
+    @SerialName("asin")
+    val asin: String? = null,
+    @SerialName("isbn")
+    val isbn: String? = null,
+    @SerialName("contributors")
+    val contributors: List<SingleBookContributorResponse> = emptyList(),
+    @SerialName("series")
+    val series: List<SingleBookSeriesResponse> = emptyList(),
+    @SerialName("genre_ids")
+    val genreIds: List<String> = emptyList(),
+    @SerialName("audio_files")
+    val audioFiles: List<SingleBookAudioFileResponse> = emptyList(),
+    @SerialName("created_at")
+    val createdAt: String,
+    @SerialName("updated_at")
+    val updatedAt: String,
+) {
+    /**
+     * Convert to sync-compatible BookResponse format.
+     */
+    fun toBookResponse(): BookResponse =
+        BookResponse(
+            id = id,
+            title = title,
+            subtitle = subtitle,
+            description = description,
+            publisher = publisher,
+            publishYear = publishYear,
+            language = language,
+            isbn = isbn,
+            asin = asin,
+            abridged = false,
+            genres = null,
+            contributors = contributors.map { it.toBookContributorResponse() },
+            coverImage = null, // Cover is fetched separately
+            totalDuration = duration,
+            seriesInfo = series.map { it.toBookSeriesInfoResponse() },
+            chapters = emptyList(), // Chapters not included in this endpoint
+            audioFiles = audioFiles.map { it.toAudioFileResponse() },
+            tags = emptyList(),
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+        )
+}
+
+/**
+ * Contributor in single book response.
+ */
+@Serializable
+data class SingleBookContributorResponse(
+    @SerialName("contributor_id")
+    val contributorId: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("roles")
+    val roles: List<String>,
+) {
+    fun toBookContributorResponse(): BookContributorResponse =
+        BookContributorResponse(
+            contributorId = contributorId,
+            name = name,
+            roles = roles,
+            creditedAs = null,
+        )
+}
+
+/**
+ * Series in single book response.
+ */
+@Serializable
+data class SingleBookSeriesResponse(
+    @SerialName("series_id")
+    val seriesId: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("sequence")
+    val sequence: String? = null,
+) {
+    fun toBookSeriesInfoResponse(): BookSeriesInfoResponse =
+        BookSeriesInfoResponse(
+            seriesId = seriesId,
+            name = name,
+            sequence = sequence,
+        )
+}
+
+/**
+ * Audio file in single book response.
+ *
+ * Uses 'path' field instead of 'filename' like the sync endpoint.
+ */
+@Serializable
+data class SingleBookAudioFileResponse(
+    @SerialName("id")
+    val id: String,
+    @SerialName("path")
+    val path: String,
+    @SerialName("duration")
+    val duration: Long,
+    @SerialName("size")
+    val size: Long,
+    @SerialName("format")
+    val format: String,
+    @SerialName("codec")
+    val codec: String = "",
+    @SerialName("bitrate")
+    val bitrate: Int = 0,
+) {
+    /**
+     * Convert to sync-compatible AudioFileResponse.
+     *
+     * Extracts filename from path for compatibility with existing playback code.
+     */
+    fun toAudioFileResponse(): AudioFileResponse =
+        AudioFileResponse(
+            id = id,
+            filename = path.substringAfterLast('/'),
+            format = format,
+            codec = codec,
+            duration = duration,
+            size = size,
+        )
+}
+
+// =============================================================================
+// Active Sessions Sync Response (GET /api/v1/sync/active-sessions)
+// =============================================================================
+
+/**
+ * Response from GET /api/v1/sync/active-sessions endpoint.
+ * Returns all currently active reading sessions for initial discovery page sync.
+ */
+@Serializable
+data class ApiActiveSessions(
+    @SerialName("sessions")
+    val sessions: List<ApiActiveSessionResponse>,
+)
+
+/**
+ * A single active reading session from the sync endpoint.
+ * Includes user profile data for offline-first display.
+ */
+@Serializable
+data class ApiActiveSessionResponse(
+    @SerialName("session_id")
+    val sessionId: String,
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("started_at")
+    val startedAt: String,
+    @SerialName("display_name")
+    val displayName: String,
+    @SerialName("avatar_type")
+    val avatarType: String,
+    @SerialName("avatar_value")
+    val avatarValue: String? = null,
+    @SerialName("avatar_color")
+    val avatarColor: String,
 )

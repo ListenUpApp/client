@@ -70,6 +70,10 @@ enum class OperationType {
 
     // User preferences (coalesce globally)
     USER_PREFERENCES,
+
+    // Profile updates (coalesce by user)
+    PROFILE_UPDATE,
+    PROFILE_AVATAR,
     ;
 
     companion object {
@@ -84,6 +88,8 @@ enum class OperationType {
         const val LISTENING_EVENT_ORDINAL = 7
         const val PLAYBACK_POSITION_ORDINAL = 8
         const val USER_PREFERENCES_ORDINAL = 9
+        const val PROFILE_UPDATE_ORDINAL = 10
+        const val PROFILE_AVATAR_ORDINAL = 11
     }
 }
 
@@ -94,12 +100,14 @@ enum class EntityType {
     BOOK,
     CONTRIBUTOR,
     SERIES,
+    USER,
     ;
 
     companion object {
         const val BOOK_ORDINAL = 0
         const val CONTRIBUTOR_ORDINAL = 1
         const val SERIES_ORDINAL = 2
+        const val USER_ORDINAL = 3
     }
 }
 

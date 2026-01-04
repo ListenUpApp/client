@@ -5,11 +5,15 @@ package com.calypsan.listenup.client.data.remote
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
+import com.calypsan.listenup.client.data.remote.model.ApiActiveSessionResponse
+import com.calypsan.listenup.client.data.remote.model.ApiActiveSessions
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
+import com.calypsan.listenup.client.data.remote.model.ContinueListeningResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.data.remote.model.SyncBooksResponse
 import com.calypsan.listenup.client.data.remote.model.SyncContributorsResponse
+import com.calypsan.listenup.client.data.remote.model.SyncListeningEventsResponse
 import com.calypsan.listenup.client.data.remote.model.SyncManifestResponse
 import com.calypsan.listenup.client.data.remote.model.SyncSeriesResponse
 import io.ktor.client.call.body
@@ -21,6 +25,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -259,7 +264,7 @@ class SyncApi(
     override suspend fun getProgress(bookId: String): Result<PlaybackProgressResponse?> =
         suspendRunCatching {
             val client = clientFactory.getClient()
-            val httpResponse: HttpResponse = client.get("/api/v1/listening/progress/$bookId")
+            val httpResponse: HttpResponse = client.get("/api/v1/books/$bookId/progress")
 
             // Handle 404 as null (no progress yet)
             if (httpResponse.status == HttpStatusCode.NotFound) {
@@ -285,14 +290,136 @@ class SyncApi(
     override suspend fun getContinueListening(limit: Int): Result<List<ContinueListeningItemResponse>> =
         suspendRunCatching {
             val client = clientFactory.getClient()
-            val response: ApiResponse<List<ContinueListeningItemResponse>> =
+            val response: ApiResponse<ContinueListeningResponse> =
                 client
                     .get("/api/v1/listening/continue") {
                         parameter("limit", limit)
                     }.body()
-            response.toResult().getOrThrow()
+            response.toResult().getOrThrow().items
+        }
+
+    /**
+     * Get a single book by ID.
+     *
+     * Used to fetch book data on-demand when local data is incomplete
+     * (e.g., audioFilesJson is missing during playback).
+     *
+     * Endpoint: GET /api/v1/books/{id}
+     * Auth: Required
+     *
+     * @param bookId Book ID to fetch
+     * @return Result containing BookResponse (converted from SingleBookResponse) or error
+     */
+    override suspend fun getBook(bookId: String): Result<com.calypsan.listenup.client.data.remote.model.BookResponse> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            val response: ApiResponse<com.calypsan.listenup.client.data.remote.model.SingleBookResponse> =
+                client.get("/api/v1/books/$bookId").body()
+            response.toResult().getOrThrow().toBookResponse()
+        }
+
+    /**
+     * Get listening events for initial sync.
+     *
+     * Fetches all listening events for the current user, optionally filtered
+     * by a since timestamp for delta sync.
+     *
+     * Endpoint: GET /api/v1/listening/events
+     * Auth: Required
+     *
+     * @param sinceMs Only return events created after this timestamp (epoch ms), null for all events
+     * @return Result containing list of listening events
+     */
+    override suspend fun getListeningEvents(sinceMs: Long?): Result<ListeningEventsApiResponse> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            val response: ApiResponse<SyncListeningEventsResponse> =
+                client
+                    .get("/api/v1/listening/events") {
+                        sinceMs?.let { parameter("since", it) }
+                    }.body()
+            val syncResponse = response.toResult().getOrThrow()
+            ListeningEventsApiResponse(
+                events =
+                    syncResponse.events.map { event ->
+                        ListeningEventApiResponse(
+                            id = event.id,
+                            bookId = event.bookId,
+                            startPositionMs = event.startPositionMs,
+                            endPositionMs = event.endPositionMs,
+                            startedAt = event.startedAt,
+                            endedAt = event.endedAt,
+                            playbackSpeed = event.playbackSpeed,
+                            deviceId = event.deviceId,
+                        )
+                    },
+            )
+        }
+
+    /**
+     * End a playback session and record listening activity.
+     *
+     * Called when the user pauses or stops playback to create a
+     * listening_session activity in the activity feed.
+     *
+     * Endpoint: POST /api/v1/listening/session/end
+     * Auth: Required
+     *
+     * @param bookId Book that was being played
+     * @param durationMs Duration listened in this session (milliseconds)
+     * @return Result containing Unit on success or error
+     */
+    override suspend fun endPlaybackSession(
+        bookId: String,
+        durationMs: Long,
+    ): Result<Unit> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            client.post("/api/v1/listening/session/end") {
+                contentType(ContentType.Application.Json)
+                setBody(EndPlaybackSessionRequest(bookId = bookId, durationMs = durationMs))
+            }
+            Unit
+        }
+
+    /**
+     * Get all active reading sessions for discovery page sync.
+     *
+     * Endpoint: GET /api/v1/sync/active-sessions
+     * Auth: Required
+     */
+    override suspend fun getActiveSessions(): Result<SyncActiveSessionsResponse> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            val response: ApiResponse<ApiActiveSessions> =
+                client.get("/api/v1/sync/active-sessions").body()
+            val apiSessions = response.toResult().getOrThrow()
+            SyncActiveSessionsResponse(
+                sessions =
+                    apiSessions.sessions.map { session ->
+                        ActiveSessionApiResponse(
+                            sessionId = session.sessionId,
+                            userId = session.userId,
+                            bookId = session.bookId,
+                            startedAt = session.startedAt,
+                            displayName = session.displayName,
+                            avatarType = session.avatarType,
+                            avatarValue = session.avatarValue,
+                            avatarColor = session.avatarColor,
+                        )
+                    },
+            )
         }
 }
+
+/**
+ * Request body for ending a playback session.
+ */
+@Serializable
+data class EndPlaybackSessionRequest(
+    @SerialName("book_id") val bookId: String,
+    @SerialName("duration_ms") val durationMs: Long,
+)
 
 /**
  * Request body for submitting listening events.

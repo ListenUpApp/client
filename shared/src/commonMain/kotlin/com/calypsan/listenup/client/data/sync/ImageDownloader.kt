@@ -330,4 +330,78 @@ class ImageDownloader(
         logger.info { "Downloaded ${successfulDownloads.size} covers out of ${seriesIds.size} series" }
         return Result.Success(successfulDownloads)
     }
+
+    /**
+     * Download and save a user's avatar image.
+     *
+     * @param userId Unique identifier for the user
+     * @param forceRefresh If true, re-downloads even if avatar exists locally
+     * @return Result indicating if avatar was successfully downloaded (true) or already existed/unavailable (false)
+     */
+    override suspend fun downloadUserAvatar(
+        userId: String,
+        forceRefresh: Boolean,
+    ): Result<Boolean> {
+        // Skip if already exists locally (unless forcing refresh)
+        if (!forceRefresh && imageStorage.userAvatarExists(userId)) {
+            logger.info { "Avatar already exists locally for user $userId" }
+            return Result.Success(false)
+        }
+
+        // Delete existing if force refresh
+        if (forceRefresh && imageStorage.userAvatarExists(userId)) {
+            imageStorage.deleteUserAvatar(userId)
+            logger.info { "Deleted old avatar for user $userId before refresh" }
+        }
+
+        logger.info { "Downloading avatar for user $userId..." }
+
+        // Download from server
+        val downloadResult = imageApi.downloadUserAvatar(userId)
+        if (downloadResult is Result.Failure) {
+            // 404 is expected for users without custom avatars - don't log as error
+            logger.info { "Avatar not available for user $userId: ${downloadResult.exception.message}" }
+            return Result.Success(false)
+        }
+
+        // Save to local storage
+        val imageBytes = (downloadResult as Result.Success).data
+        logger.info { "Downloaded ${imageBytes.size} bytes for user $userId, saving..." }
+
+        val saveResult = imageStorage.saveUserAvatar(userId, imageBytes)
+
+        if (saveResult is Result.Failure) {
+            logger.error(saveResult.exception) {
+                "Failed to save avatar for user $userId"
+            }
+            return Result.Failure(saveResult.exception)
+        }
+
+        logger.info { "Successfully downloaded and saved avatar for user $userId" }
+        return Result.Success(true)
+    }
+
+    /**
+     * Get the local file path for a user's avatar image.
+     *
+     * @param userId Unique identifier for the user
+     * @return Absolute file path where the avatar is stored, or null if not available
+     */
+    override fun getUserAvatarPath(userId: String): String? =
+        if (imageStorage.userAvatarExists(userId)) {
+            imageStorage.getUserAvatarPath(userId)
+        } else {
+            null
+        }
+
+    /**
+     * Delete a user's avatar from local storage.
+     *
+     * @param userId Unique identifier for the user
+     * @return Result indicating success or failure
+     */
+    override suspend fun deleteUserAvatar(userId: String): Result<Unit> {
+        logger.debug { "Deleting local avatar for user $userId" }
+        return imageStorage.deleteUserAvatar(userId)
+    }
 }

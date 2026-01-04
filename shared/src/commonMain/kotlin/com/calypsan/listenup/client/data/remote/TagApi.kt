@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.remote
 
+import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Tag
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -32,8 +33,11 @@ class TagApi(
      */
     override suspend fun listTags(): List<Tag> {
         val client = clientFactory.getClient()
-        val response: ListTagsResponse = client.get("/api/v1/tags").body()
-        return response.tags.map { it.toDomain() }
+        val response: ApiResponse<ListTagsResponse> = client.get("/api/v1/tags").body()
+        if (!response.success || response.data == null) {
+            throw TagApiException(response.error ?: "Failed to list tags")
+        }
+        return response.data.tags.map { it.toDomain() }
     }
 
     /**
@@ -48,7 +52,12 @@ class TagApi(
         val client = clientFactory.getClient()
         val httpResponse: HttpResponse = client.get("/api/v1/tags/$slug")
         return if (httpResponse.status.isSuccess()) {
-            httpResponse.body<TagResponse>().toDomain()
+            val response: ApiResponse<TagResponse> = httpResponse.body()
+            if (response.success && response.data != null) {
+                response.data.toDomain()
+            } else {
+                null
+            }
         } else {
             null
         }
@@ -63,8 +72,11 @@ class TagApi(
      */
     override suspend fun getBookTags(bookId: String): List<Tag> {
         val client = clientFactory.getClient()
-        val response: GetBookTagsResponse = client.get("/api/v1/books/$bookId/tags").body()
-        return response.tags.map { it.toDomain() }
+        val response: ApiResponse<GetBookTagsResponse> = client.get("/api/v1/books/$bookId/tags").body()
+        if (!response.success || response.data == null) {
+            throw TagApiException(response.error ?: "Failed to get book tags")
+        }
+        return response.data.tags.map { it.toDomain() }
     }
 
     /**
@@ -81,13 +93,16 @@ class TagApi(
         rawInput: String,
     ): Tag {
         val client = clientFactory.getClient()
-        val response: TagResponse =
+        val response: ApiResponse<TagResponse> =
             client
                 .post("/api/v1/books/$bookId/tags") {
                     contentType(ContentType.Application.Json)
                     setBody(AddTagRequest(tag = rawInput))
                 }.body()
-        return response.toDomain()
+        if (!response.success || response.data == null) {
+            throw TagApiException(response.error ?: "Failed to add tag to book")
+        }
+        return response.data.toDomain()
     }
 
     /**
@@ -152,3 +167,10 @@ internal data class TagResponse(
 internal data class AddTagRequest(
     val tag: String,
 )
+
+/**
+ * Exception thrown when a tag API call fails.
+ */
+class TagApiException(
+    message: String,
+) : Exception(message)

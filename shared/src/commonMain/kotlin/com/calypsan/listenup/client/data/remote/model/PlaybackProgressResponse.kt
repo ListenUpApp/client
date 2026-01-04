@@ -46,8 +46,9 @@ data class PlaybackProgressResponse(
             bookId = BookId(bookId),
             positionMs = currentPositionMs,
             playbackSpeed = 1.0f, // Server doesn't track per-position speed
-            updatedAt = lastPlayedAtMillis(),
+            updatedAt = Clock.System.now().toEpochMilliseconds(),
             syncedAt = Clock.System.now().toEpochMilliseconds(),
+            lastPlayedAt = lastPlayedAtMillis(),
         )
 
     /**

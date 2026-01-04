@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
+import com.calypsan.listenup.client.data.remote.model.SSEActivityCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookEvent
 import com.calypsan.listenup.client.data.remote.model.SSEBookTagAddedEvent
@@ -20,12 +21,21 @@ import com.calypsan.listenup.client.data.remote.model.SSELensDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEListeningEventCreatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEProfileUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEProgressUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEReadingSessionUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSESessionEndedEvent
+import com.calypsan.listenup.client.data.remote.model.SSESessionStartedEvent
 import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserData
+import com.calypsan.listenup.client.data.remote.model.SSEUserDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserPendingEvent
+import com.calypsan.listenup.client.data.remote.model.SSEUserStatsUpdatedEvent
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.utils.io.ByteReadChannel
@@ -132,8 +142,20 @@ class SSEManager(
                         logger.debug { "Connection ended gracefully" }
                         break
                     } catch (e: Exception) {
-                        logger.warn(e) { "Connection error" }
                         _isConnected.value = false
+
+                        // Check for authentication errors - don't retry on 401/403
+                        if (e is ResponseException) {
+                            val statusCode = e.response.status.value
+                            if (statusCode == 401 || statusCode == 403) {
+                                logger.warn {
+                                    "SSE connection failed with auth error ($statusCode), not retrying"
+                                }
+                                break // Don't reconnect - auth is invalid
+                            }
+                        }
+
+                        logger.warn(e) { "Connection error" }
 
                         if (!isActive) {
                             break // Don't reconnect if job was cancelled
@@ -322,6 +344,14 @@ class SSEManager(
                         SSEEventType.UserApproved(userEvent.user)
                     }
 
+                    "user.deleted" -> {
+                        val userEvent = json.decodeFromJsonElement(SSEUserDeletedEvent.serializer(), sseEvent.data)
+                        SSEEventType.UserDeleted(
+                            userId = userEvent.userId,
+                            reason = userEvent.reason,
+                        )
+                    }
+
                     "collection.created" -> {
                         val collectionEvent =
                             json.decodeFromJsonElement(SSECollectionCreatedEvent.serializer(), sseEvent.data)
@@ -477,6 +507,144 @@ class SSEManager(
                         )
                     }
 
+                    "listening.progress_updated" -> {
+                        val progressEvent =
+                            json.decodeFromJsonElement(
+                                SSEProgressUpdatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ProgressUpdated(
+                            bookId = progressEvent.bookId,
+                            currentPositionMs = progressEvent.currentPositionMs,
+                            progress = progressEvent.progress,
+                            totalListenTimeMs = progressEvent.totalListenTimeMs,
+                            isFinished = progressEvent.isFinished,
+                            lastPlayedAt = progressEvent.lastPlayedAt,
+                        )
+                    }
+
+                    "reading_session.updated" -> {
+                        val sessionEvent =
+                            json.decodeFromJsonElement(
+                                SSEReadingSessionUpdatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ReadingSessionUpdated(
+                            sessionId = sessionEvent.sessionId,
+                            bookId = sessionEvent.bookId,
+                            isCompleted = sessionEvent.isCompleted,
+                            listenTimeMs = sessionEvent.listenTimeMs,
+                            finishedAt = sessionEvent.finishedAt,
+                        )
+                    }
+
+                    "listening.event_created" -> {
+                        val listeningEvent =
+                            json.decodeFromJsonElement(
+                                SSEListeningEventCreatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ListeningEventCreated(
+                            id = listeningEvent.id,
+                            bookId = listeningEvent.bookId,
+                            startPositionMs = listeningEvent.startPositionMs,
+                            endPositionMs = listeningEvent.endPositionMs,
+                            startedAt = listeningEvent.startedAt,
+                            endedAt = listeningEvent.endedAt,
+                            playbackSpeed = listeningEvent.playbackSpeed,
+                            deviceId = listeningEvent.deviceId,
+                            createdAt = listeningEvent.createdAt,
+                        )
+                    }
+
+                    "activity.created" -> {
+                        val activityEvent =
+                            json.decodeFromJsonElement(
+                                SSEActivityCreatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ActivityCreated(
+                            id = activityEvent.id,
+                            userId = activityEvent.userId,
+                            type = activityEvent.type,
+                            createdAt = activityEvent.createdAt,
+                            userDisplayName = activityEvent.userDisplayName,
+                            userAvatarColor = activityEvent.userAvatarColor,
+                            userAvatarType = activityEvent.userAvatarType,
+                            userAvatarValue = activityEvent.userAvatarValue,
+                            bookId = activityEvent.bookId,
+                            bookTitle = activityEvent.bookTitle,
+                            bookAuthorName = activityEvent.bookAuthorName,
+                            bookCoverPath = activityEvent.bookCoverPath,
+                            isReread = activityEvent.isReread,
+                            durationMs = activityEvent.durationMs,
+                            milestoneValue = activityEvent.milestoneValue,
+                            milestoneUnit = activityEvent.milestoneUnit,
+                            lensId = activityEvent.lensId,
+                            lensName = activityEvent.lensName,
+                        )
+                    }
+
+                    "profile.updated" -> {
+                        val profileEvent =
+                            json.decodeFromJsonElement(
+                                SSEProfileUpdatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ProfileUpdated(
+                            userId = profileEvent.userId,
+                            firstName = profileEvent.firstName,
+                            lastName = profileEvent.lastName,
+                            avatarType = profileEvent.avatarType,
+                            avatarValue = profileEvent.avatarValue,
+                            avatarColor = profileEvent.avatarColor,
+                            tagline = profileEvent.tagline,
+                        )
+                    }
+
+                    "session.started" -> {
+                        val sessionEvent =
+                            json.decodeFromJsonElement(
+                                SSESessionStartedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.SessionStarted(
+                            sessionId = sessionEvent.sessionId,
+                            userId = sessionEvent.userId,
+                            bookId = sessionEvent.bookId,
+                            startedAt = sessionEvent.startedAt,
+                        )
+                    }
+
+                    "session.ended" -> {
+                        val sessionEvent =
+                            json.decodeFromJsonElement(
+                                SSESessionEndedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.SessionEnded(
+                            sessionId = sessionEvent.sessionId,
+                        )
+                    }
+
+                    "user_stats.updated" -> {
+                        val statsEvent =
+                            json.decodeFromJsonElement(
+                                SSEUserStatsUpdatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.UserStatsUpdated(
+                            userId = statsEvent.userId,
+                            displayName = statsEvent.displayName,
+                            avatarType = statsEvent.avatarType,
+                            avatarValue = statsEvent.avatarValue,
+                            avatarColor = statsEvent.avatarColor,
+                            totalTimeMs = statsEvent.totalTimeMs,
+                            totalBooks = statsEvent.totalBooks,
+                            currentStreak = statsEvent.currentStreak,
+                        )
+                    }
+
                     else -> {
                         logger.debug { "Unknown event type: ${sseEvent.type}" }
                         return
@@ -534,6 +702,15 @@ sealed class SSEEventType {
      */
     data class UserApproved(
         val user: SSEUserData,
+    ) : SSEEventType()
+
+    /**
+     * Current user's account was deleted.
+     * Client should clear auth state and navigate to login.
+     */
+    data class UserDeleted(
+        val userId: String,
+        val reason: String?,
     ) : SSEEventType()
 
     // Collection events (admin-only)
@@ -688,5 +865,129 @@ sealed class SSEEventType {
      */
     data class InboxBookReleased(
         val bookId: String,
+    ) : SSEEventType()
+
+    // Listening events
+
+    /**
+     * User's playback progress was updated.
+     * Used to refresh stats and continue listening.
+     */
+    data class ProgressUpdated(
+        val bookId: String,
+        val currentPositionMs: Long,
+        val progress: Double,
+        val totalListenTimeMs: Long,
+        val isFinished: Boolean,
+        val lastPlayedAt: String,
+    ) : SSEEventType()
+
+    /**
+     * A reading session was created or updated.
+     * Used to refresh book readers list.
+     */
+    data class ReadingSessionUpdated(
+        val sessionId: String,
+        val bookId: String,
+        val isCompleted: Boolean,
+        val listenTimeMs: Long,
+        val finishedAt: String?,
+    ) : SSEEventType()
+
+    /**
+     * A listening event was created on another device.
+     * Used to sync events for offline stats computation.
+     */
+    data class ListeningEventCreated(
+        val id: String,
+        val bookId: String,
+        val startPositionMs: Long,
+        val endPositionMs: Long,
+        val startedAt: String,
+        val endedAt: String,
+        val playbackSpeed: Float,
+        val deviceId: String,
+        val createdAt: String,
+    ) : SSEEventType()
+
+    // Activity events
+
+    /**
+     * A new activity was created (started book, finished book, milestone, listening session, lens created, etc.).
+     * Used for real-time activity feed updates.
+     */
+    data class ActivityCreated(
+        val id: String,
+        val userId: String,
+        val type: String,
+        val createdAt: String,
+        val userDisplayName: String,
+        val userAvatarColor: String,
+        val userAvatarType: String = "auto",
+        val userAvatarValue: String? = null,
+        val bookId: String? = null,
+        val bookTitle: String? = null,
+        val bookAuthorName: String? = null,
+        val bookCoverPath: String? = null,
+        val isReread: Boolean = false,
+        val durationMs: Long = 0,
+        val milestoneValue: Int = 0,
+        val milestoneUnit: String? = null,
+        val lensId: String? = null,
+        val lensName: String? = null,
+    ) : SSEEventType()
+
+    // Profile events
+
+    /**
+     * A user's profile was updated.
+     * Used to refresh profile data in UI.
+     */
+    data class ProfileUpdated(
+        val userId: String,
+        val firstName: String,
+        val lastName: String,
+        val avatarType: String,
+        val avatarValue: String?,
+        val avatarColor: String,
+        val tagline: String?,
+    ) : SSEEventType() {
+        val displayName: String get() = "$firstName $lastName".trim()
+    }
+
+    // Active session events (for "What Others Are Listening To")
+
+    /**
+     * Another user started a reading session.
+     * Broadcast to all users for the "What Others Are Listening To" feature.
+     */
+    data class SessionStarted(
+        val sessionId: String,
+        val userId: String,
+        val bookId: String,
+        val startedAt: String,
+    ) : SSEEventType()
+
+    /**
+     * A reading session ended.
+     * Broadcast to all users to remove from "What Others Are Listening To".
+     */
+    data class SessionEnded(
+        val sessionId: String,
+    ) : SSEEventType()
+
+    /**
+     * A user's all-time stats were updated.
+     * Broadcast to all users for leaderboard caching.
+     */
+    data class UserStatsUpdated(
+        val userId: String,
+        val displayName: String,
+        val avatarType: String,
+        val avatarValue: String?,
+        val avatarColor: String,
+        val totalTimeMs: Long,
+        val totalBooks: Int,
+        val currentStreak: Int,
     ) : SSEEventType()
 }

@@ -3,6 +3,10 @@
 package com.calypsan.listenup.client.data.sync.sse
 
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
+import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
+import com.calypsan.listenup.client.data.local.db.ActivityDao
+import com.calypsan.listenup.client.data.local.db.ActivityEntity
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookId
@@ -12,9 +16,17 @@ import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.data.local.db.ListeningEventDao
+import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
+import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.UserProfileDao
+import com.calypsan.listenup.client.data.local.db.UserProfileEntity
+import com.calypsan.listenup.client.data.local.db.UserStatsDao
+import com.calypsan.listenup.client.data.local.db.UserStatsEntity
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
@@ -60,6 +72,12 @@ class SSEEventProcessor(
     private val collectionDao: CollectionDao,
     private val lensDao: LensDao,
     private val tagDao: TagDao,
+    private val listeningEventDao: ListeningEventDao,
+    private val activityDao: ActivityDao,
+    private val userDao: UserDao,
+    private val userProfileDao: UserProfileDao,
+    private val activeSessionDao: ActiveSessionDao,
+    private val userStatsDao: UserStatsDao,
     private val imageDownloader: ImageDownloaderContract,
     private val playbackStateProvider: PlaybackStateProvider,
     private val downloadService: DownloadService,
@@ -72,6 +90,14 @@ class SSEEventProcessor(
      * Emitted when a book is deleted while being played or downloaded.
      */
     val accessRevokedEvents: SharedFlow<AccessRevokedEvent> = _accessRevokedEvents.asSharedFlow()
+
+    private val _userDeletedEvent = MutableSharedFlow<UserDeletedInfo>(extraBufferCapacity = 1)
+
+    /**
+     * Flow of user deletion events. Emitted when the current user's account is deleted.
+     * App should clear auth state and navigate to login when this emits.
+     */
+    val userDeletedEvent: SharedFlow<UserDeletedInfo> = _userDeletedEvent.asSharedFlow()
 
     /**
      * Process an incoming SSE event.
@@ -107,6 +133,10 @@ class SSEEventProcessor(
                 is SSEEventType.InboxBookReleased,
                 -> {
                     // Admin-only events, handled by AdminViewModel/AdminInboxViewModel
+                }
+
+                is SSEEventType.UserDeleted -> {
+                    handleUserDeleted(event)
                 }
 
                 is SSEEventType.CollectionCreated -> {
@@ -159,6 +189,38 @@ class SSEEventProcessor(
 
                 is SSEEventType.BookTagRemoved -> {
                     handleBookTagRemoved(event)
+                }
+
+                is SSEEventType.ProgressUpdated -> {
+                    handleProgressUpdated(event)
+                }
+
+                is SSEEventType.ReadingSessionUpdated -> {
+                    handleReadingSessionUpdated(event)
+                }
+
+                is SSEEventType.ListeningEventCreated -> {
+                    handleListeningEventCreated(event)
+                }
+
+                is SSEEventType.ActivityCreated -> {
+                    handleActivityCreated(event)
+                }
+
+                is SSEEventType.ProfileUpdated -> {
+                    handleProfileUpdated(event)
+                }
+
+                is SSEEventType.SessionStarted -> {
+                    handleSessionStarted(event)
+                }
+
+                is SSEEventType.SessionEnded -> {
+                    handleSessionEnded(event)
+                }
+
+                is SSEEventType.UserStatsUpdated -> {
+                    handleUserStatsUpdated(event)
                 }
             }
         } catch (e: Exception) {
@@ -495,6 +557,298 @@ class SSEEventProcessor(
             logger.warn(e) { "Failed to touch book ${event.bookId} after tag removed" }
         }
     }
+
+    // ========== Listening Event Handlers ==========
+
+    private fun handleProgressUpdated(event: SSEEventType.ProgressUpdated) {
+        logger.info {
+            "SSE: Progress updated for book ${event.bookId} - ${(event.progress * 100).toInt()}% (from another device)"
+        }
+        // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
+        // Stats/Continue Listening screens can listen for this to refresh
+    }
+
+    private fun handleReadingSessionUpdated(event: SSEEventType.ReadingSessionUpdated) {
+        logger.info {
+            "SSE: Reading session ${event.sessionId} updated for book ${event.bookId} - completed=${event.isCompleted}"
+        }
+        // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
+        // Book detail/readers screens can listen for this to refresh
+    }
+
+    private suspend fun handleListeningEventCreated(event: SSEEventType.ListeningEventCreated) {
+        logger.info { "SSE: Listening event ${event.id} received for book ${event.bookId} (from another device)" }
+
+        // Convert ISO timestamps to epoch ms
+        val startedAtMs = parseTimestamp(event.startedAt).epochMillis
+        val endedAtMs = parseTimestamp(event.endedAt).epochMillis
+        val createdAtMs = parseTimestamp(event.createdAt).epochMillis
+
+        // Save to Room - this triggers stats to auto-update via Flow
+        val entity =
+            ListeningEventEntity(
+                id = event.id,
+                bookId = event.bookId,
+                startPositionMs = event.startPositionMs,
+                endPositionMs = event.endPositionMs,
+                startedAt = startedAtMs,
+                endedAt = endedAtMs,
+                playbackSpeed = event.playbackSpeed,
+                deviceId = event.deviceId,
+                syncState = SyncState.SYNCED, // Already synced since it came from server
+                createdAt = createdAtMs,
+            )
+
+        try {
+            listeningEventDao.upsert(entity)
+            logger.debug { "SSE: Saved listening event ${event.id} to Room" }
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to save listening event ${event.id}" }
+        }
+    }
+
+    // ========== Activity Event Handlers ==========
+
+    /**
+     * Handle activity created SSE event.
+     *
+     * Stores the activity in Room for offline-first activity feed display.
+     * Activities are denormalized with all display data (user name, avatar, book info)
+     * to avoid joins and enable instant offline display.
+     */
+    private suspend fun handleActivityCreated(event: SSEEventType.ActivityCreated) {
+        logger.debug { "SSE: Activity created - ${event.type} by ${event.userDisplayName}" }
+
+        val createdAtMs = parseTimestamp(event.createdAt).epochMillis
+
+        val entity =
+            ActivityEntity(
+                id = event.id,
+                userId = event.userId,
+                type = event.type,
+                createdAt = createdAtMs,
+                userDisplayName = event.userDisplayName,
+                userAvatarColor = event.userAvatarColor,
+                userAvatarType = event.userAvatarType,
+                userAvatarValue = event.userAvatarValue,
+                bookId = event.bookId,
+                bookTitle = event.bookTitle,
+                bookAuthorName = event.bookAuthorName,
+                bookCoverPath = event.bookCoverPath,
+                isReread = event.isReread,
+                durationMs = event.durationMs,
+                milestoneValue = event.milestoneValue,
+                milestoneUnit = event.milestoneUnit,
+                lensId = event.lensId,
+                lensName = event.lensName,
+            )
+
+        try {
+            activityDao.upsert(entity)
+            logger.debug { "SSE: Saved activity ${event.id} to Room" }
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to save activity ${event.id}" }
+        }
+    }
+
+    // ========== Active Session Event Handlers ==========
+
+    /**
+     * Handle session started SSE event.
+     *
+     * Stores the active session in Room for "What Others Are Listening To" feature.
+     * The session is joined with UserProfileEntity and BookEntity for display.
+     *
+     * Also ensures the user's avatar image is downloaded locally if they have one,
+     * so the avatar displays correctly in offline-first UI.
+     */
+    private suspend fun handleSessionStarted(event: SSEEventType.SessionStarted) {
+        logger.debug { "SSE: Session started - ${event.sessionId} for user ${event.userId}" }
+
+        // Download user's avatar if they have an image avatar and it's not cached locally
+        // Do this BEFORE storing the session so the avatar file exists when UI renders
+        val userProfile = userProfileDao.getById(event.userId)
+        if (userProfile != null && userProfile.avatarType == "image") {
+            scope.launch {
+                try {
+                    // downloadUserAvatar checks if file exists locally and skips if so
+                    imageDownloader.downloadUserAvatar(event.userId, forceRefresh = false)
+                    logger.debug { "SSE: Ensured avatar exists for user ${event.userId}" }
+                } catch (e: Exception) {
+                    logger.warn(e) { "SSE: Failed to download avatar for user ${event.userId}" }
+                }
+            }
+        }
+
+        val startedAtMs = parseTimestamp(event.startedAt).epochMillis
+        val now = Timestamp.now().epochMillis
+
+        activeSessionDao.upsert(
+            ActiveSessionEntity(
+                sessionId = event.sessionId,
+                userId = event.userId,
+                bookId = event.bookId,
+                startedAt = startedAtMs,
+                updatedAt = now,
+            ),
+        )
+    }
+
+    /**
+     * Handle session ended SSE event.
+     *
+     * Removes the session from Room.
+     */
+    private suspend fun handleSessionEnded(event: SSEEventType.SessionEnded) {
+        logger.debug { "SSE: Session ended - ${event.sessionId}" }
+        activeSessionDao.deleteBySessionId(event.sessionId)
+    }
+
+    // ========== User Stats Event Handlers ==========
+
+    /**
+     * Handle user stats updated SSE event.
+     *
+     * Updates the cached user stats in Room for leaderboard display.
+     * This enables offline-first leaderboard with real-time updates.
+     */
+    private suspend fun handleUserStatsUpdated(event: SSEEventType.UserStatsUpdated) {
+        logger.debug { "SSE: User stats updated - ${event.displayName} (${event.userId})" }
+
+        val entity =
+            UserStatsEntity(
+                oduserId = event.userId,
+                displayName = event.displayName,
+                avatarColor = event.avatarColor,
+                avatarType = event.avatarType,
+                avatarValue = event.avatarValue,
+                totalTimeMs = event.totalTimeMs,
+                totalBooks = event.totalBooks,
+                currentStreak = event.currentStreak,
+                updatedAt = Timestamp.now().epochMillis,
+            )
+
+        try {
+            userStatsDao.upsert(entity)
+            logger.debug { "SSE: Cached user stats for ${event.userId}" }
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to cache user stats for ${event.userId}" }
+        }
+    }
+
+    // ========== Profile Event Handlers ==========
+
+    /**
+     * Handle profile updated SSE event.
+     *
+     * For current user's profile:
+     * - Updates local UserEntity so UI observing it sees the new avatar
+     *
+     * For any user (including current user):
+     * - Caches the user profile in UserProfileEntity for offline access
+     * - Downloads the avatar image locally for offline access
+     *
+     * This enables fully offline profile viewing for any user whose
+     * profile update was received while online.
+     */
+    private suspend fun handleProfileUpdated(event: SSEEventType.ProfileUpdated) {
+        logger.info { "SSE: Profile updated - ${event.displayName} (${event.userId})" }
+
+        val currentUser = userDao.getCurrentUser()
+        val isCurrentUser = currentUser != null && event.userId == currentUser.id
+
+        // IMPORTANT: Download/delete avatar FIRST, before updating userDao
+        // This ensures the local file exists when the UI Flow emits after userDao update.
+        // If we update userDao first, the UI checks for the file before it's downloaded.
+        if (event.avatarType == "image" && event.avatarValue != null) {
+            try {
+                imageDownloader.downloadUserAvatar(event.userId, forceRefresh = true)
+                logger.info { "SSE: Downloaded avatar image for user ${event.userId}" }
+            } catch (e: Exception) {
+                logger.warn(e) { "SSE: Failed to download avatar for user ${event.userId}" }
+            }
+        } else if (event.avatarType == "auto") {
+            // User reverted to auto avatar, delete the local image file
+            try {
+                imageDownloader.deleteUserAvatar(event.userId)
+                logger.info { "SSE: Deleted local avatar for user ${event.userId} (reverted to auto)" }
+            } catch (e: Exception) {
+                logger.warn(e) { "SSS: Failed to delete avatar for user ${event.userId}" }
+            }
+        }
+
+        // Cache user profile for offline display (for ALL users, not just current)
+        try {
+            userProfileDao.upsert(
+                UserProfileEntity(
+                    id = event.userId,
+                    displayName = event.displayName,
+                    avatarType = event.avatarType,
+                    avatarValue = event.avatarValue,
+                    avatarColor = event.avatarColor,
+                    updatedAt = Timestamp.now().epochMillis,
+                ),
+            )
+            logger.debug { "SSE: Cached user profile for ${event.userId}" }
+        } catch (e: Exception) {
+            logger.warn(e) { "SSE: Failed to cache user profile for ${event.userId}" }
+        }
+
+        // Now update local UserEntity for current user - avatar file is already ready
+        if (isCurrentUser && currentUser != null) {
+            try {
+                // Update name fields
+                userDao.updateName(
+                    userId = event.userId,
+                    firstName = event.firstName,
+                    lastName = event.lastName,
+                    displayName = event.displayName,
+                    updatedAt = Timestamp.now().epochMillis,
+                )
+                // Update avatar
+                userDao.updateAvatar(
+                    userId = event.userId,
+                    avatarType = event.avatarType,
+                    avatarValue = event.avatarValue,
+                    avatarColor = event.avatarColor,
+                    updatedAt = Timestamp.now().epochMillis,
+                )
+                // Update tagline
+                if (event.tagline != null || currentUser.tagline != null) {
+                    userDao.updateTagline(
+                        userId = event.userId,
+                        tagline = event.tagline,
+                        updatedAt = Timestamp.now().epochMillis,
+                    )
+                }
+                logger.info {
+                    "SSE: Updated local UserEntity with profile changes - name=${event.displayName}, avatar=${event.avatarType}/${event.avatarValue}"
+                }
+            } catch (e: Exception) {
+                logger.error(e) { "SSE: Failed to update local UserEntity for profile event" }
+            }
+        }
+    }
+
+    // ========== User Deletion Handler ==========
+
+    /**
+     * Handle user deleted SSE event.
+     *
+     * Emits to userDeletedEvent flow so the app can clear auth state
+     * and navigate to login. The SSE connection will be closed after this.
+     */
+    private suspend fun handleUserDeleted(event: SSEEventType.UserDeleted) {
+        logger.warn { "SSE: User account deleted - ${event.userId}, reason: ${event.reason}" }
+
+        // Emit event for app to handle (clear auth, navigate to login)
+        _userDeletedEvent.emit(
+            UserDeletedInfo(
+                userId = event.userId,
+                reason = event.reason,
+            ),
+        )
+    }
 }
 
 /**
@@ -503,6 +857,15 @@ class SSEEventProcessor(
  */
 data class AccessRevokedEvent(
     val bookId: BookId,
+)
+
+/**
+ * Event emitted when the current user's account is deleted.
+ * The app should clear auth state and navigate to login.
+ */
+data class UserDeletedInfo(
+    val userId: String,
+    val reason: String?,
 )
 
 /**

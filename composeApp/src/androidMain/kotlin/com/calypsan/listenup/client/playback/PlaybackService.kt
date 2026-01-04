@@ -368,7 +368,15 @@ class PlaybackService : MediaSessionService() {
             when (playbackState) {
                 Player.STATE_ENDED -> {
                     // Book finished - longer grace period
-                    currentBookId?.let { progressTracker.onBookFinished(it) }
+                    currentBookId?.let { bookId ->
+                        val p = this@PlaybackService.player
+                        val timeline = playbackManager.currentTimeline.value
+                        val finalPosition =
+                            timeline?.totalDurationMs
+                                ?: p?.duration
+                                ?: 0L
+                        progressTracker.onBookFinished(bookId, finalPosition)
+                    }
                     startIdleTimer(IDLE_TIMEOUT_LONG, "book_finished")
                 }
 

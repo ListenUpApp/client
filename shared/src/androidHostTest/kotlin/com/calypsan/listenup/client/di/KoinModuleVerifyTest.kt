@@ -2,6 +2,8 @@ package com.calypsan.listenup.client.di
 
 import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.data.discovery.ServerDiscoveryService
+import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
+import com.calypsan.listenup.client.data.local.db.ActivityDao
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
@@ -10,6 +12,7 @@ import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.LensDao
+import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.SearchDao
@@ -18,6 +21,8 @@ import com.calypsan.listenup.client.data.local.db.ServerDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.UserProfileDao
+import com.calypsan.listenup.client.data.local.db.UserStatsDao
 import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
@@ -85,6 +90,8 @@ class KoinModuleVerifyTest {
                     Map::class, // For OperationExecutor constructor (uses factory method in reality)
                     OperationHandler::class,
                     // DAOs from database module
+                    ActiveSessionDao::class,
+                    ActivityDao::class,
                     UserDao::class,
                     BookDao::class,
                     SyncDao::class,
@@ -95,7 +102,10 @@ class KoinModuleVerifyTest {
                     BookSeriesDao::class,
                     CollectionDao::class,
                     LensDao::class,
+                    ListeningEventDao::class,
                     TagDao::class,
+                    UserProfileDao::class,
+                    UserStatsDao::class,
                     PlaybackPositionDao::class,
                     PendingOperationDao::class,
                     DownloadDao::class,

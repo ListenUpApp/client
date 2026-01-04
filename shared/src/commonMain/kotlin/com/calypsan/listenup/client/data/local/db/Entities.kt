@@ -17,6 +17,14 @@ data class UserEntity(
     val id: String,
     val email: String,
     val displayName: String,
+    /**
+     * User's first name.
+     */
+    val firstName: String? = null,
+    /**
+     * User's last name.
+     */
+    val lastName: String? = null,
     val isRoot: Boolean,
     /**
      * Creation timestamp in Unix epoch milliseconds.
@@ -26,6 +34,56 @@ data class UserEntity(
     /**
      * Last update timestamp in Unix epoch milliseconds.
      * Use kotlin.time.Instant for domain model conversion.
+     */
+    val updatedAt: Long,
+    /**
+     * Avatar type: "auto" for generated avatar, "image" for uploaded image.
+     */
+    val avatarType: String = "auto",
+    /**
+     * Avatar image path on server (only used when avatarType is "image").
+     */
+    val avatarValue: String? = null,
+    /**
+     * Generated avatar background color (hex format like "#6B7280").
+     */
+    val avatarColor: String = "#6B7280",
+    /**
+     * User's profile tagline/bio (max 60 chars).
+     */
+    val tagline: String? = null,
+)
+
+/**
+ * Cached profile data for any user (not just the current user).
+ *
+ * Used to display user information in:
+ * - Activity feed
+ * - "What others are listening to" section
+ * - Reader lists on book details
+ *
+ * Updated via SSE profile.updated events and API responses.
+ * Enables fully offline display of user avatars and names.
+ */
+@Entity(tableName = "user_profiles")
+data class UserProfileEntity(
+    @PrimaryKey
+    val id: String,
+    val displayName: String,
+    /**
+     * Avatar type: "auto" for generated avatar, "image" for uploaded image.
+     */
+    val avatarType: String = "auto",
+    /**
+     * Avatar image path on server (only used when avatarType is "image").
+     */
+    val avatarValue: String? = null,
+    /**
+     * Generated avatar background color (hex format like "#6B7280").
+     */
+    val avatarColor: String = "#6B7280",
+    /**
+     * Last update timestamp in Unix epoch milliseconds.
      */
     val updatedAt: Long,
 )
@@ -200,10 +258,14 @@ data class PlaybackPositionEntity(
     val playbackSpeed: Float,
     // Whether user explicitly set a custom speed for this book (vs using universal default)
     val hasCustomSpeed: Boolean = false,
-    // Local timestamp (epoch ms)
+    // Local timestamp when entity was modified (epoch ms)
     val updatedAt: Long,
     // When last synced to server (null if not synced)
     val syncedAt: Long? = null,
+    // When user actually last played this book (epoch ms)
+    // Used for "Continue Listening" ordering and social features ("last read")
+    // Falls back to updatedAt if null (legacy data before migration)
+    val lastPlayedAt: Long? = null,
 )
 
 /**
@@ -311,4 +373,113 @@ data class TagEntity(
             .joinToString(" ") { word ->
                 word.replaceFirstChar { it.titlecase() }
             }
+}
+
+/**
+ * Tracks active reading sessions from other users.
+ *
+ * Populated via SSE session.started/ended events.
+ * Used for "What Others Are Listening To" section on Discover screen.
+ *
+ * Sessions are ephemeral - cleared on app start or after 24h staleness.
+ * Join with UserProfileEntity and BookEntity for display data.
+ */
+@Entity(
+    tableName = "active_sessions",
+    indices = [
+        Index(value = ["userId"]),
+        Index(value = ["bookId"]),
+    ],
+)
+data class ActiveSessionEntity(
+    @PrimaryKey
+    val sessionId: String,
+    /** User who started this session - join with UserProfileEntity */
+    val userId: String,
+    /** Book being read - join with BookEntity */
+    val bookId: String,
+    /** When the session started (epoch ms) */
+    val startedAt: Long,
+    /** Last update time (epoch ms) - for staleness detection */
+    val updatedAt: Long,
+)
+
+/**
+ * Stores activity feed items locally for offline-first display.
+ *
+ * Populated via SSE activity.created events and initial sync.
+ * All data is denormalized from server for immediate display without joins.
+ *
+ * Activities are retained for 30 days, then pruned automatically.
+ */
+@Entity(
+    tableName = "activities",
+    indices = [
+        Index(value = ["userId"]),
+        Index(value = ["createdAt"]),
+    ],
+)
+data class ActivityEntity(
+    @PrimaryKey
+    val id: String,
+    /** User who performed the activity */
+    val userId: String,
+    /** Activity type: started_book, finished_book, streak_milestone, listening_milestone, lens_created, listening_session */
+    val type: String,
+    /** When the activity was created (epoch ms) */
+    val createdAt: Long,
+    // Denormalized user info for offline display
+    val userDisplayName: String,
+    val userAvatarColor: String,
+    val userAvatarType: String,
+    val userAvatarValue: String?,
+    // Book info (nullable - not all activities have a book)
+    val bookId: String?,
+    val bookTitle: String?,
+    val bookAuthorName: String?,
+    val bookCoverPath: String?,
+    // Activity-specific fields
+    val isReread: Boolean,
+    val durationMs: Long,
+    val milestoneValue: Int,
+    val milestoneUnit: String?,
+    val lensId: String?,
+    val lensName: String?,
+)
+
+/**
+ * Cached user stats for leaderboard display.
+ *
+ * Stores all-time totals for each user, populated from:
+ * - Initial leaderboard API response
+ * - SSE user_stats.updated events
+ *
+ * Week/Month stats are calculated from activities table.
+ * This table is only used for the "All Time" period.
+ */
+@Entity(
+    tableName = "user_stats",
+)
+data class UserStatsEntity(
+    @PrimaryKey
+    val oduserId: String,
+    /** User display name for leaderboard display */
+    val displayName: String,
+    /** Avatar color (hex) for generated avatars */
+    val avatarColor: String,
+    /** Avatar type: "auto" or "image" */
+    val avatarType: String,
+    /** Avatar image path if type is "image" */
+    val avatarValue: String?,
+    /** Total listening time in milliseconds (all-time) */
+    val totalTimeMs: Long,
+    /** Total books completed */
+    val totalBooks: Int,
+    /** Current consecutive listening streak in days */
+    val currentStreak: Int,
+    /** When this cache was last updated (epoch ms) */
+    val updatedAt: Long,
+) {
+    /** Convenience property for userId (primary key is named oduserId due to Room bug) */
+    val userId: String get() = oduserId
 }

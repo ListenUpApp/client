@@ -24,6 +24,15 @@ import androidx.room.TypeConverters
  * - v17: Added collections table for admin collection management
  * - v18: Added lenses table for personal curation and social discovery
  * - v19: Added tags and book_tags tables for community tagging
+ * - v20: Added lastPlayedAt column to playback_positions for accurate "last read" tracking
+ * - v21: Added listening_events table for offline-first stats
+ * - v22: Added avatarType, avatarValue, avatarColor columns to users table
+ * - v23: Added tagline column to users table for profile bio
+ * - v24: Added user_profiles table for caching other users' profile data
+ * - v25: Added active_sessions table for "What Others Are Listening To" feature
+ * - v26: Added activities table for offline activity feed
+ * - v27: Added user_stats table for offline leaderboard caching
+ * - v28: Added firstName, lastName columns to users table
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -31,6 +40,7 @@ import androidx.room.TypeConverters
 @Database(
     entities = [
         UserEntity::class,
+        UserProfileEntity::class,
         BookEntity::class,
         SyncMetadataEntity::class,
         ChapterEntity::class,
@@ -46,14 +56,20 @@ import androidx.room.TypeConverters
         LensEntity::class,
         TagEntity::class,
         BookTagCrossRef::class,
+        ListeningEventEntity::class,
+        ActiveSessionEntity::class,
+        ActivityEntity::class,
+        UserStatsEntity::class,
     ],
-    version = 19,
+    version = 28,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)
 @ConstructedBy(ListenUpDatabaseConstructor::class)
 abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
+
+    abstract fun userProfileDao(): UserProfileDao
 
     abstract fun bookDao(): BookDao
 
@@ -84,6 +100,14 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun lensDao(): LensDao
 
     abstract fun tagDao(): TagDao
+
+    abstract fun listeningEventDao(): ListeningEventDao
+
+    abstract fun activeSessionDao(): ActiveSessionDao
+
+    abstract fun activityDao(): ActivityDao
+
+    abstract fun userStatsDao(): UserStatsDao
 }
 
 /**

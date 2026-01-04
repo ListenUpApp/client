@@ -1,6 +1,10 @@
 package com.calypsan.listenup.client.data.sync.sse
 
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
+import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
+import com.calypsan.listenup.client.data.local.db.ActivityDao
+import com.calypsan.listenup.client.data.local.db.ActivityEntity
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -13,8 +17,15 @@ import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.data.local.db.ListeningEventDao
+import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
+import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.data.local.db.UserProfileDao
+import com.calypsan.listenup.client.data.local.db.UserProfileEntity
+import com.calypsan.listenup.client.data.local.db.UserStatsDao
+import com.calypsan.listenup.client.data.local.db.UserStatsEntity
 import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
@@ -106,6 +117,12 @@ class SSEEventProcessorTest {
         val collectionDao: CollectionDao = mock()
         val lensDao: LensDao = mock()
         val tagDao: TagDao = mock()
+        val listeningEventDao: ListeningEventDao = mock()
+        val activityDao: ActivityDao = mock()
+        val userDao: UserDao = mock()
+        val userProfileDao: UserProfileDao = mock()
+        val activeSessionDao: ActiveSessionDao = mock()
+        val userStatsDao: UserStatsDao = mock()
         val imageDownloader: ImageDownloaderContract = mock()
         val playbackStateProvider: PlaybackStateProvider = mock()
         val downloadService: DownloadService = mock()
@@ -132,7 +149,19 @@ class SSEEventProcessorTest {
             everySuspend { tagDao.insertBookTag(any<BookTagCrossRef>()) } returns Unit
             everySuspend { tagDao.deleteBookTag(any(), any()) } returns Unit
             everySuspend { tagDao.getById(any()) } returns null
+            everySuspend { listeningEventDao.upsert(any<ListeningEventEntity>()) } returns Unit
+            everySuspend { activityDao.upsert(any<ActivityEntity>()) } returns Unit
+            everySuspend { userDao.getCurrentUser() } returns null
+            everySuspend { userDao.updateAvatar(any(), any(), any(), any(), any()) } returns Unit
+            everySuspend { userDao.updateTagline(any(), any(), any()) } returns Unit
+            everySuspend { userProfileDao.upsert(any<UserProfileEntity>()) } returns Unit
+            everySuspend { userProfileDao.getById(any()) } returns null
+            everySuspend { activeSessionDao.upsert(any<ActiveSessionEntity>()) } returns Unit
+            everySuspend { activeSessionDao.deleteBySessionId(any()) } returns Unit
+            everySuspend { userStatsDao.upsert(any<UserStatsEntity>()) } returns Unit
             everySuspend { imageDownloader.downloadCover(any()) } returns Result.Success(false)
+            everySuspend { imageDownloader.downloadUserAvatar(any(), any()) } returns Result.Success(false)
+            everySuspend { imageDownloader.deleteUserAvatar(any()) } returns Result.Success(Unit)
 
             // PlaybackStateProvider stubs
             every { playbackStateProvider.currentBookId } returns currentBookIdFlow
@@ -161,6 +190,12 @@ class SSEEventProcessorTest {
                 collectionDao = collectionDao,
                 lensDao = lensDao,
                 tagDao = tagDao,
+                listeningEventDao = listeningEventDao,
+                activityDao = activityDao,
+                userDao = userDao,
+                userProfileDao = userProfileDao,
+                activeSessionDao = activeSessionDao,
+                userStatsDao = userStatsDao,
                 imageDownloader = imageDownloader,
                 playbackStateProvider = playbackStateProvider,
                 downloadService = downloadService,

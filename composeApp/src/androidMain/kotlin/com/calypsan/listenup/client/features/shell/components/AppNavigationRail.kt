@@ -40,6 +40,7 @@ fun AppNavigationRail(
     onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
+    onMyProfileClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val safeDestination = currentDestination ?: ShellDestination.Home
@@ -72,6 +73,7 @@ fun AppNavigationRail(
             user = user,
             expanded = isAvatarMenuExpanded,
             onExpandedChange = onAvatarMenuExpandedChange,
+            onMyProfileClick = onMyProfileClick,
             onAdminClick = onAdminClick,
             onSettingsClick = onSettingsClick,
             onSignOutClick = onSignOutClick,

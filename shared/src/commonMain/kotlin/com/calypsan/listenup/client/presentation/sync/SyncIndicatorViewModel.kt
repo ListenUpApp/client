@@ -189,6 +189,8 @@ class SyncIndicatorViewModel(
             OperationType.LISTENING_EVENT -> "Syncing listening data"
             OperationType.PLAYBACK_POSITION -> "Syncing playback position"
             OperationType.USER_PREFERENCES -> "Syncing preferences"
+            OperationType.PROFILE_UPDATE -> "Updating profile"
+            OperationType.PROFILE_AVATAR -> "Uploading avatar"
         }
     }
 }

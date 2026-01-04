@@ -144,6 +144,14 @@ class BookEditRepository(
                     isbn = update.isbn ?: existing.isbn,
                     asin = update.asin ?: existing.asin,
                     abridged = update.abridged ?: existing.abridged,
+                    createdAt =
+                        update.createdAt?.let {
+                            Timestamp.fromEpochMillis(
+                                kotlinx.datetime.Instant
+                                    .parse(it)
+                                    .toEpochMilliseconds(),
+                            )
+                        } ?: existing.createdAt,
                     syncState = SyncState.NOT_SYNCED,
                     lastModified = Timestamp.now(),
                 )
@@ -161,6 +169,7 @@ class BookEditRepository(
                     isbn = update.isbn,
                     asin = update.asin,
                     abridged = update.abridged,
+                    createdAt = update.createdAt,
                 )
             pendingOperationRepository.queue(
                 type = OperationType.BOOK_UPDATE,

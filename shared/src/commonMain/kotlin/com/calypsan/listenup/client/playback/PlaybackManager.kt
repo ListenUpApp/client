@@ -9,7 +9,9 @@ import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.PlaybackApi
+import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
+import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.sse.PlaybackStateProvider
 import com.calypsan.listenup.client.domain.model.Chapter
@@ -47,6 +49,7 @@ class PlaybackManager(
     private val downloadService: DownloadService,
     private val playbackApi: PlaybackApi?,
     private val capabilityDetector: AudioCapabilityDetector?,
+    private val syncApi: SyncApiContract?,
     private val scope: CoroutineScope,
 ) : PlaybackStateProvider {
     private val _currentBookId = MutableStateFlow<BookId?>(null)
@@ -144,11 +147,18 @@ class PlaybackManager(
                 null
             }
 
-        // 4. Parse audio files from JSON
-        val audioFilesJson = book.audioFilesJson
+        // 4. Parse audio files from JSON, or fetch from server if missing
+        var audioFilesJson = book.audioFilesJson
         if (audioFilesJson.isNullOrBlank()) {
-            logger.error { "No audio files for book: ${bookId.value}. Try pulling down to force a full re-sync." }
-            return null
+            logger.info { "No audio files for book: ${bookId.value}, fetching from server..." }
+
+            // Try to fetch book from server
+            val fetchedAudioFiles = fetchBookFromServer(bookId)
+            if (fetchedAudioFiles == null) {
+                logger.error { "Failed to fetch book from server: ${bookId.value}" }
+                return null
+            }
+            audioFilesJson = fetchedAudioFiles
         }
 
         val audioFiles: List<AudioFileResponse> =
@@ -467,6 +477,44 @@ class PlaybackManager(
             ready = true,
             transcodeJobId = null,
         )
+
+    /**
+     * Fetch book from server and save to local database.
+     *
+     * Used as a fallback when local book data is incomplete (e.g., audioFilesJson is missing).
+     * This can happen when a user tries to play a book from Continue Listening before
+     * the full sync has completed.
+     *
+     * @param bookId The book ID to fetch
+     * @return The audioFilesJson string if successful, null otherwise
+     */
+    private suspend fun fetchBookFromServer(bookId: BookId): String? {
+        val api = syncApi
+        if (api == null) {
+            logger.error { "SyncApi not available for fetching book" }
+            return null
+        }
+
+        return when (val result = api.getBook(bookId.value)) {
+            is Success -> {
+                val bookResponse = result.data
+                logger.info { "Fetched book from server: ${bookResponse.title}" }
+
+                // Convert to entity and save to database
+                val entity = bookResponse.toEntity()
+                bookDao.upsert(entity)
+                logger.debug { "Saved fetched book to local database" }
+
+                // Return the audio files JSON
+                entity.audioFilesJson
+            }
+
+            is Failure -> {
+                logger.error(result.exception) { "Failed to fetch book from server: ${bookId.value}" }
+                null
+            }
+        }
+    }
 
     /**
      * Result of preparing for playback.

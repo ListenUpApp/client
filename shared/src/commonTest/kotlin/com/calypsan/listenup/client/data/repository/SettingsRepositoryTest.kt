@@ -707,4 +707,88 @@ class SettingsRepositoryTest {
             // Then
             assertEquals(1.25f, result)
         }
+
+    // ========== Regression Tests ==========
+
+    @Test
+    fun `initializeAuthState requires login when token exists but userId missing`() =
+        runTest {
+            // Given: Token exists but userId is missing (inconsistent state)
+            // This can happen if the app crashes during token save or storage is corrupted.
+            // The app should NOT use a placeholder "pending" userId - it should require re-login.
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
+            everySuspend { storage.read("server_url") } returns "https://api.example.com"
+            everySuspend { storage.read("access_token") } returns "access123"
+            everySuspend { storage.read("user_id") } returns null // Missing!
+            everySuspend { storage.read("session_id") } returns "session789"
+            everySuspend { storage.read("pending_user_id") } returns null
+            everySuspend { storage.read("open_registration") } returns null
+            // Mock clearAuthTokens calls
+            everySuspend { storage.delete(any()) } returns Unit
+
+            // When
+            repository.initializeAuthState()
+
+            // Then: Should require login, not use placeholder
+            checkIs<AuthState.NeedsLogin>(repository.authState.value)
+        }
+
+    @Test
+    fun `initializeAuthState requires login when token exists but sessionId missing`() =
+        runTest {
+            // Given: Token exists but sessionId is missing
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
+            everySuspend { storage.read("server_url") } returns "https://api.example.com"
+            everySuspend { storage.read("access_token") } returns "access123"
+            everySuspend { storage.read("user_id") } returns "user001"
+            everySuspend { storage.read("session_id") } returns null // Missing!
+            everySuspend { storage.read("pending_user_id") } returns null
+            everySuspend { storage.read("open_registration") } returns null
+            everySuspend { storage.delete(any()) } returns Unit
+
+            // When
+            repository.initializeAuthState()
+
+            // Then: Should require login, not use placeholder
+            checkIs<AuthState.NeedsLogin>(repository.authState.value)
+        }
+
+    @Test
+    fun `initializeAuthState clears tokens when incomplete auth state detected`() =
+        runTest {
+            // Given: Token exists but userId/sessionId missing
+            val storage = createMockStorage()
+            val instanceRepository = createMockInstanceRepository()
+            val repository =
+                SettingsRepository(
+                    storage,
+                    instanceRepository,
+                )
+            everySuspend { storage.read("server_url") } returns "https://api.example.com"
+            everySuspend { storage.read("access_token") } returns "access123"
+            everySuspend { storage.read("user_id") } returns null
+            everySuspend { storage.read("session_id") } returns null
+            everySuspend { storage.read("pending_user_id") } returns null
+            everySuspend { storage.read("open_registration") } returns null
+            everySuspend { storage.delete(any()) } returns Unit
+
+            // When
+            repository.initializeAuthState()
+
+            // Then: Tokens should be cleared
+            verifySuspend { storage.delete("access_token") }
+            verifySuspend { storage.delete("refresh_token") }
+        }
 }

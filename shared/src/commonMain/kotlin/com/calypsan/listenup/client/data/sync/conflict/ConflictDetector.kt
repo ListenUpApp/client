@@ -110,6 +110,12 @@ class ConflictDetector(
                 EntityType.SERIES -> {
                     seriesDao.getById(operation.entityId)?.updatedAt?.epochMillis
                 }
+
+                EntityType.USER -> {
+                    // User profile updates don't have server version tracking
+                    // The server handles conflicts internally (last-write-wins)
+                    null
+                }
             } ?: return null // Entity not found - no conflict, but might fail on push
 
         // If server was updated after we queued our change, it's a conflict

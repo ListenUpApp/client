@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.GenreChipRow
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Context metadata section showing series, stats, and genres.
@@ -35,6 +39,7 @@ fun ContextMetadataSection(
     rating: Double?,
     duration: Long,
     year: Int?,
+    addedAt: Long?,
     genres: List<String>,
     onSeriesClick: (seriesId: String) -> Unit,
     modifier: Modifier = Modifier,
@@ -59,6 +64,7 @@ fun ContextMetadataSection(
             rating = rating,
             duration = duration,
             year = year,
+            addedAt = addedAt,
         )
 
         // Genres
@@ -96,7 +102,7 @@ fun SeriesBadge(
 }
 
 /**
- * Row of stat chips showing rating, duration, and year.
+ * Row of stat chips showing rating, duration, year, and date added.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -104,6 +110,7 @@ fun StatsRow(
     rating: Double?,
     duration: Long,
     year: Int?,
+    addedAt: Long? = null,
     modifier: Modifier = Modifier,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
 ) {
@@ -128,6 +135,13 @@ fun StatsRow(
             StatChip(
                 icon = { Icon(Icons.Default.CalendarMonth, null, Modifier.size(16.dp)) },
                 text = y.toString(),
+            )
+        }
+
+        addedAt?.let { timestamp ->
+            StatChip(
+                icon = { Icon(Icons.Default.LibraryAdd, null, Modifier.size(16.dp)) },
+                text = formatAddedDate(timestamp),
             )
         }
     }
@@ -168,4 +182,13 @@ fun formatDuration(durationMs: Long): String {
     val hours = totalSeconds / 3600
     val minutes = totalSeconds % 3600 / 60
     return "${hours}h ${minutes}m"
+}
+
+/**
+ * Formats epoch milliseconds to a short date string for "Date Added".
+ * Uses "MMM yyyy" format (e.g., "Jan 2024").
+ */
+private fun formatAddedDate(epochMillis: Long): String {
+    val formatter = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+    return formatter.format(Date(epochMillis))
 }

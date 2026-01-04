@@ -26,9 +26,12 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 /**
  * Tests for HomeRepository.
+ *
+ * @OptIn(ExperimentalTime::class) needed for kotlin.time.Instant usage.
  *
  * Tests cover:
  * - Continue listening list generation
@@ -38,6 +41,7 @@ import kotlin.time.Clock
  *
  * Uses Mokkery for mocking BookRepositoryContract and DAOs.
  */
+@OptIn(ExperimentalTime::class)
 class HomeRepositoryTest {
     // ========== Test Fixtures ==========
 
@@ -320,6 +324,85 @@ class HomeRepositoryTest {
             val success = assertIs<Success<*>>(result)
             val returnedBooks = success.data as List<*>
             assertEquals(5, returnedBooks.size)
+        }
+
+    // ========== User Observation Tests ==========
+
+    // ========== Regression Test: lastPlayedAt must be ISO 8601 ==========
+
+    @Test
+    fun `getContinueListening returns lastPlayedAt as ISO 8601 timestamp`() =
+        runTest {
+            // Given: A position with specific lastPlayedAt timestamp
+            // Issue #3: lastPlayedAt was being returned as raw epoch milliseconds
+            // instead of ISO 8601 format, breaking UI display
+            val fixture = createFixture()
+            // Jan 1, 2024 12:00:00 UTC = 1704110400000L
+            val lastPlayedAtMs = 1704110400000L
+            val position =
+                PlaybackPositionEntity(
+                    bookId = BookId("book-1"),
+                    positionMs = 5000L,
+                    playbackSpeed = 1.0f,
+                    updatedAt = lastPlayedAtMs - 1000L, // Entity update time (different)
+                    lastPlayedAt = lastPlayedAtMs, // Actual last play time
+                )
+            val book = createBook(id = "book-1", duration = 10_000L)
+
+            everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(position)
+            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val repository = fixture.build()
+
+            // When
+            val result = repository.getContinueListening(10)
+
+            // Then: lastPlayedAt should be ISO 8601, not raw milliseconds
+            val success = assertIs<Success<*>>(result)
+            val books = success.data as List<*>
+            assertEquals(1, books.size)
+            val continueBook = books[0] as com.calypsan.listenup.client.domain.model.ContinueListeningBook
+            // Should be ISO 8601 format, not "1704110400000"
+            assertTrue(
+                continueBook.lastPlayedAt.contains("2024-01-01"),
+                "Expected ISO 8601 timestamp containing '2024-01-01', got: ${continueBook.lastPlayedAt}",
+            )
+            assertTrue(
+                continueBook.lastPlayedAt.contains("T"),
+                "Expected ISO 8601 timestamp with 'T' separator, got: ${continueBook.lastPlayedAt}",
+            )
+        }
+
+    @Test
+    fun `getContinueListening uses updatedAt as fallback when lastPlayedAt is null`() =
+        runTest {
+            // Given: A position without lastPlayedAt (legacy data before migration)
+            val fixture = createFixture()
+            val updatedAtMs = 1704110400000L // Jan 1, 2024 12:00:00 UTC
+            val position =
+                PlaybackPositionEntity(
+                    bookId = BookId("book-1"),
+                    positionMs = 5000L,
+                    playbackSpeed = 1.0f,
+                    updatedAt = updatedAtMs,
+                    lastPlayedAt = null, // Not set (legacy data)
+                )
+            val book = createBook(id = "book-1", duration = 10_000L)
+
+            everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(position)
+            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val repository = fixture.build()
+
+            // When
+            val result = repository.getContinueListening(10)
+
+            // Then: Should fall back to updatedAt, still as ISO 8601
+            val success = assertIs<Success<*>>(result)
+            val books = success.data as List<*>
+            val continueBook = books[0] as com.calypsan.listenup.client.domain.model.ContinueListeningBook
+            assertTrue(
+                continueBook.lastPlayedAt.contains("2024-01-01"),
+                "Expected ISO 8601 from updatedAt fallback, got: ${continueBook.lastPlayedAt}",
+            )
         }
 
     // ========== User Observation Tests ==========

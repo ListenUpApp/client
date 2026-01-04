@@ -5,6 +5,8 @@ package com.calypsan.listenup.client.di
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
+import com.calypsan.listenup.client.data.remote.ActivityFeedApi
+import com.calypsan.listenup.client.data.remote.ActivityFeedApiContract
 import com.calypsan.listenup.client.data.remote.AdminApi
 import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.AdminCollectionApi
@@ -21,14 +23,20 @@ import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.remote.InstanceApiContract
 import com.calypsan.listenup.client.data.remote.InviteApi
 import com.calypsan.listenup.client.data.remote.InviteApiContract
+import com.calypsan.listenup.client.data.remote.LeaderboardApi
+import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
 import com.calypsan.listenup.client.data.remote.LensApi
 import com.calypsan.listenup.client.data.remote.LensApiContract
 import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.MetadataApi
 import com.calypsan.listenup.client.data.remote.MetadataApiContract
+import com.calypsan.listenup.client.data.remote.ProfileApi
+import com.calypsan.listenup.client.data.remote.ProfileApiContract
 import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
+import com.calypsan.listenup.client.data.remote.StatsApi
+import com.calypsan.listenup.client.data.remote.StatsApiContract
 import com.calypsan.listenup.client.data.remote.SyncApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.TagApi
@@ -49,12 +57,16 @@ import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
+import com.calypsan.listenup.client.data.repository.LeaderboardRepository
+import com.calypsan.listenup.client.data.repository.LeaderboardRepositoryContract
 import com.calypsan.listenup.client.data.repository.LibraryPreferencesContract
 import com.calypsan.listenup.client.data.repository.LibrarySyncContract
 import com.calypsan.listenup.client.data.repository.LocalPreferencesContract
 import com.calypsan.listenup.client.data.repository.MetadataRepository
 import com.calypsan.listenup.client.data.repository.MetadataRepositoryContract
 import com.calypsan.listenup.client.data.repository.PlaybackPreferencesContract
+import com.calypsan.listenup.client.data.repository.ProfileEditRepository
+import com.calypsan.listenup.client.data.repository.ProfileEditRepositoryContract
 import com.calypsan.listenup.client.data.repository.SearchRepository
 import com.calypsan.listenup.client.data.repository.SearchRepositoryContract
 import com.calypsan.listenup.client.data.repository.SeriesEditRepository
@@ -68,6 +80,8 @@ import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
 import com.calypsan.listenup.client.data.repository.ServerUrlChangeListener
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.data.repository.StatsRepository
+import com.calypsan.listenup.client.data.repository.StatsRepositoryContract
 import com.calypsan.listenup.client.data.sync.FtsPopulator
 import com.calypsan.listenup.client.data.sync.FtsPopulatorContract
 import com.calypsan.listenup.client.data.sync.ImageDownloader
@@ -81,8 +95,10 @@ import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
+import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
+import com.calypsan.listenup.client.data.sync.pull.ListeningEventPuller
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
@@ -97,6 +113,8 @@ import com.calypsan.listenup.client.data.sync.push.PendingOperationRepository
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.PlaybackPositionHandler
 import com.calypsan.listenup.client.data.sync.push.PreferencesSyncObserver
+import com.calypsan.listenup.client.data.sync.push.ProfileAvatarHandler
+import com.calypsan.listenup.client.data.sync.push.ProfileUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract
 import com.calypsan.listenup.client.data.sync.push.SeriesUpdateHandler
@@ -113,6 +131,9 @@ import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
+import com.calypsan.listenup.client.presentation.discover.ActivityFeedViewModel
+import com.calypsan.listenup.client.presentation.discover.LeaderboardViewModel
+import com.calypsan.listenup.client.presentation.home.HomeStatsViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
@@ -239,6 +260,7 @@ val repositoryModule =
 
         // Provide DAOs from database
         single { get<ListenUpDatabase>().userDao() }
+        single { get<ListenUpDatabase>().userProfileDao() }
         single { get<ListenUpDatabase>().bookDao() }
         single { get<ListenUpDatabase>().syncDao() }
         single { get<ListenUpDatabase>().chapterDao() }
@@ -254,6 +276,10 @@ val repositoryModule =
         single { get<ListenUpDatabase>().collectionDao() }
         single { get<ListenUpDatabase>().lensDao() }
         single { get<ListenUpDatabase>().tagDao() }
+        single { get<ListenUpDatabase>().listeningEventDao() }
+        single { get<ListenUpDatabase>().activeSessionDao() }
+        single { get<ListenUpDatabase>().activityDao() }
+        single { get<ListenUpDatabase>().userStatsDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
         // When active server's URL changes via mDNS rediscovery, updates SettingsRepository
@@ -405,6 +431,12 @@ val presentationModule =
             )
         }
         factory {
+            com.calypsan.listenup.client.presentation.bookdetail.BookReadersViewModel(
+                sessionApi = get(),
+                sseManager = get(),
+            )
+        }
+        factory {
             com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel(
                 seriesDao = get(),
                 bookRepository = get(),
@@ -433,7 +465,12 @@ val presentationModule =
         }
         factory {
             com.calypsan.listenup.client.presentation.discover.DiscoverViewModel(
+                bookDao = get(),
+                activeSessionDao = get(),
+                authSession = get(),
+                lensDao = get(),
                 lensApi = get(),
+                imageStorage = get(),
             )
         }
         factory {
@@ -464,6 +501,7 @@ val presentationModule =
         factory {
             com.calypsan.listenup.client.presentation.home.HomeViewModel(
                 homeRepository = get(),
+                bookDao = get(),
                 lensDao = get(),
             )
         }
@@ -519,6 +557,37 @@ val presentationModule =
         }
         // SyncIndicatorViewModel as singleton for app-wide sync status
         single { SyncIndicatorViewModel(pendingOperationRepository = get()) }
+
+        // HomeStatsViewModel for home screen stats section (observes local stats)
+        factory { HomeStatsViewModel(statsRepository = get()) }
+
+        // LeaderboardViewModel for discover screen leaderboard
+        // Offline-first: observes Room flows for instant updates
+        factory { LeaderboardViewModel(leaderboardRepository = get()) }
+
+        // ActivityFeedViewModel for discover screen activity feed
+        // Offline-first: fetches initial from API, stores in Room, observes Room
+        factory { ActivityFeedViewModel(activityDao = get(), activityFeedApi = get()) }
+
+        // UserProfileViewModel for viewing user profiles
+        // Uses local cache for own profile, downloads and caches avatars for offline access
+        factory {
+            com.calypsan.listenup.client.presentation.profile.UserProfileViewModel(
+                profileApi = get(),
+                userDao = get(),
+                imageStorage = get(),
+                imageDownloader = get(),
+            )
+        }
+
+        // EditProfileViewModel for editing own profile (offline-first, local cache only)
+        factory {
+            com.calypsan.listenup.client.presentation.profile.EditProfileViewModel(
+                profileEditRepository = get(),
+                userDao = get(),
+                imageStorage = get(),
+            )
+        }
     }
 
 /**
@@ -590,6 +659,27 @@ val syncModule =
             GenreApi(clientFactory = get())
         } bind GenreApiContract::class
 
+        // StatsApi for listening statistics
+        single {
+            StatsApi(clientFactory = get())
+        } bind StatsApiContract::class
+
+        // LeaderboardApi for social leaderboard
+        single {
+            LeaderboardApi(clientFactory = get())
+        } bind LeaderboardApiContract::class
+
+        // ActivityFeedApi for social activity feed
+        single {
+            ActivityFeedApi(clientFactory = get())
+        } bind ActivityFeedApiContract::class
+
+        // SessionApi for reading session operations
+        single {
+            com.calypsan.listenup.client.data.remote
+                .SessionApi(clientFactory = get())
+        } bind com.calypsan.listenup.client.data.remote.SessionApiContract::class
+
         // AdminApi for admin operations (user/invite management)
         single {
             AdminApi(clientFactory = get())
@@ -619,6 +709,11 @@ val syncModule =
         single {
             LensApi(clientFactory = get())
         } bind LensApiContract::class
+
+        // ProfileApi for user profile operations
+        single {
+            ProfileApi(clientFactory = get())
+        } bind ProfileApiContract::class
 
         // FtsPopulator for rebuilding FTS tables after sync
         single {
@@ -653,6 +748,12 @@ val syncModule =
                 collectionDao = get(),
                 lensDao = get(),
                 tagDao = get(),
+                listeningEventDao = get(),
+                activityDao = get(),
+                userDao = get(),
+                userProfileDao = get(),
+                activeSessionDao = get(),
+                userStatsDao = get(),
                 imageDownloader = get(),
                 playbackStateProvider = get<PlaybackManager>(),
                 downloadService = get(),
@@ -736,6 +837,33 @@ val syncModule =
             )
         }
 
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("listeningEventPuller"),
+        ) {
+            ListeningEventPuller(
+                syncApi = get(),
+                listeningEventDao = get(),
+                playbackPositionDao = get(),
+            )
+        }
+
+        // ActiveSessionsPuller - syncs active reading sessions for discovery page
+        // Also syncs user profiles and downloads avatars for offline display
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("activeSessionsPuller"),
+        ) {
+            ActiveSessionsPuller(
+                syncApi = get(),
+                activeSessionDao = get(),
+                userProfileDao = get(),
+                imageDownloader = get(),
+            )
+        }
+
         // PullSyncOrchestrator - coordinates parallel entity pulls
         single {
             PullSyncOrchestrator(
@@ -763,6 +891,18 @@ val syncModule =
                             org.koin.core.qualifier
                                 .named("tagPuller"),
                     ),
+                listeningEventPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("listeningEventPuller"),
+                    ),
+                activeSessionsPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("activeSessionsPuller"),
+                    ),
                 coordinator = get(),
                 syncDao = get(),
             )
@@ -776,9 +916,11 @@ val syncModule =
         single { SetBookSeriesHandler(api = get()) }
         single { MergeContributorHandler(api = get()) }
         single { UnmergeContributorHandler(api = get()) }
-        single { ListeningEventHandler(api = get()) }
+        single { ListeningEventHandler(api = get(), positionDao = get()) }
         single { PlaybackPositionHandler(api = get()) }
         single { UserPreferencesHandler(api = get()) }
+        single { ProfileUpdateHandler(api = get(), userDao = get()) }
+        single { ProfileAvatarHandler(api = get(), userDao = get(), imageDownloader = get()) }
 
         // PreferencesSyncObserver - observes SettingsRepository.preferenceChanges and queues sync operations.
         // This breaks the circular dependency between SettingsRepository and the sync layer.
@@ -813,6 +955,8 @@ val syncModule =
                 listeningEventHandler = get(),
                 playbackPositionHandler = get(),
                 userPreferencesHandler = get(),
+                profileUpdateHandler = get(),
+                profileAvatarHandler = get(),
             )
         } bind OperationExecutorContract::class
 
@@ -913,6 +1057,27 @@ val syncModule =
             )
         } bind HomeRepositoryContract::class
 
+        // StatsRepository for computing listening stats locally from events
+        single {
+            StatsRepository(
+                listeningEventDao = get(),
+                bookDao = get(),
+            )
+        } bind StatsRepositoryContract::class
+
+        // LeaderboardRepository for offline-first leaderboard
+        // Combines local listening events (current user) with activities (others)
+        // Uses API only for initial All-time cache population
+        single {
+            LeaderboardRepository(
+                listeningEventDao = get(),
+                activityDao = get(),
+                userStatsDao = get(),
+                userDao = get(),
+                leaderboardApi = get(),
+            )
+        } bind LeaderboardRepositoryContract::class
+
         // ContributorRepository for contributor search with offline fallback
         single {
             ContributorRepository(
@@ -963,6 +1128,17 @@ val syncModule =
                 unmergeContributorHandler = get(),
             )
         } bind ContributorEditRepositoryContract::class
+
+        // ProfileEditRepository for profile editing operations (offline-first)
+        single {
+            ProfileEditRepository(
+                userDao = get(),
+                pendingOperationRepository = get(),
+                profileUpdateHandler = get(),
+                profileAvatarHandler = get(),
+                profileApi = get(),
+            )
+        } bind ProfileEditRepositoryContract::class
     }
 
 /**

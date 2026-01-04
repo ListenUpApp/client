@@ -47,6 +47,7 @@ import com.calypsan.listenup.client.features.bookedit.components.ClassificationS
 import com.calypsan.listenup.client.features.bookedit.components.IdentifiersSection
 import com.calypsan.listenup.client.features.bookedit.components.IdentityHeader
 import com.calypsan.listenup.client.features.bookedit.components.ImmersiveBackdrop
+import com.calypsan.listenup.client.features.bookedit.components.LibrarySection
 import com.calypsan.listenup.client.features.bookedit.components.PublishingSection
 import com.calypsan.listenup.client.features.bookedit.components.SeriesSection
 import com.calypsan.listenup.client.features.bookedit.components.StudioCard
@@ -365,7 +366,15 @@ private fun SingleColumnCardsLayout(
             )
         }
 
-        // Card 4: Series
+        // Card 4: Library
+        StudioCard(title = "Library") {
+            LibrarySection(
+                addedAt = state.addedAt,
+                onAddedAtChange = { onEvent(BookEditUiEvent.AddedAtChanged(it)) },
+            )
+        }
+
+        // Card 5: Series
         StudioCard(title = "Series") {
             SeriesSection(
                 series = state.series,
@@ -493,6 +502,13 @@ private fun TwoColumnCardsLayout(
                         onIsbnChange = { onEvent(BookEditUiEvent.IsbnChanged(it)) },
                         onAsinChange = { onEvent(BookEditUiEvent.AsinChanged(it)) },
                         onAbridgedChange = { onEvent(BookEditUiEvent.AbridgedChanged(it)) },
+                    )
+                }
+
+                StudioCard(title = "Library") {
+                    LibrarySection(
+                        addedAt = state.addedAt,
+                        onAddedAtChange = { onEvent(BookEditUiEvent.AddedAtChanged(it)) },
                     )
                 }
 

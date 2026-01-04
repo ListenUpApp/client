@@ -83,4 +83,14 @@ interface LensDao {
      */
     @Query("DELETE FROM lenses")
     suspend fun deleteAll()
+
+    /**
+     * Count lenses from other users.
+     * Used to check if initial fetch is needed.
+     *
+     * @param userId The current user's ID (to exclude their own lenses)
+     * @return Count of other users' lenses
+     */
+    @Query("SELECT COUNT(*) FROM lenses WHERE ownerId != :userId")
+    suspend fun countDiscoverLenses(userId: String): Int
 }

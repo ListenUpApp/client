@@ -92,6 +92,7 @@ val playbackModule =
             ProgressTracker(
                 positionDao = get(),
                 downloadDao = get(),
+                listeningEventDao = get(),
                 syncApi = get(),
                 pendingOperationRepository = get(),
                 listeningEventHandler = get<ListeningEventHandler>(),
@@ -127,6 +128,7 @@ val playbackModule =
                 downloadService = get(),
                 playbackApi = get(),
                 capabilityDetector = get(),
+                syncApi = get(),
                 scope = get(),
             )
         }

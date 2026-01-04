@@ -36,18 +36,20 @@ class OperationExecutor(
      * @return Map of operation ID to result
      */
     override suspend fun execute(operations: List<PendingOperationEntity>): Map<String, Result<Unit>> {
+        logger.info { "🔧 EXECUTOR: execute() called with ${operations.size} operations" }
         if (operations.isEmpty()) return emptyMap()
 
         val first = operations.first()
         val handler = handlers[first.operationType]
 
         if (handler == null) {
-            logger.error { "No handler for operation type: ${first.operationType}" }
+            logger.error { "🔧 EXECUTOR: No handler for operation type: ${first.operationType}" }
             return operations.associate {
                 it.id to Failure(Exception("No handler for ${first.operationType}"))
             }
         }
 
+        logger.info { "🔧 EXECUTOR: Using handler for ${first.operationType}" }
         return executeWithHandler(operations, handler)
     }
 
@@ -103,6 +105,8 @@ class OperationExecutor(
             listeningEventHandler: ListeningEventHandler,
             playbackPositionHandler: PlaybackPositionHandler,
             userPreferencesHandler: UserPreferencesHandler,
+            profileUpdateHandler: ProfileUpdateHandler,
+            profileAvatarHandler: ProfileAvatarHandler,
         ): OperationExecutor =
             OperationExecutor(
                 mapOf(
@@ -116,6 +120,8 @@ class OperationExecutor(
                     OperationType.LISTENING_EVENT to listeningEventHandler,
                     OperationType.PLAYBACK_POSITION to playbackPositionHandler,
                     OperationType.USER_PREFERENCES to userPreferencesHandler,
+                    OperationType.PROFILE_UPDATE to profileUpdateHandler,
+                    OperationType.PROFILE_AVATAR to profileAvatarHandler,
                 ),
             )
     }

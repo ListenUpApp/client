@@ -786,3 +786,317 @@ val MIGRATION_18_19 =
             )
         }
     }
+
+/**
+ * Migration from version 19 to version 20.
+ *
+ * Changes:
+ * - Add lastPlayedAt column to playback_positions table
+ *
+ * This enables proper tracking of when the user actually last played a book,
+ * separate from when the local entity was modified. Used for:
+ * - Ordering "Continue Listening" by actual play time
+ * - Social features showing "last read" timestamps to other users
+ *
+ * For existing data, lastPlayedAt will be NULL and code falls back to updatedAt.
+ */
+val MIGRATION_19_20 =
+    object : Migration(19, 20) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add lastPlayedAt column (nullable for existing rows)
+            connection.execSQL(
+                """
+                ALTER TABLE playback_positions ADD COLUMN lastPlayedAt INTEGER DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 20 to version 21.
+ *
+ * Changes:
+ * - Add listening_events table for offline-first stats
+ *
+ * Listening events are append-only records of time spent listening.
+ * Used to compute stats locally and sync bidirectionally with server.
+ */
+val MIGRATION_20_21 =
+    object : Migration(20, 21) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create listening_events table
+            // Note: syncState is stored as INTEGER (enum ordinal)
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS listening_events (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    bookId TEXT NOT NULL,
+                    startPositionMs INTEGER NOT NULL,
+                    endPositionMs INTEGER NOT NULL,
+                    startedAt INTEGER NOT NULL,
+                    endedAt INTEGER NOT NULL,
+                    playbackSpeed REAL NOT NULL,
+                    deviceId TEXT NOT NULL,
+                    syncState INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+
+            // Create indices for efficient queries
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_listening_events_bookId
+                ON listening_events(bookId)
+                """.trimIndent(),
+            )
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_listening_events_endedAt
+                ON listening_events(endedAt)
+                """.trimIndent(),
+            )
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_listening_events_syncState
+                ON listening_events(syncState)
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 21 to version 22.
+ *
+ * Changes:
+ * - Add avatarType column to users table (defaults to "auto")
+ * - Add avatarValue column to users table (image path, nullable)
+ * - Add avatarColor column to users table (hex color, defaults to gray)
+ *
+ * These columns store the user's avatar configuration:
+ * - avatarType: "auto" for generated initials, "image" for uploaded photo
+ * - avatarValue: Path to avatar image (only set when type is "image")
+ * - avatarColor: Hex color for auto-generated avatar background
+ */
+val MIGRATION_21_22 =
+    object : Migration(21, 22) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add avatarType column (defaults to "auto")
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN avatarType TEXT NOT NULL DEFAULT 'auto'
+                """.trimIndent(),
+            )
+
+            // Add avatarValue column (nullable - only set for image avatars)
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN avatarValue TEXT DEFAULT NULL
+                """.trimIndent(),
+            )
+
+            // Add avatarColor column (defaults to a neutral gray)
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN avatarColor TEXT NOT NULL DEFAULT '#6B7280'
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 22 to version 23.
+ *
+ * Changes:
+ * - Add tagline column to users table for profile bio
+ */
+val MIGRATION_22_23 =
+    object : Migration(22, 23) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN tagline TEXT DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 23 to version 24.
+ *
+ * Changes:
+ * - Add user_profiles table for caching other users' profile data
+ *
+ * Purpose:
+ * Enables offline display of user avatars and names throughout the app.
+ * Profiles are cached from activity feed, discovery, book details, and SSE events.
+ */
+val MIGRATION_23_24 =
+    object : Migration(23, 24) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS user_profiles (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    displayName TEXT NOT NULL,
+                    avatarType TEXT NOT NULL DEFAULT 'auto',
+                    avatarValue TEXT DEFAULT NULL,
+                    avatarColor TEXT NOT NULL DEFAULT '#6B7280',
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 24 to version 25.
+ *
+ * Changes:
+ * - Add active_sessions table for "What Others Are Listening To" feature
+ */
+val MIGRATION_24_25 =
+    object : Migration(24, 25) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS active_sessions (
+                    sessionId TEXT NOT NULL PRIMARY KEY,
+                    userId TEXT NOT NULL,
+                    bookId TEXT NOT NULL,
+                    startedAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_active_sessions_userId
+                ON active_sessions(userId)
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_active_sessions_bookId
+                ON active_sessions(bookId)
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 25 to version 26.
+ *
+ * Changes:
+ * - Add activities table for offline activity feed
+ *
+ * Activities are denormalized records of user actions (started book, finished book,
+ * milestones, etc.) for the social activity feed. Synced via SSE events.
+ */
+val MIGRATION_25_26 =
+    object : Migration(25, 26) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS activities (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    userId TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    userDisplayName TEXT NOT NULL,
+                    userAvatarColor TEXT NOT NULL,
+                    userAvatarType TEXT NOT NULL,
+                    userAvatarValue TEXT,
+                    bookId TEXT,
+                    bookTitle TEXT,
+                    bookAuthorName TEXT,
+                    bookCoverPath TEXT,
+                    isReread INTEGER NOT NULL DEFAULT 0,
+                    durationMs INTEGER NOT NULL DEFAULT 0,
+                    milestoneValue INTEGER NOT NULL DEFAULT 0,
+                    milestoneUnit TEXT,
+                    lensId TEXT,
+                    lensName TEXT
+                )
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_activities_userId
+                ON activities(userId)
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_activities_createdAt
+                ON activities(createdAt)
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 26 to version 27.
+ *
+ * Changes:
+ * - Add user_stats table for caching all-time leaderboard totals
+ *
+ * Week/Month stats are calculated locally from activities table.
+ * All-time totals come from server and are cached here for offline display.
+ * Updated via SSE user_stats.updated events.
+ */
+val MIGRATION_26_27 =
+    object : Migration(26, 27) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create user_stats table for caching all-time leaderboard totals
+            // Primary key oduserId is automatically indexed and unique
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS user_stats (
+                    oduserId TEXT NOT NULL PRIMARY KEY,
+                    displayName TEXT NOT NULL,
+                    avatarColor TEXT NOT NULL,
+                    avatarType TEXT NOT NULL,
+                    avatarValue TEXT,
+                    totalTimeMs INTEGER NOT NULL,
+                    totalBooks INTEGER NOT NULL,
+                    currentStreak INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 27 to version 28.
+ *
+ * Changes:
+ * - Add firstName column to users table
+ * - Add lastName column to users table
+ *
+ * These fields store the user's first and last name separately,
+ * enabling pre-population of the edit profile form fields.
+ */
+val MIGRATION_27_28 =
+    object : Migration(27, 28) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add firstName column (nullable)
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN firstName TEXT DEFAULT NULL
+                """.trimIndent(),
+            )
+
+            // Add lastName column (nullable)
+            connection.execSQL(
+                """
+                ALTER TABLE users ADD COLUMN lastName TEXT DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }

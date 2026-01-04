@@ -141,34 +141,6 @@ class ListenUpApi(
         }
 
     /**
-     * Fetch books the user is currently listening to.
-     *
-     * This is an authenticated endpoint - requires valid access token.
-     * Returns playback progress for books sorted by last played time.
-     *
-     * @param limit Maximum number of books to return (default 10)
-     * @return Result containing list of PlaybackProgressResponse on success
-     */
-    override suspend fun getContinueListening(limit: Int): Result<List<PlaybackProgressResponse>> =
-        suspendRunCatching {
-            logger.debug { "Fetching continue listening from $baseUrl/api/v1/listening/continue" }
-
-            val client = getAuthenticatedClient()
-            val response: ApiResponse<List<PlaybackProgressResponse>> =
-                client
-                    .get("/api/v1/listening/continue") {
-                        parameter("limit", limit)
-                    }.body()
-
-            logger.debug { "Received continue listening response: success=${response.success}" }
-
-            when (val result = response.toResult()) {
-                is Success -> result.data
-                is Failure -> throw result.exception
-            }
-        }
-
-    /**
      * Search contributors for autocomplete during book editing.
      *
      * Uses server-side Bleve full-text search for O(log n) performance:
@@ -566,6 +538,8 @@ private data class BookUpdateApiRequest(
     @SerialName("series_id")
     val seriesId: String? = null,
     val sequence: String? = null,
+    @SerialName("created_at")
+    val createdAt: String? = null,
 )
 
 private fun BookUpdateRequest.toApiRequest(): BookUpdateApiRequest =
@@ -581,6 +555,7 @@ private fun BookUpdateRequest.toApiRequest(): BookUpdateApiRequest =
         abridged = abridged,
         seriesId = seriesId,
         sequence = sequence,
+        createdAt = createdAt,
     )
 
 /**

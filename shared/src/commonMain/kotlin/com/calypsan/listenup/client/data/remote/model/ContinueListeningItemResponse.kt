@@ -5,7 +5,16 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Response from GET /api/v1/listening/continue endpoint.
+ * Wrapper response for GET /api/v1/listening/continue endpoint.
+ */
+@Serializable
+data class ContinueListeningResponse(
+    @SerialName("items")
+    val items: List<ContinueListeningItemResponse>,
+)
+
+/**
+ * Individual item from GET /api/v1/listening/continue endpoint.
  *
  * Display-ready item that combines progress with book details,
  * eliminating the need for client-side joins.

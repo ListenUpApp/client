@@ -223,7 +223,12 @@ private fun AuthUser.toEntity(): UserEntity =
         id = id,
         email = email,
         displayName = displayName,
+        firstName = firstName.ifEmpty { null },
+        lastName = lastName.ifEmpty { null },
         isRoot = isRoot,
         createdAt = Instant.parse(createdAt).toEpochMilliseconds(),
         updatedAt = Instant.parse(updatedAt).toEpochMilliseconds(),
+        avatarType = avatarType,
+        avatarValue = avatarValue,
+        avatarColor = avatarColor,
     )

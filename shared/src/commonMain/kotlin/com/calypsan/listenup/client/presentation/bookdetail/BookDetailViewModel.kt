@@ -82,9 +82,12 @@ class BookDetailViewModel(
                         null
                     }
 
-                // Calculate time remaining if there's progress
+                // Check if book is complete (99%+ progress)
+                val isComplete = progress != null && progress >= 0.99f
+
+                // Calculate time remaining if there's progress (but not complete)
                 val timeRemaining =
-                    if (progress != null && progress > 0f && progress < 0.99f) {
+                    if (progress != null && progress > 0f && !isComplete) {
                         val remainingMs = book.duration - (position?.positionMs ?: 0L)
                         formatTimeRemaining(remainingMs)
                     } else {
@@ -102,8 +105,10 @@ class BookDetailViewModel(
                         year = book.publishYear,
                         rating = book.rating,
                         chapters = chapters,
-                        progress = if (progress != null && progress > 0f && progress < 0.99f) progress else null,
+                        isComplete = isComplete,
+                        progress = if (progress != null && progress > 0f && !isComplete) progress else null,
                         timeRemainingFormatted = timeRemaining,
+                        addedAt = book.addedAt.epochMillis,
                     )
 
                 // Load genres and tags for this book (non-blocking, optional features)
@@ -289,6 +294,7 @@ data class BookDetailUiState(
     val narrators: String = "",
     val year: Int? = null,
     val rating: Double? = null,
+    val addedAt: Long? = null, // Epoch milliseconds when book was added to library
     val chapters: List<ChapterUiModel> = emptyList(),
     // Progress (for overlay display)
     val progress: Float? = null,

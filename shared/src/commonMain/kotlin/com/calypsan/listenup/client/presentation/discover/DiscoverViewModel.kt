@@ -2,73 +2,380 @@ package com.calypsan.listenup.client.presentation.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.currentEpochMilliseconds
+import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
+import com.calypsan.listenup.client.data.local.db.ActiveSessionWithDetails
+import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.data.local.db.DiscoveryBookWithAuthor
+import com.calypsan.listenup.client.data.local.db.LensDao
+import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.LensApiContract
-import com.calypsan.listenup.client.data.remote.UserLensesResponse
+import com.calypsan.listenup.client.data.remote.LensResponse
+import com.calypsan.listenup.client.data.repository.AuthSessionContract
+import com.calypsan.listenup.client.data.repository.AuthState
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
 /**
  * ViewModel for the Discover screen.
  *
- * Fetches and displays lenses from other users.
+ * All discovery data comes from local Room database:
+ * - What others are listening to: active_sessions table via SSE sync
+ * - Discover something new: random unstarted books from books table
+ * - Recently added: newest books from books table
+ * - Lenses from other users: fetched initially from API, stored in Room, observed from Room
+ *
+ * This offline-first architecture ensures the Discover screen works
+ * instantly on app launch without any API calls (after initial fetch).
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class DiscoverViewModel(
+    private val bookDao: BookDao,
+    private val activeSessionDao: ActiveSessionDao,
+    private val authSession: AuthSessionContract,
+    private val lensDao: LensDao,
     private val lensApi: LensApiContract,
+    private val imageStorage: ImageStorage,
 ) : ViewModel() {
-    val state: StateFlow<DiscoverUiState>
-        field = MutableStateFlow(DiscoverUiState())
-
     init {
-        loadDiscoverLenses()
+        // Fetch initial discover lenses if Room is empty
+        fetchInitialLensesIfNeeded()
     }
 
-    /**
-     * Load discovered lenses from other users.
-     */
-    fun loadDiscoverLenses() {
-        viewModelScope.launch {
-            state.update { it.copy(isLoading = true, error = null) }
+    // === Currently Listening State (from Room) ===
 
+    /**
+     * Observe active sessions from Room, filtered to exclude current user.
+     * Automatically updates when SSE events modify the active_sessions table.
+     */
+    private val currentlyListeningFlow =
+        authSession.authState.flatMapLatest { authState ->
+            when (authState) {
+                is AuthState.Authenticated -> {
+                    activeSessionDao.observeActiveSessions(authState.userId)
+                }
+
+                else -> {
+                    flowOf(emptyList())
+                }
+            }
+        }
+
+    val currentlyListeningState: StateFlow<CurrentlyListeningUiState> =
+        currentlyListeningFlow
+            .map { sessions ->
+                CurrentlyListeningUiState(
+                    isLoading = false,
+                    sessions = sessions.map { it.toUiModel() },
+                    error = null,
+                )
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = CurrentlyListeningUiState(isLoading = true),
+            )
+
+    /**
+     * Convert ActiveSessionWithDetails to UI model with local cover path.
+     */
+    private fun ActiveSessionWithDetails.toUiModel(): CurrentlyListeningUiSession {
+        val bookId = BookId(this.bookId)
+        val localCoverPath =
+            if (imageStorage.exists(bookId)) {
+                imageStorage.getCoverPath(bookId)
+            } else {
+                null
+            }
+        return CurrentlyListeningUiSession(
+            sessionId = sessionId,
+            userId = userId,
+            bookId = this.bookId,
+            bookTitle = title,
+            authorName = authorName,
+            coverPath = localCoverPath,
+            coverBlurHash = coverBlurHash,
+            displayName = displayName,
+            avatarType = avatarType,
+            avatarValue = avatarValue,
+            avatarColor = avatarColor,
+            startedAt = startedAt,
+        )
+    }
+
+    // === Discover Books State (Random Unstarted from Room) ===
+
+    /**
+     * Observe random unstarted books from Room with author info.
+     * Uses RANDOM() in SQL so results change when table changes.
+     */
+    val discoverBooksState: StateFlow<DiscoverBooksUiState> =
+        bookDao
+            .observeRandomUnstartedBooksWithAuthor(limit = 10)
+            .map { books ->
+                DiscoverBooksUiState(
+                    isLoading = false,
+                    books = books.map { it.toDiscoverUiBook() },
+                    error = null,
+                )
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = DiscoverBooksUiState(isLoading = true),
+            )
+
+    /**
+     * Convert DiscoveryBookWithAuthor to DiscoverUiBook with local cover path.
+     */
+    private fun DiscoveryBookWithAuthor.toDiscoverUiBook(): DiscoverUiBook {
+        val localCoverPath =
+            if (imageStorage.exists(id)) {
+                imageStorage.getCoverPath(id)
+            } else {
+                null
+            }
+        return DiscoverUiBook(
+            id = id.value,
+            title = title,
+            authorName = authorName,
+            coverPath = localCoverPath,
+            coverBlurHash = coverBlurHash,
+            seriesName = null, // Series comes from book_series relation
+        )
+    }
+
+    // === Recently Added State (from Room) ===
+
+    /**
+     * Observe recently added books from Room with author info.
+     * Sorted by createdAt timestamp descending.
+     */
+    val recentlyAddedState: StateFlow<RecentlyAddedUiState> =
+        bookDao
+            .observeRecentlyAddedWithAuthor(limit = 10)
+            .map { books ->
+                RecentlyAddedUiState(
+                    isLoading = false,
+                    books = books.map { it.toRecentlyAddedUiBook() },
+                    error = null,
+                )
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = RecentlyAddedUiState(isLoading = true),
+            )
+
+    /**
+     * Convert DiscoveryBookWithAuthor to RecentlyAddedUiBook with local cover path.
+     */
+    private fun DiscoveryBookWithAuthor.toRecentlyAddedUiBook(): RecentlyAddedUiBook {
+        val localCoverPath =
+            if (imageStorage.exists(id)) {
+                imageStorage.getCoverPath(id)
+            } else {
+                null
+            }
+        return RecentlyAddedUiBook(
+            id = id.value,
+            title = title,
+            authorName = authorName,
+            coverPath = localCoverPath,
+            coverBlurHash = coverBlurHash,
+            createdAt = createdAt.epochMillis,
+        )
+    }
+
+    // === Discover Lenses State (from Room) ===
+
+    /**
+     * Observe lenses from other users from Room.
+     * Initial data fetched from API if Room is empty.
+     * Subsequent updates via SSE events.
+     */
+    private val discoverLensesFlow =
+        authSession.authState.flatMapLatest { authState ->
+            when (authState) {
+                is AuthState.Authenticated -> {
+                    lensDao.observeDiscoverLenses(authState.userId)
+                }
+
+                else -> {
+                    flowOf(emptyList())
+                }
+            }
+        }
+
+    val discoverLensesState: StateFlow<DiscoverLensesUiState> =
+        discoverLensesFlow
+            .map { lenses ->
+                // Group lenses by owner for display
+                val groupedByOwner = lenses.groupBy { it.ownerId }
+                val userLenses =
+                    groupedByOwner.map { (ownerId, ownerLenses) ->
+                        val firstLens = ownerLenses.first()
+                        DiscoverUserLenses(
+                            user =
+                                DiscoverLensOwner(
+                                    id = ownerId,
+                                    displayName = firstLens.ownerDisplayName,
+                                    avatarColor = firstLens.ownerAvatarColor,
+                                ),
+                            lenses = ownerLenses.map { it.toUiModel() },
+                        )
+                    }
+                DiscoverLensesUiState(
+                    isLoading = false,
+                    users = userLenses,
+                )
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = DiscoverLensesUiState(isLoading = true),
+            )
+
+    /**
+     * Convert LensEntity to UI model.
+     */
+    private fun LensEntity.toUiModel(): DiscoverLensUi =
+        DiscoverLensUi(
+            id = id,
+            name = name,
+            description = description,
+            bookCount = bookCount,
+            totalDurationSeconds = totalDurationSeconds,
+        )
+
+    /**
+     * Fetch initial discover lenses from API if Room is empty.
+     * This ensures data is available on first launch before any SSE events arrive.
+     */
+    private fun fetchInitialLensesIfNeeded() {
+        viewModelScope.launch {
+            val authState = authSession.authState.value
+            if (authState !is AuthState.Authenticated) {
+                logger.debug { "Not authenticated, skipping lens fetch" }
+                return@launch
+            }
+
+            val existingCount = lensDao.countDiscoverLenses(authState.userId)
+            if (existingCount > 0) {
+                logger.debug { "Room has $existingCount discover lenses, skipping initial fetch" }
+                return@launch
+            }
+
+            logger.debug { "Room is empty, fetching discover lenses from API" }
             try {
-                val users = lensApi.discoverLenses()
-                state.update {
-                    it.copy(
-                        isLoading = false,
-                        users = users,
-                        error = null,
-                    )
-                }
-                logger.debug { "Loaded ${users.size} users with discoverable lenses" }
+                val userLenses = lensApi.discoverLenses()
+                val entities =
+                    userLenses.flatMap { userLensesResponse ->
+                        userLensesResponse.lenses.map { lens ->
+                            lens.toEntity()
+                        }
+                    }
+                lensDao.upsertAll(entities)
+                logger.info { "Fetched and stored ${entities.size} discover lenses" }
             } catch (e: Exception) {
-                logger.error(e) { "Failed to load discover lenses" }
-                state.update {
-                    it.copy(
-                        isLoading = false,
-                        error = "Failed to load: ${e.message}",
-                    )
-                }
+                logger.error(e) { "Failed to fetch discover lenses" }
+                // Not fatal - Room Flow will show empty state, SSE will populate over time
             }
         }
     }
 
     /**
-     * Refresh the discover list.
+     * Refresh discover lenses from API.
      */
-    fun refresh() = loadDiscoverLenses()
+    private fun refreshDiscoverLenses() {
+        viewModelScope.launch {
+            try {
+                val userLenses = lensApi.discoverLenses()
+                val entities =
+                    userLenses.flatMap { userLensesResponse ->
+                        userLensesResponse.lenses.map { lens ->
+                            lens.toEntity()
+                        }
+                    }
+                lensDao.upsertAll(entities)
+                logger.debug { "Refreshed ${entities.size} discover lenses from API" }
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to refresh discover lenses" }
+            }
+        }
+    }
+
+    /**
+     * Refresh discover books with a new random selection.
+     * Forces Room to re-query with new RANDOM() seed.
+     */
+    fun refreshDiscoverBooks() {
+        viewModelScope.launch {
+            // Touch a random book to trigger the Flow to re-emit
+            // This causes Room's RANDOM() to produce new results
+            bookDao.getRandomUnstartedBooks(limit = 10)
+            logger.debug { "Refreshed discover books selection" }
+        }
+    }
+
+    /**
+     * Refresh all discovery content.
+     * - Lenses: fetched from API and stored in Room
+     * - Sessions: automatically updated via Room flows (synced via SSE)
+     */
+    fun refresh() {
+        refreshDiscoverBooks()
+        refreshDiscoverLenses()
+    }
 }
 
 /**
- * UI state for the Discover screen.
+ * Convert API response to Room entity.
  */
-data class DiscoverUiState(
-    val isLoading: Boolean = true,
-    val users: List<UserLensesResponse> = emptyList(),
-    val error: String? = null,
+private fun LensResponse.toEntity(): LensEntity {
+    val createdAtMs =
+        try {
+            Instant.parse(createdAt).toEpochMilliseconds()
+        } catch (e: Exception) {
+            currentEpochMilliseconds()
+        }
+    val updatedAtMs =
+        try {
+            Instant.parse(updatedAt).toEpochMilliseconds()
+        } catch (e: Exception) {
+            currentEpochMilliseconds()
+        }
+
+    return LensEntity(
+        id = id,
+        name = name,
+        description = description.ifEmpty { null },
+        ownerId = owner.id,
+        ownerDisplayName = owner.displayName,
+        ownerAvatarColor = owner.avatarColor,
+        bookCount = bookCount,
+        totalDurationSeconds = totalDuration,
+        createdAt = Timestamp(createdAtMs),
+        updatedAt = Timestamp(updatedAtMs),
+    )
+}
+
+/**
+ * UI state for the Discover lenses section.
+ * Data comes from Room - no network errors possible after initial fetch.
+ */
+data class DiscoverLensesUiState(
+    val isLoading: Boolean = false,
+    val users: List<DiscoverUserLenses> = emptyList(),
 ) {
     val isEmpty: Boolean
         get() = users.isEmpty() && !isLoading
@@ -76,3 +383,112 @@ data class DiscoverUiState(
     val totalLensCount: Int
         get() = users.sumOf { it.lenses.size }
 }
+
+/**
+ * User with their lenses for Discover screen.
+ */
+data class DiscoverUserLenses(
+    val user: DiscoverLensOwner,
+    val lenses: List<DiscoverLensUi>,
+)
+
+/**
+ * Lens owner info for display.
+ */
+data class DiscoverLensOwner(
+    val id: String,
+    val displayName: String,
+    val avatarColor: String,
+)
+
+/**
+ * Lens UI model for Discover screen.
+ */
+data class DiscoverLensUi(
+    val id: String,
+    val name: String,
+    val description: String?,
+    val bookCount: Int,
+    val totalDurationSeconds: Long,
+)
+
+/**
+ * UI state for the "What Others Are Listening To" section.
+ */
+data class CurrentlyListeningUiState(
+    val isLoading: Boolean = false,
+    val sessions: List<CurrentlyListeningUiSession> = emptyList(),
+    val error: String? = null,
+) {
+    val isEmpty: Boolean
+        get() = sessions.isEmpty() && !isLoading
+}
+
+/**
+ * UI state for the "Discover Something New" section.
+ */
+data class DiscoverBooksUiState(
+    val isLoading: Boolean = false,
+    val books: List<DiscoverUiBook> = emptyList(),
+    val error: String? = null,
+) {
+    val isEmpty: Boolean
+        get() = books.isEmpty() && !isLoading
+}
+
+/**
+ * UI state for the "Recently Added" section.
+ */
+data class RecentlyAddedUiState(
+    val isLoading: Boolean = false,
+    val books: List<RecentlyAddedUiBook> = emptyList(),
+    val error: String? = null,
+) {
+    val isEmpty: Boolean
+        get() = books.isEmpty() && !isLoading
+}
+
+// === UI Model Types ===
+
+/**
+ * Active session for "What Others Are Listening To".
+ * Represents a single user listening to a single book.
+ */
+data class CurrentlyListeningUiSession(
+    val sessionId: String,
+    val userId: String,
+    val bookId: String,
+    val bookTitle: String,
+    val authorName: String?,
+    val coverPath: String?,
+    val coverBlurHash: String?,
+    val displayName: String,
+    val avatarType: String,
+    val avatarValue: String?,
+    val avatarColor: String,
+    val startedAt: Long,
+)
+
+/**
+ * Book for "Discover Something New" with resolved local cover path.
+ */
+data class DiscoverUiBook(
+    val id: String,
+    val title: String,
+    val authorName: String?,
+    val coverPath: String?,
+    val coverBlurHash: String?,
+    val seriesName: String?,
+)
+
+/**
+ * Book for "Recently Added" with resolved local cover path.
+ */
+data class RecentlyAddedUiBook(
+    val id: String,
+    val title: String,
+    val authorName: String?,
+    val coverPath: String?,
+    val coverBlurHash: String?,
+    val createdAt: Long,
+)
