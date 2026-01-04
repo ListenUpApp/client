@@ -948,3 +948,126 @@ val MIGRATION_23_24 =
             )
         }
     }
+
+/**
+ * Migration from version 24 to version 25.
+ *
+ * Changes:
+ * - Add active_sessions table for "What Others Are Listening To" feature
+ */
+val MIGRATION_24_25 =
+    object : Migration(24, 25) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS active_sessions (
+                    sessionId TEXT NOT NULL PRIMARY KEY,
+                    userId TEXT NOT NULL,
+                    bookId TEXT NOT NULL,
+                    startedAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_active_sessions_userId
+                ON active_sessions(userId)
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_active_sessions_bookId
+                ON active_sessions(bookId)
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 25 to version 26.
+ *
+ * Changes:
+ * - Add activities table for offline activity feed
+ *
+ * Activities are denormalized records of user actions (started book, finished book,
+ * milestones, etc.) for the social activity feed. Synced via SSE events.
+ */
+val MIGRATION_25_26 =
+    object : Migration(25, 26) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS activities (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    userId TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    userDisplayName TEXT NOT NULL,
+                    userAvatarColor TEXT NOT NULL,
+                    userAvatarType TEXT NOT NULL,
+                    userAvatarValue TEXT,
+                    bookId TEXT,
+                    bookTitle TEXT,
+                    bookAuthorName TEXT,
+                    bookCoverPath TEXT,
+                    isReread INTEGER NOT NULL DEFAULT 0,
+                    durationMs INTEGER NOT NULL DEFAULT 0,
+                    milestoneValue INTEGER NOT NULL DEFAULT 0,
+                    milestoneUnit TEXT,
+                    lensId TEXT,
+                    lensName TEXT
+                )
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_activities_userId
+                ON activities(userId)
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_activities_createdAt
+                ON activities(createdAt)
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 26 to version 27.
+ *
+ * Changes:
+ * - Add user_stats table for caching all-time leaderboard totals
+ *
+ * Week/Month stats are calculated locally from activities table.
+ * All-time totals come from server and are cached here for offline display.
+ * Updated via SSE user_stats.updated events.
+ */
+val MIGRATION_26_27 =
+    object : Migration(26, 27) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create user_stats table for caching all-time leaderboard totals
+            // Primary key oduserId is automatically indexed and unique
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS user_stats (
+                    oduserId TEXT NOT NULL PRIMARY KEY,
+                    displayName TEXT NOT NULL,
+                    avatarColor TEXT NOT NULL,
+                    avatarType TEXT NOT NULL,
+                    avatarValue TEXT,
+                    totalTimeMs INTEGER NOT NULL,
+                    totalBooks INTEGER NOT NULL,
+                    currentStreak INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+        }
+    }

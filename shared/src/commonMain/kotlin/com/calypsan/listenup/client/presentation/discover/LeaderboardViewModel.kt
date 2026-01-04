@@ -2,214 +2,191 @@ package com.calypsan.listenup.client.presentation.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.ListeningEventDao
-import com.calypsan.listenup.client.data.remote.CommunityStatsResponse
-import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
 import com.calypsan.listenup.client.data.remote.LeaderboardCategory
-import com.calypsan.listenup.client.data.remote.LeaderboardEntryResponse
 import com.calypsan.listenup.client.data.remote.StatsPeriod
+import com.calypsan.listenup.client.data.repository.CommunityStats
+import com.calypsan.listenup.client.data.repository.LeaderboardEntry
+import com.calypsan.listenup.client.data.repository.LeaderboardRepositoryContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
-/** Debounce delay for refreshing after events change */
-private const val REFRESH_DEBOUNCE_MS = 2_000L
-
 /**
  * ViewModel for the Discover screen leaderboard section.
  *
- * Manages:
- * - Category selection (time/books/streak)
- * - Period selection (week/month/year/all)
- * - Leaderboard entries (cached per category)
- * - Community aggregate stats
+ * Offline-first implementation that observes Room database flows:
+ * - Category selection re-sorts existing data (no refetch needed)
+ * - Period selection changes which Room query to observe
+ * - Automatic updates when listening events or activities change
  *
- * Caches entries by category so switching tabs doesn't trigger a refresh.
- * Only refetches when the period changes or on explicit refresh.
+ * Data sources:
+ * - Week/Month: Aggregated from local activities table
+ * - All-time: From cached user_stats (populated via API/SSE)
+ * - Current user stats: Always from listening_events (instant, authoritative)
  *
- * Also observes local listening events and refreshes the leaderboard
- * after new events are created, so stats update in near real-time.
- *
- * @property leaderboardApi API client for fetching leaderboard data
- * @property listeningEventDao DAO for observing local events
+ * @property leaderboardRepository Repository for observing leaderboard data from Room
  */
 class LeaderboardViewModel(
-    private val leaderboardApi: LeaderboardApiContract,
-    private val listeningEventDao: ListeningEventDao,
+    private val leaderboardRepository: LeaderboardRepositoryContract,
 ) : ViewModel() {
     val state: StateFlow<LeaderboardUiState>
         field = MutableStateFlow(LeaderboardUiState())
 
-    // Cache entries by category to avoid refetching when switching tabs
-    private val entriesByCategory = mutableMapOf<LeaderboardCategory, List<LeaderboardEntryResponse>>()
+    // Cache entries by category for instant tab switching
+    private val entriesByCategory = mutableMapOf<LeaderboardCategory, List<LeaderboardEntry>>()
 
-    // Debounce job for event-triggered refreshes
-    private var refreshJob: Job? = null
+    // Active observation jobs (cancelled when period changes)
+    private var entriesJob: Job? = null
+    private var communityStatsJob: Job? = null
 
     init {
-        loadAllCategories(showLoading = true) // Initial load shows loading state
-        observeLocalEvents()
+        observeLeaderboard()
     }
 
     /**
-     * Observe local listening events and refresh leaderboard when new events are added.
-     * This provides near real-time stats updates on the Discover page.
-     * Debounced to avoid excessive API calls during active listening.
-     */
-    private fun observeLocalEvents() {
-        viewModelScope.launch {
-            // Observe event count changes (simpler than observing full list)
-            listeningEventDao
-                .observeEventsSince(0)
-                .map { it.size }
-                .distinctUntilChanged()
-                .collect { eventCount ->
-                    logger.debug { "Local event count changed to $eventCount, scheduling refresh" }
-                    scheduleRefresh()
-                }
-        }
-    }
-
-    /**
-     * Schedule a debounced refresh to avoid excessive API calls.
-     */
-    private fun scheduleRefresh() {
-        refreshJob?.cancel()
-        refreshJob =
-            viewModelScope.launch {
-                delay(REFRESH_DEBOUNCE_MS)
-                logger.debug { "Debounced refresh triggered" }
-                loadAllCategories()
-            }
-    }
-
-    /**
-     * Select a new category (no network call - uses cached data).
+     * Select a new category (instant - just re-sort cached data).
      */
     fun selectCategory(category: LeaderboardCategory) {
         if (category == state.value.selectedCategory) return
 
-        val cachedEntries = entriesByCategory[category] ?: emptyList()
-        state.update {
-            it.copy(
-                selectedCategory = category,
-                entries = cachedEntries,
-            )
-        }
+        logger.debug { "Category changed to ${category.value}" }
+        state.update { it.copy(selectedCategory = category) }
+        resortEntries()
     }
 
     /**
      * Get entries for a specific category (for pager pages).
      */
-    fun getEntriesForCategory(category: LeaderboardCategory): List<LeaderboardEntryResponse> =
-        entriesByCategory[category] ?: emptyList()
+    fun getEntriesForCategory(category: LeaderboardCategory): List<LeaderboardEntry> {
+        val entries = state.value.allEntries
+        return entries
+            .sortedByDescending { it.valueFor(category) }
+            .mapIndexed { index, entry -> entry.copy(rank = index + 1) }
+    }
 
     /**
-     * Select a new period (refetches all categories).
+     * Select a new period (restarts Room observation).
      */
     fun selectPeriod(period: StatsPeriod) {
         if (period == state.value.selectedPeriod) return
 
-        state.update { it.copy(selectedPeriod = period) }
+        logger.info { "Period changed from ${state.value.selectedPeriod.value} to ${period.value}" }
+        state.update { it.copy(selectedPeriod = period, isLoading = true) }
         entriesByCategory.clear()
-        loadAllCategories(showLoading = true) // User-initiated, show loading
+        observeLeaderboard()
     }
 
     /**
-     * Refresh leaderboard data (refetches all categories).
+     * Refresh leaderboard data.
+     * For offline-first, this is a no-op since Room flows auto-update.
+     * Kept for UI compatibility (pull-to-refresh gesture).
      */
     fun refresh() {
-        entriesByCategory.clear()
-        loadAllCategories(showLoading = true) // User-initiated, show loading
+        logger.debug { "Refresh requested (no-op for offline-first)" }
+        // Room flows auto-update, no manual refresh needed
+        // But we can re-observe to ensure we have latest
+        observeLeaderboard()
     }
 
     /**
-     * Load leaderboard data for all categories.
-     * This pre-fetches all categories so tab switching is instant.
+     * Start observing leaderboard data from Room.
+     * Called on init and when period changes.
      *
-     * @param showLoading Whether to show loading indicator (false for background refreshes)
+     * For All-time period, checks if cache is empty and fetches from API if needed.
      */
-    private fun loadAllCategories(showLoading: Boolean = false) {
+    private fun observeLeaderboard() {
+        val period = state.value.selectedPeriod
+        val category = state.value.selectedCategory
+
+        logger.info { "Observing leaderboard: period=${period.value}, category=${category.value}" }
+
+        // Cancel previous observations
+        entriesJob?.cancel()
+        communityStatsJob?.cancel()
+
+        // Fetch user stats if cache is empty (needed for all periods since we LEFT JOIN with user_stats)
         viewModelScope.launch {
-            // Only show loading on initial load, not background refreshes
-            if (showLoading) {
-                state.update { it.copy(isLoading = true, error = null) }
-            }
-
-            try {
-                val period = state.value.selectedPeriod
-                val currentCategory = state.value.selectedCategory
-
-                // Fetch all categories in parallel
-                val categories =
-                    listOf(
-                        LeaderboardCategory.TIME,
-                        LeaderboardCategory.BOOKS,
-                        LeaderboardCategory.STREAK,
-                    )
-
-                var communityStats: CommunityStatsResponse? = null
-
-                categories.forEach { category ->
-                    try {
-                        val response =
-                            leaderboardApi.getLeaderboard(
-                                period = period,
-                                category = category,
-                                limit = 10,
-                            )
-                        entriesByCategory[category] = response.entries
-                        // Use community stats from any category (they should be the same)
-                        if (communityStats == null) {
-                            communityStats = response.communityStats
-                        }
-                    } catch (e: Exception) {
-                        logger.warn(e) { "Failed to load $category leaderboard" }
-                        entriesByCategory[category] = emptyList()
-                    }
-                }
-
-                state.update {
-                    it.copy(
-                        isLoading = false,
-                        error = null,
-                        entries = entriesByCategory[currentCategory] ?: emptyList(),
-                        communityStats = communityStats,
-                    )
-                }
-                logger.debug { "Loaded all leaderboard categories" }
-            } catch (e: Exception) {
-                val errorMessage = "Failed to load leaderboard: ${e.message}"
-                state.update {
-                    it.copy(
-                        isLoading = false,
-                        error = errorMessage,
-                    )
-                }
-                logger.error(e) { "Failed to load leaderboard - full exception: ${e.stackTraceToString()}" }
+            if (leaderboardRepository.isUserStatsCacheEmpty()) {
+                logger.info { "User stats cache empty, fetching from API" }
+                leaderboardRepository.fetchAndCacheUserStats()
+                // Room flow will automatically emit when cache is populated
             }
         }
+
+        // Observe entries
+        entriesJob =
+            viewModelScope.launch {
+                leaderboardRepository
+                    .observeLeaderboard(period, category, limit = 10)
+                    .collect { entries ->
+                        logger.debug { "Received ${entries.size} leaderboard entries" }
+                        state.update {
+                            it.copy(
+                                isLoading = false,
+                                error = null,
+                                allEntries = entries,
+                                entries = sortEntriesForCategory(entries, it.selectedCategory),
+                            )
+                        }
+                    }
+            }
+
+        // Observe community stats
+        communityStatsJob =
+            viewModelScope.launch {
+                leaderboardRepository
+                    .observeCommunityStats(period)
+                    .collect { stats ->
+                        logger.debug { "Received community stats: ${stats.totalTimeLabel}" }
+                        state.update { it.copy(communityStats = stats) }
+                    }
+            }
     }
+
+    /**
+     * Re-sort entries when category changes.
+     */
+    private fun resortEntries() {
+        val category = state.value.selectedCategory
+        val entries = state.value.allEntries
+
+        state.update {
+            it.copy(entries = sortEntriesForCategory(entries, category))
+        }
+    }
+
+    /**
+     * Sort entries by category and assign ranks.
+     */
+    private fun sortEntriesForCategory(
+        entries: List<LeaderboardEntry>,
+        category: LeaderboardCategory,
+    ): List<LeaderboardEntry> =
+        entries
+            .sortedByDescending { it.valueFor(category) }
+            .mapIndexed { index, entry -> entry.copy(rank = index + 1) }
 }
 
 /**
  * UI state for the leaderboard section.
+ *
+ * Uses domain models from LeaderboardRepository for offline-first display.
  */
 data class LeaderboardUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
     val selectedCategory: LeaderboardCategory = LeaderboardCategory.TIME,
     val selectedPeriod: StatsPeriod = StatsPeriod.WEEK,
-    val entries: List<LeaderboardEntryResponse> = emptyList(),
-    val communityStats: CommunityStatsResponse? = null,
+    /** Entries sorted for current category */
+    val entries: List<LeaderboardEntry> = emptyList(),
+    /** All entries (unsorted) for re-sorting on category change */
+    val allEntries: List<LeaderboardEntry> = emptyList(),
+    val communityStats: CommunityStats? = null,
 ) {
     /**
      * Whether there is data to display.

@@ -13,6 +13,8 @@ import com.calypsan.listenup.client.data.remote.model.SyncManifestResponse
 import com.calypsan.listenup.client.data.remote.model.SyncSeriesResponse
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.model.Tag
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * Contract interface for search API operations.
@@ -192,6 +194,19 @@ interface SyncApiContract {
         bookId: String,
         durationMs: Long,
     ): Result<Unit>
+
+    /**
+     * Get all active reading sessions for discovery page sync.
+     *
+     * Returns all currently active reading sessions across all users.
+     * Used during initial sync to populate the "What Others Are Listening To" section.
+     *
+     * Endpoint: GET /api/v1/sync/active-sessions
+     * Auth: Required
+     *
+     * @return Result containing list of active sessions
+     */
+    suspend fun getActiveSessions(): Result<SyncActiveSessionsResponse>
 }
 
 /**
@@ -708,18 +723,23 @@ data class SeriesSearchResult(
  * - null = don't change this field
  * - empty string = clear this field
  */
+@Serializable
 data class BookUpdateRequest(
     val title: String? = null,
     val subtitle: String? = null,
     val description: String? = null,
     val publisher: String? = null,
+    @SerialName("publish_year")
     val publishYear: String? = null,
     val language: String? = null,
     val isbn: String? = null,
     val asin: String? = null,
     val abridged: Boolean? = null,
+    @SerialName("series_id")
     val seriesId: String? = null,
     val sequence: String? = null,
+    @SerialName("created_at")
+    val createdAt: String? = null, // ISO8601 timestamp for when book was added to library
 )
 
 /**
@@ -1309,4 +1329,32 @@ data class ListeningEventApiResponse(
     val endedAt: String,
     val playbackSpeed: Float,
     val deviceId: String,
+)
+
+// =============================================================================
+// Active Sessions API Response Types
+// =============================================================================
+
+/**
+ * Response from GET /sync/active-sessions endpoint.
+ *
+ * Contains all currently active reading sessions for the discovery page.
+ */
+data class SyncActiveSessionsResponse(
+    val sessions: List<ActiveSessionApiResponse>,
+)
+
+/**
+ * A single active reading session from the API.
+ * Includes user profile data for offline-first display.
+ */
+data class ActiveSessionApiResponse(
+    val sessionId: String,
+    val userId: String,
+    val bookId: String,
+    val startedAt: String,
+    val displayName: String,
+    val avatarType: String,
+    val avatarValue: String?,
+    val avatarColor: String,
 )

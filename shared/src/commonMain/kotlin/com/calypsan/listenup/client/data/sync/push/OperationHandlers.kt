@@ -60,6 +60,7 @@ class BookUpdateHandler(
             isbn = newPayload.isbn ?: existingPayload.isbn,
             asin = newPayload.asin ?: existingPayload.asin,
             abridged = newPayload.abridged ?: existingPayload.abridged,
+            createdAt = newPayload.createdAt ?: existingPayload.createdAt,
         )
     }
 
@@ -78,6 +79,7 @@ class BookUpdateHandler(
                 isbn = payload.isbn,
                 asin = payload.asin,
                 abridged = payload.abridged,
+                createdAt = payload.createdAt,
             )
         return when (val result = api.updateBook(operation.entityId!!, request)) {
             is Success -> Success(Unit)

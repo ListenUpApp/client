@@ -366,3 +366,112 @@ data class TagEntity(
                 word.replaceFirstChar { it.titlecase() }
             }
 }
+
+/**
+ * Tracks active reading sessions from other users.
+ *
+ * Populated via SSE session.started/ended events.
+ * Used for "What Others Are Listening To" section on Discover screen.
+ *
+ * Sessions are ephemeral - cleared on app start or after 24h staleness.
+ * Join with UserProfileEntity and BookEntity for display data.
+ */
+@Entity(
+    tableName = "active_sessions",
+    indices = [
+        Index(value = ["userId"]),
+        Index(value = ["bookId"]),
+    ],
+)
+data class ActiveSessionEntity(
+    @PrimaryKey
+    val sessionId: String,
+    /** User who started this session - join with UserProfileEntity */
+    val userId: String,
+    /** Book being read - join with BookEntity */
+    val bookId: String,
+    /** When the session started (epoch ms) */
+    val startedAt: Long,
+    /** Last update time (epoch ms) - for staleness detection */
+    val updatedAt: Long,
+)
+
+/**
+ * Stores activity feed items locally for offline-first display.
+ *
+ * Populated via SSE activity.created events and initial sync.
+ * All data is denormalized from server for immediate display without joins.
+ *
+ * Activities are retained for 30 days, then pruned automatically.
+ */
+@Entity(
+    tableName = "activities",
+    indices = [
+        Index(value = ["userId"]),
+        Index(value = ["createdAt"]),
+    ],
+)
+data class ActivityEntity(
+    @PrimaryKey
+    val id: String,
+    /** User who performed the activity */
+    val userId: String,
+    /** Activity type: started_book, finished_book, streak_milestone, listening_milestone, lens_created, listening_session */
+    val type: String,
+    /** When the activity was created (epoch ms) */
+    val createdAt: Long,
+    // Denormalized user info for offline display
+    val userDisplayName: String,
+    val userAvatarColor: String,
+    val userAvatarType: String,
+    val userAvatarValue: String?,
+    // Book info (nullable - not all activities have a book)
+    val bookId: String?,
+    val bookTitle: String?,
+    val bookAuthorName: String?,
+    val bookCoverPath: String?,
+    // Activity-specific fields
+    val isReread: Boolean,
+    val durationMs: Long,
+    val milestoneValue: Int,
+    val milestoneUnit: String?,
+    val lensId: String?,
+    val lensName: String?,
+)
+
+/**
+ * Cached user stats for leaderboard display.
+ *
+ * Stores all-time totals for each user, populated from:
+ * - Initial leaderboard API response
+ * - SSE user_stats.updated events
+ *
+ * Week/Month stats are calculated from activities table.
+ * This table is only used for the "All Time" period.
+ */
+@Entity(
+    tableName = "user_stats",
+)
+data class UserStatsEntity(
+    @PrimaryKey
+    val oduserId: String,
+    /** User display name for leaderboard display */
+    val displayName: String,
+    /** Avatar color (hex) for generated avatars */
+    val avatarColor: String,
+    /** Avatar type: "auto" or "image" */
+    val avatarType: String,
+    /** Avatar image path if type is "image" */
+    val avatarValue: String?,
+    /** Total listening time in milliseconds (all-time) */
+    val totalTimeMs: Long,
+    /** Total books completed */
+    val totalBooks: Int,
+    /** Current consecutive listening streak in days */
+    val currentStreak: Int,
+    /** When this cache was last updated (epoch ms) */
+    val updatedAt: Long,
+) {
+    /** Convenience property for userId (primary key is named oduserId due to Room bug) */
+    val userId: String get() = oduserId
+}

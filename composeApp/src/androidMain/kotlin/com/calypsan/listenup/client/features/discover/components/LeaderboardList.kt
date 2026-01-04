@@ -38,7 +38,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calypsan.listenup.client.data.remote.LeaderboardEntryResponse
+import com.calypsan.listenup.client.data.remote.LeaderboardCategory
+import com.calypsan.listenup.client.data.repository.LeaderboardEntry
 
 /** Number of entries to show when collapsed */
 private const val COLLAPSED_COUNT = 4
@@ -54,12 +55,14 @@ private val ENTRY_HEIGHT = 56.dp
  * users move up or down in the rankings.
  *
  * @param entries List of leaderboard entries
+ * @param category Current leaderboard category (for value labels)
  * @param onUserClick Callback when a user row is clicked
  * @param modifier Modifier from parent
  */
 @Composable
 fun LeaderboardList(
-    entries: List<LeaderboardEntryResponse>,
+    entries: List<LeaderboardEntry>,
+    category: LeaderboardCategory,
     onUserClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -74,8 +77,9 @@ fun LeaderboardList(
         // Use regular Column instead of LazyColumn to avoid nested scrollable crash
         // when this is inside HorizontalPager inside LazyColumn (DiscoverScreen)
         visibleEntries.forEach { entry ->
-            LeaderboardEntry(
+            LeaderboardEntryRow(
                 entry = entry,
+                category = category,
                 onClick = { onUserClick(entry.userId) },
             )
         }
@@ -106,8 +110,9 @@ fun LeaderboardList(
 }
 
 @Composable
-private fun LeaderboardEntry(
-    entry: LeaderboardEntryResponse,
+private fun LeaderboardEntryRow(
+    entry: LeaderboardEntry,
+    category: LeaderboardCategory,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -161,7 +166,7 @@ private fun LeaderboardEntry(
 
         // Animated value label - fades when value changes
         AnimatedContent(
-            targetState = entry.valueLabel,
+            targetState = entry.labelFor(category),
             transitionSpec = {
                 fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow)) togetherWith
                     fadeOut(animationSpec = spring(stiffness = Spring.StiffnessLow))

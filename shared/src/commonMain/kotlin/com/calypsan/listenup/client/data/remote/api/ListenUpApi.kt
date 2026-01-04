@@ -538,6 +538,8 @@ private data class BookUpdateApiRequest(
     @SerialName("series_id")
     val seriesId: String? = null,
     val sequence: String? = null,
+    @SerialName("created_at")
+    val createdAt: String? = null,
 )
 
 private fun BookUpdateRequest.toApiRequest(): BookUpdateApiRequest =
@@ -553,6 +555,7 @@ private fun BookUpdateRequest.toApiRequest(): BookUpdateApiRequest =
         abridged = abridged,
         seriesId = seriesId,
         sequence = sequence,
+        createdAt = createdAt,
     )
 
 /**

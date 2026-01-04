@@ -16,8 +16,6 @@ import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.AuthApiContract
 import com.calypsan.listenup.client.data.remote.BookApiContract
 import com.calypsan.listenup.client.data.remote.ContributorApiContract
-import com.calypsan.listenup.client.data.remote.DiscoveryApi
-import com.calypsan.listenup.client.data.remote.DiscoveryApiContract
 import com.calypsan.listenup.client.data.remote.GenreApi
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.ImageApi
@@ -59,6 +57,8 @@ import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.HomeRepository
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
+import com.calypsan.listenup.client.data.repository.LeaderboardRepository
+import com.calypsan.listenup.client.data.repository.LeaderboardRepositoryContract
 import com.calypsan.listenup.client.data.repository.LibraryPreferencesContract
 import com.calypsan.listenup.client.data.repository.LibrarySyncContract
 import com.calypsan.listenup.client.data.repository.LocalPreferencesContract
@@ -95,6 +95,7 @@ import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
+import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPuller
@@ -276,6 +277,9 @@ val repositoryModule =
         single { get<ListenUpDatabase>().lensDao() }
         single { get<ListenUpDatabase>().tagDao() }
         single { get<ListenUpDatabase>().listeningEventDao() }
+        single { get<ListenUpDatabase>().activeSessionDao() }
+        single { get<ListenUpDatabase>().activityDao() }
+        single { get<ListenUpDatabase>().userStatsDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
         // When active server's URL changes via mDNS rediscovery, updates SettingsRepository
@@ -461,11 +465,12 @@ val presentationModule =
         }
         factory {
             com.calypsan.listenup.client.presentation.discover.DiscoverViewModel(
+                bookDao = get(),
+                activeSessionDao = get(),
+                authSession = get(),
+                lensDao = get(),
                 lensApi = get(),
-                discoveryApi = get(),
-                sseManager = get(),
                 imageStorage = get(),
-                userProfileDao = get(),
             )
         }
         factory {
@@ -557,12 +562,12 @@ val presentationModule =
         factory { HomeStatsViewModel(statsRepository = get()) }
 
         // LeaderboardViewModel for discover screen leaderboard
-        // Observes local events to trigger refresh when new listening sessions occur
-        factory { LeaderboardViewModel(leaderboardApi = get(), listeningEventDao = get()) }
+        // Offline-first: observes Room flows for instant updates
+        factory { LeaderboardViewModel(leaderboardRepository = get()) }
 
         // ActivityFeedViewModel for discover screen activity feed
-        // Observes SSE events for real-time updates, caches user profiles for offline
-        factory { ActivityFeedViewModel(activityFeedApi = get(), sseManager = get(), userProfileDao = get()) }
+        // Offline-first: fetches initial from API, stores in Room, observes Room
+        factory { ActivityFeedViewModel(activityDao = get(), activityFeedApi = get()) }
 
         // UserProfileViewModel for viewing user profiles
         // Uses local cache for own profile, downloads and caches avatars for offline access
@@ -669,11 +674,6 @@ val syncModule =
             ActivityFeedApi(clientFactory = get())
         } bind ActivityFeedApiContract::class
 
-        // DiscoveryApi for social discovery features
-        single {
-            DiscoveryApi(clientFactory = get())
-        } bind DiscoveryApiContract::class
-
         // SessionApi for reading session operations
         single {
             com.calypsan.listenup.client.data.remote
@@ -749,8 +749,11 @@ val syncModule =
                 lensDao = get(),
                 tagDao = get(),
                 listeningEventDao = get(),
+                activityDao = get(),
                 userDao = get(),
                 userProfileDao = get(),
+                activeSessionDao = get(),
+                userStatsDao = get(),
                 imageDownloader = get(),
                 playbackStateProvider = get<PlaybackManager>(),
                 downloadService = get(),
@@ -846,6 +849,21 @@ val syncModule =
             )
         }
 
+        // ActiveSessionsPuller - syncs active reading sessions for discovery page
+        // Also syncs user profiles and downloads avatars for offline display
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("activeSessionsPuller"),
+        ) {
+            ActiveSessionsPuller(
+                syncApi = get(),
+                activeSessionDao = get(),
+                userProfileDao = get(),
+                imageDownloader = get(),
+            )
+        }
+
         // PullSyncOrchestrator - coordinates parallel entity pulls
         single {
             PullSyncOrchestrator(
@@ -878,6 +896,12 @@ val syncModule =
                         qualifier =
                             org.koin.core.qualifier
                                 .named("listeningEventPuller"),
+                    ),
+                activeSessionsPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("activeSessionsPuller"),
                     ),
                 coordinator = get(),
                 syncDao = get(),
@@ -1040,6 +1064,19 @@ val syncModule =
                 bookDao = get(),
             )
         } bind StatsRepositoryContract::class
+
+        // LeaderboardRepository for offline-first leaderboard
+        // Combines local listening events (current user) with activities (others)
+        // Uses API only for initial All-time cache population
+        single {
+            LeaderboardRepository(
+                listeningEventDao = get(),
+                activityDao = get(),
+                userStatsDao = get(),
+                userDao = get(),
+                leaderboardApi = get(),
+            )
+        } bind LeaderboardRepositoryContract::class
 
         // ContributorRepository for contributor search with offline fallback
         single {

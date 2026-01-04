@@ -526,6 +526,24 @@ class ProgressTracker(
         endedAt: Long,
         playbackSpeed: Float,
     ) {
+        // Validate positions to prevent corrupted events
+        // Max reasonable audiobook position: 7 days worth of audio (168 hours)
+        val maxReasonablePositionMs = 7L * 24 * 60 * 60 * 1000 // ~604,800,000ms
+        if (endPositionMs < 0 || endPositionMs > maxReasonablePositionMs) {
+            logger.error {
+                "🎧 REJECTING CORRUPTED EVENT: book=${bookId.value}, " +
+                    "endPositionMs=$endPositionMs is invalid (expected 0-$maxReasonablePositionMs)"
+            }
+            return
+        }
+        if (startPositionMs < 0 || startPositionMs > endPositionMs) {
+            logger.error {
+                "🎧 REJECTING CORRUPTED EVENT: book=${bookId.value}, " +
+                    "startPositionMs=$startPositionMs is invalid (expected 0-$endPositionMs)"
+            }
+            return
+        }
+
         val eventId = NanoId.generate("evt")
         val now = Clock.System.now().toEpochMilliseconds()
         logger.info {

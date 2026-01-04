@@ -382,6 +382,7 @@ private fun TwoPaneRightPane(
                 rating = state.rating,
                 duration = state.book?.duration ?: 0,
                 year = state.year,
+                addedAt = state.addedAt,
                 genres = state.genresList,
                 onSeriesClick = onSeriesClick,
             )
@@ -447,6 +448,7 @@ private fun ContextMetadataSectionAligned(
     rating: Double?,
     duration: Long,
     year: Int?,
+    addedAt: Long?,
     genres: List<String>,
     onSeriesClick: (seriesId: String) -> Unit,
     modifier: Modifier = Modifier,
@@ -471,6 +473,7 @@ private fun ContextMetadataSectionAligned(
             rating = rating,
             duration = duration,
             year = year,
+            addedAt = addedAt,
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
         )
 

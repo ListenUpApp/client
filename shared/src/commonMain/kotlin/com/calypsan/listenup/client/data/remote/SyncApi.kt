@@ -5,6 +5,8 @@ package com.calypsan.listenup.client.data.remote
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
+import com.calypsan.listenup.client.data.remote.model.ApiActiveSessionResponse
+import com.calypsan.listenup.client.data.remote.model.ApiActiveSessions
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningResponse
@@ -378,6 +380,35 @@ class SyncApi(
                 setBody(EndPlaybackSessionRequest(bookId = bookId, durationMs = durationMs))
             }
             Unit
+        }
+
+    /**
+     * Get all active reading sessions for discovery page sync.
+     *
+     * Endpoint: GET /api/v1/sync/active-sessions
+     * Auth: Required
+     */
+    override suspend fun getActiveSessions(): Result<SyncActiveSessionsResponse> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            val response: ApiResponse<ApiActiveSessions> =
+                client.get("/api/v1/sync/active-sessions").body()
+            val apiSessions = response.toResult().getOrThrow()
+            SyncActiveSessionsResponse(
+                sessions =
+                    apiSessions.sessions.map { session ->
+                        ActiveSessionApiResponse(
+                            sessionId = session.sessionId,
+                            userId = session.userId,
+                            bookId = session.bookId,
+                            startedAt = session.startedAt,
+                            displayName = session.displayName,
+                            avatarType = session.avatarType,
+                            avatarValue = session.avatarValue,
+                            avatarColor = session.avatarColor,
+                        )
+                    },
+            )
         }
 }
 

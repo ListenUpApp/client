@@ -12,14 +12,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material3.Icon
@@ -40,24 +38,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
-import com.calypsan.listenup.client.design.components.ProfileAvatar
-import com.calypsan.listenup.client.presentation.discover.CurrentlyListeningUiSession
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
+import com.calypsan.listenup.client.presentation.discover.RecentlyAddedUiBook
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Horizontal section showing books that other users are currently listening to.
+ * Horizontal section showing recently added books.
  *
- * Displays each active session as a card with book cover and user avatar.
+ * Displays books sorted by createdAt timestamp (newest first).
  * Data comes from Room database via SSE sync - no API calls.
  */
 @Composable
-fun CurrentlyListeningSection(
+fun RecentlyAddedSection(
     onBookClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DiscoverViewModel = koinViewModel(),
 ) {
-    val state by viewModel.currentlyListeningState.collectAsStateWithLifecycle()
+    val state by viewModel.recentlyAddedState.collectAsStateWithLifecycle()
 
     // Don't show section if empty or loading
     if (state.isEmpty) return
@@ -65,7 +62,7 @@ fun CurrentlyListeningSection(
     Column(modifier = modifier) {
         // Section header
         Text(
-            text = "What Others Are Listening To",
+            text = "Recently Added",
             style =
                 MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
@@ -77,18 +74,18 @@ fun CurrentlyListeningSection(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Horizontal scroll of session cards
+        // Horizontal scroll of book cards
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(
-                items = state.sessions,
-                key = { it.sessionId },
-            ) { session ->
-                CurrentlyListeningCard(
-                    session = session,
-                    onClick = { onBookClick(session.bookId) },
+                items = state.books,
+                key = { it.id },
+            ) { book ->
+                RecentlyAddedBookCard(
+                    book = book,
+                    onClick = { onBookClick(book.id) },
                 )
             }
         }
@@ -96,16 +93,16 @@ fun CurrentlyListeningSection(
 }
 
 /**
- * Card for an active listening session.
+ * Card for a book in the Recently Added section.
  *
  * Features:
- * - Book cover with user avatar overlay in bottom-right
+ * - Book cover with shadow
  * - Press-to-scale animation
- * - Book title and author below cover (user represented by avatar)
+ * - Title and author below cover
  */
 @Composable
-private fun CurrentlyListeningCard(
-    session: CurrentlyListeningUiSession,
+private fun RecentlyAddedBookCard(
+    book: RecentlyAddedUiBook,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -129,25 +126,20 @@ private fun CurrentlyListeningCard(
                     onClick = onClick,
                 ),
     ) {
-        // Cover with avatar overlay
-        CoverWithAvatarOverlay(
-            coverPath = session.coverPath,
-            blurHash = session.coverBlurHash,
-            contentDescription = session.bookTitle,
-            userId = session.userId,
-            displayName = session.displayName,
-            avatarType = session.avatarType,
-            avatarValue = session.avatarValue,
-            avatarColor = session.avatarColor,
+        // Cover image
+        RecentlyAddedBookCover(
+            coverPath = book.coverPath,
+            blurHash = book.coverBlurHash,
+            contentDescription = book.title,
             modifier = Modifier.aspectRatio(1f),
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Metadata (book title and author - user represented by avatar overlay)
+        // Metadata (title, author)
         Column(modifier = Modifier.padding(horizontal = 2.dp)) {
             Text(
-                text = session.bookTitle,
+                text = book.title,
                 style =
                     MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold,
@@ -158,7 +150,7 @@ private fun CurrentlyListeningCard(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            session.authorName?.let { author ->
+            book.authorName?.takeIf { it.isNotBlank() }?.let { author ->
                 Text(
                     text = author,
                     style = MaterialTheme.typography.bodySmall,
@@ -172,90 +164,55 @@ private fun CurrentlyListeningCard(
 }
 
 /**
- * Cover art with single user avatar overlay in bottom-right corner.
- *
- * Uses a wrapper Box to allow avatar to overflow the clipped cover area.
+ * Simple book cover with shadow.
  */
 @Composable
-private fun CoverWithAvatarOverlay(
+private fun RecentlyAddedBookCover(
     coverPath: String?,
     blurHash: String?,
     contentDescription: String?,
-    userId: String,
-    displayName: String,
-    avatarType: String,
-    avatarValue: String?,
-    avatarColor: String,
     modifier: Modifier = Modifier,
 ) {
     val shape = MaterialTheme.shapes.medium
 
-    // Outer Box allows avatar to overflow; inner Box clips the cover
-    Box(modifier = modifier) {
-        // Cover container with shadow and clip
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .shadow(elevation = 6.dp, shape = shape)
-                    .clip(shape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        ) {
-            // Cover image
-            if (coverPath != null || blurHash != null) {
-                ListenUpAsyncImage(
-                    path = coverPath,
-                    blurHash = blurHash,
-                    contentDescription = contentDescription,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                // Gradient placeholder
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.linearGradient(
-                                    colors =
-                                        listOf(
-                                            MaterialTheme.colorScheme.primaryContainer,
-                                            MaterialTheme.colorScheme.surfaceContainer,
-                                        ),
-                                ),
-                            ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Book,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(24.dp),
-                    )
-                }
-            }
-        }
-
-        // Avatar overlay in bottom-right corner (slightly inset from edge)
-        Box(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .offset(x = (-4).dp, y = (-4).dp)
-                    .size(36.dp)
-                    .shadow(elevation = 4.dp, shape = CircleShape)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(2.dp),
-        ) {
-            ProfileAvatar(
-                userId = userId,
-                displayName = displayName,
-                avatarColor = avatarColor,
-                avatarType = avatarType,
-                avatarValue = avatarValue,
-                size = 32.dp,
+    Box(
+        modifier =
+            modifier
+                .shadow(elevation = 6.dp, shape = shape)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+    ) {
+        if (coverPath != null || blurHash != null) {
+            ListenUpAsyncImage(
+                path = coverPath,
+                blurHash = blurHash,
+                contentDescription = contentDescription,
+                modifier = Modifier.fillMaxSize(),
             )
+        } else {
+            // Gradient placeholder
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors =
+                                    listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.surfaceContainer,
+                                    ),
+                            ),
+                        ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Book,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(24.dp),
+                )
+            }
         }
     }
 }

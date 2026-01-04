@@ -115,6 +115,8 @@ data class BookEditUiState(
     val isbn: String = "",
     val asin: String = "",
     val abridged: Boolean = false,
+    // Library metadata
+    val addedAt: Long? = null, // Epoch milliseconds when book was added to library
     // Contributors
     val contributors: List<EditableContributor> = emptyList(),
     // Series (multi-series support)
@@ -220,6 +222,11 @@ sealed interface BookEditUiEvent {
 
     data class AbridgedChanged(
         val abridged: Boolean,
+    ) : BookEditUiEvent
+
+    // Library metadata
+    data class AddedAtChanged(
+        val epochMillis: Long?,
     ) : BookEditUiEvent
 
     // Series management

@@ -99,6 +99,10 @@ data class ActivityResponse(
     val userDisplayName: String,
     @SerialName("user_avatar_color")
     val userAvatarColor: String,
+    @SerialName("user_avatar_type")
+    val userAvatarType: String = "auto",
+    @SerialName("user_avatar_value")
+    val userAvatarValue: String? = null,
     @SerialName("book_id")
     val bookId: String? = null,
     @SerialName("book_title")

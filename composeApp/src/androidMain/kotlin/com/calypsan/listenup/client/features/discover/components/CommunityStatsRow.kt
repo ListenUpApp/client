@@ -13,12 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.remote.CommunityStatsResponse
+import com.calypsan.listenup.client.data.repository.CommunityStats
 
 /**
  * Community aggregate stats row.
  *
- * Shows total listening time, books finished, and average streak
+ * Shows total listening time, books finished, and active listeners
  * across all community members.
  *
  * @param stats Community stats data
@@ -26,7 +26,7 @@ import com.calypsan.listenup.client.data.remote.CommunityStatsResponse
  */
 @Composable
 fun CommunityStatsRow(
-    stats: CommunityStatsResponse,
+    stats: CommunityStats,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -52,8 +52,8 @@ fun CommunityStatsRow(
                 value = stats.totalBooks.toString(),
             )
             StatItem(
-                label = "Avg Streak",
-                value = String.format("%.1f days", stats.averageStreak),
+                label = "Listeners",
+                value = stats.activeUsers.toString(),
             )
         }
     }

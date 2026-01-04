@@ -3,6 +3,10 @@
 package com.calypsan.listenup.client.data.sync.sse
 
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
+import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
+import com.calypsan.listenup.client.data.local.db.ActivityDao
+import com.calypsan.listenup.client.data.local.db.ActivityEntity
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookId
@@ -21,6 +25,8 @@ import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserProfileDao
 import com.calypsan.listenup.client.data.local.db.UserProfileEntity
+import com.calypsan.listenup.client.data.local.db.UserStatsDao
+import com.calypsan.listenup.client.data.local.db.UserStatsEntity
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
@@ -67,8 +73,11 @@ class SSEEventProcessor(
     private val lensDao: LensDao,
     private val tagDao: TagDao,
     private val listeningEventDao: ListeningEventDao,
+    private val activityDao: ActivityDao,
     private val userDao: UserDao,
     private val userProfileDao: UserProfileDao,
+    private val activeSessionDao: ActiveSessionDao,
+    private val userStatsDao: UserStatsDao,
     private val imageDownloader: ImageDownloaderContract,
     private val playbackStateProvider: PlaybackStateProvider,
     private val downloadService: DownloadService,
@@ -183,13 +192,23 @@ class SSEEventProcessor(
                 }
 
                 is SSEEventType.ActivityCreated -> {
-                    // Activity events are handled by ActivityFeedViewModel directly
-                    // No local persistence needed - feed is fetched from server
-                    logger.debug { "SSE: Activity created - ${event.type} by ${event.userDisplayName}" }
+                    handleActivityCreated(event)
                 }
 
                 is SSEEventType.ProfileUpdated -> {
                     handleProfileUpdated(event)
+                }
+
+                is SSEEventType.SessionStarted -> {
+                    handleSessionStarted(event)
+                }
+
+                is SSEEventType.SessionEnded -> {
+                    handleSessionEnded(event)
+                }
+
+                is SSEEventType.UserStatsUpdated -> {
+                    handleUserStatsUpdated(event)
                 }
             }
         } catch (e: Exception) {
@@ -573,6 +592,135 @@ class SSEEventProcessor(
             logger.debug { "SSE: Saved listening event ${event.id} to Room" }
         } catch (e: Exception) {
             logger.error(e) { "SSE: Failed to save listening event ${event.id}" }
+        }
+    }
+
+    // ========== Activity Event Handlers ==========
+
+    /**
+     * Handle activity created SSE event.
+     *
+     * Stores the activity in Room for offline-first activity feed display.
+     * Activities are denormalized with all display data (user name, avatar, book info)
+     * to avoid joins and enable instant offline display.
+     */
+    private suspend fun handleActivityCreated(event: SSEEventType.ActivityCreated) {
+        logger.debug { "SSE: Activity created - ${event.type} by ${event.userDisplayName}" }
+
+        val createdAtMs = parseTimestamp(event.createdAt).epochMillis
+
+        val entity =
+            ActivityEntity(
+                id = event.id,
+                userId = event.userId,
+                type = event.type,
+                createdAt = createdAtMs,
+                userDisplayName = event.userDisplayName,
+                userAvatarColor = event.userAvatarColor,
+                userAvatarType = event.userAvatarType,
+                userAvatarValue = event.userAvatarValue,
+                bookId = event.bookId,
+                bookTitle = event.bookTitle,
+                bookAuthorName = event.bookAuthorName,
+                bookCoverPath = event.bookCoverPath,
+                isReread = event.isReread,
+                durationMs = event.durationMs,
+                milestoneValue = event.milestoneValue,
+                milestoneUnit = event.milestoneUnit,
+                lensId = event.lensId,
+                lensName = event.lensName,
+            )
+
+        try {
+            activityDao.upsert(entity)
+            logger.debug { "SSE: Saved activity ${event.id} to Room" }
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to save activity ${event.id}" }
+        }
+    }
+
+    // ========== Active Session Event Handlers ==========
+
+    /**
+     * Handle session started SSE event.
+     *
+     * Stores the active session in Room for "What Others Are Listening To" feature.
+     * The session is joined with UserProfileEntity and BookEntity for display.
+     *
+     * Also ensures the user's avatar image is downloaded locally if they have one,
+     * so the avatar displays correctly in offline-first UI.
+     */
+    private suspend fun handleSessionStarted(event: SSEEventType.SessionStarted) {
+        logger.debug { "SSE: Session started - ${event.sessionId} for user ${event.userId}" }
+
+        // Download user's avatar if they have an image avatar and it's not cached locally
+        // Do this BEFORE storing the session so the avatar file exists when UI renders
+        val userProfile = userProfileDao.getById(event.userId)
+        if (userProfile != null && userProfile.avatarType == "image") {
+            scope.launch {
+                try {
+                    // downloadUserAvatar checks if file exists locally and skips if so
+                    imageDownloader.downloadUserAvatar(event.userId, forceRefresh = false)
+                    logger.debug { "SSE: Ensured avatar exists for user ${event.userId}" }
+                } catch (e: Exception) {
+                    logger.warn(e) { "SSE: Failed to download avatar for user ${event.userId}" }
+                }
+            }
+        }
+
+        val startedAtMs = parseTimestamp(event.startedAt).epochMillis
+        val now = Timestamp.now().epochMillis
+
+        activeSessionDao.upsert(
+            ActiveSessionEntity(
+                sessionId = event.sessionId,
+                userId = event.userId,
+                bookId = event.bookId,
+                startedAt = startedAtMs,
+                updatedAt = now,
+            ),
+        )
+    }
+
+    /**
+     * Handle session ended SSE event.
+     *
+     * Removes the session from Room.
+     */
+    private suspend fun handleSessionEnded(event: SSEEventType.SessionEnded) {
+        logger.debug { "SSE: Session ended - ${event.sessionId}" }
+        activeSessionDao.deleteBySessionId(event.sessionId)
+    }
+
+    // ========== User Stats Event Handlers ==========
+
+    /**
+     * Handle user stats updated SSE event.
+     *
+     * Updates the cached user stats in Room for leaderboard display.
+     * This enables offline-first leaderboard with real-time updates.
+     */
+    private suspend fun handleUserStatsUpdated(event: SSEEventType.UserStatsUpdated) {
+        logger.debug { "SSE: User stats updated - ${event.displayName} (${event.userId})" }
+
+        val entity =
+            UserStatsEntity(
+                oduserId = event.userId,
+                displayName = event.displayName,
+                avatarColor = event.avatarColor,
+                avatarType = event.avatarType,
+                avatarValue = event.avatarValue,
+                totalTimeMs = event.totalTimeMs,
+                totalBooks = event.totalBooks,
+                currentStreak = event.currentStreak,
+                updatedAt = Timestamp.now().epochMillis,
+            )
+
+        try {
+            userStatsDao.upsert(entity)
+            logger.debug { "SSE: Cached user stats for ${event.userId}" }
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to cache user stats for ${event.userId}" }
         }
     }
 

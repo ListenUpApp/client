@@ -29,6 +29,9 @@ import androidx.room.TypeConverters
  * - v22: Added avatarType, avatarValue, avatarColor columns to users table
  * - v23: Added tagline column to users table for profile bio
  * - v24: Added user_profiles table for caching other users' profile data
+ * - v25: Added active_sessions table for "What Others Are Listening To" feature
+ * - v26: Added activities table for offline activity feed
+ * - v27: Added user_stats table for offline leaderboard caching
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -53,8 +56,11 @@ import androidx.room.TypeConverters
         TagEntity::class,
         BookTagCrossRef::class,
         ListeningEventEntity::class,
+        ActiveSessionEntity::class,
+        ActivityEntity::class,
+        UserStatsEntity::class,
     ],
-    version = 24,
+    version = 27,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)
@@ -95,6 +101,12 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun tagDao(): TagDao
 
     abstract fun listeningEventDao(): ListeningEventDao
+
+    abstract fun activeSessionDao(): ActiveSessionDao
+
+    abstract fun activityDao(): ActivityDao
+
+    abstract fun userStatsDao(): UserStatsDao
 }
 
 /**

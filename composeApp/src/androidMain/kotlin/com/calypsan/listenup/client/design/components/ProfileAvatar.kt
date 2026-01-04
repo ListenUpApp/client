@@ -24,11 +24,9 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.calypsan.listenup.client.data.local.db.UserProfileDao
 import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.repository.SettingsRepository
 import org.koin.compose.koinInject
 import java.io.File
 import android.graphics.Color as AndroidColor
@@ -37,10 +35,11 @@ import android.graphics.Color as AndroidColor
  * Simple avatar component for displaying other users' profiles.
  *
  * Offline-first approach:
- * 1. Looks up cached UserProfileEntity for full avatar data
- * 2. Prefers local avatar image if available
- * 3. Falls back to server URL if online
- * 4. Shows initials on colored background otherwise
+ * 1. Uses provided avatar data if available (avatarType, avatarValue)
+ * 2. Falls back to looking up cached UserProfileEntity
+ * 3. Prefers local avatar image if available
+ * 4. Falls back to server URL if online
+ * 5. Shows initials on colored background otherwise
  *
  * Use this component for:
  * - Activity feed items
@@ -53,6 +52,8 @@ import android.graphics.Color as AndroidColor
  * @param userId The user's unique ID
  * @param displayName The user's display name (for initials)
  * @param avatarColor Fallback color in hex format (e.g., "#6B7280")
+ * @param avatarType Optional avatar type ("auto" or "image") - if provided, skips DAO lookup
+ * @param avatarValue Optional avatar URL path for image avatars
  * @param size Size of the avatar circle
  * @param fontSize Font size for initials
  * @param modifier Optional modifier
@@ -63,93 +64,93 @@ fun ProfileAvatar(
     displayName: String,
     avatarColor: String,
     modifier: Modifier = Modifier,
+    avatarType: String? = null,
+    avatarValue: String? = null,
     size: Dp = 36.dp,
     fontSize: TextUnit = 14.sp,
 ) {
     val context = LocalContext.current
     val userProfileDao: UserProfileDao = koinInject()
-    val settingsRepository: SettingsRepository = koinInject()
     val imageStorage: ImageStorage = koinInject()
 
-    // Look up cached profile for full avatar data (avatarType, avatarValue)
+    // Use provided data if available, otherwise look up from cache
     val cachedProfile by produceState(initialValue = null as CachedProfileData?) {
-        val profile = userProfileDao.getById(userId)
-        value = profile?.let {
-            CachedProfileData(
-                avatarType = it.avatarType,
-                avatarValue = it.avatarValue,
-                avatarColor = it.avatarColor,
-            )
+        // Skip DAO lookup if avatar data was provided directly
+        if (avatarType != null) {
+            value =
+                CachedProfileData(
+                    avatarType = avatarType,
+                    avatarValue = avatarValue,
+                    avatarColor = avatarColor,
+                )
+        } else {
+            val profile = userProfileDao.getById(userId)
+            value =
+                profile?.let {
+                    CachedProfileData(
+                        avatarType = it.avatarType,
+                        avatarValue = it.avatarValue,
+                        avatarColor = it.avatarColor,
+                    )
+                }
         }
     }
 
-    val serverUrl by produceState<String?>(null) {
-        value = settingsRepository.getServerUrl()?.value
-    }
-
-    val effectiveAvatarType = cachedProfile?.avatarType ?: "auto"
-    val effectiveAvatarValue = cachedProfile?.avatarValue
+    val effectiveAvatarType = cachedProfile?.avatarType ?: avatarType ?: "auto"
     val effectiveAvatarColor = cachedProfile?.avatarColor ?: avatarColor
 
-    val color = remember(effectiveAvatarColor) {
-        parseAvatarColor(effectiveAvatarColor)
-    }
-    val initials = remember(displayName) {
-        getInitials(displayName)
-    }
+    val color =
+        remember(effectiveAvatarColor) {
+            parseAvatarColor(effectiveAvatarColor)
+        }
+    val initials =
+        remember(displayName) {
+            getInitials(displayName)
+        }
 
-    val hasImageAvatar = effectiveAvatarType == "image" && !effectiveAvatarValue.isNullOrEmpty()
+    // Check if user has image avatar stored locally
+    // NOTE: We intentionally don't use remember() here because the file may appear
+    // after initial render (downloaded during sync). File existence checks are fast
+    // and the Currently Listening section has only a handful of items.
+    val hasLocalAvatar = imageStorage.userAvatarExists(userId)
+    val localAvatarPath = if (hasLocalAvatar) imageStorage.getUserAvatarPath(userId) else null
+
+    // Debug logging to trace avatar loading issues
+    android.util.Log.d(
+        "ProfileAvatar",
+        "userId=$userId, avatarType=$avatarType, hasLocalAvatar=$hasLocalAvatar, path=$localAvatarPath",
+    )
 
     Box(
-        modifier = modifier
-            .size(size)
-            .clip(CircleShape),
+        modifier =
+            modifier
+                .size(size)
+                .clip(CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        if (hasImageAvatar) {
-            // Offline-first: prefer local cached avatar
-            val localPath = if (imageStorage.userAvatarExists(userId)) {
-                imageStorage.getUserAvatarPath(userId)
-            } else {
-                null
-            }
-
-            if (localPath != null) {
-                // Use local file with modification time as cache buster
-                val file = File(localPath)
-                val lastModified = file.lastModified()
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(localPath)
+        if (hasLocalAvatar && localAvatarPath != null) {
+            // Load from local storage
+            val file = File(localAvatarPath)
+            val lastModified = file.lastModified()
+            AsyncImage(
+                model =
+                    ImageRequest
+                        .Builder(context)
+                        .data(localAvatarPath)
                         .memoryCacheKey("$userId-avatar-$lastModified")
                         .diskCacheKey("$userId-avatar-$lastModified")
                         .build(),
-                    contentDescription = "$displayName avatar",
-                    modifier = Modifier
+                contentDescription = "$displayName avatar",
+                modifier =
+                    Modifier
                         .size(size)
                         .clip(CircleShape),
-                    contentScale = ContentScale.Crop,
-                )
-            } else if (serverUrl != null) {
-                // Fallback: fetch from server with disabled caching
-                // effectiveAvatarValue is non-null here because hasImageAvatar checked it
-                val avatarUrl = "$serverUrl$effectiveAvatarValue"
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(avatarUrl)
-                        .memoryCachePolicy(CachePolicy.DISABLED)
-                        .diskCachePolicy(CachePolicy.DISABLED)
-                        .build(),
-                    contentDescription = "$displayName avatar",
-                    modifier = Modifier
-                        .size(size)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop,
-                )
-            } else {
-                // No local file and no server URL - show initials
-                InitialsAvatar(initials = initials, color = color, size = size, fontSize = fontSize)
-            }
+                contentScale = ContentScale.Crop,
+            )
+        } else if (effectiveAvatarType == "image") {
+            // Avatar type is image but file not yet downloaded - show placeholder
+            // This handles the race condition where profile is updated before download completes
+            InitialsAvatar(initials = initials, color = color, size = size, fontSize = fontSize)
         } else {
             // Auto-generated avatar with initials
             InitialsAvatar(initials = initials, color = color, size = size, fontSize = fontSize)
@@ -188,9 +189,10 @@ private fun InitialsAvatar(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .size(size)
-            .background(color, CircleShape),
+        modifier =
+            modifier
+                .size(size)
+                .background(color, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Text(

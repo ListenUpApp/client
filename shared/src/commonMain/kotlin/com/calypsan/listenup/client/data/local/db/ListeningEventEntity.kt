@@ -80,8 +80,24 @@ interface ListeningEventDao {
 
     /**
      * Get total duration for events since a timestamp.
+     * Uses bounds checking to prevent overflow from corrupted data.
      */
-    @Query("SELECT COALESCE(SUM(endPositionMs - startPositionMs), 0) FROM listening_events WHERE endedAt >= :startMs")
+    @Query(
+        """
+        SELECT IFNULL(
+            (SELECT SUM(duration) FROM (
+                SELECT (endPositionMs - startPositionMs) as duration
+                FROM listening_events
+                WHERE endedAt >= :startMs
+                  AND endPositionMs > startPositionMs
+                  AND endPositionMs < 10000000000
+                  AND startPositionMs >= 0
+                  AND startPositionMs < 10000000000
+            )),
+            0
+        )
+    """,
+    )
     suspend fun getTotalDurationSince(startMs: Long): Long
 
     /**
@@ -137,12 +153,79 @@ interface ListeningEventDao {
     )
     suspend fun getDistinctDaysWithActivity(startMs: Long): List<Long>
 
+    // ==================== Leaderboard Aggregation Queries ====================
+
     /**
-     * Get total duration grouped by book for a date range.
+     * Observe total listening time since a timestamp.
+     * Used for leaderboard TIME category (current user).
+     * Returns Flow for reactive UI updates.
+     *
+     * Uses subquery with strict bounds to prevent overflow from corrupted data.
+     * Returns 0 if no valid events exist.
      */
     @Query(
         """
-        SELECT bookId, SUM(endPositionMs - startPositionMs) as totalMs
+        SELECT IFNULL(
+            (SELECT SUM(duration) FROM (
+                SELECT (endPositionMs - startPositionMs) as duration
+                FROM listening_events
+                WHERE endedAt >= :sinceMs
+                  AND endPositionMs > startPositionMs
+                  AND endPositionMs < 10000000000
+                  AND startPositionMs >= 0
+                  AND startPositionMs < 10000000000
+            )),
+            0
+        )
+    """,
+    )
+    fun observeTotalDurationSince(sinceMs: Long): Flow<Long>
+
+    /**
+     * Observe distinct books listened to since a timestamp.
+     * Used for leaderboard BOOKS category (current user).
+     * Returns Flow for reactive UI updates.
+     */
+    @Query(
+        """
+        SELECT COUNT(DISTINCT bookId)
+        FROM listening_events
+        WHERE endedAt >= :sinceMs
+    """,
+    )
+    fun observeDistinctBooksSince(sinceMs: Long): Flow<Int>
+
+    /**
+     * Observe distinct days with listening activity since a timestamp.
+     * Used for streak calculation (current user).
+     * Returns day numbers (epochMs / 86400000) sorted descending.
+     * Returns Flow for reactive updates when new events are added.
+     */
+    @Query(
+        """
+        SELECT DISTINCT (endedAt / 86400000) as dayNumber
+        FROM listening_events
+        WHERE endedAt >= :sinceMs
+        ORDER BY dayNumber DESC
+    """,
+    )
+    fun observeDistinctDaysSince(sinceMs: Long): Flow<List<Long>>
+
+    /**
+     * Get total duration grouped by book for a date range.
+     * Uses bounds checking to prevent overflow from corrupted data.
+     */
+    @Query(
+        """
+        SELECT bookId, IFNULL(SUM(
+            CASE WHEN endPositionMs > startPositionMs
+                      AND endPositionMs < 10000000000
+                      AND startPositionMs >= 0
+                      AND startPositionMs < 10000000000
+                 THEN endPositionMs - startPositionMs
+                 ELSE 0
+            END
+        ), 0) as totalMs
         FROM listening_events
         WHERE endedAt >= :startMs AND endedAt < :endMs
         GROUP BY bookId

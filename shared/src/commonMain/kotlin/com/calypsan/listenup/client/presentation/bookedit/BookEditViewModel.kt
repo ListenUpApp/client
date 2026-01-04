@@ -112,6 +112,7 @@ class BookEditViewModel(
     private var originalIsbn: String = ""
     private var originalAsin: String = ""
     private var originalAbridged: Boolean = false
+    private var originalAddedAt: Long? = null
     private var originalContributors: List<EditableContributor> = emptyList()
     private var originalSeries: List<EditableSeries> = emptyList()
     private var originalGenres: List<EditableGenre> = emptyList()
@@ -182,6 +183,7 @@ class BookEditViewModel(
             originalIsbn = book.isbn ?: ""
             originalAsin = book.asin ?: ""
             originalAbridged = book.abridged
+            originalAddedAt = book.addedAt.epochMillis
             originalContributors = editableContributors
             originalSeries = editableSeries
             originalGenres = bookGenres
@@ -201,6 +203,7 @@ class BookEditViewModel(
                     isbn = book.isbn ?: "",
                     asin = book.asin ?: "",
                     abridged = book.abridged,
+                    addedAt = book.addedAt.epochMillis,
                     contributors = editableContributors,
                     series = editableSeries,
                     visibleRoles = initialVisibleRoles,
@@ -268,6 +271,11 @@ class BookEditViewModel(
 
             is BookEditUiEvent.AbridgedChanged -> {
                 _state.update { it.copy(abridged = event.abridged) }
+                updateHasChanges()
+            }
+
+            is BookEditUiEvent.AddedAtChanged -> {
+                _state.update { it.copy(addedAt = event.epochMillis) }
                 updateHasChanges()
             }
 
@@ -453,6 +461,7 @@ class BookEditViewModel(
                 current.isbn != originalIsbn ||
                 current.asin != originalAsin ||
                 current.abridged != originalAbridged ||
+                current.addedAt != originalAddedAt ||
                 current.contributors != originalContributors ||
                 current.series != originalSeries ||
                 current.genres != originalGenres ||
@@ -484,7 +493,8 @@ class BookEditViewModel(
                         current.language != originalLanguage ||
                         current.isbn != originalIsbn ||
                         current.asin != originalAsin ||
-                        current.abridged != originalAbridged
+                        current.abridged != originalAbridged ||
+                        current.addedAt != originalAddedAt
 
                 if (metadataChanged) {
                     val updateRequest =
@@ -508,6 +518,14 @@ class BookEditViewModel(
                             isbn = if (current.isbn != originalIsbn) current.isbn.ifBlank { null } else null,
                             asin = if (current.asin != originalAsin) current.asin.ifBlank { null } else null,
                             abridged = if (current.abridged != originalAbridged) current.abridged else null,
+                            createdAt =
+                                if (current.addedAt != originalAddedAt && current.addedAt != null) {
+                                    kotlinx.datetime.Instant
+                                        .fromEpochMilliseconds(current.addedAt)
+                                        .toString()
+                                } else {
+                                    null
+                                },
                         )
 
                     when (val result = bookEditRepository.updateBook(current.bookId, updateRequest)) {

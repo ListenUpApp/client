@@ -21,6 +21,8 @@ data class BookUpdatePayload(
     val isbn: String? = null,
     val asin: String? = null,
     val abridged: Boolean? = null,
+    @SerialName("created_at")
+    val createdAt: String? = null, // ISO8601 timestamp
 )
 
 /**

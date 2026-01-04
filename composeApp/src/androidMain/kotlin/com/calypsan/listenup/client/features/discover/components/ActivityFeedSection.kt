@@ -27,7 +27,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -39,9 +38,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.data.remote.ActivityResponse
 import com.calypsan.listenup.client.design.components.ProfileAvatar
 import com.calypsan.listenup.client.presentation.discover.ActivityFeedViewModel
+import com.calypsan.listenup.client.presentation.discover.ActivityUiModel
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -52,6 +51,8 @@ import org.koin.compose.viewmodel.koinViewModel
  * - Streak milestones
  * - Listening hour milestones
  * - Created lenses
+ *
+ * Offline-first: All data comes from Room, synced via SSE events.
  *
  * @param onBookClick Callback when a book is clicked
  * @param onLensClick Callback when a lens is clicked
@@ -107,14 +108,6 @@ fun ActivityFeedSection(
                     }
                 }
 
-                state.error != null -> {
-                    Text(
-                        text = state.error ?: "Unknown error",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-
                 state.isEmpty -> {
                     Text(
                         text = "No activity yet. Start listening to see what your community is reading!",
@@ -124,7 +117,7 @@ fun ActivityFeedSection(
                 }
 
                 state.hasData -> {
-                    // Show activities
+                    // Show activities (limited to 5 in the section)
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -134,23 +127,6 @@ fun ActivityFeedSection(
                                 onBookClick = onBookClick,
                                 onLensClick = onLensClick,
                             )
-                        }
-                    }
-
-                    // Load more button
-                    if (state.hasMore) {
-                        TextButton(
-                            onClick = { viewModel.loadMore() },
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
-                        ) {
-                            if (state.isLoadingMore) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                            }
-                            Text("Load more")
                         }
                     }
                 }
@@ -164,7 +140,7 @@ fun ActivityFeedSection(
  */
 @Composable
 private fun ActivityItem(
-    activity: ActivityResponse,
+    activity: ActivityUiModel,
     onBookClick: (String) -> Unit,
     onLensClick: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -202,6 +178,8 @@ private fun ActivityItem(
             userId = activity.userId,
             displayName = activity.userDisplayName,
             avatarColor = activity.userAvatarColor,
+            avatarType = activity.userAvatarType,
+            avatarValue = activity.userAvatarValue,
             size = 36.dp,
         )
 
@@ -245,7 +223,7 @@ private fun ActivityItem(
 /**
  * Get the icon and description for an activity.
  */
-private fun getActivityIconAndDescription(activity: ActivityResponse): Pair<ImageVector, String> =
+private fun getActivityIconAndDescription(activity: ActivityUiModel): Pair<ImageVector, String> =
     when (activity.type) {
         "started_book" -> {
             val prefix = if (activity.isReread) "Started re-reading" else "Started reading"

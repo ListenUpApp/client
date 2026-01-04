@@ -108,6 +108,7 @@ class BookDetailViewModel(
                         isComplete = isComplete,
                         progress = if (progress != null && progress > 0f && !isComplete) progress else null,
                         timeRemainingFormatted = timeRemaining,
+                        addedAt = book.addedAt.epochMillis,
                     )
 
                 // Load genres and tags for this book (non-blocking, optional features)
@@ -293,6 +294,7 @@ data class BookDetailUiState(
     val narrators: String = "",
     val year: Int? = null,
     val rating: Double? = null,
+    val addedAt: Long? = null, // Epoch milliseconds when book was added to library
     val chapters: List<ChapterUiModel> = emptyList(),
     // Progress (for overlay display)
     val progress: Float? = null,

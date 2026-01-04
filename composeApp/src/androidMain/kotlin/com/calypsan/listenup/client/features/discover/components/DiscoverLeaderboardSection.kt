@@ -132,6 +132,7 @@ fun DiscoverLeaderboardSection(
                         val entries = viewModel.getEntriesForCategory(category)
                         LeaderboardList(
                             entries = entries,
+                            category = category,
                             onUserClick = onUserClick,
                         )
                     }

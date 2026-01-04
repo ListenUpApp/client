@@ -15,12 +15,14 @@ private val logger = KotlinLogging.logger {}
 /**
  * Coordinates parallel entity pulls with retry logic and progress reporting.
  */
+@Suppress("LongParameterList")
 class PullSyncOrchestrator(
     private val bookPuller: Puller,
     private val seriesPuller: Puller,
     private val contributorPuller: Puller,
     private val tagPuller: Puller,
     private val listeningEventPuller: Puller,
+    private val activeSessionsPuller: Puller,
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
 ) {
@@ -79,6 +81,9 @@ class PullSyncOrchestrator(
 
                 // Pull listening events (from other devices) for offline stats
                 listeningEventPuller.pull(updatedAfter, onProgress)
+
+                // Pull active sessions for "What Others Are Listening To" discovery section
+                activeSessionsPuller.pull(updatedAfter, onProgress)
             }
 
             onProgress(

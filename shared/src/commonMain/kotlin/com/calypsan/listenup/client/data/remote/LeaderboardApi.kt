@@ -94,12 +94,25 @@ data class LeaderboardEntryResponse(
     val displayName: String,
     @SerialName("avatar_url")
     val avatarUrl: String? = null,
+    @SerialName("avatar_type")
+    val avatarType: String = "auto",
+    @SerialName("avatar_value")
+    val avatarValue: String = "",
+    @SerialName("avatar_color")
+    val avatarColor: String = "#6B7280",
     @SerialName("value")
     val value: Long,
     @SerialName("value_label")
     val valueLabel: String,
     @SerialName("is_current_user")
     val isCurrentUser: Boolean,
+    // All-time totals for caching (only included when period=all)
+    @SerialName("total_time_ms")
+    val totalTimeMs: Long? = null,
+    @SerialName("total_books")
+    val totalBooks: Int? = null,
+    @SerialName("current_streak")
+    val currentStreak: Int? = null,
 )
 
 /**

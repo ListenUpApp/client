@@ -408,6 +408,7 @@ private fun ImmersiveBookDetail(
                 rating = state.rating,
                 duration = state.book?.duration ?: 0,
                 year = state.year,
+                addedAt = state.addedAt,
                 genres = state.genresList,
                 onSeriesClick = onSeriesClick,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),

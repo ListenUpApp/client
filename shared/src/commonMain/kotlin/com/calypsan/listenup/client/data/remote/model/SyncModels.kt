@@ -794,6 +794,10 @@ data class SSEActivityCreatedEvent(
     val userDisplayName: String,
     @SerialName("user_avatar_color")
     val userAvatarColor: String,
+    @SerialName("user_avatar_type")
+    val userAvatarType: String = "auto",
+    @SerialName("user_avatar_value")
+    val userAvatarValue: String? = null,
     @SerialName("book_id")
     val bookId: String? = null,
     @SerialName("book_title")
@@ -814,6 +818,58 @@ data class SSEActivityCreatedEvent(
     val lensId: String? = null,
     @SerialName("lens_name")
     val lensName: String? = null,
+)
+
+/**
+ * SSE session started event data.
+ * Broadcast to all users when someone starts listening.
+ * Used for "What Others Are Listening To" feature.
+ */
+@Serializable
+data class SSESessionStartedEvent(
+    @SerialName("session_id")
+    val sessionId: String,
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("started_at")
+    val startedAt: String,
+)
+
+/**
+ * SSE session ended event data.
+ * Broadcast to all users when someone stops listening.
+ */
+@Serializable
+data class SSESessionEndedEvent(
+    @SerialName("session_id")
+    val sessionId: String,
+)
+
+/**
+ * SSE user stats updated event data.
+ * Broadcast to all users when someone's all-time stats change.
+ * Used for leaderboard caching.
+ */
+@Serializable
+data class SSEUserStatsUpdatedEvent(
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("display_name")
+    val displayName: String,
+    @SerialName("avatar_type")
+    val avatarType: String,
+    @SerialName("avatar_value")
+    val avatarValue: String? = null,
+    @SerialName("avatar_color")
+    val avatarColor: String,
+    @SerialName("total_time_ms")
+    val totalTimeMs: Long,
+    @SerialName("total_books")
+    val totalBooks: Int,
+    @SerialName("current_streak")
+    val currentStreak: Int,
 )
 
 // =============================================================================
@@ -969,3 +1025,41 @@ data class SingleBookAudioFileResponse(
             size = size,
         )
 }
+
+// =============================================================================
+// Active Sessions Sync Response (GET /api/v1/sync/active-sessions)
+// =============================================================================
+
+/**
+ * Response from GET /api/v1/sync/active-sessions endpoint.
+ * Returns all currently active reading sessions for initial discovery page sync.
+ */
+@Serializable
+data class ApiActiveSessions(
+    @SerialName("sessions")
+    val sessions: List<ApiActiveSessionResponse>,
+)
+
+/**
+ * A single active reading session from the sync endpoint.
+ * Includes user profile data for offline-first display.
+ */
+@Serializable
+data class ApiActiveSessionResponse(
+    @SerialName("session_id")
+    val sessionId: String,
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("started_at")
+    val startedAt: String,
+    @SerialName("display_name")
+    val displayName: String,
+    @SerialName("avatar_type")
+    val avatarType: String,
+    @SerialName("avatar_value")
+    val avatarValue: String? = null,
+    @SerialName("avatar_color")
+    val avatarColor: String,
+)

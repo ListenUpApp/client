@@ -40,14 +40,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.remote.LensResponse
-import com.calypsan.listenup.client.data.remote.UserLensesResponse
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ProfileAvatar
 import com.calypsan.listenup.client.features.discover.components.ActivityFeedSection
 import com.calypsan.listenup.client.features.discover.components.CurrentlyListeningSection
 import com.calypsan.listenup.client.features.discover.components.DiscoverBooksSection
 import com.calypsan.listenup.client.features.discover.components.DiscoverLeaderboardSection
+import com.calypsan.listenup.client.features.discover.components.RecentlyAddedSection
+import com.calypsan.listenup.client.presentation.discover.DiscoverLensUi
+import com.calypsan.listenup.client.presentation.discover.DiscoverUserLenses
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -69,10 +70,10 @@ fun DiscoverScreen(
     modifier: Modifier = Modifier,
     viewModel: DiscoverViewModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsState()
+    val lensesState by viewModel.discoverLensesState.collectAsState()
 
     PullToRefreshBox(
-        isRefreshing = state.isLoading,
+        isRefreshing = lensesState.isLoading,
         onRefresh = { viewModel.refresh() },
         modifier =
             modifier
@@ -81,10 +82,9 @@ fun DiscoverScreen(
     ) {
         // Discover content with leaderboard (always shows) and user lenses
         DiscoverContent(
-            isLoading = state.isLoading,
-            users = state.users,
-            isEmpty = state.isEmpty,
-            error = state.error,
+            isLoading = lensesState.isLoading,
+            users = lensesState.users,
+            isEmpty = lensesState.isEmpty,
             onLensClick = onLensClick,
             onBookClick = onBookClick,
             onUserProfileClick = onUserProfileClick,
@@ -137,9 +137,8 @@ private fun EmptyLensesState(modifier: Modifier = Modifier) {
 @Composable
 private fun DiscoverContent(
     isLoading: Boolean,
-    users: List<UserLensesResponse>,
+    users: List<DiscoverUserLenses>,
     isEmpty: Boolean,
-    error: String?,
     onLensClick: (String) -> Unit,
     onBookClick: (String) -> Unit,
     onUserProfileClick: (String) -> Unit,
@@ -152,6 +151,13 @@ private fun DiscoverContent(
         // Discover Something New - random book discovery (top section)
         item {
             DiscoverBooksSection(
+                onBookClick = onBookClick,
+            )
+        }
+
+        // Recently Added - newest books in library
+        item {
+            RecentlyAddedSection(
                 onBookClick = onBookClick,
             )
         }
@@ -194,23 +200,6 @@ private fun DiscoverContent(
                 }
             }
 
-            error != null -> {
-                item {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(48.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            text = error,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
-            }
-
             isEmpty -> {
                 item {
                     EmptyLensesState()
@@ -238,7 +227,7 @@ private fun DiscoverContent(
  */
 @Composable
 private fun UserLensesSection(
-    userLenses: UserLensesResponse,
+    userLenses: DiscoverUserLenses,
     onLensClick: (String) -> Unit,
 ) {
     val avatarColor =
@@ -309,7 +298,7 @@ private fun UserLensesSection(
  */
 @Composable
 private fun DiscoverLensCard(
-    lens: LensResponse,
+    lens: DiscoverLensUi,
     avatarColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,

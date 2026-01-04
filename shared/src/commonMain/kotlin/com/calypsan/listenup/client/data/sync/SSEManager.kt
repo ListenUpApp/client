@@ -25,10 +25,13 @@ import com.calypsan.listenup.client.data.remote.model.SSEListeningEventCreatedEv
 import com.calypsan.listenup.client.data.remote.model.SSEProfileUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEProgressUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEReadingSessionUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSESessionEndedEvent
+import com.calypsan.listenup.client.data.remote.model.SSESessionStartedEvent
 import com.calypsan.listenup.client.data.remote.model.SSETagCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserApprovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserData
 import com.calypsan.listenup.client.data.remote.model.SSEUserPendingEvent
+import com.calypsan.listenup.client.data.remote.model.SSEUserStatsUpdatedEvent
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.request.prepareGet
@@ -545,6 +548,8 @@ class SSEManager(
                             createdAt = activityEvent.createdAt,
                             userDisplayName = activityEvent.userDisplayName,
                             userAvatarColor = activityEvent.userAvatarColor,
+                            userAvatarType = activityEvent.userAvatarType,
+                            userAvatarValue = activityEvent.userAvatarValue,
                             bookId = activityEvent.bookId,
                             bookTitle = activityEvent.bookTitle,
                             bookAuthorName = activityEvent.bookAuthorName,
@@ -571,6 +576,49 @@ class SSEManager(
                             avatarValue = profileEvent.avatarValue,
                             avatarColor = profileEvent.avatarColor,
                             tagline = profileEvent.tagline,
+                        )
+                    }
+
+                    "session.started" -> {
+                        val sessionEvent =
+                            json.decodeFromJsonElement(
+                                SSESessionStartedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.SessionStarted(
+                            sessionId = sessionEvent.sessionId,
+                            userId = sessionEvent.userId,
+                            bookId = sessionEvent.bookId,
+                            startedAt = sessionEvent.startedAt,
+                        )
+                    }
+
+                    "session.ended" -> {
+                        val sessionEvent =
+                            json.decodeFromJsonElement(
+                                SSESessionEndedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.SessionEnded(
+                            sessionId = sessionEvent.sessionId,
+                        )
+                    }
+
+                    "user_stats.updated" -> {
+                        val statsEvent =
+                            json.decodeFromJsonElement(
+                                SSEUserStatsUpdatedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.UserStatsUpdated(
+                            userId = statsEvent.userId,
+                            displayName = statsEvent.displayName,
+                            avatarType = statsEvent.avatarType,
+                            avatarValue = statsEvent.avatarValue,
+                            avatarColor = statsEvent.avatarColor,
+                            totalTimeMs = statsEvent.totalTimeMs,
+                            totalBooks = statsEvent.totalBooks,
+                            currentStreak = statsEvent.currentStreak,
                         )
                     }
 
@@ -843,6 +891,8 @@ sealed class SSEEventType {
         val createdAt: String,
         val userDisplayName: String,
         val userAvatarColor: String,
+        val userAvatarType: String = "auto",
+        val userAvatarValue: String? = null,
         val bookId: String? = null,
         val bookTitle: String? = null,
         val bookAuthorName: String? = null,
@@ -868,5 +918,41 @@ sealed class SSEEventType {
         val avatarValue: String?,
         val avatarColor: String,
         val tagline: String?,
+    ) : SSEEventType()
+
+    // Active session events (for "What Others Are Listening To")
+
+    /**
+     * Another user started a reading session.
+     * Broadcast to all users for the "What Others Are Listening To" feature.
+     */
+    data class SessionStarted(
+        val sessionId: String,
+        val userId: String,
+        val bookId: String,
+        val startedAt: String,
+    ) : SSEEventType()
+
+    /**
+     * A reading session ended.
+     * Broadcast to all users to remove from "What Others Are Listening To".
+     */
+    data class SessionEnded(
+        val sessionId: String,
+    ) : SSEEventType()
+
+    /**
+     * A user's all-time stats were updated.
+     * Broadcast to all users for leaderboard caching.
+     */
+    data class UserStatsUpdated(
+        val userId: String,
+        val displayName: String,
+        val avatarType: String,
+        val avatarValue: String?,
+        val avatarColor: String,
+        val totalTimeMs: Long,
+        val totalBooks: Int,
+        val currentStreak: Int,
     ) : SSEEventType()
 }
