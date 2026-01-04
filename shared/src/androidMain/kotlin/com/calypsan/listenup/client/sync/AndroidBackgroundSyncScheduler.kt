@@ -6,7 +6,6 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.calypsan.listenup.client.workers.SyncWorker
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration

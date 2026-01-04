@@ -1,28 +1,15 @@
-@file:OptIn(ExperimentalTime::class)
-
 package com.calypsan.listenup.client.data.remote.model
 
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
-import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
+import com.calypsan.listenup.client.util.parseToTimestampOrNow
 
 fun SeriesResponse.toEntity(): SeriesEntity {
     val now = Timestamp.now()
-    val serverUpdatedAt =
-        try {
-            Timestamp.fromEpochMillis(Instant.parse(updatedAt).toEpochMilliseconds())
-        } catch (_: Exception) {
-            now // Fallback to current time if parsing fails
-        }
-    val serverCreatedAt =
-        try {
-            Timestamp.fromEpochMillis(Instant.parse(createdAt).toEpochMilliseconds())
-        } catch (_: Exception) {
-            now // Fallback to current time if parsing fails
-        }
+    val serverUpdatedAt = updatedAt.parseToTimestampOrNow()
+    val serverCreatedAt = createdAt.parseToTimestampOrNow()
 
     return SeriesEntity(
         id = id,
@@ -38,18 +25,8 @@ fun SeriesResponse.toEntity(): SeriesEntity {
 
 fun ContributorResponse.toEntity(): ContributorEntity {
     val now = Timestamp.now()
-    val serverUpdatedAt =
-        try {
-            Timestamp.fromEpochMillis(Instant.parse(updatedAt).toEpochMilliseconds())
-        } catch (_: Exception) {
-            now // Fallback to current time if parsing fails
-        }
-    val serverCreatedAt =
-        try {
-            Timestamp.fromEpochMillis(Instant.parse(createdAt).toEpochMilliseconds())
-        } catch (_: Exception) {
-            now // Fallback to current time if parsing fails
-        }
+    val serverUpdatedAt = updatedAt.parseToTimestampOrNow()
+    val serverCreatedAt = createdAt.parseToTimestampOrNow()
 
     // Convert aliases list to comma-separated string for storage
     val aliasesString = aliases?.takeIf { it.isNotEmpty() }?.joinToString(", ")

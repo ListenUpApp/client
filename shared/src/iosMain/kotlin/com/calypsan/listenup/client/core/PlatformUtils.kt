@@ -25,4 +25,18 @@ actual object PlatformUtils {
      * For session tracking purposes, the general device type is sufficient.
      */
     actual fun getDeviceModel(): String = UIDevice.currentDevice.model
+
+    /**
+     * Returns the platform name for iOS.
+     */
+    actual fun getPlatformName(): String = "iOS"
+
+    /**
+     * Returns the iOS version string.
+     *
+     * Uses UIDevice.currentDevice.systemVersion which returns version strings like:
+     * - "17.2"
+     * - "16.4.1"
+     */
+    actual fun getPlatformVersion(): String = UIDevice.currentDevice.systemVersion
 }

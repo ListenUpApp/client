@@ -33,9 +33,7 @@ actual fun getBaseUrl(): String = "http://127.0.0.1:8080"
 
 /**
  * iOS-specific discovery module.
- * Provides Bonjour-based mDNS discovery.
- *
- * TODO: IosDiscoveryService is a placeholder - implement NSNetServiceBrowser
+ * Provides Bonjour-based mDNS discovery using NSNetServiceBrowser.
  */
 actual val platformDiscoveryModule: Module =
     module {

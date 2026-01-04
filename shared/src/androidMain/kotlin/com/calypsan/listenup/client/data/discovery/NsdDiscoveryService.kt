@@ -4,12 +4,14 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
-import android.util.Log
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import java.util.concurrent.Executors
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Android implementation of [ServerDiscoveryService] using NsdManager.
@@ -34,7 +36,6 @@ class NsdDiscoveryService(
     private var isDiscovering = false
 
     companion object {
-        private const val TAG = "NsdDiscoveryService"
         private const val SERVICE_TYPE = "_listenup._tcp."
     }
 
@@ -42,31 +43,31 @@ class NsdDiscoveryService(
 
     override fun startDiscovery() {
         if (isDiscovering) {
-            Log.d(TAG, "Discovery already running")
+            logger.debug { "Discovery already running" }
             return
         }
 
-        Log.i(TAG, "Starting mDNS discovery for $SERVICE_TYPE")
+        logger.info { "Starting mDNS discovery for $SERVICE_TYPE" }
 
         discoveryListener =
             object : NsdManager.DiscoveryListener {
                 override fun onDiscoveryStarted(serviceType: String) {
-                    Log.i(TAG, "Discovery started for $serviceType")
+                    logger.info { "Discovery started for $serviceType" }
                     isDiscovering = true
                 }
 
                 override fun onDiscoveryStopped(serviceType: String) {
-                    Log.i(TAG, "Discovery stopped for $serviceType")
+                    logger.info { "Discovery stopped for $serviceType" }
                     isDiscovering = false
                 }
 
                 override fun onServiceFound(serviceInfo: NsdServiceInfo) {
-                    Log.d(TAG, "Service found: ${serviceInfo.serviceName}")
+                    logger.debug { "Service found: ${serviceInfo.serviceName}" }
                     resolveService(serviceInfo)
                 }
 
                 override fun onServiceLost(serviceInfo: NsdServiceInfo) {
-                    Log.d(TAG, "Service lost: ${serviceInfo.serviceName}")
+                    logger.debug { "Service lost: ${serviceInfo.serviceName}" }
                     // Remove by service name since we don't have the ID yet
                     serversState.update { current ->
                         val removedId =
@@ -81,7 +82,7 @@ class NsdDiscoveryService(
                     serviceType: String,
                     errorCode: Int,
                 ) {
-                    Log.e(TAG, "Discovery start failed: $errorCode")
+                    logger.error { "Discovery start failed: $errorCode" }
                     isDiscovering = false
                 }
 
@@ -89,29 +90,29 @@ class NsdDiscoveryService(
                     serviceType: String,
                     errorCode: Int,
                 ) {
-                    Log.e(TAG, "Discovery stop failed: $errorCode")
+                    logger.error { "Discovery stop failed: $errorCode" }
                 }
             }
 
         try {
             nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start discovery", e)
+            logger.error(e) { "Failed to start discovery" }
             isDiscovering = false
         }
     }
 
     override fun stopDiscovery() {
         if (!isDiscovering || discoveryListener == null) {
-            Log.d(TAG, "Discovery not running, nothing to stop")
+            logger.debug { "Discovery not running, nothing to stop" }
             return
         }
 
-        Log.i(TAG, "Stopping mDNS discovery")
+        logger.info { "Stopping mDNS discovery" }
         try {
             nsdManager.stopServiceDiscovery(discoveryListener)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to stop discovery", e)
+            logger.error(e) { "Failed to stop discovery" }
         }
         discoveryListener = null
         isDiscovering = false
@@ -136,19 +137,19 @@ class NsdDiscoveryService(
                     serviceInfo: NsdServiceInfo,
                     errorCode: Int,
                 ) {
-                    Log.e(TAG, "Resolve failed for ${serviceInfo.serviceName}: $errorCode")
+                    logger.error { "Resolve failed for ${serviceInfo.serviceName}: $errorCode" }
                 }
 
                 @Suppress("DEPRECATION")
                 override fun onServiceResolved(resolvedInfo: NsdServiceInfo) {
                     val hostAddress = resolvedInfo.host?.hostAddress
-                    Log.d(TAG, "Resolved: ${resolvedInfo.serviceName} at $hostAddress:${resolvedInfo.port}")
+                    logger.debug { "Resolved: ${resolvedInfo.serviceName} at $hostAddress:${resolvedInfo.port}" }
                     val server = parseDiscoveredServer(resolvedInfo)
                     if (server != null) {
                         serversState.update { it + (server.id to server) }
-                        Log.i(TAG, "Server discovered: ${server.name} (${server.id}) at ${server.localUrl}")
+                        logger.info { "Server discovered: ${server.name} (${server.id}) at ${server.localUrl}" }
                     } else {
-                        Log.w(TAG, "Failed to parse server: ${resolvedInfo.serviceName}")
+                        logger.warn { "Failed to parse server: ${resolvedInfo.serviceName}" }
                     }
                 }
             }
@@ -156,7 +157,7 @@ class NsdDiscoveryService(
         try {
             nsdManager.resolveService(serviceInfo, resolveListener)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to resolve service", e)
+            logger.error(e) { "Failed to resolve service" }
         }
     }
 
@@ -168,37 +169,37 @@ class NsdDiscoveryService(
         callback =
             object : NsdManager.ServiceInfoCallback {
                 override fun onServiceInfoCallbackRegistrationFailed(errorCode: Int) {
-                    Log.e(TAG, "ServiceInfoCallback registration failed: $errorCode")
+                    logger.error { "ServiceInfoCallback registration failed: $errorCode" }
                 }
 
                 override fun onServiceUpdated(resolvedInfo: NsdServiceInfo) {
                     val hostAddress = resolvedInfo.hostAddresses.firstOrNull()?.hostAddress
-                    Log.d(TAG, "Resolved: ${resolvedInfo.serviceName} at $hostAddress:${resolvedInfo.port}")
+                    logger.debug { "Resolved: ${resolvedInfo.serviceName} at $hostAddress:${resolvedInfo.port}" }
                     val server = parseDiscoveredServer(resolvedInfo)
                     if (server != null) {
                         serversState.update { it + (server.id to server) }
-                        Log.i(TAG, "Server discovered: ${server.name} (${server.id}) at ${server.localUrl}")
+                        logger.info { "Server discovered: ${server.name} (${server.id}) at ${server.localUrl}" }
                     } else {
-                        Log.w(TAG, "Failed to parse server: ${resolvedInfo.serviceName}")
+                        logger.warn { "Failed to parse server: ${resolvedInfo.serviceName}" }
                     }
                     // Unregister after successful resolution
                     callback?.let { nsdManager.unregisterServiceInfoCallback(it) }
                 }
 
                 override fun onServiceLost() {
-                    Log.d(TAG, "Service lost during resolution: ${serviceInfo.serviceName}")
+                    logger.debug { "Service lost during resolution: ${serviceInfo.serviceName}" }
                     callback?.let { nsdManager.unregisterServiceInfoCallback(it) }
                 }
 
                 override fun onServiceInfoCallbackUnregistered() {
-                    Log.d(TAG, "ServiceInfoCallback unregistered for ${serviceInfo.serviceName}")
+                    logger.debug { "ServiceInfoCallback unregistered for ${serviceInfo.serviceName}" }
                 }
             }
 
         try {
             nsdManager.registerServiceInfoCallback(serviceInfo, executor, callback)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to register service info callback", e)
+            logger.error(e) { "Failed to register service info callback" }
         }
     }
 
@@ -246,7 +247,7 @@ class NsdDiscoveryService(
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse TXT records", e)
+            logger.error(e) { "Failed to parse TXT records" }
         }
 
         return result

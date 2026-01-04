@@ -9,6 +9,8 @@ package com.calypsan.listenup.client.core
  * Currently provides:
  * - isEmulator(): Detects if app is running on emulator/simulator
  * - getDeviceModel(): Gets the device model name for identification
+ * - getPlatformName(): Gets the platform name ("Android" or "iOS")
+ * - getPlatformVersion(): Gets the OS version string
  */
 expect object PlatformUtils {
     /**
@@ -30,4 +32,23 @@ expect object PlatformUtils {
      * @return Device model name string
      */
     fun getDeviceModel(): String
+
+    /**
+     * Gets the platform name.
+     *
+     * Used for device identification in authentication requests.
+     *
+     * @return "Android" on Android devices, "iOS" on iOS devices
+     */
+    fun getPlatformName(): String
+
+    /**
+     * Gets the platform OS version.
+     *
+     * Used for device identification in authentication requests.
+     * Examples: "14" (Android API), "17.2" (iOS version)
+     *
+     * @return Platform-specific version string
+     */
+    fun getPlatformVersion(): String
 }

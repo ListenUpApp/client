@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.workers
+package com.calypsan.listenup.client.sync
 
 import android.content.Context
 import androidx.work.CoroutineWorker
@@ -15,7 +15,7 @@ private val logger = KotlinLogging.logger {}
  * Android WorkManager worker for background sync operations.
  *
  * Executes sync via [SyncManager] when triggered by WorkManager.
- * Scheduling is handled by [com.calypsan.listenup.client.sync.AndroidBackgroundSyncScheduler].
+ * Scheduling is handled by [AndroidBackgroundSyncScheduler].
  *
  * Retry policy: Exponential backoff with 3 max retries.
  */
