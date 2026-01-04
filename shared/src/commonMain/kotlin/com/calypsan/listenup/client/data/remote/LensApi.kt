@@ -153,16 +153,13 @@ class LensApi(
 
     override suspend fun deleteLens(lensId: String) {
         val client = clientFactory.getClient()
-        val response = client.delete("/api/v1/lenses/$lensId")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/lenses/$lensId").body()
 
-        if (!response.status.isSuccess()) {
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* Lens deleted successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exception
             }
         }
     }
@@ -194,16 +191,13 @@ class LensApi(
         bookId: String,
     ) {
         val client = clientFactory.getClient()
-        val response = client.delete("/api/v1/lenses/$lensId/books/$bookId")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/lenses/$lensId/books/$bookId").body()
 
-        if (!response.status.isSuccess()) {
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* Book removed from lens successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exception
             }
         }
     }

@@ -11,7 +11,7 @@ import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
 

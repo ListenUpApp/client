@@ -1,5 +1,7 @@
 package com.calypsan.listenup.client.data.remote
 
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Tag
 import io.ktor.client.call.body
@@ -118,7 +120,15 @@ class TagApi(
         slug: String,
     ) {
         val client = clientFactory.getClient()
-        client.delete("/api/v1/books/$bookId/tags/$slug")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/books/$bookId/tags/$slug").body()
+
+        when (val result = response.toResult()) {
+            is Success -> { /* Tag removed successfully */ }
+
+            is Failure -> {
+                throw result.exception
+            }
+        }
     }
 }
 

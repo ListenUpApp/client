@@ -282,7 +282,15 @@ class ImageApi(
     override suspend fun deleteSeriesCover(seriesId: String): Result<Unit> =
         suspendRunCatching {
             val client = clientFactory.getClient()
-            client.delete("/api/v1/series/$seriesId/cover")
+            val response: ApiResponse<Unit> = client.delete("/api/v1/series/$seriesId/cover").body()
+
+            when (val result = response.toResult()) {
+                is Success -> { /* Cover deleted successfully */ }
+
+                is Failure -> {
+                    throw result.exception
+                }
+            }
         }
 
     /**

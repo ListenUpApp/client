@@ -123,20 +123,15 @@ class AdminApi(
 
     override suspend fun deleteUser(userId: String) {
         val client = clientFactory.getClient()
-        val response = client.delete("/api/v1/admin/users/$userId")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/admin/users/$userId").body()
 
-        if (!response.status.isSuccess()) {
-            // Try to parse error response
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* User deleted successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exception
             }
         }
-        // 204 No Content - success
     }
 
     // Pending User Management
@@ -208,20 +203,15 @@ class AdminApi(
 
     override suspend fun deleteInvite(inviteId: String) {
         val client = clientFactory.getClient()
-        val response = client.delete("/api/v1/admin/invites/$inviteId")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/admin/invites/$inviteId").body()
 
-        if (!response.status.isSuccess()) {
-            // Try to parse error response
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* Invite deleted successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exception
             }
         }
-        // 204 No Content - success
     }
 
     // Settings
@@ -326,17 +316,14 @@ class AdminApi(
         collectionId: String,
     ) {
         val client = clientFactory.getClient()
-        val response =
-            client.delete("/api/v1/admin/inbox/$bookId/stage/$collectionId")
+        val response: ApiResponse<Unit> =
+            client.delete("/api/v1/admin/inbox/$bookId/stage/$collectionId").body()
 
-        if (!response.status.isSuccess()) {
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* Collection unstaged successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exception
             }
         }
     }

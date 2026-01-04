@@ -168,19 +168,15 @@ class AdminCollectionApi(
 
     override suspend fun deleteCollection(collectionId: String) {
         val client = clientFactory.getClient()
-        val response = client.delete("/api/v1/admin/collections/$collectionId")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/admin/collections/$collectionId").body()
 
-        if (!response.status.isSuccess()) {
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* Collection deleted successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exception
             }
         }
-        // 204 No Content - success
     }
 
     override suspend fun addBooks(
@@ -211,19 +207,16 @@ class AdminCollectionApi(
         bookId: String,
     ) {
         val client = clientFactory.getClient()
-        val response = client.delete("/api/v1/admin/collections/$collectionId/books/$bookId")
+        val response: ApiResponse<Unit> =
+            client.delete("/api/v1/admin/collections/$collectionId/books/$bookId").body()
 
-        if (!response.status.isSuccess()) {
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* Book removed from collection successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exception
             }
         }
-        // 204 No Content - success
     }
 
     override suspend fun getCollectionShares(collectionId: String): List<ShareResponse> {
@@ -257,19 +250,15 @@ class AdminCollectionApi(
 
     override suspend fun deleteShare(shareId: String) {
         val client = clientFactory.getClient()
-        val response = client.delete("/api/v1/shares/$shareId")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/shares/$shareId").body()
 
-        if (!response.status.isSuccess()) {
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* Share deleted successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exception
             }
         }
-        // Success
     }
 }
 

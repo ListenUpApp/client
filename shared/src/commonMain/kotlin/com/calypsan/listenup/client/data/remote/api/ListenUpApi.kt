@@ -444,9 +444,12 @@ class ListenUpApi(
             logger.debug { "Deleting contributor: $contributorId" }
 
             val client = getAuthenticatedClient()
-            client.delete("/api/v1/contributors/$contributorId")
+            val response: ApiResponse<Unit> = client.delete("/api/v1/contributors/$contributorId").body()
 
-            logger.debug { "Contributor deleted: $contributorId" }
+            when (val result = response.toResult()) {
+                is Success -> logger.debug { "Contributor deleted: $contributorId" }
+                is Failure -> throw result.exception
+            }
         }
 
     /**
