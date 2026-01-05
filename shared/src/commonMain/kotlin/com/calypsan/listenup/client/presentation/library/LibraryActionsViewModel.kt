@@ -64,8 +64,7 @@ class LibraryActionsViewModel(
                     is SelectionMode.None -> 0
                     is SelectionMode.Active -> mode.selectedIds.size
                 }
-            }
-            .stateIn(
+            }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = 0,
@@ -120,8 +119,7 @@ class LibraryActionsViewModel(
                 } else {
                     flowOf(emptyList())
                 }
-            }
-            .stateIn(
+            }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = emptyList(),
@@ -211,13 +209,14 @@ class LibraryActionsViewModel(
 
                 // Update local database with server data
                 serverCollections.forEach { response ->
-                    val entity = CollectionEntity(
-                        id = response.id,
-                        name = response.name,
-                        bookCount = response.bookCount,
-                        createdAt = response.createdAt.toTimestamp(),
-                        updatedAt = response.updatedAt.toTimestamp(),
-                    )
+                    val entity =
+                        CollectionEntity(
+                            id = response.id,
+                            name = response.name,
+                            bookCount = response.bookCount,
+                            createdAt = response.createdAt.toTimestamp(),
+                            updatedAt = response.updatedAt.toTimestamp(),
+                        )
                     collectionDao.upsert(entity)
                 }
 
@@ -305,25 +304,36 @@ sealed interface LibraryActionEvent {
     /**
      * Books were successfully added to a collection.
      */
-    data class BooksAddedToCollection(val count: Int) : LibraryActionEvent
+    data class BooksAddedToCollection(
+        val count: Int,
+    ) : LibraryActionEvent
 
     /**
      * Failed to add books to a collection.
      */
-    data class AddToCollectionFailed(val message: String) : LibraryActionEvent
+    data class AddToCollectionFailed(
+        val message: String,
+    ) : LibraryActionEvent
 
     /**
      * Books were successfully added to a lens.
      */
-    data class BooksAddedToLens(val count: Int) : LibraryActionEvent
+    data class BooksAddedToLens(
+        val count: Int,
+    ) : LibraryActionEvent
 
     /**
      * A new lens was created and books were added to it.
      */
-    data class LensCreatedAndBooksAdded(val lensName: String, val bookCount: Int) : LibraryActionEvent
+    data class LensCreatedAndBooksAdded(
+        val lensName: String,
+        val bookCount: Int,
+    ) : LibraryActionEvent
 
     /**
      * Failed to add books to a lens.
      */
-    data class AddToLensFailed(val message: String) : LibraryActionEvent
+    data class AddToLensFailed(
+        val message: String,
+    ) : LibraryActionEvent
 }

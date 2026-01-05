@@ -8,9 +8,10 @@ import com.calypsan.listenup.client.data.repository.CommunityStats
 import com.calypsan.listenup.client.data.repository.LeaderboardEntry
 import com.calypsan.listenup.client.data.repository.LeaderboardRepositoryContract
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -21,7 +22,7 @@ private val logger = KotlinLogging.logger {}
  *
  * Offline-first implementation that observes Room database flows:
  * - Category selection re-sorts existing data (no refetch needed)
- * - Period selection changes which Room query to observe
+ * - Period selection changes which Room query to observe (via flatMapLatest)
  * - Automatic updates when listening events or activities change
  *
  * Data sources:
@@ -31,6 +32,7 @@ private val logger = KotlinLogging.logger {}
  *
  * @property leaderboardRepository Repository for observing leaderboard data from Room
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class LeaderboardViewModel(
     private val leaderboardRepository: LeaderboardRepositoryContract,
 ) : ViewModel() {
@@ -40,12 +42,11 @@ class LeaderboardViewModel(
     // Cache entries by category for instant tab switching
     private val entriesByCategory = mutableMapOf<LeaderboardCategory, List<LeaderboardEntry>>()
 
-    // Active observation jobs (cancelled when period changes)
-    private var entriesJob: Job? = null
-    private var communityStatsJob: Job? = null
+    // Period trigger for reactive observation - flatMapLatest handles switching automatically
+    private val selectedPeriodFlow = MutableStateFlow(StatsPeriod.WEEK)
 
     init {
-        observeLeaderboard()
+        setupReactiveObservation()
     }
 
     /**
@@ -70,7 +71,7 @@ class LeaderboardViewModel(
     }
 
     /**
-     * Select a new period (restarts Room observation).
+     * Select a new period (triggers reactive observation switch via flatMapLatest).
      */
     fun selectPeriod(period: StatsPeriod) {
         if (period == state.value.selectedPeriod) return
@@ -78,7 +79,7 @@ class LeaderboardViewModel(
         logger.info { "Period changed from ${state.value.selectedPeriod.value} to ${period.value}" }
         state.update { it.copy(selectedPeriod = period, isLoading = true) }
         entriesByCategory.clear()
-        observeLeaderboard()
+        selectedPeriodFlow.value = period
     }
 
     /**
@@ -89,63 +90,51 @@ class LeaderboardViewModel(
     fun refresh() {
         logger.debug { "Refresh requested (no-op for offline-first)" }
         // Room flows auto-update, no manual refresh needed
-        // But we can re-observe to ensure we have latest
-        observeLeaderboard()
     }
 
     /**
-     * Start observing leaderboard data from Room.
-     * Called on init and when period changes.
-     *
-     * For All-time period, checks if cache is empty and fetches from API if needed.
+     * Set up reactive observation of leaderboard data using flatMapLatest.
+     * When selectedPeriodFlow changes, observations automatically switch.
      */
-    private fun observeLeaderboard() {
-        val period = state.value.selectedPeriod
-        val category = state.value.selectedCategory
-
-        logger.info { "Observing leaderboard: period=${period.value}, category=${category.value}" }
-
-        // Cancel previous observations
-        entriesJob?.cancel()
-        communityStatsJob?.cancel()
-
-        // Fetch user stats if cache is empty (needed for all periods since we LEFT JOIN with user_stats)
+    private fun setupReactiveObservation() {
+        // Fetch user stats if cache is empty on startup
         viewModelScope.launch {
             if (leaderboardRepository.isUserStatsCacheEmpty()) {
                 logger.info { "User stats cache empty, fetching from API" }
                 leaderboardRepository.fetchAndCacheUserStats()
-                // Room flow will automatically emit when cache is populated
             }
         }
 
-        // Observe entries
-        entriesJob =
-            viewModelScope.launch {
-                leaderboardRepository
-                    .observeLeaderboard(period, category, limit = 10)
-                    .collect { entries ->
-                        logger.debug { "Received ${entries.size} leaderboard entries" }
-                        state.update {
-                            it.copy(
-                                isLoading = false,
-                                error = null,
-                                allEntries = entries,
-                                entries = sortEntriesForCategory(entries, it.selectedCategory),
-                            )
-                        }
+        // Reactive entries observation - automatically switches when period changes
+        viewModelScope.launch {
+            selectedPeriodFlow
+                .flatMapLatest { period ->
+                    val category = state.value.selectedCategory
+                    logger.info { "Observing leaderboard: period=${period.value}, category=${category.value}" }
+                    leaderboardRepository.observeLeaderboard(period, category, limit = 10)
+                }.collect { entries ->
+                    logger.debug { "Received ${entries.size} leaderboard entries" }
+                    state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = null,
+                            allEntries = entries,
+                            entries = sortEntriesForCategory(entries, it.selectedCategory),
+                        )
                     }
-            }
+                }
+        }
 
-        // Observe community stats
-        communityStatsJob =
-            viewModelScope.launch {
-                leaderboardRepository
-                    .observeCommunityStats(period)
-                    .collect { stats ->
-                        logger.debug { "Received community stats: ${stats.totalTimeLabel}" }
-                        state.update { it.copy(communityStats = stats) }
-                    }
-            }
+        // Reactive community stats observation - automatically switches when period changes
+        viewModelScope.launch {
+            selectedPeriodFlow
+                .flatMapLatest { period ->
+                    leaderboardRepository.observeCommunityStats(period)
+                }.collect { stats ->
+                    logger.debug { "Received community stats: ${stats.totalTimeLabel}" }
+                    state.update { it.copy(communityStats = stats) }
+                }
+        }
     }
 
     /**

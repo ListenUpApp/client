@@ -124,11 +124,12 @@ class LibraryViewModel(
             seriesSortState,
             hideSingleBookSeries,
         ) { series, sortState, hideSingle ->
-            val filtered = if (hideSingle) {
-                series.filter { it.books.size > 1 }
-            } else {
-                series
-            }
+            val filtered =
+                if (hideSingle) {
+                    series.filter { it.books.size > 1 }
+                } else {
+                    series
+                }
             sortSeries(filtered, sortState)
         }.stateIn(
             scope = viewModelScope,
@@ -292,13 +293,17 @@ class LibraryViewModel(
      */
     fun onEvent(event: LibraryUiEvent) {
         when (event) {
-            is LibraryUiEvent.RefreshRequested -> refreshBooks()
+            is LibraryUiEvent.RefreshRequested -> {
+                refreshBooks()
+            }
+
             is LibraryUiEvent.BookClicked -> { /* Navigation handled by parent */ }
 
             // Books tab sort events
             is LibraryUiEvent.BooksCategoryChanged -> {
                 updateBooksSortState(booksSortState.value.withCategory(event.category))
             }
+
             is LibraryUiEvent.BooksDirectionToggled -> {
                 updateBooksSortState(booksSortState.value.toggleDirection())
             }
@@ -307,6 +312,7 @@ class LibraryViewModel(
             is LibraryUiEvent.SeriesCategoryChanged -> {
                 updateSeriesSortState(seriesSortState.value.withCategory(event.category))
             }
+
             is LibraryUiEvent.SeriesDirectionToggled -> {
                 updateSeriesSortState(seriesSortState.value.toggleDirection())
             }
@@ -315,6 +321,7 @@ class LibraryViewModel(
             is LibraryUiEvent.AuthorsCategoryChanged -> {
                 updateAuthorsSortState(authorsSortState.value.withCategory(event.category))
             }
+
             is LibraryUiEvent.AuthorsDirectionToggled -> {
                 updateAuthorsSortState(authorsSortState.value.toggleDirection())
             }
@@ -323,12 +330,15 @@ class LibraryViewModel(
             is LibraryUiEvent.NarratorsCategoryChanged -> {
                 updateNarratorsSortState(narratorsSortState.value.withCategory(event.category))
             }
+
             is LibraryUiEvent.NarratorsDirectionToggled -> {
                 updateNarratorsSortState(narratorsSortState.value.toggleDirection())
             }
 
             // Title sort article handling
-            is LibraryUiEvent.ToggleIgnoreTitleArticles -> toggleIgnoreTitleArticles()
+            is LibraryUiEvent.ToggleIgnoreTitleArticles -> {
+                toggleIgnoreTitleArticles()
+            }
         }
     }
 
@@ -483,7 +493,9 @@ class LibraryViewModel(
             }
 
             // Not applicable for books
-            SortCategory.NAME, SortCategory.BOOK_COUNT -> books
+            SortCategory.NAME, SortCategory.BOOK_COUNT -> {
+                books
+            }
         }
     }
 
@@ -519,7 +531,9 @@ class LibraryViewModel(
             }
 
             // Default to name sort for unsupported categories
-            else -> series.sortedBy { it.series.name.lowercase() }
+            else -> {
+                series.sortedBy { it.series.name.lowercase() }
+            }
         }
     }
 
@@ -547,7 +561,9 @@ class LibraryViewModel(
             }
 
             // Default to name sort for unsupported categories
-            else -> contributors.sortedBy { it.contributor.name.lowercase() }
+            else -> {
+                contributors.sortedBy { it.contributor.name.lowercase() }
+            }
         }
     }
 }
@@ -557,23 +573,39 @@ class LibraryViewModel(
  */
 sealed interface LibraryUiEvent {
     data object RefreshRequested : LibraryUiEvent
-    data class BookClicked(val bookId: String) : LibraryUiEvent
+
+    data class BookClicked(
+        val bookId: String,
+    ) : LibraryUiEvent
 
     // Books tab
-    data class BooksCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data class BooksCategoryChanged(
+        val category: SortCategory,
+    ) : LibraryUiEvent
+
     data object BooksDirectionToggled : LibraryUiEvent
+
     data object ToggleIgnoreTitleArticles : LibraryUiEvent
 
     // Series tab
-    data class SeriesCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data class SeriesCategoryChanged(
+        val category: SortCategory,
+    ) : LibraryUiEvent
+
     data object SeriesDirectionToggled : LibraryUiEvent
 
     // Authors tab
-    data class AuthorsCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data class AuthorsCategoryChanged(
+        val category: SortCategory,
+    ) : LibraryUiEvent
+
     data object AuthorsDirectionToggled : LibraryUiEvent
 
     // Narrators tab
-    data class NarratorsCategoryChanged(val category: SortCategory) : LibraryUiEvent
+    data class NarratorsCategoryChanged(
+        val category: SortCategory,
+    ) : LibraryUiEvent
+
     data object NarratorsDirectionToggled : LibraryUiEvent
 }
 
@@ -585,5 +617,7 @@ sealed interface SelectionMode {
     data object None : SelectionMode
 
     /** Multi-select mode is active with the given selected book IDs. */
-    data class Active(val selectedIds: Set<String>) : SelectionMode
+    data class Active(
+        val selectedIds: Set<String>,
+    ) : SelectionMode
 }

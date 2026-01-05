@@ -45,19 +45,21 @@ class LibrarySelectionManager {
         val current = selectionMode.value
         if (current !is SelectionMode.Active) return
 
-        val newSelectedIds = if (bookId in current.selectedIds) {
-            current.selectedIds - bookId
-        } else {
-            current.selectedIds + bookId
-        }
+        val newSelectedIds =
+            if (bookId in current.selectedIds) {
+                current.selectedIds - bookId
+            } else {
+                current.selectedIds + bookId
+            }
 
         // If no books remain selected, exit selection mode
-        selectionMode.value = if (newSelectedIds.isEmpty()) {
-            logger.debug { "No books selected, exiting selection mode" }
-            SelectionMode.None
-        } else {
-            SelectionMode.Active(selectedIds = newSelectedIds)
-        }
+        selectionMode.value =
+            if (newSelectedIds.isEmpty()) {
+                logger.debug { "No books selected, exiting selection mode" }
+                SelectionMode.None
+            } else {
+                SelectionMode.Active(selectedIds = newSelectedIds)
+            }
     }
 
     /**
@@ -80,10 +82,9 @@ class LibrarySelectionManager {
     /**
      * Get the currently selected book IDs, or empty set if not in selection mode.
      */
-    fun getSelectedIds(): Set<String> {
-        return when (val mode = selectionMode.value) {
+    fun getSelectedIds(): Set<String> =
+        when (val mode = selectionMode.value) {
             is SelectionMode.None -> emptySet()
             is SelectionMode.Active -> mode.selectedIds
         }
-    }
 }

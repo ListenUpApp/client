@@ -14,13 +14,16 @@ import com.calypsan.listenup.client.data.repository.ContributorEditRepositoryCon
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
 import com.calypsan.listenup.client.data.repository.ContributorUpdateRequest
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -143,7 +146,7 @@ sealed interface ContributorEditNavAction {
  * @property imageApi API for image upload
  * @property imageStorage Local image storage
  */
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class ContributorEditViewModel(
     private val contributorDao: ContributorDao,
     private val contributorRepository: ContributorRepositoryContract,
@@ -157,9 +160,8 @@ class ContributorEditViewModel(
     val navActions: StateFlow<ContributorEditNavAction?>
         field = MutableStateFlow<ContributorEditNavAction?>(null)
 
-    // Alias search
+    // Alias search - flatMapLatest handles cancellation automatically
     private val aliasQueryFlow = MutableStateFlow("")
-    private var aliasSearchJob: Job? = null
 
     // Track original values for change detection
     private var originalName: String = ""
@@ -178,23 +180,53 @@ class ContributorEditViewModel(
     }
 
     /**
-     * Set up debounced search for aliases.
+     * Internal result type for the reactive alias search flow.
+     */
+    private sealed interface AliasSearchFlowResult {
+        data object Empty : AliasSearchFlowResult
+
+        data object Loading : AliasSearchFlowResult
+
+        data class Success(
+            val results: List<ContributorSearchResult>,
+        ) : AliasSearchFlowResult
+    }
+
+    /**
+     * Set up debounced search for aliases with automatic cancellation via flatMapLatest.
      */
     private fun setupAliasSearch() {
         aliasQueryFlow
             .debounce(300)
             .distinctUntilChanged()
             .filter { it.length >= 2 || it.isEmpty() }
-            .onEach { query ->
+            .flatMapLatest { query ->
                 if (query.isBlank()) {
-                    state.update {
-                        it.copy(
-                            aliasSearchResults = emptyList(),
-                            aliasSearchLoading = false,
-                        )
-                    }
+                    flowOf<AliasSearchFlowResult>(AliasSearchFlowResult.Empty)
                 } else {
-                    performAliasSearch(query)
+                    flow<AliasSearchFlowResult> {
+                        emit(AliasSearchFlowResult.Loading)
+                        emit(performAliasSearch(query))
+                    }
+                }
+            }.onEach { result ->
+                when (result) {
+                    is AliasSearchFlowResult.Empty -> {
+                        state.update {
+                            it.copy(aliasSearchResults = emptyList(), aliasSearchLoading = false)
+                        }
+                    }
+
+                    is AliasSearchFlowResult.Loading -> {
+                        state.update { it.copy(aliasSearchLoading = true) }
+                    }
+
+                    is AliasSearchFlowResult.Success -> {
+                        state.update {
+                            it.copy(aliasSearchResults = result.results, aliasSearchLoading = false)
+                        }
+                        logger.debug { "Alias search: ${result.results.size} results" }
+                    }
                 }
             }.launchIn(viewModelScope)
     }
@@ -314,37 +346,28 @@ class ContributorEditViewModel(
         navActions.value = null
     }
 
-    private fun performAliasSearch(query: String) {
-        aliasSearchJob?.cancel()
-        aliasSearchJob =
-            viewModelScope.launch {
-                state.update { it.copy(aliasSearchLoading = true) }
+    /**
+     * Perform alias search and return the result.
+     * Called from flatMapLatest flow - cancellation is handled automatically.
+     */
+    private suspend fun performAliasSearch(query: String): AliasSearchFlowResult {
+        val response = contributorRepository.searchContributors(query, limit = 10)
 
-                val response = contributorRepository.searchContributors(query, limit = 10)
+        // Filter out:
+        // - The current contributor (can't be an alias of itself)
+        // - Contributors already in aliases list
+        val currentId = state.value.contributorId
+        val currentAliases =
+            state.value.aliases
+                .map { it.lowercase() }
+                .toSet()
 
-                // Filter out:
-                // - The current contributor (can't be an alias of itself)
-                // - Contributors already in aliases list
-                val currentId = state.value.contributorId
-                val currentAliases =
-                    state.value.aliases
-                        .map { it.lowercase() }
-                        .toSet()
-
-                val filteredResults =
-                    response.contributors.filter { result ->
-                        result.id != currentId && result.name.lowercase() !in currentAliases
-                    }
-
-                state.update {
-                    it.copy(
-                        aliasSearchResults = filteredResults,
-                        aliasSearchLoading = false,
-                    )
-                }
-
-                logger.debug { "Alias search: ${filteredResults.size} results for '$query'" }
+        val filteredResults =
+            response.contributors.filter { result ->
+                result.id != currentId && result.name.lowercase() !in currentAliases
             }
+
+        return AliasSearchFlowResult.Success(filteredResults)
     }
 
     /**

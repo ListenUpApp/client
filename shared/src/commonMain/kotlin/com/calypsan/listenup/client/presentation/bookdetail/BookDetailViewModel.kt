@@ -17,9 +17,12 @@ import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.Instant
@@ -28,7 +31,11 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * ViewModel for the Book Detail screen.
+ *
+ * Uses reactive flows with [flatMapLatest] to automatically switch observers
+ * when navigating between books, eliminating manual Job cancellation.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class BookDetailViewModel(
     private val bookRepository: BookRepositoryContract,
     private val genreDao: GenreDao,
@@ -40,8 +47,11 @@ class BookDetailViewModel(
     val state: StateFlow<BookDetailUiState>
         field = MutableStateFlow(BookDetailUiState())
 
-    private var tagObserverJob: Job? = null
-    private var genreObserverJob: Job? = null
+    /**
+     * The currently displayed book ID.
+     * Setting this triggers automatic observer switching via [flatMapLatest].
+     */
+    private val currentBookId = MutableStateFlow<String?>(null)
 
     init {
         // Observe admin status
@@ -50,7 +60,70 @@ class BookDetailViewModel(
                 state.update { it.copy(isAdmin = user?.isRoot == true) }
             }
         }
+
+        // Reactive genre observer - automatically switches when book changes
+        viewModelScope.launch {
+            currentBookId
+                .flatMapLatest { bookId ->
+                    if (bookId != null) {
+                        genreDao
+                            .observeGenresForBook(BookId(bookId))
+                            .map { entities -> entities.map { it.toDomain() } }
+                    } else {
+                        flowOf(emptyList())
+                    }
+                }.collect { genres ->
+                    state.update {
+                        it.copy(
+                            genres = genres,
+                            genresList = genres.map { g -> g.name },
+                        )
+                    }
+                }
+        }
+
+        // Reactive book-specific tags observer - automatically switches when book changes
+        viewModelScope.launch {
+            currentBookId
+                .flatMapLatest { bookId ->
+                    if (bookId != null) {
+                        tagDao
+                            .observeTagsForBook(BookId(bookId))
+                            .map { entities -> entities.map { it.toDomain() } }
+                    } else {
+                        flowOf(emptyList())
+                    }
+                }.collect { tags ->
+                    state.update {
+                        it.copy(
+                            tags = tags,
+                            isLoadingTags = false,
+                        )
+                    }
+                }
+        }
+
+        // All tags observer (doesn't depend on current book - for tag picker)
+        viewModelScope.launch {
+            tagDao
+                .observeAllTags()
+                .map { entities -> entities.map { it.toDomain() } }
+                .collect { allTags ->
+                    state.update { it.copy(allTags = allTags) }
+                }
+        }
     }
+
+    /**
+     * Convert TagEntity to domain Tag.
+     */
+    private fun TagEntity.toDomain(): Tag =
+        Tag(
+            id = id,
+            slug = slug,
+            bookCount = bookCount,
+            createdAt = Instant.fromEpochMilliseconds(createdAt.epochMillis),
+        )
 
     fun loadBook(bookId: String) {
         viewModelScope.launch {
@@ -99,8 +172,12 @@ class BookDetailViewModel(
                         null
                     }
 
-                state.value =
-                    BookDetailUiState(
+                // Trigger reactive observers for genres and tags via flatMapLatest
+                currentBookId.value = bookId
+
+                // Update state, preserving flow-managed values (isAdmin, allTags)
+                state.update { currentState ->
+                    currentState.copy(
                         isLoading = false,
                         book = book,
                         subtitle = displaySubtitle,
@@ -114,46 +191,23 @@ class BookDetailViewModel(
                         progress = if (progress != null && progress > 0f && !isComplete) progress else null,
                         timeRemainingFormatted = timeRemaining,
                         addedAt = book.addedAt.epochMillis,
+                        // Reset book-specific values (will be populated by flatMapLatest)
+                        genres = emptyList(),
+                        genresList = emptyList(),
+                        tags = emptyList(),
+                        isLoadingTags = true,
+                        error = null,
                     )
-
-                // Load genres and tags for this book (non-blocking, optional features)
-                loadGenres(bookId)
-                loadTags(bookId)
+                }
             } else {
-                state.value =
-                    BookDetailUiState(
+                state.update { currentState ->
+                    currentState.copy(
                         isLoading = false,
                         error = "Book not found",
                     )
-            }
-        }
-    }
-
-    /**
-     * Load genres for the current book.
-     *
-     * Offline-first: All genre data comes from Room.
-     * - Book genres: Observed reactively for instant UI updates
-     *
-     * Genres are synced to Room during initial sync and via SSE events.
-     */
-    private fun loadGenres(bookId: String) {
-        // Cancel any previous observer
-        genreObserverJob?.cancel()
-
-        genreObserverJob =
-            viewModelScope.launch {
-                // Observe book-specific genres from Room
-                genreDao.observeGenresForBook(BookId(bookId)).collect { localGenres ->
-                    val domainGenres = localGenres.map { it.toDomain() }
-                    state.update {
-                        it.copy(
-                            genres = domainGenres,
-                            genresList = domainGenres.map { g -> g.name },
-                        )
-                    }
                 }
             }
+        }
     }
 
     /**
@@ -167,60 +221,6 @@ class BookDetailViewModel(
             path = path,
             bookCount = bookCount,
         )
-
-    /**
-     * Load tags for the current book.
-     *
-     * Offline-first: All tag data comes from Room.
-     * - Book tags: Observed reactively for instant UI updates
-     * - All tags: Observed reactively for tag picker
-     *
-     * Tags are synced to Room during initial sync and via SSE events.
-     */
-    private fun loadTags(bookId: String) {
-        // Cancel any previous observer
-        tagObserverJob?.cancel()
-
-        tagObserverJob =
-            viewModelScope.launch {
-                // Observe book-specific tags from Room
-                launch {
-                    tagDao.observeTagsForBook(BookId(bookId)).collect { localTags ->
-                        val domainTags =
-                            localTags.map { entity ->
-                                Tag(
-                                    id = entity.id,
-                                    slug = entity.slug,
-                                    bookCount = entity.bookCount,
-                                    createdAt = Instant.fromEpochMilliseconds(entity.createdAt.epochMillis),
-                                )
-                            }
-                        state.update {
-                            it.copy(
-                                tags = domainTags,
-                                isLoadingTags = false,
-                            )
-                        }
-                    }
-                }
-
-                // Observe all available tags from Room for tag picker
-                launch {
-                    tagDao.observeAllTags().collect { allLocalTags ->
-                        val allDomainTags =
-                            allLocalTags.map { entity ->
-                                Tag(
-                                    id = entity.id,
-                                    slug = entity.slug,
-                                    bookCount = entity.bookCount,
-                                    createdAt = Instant.fromEpochMilliseconds(entity.createdAt.epochMillis),
-                                )
-                            }
-                        state.update { it.copy(allTags = allDomainTags) }
-                    }
-                }
-            }
-    }
 
     /**
      * Show the tag picker sheet.

@@ -25,6 +25,18 @@ import kotlinx.coroutines.launch
 private val logger = KotlinLogging.logger {}
 
 /**
+ * Intermediate data class for type-safe combine of local display settings.
+ * Used to avoid unsafe casts when combining more than 5 flows.
+ */
+private data class LocalDisplaySettings(
+    val themeMode: ThemeMode,
+    val dynamicColorsEnabled: Boolean,
+    val autoRewindEnabled: Boolean,
+    val wifiOnlyDownloads: Boolean,
+    val autoRemoveFinished: Boolean,
+)
+
+/**
  * UI state for the Settings screen.
  *
  * Settings are divided into:
@@ -82,33 +94,30 @@ class SettingsViewModel(
      * Combined UI state that merges:
      * - Internal state (synced settings, loading states)
      * - Reactive local preferences from SettingsRepository
+     *
+     * Uses nested combine to stay within the 5-parameter type-safe overload.
      */
     val state: StateFlow<SettingsUiState> =
         combine(
             internalState,
-            settingsRepository.themeMode,
-            settingsRepository.dynamicColorsEnabled,
-            settingsRepository.autoRewindEnabled,
-            settingsRepository.wifiOnlyDownloads,
-            settingsRepository.autoRemoveFinished,
+            // Combine first group of local settings (5-param overload)
+            combine(
+                settingsRepository.themeMode,
+                settingsRepository.dynamicColorsEnabled,
+                settingsRepository.autoRewindEnabled,
+                settingsRepository.wifiOnlyDownloads,
+                settingsRepository.autoRemoveFinished,
+            ) { theme, dynamicColors, autoRewind, wifiOnly, autoRemove ->
+                LocalDisplaySettings(theme, dynamicColors, autoRewind, wifiOnly, autoRemove)
+            },
             settingsRepository.hapticFeedbackEnabled,
-        ) { values ->
-            // Extract values from array (combine with 7+ flows returns Array<Any?>)
-            @Suppress("UNCHECKED_CAST")
-            val internal = values[0] as SettingsUiState
-            val theme = values[1] as ThemeMode
-            val dynamicColors = values[2] as Boolean
-            val autoRewind = values[3] as Boolean
-            val wifiOnly = values[4] as Boolean
-            val autoRemove = values[5] as Boolean
-            val haptics = values[6] as Boolean
-
+        ) { internal, localDisplay, haptics ->
             internal.copy(
-                themeMode = theme,
-                dynamicColorsEnabled = dynamicColors,
-                autoRewindEnabled = autoRewind,
-                wifiOnlyDownloads = wifiOnly,
-                autoRemoveFinished = autoRemove,
+                themeMode = localDisplay.themeMode,
+                dynamicColorsEnabled = localDisplay.dynamicColorsEnabled,
+                autoRewindEnabled = localDisplay.autoRewindEnabled,
+                wifiOnlyDownloads = localDisplay.wifiOnlyDownloads,
+                autoRemoveFinished = localDisplay.autoRemoveFinished,
                 hapticFeedbackEnabled = haptics,
             )
         }.stateIn(
