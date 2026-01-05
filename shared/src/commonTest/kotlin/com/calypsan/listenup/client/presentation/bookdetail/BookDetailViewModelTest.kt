@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.presentation.bookdetail
 
+import com.calypsan.listenup.client.TestData
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.GenreDao
 import com.calypsan.listenup.client.data.local.db.GenreEntity
@@ -9,15 +10,8 @@ import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.repository.BookRepositoryContract
-import com.calypsan.listenup.client.domain.model.Book
-import com.calypsan.listenup.client.domain.model.BookSeries
-import com.calypsan.listenup.client.domain.model.Chapter
-import com.calypsan.listenup.client.domain.model.Contributor
-import com.calypsan.listenup.client.domain.model.Genre
-import com.calypsan.listenup.client.domain.model.Tag
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.every
@@ -98,84 +92,7 @@ class BookDetailViewModelTest {
 
     // ========== Test Data Factories ==========
 
-    private fun createBook(
-        id: String = "book-1",
-        title: String = "Test Book",
-        subtitle: String? = null,
-        authorName: String = "Test Author",
-        narratorName: String = "Test Narrator",
-        duration: Long = 3_600_000L, // 1 hour
-        description: String? = "A great book",
-        genres: List<Genre> = emptyList(),
-        seriesId: String? = null,
-        seriesName: String? = null,
-        seriesSequence: String? = null,
-        publishYear: Int? = 2024,
-        rating: Double? = 4.5,
-    ): Book {
-        val seriesList =
-            if (seriesId != null && seriesName != null) {
-                listOf(BookSeries(seriesId = seriesId, seriesName = seriesName, sequence = seriesSequence))
-            } else {
-                emptyList()
-            }
-        return Book(
-            id = BookId(id),
-            title = title,
-            subtitle = subtitle,
-            authors = listOf(Contributor(id = "author-1", name = authorName, roles = listOf("Author"))),
-            narrators = listOf(Contributor(id = "narrator-1", name = narratorName, roles = listOf("Narrator"))),
-            duration = duration,
-            coverPath = null,
-            addedAt = Timestamp(1704067200000L),
-            updatedAt = Timestamp(1704067200000L),
-            description = description,
-            genres = genres,
-            series = seriesList,
-            publishYear = publishYear,
-            rating = rating,
-        )
-    }
-
-    private fun createChapter(
-        id: String = "chapter-1",
-        title: String = "Chapter 1",
-        duration: Long = 1_800_000L, // 30 min
-        startTime: Long = 0L,
-    ): Chapter =
-        Chapter(
-            id = id,
-            title = title,
-            duration = duration,
-            startTime = startTime,
-        )
-
-    private fun createGenre(
-        id: String = "genre-1",
-        name: String = "Fantasy",
-        slug: String = "fantasy",
-        path: String = "/fiction/fantasy",
-        bookCount: Int = 10,
-    ): Genre =
-        Genre(
-            id = id,
-            name = name,
-            slug = slug,
-            path = path,
-            bookCount = bookCount,
-        )
-
-    private fun createTag(
-        id: String = "tag-1",
-        slug: String = "favorites",
-        bookCount: Int = 5,
-    ): Tag =
-        Tag(
-            id = id,
-            slug = slug,
-            bookCount = bookCount,
-        )
-
+    // Entity factory - kept inline since TestData is for domain models
     private fun createPlaybackPosition(
         bookId: String = "book-1",
         positionMs: Long = 1_800_000L, // 30 min in
@@ -221,8 +138,8 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook(title = "My Book", description = "A description")
-            val chapters = listOf(createChapter(id = "ch1"), createChapter(id = "ch2"))
+            val book = TestData.book(title = "My Book", description = "A description")
+            val chapters = listOf(TestData.chapter(id = "ch1"), TestData.chapter(id = "ch2"))
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             everySuspend { fixture.bookRepository.getChapters("book-1") } returns chapters
             val viewModel = fixture.build()
@@ -267,7 +184,7 @@ class BookDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val book =
-                createBook(
+                TestData.book(
                     subtitle = "The Stormlight Archive, Book 1",
                     seriesId = "series-1",
                     seriesName = "The Stormlight Archive",
@@ -291,7 +208,7 @@ class BookDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val book =
-                createBook(
+                TestData.book(
                     subtitle = "A Novel of Discovery",
                     seriesName = "The Stormlight Archive",
                     seriesSequence = "1",
@@ -314,7 +231,7 @@ class BookDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val book =
-                createBook(
+                TestData.book(
                     subtitle = "Part 1",
                     seriesName = null,
                 )
@@ -337,12 +254,12 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook()
+            val book = TestData.book()
             val bookGenres =
                 listOf(
-                    createGenre(id = "g1", name = "Fiction", slug = "fiction", path = "/fiction"),
-                    createGenre(id = "g2", name = "Fantasy", slug = "fantasy", path = "/fiction/fantasy"),
-                    createGenre(id = "g3", name = "Adventure", slug = "adventure", path = "/fiction/adventure"),
+                    TestData.genre(id = "g1", name = "Fiction", slug = "fiction", path = "/fiction"),
+                    TestData.genre(id = "g2", name = "Fantasy", slug = "fantasy", path = "/fiction/fantasy"),
+                    TestData.genre(id = "g3", name = "Adventure", slug = "adventure", path = "/fiction/adventure"),
                 )
             val genreEntities =
                 bookGenres.map { g ->
@@ -370,7 +287,7 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook()
+            val book = TestData.book()
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             // genreDao.observeGenresForBook already returns empty list from createFixture()
@@ -392,7 +309,7 @@ class BookDetailViewModelTest {
         runTest {
             // Given - genres come from Room, no network involved, so simulate empty flow
             val fixture = createFixture()
-            val book = createBook()
+            val book = TestData.book()
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             // genreDao.observeGenresForBook already returns empty list from createFixture()
@@ -419,7 +336,7 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook(duration = 3_600_000L) // 1 hour
+            val book = TestData.book(duration = 3_600_000L) // 1 hour
             val position = createPlaybackPosition(positionMs = 1_800_000L) // 30 min in
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
@@ -439,7 +356,7 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook(duration = 3_600_000L)
+            val book = TestData.book(duration = 3_600_000L)
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.playbackPositionDao.get(any()) } returns null
@@ -458,7 +375,7 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook(duration = 3_600_000L) // 1 hour
+            val book = TestData.book(duration = 3_600_000L) // 1 hour
             val position = createPlaybackPosition(positionMs = 3_564_000L) // 99% complete
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
@@ -480,7 +397,7 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook(duration = 10_800_000L) // 3 hours
+            val book = TestData.book(duration = 10_800_000L) // 3 hours
             val position = createPlaybackPosition(positionMs = 2_700_000L) // 45 min in
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
@@ -500,7 +417,7 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook(duration = 3_600_000L) // 1 hour
+            val book = TestData.book(duration = 3_600_000L) // 1 hour
             val position = createPlaybackPosition(positionMs = 2_700_000L) // 45 min in
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
@@ -553,7 +470,7 @@ class BookDetailViewModelTest {
         runTest {
             // Given - tags come from Room flows (offline-first)
             val fixture = createFixture()
-            val book = createBook()
+            val book = TestData.book()
             val bookTagEntities =
                 listOf(
                     TagEntity(id = "tag-1", slug = "favorites", bookCount = 5, createdAt = Timestamp.now()),
@@ -588,8 +505,8 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook(id = "book-1")
-            val tag = createTag(id = "tag-1", slug = "favorites")
+            val book = TestData.book(id = "book-1")
+            val tag = TestData.tag(id = "tag-1", slug = "favorites")
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.tagApi.addTagToBook(any(), any()) } returns tag
@@ -610,7 +527,7 @@ class BookDetailViewModelTest {
         runTest {
             // Given - need tags in state for removeTag to find the tag by slug
             val fixture = createFixture()
-            val book = createBook(id = "book-1")
+            val book = TestData.book(id = "book-1")
             val bookTagEntities =
                 listOf(TagEntity(id = "tag-1", slug = "favorites", bookCount = 5, createdAt = Timestamp.now()))
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
@@ -635,8 +552,8 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook(id = "book-1")
-            val newTag = createTag(id = "new-tag", slug = "new-tag")
+            val book = TestData.book(id = "book-1")
+            val newTag = TestData.tag(id = "new-tag", slug = "new-tag")
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.tagApi.addTagToBook(any(), any()) } returns newTag
@@ -676,7 +593,7 @@ class BookDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = createBook()
+            val book = TestData.book()
             everySuspend { fixture.bookRepository.getBook(any()) } returns book
             everySuspend { fixture.bookRepository.getChapters(any()) } returns emptyList()
             everySuspend { fixture.tagApi.getBookTags(any()) } throws Exception("Network error")

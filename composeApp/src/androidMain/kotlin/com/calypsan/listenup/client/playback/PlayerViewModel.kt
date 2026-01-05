@@ -3,7 +3,6 @@
 package com.calypsan.listenup.client.playback
 
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
@@ -22,7 +21,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
-private const val TAG = "PlayerVM"
 
 /**
  * ViewModel for playback UI.
@@ -125,15 +123,14 @@ class PlayerViewModel(
                 controller.addListener(listener)
 
                 // Build media items from timeline
-                Log.d(TAG, "Building ${prepareResult.timeline.files.size} media items")
+                logger.debug { "Building ${prepareResult.timeline.files.size} media items" }
                 val mediaItems =
                     prepareResult.timeline.files.mapIndexed { index, file ->
-                        Log.d(
-                            TAG,
-                            "  MediaItem[$index]: id=${file.audioFileId}, " +
+                        logger.debug {
+                            "MediaItem[$index]: id=${file.audioFileId}, " +
                                 "duration=${file.durationMs}ms, " +
-                                "url=${file.streamingUrl.takeLast(30)}",
-                        )
+                                "url=${file.streamingUrl.takeLast(30)}"
+                        }
                         MediaItem
                             .Builder()
                             .setMediaId(file.audioFileId)
@@ -152,24 +149,20 @@ class PlayerViewModel(
 
                 // Set items with initial resume position
                 val startPosition = prepareResult.timeline.resolve(prepareResult.resumePositionMs)
-                Log.d(
-                    TAG,
+                logger.debug {
                     "Starting playback: resumePos=${prepareResult.resumePositionMs}ms -> " +
                         "mediaItem=${startPosition.mediaItemIndex}, " +
-                        "posInFile=${startPosition.positionInFileMs}ms",
-                )
+                        "posInFile=${startPosition.positionInFileMs}ms"
+                }
 
                 // Validate start position before passing to ExoPlayer
                 if (startPosition.mediaItemIndex < 0 || startPosition.mediaItemIndex >= mediaItems.size) {
-                    Log.e(
-                        TAG,
-                        "⚠️ INVALID startPosition.mediaItemIndex: ${startPosition.mediaItemIndex}, mediaItems.size=${mediaItems.size}",
-                    )
+                    logger.error { "INVALID startPosition.mediaItemIndex: ${startPosition.mediaItemIndex}, mediaItems.size=${mediaItems.size}" }
                     state.value = state.value.copy(isLoading = false, error = "Invalid start position")
                     return@withController
                 }
                 if (startPosition.positionInFileMs < 0) {
-                    Log.e(TAG, "⚠️ INVALID startPosition.positionInFileMs: ${startPosition.positionInFileMs}")
+                    logger.error { "INVALID startPosition.positionInFileMs: ${startPosition.positionInFileMs}" }
                     state.value = state.value.copy(isLoading = false, error = "Invalid start position")
                     return@withController
                 }
@@ -177,9 +170,9 @@ class PlayerViewModel(
                 // setMediaItems with startIndex and startPosition to seek atomically
                 controller.setMediaItems(mediaItems, startPosition.mediaItemIndex, startPosition.positionInFileMs)
                 controller.playbackParameters = PlaybackParameters(prepareResult.resumeSpeed)
-                Log.d(TAG, "Calling controller.prepare()...")
+                logger.debug { "Calling controller.prepare()..." }
                 controller.prepare()
-                Log.d(TAG, "Calling controller.play()...")
+                logger.debug { "Calling controller.play()..." }
                 controller.play()
 
                 playbackManager.setPlaying(true)
@@ -191,8 +184,6 @@ class PlayerViewModel(
                     )
 
                 startPositionUpdates()
-                Log.d(TAG, "Playback started successfully for: ${prepareResult.bookTitle}")
-
                 logger.info { "Playback started for: ${prepareResult.bookTitle}" }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to start playback" }
@@ -325,10 +316,7 @@ class PlayerViewModel(
 
         // Validate ExoPlayer values before using them (silent validation, only log errors)
         if (mediaItemIndex < 0 || mediaItemIndex >= timeline.files.size || positionInFile < 0) {
-            Log.e(
-                TAG,
-                "⚠️ INVALID position: mediaItem=$mediaItemIndex/${timeline.files.size}, posInFile=$positionInFile",
-            )
+            logger.error { "INVALID position: mediaItem=$mediaItemIndex/${timeline.files.size}, posInFile=$positionInFile" }
             return
         }
 
@@ -340,7 +328,7 @@ class PlayerViewModel(
 
         // Validate calculated book position
         if (bookPosition < 0 || bookPosition > timeline.totalDurationMs + 1000) {
-            Log.e(TAG, "⚠️ INVALID bookPosition: $bookPosition (duration=${timeline.totalDurationMs})")
+            logger.error { "INVALID bookPosition: $bookPosition (duration=${timeline.totalDurationMs})" }
             return
         }
 

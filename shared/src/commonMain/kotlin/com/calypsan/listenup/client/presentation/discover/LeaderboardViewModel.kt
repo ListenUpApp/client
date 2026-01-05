@@ -39,9 +39,6 @@ class LeaderboardViewModel(
     val state: StateFlow<LeaderboardUiState>
         field = MutableStateFlow(LeaderboardUiState())
 
-    // Cache entries by category for instant tab switching
-    private val entriesByCategory = mutableMapOf<LeaderboardCategory, List<LeaderboardEntry>>()
-
     // Period trigger for reactive observation - flatMapLatest handles switching automatically
     private val selectedPeriodFlow = MutableStateFlow(StatsPeriod.WEEK)
 
@@ -78,7 +75,6 @@ class LeaderboardViewModel(
 
         logger.info { "Period changed from ${state.value.selectedPeriod.value} to ${period.value}" }
         state.update { it.copy(selectedPeriod = period, isLoading = true) }
-        entriesByCategory.clear()
         selectedPeriodFlow.value = period
     }
 

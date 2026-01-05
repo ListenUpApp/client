@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.remote.AuthApiContract
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +23,7 @@ private val logger = KotlinLogging.logger {}
  */
 class RegisterViewModel(
     private val authApi: AuthApiContract,
-    private val settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepositoryContract,
 ) : ViewModel() {
     val state: StateFlow<RegisterUiState>
         field = MutableStateFlow(RegisterUiState())

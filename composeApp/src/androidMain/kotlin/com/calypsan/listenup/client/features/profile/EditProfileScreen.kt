@@ -109,10 +109,6 @@ fun EditProfileScreen(
                 scope.launch {
                     val compressedBytes = compressAvatar(context, selectedUri)
                     if (compressedBytes != null) {
-                        android.util.Log.d(
-                            "EditProfileScreen",
-                            "Avatar upload: compressed size=${compressedBytes.size}",
-                        )
                         viewModel.uploadAvatar(compressedBytes, "image/jpeg")
                     } else {
                         snackbarHostState.showSnackbar("Failed to process image")
@@ -597,8 +593,7 @@ private suspend fun compressAvatar(
             originalBitmap.recycle()
 
             outputStream.toByteArray()
-        } catch (e: Exception) {
-            android.util.Log.e("EditProfileScreen", "Failed to compress avatar", e)
+        } catch (_: Exception) {
             null
         }
     }

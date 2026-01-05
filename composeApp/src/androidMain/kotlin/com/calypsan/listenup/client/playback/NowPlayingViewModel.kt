@@ -2,7 +2,6 @@
 
 package com.calypsan.listenup.client.playback
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.PlaybackParameters
@@ -19,7 +18,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
-private const val TAG = "NowPlayingVM"
 
 /**
  * ViewModel for Now Playing UI (mini player and full screen).
@@ -187,10 +185,9 @@ class NowPlayingViewModel(
     }
 
     private suspend fun loadBookInfo(bookId: BookId) {
-        Log.d(TAG, "loadBookInfo called for bookId=${bookId.value}")
+        logger.debug { "loadBookInfo called for bookId=${bookId.value}" }
         val book = bookRepository.getBook(bookId.value)
         if (book == null) {
-            Log.w(TAG, "Book not found: $bookId")
             logger.warn { "Book not found: $bookId" }
             return
         }
@@ -215,7 +212,6 @@ class NowPlayingViewModel(
             )
         }
 
-        Log.d(TAG, "loadBookInfo complete: ${book.title}")
         logger.debug { "Loaded book info: ${book.title}, ${chapters.size} chapters" }
     }
 
@@ -252,7 +248,7 @@ class NowPlayingViewModel(
             chapterProgress.isNaN() ||
             chapterProgress.isInfinite()
         ) {
-            Log.e(TAG, "⚠️ Invalid progress: book=$bookProgress, chapter=$chapterProgress, duration=$bookDurationMs")
+            logger.error { "Invalid progress: book=$bookProgress, chapter=$chapterProgress, duration=$bookDurationMs" }
             return // Don't update state with invalid values
         }
 
@@ -358,27 +354,24 @@ class NowPlayingViewModel(
     }
 
     fun skipBack(seconds: Int = 10) {
-        Log.d(TAG, "skipBack called: seconds=$seconds")
+        logger.debug { "skipBack called: seconds=$seconds" }
         val controller = mediaController
         if (controller == null) {
-            Log.w(TAG, "skipBack: mediaController is null")
+            logger.warn { "skipBack: mediaController is null" }
             return
         }
         val timeline = playbackManager.currentTimeline.value
         if (timeline == null) {
-            Log.w(TAG, "skipBack: timeline is null")
+            logger.warn { "skipBack: timeline is null" }
             return
         }
 
         val currentBookPos = playbackManager.currentPositionMs.value
         val newBookPos = (currentBookPos - seconds * 1000).coerceAtLeast(0)
-        Log.d(TAG, "skipBack: currentPos=$currentBookPos, newPos=$newBookPos")
+        logger.debug { "skipBack: currentPos=$currentBookPos, newPos=$newBookPos" }
 
         val position = timeline.resolve(newBookPos)
-        Log.d(
-            TAG,
-            "skipBack: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}",
-        )
+        logger.debug { "skipBack: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}" }
 
         if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "skipBack")) {
             // Update PlaybackManager so UI updates immediately (even when paused)
@@ -387,28 +380,25 @@ class NowPlayingViewModel(
     }
 
     fun skipForward(seconds: Int = 30) {
-        Log.d(TAG, "skipForward called: seconds=$seconds")
+        logger.debug { "skipForward called: seconds=$seconds" }
         val controller = mediaController
         if (controller == null) {
-            Log.w(TAG, "skipForward: mediaController is null")
+            logger.warn { "skipForward: mediaController is null" }
             return
         }
         val timeline = playbackManager.currentTimeline.value
         if (timeline == null) {
-            Log.w(TAG, "skipForward: timeline is null")
+            logger.warn { "skipForward: timeline is null" }
             return
         }
 
         val currentBookPos = playbackManager.currentPositionMs.value
         val totalDuration = playbackManager.totalDurationMs.value
         val newBookPos = (currentBookPos + seconds * 1000).coerceAtMost(totalDuration)
-        Log.d(TAG, "skipForward: currentPos=$currentBookPos, newPos=$newBookPos, totalDuration=$totalDuration")
+        logger.debug { "skipForward: currentPos=$currentBookPos, newPos=$newBookPos, totalDuration=$totalDuration" }
 
         val position = timeline.resolve(newBookPos)
-        Log.d(
-            TAG,
-            "skipForward: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}",
-        )
+        logger.debug { "skipForward: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}" }
 
         if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "skipForward")) {
             // Update PlaybackManager so UI updates immediately (even when paused)
@@ -431,76 +421,71 @@ class NowPlayingViewModel(
         // Validate mediaItemIndex
         val mediaItemCount = controller.mediaItemCount
         if (mediaItemIndex < 0) {
-            Log.e(TAG, "$caller: INVALID mediaItemIndex=$mediaItemIndex (negative!)")
+            logger.error { "$caller: INVALID mediaItemIndex=$mediaItemIndex (negative!)" }
             return false
         }
         if (mediaItemIndex >= mediaItemCount) {
-            Log.e(TAG, "$caller: INVALID mediaItemIndex=$mediaItemIndex >= mediaItemCount=$mediaItemCount")
+            logger.error { "$caller: INVALID mediaItemIndex=$mediaItemIndex >= mediaItemCount=$mediaItemCount" }
             return false
         }
 
         // Validate position
         if (positionMs < 0) {
-            Log.e(TAG, "$caller: INVALID positionMs=$positionMs (negative!)")
+            logger.error { "$caller: INVALID positionMs=$positionMs (negative!)" }
             return false
         }
 
-        // Log player state for debugging
-        Log.d(
-            TAG,
+        logger.debug {
             "$caller: safeSeekTo - mediaItemCount=$mediaItemCount, " +
                 "currentMediaItemIndex=${controller.currentMediaItemIndex}, " +
-                "playbackState=${controller.playbackState}",
-        )
+                "playbackState=${controller.playbackState}"
+        }
 
-        try {
+        return try {
             controller.seekTo(mediaItemIndex, positionMs)
-            Log.d(TAG, "$caller: seekTo completed successfully")
-            return true
+            logger.debug { "$caller: seekTo completed successfully" }
+            true
         } catch (e: Exception) {
-            Log.e(TAG, "$caller: seekTo threw exception", e)
-            return false
+            logger.error(e) { "$caller: seekTo threw exception" }
+            false
         }
     }
 
     fun previousChapter() {
-        Log.d(TAG, "previousChapter called: current=${state.value.chapterIndex}")
+        logger.debug { "previousChapter called: current=${state.value.chapterIndex}" }
         val newIndex = (state.value.chapterIndex - 1).coerceAtLeast(0)
         seekToChapter(newIndex)
     }
 
     fun nextChapter() {
         val chapters = playbackManager.chapters.value
-        Log.d(TAG, "nextChapter called: current=${state.value.chapterIndex}, total=${chapters.size}")
+        logger.debug { "nextChapter called: current=${state.value.chapterIndex}, total=${chapters.size}" }
         val newIndex = (state.value.chapterIndex + 1).coerceAtMost(chapters.lastIndex.coerceAtLeast(0))
         seekToChapter(newIndex)
     }
 
     fun seekToChapter(index: Int) {
         val chapters = playbackManager.chapters.value
-        Log.d(TAG, "seekToChapter called: index=$index, chaptersSize=${chapters.size}")
+        logger.debug { "seekToChapter called: index=$index, chaptersSize=${chapters.size}" }
         val chapter = chapters.getOrNull(index)
         if (chapter == null) {
-            Log.w(TAG, "seekToChapter: chapter at index $index not found")
+            logger.warn { "seekToChapter: chapter at index $index not found" }
             return
         }
         val controller = mediaController
         if (controller == null) {
-            Log.w(TAG, "seekToChapter: mediaController is null")
+            logger.warn { "seekToChapter: mediaController is null" }
             return
         }
         val timeline = playbackManager.currentTimeline.value
         if (timeline == null) {
-            Log.w(TAG, "seekToChapter: timeline is null")
+            logger.warn { "seekToChapter: timeline is null" }
             return
         }
 
-        Log.d(TAG, "seekToChapter: chapter='${chapter.title}', startTime=${chapter.startTime}")
+        logger.debug { "seekToChapter: chapter='${chapter.title}', startTime=${chapter.startTime}" }
         val position = timeline.resolve(chapter.startTime)
-        Log.d(
-            TAG,
-            "seekToChapter: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}",
-        )
+        logger.debug { "seekToChapter: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}" }
 
         if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "seekToChapter")) {
             // Update PlaybackManager so UI updates immediately (even when paused)
@@ -510,32 +495,29 @@ class NowPlayingViewModel(
     }
 
     fun seekWithinChapter(progress: Float) {
-        Log.d(TAG, "seekWithinChapter called: progress=$progress")
+        logger.debug { "seekWithinChapter called: progress=$progress" }
         val chapters = playbackManager.chapters.value
         val currentChapter = chapters.getOrNull(state.value.chapterIndex)
         if (currentChapter == null) {
-            Log.w(TAG, "seekWithinChapter: no current chapter")
+            logger.warn { "seekWithinChapter: no current chapter" }
             return
         }
         val controller = mediaController
         if (controller == null) {
-            Log.w(TAG, "seekWithinChapter: mediaController is null")
+            logger.warn { "seekWithinChapter: mediaController is null" }
             return
         }
         val timeline = playbackManager.currentTimeline.value
         if (timeline == null) {
-            Log.w(TAG, "seekWithinChapter: timeline is null")
+            logger.warn { "seekWithinChapter: timeline is null" }
             return
         }
 
         val targetPosition = currentChapter.startTime + (currentChapter.duration * progress).toLong()
-        Log.d(TAG, "seekWithinChapter: chapter='${currentChapter.title}', targetPosition=$targetPosition")
+        logger.debug { "seekWithinChapter: chapter='${currentChapter.title}', targetPosition=$targetPosition" }
 
         val position = timeline.resolve(targetPosition)
-        Log.d(
-            TAG,
-            "seekWithinChapter: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}",
-        )
+        logger.debug { "seekWithinChapter: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}" }
 
         if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "seekWithinChapter")) {
             // Update PlaybackManager so UI updates immediately (even when paused)

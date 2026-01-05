@@ -115,12 +115,6 @@ fun ProfileAvatar(
     val hasLocalAvatar = imageStorage.userAvatarExists(userId)
     val localAvatarPath = if (hasLocalAvatar) imageStorage.getUserAvatarPath(userId) else null
 
-    // Debug logging to trace avatar loading issues
-    android.util.Log.d(
-        "ProfileAvatar",
-        "userId=$userId, avatarType=$avatarType, hasLocalAvatar=$hasLocalAvatar, path=$localAvatarPath",
-    )
-
     Box(
         modifier =
             modifier
