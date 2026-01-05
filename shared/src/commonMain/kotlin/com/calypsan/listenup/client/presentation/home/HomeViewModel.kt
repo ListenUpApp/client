@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentHourOfDay
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
@@ -11,6 +10,7 @@ import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -52,19 +52,27 @@ class HomeViewModel(
      */
     private fun observeContinueListening() {
         viewModelScope.launch {
-            // Initial load
-            state.update { it.copy(isLoading = true) }
-
-            homeRepository.observeContinueListening(10).collect { books ->
-                logger.info { "observeContinueListening: ${books.size} books" }
-                state.update {
-                    it.copy(
-                        isLoading = false,
-                        continueListening = books,
-                        error = null,
-                    )
+            homeRepository
+                .observeContinueListening(10)
+                .catch { e ->
+                    logger.error(e) { "Error observing continue listening" }
+                    state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Failed to load continue listening",
+                        )
+                    }
                 }
-            }
+                .collect { books ->
+                    logger.debug { "Continue listening updated: ${books.size} books" }
+                    state.update {
+                        it.copy(
+                            isLoading = false,
+                            continueListening = books,
+                            error = null,
+                        )
+                    }
+                }
         }
     }
 
@@ -119,53 +127,16 @@ class HomeViewModel(
     }
 
     /**
-     * Load home screen data.
-     *
-     * Fetches continue listening from local database (local-first approach).
-     * Local data is always most up-to-date for this device since positions
-     * are saved immediately during playback.
-     */
-    fun loadHomeData() {
-        logger.info { "loadHomeData() called" }
-        viewModelScope.launch {
-            state.update { it.copy(isLoading = true, error = null) }
-
-            when (val result = homeRepository.getContinueListening(10)) {
-                is Success -> {
-                    val bookIds = result.data.map { it.bookId }
-                    logger.info { "loadHomeData: SUCCESS - ${result.data.size} books: $bookIds" }
-                    state.update {
-                        it.copy(
-                            isLoading = false,
-                            continueListening = result.data,
-                            error = null,
-                        )
-                    }
-                    logger.debug { "Loaded ${result.data.size} continue listening books" }
-                }
-
-                else -> {
-                    val errorMessage = "Failed to load continue listening"
-                    state.update {
-                        it.copy(
-                            isLoading = false,
-                            error = errorMessage,
-                        )
-                    }
-                    logger.error { errorMessage }
-                }
-            }
-        }
-    }
-
-    /**
      * Refresh home screen data.
      *
-     * Called by pull-to-refresh.
+     * Since continue listening is observed from local Room data, this is a no-op.
+     * The Flow automatically updates when playback positions change.
+     * Pull-to-refresh triggers sync elsewhere, which updates Room,
+     * causing the Flow to emit new data.
      */
     fun refresh() {
-        logger.info { "refresh() called" }
-        loadHomeData()
+        // No-op - data auto-updates from Room Flow
+        logger.debug { "Refresh requested - data will update automatically from Room" }
     }
 
     /**
