@@ -22,6 +22,7 @@ kotlinx-collections-immutable = "0.4.0"
 kotlinx-io = "0.8.2"
 koin = "4.2.0-beta2"
 kotlin-logging = "7.0.14"
+slf4j-android = "1.7.36"
 room = "2.8.4"
 room-sqlite = "2.6.2"
 androidx-work = "2.11.0"
@@ -95,6 +96,7 @@ koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
 
 # Logging
 kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging", version.ref = "kotlin-logging" }
+slf4j-android = { group = "org.slf4j", name = "slf4j-android", version.ref = "slf4j-android" }
 
 # Testing
 mokkery-runtime = { group = "dev.mokkery", name = "mokkery-runtime", version.ref = "mokkery" }

@@ -104,6 +104,8 @@ class ApiClientFactory(
             settingsRepository.getServerUrl()
                 ?: error("Server URL not configured")
 
+        logger.info { "Creating HTTP client for server: ${serverUrl.value}" }
+
         return HttpClient {
             install(ContentNegotiation) {
                 json(

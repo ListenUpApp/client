@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.features.home
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +15,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.features.home.components.ContinueListeningRow
@@ -22,7 +24,10 @@ import com.calypsan.listenup.client.features.home.components.HomeHeader
 import com.calypsan.listenup.client.features.home.components.HomeStatsSection
 import com.calypsan.listenup.client.features.home.components.MyLensesRow
 import com.calypsan.listenup.client.presentation.home.HomeViewModel
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.koin.compose.viewmodel.koinViewModel
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Home screen - personalized landing page.
@@ -53,6 +58,16 @@ fun HomeScreen(
     viewModel: HomeViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Log state changes for debugging
+    Log.d("HomeScreen", "State: isLoading=${state.isLoading}, continueListening=${state.continueListening.size}, hasContinueListening=${state.hasContinueListening}")
+
+    // Refresh data when returning to Home screen (e.g., after playing a book)
+    LifecycleResumeEffect(Unit) {
+        Log.d("HomeScreen", "LifecycleResumeEffect triggered, calling refresh()")
+        viewModel.refresh()
+        onPauseOrDispose { }
+    }
 
     PullToRefreshBox(
         isRefreshing = state.isLoading,

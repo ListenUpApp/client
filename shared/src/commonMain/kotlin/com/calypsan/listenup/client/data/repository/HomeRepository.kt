@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalTime::class)
+@file:OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
 
 package com.calypsan.listenup.client.data.repository
 
@@ -11,7 +11,9 @@ import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.mapLatest
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -29,6 +31,17 @@ interface HomeRepositoryContract {
      * @return Result containing list of ContinueListeningBook on success
      */
     suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningBook>>
+
+    /**
+     * Observe continue listening books from local database.
+     *
+     * Provides real-time updates when playback positions change locally.
+     * This is local-first: changes appear immediately without waiting for sync.
+     *
+     * @param limit Maximum number of books to return
+     * @return Flow emitting list of ContinueListeningBook whenever positions change
+     */
+    fun observeContinueListening(limit: Int = 10): Flow<List<ContinueListeningBook>>
 
     /**
      * Observe current user for greeting display.
@@ -66,38 +79,19 @@ class HomeRepository(
     /**
      * Fetch books the user is currently listening to.
      *
-     * Network-aware approach:
-     * 1. Check network status first - use local data immediately when offline
-     * 2. When online, try server - returns display-ready data with book details embedded
-     * 3. If server fails, fall back to local positions + local book lookup
+     * Local-first approach:
+     * - Always use local data as primary source (most up-to-date for this device)
+     * - Local positions are updated immediately during playback
+     * - Server sync happens in background and updates local DB
      *
-     * This ensures offline access works instantly without waiting for timeouts,
-     * while still using fresh server data when available.
+     * This ensures instant updates after playback without waiting for sync.
      *
      * @param limit Maximum number of books to return
      * @return Result containing list of ContinueListeningBook on success
      */
     override suspend fun getContinueListening(limit: Int): Result<List<ContinueListeningBook>> {
-        logger.debug { "Fetching continue listening books, limit=$limit" }
-
-        // Check network status first - go directly to local when offline
-        if (!networkMonitor.isOnline()) {
-            logger.debug { "Offline - using local data" }
-            return fetchFromLocal(limit)
-        }
-
-        // Online - try server first, fall back to local on failure
-        return when (val serverResult = fetchFromServer(limit)) {
-            is Success -> {
-                logger.debug { "Returning ${serverResult.data.size} books from server" }
-                serverResult
-            }
-
-            is Failure -> {
-                logger.debug { "Server unavailable, using local fallback: ${serverResult.exception.message}" }
-                fetchFromLocal(limit)
-            }
-        }
+        logger.debug { "getContinueListening: using local-first approach" }
+        return fetchFromLocal(limit)
     }
 
     /**
@@ -124,11 +118,10 @@ class HomeRepository(
                     Success(books)
                 }
 
-                is Failure -> {
-                    result
-                }
+                is Failure -> result
             }
         } catch (e: Exception) {
+            logger.error(e) { "fetchFromServer failed" }
             Failure(e)
         }
 
@@ -138,10 +131,12 @@ class HomeRepository(
      */
     private suspend fun fetchFromLocal(limit: Int): Result<List<ContinueListeningBook>> {
         val positions = playbackPositionDao.getRecentPositions(limit)
-        logger.debug { "Local fallback: found ${positions.size} playback positions" }
+        logger.info { "fetchFromLocal: found ${positions.size} playback positions" }
+        positions.forEachIndexed { index, pos ->
+            logger.debug { "  position[$index]: bookId=${pos.bookId.value}, positionMs=${pos.positionMs}, lastPlayedAt=${pos.lastPlayedAt}" }
+        }
 
         if (positions.isEmpty()) {
-            logger.debug { "Local fallback: no positions in database - user hasn't played any books yet" }
             return Success(emptyList())
         }
 
@@ -189,12 +184,65 @@ class HomeRepository(
                 )
             }
 
-        logger.debug {
-            "Local fallback: returning ${books.size} books " +
+        logger.info {
+            "fetchFromLocal: returning ${books.size} books " +
                 "(positions=${positions.size}, notFound=$booksNotFound, filtered=$booksFiltered)"
         }
         return Success(books)
     }
+
+    /**
+     * Observe continue listening books from local database.
+     *
+     * Transforms playback positions into ContinueListeningBook objects
+     * by joining with book details. Provides real-time updates when
+     * positions change locally (instant, no sync delay).
+     *
+     * @param limit Maximum number of books to return
+     * @return Flow emitting list of ContinueListeningBook whenever positions change
+     */
+    override fun observeContinueListening(limit: Int): Flow<List<ContinueListeningBook>> =
+        playbackPositionDao
+            .observeAll()
+            .mapLatest { positions ->
+                val sortedPositions = positions
+                    .sortedByDescending { it.lastPlayedAt ?: it.updatedAt }
+                    .take(limit)
+
+                val result = mutableListOf<ContinueListeningBook>()
+                for (position in sortedPositions) {
+                    val bookIdStr = position.bookId.value
+                    val book = bookRepository.getBook(bookIdStr) ?: continue
+
+                    val progress =
+                        if (book.duration > 0) {
+                            (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
+                        } else {
+                            0f
+                        }
+
+                    // Skip finished books
+                    if (progress >= 0.99f) continue
+
+                    val lastPlayedAtMs = position.lastPlayedAt ?: position.updatedAt
+                    val lastPlayedAtIso = Instant.fromEpochMilliseconds(lastPlayedAtMs).toString()
+
+                    result.add(
+                        ContinueListeningBook(
+                            bookId = bookIdStr,
+                            title = book.title,
+                            authorNames = book.authorNames,
+                            coverPath = book.coverPath,
+                            coverBlurHash = book.coverBlurHash,
+                            progress = progress,
+                            currentPositionMs = position.positionMs,
+                            totalDurationMs = book.duration,
+                            lastPlayedAt = lastPlayedAtIso,
+                        ),
+                    )
+                }
+                result
+            }
 
     /**
      * Observe current user for greeting display.

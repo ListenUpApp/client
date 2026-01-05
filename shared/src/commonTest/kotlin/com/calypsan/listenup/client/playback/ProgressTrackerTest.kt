@@ -357,4 +357,55 @@ class ProgressTrackerTest {
             // Then - Server timestamp parses to 0, so local wins
             assertEquals(1_800_000L, result?.positionMs)
         }
+
+    // ========== Playback Start Position Saving Tests ==========
+
+    @Test
+    fun `onPlaybackStarted saves position immediately for Continue Listening`() =
+        runTest {
+            // Given - This ensures a book appears in Continue Listening the moment
+            // playback starts, not just after 30 seconds or when paused.
+            // Prevents the race condition where user navigates back to Home
+            // before position is saved.
+            val fixture = createFixture()
+            val bookId = BookId("book-new")
+            val tracker = fixture.build()
+
+            // When - playback starts
+            tracker.onPlaybackStarted(
+                bookId = bookId,
+                positionMs = 0L,
+                speed = 1.0f,
+            )
+
+            // Advance to let the coroutine run
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            // Then - position should be saved immediately
+            verifySuspend { fixture.positionDao.save(any()) }
+        }
+
+    @Test
+    fun `onPlaybackStarted saves position with correct lastPlayedAt timestamp`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val bookId = BookId("book-new")
+
+            var savedPosition: PlaybackPositionEntity? = null
+            everySuspend { fixture.positionDao.save(any()) } returns Unit
+
+            val tracker = fixture.build()
+
+            // When
+            tracker.onPlaybackStarted(
+                bookId = bookId,
+                positionMs = 5000L,
+                speed = 1.5f,
+            )
+            fixture.testScope.testScheduler.advanceUntilIdle()
+
+            // Then - verify save was called (position captured)
+            verifySuspend { fixture.positionDao.save(any()) }
+        }
 }

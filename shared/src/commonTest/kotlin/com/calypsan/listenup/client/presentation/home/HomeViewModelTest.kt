@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.presentation.home
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
@@ -51,15 +50,14 @@ class HomeViewModelTest {
 
     private class TestFixture {
         val homeRepository: HomeRepositoryContract = mock()
-        val bookDao: BookDao = mock()
         val lensDao: LensDao = mock()
         val userFlow = MutableStateFlow<UserEntity?>(null)
+        val continueListeningFlow = MutableStateFlow<List<ContinueListeningBook>>(emptyList())
         var currentHour: Int = 10 // Default to morning
 
         fun build(): HomeViewModel =
             HomeViewModel(
                 homeRepository = homeRepository,
-                bookDao = bookDao,
                 lensDao = lensDao,
                 currentHour = { currentHour },
             )
@@ -70,8 +68,8 @@ class HomeViewModelTest {
 
         // Default stubs
         every { fixture.homeRepository.observeCurrentUser() } returns fixture.userFlow
+        every { fixture.homeRepository.observeContinueListening(any()) } returns fixture.continueListeningFlow
         everySuspend { fixture.homeRepository.getContinueListening(any()) } returns Success(emptyList())
-        every { fixture.bookDao.observeAll() } returns flowOf(emptyList())
         every { fixture.lensDao.observeMyLenses(any()) } returns flowOf(emptyList())
 
         return fixture
@@ -126,7 +124,7 @@ class HomeViewModelTest {
     // ========== Initial State Tests ==========
 
     @Test
-    fun `init triggers loadHomeData and observeUser`() =
+    fun `init starts user observation and observes continue listening`() =
         runTest {
             // Given
             val fixture = createFixture()
@@ -135,22 +133,25 @@ class HomeViewModelTest {
             val viewModel = fixture.build()
             advanceUntilIdle()
 
-            // Then - getContinueListening should have been called
-            verifySuspend { fixture.homeRepository.getContinueListening(10) }
+            // Then - isLoading should be false (observeContinueListening started in init)
+            // Data is now observed reactively from the database
+            assertFalse(viewModel.state.value.isLoading)
         }
 
     @Test
-    fun `initial state has isLoading false after init completes`() =
+    fun `loadHomeData sets isLoading false after completion`() =
         runTest {
             // Given
             val fixture = createFixture()
-
-            // When
             val viewModel = fixture.build()
+
+            // When - loadHomeData called (simulating LifecycleResumeEffect)
+            viewModel.loadHomeData()
             advanceUntilIdle()
 
             // Then
             assertFalse(viewModel.state.value.isLoading)
+            verifySuspend { fixture.homeRepository.getContinueListening(10) }
         }
 
     // ========== Load Home Data Tests ==========
@@ -167,6 +168,9 @@ class HomeViewModelTest {
                 )
             everySuspend { fixture.homeRepository.getContinueListening(any()) } returns Success(books)
             val viewModel = fixture.build()
+
+            // When
+            viewModel.loadHomeData()
             advanceUntilIdle()
 
             // Then
@@ -184,6 +188,9 @@ class HomeViewModelTest {
             val fixture = createFixture()
             everySuspend { fixture.homeRepository.getContinueListening(any()) } returns Failure(Exception("Network error"))
             val viewModel = fixture.build()
+
+            // When
+            viewModel.loadHomeData()
             advanceUntilIdle()
 
             // Then
@@ -199,6 +206,7 @@ class HomeViewModelTest {
             val fixture = createFixture()
             everySuspend { fixture.homeRepository.getContinueListening(any()) } returns Failure(Exception("Error"))
             val viewModel = fixture.build()
+            viewModel.loadHomeData()
             advanceUntilIdle()
             assertEquals("Failed to load continue listening", viewModel.state.value.error)
 
@@ -304,13 +312,12 @@ class HomeViewModelTest {
             // Given
             val fixture = createFixture()
             val viewModel = fixture.build()
-            advanceUntilIdle()
 
             // When
             viewModel.refresh()
             advanceUntilIdle()
 
-            // Then - getContinueListening called twice (init + refresh)
+            // Then - getContinueListening should have been called
             verifySuspend { fixture.homeRepository.getContinueListening(10) }
         }
 
@@ -326,6 +333,9 @@ class HomeViewModelTest {
                     listOf(createContinueListeningBook()),
                 )
             val viewModel = fixture.build()
+
+            // When
+            viewModel.loadHomeData()
             advanceUntilIdle()
 
             // Then
@@ -339,6 +349,9 @@ class HomeViewModelTest {
             val fixture = createFixture()
             everySuspend { fixture.homeRepository.getContinueListening(any()) } returns Success(emptyList())
             val viewModel = fixture.build()
+
+            // When
+            viewModel.loadHomeData()
             advanceUntilIdle()
 
             // Then

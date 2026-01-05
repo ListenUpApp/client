@@ -25,6 +25,7 @@ import androidx.media3.session.SessionResult
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import android.util.Log
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -393,14 +394,18 @@ class PlaybackService : MediaSessionService() {
             val bookId = currentBookId
             val player = player
 
+            Log.d("PlaybackService", "onIsPlayingChanged: isPlaying=$isPlaying, bookId=${bookId?.value}")
+
             if (isPlaying) {
                 cancelIdleTimer()
                 startPositionUpdates()
 
                 if (bookId != null && player != null) {
+                    val position = getBookRelativePosition()
+                    Log.d("PlaybackService", "PLAYBACK STARTED: bookId=${bookId.value}, position=$position")
                     progressTracker.onPlaybackStarted(
                         bookId = bookId,
-                        positionMs = getBookRelativePosition(),
+                        positionMs = position,
                         speed = player.playbackParameters.speed,
                     )
                 }
@@ -408,9 +413,11 @@ class PlaybackService : MediaSessionService() {
                 stopPositionUpdates()
 
                 if (bookId != null && player != null) {
+                    val position = getBookRelativePosition()
+                    Log.d("PlaybackService", "PLAYBACK PAUSED: bookId=${bookId.value}, position=$position - calling progressTracker.onPlaybackPaused")
                     progressTracker.onPlaybackPaused(
                         bookId = bookId,
-                        positionMs = getBookRelativePosition(),
+                        positionMs = position,
                         speed = player.playbackParameters.speed,
                     )
                 }

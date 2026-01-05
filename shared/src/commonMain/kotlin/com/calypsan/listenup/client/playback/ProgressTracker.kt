@@ -99,6 +99,12 @@ class ProgressTracker(
                 startedAt = now,
             )
         logger.info { "🎧 LISTENING SESSION STARTED: book=${bookId.value}, position=$positionMs, speed=$speed" }
+
+        // Save position immediately so the book appears in Continue Listening right away
+        // This ensures even brief playback sessions are tracked
+        scope.launch {
+            savePosition(bookId, positionMs, speed)
+        }
     }
 
     /**
@@ -255,7 +261,7 @@ class ProgressTracker(
                     lastPlayedAt = now, // Track actual play time
                 ),
             )
-            logger.debug { "Position saved: book=${bookId.value}, position=$positionMs" }
+            logger.info { "Position saved: book=${bookId.value}, position=$positionMs, lastPlayedAt=$now" }
         } catch (e: Exception) {
             logger.error(e) { "Failed to save position: book=${bookId.value}, position=$positionMs" }
         }

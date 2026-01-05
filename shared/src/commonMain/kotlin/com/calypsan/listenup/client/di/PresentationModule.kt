@@ -259,7 +259,6 @@ val discoverPresentationModule =
         factory {
             com.calypsan.listenup.client.presentation.home.HomeViewModel(
                 homeRepository = get(),
-                bookDao = get(),
                 lensDao = get(),
             )
         }

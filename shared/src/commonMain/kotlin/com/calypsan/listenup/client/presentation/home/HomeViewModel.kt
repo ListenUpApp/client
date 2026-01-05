@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentHourOfDay
-import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
@@ -12,8 +11,6 @@ import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -24,17 +21,15 @@ private val logger = KotlinLogging.logger {}
  *
  * Manages:
  * - Time-aware greeting with user's name
- * - Continue listening books list
+ * - Continue listening books list (real-time via local observation)
  * - My lenses list
  * - Loading and error states
  *
  * @property homeRepository Repository for home screen data
- * @property bookDao DAO for observing book changes (cover downloads)
  * @property lensDao DAO for lens data
  */
 class HomeViewModel(
     private val homeRepository: HomeRepositoryContract,
-    private val bookDao: BookDao,
     private val lensDao: LensDao,
     private val currentHour: () -> Int = { currentHourOfDay() },
 ) : ViewModel() {
@@ -46,8 +41,31 @@ class HomeViewModel(
 
     init {
         observeUser()
-        loadHomeData()
-        observeBookChanges()
+        observeContinueListening()
+    }
+
+    /**
+     * Observe continue listening books from local database.
+     *
+     * This is reactive - whenever a playback position changes in the database,
+     * the UI updates automatically. No manual refresh needed.
+     */
+    private fun observeContinueListening() {
+        viewModelScope.launch {
+            // Initial load
+            state.update { it.copy(isLoading = true) }
+
+            homeRepository.observeContinueListening(10).collect { books ->
+                logger.info { "observeContinueListening: ${books.size} books" }
+                state.update {
+                    it.copy(
+                        isLoading = false,
+                        continueListening = books,
+                        error = null,
+                    )
+                }
+            }
+        }
     }
 
     /**
@@ -101,41 +119,21 @@ class HomeViewModel(
     }
 
     /**
-     * Observe book changes to refresh Continue Listening when covers download.
-     *
-     * When cover images are downloaded, bookDao.touchUpdatedAt() is called,
-     * which triggers this observer. We reload Continue Listening to pick up
-     * the new cover paths.
-     */
-    private fun observeBookChanges() {
-        viewModelScope.launch {
-            // Observe book count changes (crude but effective trigger)
-            // This detects when books are added/modified
-            bookDao
-                .observeAll()
-                .map { books -> books.maxOfOrNull { it.updatedAt } ?: 0L }
-                .distinctUntilChanged()
-                .collect { latestUpdate ->
-                    // Skip initial load (handled by loadHomeData)
-                    if (state.value.continueListening.isNotEmpty()) {
-                        logger.debug { "Book data changed, reloading Continue Listening" }
-                        loadHomeData()
-                    }
-                }
-        }
-    }
-
-    /**
      * Load home screen data.
      *
-     * Fetches continue listening books from the server.
+     * Fetches continue listening from local database (local-first approach).
+     * Local data is always most up-to-date for this device since positions
+     * are saved immediately during playback.
      */
     fun loadHomeData() {
+        logger.info { "loadHomeData() called" }
         viewModelScope.launch {
             state.update { it.copy(isLoading = true, error = null) }
 
             when (val result = homeRepository.getContinueListening(10)) {
                 is Success -> {
+                    val bookIds = result.data.map { it.bookId }
+                    logger.info { "loadHomeData: SUCCESS - ${result.data.size} books: $bookIds" }
                     state.update {
                         it.copy(
                             isLoading = false,
@@ -166,6 +164,7 @@ class HomeViewModel(
      * Called by pull-to-refresh.
      */
     fun refresh() {
+        logger.info { "refresh() called" }
         loadHomeData()
     }
 
