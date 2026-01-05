@@ -30,7 +30,8 @@ import com.calypsan.listenup.client.features.library.components.LibraryTabRow
 import com.calypsan.listenup.client.features.library.components.NarratorsContent
 import com.calypsan.listenup.client.features.library.components.SelectionToolbar
 import com.calypsan.listenup.client.features.library.components.SeriesContent
-import com.calypsan.listenup.client.presentation.library.LibraryEvent
+import com.calypsan.listenup.client.presentation.library.LibraryActionEvent
+import com.calypsan.listenup.client.presentation.library.LibraryActionsViewModel
 import com.calypsan.listenup.client.presentation.library.LibraryUiEvent
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.library.SelectionMode
@@ -68,6 +69,7 @@ fun LibraryScreen(
     topBarCollapseFraction: Float = 0f,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = koinViewModel(),
+    actionsViewModel: LibraryActionsViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
 
@@ -76,7 +78,9 @@ fun LibraryScreen(
         viewModel.onScreenVisible()
     }
 
-    // Collect all state flows
+    // ═══════════════════════════════════════════════════════════════════════
+    // CONTENT STATE (from LibraryViewModel)
+    // ═══════════════════════════════════════════════════════════════════════
     val books by viewModel.books.collectAsStateWithLifecycle()
     val hasLoadedBooks by viewModel.hasLoadedBooks.collectAsStateWithLifecycle()
     val series by viewModel.series.collectAsStateWithLifecycle()
@@ -85,20 +89,24 @@ fun LibraryScreen(
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
     val bookProgress by viewModel.bookProgress.collectAsStateWithLifecycle()
 
-    // Collect sort state for each tab
+    // Sort state for each tab
     val booksSortState by viewModel.booksSortState.collectAsStateWithLifecycle()
     val seriesSortState by viewModel.seriesSortState.collectAsStateWithLifecycle()
     val authorsSortState by viewModel.authorsSortState.collectAsStateWithLifecycle()
     val narratorsSortState by viewModel.narratorsSortState.collectAsStateWithLifecycle()
     val ignoreTitleArticles by viewModel.ignoreTitleArticles.collectAsStateWithLifecycle()
 
-    // Selection mode state
+    // Selection mode (from LibraryViewModel, which delegates to shared manager)
     val selectionMode by viewModel.selectionMode.collectAsStateWithLifecycle()
-    val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
-    val collections by viewModel.collections.collectAsStateWithLifecycle()
-    val isAddingToCollection by viewModel.isAddingToCollection.collectAsStateWithLifecycle()
-    val myLenses by viewModel.myLenses.collectAsStateWithLifecycle()
-    val isAddingToLens by viewModel.isAddingToLens.collectAsStateWithLifecycle()
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ACTION STATE (from LibraryActionsViewModel)
+    // ═══════════════════════════════════════════════════════════════════════
+    val isAdmin by actionsViewModel.isAdmin.collectAsStateWithLifecycle()
+    val collections by actionsViewModel.collections.collectAsStateWithLifecycle()
+    val isAddingToCollection by actionsViewModel.isAddingToCollection.collectAsStateWithLifecycle()
+    val myLenses by actionsViewModel.myLenses.collectAsStateWithLifecycle()
+    val isAddingToLens by actionsViewModel.isAddingToLens.collectAsStateWithLifecycle()
 
     // Derive selection state
     val isInSelectionMode = selectionMode is SelectionMode.Active
@@ -113,18 +121,23 @@ fun LibraryScreen(
         viewModel.exitSelectionMode()
     }
 
-    // Handle events (toast feedback)
+    // Notify actions VM when selection mode is entered (to refresh collections for admins)
+    LaunchedEffect(selectionMode) {
+        if (selectionMode is SelectionMode.Active) {
+            actionsViewModel.onSelectionModeEntered()
+        }
+    }
+
+    // Handle action events (toast feedback)
     LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
+        actionsViewModel.events.collect { event ->
             when (event) {
-                is LibraryEvent.BooksAddedToCollection -> {
+                is LibraryActionEvent.BooksAddedToCollection -> {
                     showCollectionPicker = false
                     Toast
                         .makeText(
                             context,
-                            if (event.count ==
-                                1
-                            ) {
+                            if (event.count == 1) {
                                 "1 book added to collection"
                             } else {
                                 "${event.count} books added to collection"
@@ -133,7 +146,7 @@ fun LibraryScreen(
                         ).show()
                 }
 
-                is LibraryEvent.AddToCollectionFailed -> {
+                is LibraryActionEvent.AddToCollectionFailed -> {
                     Toast
                         .makeText(
                             context,
@@ -142,7 +155,7 @@ fun LibraryScreen(
                         ).show()
                 }
 
-                is LibraryEvent.BooksAddedToLens -> {
+                is LibraryActionEvent.BooksAddedToLens -> {
                     showLensPicker = false
                     Toast
                         .makeText(
@@ -152,7 +165,7 @@ fun LibraryScreen(
                         ).show()
                 }
 
-                is LibraryEvent.LensCreatedAndBooksAdded -> {
+                is LibraryActionEvent.LensCreatedAndBooksAdded -> {
                     showLensPicker = false
                     val bookText = if (event.bookCount == 1) "1 book" else "${event.bookCount} books"
                     Toast
@@ -163,7 +176,7 @@ fun LibraryScreen(
                         ).show()
                 }
 
-                is LibraryEvent.AddToLensFailed -> {
+                is LibraryActionEvent.AddToLensFailed -> {
                     Toast
                         .makeText(
                             context,
@@ -310,7 +323,7 @@ fun LibraryScreen(
             collections = collections,
             selectedBookCount = selectedBookIds.size,
             onCollectionSelected = { collectionId ->
-                viewModel.addSelectedToCollection(collectionId)
+                actionsViewModel.addSelectedToCollection(collectionId)
             },
             onDismiss = { showCollectionPicker = false },
             isLoading = isAddingToCollection,
@@ -323,10 +336,10 @@ fun LibraryScreen(
             lenses = myLenses,
             selectedBookCount = selectedBookIds.size,
             onLensSelected = { lensId ->
-                viewModel.addSelectedToLens(lensId)
+                actionsViewModel.addSelectedToLens(lensId)
             },
             onCreateAndAddToLens = { name ->
-                viewModel.createLensAndAddBooks(name)
+                actionsViewModel.createLensAndAddBooks(name)
             },
             onDismiss = { showLensPicker = false },
             isLoading = isAddingToLens,

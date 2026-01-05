@@ -9,6 +9,8 @@ import com.calypsan.listenup.client.presentation.discover.ActivityFeedViewModel
 import com.calypsan.listenup.client.presentation.discover.LeaderboardViewModel
 import com.calypsan.listenup.client.presentation.home.HomeStatsViewModel
 import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewModel
+import com.calypsan.listenup.client.presentation.library.LibraryActionsViewModel
+import com.calypsan.listenup.client.presentation.library.LibrarySelectionManager
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
@@ -105,6 +107,9 @@ val adminPresentationModule =
  */
 val libraryPresentationModule =
     module {
+        // Shared selection state - singleton so both ViewModels observe the same state
+        single { LibrarySelectionManager() }
+
         // LibraryViewModel as singleton for preloading - starts loading Room data
         // immediately when injected at AppShell level, making Library instant
         single {
@@ -112,10 +117,18 @@ val libraryPresentationModule =
                 bookRepository = get(),
                 seriesDao = get(),
                 contributorDao = get(),
+                playbackPositionDao = get(),
                 syncManager = get(),
                 settingsRepository = get(),
                 syncDao = get(),
-                playbackPositionDao = get(),
+                selectionManager = get(),
+            )
+        }
+
+        // LibraryActionsViewModel as singleton - shares selection state with LibraryViewModel
+        single {
+            LibraryActionsViewModel(
+                selectionManager = get(),
                 userDao = get(),
                 collectionDao = get(),
                 adminCollectionApi = get(),
@@ -123,6 +136,7 @@ val libraryPresentationModule =
                 lensApi = get(),
             )
         }
+
         factory {
             com.calypsan.listenup.client.presentation.search.SearchViewModel(
                 searchRepository = get(),
