@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
-import com.calypsan.listenup.client.data.local.db.LensDao
-import com.calypsan.listenup.client.data.local.db.LensEntity
-import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
 import com.calypsan.listenup.client.data.remote.LensApiContract
 import com.calypsan.listenup.client.data.remote.model.toTimestamp
@@ -38,10 +38,10 @@ private val logger = KotlinLogging.logger {}
  */
 class LibraryActionsViewModel(
     private val selectionManager: LibrarySelectionManager,
-    private val userDao: UserDao,
+    private val userRepository: UserRepository,
     private val collectionDao: CollectionDao,
     private val adminCollectionApi: AdminCollectionApiContract,
-    private val lensDao: LensDao,
+    private val lensRepository: LensRepository,
     private val lensApi: LensApiContract,
 ) : ViewModel() {
     // ═══════════════════════════════════════════════════════════════════════
@@ -79,9 +79,9 @@ class LibraryActionsViewModel(
      * Only admins can use multi-select to add books to collections.
      */
     val isAdmin: StateFlow<Boolean> =
-        userDao
+        userRepository
             .observeCurrentUser()
-            .map { user -> user?.isRoot == true }
+            .map { user -> user?.isAdmin == true }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -110,12 +110,12 @@ class LibraryActionsViewModel(
      * Available to all users (not just admins).
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val myLenses: StateFlow<List<LensEntity>> =
-        userDao
+    val myLenses: StateFlow<List<Lens>> =
+        userRepository
             .observeCurrentUser()
             .flatMapLatest { user ->
                 if (user != null) {
-                    lensDao.observeMyLenses(user.id)
+                    lensRepository.observeMyLenses(user.id)
                 } else {
                     flowOf(emptyList())
                 }

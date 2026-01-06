@@ -5,8 +5,11 @@ import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
+import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
+import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
 import com.calypsan.listenup.client.data.local.db.SearchDao
+import kotlinx.coroutines.flow.Flow
 import com.calypsan.listenup.client.data.remote.ApplyContributorMetadataResult
 import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
@@ -75,6 +78,34 @@ interface ContributorRepositoryContract {
      * @return Success or failure result
      */
     suspend fun deleteContributor(contributorId: String): Result<Unit>
+
+    /**
+     * Observe contributors with book counts, filtered by role.
+     *
+     * Used for displaying authors, narrators lists in library views.
+     *
+     * @param role The role to filter by (e.g., "author", "narrator")
+     * @return Flow emitting list of contributors with book counts
+     */
+    fun observeContributorsByRole(role: String): Flow<List<ContributorWithBookCount>>
+
+    /**
+     * Observe a single contributor by ID.
+     *
+     * Used for contributor detail page.
+     *
+     * @param contributorId The contributor ID
+     * @return Flow emitting contributor, or null if not found
+     */
+    fun observeContributor(contributorId: String): Flow<ContributorEntity?>
+
+    /**
+     * Get a contributor by ID synchronously.
+     *
+     * @param contributorId The contributor ID
+     * @return ContributorEntity if found, null otherwise
+     */
+    suspend fun getById(contributorId: String): ContributorEntity?
 }
 
 /**
@@ -135,8 +166,18 @@ class ContributorRepository(
     private val api: ContributorApiContract,
     private val metadataApi: MetadataApiContract,
     private val searchDao: SearchDao,
+    private val contributorDao: ContributorDao,
     private val networkMonitor: NetworkMonitor,
 ) : ContributorRepositoryContract {
+    override fun observeContributorsByRole(role: String): Flow<List<ContributorWithBookCount>> =
+        contributorDao.observeByRoleWithCount(role)
+
+    override fun observeContributor(contributorId: String): Flow<ContributorEntity?> =
+        contributorDao.observeById(contributorId)
+
+    override suspend fun getById(contributorId: String): ContributorEntity? =
+        contributorDao.getById(contributorId)
+
     /**
      * Search contributors for autocomplete.
      *

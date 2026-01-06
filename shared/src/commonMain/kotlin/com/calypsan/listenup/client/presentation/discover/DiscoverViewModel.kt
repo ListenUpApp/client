@@ -3,13 +3,15 @@ package com.calypsan.listenup.client.presentation.discover
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
-import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
-import com.calypsan.listenup.client.data.local.db.ActiveSessionWithDetails
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.DiscoveryBookWithAuthor
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.domain.model.ActiveSession
+import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.repository.ActiveSessionRepository
+import com.calypsan.listenup.client.domain.repository.LensRepository
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.LensApiContract
@@ -44,9 +46,10 @@ private val logger = KotlinLogging.logger {}
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiscoverViewModel(
     private val bookDao: BookDao,
-    private val activeSessionDao: ActiveSessionDao,
+    private val activeSessionRepository: ActiveSessionRepository,
     private val authSession: AuthSessionContract,
     private val lensDao: LensDao,
+    private val lensRepository: LensRepository,
     private val lensApi: LensApiContract,
     private val imageStorage: ImageStorage,
 ) : ViewModel() {
@@ -65,7 +68,7 @@ class DiscoverViewModel(
         authSession.authState.flatMapLatest { authState ->
             when (authState) {
                 is AuthState.Authenticated -> {
-                    activeSessionDao.observeActiveSessions(authState.userId)
+                    activeSessionRepository.observeActiveSessions(authState.userId)
                 }
 
                 else -> {
@@ -89,29 +92,29 @@ class DiscoverViewModel(
             )
 
     /**
-     * Convert ActiveSessionWithDetails to UI model with local cover path.
+     * Convert ActiveSession domain model to UI model with local cover path.
      */
-    private fun ActiveSessionWithDetails.toUiModel(): CurrentlyListeningUiSession {
-        val bookId = BookId(this.bookId)
+    private fun ActiveSession.toUiModel(): CurrentlyListeningUiSession {
+        val bookIdValue = BookId(bookId)
         val localCoverPath =
-            if (imageStorage.exists(bookId)) {
-                imageStorage.getCoverPath(bookId)
+            if (imageStorage.exists(bookIdValue)) {
+                imageStorage.getCoverPath(bookIdValue)
             } else {
                 null
             }
         return CurrentlyListeningUiSession(
             sessionId = sessionId,
             userId = userId,
-            bookId = this.bookId,
-            bookTitle = title,
-            authorName = authorName,
+            bookId = bookId,
+            bookTitle = book.title,
+            authorName = book.authorName,
             coverPath = localCoverPath,
-            coverBlurHash = coverBlurHash,
-            displayName = displayName,
-            avatarType = avatarType,
-            avatarValue = avatarValue,
-            avatarColor = avatarColor,
-            startedAt = startedAt,
+            coverBlurHash = book.coverBlurHash,
+            displayName = user.displayName,
+            avatarType = user.avatarType,
+            avatarValue = user.avatarValue,
+            avatarColor = user.avatarColor,
+            startedAt = startedAtMs,
         )
     }
 
@@ -208,7 +211,7 @@ class DiscoverViewModel(
         authSession.authState.flatMapLatest { authState ->
             when (authState) {
                 is AuthState.Authenticated -> {
-                    lensDao.observeDiscoverLenses(authState.userId)
+                    lensRepository.observeDiscoverLenses(authState.userId)
                 }
 
                 else -> {
@@ -246,9 +249,9 @@ class DiscoverViewModel(
             )
 
     /**
-     * Convert LensEntity to UI model.
+     * Convert Lens domain model to UI model.
      */
-    private fun LensEntity.toUiModel(): DiscoverLensUi =
+    private fun Lens.toUiModel(): DiscoverLensUi =
         DiscoverLensUi(
             id = id,
             name = name,
@@ -269,7 +272,7 @@ class DiscoverViewModel(
                 return@launch
             }
 
-            val existingCount = lensDao.countDiscoverLenses(authState.userId)
+            val existingCount = lensRepository.countDiscoverLenses(authState.userId)
             if (existingCount > 0) {
                 logger.debug { "Room has $existingCount discover lenses, skipping initial fetch" }
                 return@launch

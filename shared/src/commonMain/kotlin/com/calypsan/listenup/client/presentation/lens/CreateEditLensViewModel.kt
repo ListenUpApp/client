@@ -2,8 +2,8 @@ package com.calypsan.listenup.client.presentation.lens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.remote.LensApiContract
+import com.calypsan.listenup.client.domain.repository.LensRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +19,7 @@ private val logger = KotlinLogging.logger {}
  */
 class CreateEditLensViewModel(
     private val lensApi: LensApiContract,
-    private val lensDao: LensDao,
+    private val lensRepository: LensRepository,
 ) : ViewModel() {
     val state: StateFlow<CreateEditLensUiState>
         field = MutableStateFlow(CreateEditLensUiState())
@@ -45,7 +45,7 @@ class CreateEditLensViewModel(
             state.update { it.copy(isLoading = true) }
 
             try {
-                val lens = lensDao.getById(lensId)
+                val lens = lensRepository.getById(lensId)
                 if (lens != null) {
                     state.update {
                         CreateEditLensUiState(

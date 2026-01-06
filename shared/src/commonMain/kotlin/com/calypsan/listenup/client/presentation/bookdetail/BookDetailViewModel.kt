@@ -4,8 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
-import com.calypsan.listenup.client.data.local.db.GenreDao
-import com.calypsan.listenup.client.data.local.db.GenreEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
@@ -16,16 +14,16 @@ import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
+import com.calypsan.listenup.client.domain.repository.GenreRepository
+import com.calypsan.listenup.client.domain.repository.TagRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
@@ -38,8 +36,9 @@ private val logger = KotlinLogging.logger {}
 @OptIn(ExperimentalCoroutinesApi::class)
 class BookDetailViewModel(
     private val bookRepository: BookRepositoryContract,
-    private val genreDao: GenreDao,
+    private val genreRepository: GenreRepository,
     private val tagApi: TagApiContract,
+    private val tagRepository: TagRepository,
     private val tagDao: TagDao,
     private val playbackPositionDao: PlaybackPositionDao,
     private val userDao: UserDao,
@@ -66,9 +65,7 @@ class BookDetailViewModel(
             currentBookId
                 .flatMapLatest { bookId ->
                     if (bookId != null) {
-                        genreDao
-                            .observeGenresForBook(BookId(bookId))
-                            .map { entities -> entities.map { it.toDomain() } }
+                        genreRepository.observeGenresForBook(bookId)
                     } else {
                         flowOf(emptyList())
                     }
@@ -87,9 +84,7 @@ class BookDetailViewModel(
             currentBookId
                 .flatMapLatest { bookId ->
                     if (bookId != null) {
-                        tagDao
-                            .observeTagsForBook(BookId(bookId))
-                            .map { entities -> entities.map { it.toDomain() } }
+                        tagRepository.observeTagsForBook(bookId)
                     } else {
                         flowOf(emptyList())
                     }
@@ -105,25 +100,13 @@ class BookDetailViewModel(
 
         // All tags observer (doesn't depend on current book - for tag picker)
         viewModelScope.launch {
-            tagDao
-                .observeAllTags()
-                .map { entities -> entities.map { it.toDomain() } }
+            tagRepository
+                .observeAll()
                 .collect { allTags ->
                     state.update { it.copy(allTags = allTags) }
                 }
         }
     }
-
-    /**
-     * Convert TagEntity to domain Tag.
-     */
-    private fun TagEntity.toDomain(): Tag =
-        Tag(
-            id = id,
-            slug = slug,
-            bookCount = bookCount,
-            createdAt = Instant.fromEpochMilliseconds(createdAt.epochMillis),
-        )
 
     fun loadBook(bookId: String) {
         viewModelScope.launch {
@@ -209,18 +192,6 @@ class BookDetailViewModel(
             }
         }
     }
-
-    /**
-     * Convert GenreEntity to domain Genre.
-     */
-    private fun GenreEntity.toDomain(): Genre =
-        Genre(
-            id = id,
-            name = name,
-            slug = slug,
-            path = path,
-            bookCount = bookCount,
-        )
 
     /**
      * Show the tag picker sheet.

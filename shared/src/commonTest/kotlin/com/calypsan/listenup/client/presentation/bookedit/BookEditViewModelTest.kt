@@ -18,6 +18,10 @@ import com.calypsan.listenup.client.data.repository.ContributorSearchResponse
 import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
 import com.calypsan.listenup.client.data.repository.SeriesSearchResponse
 import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.Genre
+import com.calypsan.listenup.client.domain.model.Tag
+import com.calypsan.listenup.client.domain.repository.GenreRepository
+import com.calypsan.listenup.client.domain.repository.TagRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
@@ -64,8 +68,10 @@ class BookEditViewModelTest {
         val contributorRepository: ContributorRepositoryContract = mock()
         val seriesRepository: SeriesRepositoryContract = mock()
         val genreApi: GenreApiContract = mock()
+        val genreRepository: GenreRepository = mock()
         val genreDao: GenreDao = mock()
         val tagApi: TagApiContract = mock()
+        val tagRepository: TagRepository = mock()
         val tagDao: TagDao = mock()
         val imageApi: ImageApiContract = mock()
         val imageStorage: ImageStorage = mock()
@@ -77,8 +83,10 @@ class BookEditViewModelTest {
                 contributorRepository = contributorRepository,
                 seriesRepository = seriesRepository,
                 genreApi = genreApi,
+                genreRepository = genreRepository,
                 genreDao = genreDao,
                 tagApi = tagApi,
+                tagRepository = tagRepository,
                 tagDao = tagDao,
                 imageApi = imageApi,
                 imageStorage = imageStorage,
@@ -88,11 +96,11 @@ class BookEditViewModelTest {
     private fun createFixture(): TestFixture {
         val fixture = TestFixture()
 
-        // Default stubs for DAO operations (offline-first reads)
-        everySuspend { fixture.genreDao.getAllGenres() } returns emptyList()
-        everySuspend { fixture.genreDao.getGenresForBook(any()) } returns emptyList()
-        everySuspend { fixture.tagDao.getAllTags() } returns emptyList()
-        everySuspend { fixture.tagDao.getTagsForBook(any()) } returns emptyList()
+        // Default stubs for repository operations (offline-first reads)
+        everySuspend { fixture.genreRepository.getAll() } returns emptyList()
+        everySuspend { fixture.genreRepository.getGenresForBook(any()) } returns emptyList()
+        everySuspend { fixture.tagRepository.getAll() } returns emptyList()
+        everySuspend { fixture.tagRepository.getTagsForBook(any()) } returns emptyList()
         everySuspend { fixture.contributorRepository.searchContributors(any(), any()) } returns
             ContributorSearchResponse(emptyList(), false, 0L)
         everySuspend { fixture.seriesRepository.searchSeries(any(), any()) } returns
@@ -488,20 +496,19 @@ class BookEditViewModelTest {
     @Test
     fun `removing genre updates state`() =
         runTest {
-            // Given - genres come from Room (offline-first)
+            // Given - genres come from repository (offline-first)
             val fixture = createFixture()
             val domainGenre = TestData.genre(id = "genre-1", name = "Fantasy", path = "/fiction/fantasy")
-            val genreEntity =
-                com.calypsan.listenup.client.data.local.db.GenreEntity(
-                    id = "genre-1",
-                    name = "Fantasy",
-                    slug = "fantasy",
-                    path = "/fiction/fantasy",
-                    bookCount = 0,
-                )
+            val genreFromRepo = Genre(
+                id = "genre-1",
+                name = "Fantasy",
+                slug = "fantasy",
+                path = "/fiction/fantasy",
+                bookCount = 0,
+            )
             val book = TestData.book(id = "book-1", genres = listOf(domainGenre))
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
-            everySuspend { fixture.genreDao.getGenresForBook(any()) } returns listOf(genreEntity)
+            everySuspend { fixture.genreRepository.getGenresForBook(any()) } returns listOf(genreFromRepo)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -549,21 +556,17 @@ class BookEditViewModelTest {
     @Test
     fun `removing tag updates state`() =
         runTest {
-            // Given - tags come from Room (offline-first)
+            // Given - tags come from repository (offline-first)
             val fixture = createFixture()
             val domainTag = TestData.tag(id = "tag-1", slug = "favorites")
-            val tagEntity =
-                com.calypsan.listenup.client.data.local.db.TagEntity(
-                    id = "tag-1",
-                    slug = "favorites",
-                    bookCount = 5,
-                    createdAt =
-                        com.calypsan.listenup.client.data.local.db.Timestamp
-                            .now(),
-                )
+            val tagFromRepo = Tag(
+                id = "tag-1",
+                slug = "favorites",
+                bookCount = 5,
+            )
             val book = TestData.book(id = "book-1", tags = listOf(domainTag))
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
-            everySuspend { fixture.tagDao.getTagsForBook(any()) } returns listOf(tagEntity)
+            everySuspend { fixture.tagRepository.getTagsForBook(any()) } returns listOf(tagFromRepo)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()

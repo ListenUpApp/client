@@ -10,7 +10,6 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.GenreDao
-import com.calypsan.listenup.client.data.local.db.GenreEntity
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
@@ -27,6 +26,8 @@ import com.calypsan.listenup.client.data.repository.ContributorRepositoryContrac
 import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
+import com.calypsan.listenup.client.domain.repository.GenreRepository
+import com.calypsan.listenup.client.domain.repository.TagRepository
 import com.calypsan.listenup.client.presentation.bookedit.delegates.ContributorEditDelegate
 import com.calypsan.listenup.client.presentation.bookedit.delegates.CoverUploadDelegate
 import com.calypsan.listenup.client.presentation.bookedit.delegates.GenreTagEditDelegate
@@ -64,8 +65,10 @@ class BookEditViewModel(
     private val contributorRepository: ContributorRepositoryContract,
     private val seriesRepository: SeriesRepositoryContract,
     private val genreApi: GenreApiContract,
+    private val genreRepository: GenreRepository,
     private val genreDao: GenreDao,
     private val tagApi: TagApiContract,
+    private val tagRepository: TagRepository,
     private val tagDao: TagDao,
     private val imageApi: ImageApiContract,
     private val imageStorage: ImageStorage,
@@ -416,7 +419,7 @@ class BookEditViewModel(
     private suspend fun loadGenresForBook(bookId: String): Pair<List<EditableGenre>, List<EditableGenre>> {
         val allGenres =
             try {
-                genreDao.getAllGenres().map { it.toEditable() }
+                genreRepository.getAll().map { it.toEditable() }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to load all genres from Room" }
                 emptyList()
@@ -424,7 +427,7 @@ class BookEditViewModel(
 
         val bookGenres =
             try {
-                genreDao.getGenresForBook(BookId(bookId)).map { it.toEditable() }
+                genreRepository.getGenresForBook(bookId).map { it.toEditable() }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to load book genres from Room" }
                 emptyList()
@@ -441,7 +444,7 @@ class BookEditViewModel(
     private suspend fun loadTagsForBook(bookId: String): Pair<List<EditableTag>, List<EditableTag>> {
         val allTags =
             try {
-                tagDao.getAllTags().map { it.toEditable() }
+                tagRepository.getAll().map { it.toEditable() }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to load all tags from Room" }
                 emptyList()
@@ -449,7 +452,7 @@ class BookEditViewModel(
 
         val bookTags =
             try {
-                tagDao.getTagsForBook(BookId(bookId)).map { it.toEditable() }
+                tagRepository.getTagsForBook(bookId).map { it.toEditable() }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to load book tags from Room" }
                 emptyList()
@@ -458,11 +461,7 @@ class BookEditViewModel(
         return allTags to bookTags
     }
 
-    private fun TagEntity.toEditable() = EditableTag(id = id, slug = slug)
-
     private fun Genre.toEditable() = EditableGenre(id = id, name = name, path = path)
-
-    private fun GenreEntity.toEditable() = EditableGenre(id = id, name = name, path = path)
 
     private fun Tag.toEditable() = EditableTag(id = id, slug = slug)
 

@@ -30,7 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.domain.model.Lens
 
 /**
  * Card for a lens in the My Lenses section.
@@ -40,13 +40,13 @@ import com.calypsan.listenup.client.data.local.db.LensEntity
  * - Lens name and book count
  * - Press-to-scale animation
  *
- * @param lens The lens entity to display
+ * @param lens The lens domain model to display
  * @param onClick Callback when card is clicked
  * @param modifier Optional modifier
  */
 @Composable
 fun LensCard(
-    lens: LensEntity,
+    lens: Lens,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

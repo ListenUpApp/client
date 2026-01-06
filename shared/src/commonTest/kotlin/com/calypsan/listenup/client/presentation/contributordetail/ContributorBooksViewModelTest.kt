@@ -8,13 +8,13 @@ import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.BookWithContributors
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.domain.model.BookSeries
+import com.calypsan.listenup.client.domain.model.PlaybackPosition
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -62,7 +62,7 @@ class ContributorBooksViewModelTest {
         val contributorDao: ContributorDao = mock()
         val bookDao: BookDao = mock()
         val imageStorage: ImageStorage = mock()
-        val playbackPositionDao: PlaybackPositionDao = mock()
+        val playbackPositionRepository: PlaybackPositionRepository = mock()
 
         val contributorFlow = MutableStateFlow<ContributorEntity?>(null)
         val booksFlow = MutableStateFlow<List<BookWithContributors>>(emptyList())
@@ -72,7 +72,7 @@ class ContributorBooksViewModelTest {
                 contributorDao = contributorDao,
                 bookDao = bookDao,
                 imageStorage = imageStorage,
-                playbackPositionDao = playbackPositionDao,
+                playbackPositionRepository = playbackPositionRepository,
             )
     }
 
@@ -83,7 +83,7 @@ class ContributorBooksViewModelTest {
         every { fixture.contributorDao.observeById(any()) } returns fixture.contributorFlow
         every { fixture.bookDao.observeByContributorAndRole(any(), any()) } returns fixture.booksFlow
         every { fixture.imageStorage.exists(any()) } returns false
-        everySuspend { fixture.playbackPositionDao.get(any()) } returns null
+        everySuspend { fixture.playbackPositionRepository.get(any()) } returns null
 
         return fixture
     }
@@ -161,12 +161,15 @@ class ContributorBooksViewModelTest {
     private fun createPlaybackPosition(
         bookId: String,
         positionMs: Long,
-    ): PlaybackPositionEntity =
-        PlaybackPositionEntity(
-            bookId = BookId(bookId),
+    ): PlaybackPosition =
+        PlaybackPosition(
+            bookId = bookId,
             positionMs = positionMs,
             playbackSpeed = 1.0f,
-            updatedAt = Clock.System.now().toEpochMilliseconds(),
+            hasCustomSpeed = false,
+            updatedAtMs = Clock.System.now().toEpochMilliseconds(),
+            syncedAtMs = null,
+            lastPlayedAtMs = null,
         )
 
     @BeforeTest
@@ -440,7 +443,7 @@ class ContributorBooksViewModelTest {
             // Given
             val fixture = createFixture()
             val book = createBookEntity(id = "book-1", duration = 10_000L)
-            everySuspend { fixture.playbackPositionDao.get(BookId("book-1")) } returns
+            everySuspend { fixture.playbackPositionRepository.get("book-1") } returns
                 createPlaybackPosition(
                     "book-1",
                     5_000L,
@@ -463,7 +466,7 @@ class ContributorBooksViewModelTest {
             // Given
             val fixture = createFixture()
             val book = createBookEntity(id = "book-1", duration = 10_000L)
-            everySuspend { fixture.playbackPositionDao.get(BookId("book-1")) } returns
+            everySuspend { fixture.playbackPositionRepository.get("book-1") } returns
                 createPlaybackPosition(
                     "book-1",
                     9_999L,

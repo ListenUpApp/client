@@ -1,9 +1,9 @@
 package com.calypsan.listenup.client.presentation.home
 
-import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
+import com.calypsan.listenup.client.domain.repository.LensRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.matcher.any
@@ -45,7 +45,7 @@ class HomeViewModelTest {
 
     private class TestFixture {
         val homeRepository: HomeRepositoryContract = mock()
-        val lensDao: LensDao = mock()
+        val lensRepository: LensRepository = mock()
         val userFlow = MutableStateFlow<UserEntity?>(null)
         val continueListeningFlow = MutableStateFlow<List<ContinueListeningBook>>(emptyList())
         var currentHour: Int = 10 // Default to morning
@@ -53,7 +53,7 @@ class HomeViewModelTest {
         fun build(): HomeViewModel =
             HomeViewModel(
                 homeRepository = homeRepository,
-                lensDao = lensDao,
+                lensRepository = lensRepository,
                 currentHour = { currentHour },
             )
     }
@@ -64,7 +64,7 @@ class HomeViewModelTest {
         // Default stubs for reactive observation
         every { fixture.homeRepository.observeCurrentUser() } returns fixture.userFlow
         every { fixture.homeRepository.observeContinueListening(any()) } returns fixture.continueListeningFlow
-        every { fixture.lensDao.observeMyLenses(any()) } returns flowOf(emptyList())
+        every { fixture.lensRepository.observeMyLenses(any()) } returns flowOf(emptyList())
 
         return fixture
     }

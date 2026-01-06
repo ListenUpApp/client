@@ -2,14 +2,14 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.CollectionDao
-import com.calypsan.listenup.client.data.local.db.CollectionEntity
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
 import com.calypsan.listenup.client.data.remote.AdminUser
 import com.calypsan.listenup.client.data.remote.CollectionBookResponse
 import com.calypsan.listenup.client.data.remote.ShareResponse
+import com.calypsan.listenup.client.domain.model.Collection
+import com.calypsan.listenup.client.domain.repository.CollectionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +28,7 @@ private val logger = KotlinLogging.logger {}
  */
 class AdminCollectionDetailViewModel(
     private val collectionId: String,
-    private val collectionDao: CollectionDao,
+    private val collectionRepository: CollectionRepository,
     private val adminCollectionApi: AdminCollectionApiContract,
     private val adminApi: AdminApiContract,
     private val userDao: UserDao,
@@ -49,8 +49,8 @@ class AdminCollectionDetailViewModel(
             state.value = state.value.copy(isLoading = true)
 
             try {
-                // First, try to get from local DB
-                val localCollection = collectionDao.getById(collectionId)
+                // First, try to get from local DB via repository
+                val localCollection = collectionRepository.getById(collectionId)
                 if (localCollection != null) {
                     state.value =
                         state.value.copy(
@@ -61,20 +61,17 @@ class AdminCollectionDetailViewModel(
                 } else {
                     // Fallback to API if not in local DB yet
                     val response = adminCollectionApi.getCollection(collectionId)
+                    val now = System.currentTimeMillis()
                     state.value =
                         state.value.copy(
                             isLoading = false,
                             collection =
-                                CollectionEntity(
+                                Collection(
                                     id = response.id,
                                     name = response.name,
                                     bookCount = response.bookCount,
-                                    createdAt =
-                                        com.calypsan.listenup.client.data.local.db.Timestamp
-                                            .now(),
-                                    updatedAt =
-                                        com.calypsan.listenup.client.data.local.db.Timestamp
-                                            .now(),
+                                    createdAtMs = now,
+                                    updatedAtMs = now,
                                 ),
                             editedName = response.name,
                         )
@@ -387,7 +384,7 @@ class AdminCollectionDetailViewModel(
  */
 data class AdminCollectionDetailUiState(
     val isLoading: Boolean = true,
-    val collection: CollectionEntity? = null,
+    val collection: Collection? = null,
     val editedName: String = "",
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,

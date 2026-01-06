@@ -7,8 +7,6 @@ import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
@@ -22,6 +20,8 @@ import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.PlaybackPosition
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -157,7 +157,7 @@ class LibraryViewModelTest {
         val syncManager: SyncManagerContract = mock()
         val settingsRepository: SettingsRepositoryContract = mock()
         val syncDao: SyncDao = mock()
-        val playbackPositionDao: PlaybackPositionDao = mock()
+        val playbackPositionRepository: PlaybackPositionRepository = mock()
         val selectionManager: LibrarySelectionManager = LibrarySelectionManager()
 
         val syncStateFlow = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
@@ -167,7 +167,7 @@ class LibraryViewModelTest {
                 bookRepository = bookRepository,
                 seriesDao = seriesDao,
                 contributorDao = contributorDao,
-                playbackPositionDao = playbackPositionDao,
+                playbackPositionRepository = playbackPositionRepository,
                 syncManager = syncManager,
                 settingsRepository = settingsRepository,
                 syncDao = syncDao,
@@ -184,7 +184,7 @@ class LibraryViewModelTest {
         every { fixture.contributorDao.observeByRoleWithCount("author") } returns flowOf(emptyList())
         every { fixture.contributorDao.observeByRoleWithCount("narrator") } returns flowOf(emptyList())
         every { fixture.syncManager.syncState } returns fixture.syncStateFlow
-        every { fixture.playbackPositionDao.observeAll() } returns flowOf(emptyList())
+        every { fixture.playbackPositionRepository.observeAll() } returns flowOf(emptyMap())
 
         // Default settings stubs (no persisted state)
         everySuspend { fixture.settingsRepository.getBooksSortState() } returns null
@@ -847,24 +847,29 @@ class LibraryViewModelTest {
                     createTestBook(id = "book-1", duration = 10_000L),
                     createTestBook(id = "book-2", duration = 20_000L),
                 )
-            val positions =
-                listOf(
-                    PlaybackPositionEntity(
-                        bookId = BookId("book-1"),
-                        positionMs = 5_000L, // 50% progress
-                        playbackSpeed = 1.0f,
-                        updatedAt = 0L,
-                    ),
-                    PlaybackPositionEntity(
-                        bookId = BookId("book-2"),
-                        positionMs = 10_000L, // 50% progress
-                        playbackSpeed = 1.0f,
-                        updatedAt = 0L,
-                    ),
-                )
+            val positions = mapOf(
+                "book-1" to PlaybackPosition(
+                    bookId = "book-1",
+                    positionMs = 5_000L, // 50% progress
+                    playbackSpeed = 1.0f,
+                    hasCustomSpeed = false,
+                    updatedAtMs = 0L,
+                    syncedAtMs = null,
+                    lastPlayedAtMs = null,
+                ),
+                "book-2" to PlaybackPosition(
+                    bookId = "book-2",
+                    positionMs = 10_000L, // 50% progress
+                    playbackSpeed = 1.0f,
+                    hasCustomSpeed = false,
+                    updatedAtMs = 0L,
+                    syncedAtMs = null,
+                    lastPlayedAtMs = null,
+                ),
+            )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
-            every { fixture.playbackPositionDao.observeAll() } returns flowOf(positions)
+            every { fixture.playbackPositionRepository.observeAll() } returns flowOf(positions)
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -884,18 +889,20 @@ class LibraryViewModelTest {
                 listOf(
                     createTestBook(id = "book-1", duration = 10_000L),
                 )
-            val positions =
-                listOf(
-                    PlaybackPositionEntity(
-                        bookId = BookId("book-1"),
-                        positionMs = 9_950L, // 99.5% - should be included for completion badge
-                        playbackSpeed = 1.0f,
-                        updatedAt = 0L,
-                    ),
-                )
+            val positions = mapOf(
+                "book-1" to PlaybackPosition(
+                    bookId = "book-1",
+                    positionMs = 9_950L, // 99.5% - should be included for completion badge
+                    playbackSpeed = 1.0f,
+                    hasCustomSpeed = false,
+                    updatedAtMs = 0L,
+                    syncedAtMs = null,
+                    lastPlayedAtMs = null,
+                ),
+            )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
-            every { fixture.playbackPositionDao.observeAll() } returns flowOf(positions)
+            every { fixture.playbackPositionRepository.observeAll() } returns flowOf(positions)
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()

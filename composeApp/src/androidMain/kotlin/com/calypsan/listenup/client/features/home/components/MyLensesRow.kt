@@ -18,7 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.domain.model.Lens
 
 /**
  * Horizontal scrolling row of My Lenses.
@@ -33,7 +33,7 @@ import com.calypsan.listenup.client.data.local.db.LensEntity
  */
 @Composable
 fun MyLensesRow(
-    lenses: List<LensEntity>,
+    lenses: List<Lens>,
     onLensClick: (String) -> Unit,
     onSeeAllClick: () -> Unit,
     modifier: Modifier = Modifier,

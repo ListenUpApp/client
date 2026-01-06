@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.data.local.db.toDomain
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.domain.model.Book
@@ -27,7 +27,7 @@ class ContributorBooksViewModel(
     private val contributorDao: ContributorDao,
     private val bookDao: BookDao,
     private val imageStorage: ImageStorage,
-    private val playbackPositionDao: PlaybackPositionDao,
+    private val playbackPositionRepository: PlaybackPositionRepository,
 ) : ViewModel() {
     val state: StateFlow<ContributorBooksUiState>
         field = MutableStateFlow(ContributorBooksUiState())
@@ -57,7 +57,7 @@ class ContributorBooksViewModel(
                 val contributorName = state.value.contributorName
 
                 // Load progress for all books
-                val bookProgress = playbackPositionDao.calculateProgressMap(books)
+                val bookProgress = playbackPositionRepository.calculateProgressMap(books)
 
                 // Extract creditedAs for books where the attribution differs
                 val bookCreditedAs =

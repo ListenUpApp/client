@@ -1,8 +1,7 @@
 package com.calypsan.listenup.client.util
 
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 
 /**
  * Calculate playback progress for a list of books.
@@ -15,14 +14,14 @@ import com.calypsan.listenup.client.domain.model.Book
  * @param excludeUnstarted If true (default), excludes books with no progress
  * @return Map of bookId to progress fraction
  */
-suspend fun PlaybackPositionDao.calculateProgressMap(
+suspend fun PlaybackPositionRepository.calculateProgressMap(
     books: List<Book>,
     excludeComplete: Boolean = true,
     excludeUnstarted: Boolean = true,
 ): Map<String, Float> =
     books
         .mapNotNull { book ->
-            val position = get(BookId(book.id.value))
+            val position = get(book.id.value)
             if (position != null && book.duration > 0) {
                 val progress = (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
                 val isInProgress =

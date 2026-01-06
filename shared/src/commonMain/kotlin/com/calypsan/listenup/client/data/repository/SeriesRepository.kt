@@ -4,8 +4,12 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.SearchDao
+import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
+import com.calypsan.listenup.client.data.local.db.SeriesWithBookCount
+import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
+import kotlinx.coroutines.flow.Flow
 import com.calypsan.listenup.client.data.remote.SeriesSearchResult
 import com.calypsan.listenup.client.data.repository.common.QueryUtils
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -36,6 +40,33 @@ interface SeriesRepositoryContract {
         query: String,
         limit: Int = 10,
     ): SeriesSearchResponse
+
+    /**
+     * Observe all series with their book counts.
+     *
+     * Used for displaying series list in library views.
+     *
+     * @return Flow emitting list of series with book counts
+     */
+    fun observeSeriesWithBookCount(): Flow<List<SeriesWithBookCount>>
+
+    /**
+     * Observe a specific series with all its books.
+     *
+     * Used for series detail page.
+     *
+     * @param seriesId The series ID
+     * @return Flow emitting series with books, or null if not found
+     */
+    fun observeSeriesWithBooks(seriesId: String): Flow<SeriesWithBooks?>
+
+    /**
+     * Get a series by ID synchronously.
+     *
+     * @param seriesId The series ID
+     * @return SeriesEntity if found, null otherwise
+     */
+    suspend fun getById(seriesId: String): SeriesEntity?
 }
 
 /**
@@ -65,8 +96,18 @@ data class SeriesSearchResponse(
 class SeriesRepository(
     private val api: SeriesApiContract,
     private val searchDao: SearchDao,
+    private val seriesDao: SeriesDao,
     private val networkMonitor: NetworkMonitor,
 ) : SeriesRepositoryContract {
+    override fun observeSeriesWithBookCount(): Flow<List<SeriesWithBookCount>> =
+        seriesDao.observeAllWithBookCount()
+
+    override fun observeSeriesWithBooks(seriesId: String): Flow<SeriesWithBooks?> =
+        seriesDao.observeByIdWithBooks(seriesId)
+
+    override suspend fun getById(seriesId: String): SeriesEntity? =
+        seriesDao.getById(seriesId)
+
     /**
      * Search series for autocomplete.
      *

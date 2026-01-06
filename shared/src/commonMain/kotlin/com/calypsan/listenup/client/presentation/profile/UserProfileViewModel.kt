@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.domain.model.User
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.data.remote.ProfileApiContract
 import com.calypsan.listenup.client.data.remote.model.LensSummaryResponse
 import com.calypsan.listenup.client.data.remote.model.RecentBookResponse
@@ -31,7 +31,7 @@ private val logger = KotlinLogging.logger {}
  */
 class UserProfileViewModel(
     private val profileApi: ProfileApiContract,
-    private val userDao: UserDao,
+    private val userRepository: UserRepository,
     private val imageStorage: ImageStorage,
     private val imageDownloader: ImageDownloaderContract,
 ) : ViewModel() {
@@ -61,7 +61,7 @@ class UserProfileViewModel(
             state.update { it.copy(isLoading = true, error = null) }
 
             // Check if this is own profile
-            val localUser = userDao.getCurrentUser()
+            val localUser = userRepository.getCurrentUser()
             isOwnProfileFlag = localUser?.id == userId
 
             if (isOwnProfileFlag && localUser != null) {
@@ -78,7 +78,7 @@ class UserProfileViewModel(
      * Load own profile from local cache ONLY.
      * NO server fetch - true offline-first.
      */
-    private fun loadOwnProfileFromCache(localUser: UserEntity) {
+    private fun loadOwnProfileFromCache(localUser: User) {
         logger.info { "Loading own profile from LOCAL CACHE ONLY (no server fetch)" }
 
         // Start observing local user for reactive updates
@@ -116,11 +116,11 @@ class UserProfileViewModel(
     }
 
     /**
-     * Observe local UserEntity for reactive updates to own profile.
+     * Observe local User for reactive updates to own profile.
      */
     private fun observeLocalUser() {
         viewModelScope.launch {
-            userDao.observeCurrentUser().collect { user ->
+            userRepository.observeCurrentUser().collect { user ->
                 if (user != null && isOwnProfileFlag) {
                     // Update local avatar path if avatar type changed
                     val localAvatarPath =
@@ -265,7 +265,7 @@ data class UserProfileUiState(
     val isOwnProfile: Boolean = false,
     val error: String? = null,
     // For OWN profile: local cache for profile data
-    val localUser: UserEntity? = null,
+    val localUser: User? = null,
     // Local file path for own profile's avatar image (loaded from local storage, not server)
     val localAvatarPath: String? = null,
     // For OTHER users: server data for profile
@@ -293,6 +293,6 @@ data class UserProfileUiState(
     val avatarColor: String get() = if (isOwnProfile) localUser?.avatarColor ?: "#6B7280" else serverAvatarColor
     val tagline: String? get() = if (isOwnProfile) localUser?.tagline else serverTagline
 
-    // Cache buster for avatar images - use updatedAt timestamp to force Coil refresh
-    val avatarCacheBuster: Long get() = localUser?.updatedAt ?: 0
+    // Cache buster for avatar images - use updatedAtMs timestamp to force Coil refresh
+    val avatarCacheBuster: Long get() = localUser?.updatedAtMs ?: 0
 }

@@ -94,7 +94,7 @@ val adminPresentationModule =
         factory { params ->
             com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel(
                 collectionId = params.get<String>(0),
-                collectionDao = get(),
+                collectionRepository = get(),
                 adminCollectionApi = get(),
                 adminApi = get(),
                 userDao = get(),
@@ -117,7 +117,7 @@ val libraryPresentationModule =
                 bookRepository = get(),
                 seriesDao = get(),
                 contributorDao = get(),
-                playbackPositionDao = get(),
+                playbackPositionRepository = get(),
                 syncManager = get(),
                 settingsRepository = get(),
                 syncDao = get(),
@@ -129,10 +129,10 @@ val libraryPresentationModule =
         single {
             LibraryActionsViewModel(
                 selectionManager = get(),
-                userDao = get(),
+                userRepository = get(),
                 collectionDao = get(),
                 adminCollectionApi = get(),
-                lensDao = get(),
+                lensRepository = get(),
                 lensApi = get(),
             )
         }
@@ -152,8 +152,9 @@ val bookPresentationModule =
         factory {
             com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel(
                 bookRepository = get(),
-                genreDao = get(),
+                genreRepository = get(),
                 tagApi = get(),
+                tagRepository = get(),
                 tagDao = get(),
                 playbackPositionDao = get(),
                 userDao = get(),
@@ -172,8 +173,10 @@ val bookPresentationModule =
                 contributorRepository = get(),
                 seriesRepository = get(),
                 genreApi = get(),
+                genreRepository = get(),
                 genreDao = get(),
                 tagApi = get(),
+                tagRepository = get(),
                 tagDao = get(),
                 imageApi = get(),
                 imageStorage = get(),
@@ -220,7 +223,7 @@ val contributorPresentationModule =
                 contributorDao = get(),
                 bookDao = get(),
                 imageStorage = get(),
-                playbackPositionDao = get(),
+                playbackPositionRepository = get(),
                 contributorRepository = get(),
             )
         }
@@ -229,7 +232,7 @@ val contributorPresentationModule =
                 contributorDao = get(),
                 bookDao = get(),
                 imageStorage = get(),
-                playbackPositionDao = get(),
+                playbackPositionRepository = get(),
             )
         }
         factory {
@@ -259,7 +262,7 @@ val discoverPresentationModule =
         factory {
             com.calypsan.listenup.client.presentation.home.HomeViewModel(
                 homeRepository = get(),
-                lensDao = get(),
+                lensRepository = get(),
             )
         }
         // HomeStatsViewModel for home screen stats section (observes local stats)
@@ -267,9 +270,10 @@ val discoverPresentationModule =
         factory {
             com.calypsan.listenup.client.presentation.discover.DiscoverViewModel(
                 bookDao = get(),
-                activeSessionDao = get(),
+                activeSessionRepository = get(),
                 authSession = get(),
                 lensDao = get(),
+                lensRepository = get(),
                 lensApi = get(),
                 imageStorage = get(),
             )
@@ -277,7 +281,7 @@ val discoverPresentationModule =
         // LeaderboardViewModel for discover screen leaderboard
         factory { LeaderboardViewModel(leaderboardRepository = get()) }
         // ActivityFeedViewModel for discover screen activity feed
-        factory { ActivityFeedViewModel(activityDao = get(), activityFeedApi = get()) }
+        factory { ActivityFeedViewModel(activityRepository = get(), activityFeedApi = get()) }
     }
 
 /**
@@ -287,7 +291,7 @@ val tagLensPresentationModule =
     module {
         factory {
             com.calypsan.listenup.client.presentation.tagdetail.TagDetailViewModel(
-                tagDao = get(),
+                tagRepository = get(),
                 bookRepository = get(),
             )
         }
@@ -295,14 +299,14 @@ val tagLensPresentationModule =
             com.calypsan.listenup.client.presentation.lens.LensDetailViewModel(
                 lensApi = get(),
                 lensDao = get(),
-                userDao = get(),
+                userRepository = get(),
                 imageStorage = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.lens.CreateEditLensViewModel(
                 lensApi = get(),
-                lensDao = get(),
+                lensRepository = get(),
             )
         }
     }
@@ -316,7 +320,7 @@ val profilePresentationModule =
         factory {
             com.calypsan.listenup.client.presentation.profile.UserProfileViewModel(
                 profileApi = get(),
-                userDao = get(),
+                userRepository = get(),
                 imageStorage = get(),
                 imageDownloader = get(),
             )
@@ -325,7 +329,7 @@ val profilePresentationModule =
         factory {
             com.calypsan.listenup.client.presentation.profile.EditProfileViewModel(
                 profileEditRepository = get(),
-                userDao = get(),
+                userRepository = get(),
                 imageStorage = get(),
             )
         }

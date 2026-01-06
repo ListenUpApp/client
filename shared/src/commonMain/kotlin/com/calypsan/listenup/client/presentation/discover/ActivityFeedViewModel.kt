@@ -3,10 +3,10 @@ package com.calypsan.listenup.client.presentation.discover
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
-import com.calypsan.listenup.client.data.local.db.ActivityDao
-import com.calypsan.listenup.client.data.local.db.ActivityEntity
 import com.calypsan.listenup.client.data.remote.ActivityFeedApiContract
 import com.calypsan.listenup.client.data.remote.ActivityResponse
+import com.calypsan.listenup.client.domain.model.Activity
+import com.calypsan.listenup.client.domain.repository.ActivityRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,11 +32,11 @@ private const val MAX_ACTIVITIES = 100
  * - SSE events are processed by SSEEventProcessor which stores new activities in Room
  * - After initial fetch, works completely offline
  *
- * @property activityDao DAO for activity feed operations
+ * @property activityRepository Repository for activity feed operations
  * @property activityFeedApi API for fetching initial activities
  */
 class ActivityFeedViewModel(
-    private val activityDao: ActivityDao,
+    private val activityRepository: ActivityRepository,
     private val activityFeedApi: ActivityFeedApiContract,
 ) : ViewModel() {
     init {
@@ -49,7 +49,7 @@ class ActivityFeedViewModel(
      * Automatically updates when SSE events add new activities.
      */
     val state: StateFlow<ActivityFeedUiState> =
-        activityDao
+        activityRepository
             .observeRecent(limit = MAX_ACTIVITIES)
             .map { activities ->
                 ActivityFeedUiState(
@@ -68,7 +68,7 @@ class ActivityFeedViewModel(
      */
     private fun fetchInitialActivitiesIfNeeded() {
         viewModelScope.launch {
-            val existingCount = activityDao.count()
+            val existingCount = activityRepository.count()
             if (existingCount > 0) {
                 logger.debug { "Room has $existingCount activities, skipping initial fetch" }
                 return@launch
@@ -77,9 +77,9 @@ class ActivityFeedViewModel(
             logger.debug { "Room is empty, fetching initial activities from API" }
             try {
                 val response = activityFeedApi.getFeed(limit = INITIAL_FETCH_SIZE)
-                val entities = response.activities.map { it.toEntity() }
-                activityDao.upsertAll(entities)
-                logger.info { "Fetched and stored ${entities.size} initial activities" }
+                val activities = response.activities.map { it.toDomain() }
+                activityRepository.upsertAll(activities)
+                logger.info { "Fetched and stored ${activities.size} initial activities" }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to fetch initial activities" }
                 // Not fatal - Room Flow will show empty state, SSE will populate over time
@@ -95,9 +95,9 @@ class ActivityFeedViewModel(
         viewModelScope.launch {
             try {
                 val response = activityFeedApi.getFeed(limit = INITIAL_FETCH_SIZE)
-                val entities = response.activities.map { it.toEntity() }
-                activityDao.upsertAll(entities)
-                logger.debug { "Refreshed ${entities.size} activities from API" }
+                val activities = response.activities.map { it.toDomain() }
+                activityRepository.upsertAll(activities)
+                logger.debug { "Refreshed ${activities.size} activities from API" }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to refresh activities" }
             }
@@ -106,9 +106,9 @@ class ActivityFeedViewModel(
 }
 
 /**
- * Convert API response to Room entity.
+ * Convert API response to domain model.
  */
-private fun ActivityResponse.toEntity(): ActivityEntity {
+private fun ActivityResponse.toDomain(): Activity {
     // Parse ISO timestamp to epoch milliseconds
     val createdAtMs =
         try {
@@ -117,19 +117,27 @@ private fun ActivityResponse.toEntity(): ActivityEntity {
             currentEpochMilliseconds()
         }
 
-    return ActivityEntity(
+    return Activity(
         id = id,
-        userId = userId,
         type = type,
-        createdAt = createdAtMs,
-        userDisplayName = userDisplayName,
-        userAvatarColor = userAvatarColor,
-        userAvatarType = userAvatarType,
-        userAvatarValue = userAvatarValue,
-        bookId = bookId,
-        bookTitle = bookTitle,
-        bookAuthorName = bookAuthorName,
-        bookCoverPath = bookCoverPath,
+        userId = userId,
+        createdAtMs = createdAtMs,
+        user = Activity.ActivityUser(
+            displayName = userDisplayName,
+            avatarColor = userAvatarColor,
+            avatarType = userAvatarType,
+            avatarValue = userAvatarValue,
+        ),
+        book = if (bookId != null && bookTitle != null) {
+            Activity.ActivityBook(
+                id = bookId,
+                title = bookTitle,
+                authorName = bookAuthorName,
+                coverPath = bookCoverPath,
+            )
+        } else {
+            null
+        },
         isReread = isReread,
         durationMs = durationMs,
         milestoneValue = milestoneValue,
@@ -140,22 +148,22 @@ private fun ActivityResponse.toEntity(): ActivityEntity {
 }
 
 /**
- * Convert ActivityEntity to UI model.
+ * Convert Activity domain model to UI model.
  */
-private fun ActivityEntity.toUiModel(): ActivityUiModel =
+private fun Activity.toUiModel(): ActivityUiModel =
     ActivityUiModel(
         id = id,
         userId = userId,
         type = type,
-        createdAt = createdAt,
-        userDisplayName = userDisplayName,
-        userAvatarColor = userAvatarColor,
-        userAvatarType = userAvatarType,
-        userAvatarValue = userAvatarValue,
-        bookId = bookId,
-        bookTitle = bookTitle,
-        bookAuthorName = bookAuthorName,
-        bookCoverPath = bookCoverPath,
+        createdAt = createdAtMs,
+        userDisplayName = user.displayName,
+        userAvatarColor = user.avatarColor,
+        userAvatarType = user.avatarType,
+        userAvatarValue = user.avatarValue,
+        bookId = book?.id,
+        bookTitle = book?.title,
+        bookAuthorName = book?.authorName,
+        bookCoverPath = book?.coverPath,
         isReread = isReread,
         durationMs = durationMs,
         milestoneValue = milestoneValue,
@@ -166,7 +174,7 @@ private fun ActivityEntity.toUiModel(): ActivityUiModel =
 
 /**
  * UI model for a single activity in the feed.
- * Matches the fields stored in ActivityEntity.
+ * Flattened representation of Activity domain model for UI consumption.
  */
 data class ActivityUiModel(
     val id: String,

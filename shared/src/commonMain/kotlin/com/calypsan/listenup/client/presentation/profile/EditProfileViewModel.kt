@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.domain.model.User
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.data.repository.ProfileEditRepositoryContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +27,7 @@ private val logger = KotlinLogging.logger {}
  */
 class EditProfileViewModel(
     private val profileEditRepository: ProfileEditRepositoryContract,
-    private val userDao: UserDao,
+    private val userRepository: UserRepository,
     private val imageStorage: ImageStorage,
 ) : ViewModel() {
     val state: StateFlow<EditProfileUiState>
@@ -43,13 +43,13 @@ class EditProfileViewModel(
      * This ensures the UI updates when:
      * - ProfileAvatarHandler syncs new avatar after upload
      * - ProfileUpdateHandler syncs profile changes
-     * - Any other sync updates the UserEntity
+     * - Any other sync updates the User
      *
      * NO server fetch - everything from local cache.
      */
     private fun observeUser() {
         viewModelScope.launch {
-            userDao.observeCurrentUser().collect { user ->
+            userRepository.observeCurrentUser().collect { user ->
                 if (user != null) {
                     val currentState = state.value
 
@@ -170,7 +170,7 @@ class EditProfileViewModel(
                     // Don't update avatar state here - we don't have the server path yet.
                     // The current avatar continues to display until:
                     // 1. ProfileAvatarHandler successfully uploads the image
-                    // 2. Handler updates UserEntity with the server's response
+                    // 2. Handler updates user data with the server's response
                     // 3. observeUser() sees the change and updates UI
                     state.update {
                         it.copy(
@@ -371,7 +371,7 @@ class EditProfileViewModel(
 data class EditProfileUiState(
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
-    val user: UserEntity? = null,
+    val user: User? = null,
     val localAvatarPath: String? = null,
     val editedTagline: String = "",
     val editedFirstName: String = "",

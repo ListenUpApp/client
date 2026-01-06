@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
 import com.calypsan.listenup.client.data.local.db.SyncDao
@@ -44,7 +44,7 @@ class LibraryViewModel(
     private val bookRepository: BookRepositoryContract,
     private val seriesDao: SeriesDao,
     private val contributorDao: ContributorDao,
-    private val playbackPositionDao: PlaybackPositionDao,
+    private val playbackPositionRepository: PlaybackPositionRepository,
     private val syncManager: SyncManagerContract,
     private val settingsRepository: SettingsRepositoryContract,
     private val syncDao: SyncDao,
@@ -189,7 +189,7 @@ class LibraryViewModel(
      */
     val bookProgress: StateFlow<Map<String, Float>> =
         combine(
-            playbackPositionDao.observeAll(),
+            playbackPositionRepository.observeAll(),
             books,
         ) { positions, booksList ->
             // Create a map of book durations for O(1) lookup
@@ -197,8 +197,7 @@ class LibraryViewModel(
 
             // Build progress map with capacity hint to avoid resizing
             buildMap(positions.size) {
-                for (position in positions) {
-                    val bookId = position.bookId.value
+                for ((bookId, position) in positions) {
                     val duration = bookDurations[bookId] ?: continue
                     if (duration <= 0) continue
 

@@ -9,7 +9,7 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.data.local.db.toDomain
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
@@ -36,7 +36,7 @@ class ContributorDetailViewModel(
     private val contributorDao: ContributorDao,
     private val bookDao: BookDao,
     private val imageStorage: ImageStorage,
-    private val playbackPositionDao: PlaybackPositionDao,
+    private val playbackPositionRepository: PlaybackPositionRepository,
     private val contributorRepository: ContributorRepositoryContract,
 ) : ViewModel() {
     val state: StateFlow<ContributorDetailUiState>
@@ -79,7 +79,7 @@ class ContributorDetailViewModel(
 
                 // Load progress for all preview books across all sections
                 val allPreviewBooks = roleSections.flatMap { it.previewBooks }
-                val bookProgress = playbackPositionDao.calculateProgressMap(allPreviewBooks)
+                val bookProgress = playbackPositionRepository.calculateProgressMap(allPreviewBooks)
 
                 state.value =
                     ContributorDetailUiState(

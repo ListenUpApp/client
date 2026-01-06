@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.LensDao
-import com.calypsan.listenup.client.data.local.db.UserDao
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.LensApiContract
 import com.calypsan.listenup.client.data.remote.LensBookResponse
@@ -29,7 +29,7 @@ private val logger = KotlinLogging.logger {}
 class LensDetailViewModel(
     private val lensApi: LensApiContract,
     private val lensDao: LensDao,
-    private val userDao: UserDao,
+    private val userRepository: UserRepository,
     private val imageStorage: ImageStorage,
 ) : ViewModel() {
     val state: StateFlow<LensDetailUiState>
@@ -51,12 +51,12 @@ class LensDetailViewModel(
 
             try {
                 // Get current user ID for ownership check
-                val currentUserId = userDao.observeCurrentUser().first()?.id
+                val currentUserId = userRepository.observeCurrentUser().first()?.id
 
                 // Fetch lens detail from server
                 val lensDetail = lensApi.getLens(lensId)
 
-                // Update local cache
+                // Update local cache (use DAO directly for read+write operation)
                 lensDao.getById(lensId)?.let { cached ->
                     lensDao.upsert(
                         cached.copy(

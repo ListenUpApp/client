@@ -2,15 +2,15 @@ package com.calypsan.listenup.client.presentation.library
 
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
-import com.calypsan.listenup.client.data.local.db.LensDao
-import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
 import com.calypsan.listenup.client.data.remote.LensApiContract
 import com.calypsan.listenup.client.data.remote.LensOwnerResponse
 import com.calypsan.listenup.client.data.remote.LensResponse
+import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.model.User
+import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.every
@@ -59,23 +59,23 @@ class LibraryActionsViewModelTest {
 
     private class TestFixture {
         val selectionManager = LibrarySelectionManager()
-        val userDao: UserDao = mock()
+        val userRepository: UserRepository = mock()
         val collectionDao: CollectionDao = mock()
         val adminCollectionApi: AdminCollectionApiContract = mock()
-        val lensDao: LensDao = mock()
+        val lensRepository: LensRepository = mock()
         val lensApi: LensApiContract = mock()
 
-        val userFlow = MutableStateFlow<UserEntity?>(null)
+        val userFlow = MutableStateFlow<User?>(null)
         val collectionsFlow = MutableStateFlow<List<CollectionEntity>>(emptyList())
-        val lensesFlow = MutableStateFlow<List<LensEntity>>(emptyList())
+        val lensesFlow = MutableStateFlow<List<Lens>>(emptyList())
 
         fun build(): LibraryActionsViewModel =
             LibraryActionsViewModel(
                 selectionManager = selectionManager,
-                userDao = userDao,
+                userRepository = userRepository,
                 collectionDao = collectionDao,
                 adminCollectionApi = adminCollectionApi,
-                lensDao = lensDao,
+                lensRepository = lensRepository,
                 lensApi = lensApi,
             )
     }
@@ -84,9 +84,9 @@ class LibraryActionsViewModelTest {
         val fixture = TestFixture()
 
         // Default stubs for reactive observation
-        every { fixture.userDao.observeCurrentUser() } returns fixture.userFlow
+        every { fixture.userRepository.observeCurrentUser() } returns fixture.userFlow
         every { fixture.collectionDao.observeAll() } returns fixture.collectionsFlow
-        every { fixture.lensDao.observeMyLenses(any()) } returns fixture.lensesFlow
+        every { fixture.lensRepository.observeMyLenses(any()) } returns fixture.lensesFlow
 
         return fixture
     }
@@ -97,15 +97,15 @@ class LibraryActionsViewModelTest {
         id: String = "user-1",
         email: String = "test@example.com",
         displayName: String = "Test User",
-        isRoot: Boolean = false,
-    ): UserEntity =
-        UserEntity(
+        isAdmin: Boolean = false,
+    ): User =
+        User(
             id = id,
             email = email,
             displayName = displayName,
-            isRoot = isRoot,
-            createdAt = 1704067200000L,
-            updatedAt = 1704067200000L,
+            isAdmin = isAdmin,
+            createdAtMs = 1704067200000L,
+            updatedAtMs = 1704067200000L,
         )
 
     private fun createCollection(
@@ -121,12 +121,12 @@ class LibraryActionsViewModelTest {
             updatedAt = Timestamp(1704067200000L),
         )
 
-    private fun createLensEntity(
+    private fun createLens(
         id: String = "lens-1",
         name: String = "My Lens",
         ownerId: String = "user-1",
-    ): LensEntity =
-        LensEntity(
+    ): Lens =
+        Lens(
             id = id,
             name = name,
             description = "",
@@ -135,8 +135,8 @@ class LibraryActionsViewModelTest {
             ownerAvatarColor = "#6B7280",
             bookCount = 0,
             totalDurationSeconds = 0,
-            createdAt = Timestamp(1704067200000L),
-            updatedAt = Timestamp(1704067200000L),
+            createdAtMs = 1704067200000L,
+            updatedAtMs = 1704067200000L,
         )
 
     private fun createLensResponse(

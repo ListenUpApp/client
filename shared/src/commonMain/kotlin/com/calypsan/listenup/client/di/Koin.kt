@@ -80,6 +80,8 @@ import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
 import com.calypsan.listenup.client.data.repository.ServerUrlChangeListener
 import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.data.repository.UserRepositoryImpl
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.data.repository.StatsRepository
 import com.calypsan.listenup.client.data.repository.StatsRepositoryContract
 import com.calypsan.listenup.client.data.sync.FtsPopulator
@@ -125,7 +127,21 @@ import com.calypsan.listenup.client.data.sync.push.SetBookSeriesHandler
 import com.calypsan.listenup.client.data.sync.push.UnmergeContributorHandler
 import com.calypsan.listenup.client.data.sync.push.UserPreferencesHandler
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
+import com.calypsan.listenup.client.domain.repository.ActiveSessionRepository
+import com.calypsan.listenup.client.domain.repository.ActivityRepository
+import com.calypsan.listenup.client.domain.repository.CollectionRepository
+import com.calypsan.listenup.client.domain.repository.GenreRepository
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.TagRepository
+import com.calypsan.listenup.client.data.repository.ActiveSessionRepositoryImpl
+import com.calypsan.listenup.client.data.repository.ActivityRepositoryImpl
+import com.calypsan.listenup.client.data.repository.CollectionRepositoryImpl
+import com.calypsan.listenup.client.data.repository.GenreRepositoryImpl
+import com.calypsan.listenup.client.data.repository.LensRepositoryImpl
+import com.calypsan.listenup.client.data.repository.PlaybackPositionRepositoryImpl
+import com.calypsan.listenup.client.data.repository.TagRepositoryImpl
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.playback.PlaybackManager
 import org.koin.core.module.Module
@@ -824,21 +840,23 @@ val syncModule =
             )
         } bind LeaderboardRepositoryContract::class
 
-        // ContributorRepository for contributor search with offline fallback
+        // ContributorRepository for contributor search with offline fallback and observation
         single {
             ContributorRepository(
                 api = get(),
                 metadataApi = get(),
                 searchDao = get(),
+                contributorDao = get(),
                 networkMonitor = get(),
             )
         } bind ContributorRepositoryContract::class
 
-        // SeriesRepository for series search with offline fallback
+        // SeriesRepository for series search with offline fallback and observation
         single {
             SeriesRepository(
                 api = get(),
                 searchDao = get(),
+                seriesDao = get(),
                 networkMonitor = get(),
             )
         } bind SeriesRepositoryContract::class
@@ -885,6 +903,46 @@ val syncModule =
                 profileApi = get(),
             )
         } bind ProfileEditRepositoryContract::class
+
+        // UserRepository for user profile data (SOLID: interface in domain, impl in data)
+        single<UserRepository> {
+            UserRepositoryImpl(userDao = get())
+        }
+
+        // PlaybackPositionRepository for position tracking (SOLID: interface in domain, impl in data)
+        single<PlaybackPositionRepository> {
+            PlaybackPositionRepositoryImpl(dao = get())
+        }
+
+        // TagRepository for community tags (SOLID: interface in domain, impl in data)
+        single<TagRepository> {
+            TagRepositoryImpl(dao = get())
+        }
+
+        // GenreRepository for hierarchical genres (SOLID: interface in domain, impl in data)
+        single<GenreRepository> {
+            GenreRepositoryImpl(dao = get())
+        }
+
+        // LensRepository for personal curation lenses (SOLID: interface in domain, impl in data)
+        single<LensRepository> {
+            LensRepositoryImpl(dao = get())
+        }
+
+        // CollectionRepository for admin collections (SOLID: interface in domain, impl in data)
+        single<CollectionRepository> {
+            CollectionRepositoryImpl(dao = get())
+        }
+
+        // ActivityRepository for activity feed (SOLID: interface in domain, impl in data)
+        single<ActivityRepository> {
+            ActivityRepositoryImpl(dao = get())
+        }
+
+        // ActiveSessionRepository for live sessions (SOLID: interface in domain, impl in data)
+        single<ActiveSessionRepository> {
+            ActiveSessionRepositoryImpl(dao = get())
+        }
     }
 
 /**

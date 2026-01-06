@@ -258,7 +258,7 @@ private fun EditProfileContent(
                 }
 
             val context = LocalContext.current
-            val cacheBuster = state.user?.updatedAt ?: 0
+            val cacheBuster = state.user?.updatedAtMs ?: 0
 
             if (state.hasImageAvatar && state.localAvatarPath != null) {
                 // Use local avatar path for offline-first with cache busting

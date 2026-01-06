@@ -3,9 +3,9 @@ package com.calypsan.listenup.client.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.currentHourOfDay
-import com.calypsan.listenup.client.data.local.db.LensDao
-import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
+import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.repository.LensRepository
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,11 +26,11 @@ private val logger = KotlinLogging.logger {}
  * - Loading and error states
  *
  * @property homeRepository Repository for home screen data
- * @property lensDao DAO for lens data
+ * @property lensRepository Repository for lens data
  */
 class HomeViewModel(
     private val homeRepository: HomeRepositoryContract,
-    private val lensDao: LensDao,
+    private val lensRepository: LensRepository,
     private val currentHour: () -> Int = { currentHourOfDay() },
 ) : ViewModel() {
     val state: StateFlow<HomeUiState>
@@ -119,7 +119,7 @@ class HomeViewModel(
      */
     private fun observeMyLenses(userId: String) {
         viewModelScope.launch {
-            lensDao.observeMyLenses(userId).collect { lenses ->
+            lensRepository.observeMyLenses(userId).collect { lenses ->
                 state.update { it.copy(myLenses = lenses) }
                 logger.debug { "My lenses updated: ${lenses.size}" }
             }
@@ -161,7 +161,7 @@ data class HomeUiState(
     val userName: String = "",
     val timeGreeting: String = "Good morning",
     val continueListening: List<ContinueListeningBook> = emptyList(),
-    val myLenses: List<LensEntity> = emptyList(),
+    val myLenses: List<Lens> = emptyList(),
     val error: String? = null,
 ) {
     /**
