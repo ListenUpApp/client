@@ -84,6 +84,7 @@ class SyncManager(
     private val libraryResetHelper: LibraryResetHelperContract,
     private val syncDao: SyncDao,
     private val ftsPopulator: FtsPopulatorContract,
+    private val syncMutex: SyncMutex,
     private val scope: CoroutineScope,
 ) : SyncManagerContract {
     // Override properties can't use explicit backing fields - must use traditional pattern
@@ -92,13 +93,16 @@ class SyncManager(
 
     init {
         // Route SSE events to processor
+        // Mutex ensures SSE writes don't race with push sync conflict detection
         scope.launch {
             sseManager.eventFlow.collect { event ->
                 // Handle reconnection event - trigger delta sync to catch missed events
                 if (event is SSEEventType.Reconnected) {
                     handleReconnection()
                 } else {
-                    sseEventProcessor.process(event)
+                    syncMutex.withLock {
+                        sseEventProcessor.process(event)
+                    }
                 }
             }
         }
@@ -125,6 +129,7 @@ class SyncManager(
         logger.info { "SSE reconnected - triggering delta sync to catch missed events" }
 
         // Launch delta sync in background (non-blocking)
+        // Mutex ensures delta sync writes don't race with SSE event processing
         scope.launch {
             try {
                 // Only pull if we're not already syncing
@@ -133,14 +138,16 @@ class SyncManager(
                     return@launch
                 }
 
-                // Pull changes since last sync (uses syncDao.getLastSyncTime() internally)
-                pullOrchestrator.pull { /* suppress progress updates for background sync */ }
+                syncMutex.withLock {
+                    // Pull changes since last sync (uses syncDao.getLastSyncTime() internally)
+                    pullOrchestrator.pull { /* suppress progress updates for background sync */ }
 
-                // Update sync timestamp
-                val now =
-                    com.calypsan.listenup.client.data.local.db.Timestamp
-                        .now()
-                syncDao.setLastSyncTime(now)
+                    // Update sync timestamp
+                    val now =
+                        com.calypsan.listenup.client.data.local.db.Timestamp
+                            .now()
+                    syncDao.setLastSyncTime(now)
+                }
 
                 logger.info { "Reconnection delta sync completed" }
             } catch (e: Exception) {
@@ -178,7 +185,10 @@ class SyncManager(
             pullUserPreferences()
 
             // Phase 3: Push local changes
-            pushOrchestrator.flush()
+            // Mutex ensures conflict detection reads consistent data (not mid-SSE-write)
+            syncMutex.withLock {
+                pushOrchestrator.flush()
+            }
 
             // Phase 4: Update last sync time
             val now = Timestamp.now()

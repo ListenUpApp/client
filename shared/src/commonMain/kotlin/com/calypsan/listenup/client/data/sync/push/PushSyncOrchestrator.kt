@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.sync.push
 
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.repository.NetworkMonitor
+import com.calypsan.listenup.client.data.sync.SyncMutex
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +39,7 @@ class PushSyncOrchestrator(
     private val executor: OperationExecutorContract,
     private val conflictDetector: ConflictDetectorContract,
     private val networkMonitor: NetworkMonitor,
+    private val syncMutex: SyncMutex,
     private val scope: CoroutineScope,
 ) : PushSyncOrchestratorContract {
     // Override properties can't use explicit backing fields - must use traditional pattern
@@ -46,21 +48,27 @@ class PushSyncOrchestrator(
 
     init {
         // Auto-flush when connectivity restored
+        // Mutex ensures conflict detection reads consistent data (not mid-SSE-write)
         scope.launch {
             networkMonitor.isOnlineFlow
                 .filter { it } // Only trigger on online=true
                 .collect {
                     logger.debug { "Network restored - triggering push sync flush" }
-                    flush()
+                    syncMutex.withLock {
+                        flush()
+                    }
                 }
         }
 
         // Auto-flush when new operation is queued (if online)
+        // Mutex ensures conflict detection reads consistent data (not mid-SSE-write)
         scope.launch {
             repository.newOperationQueued.collect {
                 if (networkMonitor.isOnline()) {
                     logger.debug { "New operation queued - triggering push sync flush" }
-                    flush()
+                    syncMutex.withLock {
+                        flush()
+                    }
                 } else {
                     logger.debug { "New operation queued but offline - will sync when connected" }
                 }
@@ -68,6 +76,7 @@ class PushSyncOrchestrator(
         }
 
         // Reset any stuck operations from previous session
+        // No mutex needed - just status update, no conflict risk
         scope.launch {
             repository.resetStuckOperations()
         }

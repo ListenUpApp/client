@@ -7,6 +7,7 @@ import com.calypsan.listenup.client.data.local.db.OperationStatus
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
 import com.calypsan.listenup.client.data.repository.NetworkMonitor
+import com.calypsan.listenup.client.data.sync.SyncMutex
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.conflict.PushConflict
 import dev.mokkery.answering.returns
@@ -72,6 +73,7 @@ class PushSyncOrchestratorTest {
         val executor: OperationExecutorContract = mock()
         val conflictDetector: ConflictDetectorContract = mock()
         val networkMonitor: NetworkMonitor = mock()
+        val syncMutex = SyncMutex()
 
         val isOnlineFlow = MutableStateFlow(true)
         val newOperationQueuedFlow = MutableSharedFlow<Unit>()
@@ -91,6 +93,7 @@ class PushSyncOrchestratorTest {
                 executor = executor,
                 conflictDetector = conflictDetector,
                 networkMonitor = networkMonitor,
+                syncMutex = syncMutex,
                 scope = testScope,
             )
     }

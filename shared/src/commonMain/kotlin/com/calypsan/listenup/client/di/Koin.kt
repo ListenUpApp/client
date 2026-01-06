@@ -93,6 +93,7 @@ import com.calypsan.listenup.client.data.sync.SSEManagerContract
 import com.calypsan.listenup.client.data.sync.SyncCoordinator
 import com.calypsan.listenup.client.data.sync.SyncManager
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
+import com.calypsan.listenup.client.data.sync.SyncMutex
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetector
 import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
 import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
@@ -710,6 +711,10 @@ val syncModule =
             )
         } bind PendingOperationRepositoryContract::class
 
+        // SyncMutex - coordinates exclusive access during sync operations
+        // Prevents race conditions between SSE events and push sync
+        single { SyncMutex() }
+
         // PushSyncOrchestrator - flush pending operations
         single {
             PushSyncOrchestrator(
@@ -717,6 +722,7 @@ val syncModule =
                 executor = get(),
                 conflictDetector = get(),
                 networkMonitor = get(),
+                syncMutex = get(),
                 scope =
                     get(
                         qualifier =
@@ -758,6 +764,7 @@ val syncModule =
                 libraryResetHelper = get(),
                 syncDao = get(),
                 ftsPopulator = get(),
+                syncMutex = get(),
                 scope =
                     get(
                         qualifier =
