@@ -715,12 +715,11 @@ val syncModule =
         // Prevents race conditions between SSE events and push sync
         single { SyncMutex() }
 
-        // PushSyncOrchestrator - flush pending operations
+        // PushSyncOrchestrator - flush pending operations (last-write-wins, no conflict blocking)
         single {
             PushSyncOrchestrator(
                 repository = get(),
                 executor = get(),
-                conflictDetector = get(),
                 networkMonitor = get(),
                 syncMutex = get(),
                 scope =
