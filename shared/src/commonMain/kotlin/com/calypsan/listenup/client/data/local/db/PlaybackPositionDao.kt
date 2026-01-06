@@ -40,6 +40,24 @@ interface PlaybackPositionDao {
     suspend fun save(position: PlaybackPositionEntity)
 
     /**
+     * Save or update multiple positions in a single transaction.
+     *
+     * @param positions The positions to save
+     */
+    @Upsert
+    suspend fun saveAll(positions: List<PlaybackPositionEntity>)
+
+    /**
+     * Get positions for multiple books.
+     * Used for batch operations during sync.
+     *
+     * @param bookIds The book IDs to get positions for
+     * @return List of positions (may be fewer than requested if some don't exist)
+     */
+    @Query("SELECT * FROM playback_positions WHERE bookId IN (:bookIds)")
+    suspend fun getByBookIds(bookIds: List<BookId>): List<PlaybackPositionEntity>
+
+    /**
      * Get all positions that haven't been synced to server.
      * Used by sync worker for multi-device support.
      *

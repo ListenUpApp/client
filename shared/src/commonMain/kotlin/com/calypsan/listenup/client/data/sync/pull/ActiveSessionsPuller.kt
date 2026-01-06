@@ -2,6 +2,9 @@ package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
 import com.calypsan.listenup.client.data.local.db.UserProfileDao
@@ -94,24 +97,30 @@ class ActiveSessionsPuller(
                                 updatedAt = now,
                             )
                         }
-                    userProfiles.forEach { userProfileDao.upsert(it) }
+                    userProfileDao.upsertAll(userProfiles)
                     logger.info { "Saved ${userProfiles.size} user profiles for active sessions" }
 
-                    // Download avatars for users with image avatars
+                    // Download avatars for users with image avatars (in parallel)
                     val usersWithImageAvatars = sessions.filter { it.avatarType == "image" }
                     logger.info { "Users with image avatars: ${usersWithImageAvatars.size}" }
-                    for (session in usersWithImageAvatars) {
-                        logger.info { "Downloading avatar for user ${session.userId}..." }
-                        try {
-                            val downloadResult =
-                                imageDownloader.downloadUserAvatar(
-                                    session.userId,
-                                    forceRefresh = false,
-                                )
-                            logger.info { "Avatar download result for ${session.userId}: $downloadResult" }
-                        } catch (e: Exception) {
-                            logger.warn(e) { "Failed to download avatar for user ${session.userId}" }
+                    if (usersWithImageAvatars.isNotEmpty()) {
+                        coroutineScope {
+                            usersWithImageAvatars.map { session ->
+                                async {
+                                    try {
+                                        logger.debug { "Downloading avatar for user ${session.userId}..." }
+                                        imageDownloader.downloadUserAvatar(
+                                            session.userId,
+                                            forceRefresh = false,
+                                        )
+                                    } catch (e: Exception) {
+                                        logger.warn(e) { "Failed to download avatar for user ${session.userId}" }
+                                        null
+                                    }
+                                }
+                            }.awaitAll()
                         }
+                        logger.info { "Completed downloading ${usersWithImageAvatars.size} avatars" }
                     }
 
                     // Convert to session entities and insert

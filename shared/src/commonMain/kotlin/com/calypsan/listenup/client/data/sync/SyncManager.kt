@@ -123,7 +123,9 @@ class SyncManager(
      * Handle SSE reconnection by triggering a delta sync.
      *
      * When SSE disconnects and reconnects, events during the gap are lost.
-     * We catch up by pulling changes since the last sync checkpoint.
+     * We catch up by:
+     * 1. Flushing pending local operations first (so local changes aren't lost)
+     * 2. Pulling changes since the last sync checkpoint
      */
     private fun handleReconnection() {
         logger.info { "SSE reconnected - triggering delta sync to catch missed events" }
@@ -132,13 +134,17 @@ class SyncManager(
         // Mutex ensures delta sync writes don't race with SSE event processing
         scope.launch {
             try {
-                // Only pull if we're not already syncing
+                // Only sync if we're not already syncing
                 if (_syncState.value is SyncStatus.Syncing) {
                     logger.debug { "Skipping reconnection sync - already syncing" }
                     return@launch
                 }
 
                 syncMutex.withLock {
+                    // Flush pending operations first - ensures local changes reach server
+                    // before we pull potentially conflicting server changes
+                    pushOrchestrator.flush()
+
                     // Pull changes since last sync (uses syncDao.getLastSyncTime() internally)
                     pullOrchestrator.pull { /* suppress progress updates for background sync */ }
 
