@@ -3,6 +3,7 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiActiveSessionResponse
@@ -126,7 +127,7 @@ class SyncApi(
                             }
 
                             is Result.Failure -> {
-                                throw result.exception
+                                throw result.exceptionOrFromMessage()
                             }
                         }
                     } while (cursor != null)
@@ -175,7 +176,7 @@ class SyncApi(
                         }
 
                         is Result.Failure -> {
-                            throw result.exception
+                            throw result.exceptionOrFromMessage()
                         }
                     }
                 } while (cursor != null)
@@ -218,7 +219,7 @@ class SyncApi(
                         }
 
                         is Result.Failure -> {
-                            throw result.exception
+                            throw result.exceptionOrFromMessage()
                         }
                     }
                 } while (cursor != null)

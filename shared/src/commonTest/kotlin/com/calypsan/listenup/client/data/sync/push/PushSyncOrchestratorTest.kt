@@ -6,7 +6,7 @@ import com.calypsan.listenup.client.data.local.db.EntityType
 import com.calypsan.listenup.client.data.local.db.OperationStatus
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
-import com.calypsan.listenup.client.data.repository.NetworkMonitor
+import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.data.sync.SyncMutex
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.sequentially

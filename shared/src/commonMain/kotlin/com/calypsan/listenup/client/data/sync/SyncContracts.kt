@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.images.ExtractedColors
 import kotlinx.coroutines.flow.SharedFlow
 

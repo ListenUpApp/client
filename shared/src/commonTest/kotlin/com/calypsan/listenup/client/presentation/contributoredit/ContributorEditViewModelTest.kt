@@ -2,15 +2,13 @@ package com.calypsan.listenup.client.presentation.contributoredit
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.ContributorEntity
-import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.remote.ContributorSearchResult
-import com.calypsan.listenup.client.data.repository.ContributorEditRepositoryContract
-import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
-import com.calypsan.listenup.client.data.repository.ContributorSearchResponse
-import com.calypsan.listenup.client.data.repository.ContributorUpdateRequest
+import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.ContributorSearchResponse
+import com.calypsan.listenup.client.domain.model.ContributorSearchResult
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.ContributorEditRepository
+import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.usecase.contributor.UpdateContributorUseCase
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
@@ -47,19 +45,17 @@ class ContributorEditViewModelTest {
     // ========== Test Fixture ==========
 
     private class TestFixture {
-        val contributorDao: ContributorDao = mock()
-        val contributorRepository: ContributorRepositoryContract = mock()
-        val contributorEditRepository: ContributorEditRepositoryContract = mock()
-        val imageApi: com.calypsan.listenup.client.data.remote.ImageApiContract = mock()
-        val imageStorage: com.calypsan.listenup.client.data.local.images.ImageStorage = mock()
+        val contributorRepository: ContributorRepository = mock()
+        val contributorEditRepository: ContributorEditRepository = mock()
+        val updateContributorUseCase: UpdateContributorUseCase = mock()
+        val imageRepository: ImageRepository = mock()
 
         fun build(): ContributorEditViewModel =
             ContributorEditViewModel(
-                contributorDao = contributorDao,
                 contributorRepository = contributorRepository,
                 contributorEditRepository = contributorEditRepository,
-                imageApi = imageApi,
-                imageStorage = imageStorage,
+                updateContributorUseCase = updateContributorUseCase,
+                imageRepository = imageRepository,
             )
     }
 
@@ -67,22 +63,21 @@ class ContributorEditViewModelTest {
 
     // ========== Test Data Factories ==========
 
-    private fun createContributorEntity(
+    private fun createContributor(
         id: String = "contributor-1",
         name: String = "Stephen King",
-        aliases: String? = null,
-    ): ContributorEntity =
-        ContributorEntity(
+        aliases: List<String> = emptyList(),
+    ): Contributor =
+        Contributor(
             id = id,
             name = name,
             description = null,
             imagePath = null,
+            imageBlurHash = null,
+            website = null,
+            birthDate = null,
+            deathDate = null,
             aliases = aliases,
-            syncState = SyncState.SYNCED,
-            lastModified = Timestamp(1704067200000L),
-            serverVersion = Timestamp(1704067200000L),
-            createdAt = Timestamp(1704067200000L),
-            updatedAt = Timestamp(1704067200000L),
         )
 
     @BeforeTest
@@ -103,11 +98,11 @@ class ContributorEditViewModelTest {
             // Given
             val fixture = createFixture()
             val contributor =
-                createContributorEntity(
+                createContributor(
                     name = "Stephen King",
-                    aliases = "Richard Bachman, John Swithen",
+                    aliases = listOf("Richard Bachman", "John Swithen"),
                 )
-            everySuspend { fixture.contributorDao.getById("contributor-1") } returns contributor
+            everySuspend { fixture.contributorRepository.getById("contributor-1") } returns contributor
 
             val viewModel = fixture.build()
 
@@ -129,7 +124,7 @@ class ContributorEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.contributorDao.getById("nonexistent") } returns null
+            everySuspend { fixture.contributorRepository.getById("nonexistent") } returns null
 
             val viewModel = fixture.build()
 
@@ -150,8 +145,8 @@ class ContributorEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity()
-            everySuspend { fixture.contributorDao.getById("contributor-1") } returns contributor
+            val contributor = createContributor()
+            everySuspend { fixture.contributorRepository.getById("contributor-1") } returns contributor
 
             val searchResult =
                 ContributorSearchResult(
@@ -182,17 +177,14 @@ class ContributorEditViewModelTest {
     // ========== Save with Merge Tests ==========
 
     @Test
-    fun `save calls repository merge for new aliases from autocomplete`() =
+    fun `save calls use case for new aliases from autocomplete`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity()
+            val contributor = createContributor()
 
-            everySuspend { fixture.contributorDao.getById("contributor-1") } returns contributor
-            everySuspend { fixture.contributorEditRepository.mergeContributor(any(), any()) } returns
-                Success(Unit)
-            everySuspend { fixture.contributorEditRepository.updateContributor(any(), any()) } returns
-                Success(Unit)
+            everySuspend { fixture.contributorRepository.getById("contributor-1") } returns contributor
+            everySuspend { fixture.updateContributorUseCase.invoke(any()) } returns Success(Unit)
 
             val viewModel = fixture.build()
             viewModel.loadContributor("contributor-1")
@@ -211,26 +203,23 @@ class ContributorEditViewModelTest {
             viewModel.onEvent(ContributorEditUiEvent.Save)
             advanceUntilIdle()
 
-            // Then - verify merge was called via repository
+            // Then - verify use case was called
             verifySuspend(VerifyMode.exactly(1)) {
-                fixture.contributorEditRepository.mergeContributor("contributor-1", "contributor-2")
+                fixture.updateContributorUseCase.invoke(any())
             }
         }
 
     @Test
-    fun `save handles merge failure gracefully`() =
+    fun `save handles use case failure gracefully`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity()
+            val contributor = createContributor()
 
-            everySuspend { fixture.contributorDao.getById("contributor-1") } returns contributor
-            // Merge fails
-            everySuspend { fixture.contributorEditRepository.mergeContributor(any(), any()) } returns
-                Failure(Exception("Network error"))
-            // Update succeeds
-            everySuspend { fixture.contributorEditRepository.updateContributor(any(), any()) } returns
-                Success(Unit)
+            everySuspend { fixture.contributorRepository.getById("contributor-1") } returns contributor
+            // Use case fails
+            everySuspend { fixture.updateContributorUseCase.invoke(any()) } returns
+                Failure(exception = Exception("Network error"), message = "Network error")
 
             val viewModel = fixture.build()
             viewModel.loadContributor("contributor-1")
@@ -249,22 +238,19 @@ class ContributorEditViewModelTest {
             viewModel.onEvent(ContributorEditUiEvent.Save)
             advanceUntilIdle()
 
-            // Then - save should succeed despite merge failure
-            // Alias is saved locally for later sync
-            val navAction = viewModel.navActions.value
-            assertEquals(ContributorEditNavAction.SaveSuccess, navAction)
+            // Then - error should be shown (ViewModel prepends "Failed to save: ")
+            assertEquals("Failed to save: Network error", viewModel.state.value.error)
         }
 
     @Test
-    fun `manual alias entry does not trigger repository merge`() =
+    fun `manual alias entry calls use case`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity()
+            val contributor = createContributor()
 
-            everySuspend { fixture.contributorDao.getById("contributor-1") } returns contributor
-            everySuspend { fixture.contributorEditRepository.updateContributor(any(), any()) } returns
-                Success(Unit)
+            everySuspend { fixture.contributorRepository.getById("contributor-1") } returns contributor
+            everySuspend { fixture.updateContributorUseCase.invoke(any()) } returns Success(Unit)
 
             val viewModel = fixture.build()
             viewModel.loadContributor("contributor-1")
@@ -277,9 +263,9 @@ class ContributorEditViewModelTest {
             viewModel.onEvent(ContributorEditUiEvent.Save)
             advanceUntilIdle()
 
-            // Then - merge should NOT be called (manual entry = just alias text, no merge)
-            verifySuspend(VerifyMode.exactly(0)) {
-                fixture.contributorEditRepository.mergeContributor(any(), any())
+            // Then - use case should be called
+            verifySuspend(VerifyMode.exactly(1)) {
+                fixture.updateContributorUseCase.invoke(any())
             }
         }
 
@@ -288,9 +274,9 @@ class ContributorEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity(aliases = "Richard Bachman")
+            val contributor = createContributor(aliases = listOf("Richard Bachman"))
 
-            everySuspend { fixture.contributorDao.getById("contributor-1") } returns contributor
+            everySuspend { fixture.contributorRepository.getById("contributor-1") } returns contributor
             everySuspend { fixture.contributorEditRepository.unmergeContributor(any(), any()) } returns
                 Success(Unit)
 
@@ -321,15 +307,14 @@ class ContributorEditViewModelTest {
         }
 
     @Test
-    fun `save calls repository update with correct parameters`() =
+    fun `save calls use case with correct parameters`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity()
+            val contributor = createContributor()
 
-            everySuspend { fixture.contributorDao.getById("contributor-1") } returns contributor
-            everySuspend { fixture.contributorEditRepository.updateContributor(any(), any()) } returns
-                Success(Unit)
+            everySuspend { fixture.contributorRepository.getById("contributor-1") } returns contributor
+            everySuspend { fixture.updateContributorUseCase.invoke(any()) } returns Success(Unit)
 
             val viewModel = fixture.build()
             viewModel.loadContributor("contributor-1")
@@ -342,20 +327,9 @@ class ContributorEditViewModelTest {
             viewModel.onEvent(ContributorEditUiEvent.Save)
             advanceUntilIdle()
 
-            // Then - verify repository update was called
+            // Then - verify use case was called
             verifySuspend(VerifyMode.exactly(1)) {
-                fixture.contributorEditRepository.updateContributor(
-                    "contributor-1",
-                    ContributorUpdateRequest(
-                        name = "Stephen Edwin King",
-                        biography = null,
-                        website = null,
-                        birthDate = null,
-                        deathDate = null,
-                        aliases = emptyList(),
-                        imagePath = null,
-                    ),
-                )
+                fixture.updateContributorUseCase.invoke(any())
             }
 
             // Verify navigation

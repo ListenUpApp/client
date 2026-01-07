@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.local.db
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.calypsan.listenup.client.core.Timestamp
 
 /**
  * Room entity representing a collection in the local database.

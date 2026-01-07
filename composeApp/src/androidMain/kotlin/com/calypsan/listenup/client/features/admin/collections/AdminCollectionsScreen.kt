@@ -51,7 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.data.local.db.CollectionEntity
+import com.calypsan.listenup.client.domain.model.Collection
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpTextField
@@ -76,7 +76,7 @@ fun AdminCollectionsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showCreateDialog by remember { mutableStateOf(false) }
-    var collectionToDelete by remember { mutableStateOf<CollectionEntity?>(null) }
+    var collectionToDelete by remember { mutableStateOf<Collection?>(null) }
 
     // Handle errors
     LaunchedEffect(state.error) {
@@ -171,7 +171,7 @@ fun AdminCollectionsScreen(
 private fun CollectionsContent(
     state: AdminCollectionsUiState,
     onCollectionClick: (String) -> Unit,
-    onDeleteClick: (CollectionEntity) -> Unit,
+    onDeleteClick: (Collection) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.collections.isEmpty()) {
@@ -229,7 +229,7 @@ private fun CollectionsContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CollectionRow(
-    collection: CollectionEntity,
+    collection: Collection,
     isDeleting: Boolean,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit,

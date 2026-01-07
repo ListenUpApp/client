@@ -55,8 +55,8 @@ object KoinHelper : KoinComponent {
         return viewModel
     }
 
-    fun getSettingsRepository(): com.calypsan.listenup.client.data.repository.SettingsRepository {
-        val repository: com.calypsan.listenup.client.data.repository.SettingsRepository by inject()
+    fun getSettingsRepository(): com.calypsan.listenup.client.domain.repository.SettingsRepository {
+        val repository: com.calypsan.listenup.client.domain.repository.SettingsRepository by inject()
         return repository
     }
 }

@@ -65,4 +65,14 @@ interface GenreRepository {
      * @return List of book IDs with this genre
      */
     suspend fun getBookIdsForGenre(genreId: String): List<String>
+
+    /**
+     * Set genres for a book (replaces all existing genres).
+     *
+     * Calls API to update server, then updates local Room for reactivity.
+     *
+     * @param bookId The book ID
+     * @param genreIds List of genre IDs to set
+     */
+    suspend fun setGenresForBook(bookId: String, genreIds: List<String>)
 }

@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.presentation.invite
 
-import com.calypsan.listenup.client.data.remote.InviteDetails
+import com.calypsan.listenup.client.domain.model.InviteDetails
 
 /**
  * UI state for the invite registration screen.

@@ -1,15 +1,15 @@
 package com.calypsan.listenup.client.presentation.settings
 
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
-import com.calypsan.listenup.client.data.remote.UserPreferencesRequest
-import com.calypsan.listenup.client.data.remote.UserPreferencesResponse
-import com.calypsan.listenup.client.data.repository.AuthSessionContract
-import com.calypsan.listenup.client.data.repository.ServerConfigContract
-import com.calypsan.listenup.client.data.repository.SettingsRepository
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryImpl
 import com.calypsan.listenup.client.domain.model.ThemeMode
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.repository.ServerConfig
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.UserPreferences
+import com.calypsan.listenup.client.domain.repository.UserPreferencesRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -46,11 +46,11 @@ class SettingsViewModelTest {
     // ========== Test Fixture Builder ==========
 
     private class TestFixture {
-        val settingsRepository: SettingsRepositoryContract = mock()
-        val userPreferencesApi: UserPreferencesApiContract = mock()
+        val settingsRepository: SettingsRepository = mock()
+        val userPreferencesRepository: UserPreferencesRepository = mock()
         val instanceRepository: InstanceRepository = mock()
-        val serverConfigContract: ServerConfigContract = mock()
-        val authSessionContract: AuthSessionContract = mock()
+        val serverConfig: ServerConfig = mock()
+        val authSession: AuthSession = mock()
 
         // StateFlows for local preferences (mocked as MutableStateFlow)
         val themeModeFlow = MutableStateFlow(ThemeMode.SYSTEM)
@@ -63,10 +63,10 @@ class SettingsViewModelTest {
         fun build(): SettingsViewModel =
             SettingsViewModel(
                 settingsRepository = settingsRepository,
-                userPreferencesApi = userPreferencesApi,
+                userPreferencesRepository = userPreferencesRepository,
                 instanceRepository = instanceRepository,
-                serverConfigContract = serverConfigContract,
-                authSessionContract = authSessionContract,
+                serverConfig = serverConfig,
+                authSession = authSession,
             )
     }
 
@@ -82,19 +82,19 @@ class SettingsViewModelTest {
         every { fixture.settingsRepository.hapticFeedbackEnabled } returns fixture.hapticFeedbackFlow
 
         // Default stubs for settings repository - getters
-        everySuspend { fixture.settingsRepository.getDefaultPlaybackSpeed() } returns SettingsRepository.DEFAULT_PLAYBACK_SPEED
+        everySuspend { fixture.settingsRepository.getDefaultPlaybackSpeed() } returns SettingsRepositoryImpl.DEFAULT_PLAYBACK_SPEED
         everySuspend { fixture.settingsRepository.getSpatialPlayback() } returns true
         everySuspend { fixture.settingsRepository.getIgnoreTitleArticles() } returns true
         everySuspend { fixture.settingsRepository.getHideSingleBookSeries() } returns true
 
         // Default stubs for settings repository - setters (called when syncing from server)
-        everySuspend { fixture.settingsRepository.setDefaultPlaybackSpeed(SettingsRepository.DEFAULT_PLAYBACK_SPEED) } returns Unit
+        everySuspend { fixture.settingsRepository.setDefaultPlaybackSpeed(SettingsRepositoryImpl.DEFAULT_PLAYBACK_SPEED) } returns Unit
 
         // Default stub for API - return defaults
-        everySuspend { fixture.userPreferencesApi.getPreferences() } returns
+        everySuspend { fixture.userPreferencesRepository.getPreferences() } returns
             Result.Success(
-                UserPreferencesResponse(
-                    defaultPlaybackSpeed = SettingsRepository.DEFAULT_PLAYBACK_SPEED,
+                UserPreferences(
+                    defaultPlaybackSpeed = SettingsRepositoryImpl.DEFAULT_PLAYBACK_SPEED,
                     defaultSkipForwardSec = 30,
                     defaultSkipBackwardSec = 10,
                     defaultSleepTimerMin = null,
@@ -103,7 +103,7 @@ class SettingsViewModelTest {
             )
 
         // Default stubs for new dependencies
-        everySuspend { fixture.serverConfigContract.getServerUrl() } returns null
+        everySuspend { fixture.serverConfig.getServerUrl() } returns null
         everySuspend { fixture.instanceRepository.getInstance() } returns
             Result.Failure(exception = Exception("Not configured"), message = "Not configured")
 
@@ -145,9 +145,9 @@ class SettingsViewModelTest {
             everySuspend { fixture.settingsRepository.getIgnoreTitleArticles() } returns false
             everySuspend { fixture.settingsRepository.getHideSingleBookSeries() } returns false
             everySuspend { fixture.settingsRepository.setDefaultPlaybackSpeed(1.5f) } returns Unit
-            everySuspend { fixture.userPreferencesApi.getPreferences() } returns
+            everySuspend { fixture.userPreferencesRepository.getPreferences() } returns
                 Result.Success(
-                    UserPreferencesResponse(
+                    UserPreferences(
                         defaultPlaybackSpeed = 1.5f,
                         defaultSkipForwardSec = 30,
                         defaultSkipBackwardSec = 10,
@@ -181,7 +181,7 @@ class SettingsViewModelTest {
 
             // Then - should use defaults
             val state = viewModel.state.value
-            assertEquals(SettingsRepository.DEFAULT_PLAYBACK_SPEED, state.defaultPlaybackSpeed)
+            assertEquals(SettingsRepositoryImpl.DEFAULT_PLAYBACK_SPEED, state.defaultPlaybackSpeed)
             assertTrue(state.spatialPlayback)
             assertTrue(state.ignoreTitleArticles)
             assertTrue(state.hideSingleBookSeries)
@@ -195,16 +195,7 @@ class SettingsViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.settingsRepository.setDefaultPlaybackSpeed(1.25f) } returns Unit
-            everySuspend { fixture.userPreferencesApi.updatePreferences(UserPreferencesRequest(defaultPlaybackSpeed = 1.25f)) } returns
-                Result.Success(
-                    UserPreferencesResponse(
-                        defaultPlaybackSpeed = 1.25f,
-                        defaultSkipForwardSec = 30,
-                        defaultSkipBackwardSec = 10,
-                        defaultSleepTimerMin = null,
-                        shakeToResetSleepTimer = false,
-                    ),
-                )
+            everySuspend { fixture.userPreferencesRepository.setDefaultPlaybackSpeed(1.25f) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -223,16 +214,7 @@ class SettingsViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.settingsRepository.setDefaultPlaybackSpeed(1.5f) } returns Unit
-            everySuspend { fixture.userPreferencesApi.updatePreferences(UserPreferencesRequest(defaultPlaybackSpeed = 1.5f)) } returns
-                Result.Success(
-                    UserPreferencesResponse(
-                        defaultPlaybackSpeed = 1.5f,
-                        defaultSkipForwardSec = 30,
-                        defaultSkipBackwardSec = 10,
-                        defaultSleepTimerMin = null,
-                        shakeToResetSleepTimer = false,
-                    ),
-                )
+            everySuspend { fixture.userPreferencesRepository.setDefaultPlaybackSpeed(1.5f) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -241,7 +223,7 @@ class SettingsViewModelTest {
             advanceUntilIdle()
 
             // Then - server sync called
-            verifySuspend { fixture.userPreferencesApi.updatePreferences(UserPreferencesRequest(defaultPlaybackSpeed = 1.5f)) }
+            verifySuspend { fixture.userPreferencesRepository.setDefaultPlaybackSpeed(1.5f) }
         }
 
     @Test
@@ -250,7 +232,7 @@ class SettingsViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.settingsRepository.setDefaultPlaybackSpeed(2.0f) } returns Unit
-            everySuspend { fixture.userPreferencesApi.updatePreferences(UserPreferencesRequest(defaultPlaybackSpeed = 2.0f)) } returns
+            everySuspend { fixture.userPreferencesRepository.setDefaultPlaybackSpeed(2.0f) } returns
                 Result.Failure(exception = Exception("Network error"), message = "Network error")
             val viewModel = fixture.build()
             advanceUntilIdle()

@@ -1,11 +1,17 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
+import com.calypsan.listenup.client.data.remote.CurrentUserResponse
+import com.calypsan.listenup.client.data.remote.SessionApiContract
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.domain.repository.UserRepository
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Implementation of UserRepository that uses Room for persistence.
@@ -15,9 +21,11 @@ import kotlinx.coroutines.flow.map
  * domain types to ViewModels.
  *
  * @property userDao Room DAO for user operations
+ * @property sessionApi API for fetching user profile from server
  */
 class UserRepositoryImpl(
     private val userDao: UserDao,
+    private val sessionApi: SessionApiContract,
 ) : UserRepository {
     override fun observeCurrentUser(): Flow<User?> =
         userDao.observeCurrentUser().map { it?.toDomain() }
@@ -29,6 +37,30 @@ class UserRepositoryImpl(
 
     override suspend fun getCurrentUser(): User? =
         userDao.getCurrentUser()?.toDomain()
+
+    override suspend fun saveUser(user: User) {
+        userDao.upsert(user.toEntity())
+    }
+
+    override suspend fun clearUsers() {
+        userDao.clear()
+    }
+
+    override suspend fun refreshCurrentUser(): User? {
+        logger.debug { "Refreshing current user from server" }
+        return when (val result = sessionApi.getCurrentUser()) {
+            is Success -> {
+                val user = result.data.toDomain()
+                saveUser(user)
+                logger.info { "User data refreshed: ${user.email}" }
+                user
+            }
+            else -> {
+                logger.warn { "Failed to refresh current user from server" }
+                null
+            }
+        }
+    }
 }
 
 /**
@@ -50,4 +82,44 @@ private fun UserEntity.toDomain(): User =
         tagline = tagline,
         createdAtMs = createdAt,
         updatedAtMs = updatedAt,
+    )
+
+/**
+ * Convert CurrentUserResponse API model to User domain model.
+ */
+private fun CurrentUserResponse.toDomain(): User =
+    User(
+        id = id,
+        email = email,
+        displayName = displayName,
+        firstName = firstName,
+        lastName = lastName,
+        isAdmin = isRoot,
+        avatarType = avatarType,
+        avatarValue = avatarValue,
+        avatarColor = avatarColor,
+        tagline = null, // API doesn't return tagline for current user
+        createdAtMs = createdAt,
+        updatedAtMs = updatedAt,
+    )
+
+/**
+ * Convert User domain model to UserEntity for persistence.
+ *
+ * Maps isAdmin back to isRoot for database storage.
+ */
+private fun User.toEntity(): UserEntity =
+    UserEntity(
+        id = id,
+        email = email,
+        displayName = displayName,
+        firstName = firstName,
+        lastName = lastName,
+        isRoot = isAdmin,
+        avatarType = avatarType,
+        avatarValue = avatarValue,
+        avatarColor = avatarColor,
+        tagline = tagline,
+        createdAt = createdAtMs,
+        updatedAt = updatedAtMs,
     )

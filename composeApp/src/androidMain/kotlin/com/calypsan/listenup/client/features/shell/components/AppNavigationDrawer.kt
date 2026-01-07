@@ -13,8 +13,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.design.components.UserAvatar
+import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.features.shell.ShellDestination
 
 /**
@@ -38,7 +38,7 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
 fun AppNavigationDrawer(
     currentDestination: ShellDestination?,
     onDestinationSelected: (ShellDestination) -> Unit,
-    user: UserEntity?,
+    user: User?,
     isAvatarMenuExpanded: Boolean,
     onAvatarMenuExpandedChange: (Boolean) -> Unit,
     onAdminClick: (() -> Unit)? = null,

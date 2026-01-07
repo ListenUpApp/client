@@ -1,9 +1,9 @@
 package com.calypsan.listenup.client.data.local.db
 
-import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookSeries
-import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.BookContributor
 
 /**
  * Extension function to convert BookEntity to domain Book model.
@@ -19,8 +19,8 @@ import com.calypsan.listenup.client.domain.model.Contributor
  */
 fun BookEntity.toDomain(
     imageStorage: ImageStorage,
-    authors: List<Contributor> = emptyList(),
-    narrators: List<Contributor> = emptyList(),
+    authors: List<BookContributor> = emptyList(),
+    narrators: List<BookContributor> = emptyList(),
 ): Book {
     val coverPath =
         if (imageStorage.exists(id)) {
@@ -64,11 +64,11 @@ fun BookEntity.toDomain(
 fun List<BookContributorCrossRef>.extractByRole(
     role: String,
     contributorsById: Map<String, ContributorEntity>,
-): List<Contributor> =
+): List<BookContributor> =
     filter { it.role == role }
         .mapNotNull { crossRef ->
             contributorsById[crossRef.contributorId]?.let { entity ->
-                Contributor(entity.id, crossRef.creditedAs ?: entity.name)
+                BookContributor(entity.id, crossRef.creditedAs ?: entity.name)
             }
         }.distinctBy { it.id }
 

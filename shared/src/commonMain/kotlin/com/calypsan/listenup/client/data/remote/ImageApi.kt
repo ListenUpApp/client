@@ -3,12 +3,13 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.forms.formData
@@ -35,7 +36,7 @@ import kotlinx.serialization.Serializable
  */
 class ImageApi(
     private val clientFactory: ApiClientFactory,
-    private val settingsRepository: SettingsRepositoryContract,
+    private val settingsRepository: SettingsRepository,
 ) : ImageApiContract {
     /**
      * Constructs a full URL from a relative path returned by the server.
@@ -135,7 +136,7 @@ class ImageApi(
                 }
 
                 is Failure -> {
-                    throw result.exception
+                    throw result.exceptionOrFromMessage()
                 }
             }
         }
@@ -189,7 +190,7 @@ class ImageApi(
                 }
 
                 is Failure -> {
-                    throw result.exception
+                    throw result.exceptionOrFromMessage()
                 }
             }
         }
@@ -262,7 +263,7 @@ class ImageApi(
                 }
 
                 is Failure -> {
-                    throw result.exception
+                    throw result.exceptionOrFromMessage()
                 }
             }
         }
@@ -288,7 +289,7 @@ class ImageApi(
                 is Success -> { /* Cover deleted successfully */ }
 
                 is Failure -> {
-                    throw result.exception
+                    throw result.exceptionOrFromMessage()
                 }
             }
         }

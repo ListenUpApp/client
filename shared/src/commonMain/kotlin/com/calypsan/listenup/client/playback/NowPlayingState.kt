@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.playback
 
-import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.BookContributor
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -20,8 +20,8 @@ data class NowPlayingState(
     val coverUrl: String? = null,
     val coverBlurHash: String? = null,
     // Contributors (for navigation menu)
-    val authors: List<Contributor> = emptyList(),
-    val narrators: List<Contributor> = emptyList(),
+    val authors: List<BookContributor> = emptyList(),
+    val narrators: List<BookContributor> = emptyList(),
     // Series info (for navigation menu)
     val seriesId: String? = null,
     val seriesName: String? = null,

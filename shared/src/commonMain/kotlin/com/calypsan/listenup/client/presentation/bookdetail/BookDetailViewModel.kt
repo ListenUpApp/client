@@ -2,20 +2,14 @@ package com.calypsan.listenup.client.presentation.bookdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.local.db.TagDao
-import com.calypsan.listenup.client.data.local.db.TagEntity
-import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.remote.TagApiContract
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
+import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.GenreRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,13 +29,11 @@ private val logger = KotlinLogging.logger {}
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class BookDetailViewModel(
-    private val bookRepository: BookRepositoryContract,
+    private val bookRepository: BookRepository,
     private val genreRepository: GenreRepository,
-    private val tagApi: TagApiContract,
     private val tagRepository: TagRepository,
-    private val tagDao: TagDao,
-    private val playbackPositionDao: PlaybackPositionDao,
-    private val userDao: UserDao,
+    private val playbackPositionRepository: PlaybackPositionRepository,
+    private val userRepository: UserRepository,
 ) : ViewModel() {
     val state: StateFlow<BookDetailUiState>
         field = MutableStateFlow(BookDetailUiState())
@@ -55,8 +47,8 @@ class BookDetailViewModel(
     init {
         // Observe admin status
         viewModelScope.launch {
-            userDao.observeCurrentUser().collect { user ->
-                state.update { it.copy(isAdmin = user?.isRoot == true) }
+            userRepository.observeIsAdmin().collect { isAdmin ->
+                state.update { it.copy(isAdmin = isAdmin) }
             }
         }
 
@@ -135,7 +127,7 @@ class BookDetailViewModel(
                     }
 
                 // Load progress for this book
-                val position = playbackPositionDao.get(BookId(bookId))
+                val position = playbackPositionRepository.get(bookId)
                 val progress =
                     if (position != null && book.duration > 0) {
                         (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
@@ -210,30 +202,14 @@ class BookDetailViewModel(
     /**
      * Add a tag to the current book.
      *
-     * Calls API then updates local Room for immediate reactivity.
-     *
      * @param slug The tag slug to add
      */
     fun addTag(slug: String) {
-        val bookId =
-            state.value.book
-                ?.id
-                ?.value ?: return
+        val bookId = state.value.book?.id?.value ?: return
         viewModelScope.launch {
             try {
-                val tag = tagApi.addTagToBook(bookId, slug)
-                // Update local Room - observer will update UI automatically
-                val entity =
-                    TagEntity(
-                        id = tag.id,
-                        slug = tag.slug,
-                        bookCount = tag.bookCount,
-                        createdAt =
-                            tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
-                                ?: Timestamp.now(),
-                    )
-                tagDao.upsert(entity)
-                tagDao.insertBookTag(BookTagCrossRef(bookId = BookId(bookId), tagId = tag.id))
+                tagRepository.addTagToBook(bookId, slug)
+                // Observer will update UI automatically
             } catch (e: Exception) {
                 logger.error(e) { "Failed to add tag '$slug' to book $bookId" }
             }
@@ -243,20 +219,15 @@ class BookDetailViewModel(
     /**
      * Remove a tag from the current book.
      *
-     * Calls API then updates local Room for immediate reactivity.
-     *
      * @param slug The tag slug to remove
      */
     fun removeTag(slug: String) {
-        val book = state.value.book ?: return
-        val bookId = book.id.value
-        // Find the tag ID from current tags
+        val bookId = state.value.book?.id?.value ?: return
         val tag = state.value.tags.find { it.slug == slug } ?: return
         viewModelScope.launch {
             try {
-                tagApi.removeTagFromBook(bookId, slug)
-                // Update local Room - observer will update UI automatically
-                tagDao.deleteBookTag(book.id, tag.id)
+                tagRepository.removeTagFromBook(bookId, slug, tag.id)
+                // Observer will update UI automatically
             } catch (e: Exception) {
                 logger.error(e) { "Failed to remove tag '$slug' from book $bookId" }
             }
@@ -272,25 +243,11 @@ class BookDetailViewModel(
      * @param rawInput The tag text to add (will be normalized)
      */
     fun addNewTag(rawInput: String) {
-        val bookId =
-            state.value.book
-                ?.id
-                ?.value ?: return
+        val bookId = state.value.book?.id?.value ?: return
         viewModelScope.launch {
             try {
-                val tag = tagApi.addTagToBook(bookId, rawInput)
-                // Update local Room - observer will update UI automatically
-                val entity =
-                    TagEntity(
-                        id = tag.id,
-                        slug = tag.slug,
-                        bookCount = tag.bookCount,
-                        createdAt =
-                            tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) }
-                                ?: Timestamp.now(),
-                    )
-                tagDao.upsert(entity)
-                tagDao.insertBookTag(BookTagCrossRef(bookId = BookId(bookId), tagId = tag.id))
+                tagRepository.addTagToBook(bookId, rawInput)
+                // Observer will update UI automatically
                 hideTagPicker()
             } catch (e: Exception) {
                 logger.error(e) { "Failed to add tag '$rawInput' to book $bookId" }

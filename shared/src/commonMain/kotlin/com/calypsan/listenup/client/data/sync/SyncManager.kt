@@ -1,16 +1,17 @@
 package com.calypsan.listenup.client.data.sync
 
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.getOrNull
 import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.Syncable
-import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
@@ -29,7 +30,10 @@ private val logger = KotlinLogging.logger {}
  * Contract for sync operations.
  *
  * Defines the public API for syncing data and observing sync status.
- * Used by ViewModels and enables testing via fake implementations.
+ * Used by data layer components and enables testing via fake implementations.
+ *
+ * Note: ViewModels should use [com.calypsan.listenup.client.domain.repository.SyncRepository]
+ * which maps to domain-level [com.calypsan.listenup.client.domain.model.SyncState].
  */
 interface SyncManagerContract {
     /**
@@ -78,7 +82,7 @@ class SyncManager(
     private val coordinator: SyncCoordinator,
     private val sseManager: SSEManagerContract,
     private val userPreferencesApi: UserPreferencesApiContract,
-    private val settingsRepository: SettingsRepositoryContract,
+    private val settingsRepository: SettingsRepository,
     private val instanceRepository: InstanceRepository,
     private val pendingOperationDao: PendingOperationDao,
     private val libraryResetHelper: LibraryResetHelperContract,
@@ -149,9 +153,7 @@ class SyncManager(
                     pullOrchestrator.pull { /* suppress progress updates for background sync */ }
 
                     // Update sync timestamp
-                    val now =
-                        com.calypsan.listenup.client.data.local.db.Timestamp
-                            .now()
+                    val now = Timestamp.now()
                     syncDao.setLastSyncTime(now)
                 }
 
@@ -178,7 +180,7 @@ class SyncManager(
                     "Library mismatch detected: expected=${mismatch.expectedLibraryId}, actual=${mismatch.actualLibraryId}"
                 }
                 _syncState.value = mismatch
-                return Result.Failure(
+                return Failure(
                     exception = LibraryMismatchException(mismatch.expectedLibraryId, mismatch.actualLibraryId),
                     message = "Server library has changed. Local data needs to be reset.",
                 )
@@ -225,7 +227,7 @@ class SyncManager(
                 logger.warn { "Server unreachable - continuing with local data" }
             }
 
-            Result.Failure(exception = e, message = "Sync failed: ${e.message}")
+            Failure(exception = e, message = "Sync failed: ${e.message}")
         }
     }
 
@@ -259,7 +261,7 @@ class SyncManager(
         } catch (e: Exception) {
             logger.error(e) { "Failed to reset for new library" }
             _syncState.value = SyncStatus.Error(exception = e)
-            return Result.Failure(exception = e, message = "Failed to reset library: ${e.message}")
+            return Failure(exception = e, message = "Failed to reset library: ${e.message}")
         }
     }
 
@@ -285,7 +287,7 @@ class SyncManager(
                 }
 
                 is Result.Failure -> {
-                    logger.warn { "Failed to fetch user preferences: ${result.exception.message}" }
+                    logger.warn { "Failed to fetch user preferences: ${result.message}" }
                 }
             }
         } catch (e: Exception) {

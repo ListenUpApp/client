@@ -219,7 +219,7 @@ private fun ContributorPortfolio(
         item {
             HeroHeader(
                 name = state.contributor?.name ?: "",
-                aliases = state.contributor?.aliasList() ?: emptyList(),
+                aliases = state.contributor?.aliases ?: emptyList(),
                 imagePath = state.contributor?.imagePath,
                 contributorId = contributorId,
                 colorScheme = colorScheme,

@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.toEntity
@@ -89,7 +90,7 @@ class ContributorPuller(
                         }
 
                         is Result.Failure -> {
-                            throw result.exception
+                            throw result.exceptionOrFromMessage()
                         }
                     }
                 }

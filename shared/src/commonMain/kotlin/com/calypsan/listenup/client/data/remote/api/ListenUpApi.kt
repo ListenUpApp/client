@@ -3,6 +3,7 @@
 package com.calypsan.listenup.client.data.remote.api
 
 import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
@@ -136,7 +137,7 @@ class ListenUpApi(
             // Convert API response to Result and extract data
             when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -173,7 +174,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.contributors.map { it.toDomain() }
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -206,7 +207,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -242,7 +243,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -279,7 +280,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.series.map { it.toDomain() }
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -315,7 +316,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -353,7 +354,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -386,7 +387,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -427,7 +428,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -448,7 +449,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> logger.debug { "Contributor deleted: $contributorId" }
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -481,7 +482,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 

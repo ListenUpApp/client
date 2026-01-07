@@ -38,8 +38,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calypsan.listenup.client.data.remote.LeaderboardCategory
-import com.calypsan.listenup.client.data.repository.LeaderboardEntry
+import com.calypsan.listenup.client.domain.repository.LeaderboardCategory
+import com.calypsan.listenup.client.domain.repository.LeaderboardEntry
 
 /** Number of entries to show when collapsed */
 private const val COLLAPSED_COUNT = 4

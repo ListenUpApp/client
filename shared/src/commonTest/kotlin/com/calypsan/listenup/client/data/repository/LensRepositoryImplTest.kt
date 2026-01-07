@@ -1,8 +1,9 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
-import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.remote.LensApiContract
 import com.calypsan.listenup.client.domain.model.Lens
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -36,8 +37,13 @@ class LensRepositoryImplTest {
 
     private fun createMockLensDao(): LensDao = mock()
 
-    private fun createRepository(dao: LensDao = createMockLensDao()): LensRepositoryImpl =
-        LensRepositoryImpl(dao)
+    private fun createMockLensApi(): LensApiContract = mock()
+
+    private fun createRepository(
+        dao: LensDao = createMockLensDao(),
+        lensApi: LensApiContract = createMockLensApi(),
+    ): LensRepositoryImpl =
+        LensRepositoryImpl(dao, lensApi)
 
     // ========== Test Data Factories ==========
 

@@ -3,10 +3,11 @@ package com.calypsan.listenup.client.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.currentHourOfDay
-import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
-import com.calypsan.listenup.client.domain.model.Lens
-import com.calypsan.listenup.client.domain.repository.LensRepository
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
+import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.repository.HomeRepository
+import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,10 +27,12 @@ private val logger = KotlinLogging.logger {}
  * - Loading and error states
  *
  * @property homeRepository Repository for home screen data
+ * @property userRepository Repository for current user data
  * @property lensRepository Repository for lens data
  */
 class HomeViewModel(
-    private val homeRepository: HomeRepositoryContract,
+    private val homeRepository: HomeRepository,
+    private val userRepository: UserRepository,
     private val lensRepository: LensRepository,
     private val currentHour: () -> Int = { currentHourOfDay() },
 ) : ViewModel() {
@@ -98,7 +101,7 @@ class HomeViewModel(
      */
     private fun observeUser() {
         viewModelScope.launch {
-            homeRepository.observeCurrentUser().collect { user ->
+            userRepository.observeCurrentUser().collect { user ->
                 val firstName = extractFirstName(user?.displayName) ?: ""
 
                 state.update { it.copy(userName = firstName) }

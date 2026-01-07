@@ -1,16 +1,12 @@
 package com.calypsan.listenup.client.presentation.auth
 
 import com.calypsan.listenup.client.checkIs
-import com.calypsan.listenup.client.core.AccessToken
-import com.calypsan.listenup.client.core.RefreshToken
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.remote.AuthApiContract
-import com.calypsan.listenup.client.data.remote.AuthResponse
-import com.calypsan.listenup.client.data.remote.AuthUser
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.model.User
+import com.calypsan.listenup.client.domain.usecase.auth.LoginUseCase
 import dev.mokkery.answering.returns
-import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
@@ -32,14 +28,12 @@ import kotlin.test.assertIs
  * Tests for LoginViewModel.
  *
  * Tests cover:
- * - Email validation (@ and . requirements)
- * - Password validation (non-empty)
- * - Successful login flow with token/user persistence
- * - Error classification from exceptions
- * - State transitions (Idle → Loading → Success/Error)
+ * - Delegation to LoginUseCase
+ * - State transitions (Idle -> Loading -> Success/Error)
+ * - Error mapping from use case failures
  * - clearError behavior
  *
- * Uses Mokkery for mocking AuthApiContract, SettingsRepository, and UserDao.
+ * Uses Mokkery for mocking LoginUseCase.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LoginViewModelTest {
@@ -48,55 +42,35 @@ class LoginViewModelTest {
     // ========== Test Fixtures ==========
 
     private class TestFixture {
-        val authApi: AuthApiContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        val userDao: UserDao = mock()
+        val loginUseCase: LoginUseCase = mock()
 
         fun build(): LoginViewModel =
             LoginViewModel(
-                authApi = authApi,
-                settingsRepository = settingsRepository,
-                userDao = userDao,
+                loginUseCase = loginUseCase,
             )
     }
 
-    private fun createFixture(): TestFixture {
-        val fixture = TestFixture()
-
-        // Default stubs for successful operations
-        everySuspend { fixture.settingsRepository.saveAuthTokens(any(), any(), any(), any()) } returns Unit
-        everySuspend { fixture.userDao.upsert(any<UserEntity>()) } returns Unit
-
-        return fixture
-    }
+    private fun createFixture(): TestFixture = TestFixture()
 
     // ========== Test Data Factories ==========
 
-    private fun createAuthResponse(
-        accessToken: String = "access-token-123",
-        refreshToken: String = "refresh-token-456",
-        sessionId: String = "session-789",
-        userId: String = "user-1",
+    private fun createUser(
+        id: String = "user-1",
         email: String = "test@example.com",
-    ): AuthResponse =
-        AuthResponse(
-            accessToken = accessToken,
-            refreshToken = refreshToken,
-            sessionId = sessionId,
-            tokenType = "Bearer",
-            expiresIn = 3600,
-            user =
-                AuthUser(
-                    id = userId,
-                    email = email,
-                    displayName = "Test User",
-                    firstName = "Test",
-                    lastName = "User",
-                    isRoot = false,
-                    createdAt = "2024-01-01T00:00:00Z",
-                    updatedAt = "2024-01-01T00:00:00Z",
-                    lastLoginAt = "2024-01-01T00:00:00Z",
-                ),
+    ): User =
+        User(
+            id = id,
+            email = email,
+            displayName = "Test User",
+            firstName = "Test",
+            lastName = "User",
+            isAdmin = false,
+            avatarType = "auto",
+            avatarValue = null,
+            avatarColor = "#6B7280",
+            tagline = null,
+            createdAtMs = 1704067200000L,
+            updatedAtMs = 1704067200000L,
         )
 
     @BeforeTest
@@ -129,6 +103,10 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
+                exception = IllegalArgumentException("Invalid email format"),
+                message = "Please enter a valid email address",
+            )
             val viewModel = fixture.build()
 
             // When
@@ -142,27 +120,14 @@ class LoginViewModelTest {
         }
 
     @Test
-    fun `login rejects email without dot`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            val viewModel = fixture.build()
-
-            // When
-            viewModel.onLoginSubmit(email = "invalid@email", password = "password123")
-            advanceUntilIdle()
-
-            // Then
-            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
-            val validation = assertIs<LoginErrorType.ValidationError>(error.type)
-            assertEquals(LoginField.EMAIL, validation.field)
-        }
-
-    @Test
     fun `login rejects empty email`() =
         runTest {
             // Given
             val fixture = createFixture()
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
+                exception = IllegalArgumentException("Invalid email format"),
+                message = "Please enter a valid email address",
+            )
             val viewModel = fixture.build()
 
             // When
@@ -180,7 +145,7 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } returns createAuthResponse()
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Success(createUser())
             val viewModel = fixture.build()
 
             // When
@@ -192,20 +157,19 @@ class LoginViewModelTest {
         }
 
     @Test
-    fun `login trims whitespace from email`() =
+    fun `login passes credentials to use case`() =
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } returns createAuthResponse()
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Success(createUser())
             val viewModel = fixture.build()
 
-            // When - email has leading/trailing spaces
-            viewModel.onLoginSubmit(email = "  user@example.com  ", password = "password123")
+            // When
+            viewModel.onLoginSubmit(email = "user@example.com", password = "password123")
             advanceUntilIdle()
 
-            // Then - should succeed (trimmed email is valid)
-            checkIs<LoginStatus.Success>(viewModel.state.value.status)
-            verifySuspend { fixture.authApi.login("user@example.com", "password123") }
+            // Then
+            verifySuspend { fixture.loginUseCase("user@example.com", "password123") }
         }
 
     // ========== Password Validation Tests ==========
@@ -215,6 +179,10 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
+                exception = IllegalArgumentException("Password is required"),
+                message = "Password is required",
+            )
             val viewModel = fixture.build()
 
             // When
@@ -232,7 +200,7 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } returns createAuthResponse()
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Success(createUser())
             val viewModel = fixture.build()
 
             // When
@@ -246,75 +214,11 @@ class LoginViewModelTest {
     // ========== Successful Login Flow Tests ==========
 
     @Test
-    fun `login shows Loading state during API call`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } returns createAuthResponse()
-            val viewModel = fixture.build()
-
-            // When - start login but don't advance
-            viewModel.onLoginSubmit(email = "user@example.com", password = "password123")
-
-            // Then - should be Loading
-            // Note: This is hard to test precisely since state changes quickly
-            // We verify the final state is Success which implies it went through Loading
-            advanceUntilIdle()
-            checkIs<LoginStatus.Success>(viewModel.state.value.status)
-        }
-
-    @Test
-    fun `login saves auth tokens on success`() =
-        runTest {
-            // Given
-            val response =
-                createAuthResponse(
-                    accessToken = "my-access-token",
-                    refreshToken = "my-refresh-token",
-                    sessionId = "my-session",
-                    userId = "user-42",
-                )
-            val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } returns response
-            val viewModel = fixture.build()
-
-            // When
-            viewModel.onLoginSubmit(email = "user@example.com", password = "password123")
-            advanceUntilIdle()
-
-            // Then
-            verifySuspend {
-                fixture.settingsRepository.saveAuthTokens(
-                    access = AccessToken("my-access-token"),
-                    refresh = RefreshToken("my-refresh-token"),
-                    sessionId = "my-session",
-                    userId = "user-42",
-                )
-            }
-        }
-
-    @Test
-    fun `login persists user data on success`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } returns createAuthResponse()
-            val viewModel = fixture.build()
-
-            // When
-            viewModel.onLoginSubmit(email = "user@example.com", password = "password123")
-            advanceUntilIdle()
-
-            // Then
-            verifySuspend { fixture.userDao.upsert(any<UserEntity>()) }
-        }
-
-    @Test
     fun `login transitions to Success on completion`() =
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } returns createAuthResponse()
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Success(createUser())
             val viewModel = fixture.build()
 
             // When
@@ -332,24 +236,10 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } throws Exception("invalid credentials")
-            val viewModel = fixture.build()
-
-            // When
-            viewModel.onLoginSubmit(email = "user@example.com", password = "wrong")
-            advanceUntilIdle()
-
-            // Then
-            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
-            checkIs<LoginErrorType.InvalidCredentials>(error.type)
-        }
-
-    @Test
-    fun `login classifies 401 as invalid credentials`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } throws Exception("HTTP 401 Unauthorized")
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
+                exception = Exception("invalid credentials"),
+                message = "invalid credentials",
+            )
             val viewModel = fixture.build()
 
             // When
@@ -366,7 +256,10 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } throws Exception("Connection refused")
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
+                exception = Exception("Connection refused"),
+                message = "Connection refused",
+            )
             val viewModel = fixture.build()
 
             // When
@@ -384,7 +277,10 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } throws Exception("Connection timed out")
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
+                exception = Exception("Connection timed out"),
+                message = "Connection timed out",
+            )
             val viewModel = fixture.build()
 
             // When
@@ -402,7 +298,10 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } throws Exception("Unable to resolve host")
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
+                exception = Exception("Unable to resolve host"),
+                message = "Unable to resolve host",
+            )
             val viewModel = fixture.build()
 
             // When
@@ -420,7 +319,10 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } throws Exception("HTTP 500 Internal Server Error")
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
+                exception = Exception("HTTP 500 Internal Server Error"),
+                message = "HTTP 500 Internal Server Error",
+            )
             val viewModel = fixture.build()
 
             // When
@@ -434,29 +336,14 @@ class LoginViewModelTest {
         }
 
     @Test
-    fun `login classifies 503 as server error`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } throws Exception("HTTP 503 Service Unavailable")
-            val viewModel = fixture.build()
-
-            // When
-            viewModel.onLoginSubmit(email = "user@example.com", password = "password")
-            advanceUntilIdle()
-
-            // Then
-            val error = assertIs<LoginStatus.Error>(viewModel.state.value.status)
-            val serverError = assertIs<LoginErrorType.ServerError>(error.type)
-            assertEquals("Server error (503)", serverError.detail)
-        }
-
-    @Test
     fun `login classifies unknown error as server error with message`() =
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } throws Exception("Something unexpected happened")
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
+                exception = Exception("Something unexpected happened"),
+                message = "Something unexpected happened",
+            )
             val viewModel = fixture.build()
 
             // When
@@ -476,7 +363,10 @@ class LoginViewModelTest {
         runTest {
             // Given - put viewModel in error state
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } throws Exception("error")
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
+                exception = Exception("error"),
+                message = "error",
+            )
             val viewModel = fixture.build()
             viewModel.onLoginSubmit(email = "user@example.com", password = "password")
             advanceUntilIdle()
@@ -509,7 +399,7 @@ class LoginViewModelTest {
         runTest {
             // Given - viewModel in Success state
             val fixture = createFixture()
-            everySuspend { fixture.authApi.login(any(), any()) } returns createAuthResponse()
+            everySuspend { fixture.loginUseCase(any(), any()) } returns Success(createUser())
             val viewModel = fixture.build()
             viewModel.onLoginSubmit(email = "user@example.com", password = "password")
             advanceUntilIdle()

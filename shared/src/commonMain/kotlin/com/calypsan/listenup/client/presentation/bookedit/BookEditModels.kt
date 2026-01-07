@@ -2,95 +2,64 @@
 
 package com.calypsan.listenup.client.presentation.bookedit
 
-import com.calypsan.listenup.client.data.remote.ContributorSearchResult
-import com.calypsan.listenup.client.data.remote.SeriesSearchResult
+import com.calypsan.listenup.client.domain.model.ContributorSearchResult
+import com.calypsan.listenup.client.domain.model.SeriesSearchResult
+import com.calypsan.listenup.client.domain.model.ContributorRole as DomainContributorRole
+import com.calypsan.listenup.client.domain.model.EditableContributor as DomainEditableContributor
+import com.calypsan.listenup.client.domain.model.EditableGenre as DomainEditableGenre
+import com.calypsan.listenup.client.domain.model.EditableSeries as DomainEditableSeries
+import com.calypsan.listenup.client.domain.model.EditableTag as DomainEditableTag
+
+// Type aliases to domain types - presentation layer uses domain models directly
+typealias EditableContributor = DomainEditableContributor
+typealias EditableSeries = DomainEditableSeries
+typealias EditableGenre = DomainEditableGenre
+typealias EditableTag = DomainEditableTag
+typealias ContributorRole = DomainContributorRole
 
 /**
- * Contributor with roles for editing.
+ * Extension property for ContributorRole display name.
+ * Presentation-layer concern for UI display.
  */
-data class EditableContributor(
-    val id: String? = null, // null for newly added contributors
-    val name: String,
-    val roles: Set<ContributorRole>,
-)
-
-/**
- * Role types for contributors.
- * Matches server-side roles in domain/contributor.go
- */
-enum class ContributorRole(
-    val displayName: String,
-    val apiValue: String,
-) {
-    AUTHOR("Author", "author"),
-    NARRATOR("Narrator", "narrator"),
-    EDITOR("Editor", "editor"),
-    TRANSLATOR("Translator", "translator"),
-    FOREWORD("Foreword", "foreword"),
-    INTRODUCTION("Introduction", "introduction"),
-    AFTERWORD("Afterword", "afterword"),
-    PRODUCER("Producer", "producer"),
-    ADAPTER("Adapter", "adapter"),
-    ILLUSTRATOR("Illustrator", "illustrator"),
-    ;
-
-    companion object {
-        fun fromApiValue(value: String): ContributorRole? =
-            entries.find { it.apiValue.equals(value, ignoreCase = true) }
+val ContributorRole.displayName: String
+    get() = when (this) {
+        ContributorRole.AUTHOR -> "Author"
+        ContributorRole.NARRATOR -> "Narrator"
+        ContributorRole.EDITOR -> "Editor"
+        ContributorRole.TRANSLATOR -> "Translator"
+        ContributorRole.FOREWORD -> "Foreword"
+        ContributorRole.INTRODUCTION -> "Introduction"
+        ContributorRole.AFTERWORD -> "Afterword"
+        ContributorRole.PRODUCER -> "Producer"
+        ContributorRole.ADAPTER -> "Adapter"
+        ContributorRole.ILLUSTRATOR -> "Illustrator"
     }
-}
 
 /**
- * Series membership for editing.
+ * Extension property for EditableGenre parent path display.
+ * Returns the parent path for display context.
+ * "/fiction/fantasy/epic-fantasy" -> "Fiction > Fantasy"
  */
-data class EditableSeries(
-    val id: String? = null, // null for newly added series
-    val name: String,
-    val sequence: String? = null, // e.g., "1", "1.5"
-)
+val EditableGenre.parentPath: String?
+    get() {
+        val segments = path.trim('/').split('/')
+        if (segments.size <= 1) return null
+        return segments
+            .dropLast(1)
+            .joinToString(" > ") { it.replaceFirstChar { c -> c.uppercase() } }
+    }
 
 /**
- * Genre for editing.
+ * Extension function for EditableTag display name.
+ * Human-readable display name derived from slug.
+ * "found-family" -> "Found Family"
  */
-data class EditableGenre(
-    val id: String,
-    val name: String,
-    val path: String,
-) {
-    /**
-     * Returns the parent path for display context.
-     * "/fiction/fantasy/epic-fantasy" -> "Fiction > Fantasy"
-     */
-    val parentPath: String?
-        get() {
-            val segments = path.trim('/').split('/')
-            if (segments.size <= 1) return null
-            return segments
-                .dropLast(1)
-                .joinToString(" > ") { it.replaceFirstChar { c -> c.uppercase() } }
+fun EditableTag.displayName(): String =
+    slug
+        .split("-")
+        .joinToString(" ") { word ->
+            word.replaceFirstChar { it.titlecase() }
         }
-}
-
-/**
- * Tag for editing.
- *
- * Tags are global community descriptors identified by slug.
- */
-data class EditableTag(
-    val id: String,
-    val slug: String,
-) {
-    /**
-     * Human-readable display name derived from slug.
-     * "found-family" -> "Found Family"
-     */
-    fun displayName(): String =
-        slug
-            .split("-")
-            .joinToString(" ") { word ->
-                word.replaceFirstChar { it.titlecase() }
-            }
-}
 
 /**
  * UI state for book editing screen.

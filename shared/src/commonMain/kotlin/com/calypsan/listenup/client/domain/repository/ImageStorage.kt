@@ -1,7 +1,7 @@
-package com.calypsan.listenup.client.data.local.images
+package com.calypsan.listenup.client.domain.repository
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.local.db.BookId
 
 /**
  * Platform-agnostic interface for storing and retrieving images locally.

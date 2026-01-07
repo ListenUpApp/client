@@ -1,19 +1,15 @@
 package com.calypsan.listenup.client.presentation.contributordetail
 
-import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
-import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.BookEntity
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.BookWithContributors
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.ContributorEntity
-import com.calypsan.listenup.client.data.local.db.RoleWithBookCount
-import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.RoleWithBookCount
+import com.calypsan.listenup.client.domain.repository.BookWithContributorRole
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.usecase.contributor.DeleteContributorUseCase
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -56,22 +52,18 @@ class ContributorDetailViewModelTest {
     // ========== Test Fixtures ==========
 
     private class TestFixture {
-        val contributorDao: ContributorDao = mock()
-        val bookDao: BookDao = mock()
-        val imageStorage: ImageStorage = mock()
+        val contributorRepository: ContributorRepository = mock()
         val playbackPositionRepository: PlaybackPositionRepository = mock()
-        val contributorRepository: ContributorRepositoryContract = mock()
+        val deleteContributorUseCase: DeleteContributorUseCase = mock()
 
-        val contributorFlow = MutableStateFlow<ContributorEntity?>(null)
+        val contributorFlow = MutableStateFlow<Contributor?>(null)
         val rolesFlow = MutableStateFlow<List<RoleWithBookCount>>(emptyList())
 
         fun build(): ContributorDetailViewModel =
             ContributorDetailViewModel(
-                contributorDao = contributorDao,
-                bookDao = bookDao,
-                imageStorage = imageStorage,
-                playbackPositionRepository = playbackPositionRepository,
                 contributorRepository = contributorRepository,
+                playbackPositionRepository = playbackPositionRepository,
+                deleteContributorUseCase = deleteContributorUseCase,
             )
     }
 
@@ -79,10 +71,9 @@ class ContributorDetailViewModelTest {
         val fixture = TestFixture()
 
         // Default stubs
-        every { fixture.contributorDao.observeById(any()) } returns fixture.contributorFlow
-        every { fixture.contributorDao.observeRolesWithCountForContributor(any()) } returns fixture.rolesFlow
-        every { fixture.bookDao.observeByContributorAndRole(any(), any()) } returns flowOf(emptyList())
-        every { fixture.imageStorage.exists(any()) } returns false
+        every { fixture.contributorRepository.observeById(any()) } returns fixture.contributorFlow
+        every { fixture.contributorRepository.observeRolesWithCountForContributor(any()) } returns fixture.rolesFlow
+        every { fixture.contributorRepository.observeBooksForContributorRole(any(), any()) } returns flowOf(emptyList())
         everySuspend { fixture.playbackPositionRepository.get(any()) } returns null
 
         return fixture
@@ -90,56 +81,49 @@ class ContributorDetailViewModelTest {
 
     // ========== Test Data Factories ==========
 
-    private fun createContributorEntity(
+    private fun createContributor(
         id: String = "contributor-1",
         name: String = "Test Author",
         description: String? = "A prolific author",
-    ): ContributorEntity =
-        ContributorEntity(
+    ): Contributor =
+        Contributor(
             id = id,
             name = name,
             description = description,
             imagePath = null,
-            syncState = SyncState.SYNCED,
-            lastModified = Timestamp(1704067200000L),
-            serverVersion = Timestamp(1704067200000L),
-            createdAt = Timestamp(1704067200000L),
-            updatedAt = Timestamp(1704067200000L),
+            imageBlurHash = null,
+            website = null,
+            birthDate = null,
+            deathDate = null,
+            aliases = emptyList(),
         )
 
-    private fun createBookEntity(
+    private fun createBook(
         id: String = "book-1",
         title: String = "Test Book",
         duration: Long = 3_600_000L,
-    ): BookEntity =
-        BookEntity(
+        coverPath: String? = null,
+    ): Book =
+        Book(
             id = BookId(id),
             title = title,
             subtitle = null,
-            coverUrl = null,
-            totalDuration = duration,
-            description = null,
-            genres = null,
+            coverPath = coverPath,
+            duration = duration,
+            authors = emptyList(),
+            narrators = emptyList(),
             publishYear = 2024,
-            audioFilesJson = null,
-            syncState = SyncState.SYNCED,
-            lastModified = Timestamp(1704067200000L),
-            serverVersion = Timestamp(1704067200000L),
-            createdAt = Timestamp(1704067200000L),
+            addedAt = Timestamp(1704067200000L),
             updatedAt = Timestamp(1704067200000L),
         )
 
-    private fun createBookWithContributors(
-        bookEntity: BookEntity,
-        contributors: List<ContributorEntity> = emptyList(),
-        roles: List<BookContributorCrossRef> = emptyList(),
-    ): BookWithContributors =
-        BookWithContributors(
-            book = bookEntity,
-            contributors = contributors,
-            contributorRoles = roles,
-            series = emptyList(),
-            seriesSequences = emptyList(),
+    private fun createBookWithContributorRole(
+        book: Book,
+        creditedAs: String? = null,
+    ): BookWithContributorRole =
+        BookWithContributorRole(
+            book = book,
+            creditedAs = creditedAs,
         )
 
     private fun createPlaybackPosition(
@@ -205,7 +189,7 @@ class ContributorDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity(name = "Stephen King", description = "Master of horror")
+            val contributor = createContributor(name = "Stephen King", description = "Master of horror")
             val roles = listOf(RoleWithBookCount(role = "author", bookCount = 5))
 
             val viewModel = fixture.build()
@@ -229,12 +213,12 @@ class ContributorDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity()
+            val contributor = createContributor()
             val authorRole = RoleWithBookCount(role = "author", bookCount = 2)
-            val bookEntity = createBookEntity(id = "book-1", title = "The Shining")
-            val bookWithContributors = createBookWithContributors(bookEntity)
+            val book = createBook(id = "book-1", title = "The Shining")
+            val bookWithContributors = createBookWithContributorRole(book)
 
-            every { fixture.bookDao.observeByContributorAndRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
                 flowOf(
                     listOf(bookWithContributors),
                 )
@@ -259,20 +243,20 @@ class ContributorDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity()
+            val contributor = createContributor()
             val authorRole = RoleWithBookCount(role = "author", bookCount = 3)
             val narratorRole = RoleWithBookCount(role = "narrator", bookCount = 2)
 
-            val book1 = createBookEntity(id = "book-1", title = "Author Book")
-            val book2 = createBookEntity(id = "book-2", title = "Narrator Book")
+            val book1 = createBook(id = "book-1", title = "Author Book")
+            val book2 = createBook(id = "book-2", title = "Narrator Book")
 
-            every { fixture.bookDao.observeByContributorAndRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
                 flowOf(
-                    listOf(createBookWithContributors(book1)),
+                    listOf(createBookWithContributorRole(book1)),
                 )
-            every { fixture.bookDao.observeByContributorAndRole("contributor-1", "narrator") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "narrator") } returns
                 flowOf(
-                    listOf(createBookWithContributors(book2)),
+                    listOf(createBookWithContributorRole(book2)),
                 )
             val viewModel = fixture.build()
 
@@ -328,13 +312,13 @@ class ContributorDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity()
+            val contributor = createContributor()
             val role = RoleWithBookCount(role = "author", bookCount = 1)
-            val bookEntity = createBookEntity(id = "book-1", duration = 10_000L)
+            val book = createBook(id = "book-1", duration = 10_000L)
 
-            every { fixture.bookDao.observeByContributorAndRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
                 flowOf(
-                    listOf(createBookWithContributors(bookEntity)),
+                    listOf(createBookWithContributorRole(book)),
                 )
             everySuspend { fixture.playbackPositionRepository.get("book-1") } returns
                 createPlaybackPosition(
@@ -359,13 +343,13 @@ class ContributorDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity()
+            val contributor = createContributor()
             val role = RoleWithBookCount(role = "author", bookCount = 1)
-            val bookEntity = createBookEntity(id = "book-1", duration = 10_000L)
+            val book = createBook(id = "book-1", duration = 10_000L)
 
-            every { fixture.bookDao.observeByContributorAndRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
                 flowOf(
-                    listOf(createBookWithContributors(bookEntity)),
+                    listOf(createBookWithContributorRole(book)),
                 )
             // 99% or more is considered complete
             everySuspend { fixture.playbackPositionRepository.get("book-1") } returns
@@ -391,13 +375,13 @@ class ContributorDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity()
+            val contributor = createContributor()
             val role = RoleWithBookCount(role = "author", bookCount = 1)
-            val bookEntity = createBookEntity(id = "book-1", duration = 10_000L)
+            val book = createBook(id = "book-1", duration = 10_000L)
 
-            every { fixture.bookDao.observeByContributorAndRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
                 flowOf(
-                    listOf(createBookWithContributors(bookEntity)),
+                    listOf(createBookWithContributorRole(book)),
                 )
             everySuspend { fixture.playbackPositionRepository.get("book-1") } returns createPlaybackPosition("book-1", 0L)
             val viewModel = fixture.build()
@@ -457,20 +441,18 @@ class ContributorDetailViewModelTest {
     // ========== Cover Path Tests ==========
 
     @Test
-    fun `loadContributor sets coverPath when image exists`() =
+    fun `loadContributor passes through coverPath from domain model`() =
         runTest {
-            // Given
+            // Given - coverPath is now resolved in repository, ViewModel just passes it through
             val fixture = createFixture()
-            val contributor = createContributorEntity()
+            val contributor = createContributor()
             val role = RoleWithBookCount(role = "author", bookCount = 1)
-            val bookEntity = createBookEntity(id = "book-1")
+            val book = createBook(id = "book-1", coverPath = "/path/to/cover.jpg")
 
-            every { fixture.bookDao.observeByContributorAndRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
                 flowOf(
-                    listOf(createBookWithContributors(bookEntity)),
+                    listOf(createBookWithContributorRole(book)),
                 )
-            every { fixture.imageStorage.exists(BookId("book-1")) } returns true
-            every { fixture.imageStorage.getCoverPath(BookId("book-1")) } returns "/path/to/cover.jpg"
             val viewModel = fixture.build()
 
             // When
@@ -485,19 +467,18 @@ class ContributorDetailViewModelTest {
         }
 
     @Test
-    fun `loadContributor sets null coverPath when image does not exist`() =
+    fun `loadContributor handles null coverPath`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = createContributorEntity()
+            val contributor = createContributor()
             val role = RoleWithBookCount(role = "author", bookCount = 1)
-            val bookEntity = createBookEntity(id = "book-1")
+            val book = createBook(id = "book-1", coverPath = null)
 
-            every { fixture.bookDao.observeByContributorAndRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
                 flowOf(
-                    listOf(createBookWithContributors(bookEntity)),
+                    listOf(createBookWithContributorRole(book)),
                 )
-            every { fixture.imageStorage.exists(BookId("book-1")) } returns false
             val viewModel = fixture.build()
 
             // When
@@ -518,8 +499,8 @@ class ContributorDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor1 = createContributorEntity(name = "Original Name")
-            val contributor2 = createContributorEntity(name = "Updated Name")
+            val contributor1 = createContributor(name = "Original Name")
+            val contributor2 = createContributor(name = "Updated Name")
             val viewModel = fixture.build()
 
             // When - first emission

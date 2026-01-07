@@ -2,28 +2,21 @@ package com.calypsan.listenup.client.presentation.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.AccessToken
-import com.calypsan.listenup.client.core.RefreshToken
-import com.calypsan.listenup.client.data.remote.ApiClientFactory
-import com.calypsan.listenup.client.data.remote.AuthApiContract
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.AuthRepository
+import com.calypsan.listenup.client.domain.repository.RegistrationStatusStream
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.StreamedRegistrationStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.client.request.prepareGet
-import io.ktor.client.statement.bodyAsChannel
-import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
 
 private const val POLL_INTERVAL_MS = 5000L
-private const val SSE_RECONNECT_DELAY_MS = 3000L
 
 /**
  * ViewModel for the pending approval screen.
@@ -32,9 +25,9 @@ private const val SSE_RECONNECT_DELAY_MS = 3000L
  * Uses SSE for instant updates with polling fallback.
  */
 class PendingApprovalViewModel(
-    private val authApi: AuthApiContract,
+    private val authRepository: AuthRepository,
     private val settingsRepository: SettingsRepository,
-    private val apiClientFactory: ApiClientFactory,
+    private val registrationStatusStream: RegistrationStatusStream,
     val userId: String,
     val email: String,
     private val password: String,
@@ -44,12 +37,6 @@ class PendingApprovalViewModel(
 
     private var sseJob: Job? = null
     private var pollingJob: Job? = null
-
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            isLenient = true
-        }
 
     init {
         // Start SSE connection immediately
@@ -71,7 +58,9 @@ class PendingApprovalViewModel(
         sseJob =
             viewModelScope.launch {
                 try {
-                    streamRegistrationStatus()
+                    registrationStatusStream.streamStatus(userId).collect { status ->
+                        handleStatusUpdate(status)
+                    }
                 } catch (e: Exception) {
                     logger.warn(e) { "SSE connection failed, falling back to polling" }
                     // Fall back to polling
@@ -80,71 +69,22 @@ class PendingApprovalViewModel(
             }
     }
 
-    private suspend fun streamRegistrationStatus() {
-        val serverUrl =
-            settingsRepository.getServerUrl()
-                ?: error("Server URL not configured")
-
-        // Use unauthenticated client for this endpoint
-        val httpClient = apiClientFactory.getUnauthenticatedStreamingClient()
-        val url = "$serverUrl/api/v1/auth/registration-status/$userId/stream"
-
-        logger.info { "Connecting to registration status SSE: $url" }
-
-        httpClient.prepareGet(url).execute { response ->
-            logger.debug { "SSE connection established: ${response.status}" }
-
-            val channel = response.bodyAsChannel()
-            var eventData = StringBuilder()
-
-            while (!channel.isClosedForRead) {
-                val line = channel.readUTF8Line() ?: break
-
-                when {
-                    line.isEmpty() -> {
-                        // End of event
-                        if (eventData.isNotEmpty()) {
-                            processSSEEvent(eventData.toString())
-                            eventData = StringBuilder()
-                        }
-                    }
-
-                    line.startsWith("data: ") -> {
-                        eventData.append(line.removePrefix("data: "))
-                    }
-
-                    line.startsWith("event: ") -> {
-                        // Event type line, handled via data parsing
-                    }
-                }
+    private suspend fun handleStatusUpdate(status: StreamedRegistrationStatus) {
+        when (status) {
+            is StreamedRegistrationStatus.Approved -> {
+                logger.info { "Registration approved via SSE!" }
+                attemptAutoLogin()
             }
-        }
-    }
 
-    private suspend fun processSSEEvent(eventJson: String) {
-        try {
-            logger.debug { "Processing SSE event: $eventJson" }
-
-            val event = json.decodeFromString<RegistrationStatusEvent>(eventJson)
-
-            when (event.status) {
-                "approved" -> {
-                    logger.info { "Registration approved via SSE!" }
-                    attemptAutoLogin()
-                }
-
-                "denied" -> {
-                    logger.info { "Registration denied via SSE" }
-                    handleDenied()
-                }
-
-                "pending" -> {
-                    // Still pending, update UI
-                    state.value = state.value.copy(status = PendingApprovalStatus.Waiting)
-                }
+            is StreamedRegistrationStatus.Denied -> {
+                logger.info { "Registration denied via SSE" }
+                handleDenied(status.message)
             }
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to parse SSE event" }
+
+            is StreamedRegistrationStatus.Pending -> {
+                // Still pending, update UI
+                state.value = state.value.copy(status = PendingApprovalStatus.Waiting)
+            }
         }
     }
 
@@ -158,7 +98,7 @@ class PendingApprovalViewModel(
                 while (isActive) {
                     delay(POLL_INTERVAL_MS)
                     try {
-                        val status = authApi.checkRegistrationStatus(userId)
+                        val status = authRepository.checkRegistrationStatus(userId)
                         logger.debug { "Poll result: status=${status.status}, approved=${status.approved}" }
 
                         when {
@@ -189,14 +129,14 @@ class PendingApprovalViewModel(
         state.value = state.value.copy(status = PendingApprovalStatus.LoggingIn)
 
         try {
-            val authResponse = authApi.login(email, password)
+            val loginResult = authRepository.login(email, password)
 
             // Save tokens
             settingsRepository.saveAuthTokens(
-                access = AccessToken(authResponse.accessToken),
-                refresh = RefreshToken(authResponse.refreshToken),
-                sessionId = authResponse.sessionId,
-                userId = authResponse.userId,
+                access = loginResult.accessToken,
+                refresh = loginResult.refreshToken,
+                sessionId = loginResult.sessionId,
+                userId = loginResult.userId,
             )
 
             // Clear pending registration
@@ -218,13 +158,13 @@ class PendingApprovalViewModel(
         }
     }
 
-    private suspend fun handleDenied() {
+    private suspend fun handleDenied(message: String? = null) {
         settingsRepository.clearPendingRegistration()
         state.value =
             state.value.copy(
                 status =
                     PendingApprovalStatus.Denied(
-                        "Your registration was denied by an administrator.",
+                        message ?: "Your registration was denied by an administrator.",
                     ),
             )
     }
@@ -269,13 +209,3 @@ sealed interface PendingApprovalStatus {
         val message: String,
     ) : PendingApprovalStatus
 }
-
-/**
- * SSE event for registration status.
- */
-@Serializable
-private data class RegistrationStatusEvent(
-    val status: String,
-    val timestamp: String? = null,
-    val message: String? = null,
-)

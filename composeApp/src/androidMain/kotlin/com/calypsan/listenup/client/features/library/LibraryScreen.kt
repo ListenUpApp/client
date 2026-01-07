@@ -23,7 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.data.sync.model.SyncStatus
+import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.features.library.components.AuthorsContent
 import com.calypsan.listenup.client.features.library.components.BooksContent
 import com.calypsan.listenup.client.features.library.components.LibraryTabRow
@@ -207,7 +207,7 @@ fun LibraryScreen(
 
             // Pull-to-refresh wraps entire pager (syncs all data)
             PullToRefreshBox(
-                isRefreshing = syncState is SyncStatus.Syncing,
+                isRefreshing = syncState is SyncState.Syncing,
                 onRefresh = { viewModel.onEvent(LibraryUiEvent.RefreshRequested) },
                 modifier = Modifier.fillMaxSize(),
             ) {

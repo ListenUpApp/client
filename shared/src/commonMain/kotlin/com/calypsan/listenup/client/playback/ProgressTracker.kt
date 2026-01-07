@@ -4,7 +4,7 @@
 package com.calypsan.listenup.client.playback
 
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
@@ -368,7 +368,7 @@ class ProgressTracker(
                 }
 
                 is Result.Failure -> {
-                    logger.debug { "Server progress unavailable: ${result.exception.message}" }
+                    logger.debug { "Server progress unavailable: ${result.message}" }
                     null
                 }
             }

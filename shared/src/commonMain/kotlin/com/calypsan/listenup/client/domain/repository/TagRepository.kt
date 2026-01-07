@@ -81,4 +81,27 @@ interface TagRepository {
      * @return Flow emitting list of book IDs with this tag
      */
     fun observeBookIdsForTag(tagId: String): Flow<List<String>>
+
+    /**
+     * Add a tag to a book.
+     *
+     * Calls API to add the tag, then updates local Room for reactivity.
+     * If the tag doesn't exist, it will be created by the server.
+     *
+     * @param bookId The book to add the tag to
+     * @param tagSlugOrName The tag slug or name (will be normalized by server)
+     * @return The added tag on success
+     */
+    suspend fun addTagToBook(bookId: String, tagSlugOrName: String): Tag
+
+    /**
+     * Remove a tag from a book.
+     *
+     * Calls API to remove the tag, then updates local Room for reactivity.
+     *
+     * @param bookId The book to remove the tag from
+     * @param tagSlug The tag slug to remove
+     * @param tagId The tag ID (for local database update)
+     */
+    suspend fun removeTagFromBook(bookId: String, tagSlug: String, tagId: String)
 }

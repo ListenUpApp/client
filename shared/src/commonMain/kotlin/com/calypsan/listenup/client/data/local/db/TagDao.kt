@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.RewriteQueriesToDropUnusedColumns
 import androidx.room.Transaction
 import androidx.room.Upsert
+import com.calypsan.listenup.client.core.BookId
 import kotlinx.coroutines.flow.Flow
 
 /**

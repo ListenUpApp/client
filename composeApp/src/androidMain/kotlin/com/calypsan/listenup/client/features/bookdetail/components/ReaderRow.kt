@@ -28,8 +28,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.calypsan.listenup.client.data.remote.ReaderSummary
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.model.ReaderInfo
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.design.components.getInitials
 import com.calypsan.listenup.client.util.toRelativeOrMonthYear
 import org.koin.compose.koinInject
@@ -50,7 +50,7 @@ import org.koin.compose.koinInject
  */
 @Composable
 fun ReaderRow(
-    reader: ReaderSummary,
+    reader: ReaderInfo,
     modifier: Modifier = Modifier,
     onUserClick: ((String) -> Unit)? = null,
 ) {

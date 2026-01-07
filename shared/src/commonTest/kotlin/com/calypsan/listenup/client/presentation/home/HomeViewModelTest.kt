@@ -1,9 +1,10 @@
 package com.calypsan.listenup.client.presentation.home
 
-import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
+import com.calypsan.listenup.client.domain.model.User
+import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.matcher.any
@@ -35,7 +36,7 @@ import kotlin.test.assertTrue
  * - Greeting generation (userName updates)
  * - State derived properties
  *
- * Uses Mokkery for mocking HomeRepositoryContract.
+ * Uses Mokkery for mocking repositories.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -44,15 +45,17 @@ class HomeViewModelTest {
     // ========== Test Fixtures ==========
 
     private class TestFixture {
-        val homeRepository: HomeRepositoryContract = mock()
+        val homeRepository: HomeRepository = mock()
+        val userRepository: UserRepository = mock()
         val lensRepository: LensRepository = mock()
-        val userFlow = MutableStateFlow<UserEntity?>(null)
+        val userFlow = MutableStateFlow<User?>(null)
         val continueListeningFlow = MutableStateFlow<List<ContinueListeningBook>>(emptyList())
         var currentHour: Int = 10 // Default to morning
 
         fun build(): HomeViewModel =
             HomeViewModel(
                 homeRepository = homeRepository,
+                userRepository = userRepository,
                 lensRepository = lensRepository,
                 currentHour = { currentHour },
             )
@@ -62,7 +65,7 @@ class HomeViewModelTest {
         val fixture = TestFixture()
 
         // Default stubs for reactive observation
-        every { fixture.homeRepository.observeCurrentUser() } returns fixture.userFlow
+        every { fixture.userRepository.observeCurrentUser() } returns fixture.userFlow
         every { fixture.homeRepository.observeContinueListening(any()) } returns fixture.continueListeningFlow
         every { fixture.lensRepository.observeMyLenses(any()) } returns flowOf(emptyList())
 
@@ -75,15 +78,15 @@ class HomeViewModelTest {
         id: String = "user-1",
         email: String = "john@example.com",
         displayName: String = "John Smith",
-        isRoot: Boolean = false,
-    ): UserEntity =
-        UserEntity(
+        isAdmin: Boolean = false,
+    ): User =
+        User(
             id = id,
             email = email,
             displayName = displayName,
-            isRoot = isRoot,
-            createdAt = 1704067200000L,
-            updatedAt = 1704067200000L,
+            isAdmin = isAdmin,
+            createdAtMs = 1704067200000L,
+            updatedAtMs = 1704067200000L,
         )
 
     private fun createContinueListeningBook(

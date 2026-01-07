@@ -3,11 +3,11 @@ package com.calypsan.listenup.client.playback
 /**
  * Represents the current state of the sleep timer.
  */
-sealed class SleepTimerState {
+sealed interface SleepTimerState {
     /**
      * No timer active.
      */
-    data object Inactive : SleepTimerState()
+    data object Inactive : SleepTimerState
 
     /**
      * Timer is running.
@@ -17,7 +17,7 @@ sealed class SleepTimerState {
         val remainingMs: Long,
         val totalMs: Long,
         val startedAt: Long,
-    ) : SleepTimerState() {
+    ) : SleepTimerState {
         val progress: Float
             get() = if (totalMs > 0) 1f - (remainingMs.toFloat() / totalMs) else 0f
 
@@ -37,19 +37,19 @@ sealed class SleepTimerState {
     /**
      * Timer fired, audio is fading out.
      */
-    data object FadingOut : SleepTimerState()
+    data object FadingOut : SleepTimerState
 }
 
 /**
  * The type of sleep timer.
  */
-sealed class SleepTimerMode {
+sealed interface SleepTimerMode {
     /**
      * Timer for a specific duration.
      */
     data class Duration(
         val minutes: Int,
-    ) : SleepTimerMode() {
+    ) : SleepTimerMode {
         val label: String
             get() =
                 when {
@@ -63,5 +63,5 @@ sealed class SleepTimerMode {
     /**
      * Timer that fires when the current chapter ends.
      */
-    data object EndOfChapter : SleepTimerMode()
+    data object EndOfChapter : SleepTimerMode
 }

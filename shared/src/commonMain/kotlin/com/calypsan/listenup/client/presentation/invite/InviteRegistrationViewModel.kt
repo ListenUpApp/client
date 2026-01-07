@@ -1,23 +1,16 @@
-@file:OptIn(ExperimentalTime::class)
 @file:Suppress("MagicNumber")
 
 package com.calypsan.listenup.client.presentation.invite
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.AccessToken
-import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.ServerUrl
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.remote.AuthUser
-import com.calypsan.listenup.client.data.remote.InviteApiContract
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.repository.InviteRepository
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 /**
  * ViewModel for the invite registration screen.
@@ -31,9 +24,9 @@ import kotlin.time.Instant
  * causing automatic navigation to the Library screen.
  */
 class InviteRegistrationViewModel(
-    private val inviteApi: InviteApiContract,
-    private val settingsRepository: SettingsRepositoryContract,
-    private val userDao: UserDao,
+    private val inviteRepository: InviteRepository,
+    private val settingsRepository: SettingsRepository,
+    private val userRepository: UserRepository,
     private val serverUrl: String,
     private val inviteCode: String,
 ) : ViewModel() {
@@ -52,7 +45,7 @@ class InviteRegistrationViewModel(
             state.value = InviteRegistrationUiState(loadingState = InviteLoadingState.Loading)
 
             try {
-                val details = inviteApi.getInviteDetails(serverUrl, inviteCode)
+                val details = inviteRepository.getInviteDetails(serverUrl, inviteCode)
 
                 if (!details.valid) {
                     state.value =
@@ -127,21 +120,21 @@ class InviteRegistrationViewModel(
             state.value = state.value.copy(submissionStatus = InviteSubmissionStatus.Submitting)
 
             try {
-                val response = inviteApi.claimInvite(serverUrl, inviteCode, password)
+                val result = inviteRepository.claimInvite(serverUrl, inviteCode, password)
 
                 // Save the server URL first (before tokens, as it's needed for auth state)
                 settingsRepository.setServerUrl(ServerUrl(serverUrl))
 
                 // Store auth tokens - this triggers AuthState.Authenticated
                 settingsRepository.saveAuthTokens(
-                    access = AccessToken(response.accessToken),
-                    refresh = RefreshToken(response.refreshToken),
-                    sessionId = response.sessionId,
-                    userId = response.userId,
+                    access = result.accessToken,
+                    refresh = result.refreshToken,
+                    sessionId = result.sessionId,
+                    userId = result.userId,
                 )
 
                 // Save user data to local database for avatar display
-                userDao.upsert(response.user.toEntity())
+                userRepository.saveUser(result.user)
 
                 state.value = state.value.copy(submissionStatus = InviteSubmissionStatus.Success)
             } catch (e: Exception) {
@@ -214,21 +207,3 @@ private fun Exception.toInviteErrorType(): InviteErrorType {
     }
 }
 
-/**
- * Convert AuthUser from API response to UserEntity for local storage.
- */
-@OptIn(ExperimentalTime::class)
-private fun AuthUser.toEntity(): UserEntity =
-    UserEntity(
-        id = id,
-        email = email,
-        displayName = displayName,
-        firstName = firstName.ifEmpty { null },
-        lastName = lastName.ifEmpty { null },
-        isRoot = isRoot,
-        createdAt = Instant.parse(createdAt).toEpochMilliseconds(),
-        updatedAt = Instant.parse(updatedAt).toEpochMilliseconds(),
-        avatarType = avatarType,
-        avatarValue = avatarValue,
-        avatarColor = avatarColor,
-    )

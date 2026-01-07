@@ -1,6 +1,8 @@
 package com.calypsan.listenup.client.data.local.db
 
 import androidx.room.TypeConverter
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Timestamp
 
 /**
  * Room type converters for value classes.

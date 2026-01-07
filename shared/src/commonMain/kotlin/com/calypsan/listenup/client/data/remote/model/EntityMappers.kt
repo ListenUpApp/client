@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.data.remote.model
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.util.parseToTimestampOrNow
 
 fun SeriesResponse.toEntity(): SeriesEntity {

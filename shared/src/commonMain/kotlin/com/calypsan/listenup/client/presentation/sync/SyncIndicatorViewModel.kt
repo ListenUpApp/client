@@ -2,9 +2,10 @@ package com.calypsan.listenup.client.presentation.sync
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.OperationType
-import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
-import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
+import com.calypsan.listenup.client.domain.model.PendingOperation
+import com.calypsan.listenup.client.domain.model.PendingOperationStatus
+import com.calypsan.listenup.client.domain.model.PendingOperationType
+import com.calypsan.listenup.client.domain.repository.PendingOperationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -93,7 +94,7 @@ sealed interface SyncIndicatorUiEvent {
  * - Error sheet when operations fail
  */
 class SyncIndicatorViewModel(
-    private val pendingOperationRepository: PendingOperationRepositoryContract,
+    private val pendingOperationRepository: PendingOperationRepository,
 ) : ViewModel() {
     val isExpanded: StateFlow<Boolean>
         field = MutableStateFlow(false)
@@ -106,8 +107,7 @@ class SyncIndicatorViewModel(
         ) { visibleOps, inProgress, failedOps ->
             val pendingCount =
                 visibleOps.count {
-                    it.status ==
-                        com.calypsan.listenup.client.data.local.db.OperationStatus.PENDING
+                    it.status == PendingOperationStatus.PENDING
                 }
             val failedUi =
                 failedOps.map { op ->
@@ -176,21 +176,21 @@ class SyncIndicatorViewModel(
     /**
      * Generate a human-readable description of an operation.
      */
-    private fun describeOperation(operation: PendingOperationEntity): String {
+    private fun describeOperation(operation: PendingOperation): String {
         val entityName = operation.entityId?.take(8) ?: "item"
         return when (operation.operationType) {
-            OperationType.BOOK_UPDATE -> "Updating book $entityName"
-            OperationType.CONTRIBUTOR_UPDATE -> "Updating contributor $entityName"
-            OperationType.SERIES_UPDATE -> "Updating series $entityName"
-            OperationType.SET_BOOK_CONTRIBUTORS -> "Setting contributors for book $entityName"
-            OperationType.SET_BOOK_SERIES -> "Setting series for book $entityName"
-            OperationType.MERGE_CONTRIBUTOR -> "Merging contributors"
-            OperationType.UNMERGE_CONTRIBUTOR -> "Unmerging contributor"
-            OperationType.LISTENING_EVENT -> "Syncing listening data"
-            OperationType.PLAYBACK_POSITION -> "Syncing playback position"
-            OperationType.USER_PREFERENCES -> "Syncing preferences"
-            OperationType.PROFILE_UPDATE -> "Updating profile"
-            OperationType.PROFILE_AVATAR -> "Uploading avatar"
+            PendingOperationType.BOOK_UPDATE -> "Updating book $entityName"
+            PendingOperationType.CONTRIBUTOR_UPDATE -> "Updating contributor $entityName"
+            PendingOperationType.SERIES_UPDATE -> "Updating series $entityName"
+            PendingOperationType.SET_BOOK_CONTRIBUTORS -> "Setting contributors for book $entityName"
+            PendingOperationType.SET_BOOK_SERIES -> "Setting series for book $entityName"
+            PendingOperationType.MERGE_CONTRIBUTOR -> "Merging contributors"
+            PendingOperationType.UNMERGE_CONTRIBUTOR -> "Unmerging contributor"
+            PendingOperationType.LISTENING_EVENT -> "Syncing listening data"
+            PendingOperationType.PLAYBACK_POSITION -> "Syncing playback position"
+            PendingOperationType.USER_PREFERENCES -> "Syncing preferences"
+            PendingOperationType.PROFILE_UPDATE -> "Updating profile"
+            PendingOperationType.PROFILE_AVATAR -> "Uploading avatar"
         }
     }
 }

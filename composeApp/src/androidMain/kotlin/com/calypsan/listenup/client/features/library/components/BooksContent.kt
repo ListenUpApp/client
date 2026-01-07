@@ -37,7 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.sync.model.SyncStatus
+import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.design.components.AlphabetIndex
 import com.calypsan.listenup.client.design.components.AlphabetScrollbar
 import com.calypsan.listenup.client.design.components.ListenUpButton
@@ -202,7 +202,7 @@ private fun ArticleToggleChip(
 fun BooksContent(
     books: List<Book>,
     hasLoadedBooks: Boolean,
-    syncState: SyncStatus,
+    syncState: SyncState,
     sortState: SortState,
     ignoreTitleArticles: Boolean,
     bookProgress: Map<String, Float>,
@@ -224,13 +224,16 @@ fun BooksContent(
             }
 
             // Loaded but empty AND syncing - show loading
-            books.isEmpty() && syncState is SyncStatus.Syncing -> {
+            books.isEmpty() && syncState is SyncState.Syncing -> {
                 BooksLoadingState()
             }
 
             // Loaded but empty AND sync error - show error
-            books.isEmpty() && syncState is SyncStatus.Error -> {
-                BooksErrorState(error = syncState.exception, onRetry = onRetry)
+            books.isEmpty() && syncState is SyncState.Error -> {
+                BooksErrorState(
+                    error = syncState.exception ?: Exception(syncState.message),
+                    onRetry = onRetry,
+                )
             }
 
             // Loaded AND truly empty - show empty state

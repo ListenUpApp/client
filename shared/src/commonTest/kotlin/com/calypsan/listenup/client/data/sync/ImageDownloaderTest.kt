@@ -4,10 +4,10 @@ import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
 import com.calypsan.listenup.client.data.local.images.ExtractedColors
-import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.remote.ImageApiContract
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -136,7 +136,7 @@ class ImageDownloaderTest {
 
             // Then - storage failure is fatal
             val failure = assertIs<Failure>(result)
-            assertEquals("Disk full", failure.exception.message)
+            assertEquals("Disk full", failure.message)
         }
 
     @Test

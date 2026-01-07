@@ -1,29 +1,25 @@
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.checkIs
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
-import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.domain.model.Book
-import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -37,7 +33,6 @@ import kotlin.time.ExperimentalTime
  * - Continue listening list generation
  * - Progress calculation
  * - Filtering of completed books
- * - User observation
  *
  * Uses Mokkery for mocking BookRepositoryContract and DAOs.
  */
@@ -46,20 +41,16 @@ class HomeRepositoryTest {
     // ========== Test Fixtures ==========
 
     private class TestFixture {
-        val bookRepository: BookRepositoryContract = mock()
+        val bookRepository: BookRepository = mock()
         val playbackPositionDao: PlaybackPositionDao = mock()
         val syncApi: SyncApiContract = mock()
-        val userDao: UserDao = mock()
         val networkMonitor: NetworkMonitor = mock()
 
-        val userFlow = MutableStateFlow<UserEntity?>(null)
-
-        fun build(): HomeRepository =
-            HomeRepository(
+        fun build(): HomeRepositoryImpl =
+            HomeRepositoryImpl(
                 bookRepository = bookRepository,
                 playbackPositionDao = playbackPositionDao,
                 syncApi = syncApi,
-                userDao = userDao,
                 networkMonitor = networkMonitor,
             )
     }
@@ -75,7 +66,6 @@ class HomeRepositoryTest {
         // Default: offline mode - tests local fallback behavior
         every { fixture.networkMonitor.isOnline() } returns false
         everySuspend { fixture.syncApi.getContinueListening(any()) } returns Failure(Exception("Offline"))
-        every { fixture.userDao.observeCurrentUser() } returns fixture.userFlow
 
         return fixture
     }
@@ -105,25 +95,12 @@ class HomeRepositoryTest {
             id = BookId(id),
             title = title,
             subtitle = null,
-            authors = listOf(Contributor(id = "author-1", name = authorNames)),
+            authors = listOf(BookContributor(id = "author-1", name = authorNames)),
             narrators = emptyList(),
             duration = duration,
             coverPath = coverPath,
             addedAt = Timestamp(1704067200000L),
             updatedAt = Timestamp(1704067200000L),
-        )
-
-    private fun createUserEntity(
-        id: String = "user-1",
-        displayName: String = "John Smith",
-    ): UserEntity =
-        UserEntity(
-            id = id,
-            email = "john@example.com",
-            displayName = displayName,
-            isRoot = false,
-            createdAt = 1704067200000L,
-            updatedAt = 1704067200000L,
         )
 
     // ========== Continue Listening Tests ==========
@@ -326,8 +303,6 @@ class HomeRepositoryTest {
             assertEquals(5, returnedBooks.size)
         }
 
-    // ========== User Observation Tests ==========
-
     // ========== Regression Test: lastPlayedAt must be ISO 8601 ==========
 
     @Test
@@ -405,36 +380,4 @@ class HomeRepositoryTest {
             )
         }
 
-    // ========== User Observation Tests ==========
-
-    @Test
-    fun `observeCurrentUser returns user from userDao`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            val user = createUserEntity(displayName = "John Doe")
-            fixture.userFlow.value = user
-            val repository = fixture.build()
-
-            // When
-            val result = repository.observeCurrentUser().first()
-
-            // Then
-            assertEquals("John Doe", result?.displayName)
-        }
-
-    @Test
-    fun `observeCurrentUser returns null when no user`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            fixture.userFlow.value = null
-            val repository = fixture.build()
-
-            // When
-            val result = repository.observeCurrentUser().first()
-
-            // Then
-            assertNull(result)
-        }
 }

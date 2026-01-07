@@ -1,9 +1,9 @@
 package com.calypsan.listenup.client.presentation.home
 
-import com.calypsan.listenup.client.data.remote.DailyListeningResponse
-import com.calypsan.listenup.client.data.remote.GenreListeningResponse
-import com.calypsan.listenup.client.data.repository.HomeStats
-import com.calypsan.listenup.client.data.repository.StatsRepositoryContract
+import com.calypsan.listenup.client.domain.repository.DailyListening
+import com.calypsan.listenup.client.domain.repository.GenreListening
+import com.calypsan.listenup.client.domain.repository.HomeStats
+import com.calypsan.listenup.client.domain.repository.StatsRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.mock
@@ -34,7 +34,7 @@ import kotlin.test.assertTrue
  * - Formatted listen time (computed property)
  * - Derived state properties (hasData, hasGenreData, hasStreak)
  *
- * Uses Mokkery for mocking StatsRepositoryContract.
+ * Uses Mokkery for mocking StatsRepository.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeStatsViewModelTest {
@@ -43,7 +43,7 @@ class HomeStatsViewModelTest {
     // ========== Test Fixtures ==========
 
     private class TestFixture {
-        val statsRepository: StatsRepositoryContract = mock()
+        val statsRepository: StatsRepository = mock()
         val statsFlow = MutableStateFlow(createEmptyStats())
 
         fun build(): HomeStatsViewModel =
@@ -77,8 +77,8 @@ class HomeStatsViewModelTest {
             totalListenTimeMs: Long = 0,
             currentStreakDays: Int = 0,
             longestStreakDays: Int = 0,
-            dailyListening: List<DailyListeningResponse> = emptyList(),
-            genreBreakdown: List<GenreListeningResponse> = emptyList(),
+            dailyListening: List<DailyListening> = emptyList(),
+            genreBreakdown: List<GenreListening> = emptyList(),
         ): HomeStats =
             HomeStats(
                 totalListenTimeMs = totalListenTimeMs,
@@ -92,8 +92,8 @@ class HomeStatsViewModelTest {
             date: String = "2024-01-01",
             listenTimeMs: Long = 3_600_000L,
             booksListened: Int = 1,
-        ): DailyListeningResponse =
-            DailyListeningResponse(
+        ): DailyListening =
+            DailyListening(
                 date = date,
                 listenTimeMs = listenTimeMs,
                 booksListened = booksListened,
@@ -104,8 +104,8 @@ class HomeStatsViewModelTest {
             genreName: String = "Fiction",
             listenTimeMs: Long = 3_600_000L,
             percentage: Double = 50.0,
-        ): GenreListeningResponse =
-            GenreListeningResponse(
+        ): GenreListening =
+            GenreListening(
                 genreSlug = genreSlug,
                 genreName = genreName,
                 listenTimeMs = listenTimeMs,

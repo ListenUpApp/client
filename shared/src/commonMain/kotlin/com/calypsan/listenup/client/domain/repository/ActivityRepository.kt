@@ -57,4 +57,14 @@ interface ActivityRepository {
      * @param activities List of activities to upsert
      */
     suspend fun upsertAll(activities: List<Activity>)
+
+    /**
+     * Fetch activities from API and cache locally.
+     *
+     * Used for initial population and refresh operations.
+     *
+     * @param limit Maximum number of activities to fetch
+     * @return Number of activities fetched and cached
+     */
+    suspend fun fetchAndCacheActivities(limit: Int): Int
 }

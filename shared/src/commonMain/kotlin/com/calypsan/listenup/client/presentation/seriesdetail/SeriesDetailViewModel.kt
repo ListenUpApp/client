@@ -2,10 +2,9 @@ package com.calypsan.listenup.client.presentation.seriesdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.SeriesDao
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -18,14 +17,12 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * Loads and manages series information with its books for display.
  *
- * @property seriesDao DAO for series data
- * @property bookRepository Repository for book data with cover path resolution
- * @property imageStorage Storage for cover images (series and book fallback)
+ * @property seriesRepository Repository for series data
+ * @property imageRepository Repository for cover image path operations
  */
 class SeriesDetailViewModel(
-    private val seriesDao: SeriesDao,
-    private val bookRepository: BookRepositoryContract,
-    private val imageStorage: ImageStorage,
+    private val seriesRepository: SeriesRepository,
+    private val imageRepository: ImageRepository,
 ) : ViewModel() {
     val state: StateFlow<SeriesDetailUiState>
         field = MutableStateFlow(SeriesDetailUiState())
@@ -42,19 +39,10 @@ class SeriesDetailViewModel(
         state.value = state.value.copy(isLoading = true)
 
         viewModelScope.launch {
-            seriesDao.observeByIdWithBooks(seriesId).collectLatest { seriesWithBooks ->
+            seriesRepository.observeSeriesWithBooks(seriesId).collectLatest { seriesWithBooks ->
                 if (seriesWithBooks != null) {
-                    // Build a map of bookId to sequence for sorting
-                    val sequenceByBookId =
-                        seriesWithBooks.bookSequences.associate { it.bookId to it.sequence }
-
-                    // Convert book entities to domain models with cover paths
-                    val books =
-                        seriesWithBooks.books
-                            .sortedBy { sequenceByBookId[it.id]?.toFloatOrNull() ?: Float.MAX_VALUE }
-                            .map { bookEntity ->
-                                bookRepository.getBook(bookEntity.id.value)
-                            }.filterNotNull()
+                    // Domain model already has books sorted by sequence
+                    val books = seriesWithBooks.booksSortedBySequence()
 
                     // Calculate total duration from all books
                     val totalDuration = books.sumOf { it.duration }.milliseconds
@@ -97,8 +85,8 @@ class SeriesDetailViewModel(
         books: List<Book>,
     ): String? {
         // Check for series-specific cover
-        if (imageStorage.seriesCoverExists(seriesId)) {
-            return imageStorage.getSeriesCoverPath(seriesId)
+        if (imageRepository.seriesCoverExists(seriesId)) {
+            return imageRepository.getSeriesCoverPath(seriesId)
         }
 
         // Fallback to first book's cover

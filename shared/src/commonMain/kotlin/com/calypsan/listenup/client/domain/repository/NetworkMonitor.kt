@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.data.repository
+package com.calypsan.listenup.client.domain.repository
 
 import kotlinx.coroutines.flow.StateFlow
 

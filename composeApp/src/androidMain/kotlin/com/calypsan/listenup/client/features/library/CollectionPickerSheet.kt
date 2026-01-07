@@ -30,7 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.local.db.CollectionEntity
+import com.calypsan.listenup.client.domain.model.Collection
 
 /**
  * Bottom sheet for selecting a collection to add books to.
@@ -47,7 +47,7 @@ import com.calypsan.listenup.client.data.local.db.CollectionEntity
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectionPickerSheet(
-    collections: List<CollectionEntity>,
+    collections: List<Collection>,
     selectedBookCount: Int,
     onCollectionSelected: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -171,7 +171,7 @@ fun CollectionPickerSheet(
  */
 @Composable
 private fun CollectionRow(
-    collection: CollectionEntity,
+    collection: Collection,
     onClick: () -> Unit,
     enabled: Boolean = true,
 ) {

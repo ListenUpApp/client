@@ -2,15 +2,14 @@ package com.calypsan.listenup.client.presentation.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.domain.model.ProfileLensSummary
+import com.calypsan.listenup.client.domain.model.ProfileRecentBook
 import com.calypsan.listenup.client.domain.model.User
+import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
-import com.calypsan.listenup.client.data.remote.ProfileApiContract
-import com.calypsan.listenup.client.data.remote.model.LensSummaryResponse
-import com.calypsan.listenup.client.data.remote.model.RecentBookResponse
-import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
+import com.calypsan.listenup.client.domain.usecase.profile.LoadUserProfileUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,10 +29,9 @@ private val logger = KotlinLogging.logger {}
  * - Everything from server (we don't cache other users)
  */
 class UserProfileViewModel(
-    private val profileApi: ProfileApiContract,
+    private val loadUserProfileUseCase: LoadUserProfileUseCase,
     private val userRepository: UserRepository,
-    private val imageStorage: ImageStorage,
-    private val imageDownloader: ImageDownloaderContract,
+    private val imageRepository: ImageRepository,
 ) : ViewModel() {
     val state: StateFlow<UserProfileUiState>
         field = MutableStateFlow(UserProfileUiState())
@@ -86,8 +84,8 @@ class UserProfileViewModel(
 
         // Get local avatar path if it exists
         val localAvatarPath =
-            if (localUser.avatarType == "image" && imageStorage.userAvatarExists(localUser.id)) {
-                imageStorage.getUserAvatarPath(localUser.id)
+            if (localUser.avatarType == "image" && imageRepository.userAvatarExists(localUser.id)) {
+                imageRepository.getUserAvatarPath(localUser.id)
             } else {
                 null
             }
@@ -124,8 +122,8 @@ class UserProfileViewModel(
                 if (user != null && isOwnProfileFlag) {
                     // Update local avatar path if avatar type changed
                     val localAvatarPath =
-                        if (user.avatarType == "image" && imageStorage.userAvatarExists(user.id)) {
-                            imageStorage.getUserAvatarPath(user.id)
+                        if (user.avatarType == "image" && imageRepository.userAvatarExists(user.id)) {
+                            imageRepository.getUserAvatarPath(user.id)
                         } else {
                             null
                         }
@@ -151,7 +149,7 @@ class UserProfileViewModel(
     private suspend fun loadOtherProfile(userId: String) {
         logger.debug { "Loading other user's profile from server" }
 
-        when (val profileResult = profileApi.getUserProfile(userId)) {
+        when (val profileResult = loadUserProfileUseCase(userId)) {
             is Success -> {
                 val profile = profileResult.data
 
@@ -160,8 +158,8 @@ class UserProfileViewModel(
                     profile.recentBooks.map { book ->
                         val bookId = BookId(book.bookId)
                         val localCoverPath =
-                            if (imageStorage.exists(bookId)) {
-                                imageStorage.getCoverPath(bookId)
+                            if (imageRepository.bookCoverExists(bookId)) {
+                                imageRepository.getBookCoverPath(bookId)
                             } else {
                                 null
                             }
@@ -173,17 +171,17 @@ class UserProfileViewModel(
                 if (profile.avatarType == "image" && profile.avatarValue != null) {
                     // Check if already cached locally
                     localAvatarPath =
-                        if (imageStorage.userAvatarExists(profile.userId)) {
-                            imageStorage.getUserAvatarPath(profile.userId)
+                        if (imageRepository.userAvatarExists(profile.userId)) {
+                            imageRepository.getUserAvatarPath(profile.userId)
                         } else {
                             // Download and cache it
                             viewModelScope.launch {
                                 try {
-                                    imageDownloader.downloadUserAvatar(profile.userId, forceRefresh = false)
+                                    imageRepository.downloadUserAvatar(profile.userId, forceRefresh = false)
                                     // Update state with local path after download
                                     state.update {
                                         it.copy(
-                                            localAvatarPath = imageStorage.getUserAvatarPath(profile.userId),
+                                            localAvatarPath = imageRepository.getUserAvatarPath(profile.userId),
                                         )
                                     }
                                     logger.info { "Downloaded and cached avatar for user ${profile.userId}" }
@@ -280,8 +278,8 @@ data class UserProfileUiState(
     val booksFinished: Int = 0,
     val currentStreak: Int = 0,
     val longestStreak: Int = 0,
-    val recentBooks: List<RecentBookResponse> = emptyList(),
-    val publicLenses: List<LensSummaryResponse> = emptyList(),
+    val recentBooks: List<ProfileRecentBook> = emptyList(),
+    val publicLenses: List<ProfileLensSummary> = emptyList(),
 ) {
     val hasData: Boolean get() = if (isOwnProfile) localUser != null else serverDisplayName.isNotEmpty()
 

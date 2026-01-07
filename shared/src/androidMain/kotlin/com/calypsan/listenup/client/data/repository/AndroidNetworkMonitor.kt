@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.repository
 
 import android.annotation.SuppressLint
 import android.content.Context
+import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities

@@ -39,6 +39,7 @@ data class ActiveSession(
     data class SessionBook(
         val id: String,
         val title: String,
+        val coverPath: String?,
         val coverBlurHash: String?,
         val authorName: String?,
     )

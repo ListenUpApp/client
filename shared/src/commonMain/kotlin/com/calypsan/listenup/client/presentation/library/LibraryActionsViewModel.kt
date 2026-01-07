@@ -2,14 +2,17 @@ package com.calypsan.listenup.client.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.CollectionDao
-import com.calypsan.listenup.client.data.local.db.CollectionEntity
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.model.Collection
 import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.repository.CollectionRepository
 import com.calypsan.listenup.client.domain.repository.LensRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
-import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
-import com.calypsan.listenup.client.data.remote.LensApiContract
-import com.calypsan.listenup.client.data.remote.model.toTimestamp
+import com.calypsan.listenup.client.domain.usecase.collection.AddBooksToCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.RefreshCollectionsUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.AddBooksToLensUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -39,10 +42,12 @@ private val logger = KotlinLogging.logger {}
 class LibraryActionsViewModel(
     private val selectionManager: LibrarySelectionManager,
     private val userRepository: UserRepository,
-    private val collectionDao: CollectionDao,
-    private val adminCollectionApi: AdminCollectionApiContract,
+    private val collectionRepository: CollectionRepository,
     private val lensRepository: LensRepository,
-    private val lensApi: LensApiContract,
+    private val addBooksToCollectionUseCase: AddBooksToCollectionUseCase,
+    private val refreshCollectionsUseCase: RefreshCollectionsUseCase,
+    private val addBooksToLensUseCase: AddBooksToLensUseCase,
+    private val createLensUseCase: CreateLensUseCase,
 ) : ViewModel() {
     // ═══════════════════════════════════════════════════════════════════════
     // SELECTION STATE (observed from shared manager)
@@ -92,8 +97,8 @@ class LibraryActionsViewModel(
      * Observable list of collections for the collection picker.
      * Only relevant for admins.
      */
-    val collections: StateFlow<List<CollectionEntity>> =
-        collectionDao
+    val collections: StateFlow<List<Collection>> =
+        collectionRepository
             .observeAll()
             .stateIn(
                 scope = viewModelScope,
@@ -172,7 +177,7 @@ class LibraryActionsViewModel(
 
     /**
      * Add all selected books to the specified collection.
-     * Calls the AdminCollectionApi and emits success/error events.
+     * Uses AddBooksToCollectionUseCase and emits success/error events.
      *
      * @param collectionId The ID of the collection to add books to
      */
@@ -182,54 +187,38 @@ class LibraryActionsViewModel(
 
         viewModelScope.launch {
             isAddingToCollection.value = true
-            try {
-                val bookIds = selectedIds.toList()
-                adminCollectionApi.addBooks(collectionId, bookIds)
-                logger.info { "Added ${bookIds.size} books to collection $collectionId" }
-                _events.emit(LibraryActionEvent.BooksAddedToCollection(bookIds.size))
-                selectionManager.clearAfterAction()
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to add books to collection" }
-                _events.emit(LibraryActionEvent.AddToCollectionFailed(e.message ?: "Unknown error"))
-            } finally {
-                isAddingToCollection.value = false
+            val bookIds = selectedIds.toList()
+
+            when (val result = addBooksToCollectionUseCase(collectionId, bookIds)) {
+                is Success -> {
+                    logger.info { "Added ${bookIds.size} books to collection $collectionId" }
+                    _events.emit(LibraryActionEvent.BooksAddedToCollection(bookIds.size))
+                    selectionManager.clearAfterAction()
+                }
+                is Failure -> {
+                    logger.error { "Failed to add books to collection: ${result.message}" }
+                    _events.emit(LibraryActionEvent.AddToCollectionFailed(result.message))
+                }
             }
+
+            isAddingToCollection.value = false
         }
     }
 
     /**
-     * Refresh collections from the server API.
-     * Syncs the local database with the latest server state including book counts.
+     * Refresh collections from the server.
+     * Uses RefreshCollectionsUseCase to sync the local database.
      */
     private fun refreshCollections() {
         viewModelScope.launch {
-            try {
-                val serverCollections = adminCollectionApi.getCollections()
-                logger.debug { "Fetched ${serverCollections.size} collections from server" }
-
-                // Update local database with server data
-                serverCollections.forEach { response ->
-                    val entity =
-                        CollectionEntity(
-                            id = response.id,
-                            name = response.name,
-                            bookCount = response.bookCount,
-                            createdAt = response.createdAt.toTimestamp(),
-                            updatedAt = response.updatedAt.toTimestamp(),
-                        )
-                    collectionDao.upsert(entity)
+            when (val result = refreshCollectionsUseCase()) {
+                is Success -> {
+                    logger.debug { "Collections refreshed from server" }
                 }
-
-                // Delete local collections that no longer exist on server
-                val serverIds = serverCollections.map { it.id }.toSet()
-                val localCollections = collectionDao.getAll()
-                localCollections.filter { it.id !in serverIds }.forEach { orphan ->
-                    logger.debug { "Removing orphaned collection: ${orphan.name} (${orphan.id})" }
-                    collectionDao.deleteById(orphan.id)
+                is Failure -> {
+                    logger.warn { "Failed to refresh collections from server: ${result.message}" }
+                    // Don't emit error - local data is still usable
                 }
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to refresh collections from server" }
-                // Don't emit error - local data is still usable
             }
         }
     }
@@ -240,7 +229,7 @@ class LibraryActionsViewModel(
 
     /**
      * Add all selected books to the specified lens.
-     * Calls the LensApi and emits success/error events.
+     * Uses AddBooksToLensUseCase and emits success/error events.
      *
      * @param lensId The ID of the lens to add books to
      */
@@ -250,24 +239,27 @@ class LibraryActionsViewModel(
 
         viewModelScope.launch {
             isAddingToLens.value = true
-            try {
-                val bookIds = selectedIds.toList()
-                lensApi.addBooks(lensId, bookIds)
-                logger.info { "Added ${bookIds.size} books to lens $lensId" }
-                _events.emit(LibraryActionEvent.BooksAddedToLens(bookIds.size))
-                selectionManager.clearAfterAction()
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to add books to lens" }
-                _events.emit(LibraryActionEvent.AddToLensFailed(e.message ?: "Unknown error"))
-            } finally {
-                isAddingToLens.value = false
+            val bookIds = selectedIds.toList()
+
+            when (val result = addBooksToLensUseCase(lensId, bookIds)) {
+                is Success -> {
+                    logger.info { "Added ${bookIds.size} books to lens $lensId" }
+                    _events.emit(LibraryActionEvent.BooksAddedToLens(bookIds.size))
+                    selectionManager.clearAfterAction()
+                }
+                is Failure -> {
+                    logger.error { "Failed to add books to lens: ${result.message}" }
+                    _events.emit(LibraryActionEvent.AddToLensFailed(result.message))
+                }
             }
+
+            isAddingToLens.value = false
         }
     }
 
     /**
      * Create a new lens and add all selected books to it.
-     * First creates the lens via API, then adds the books.
+     * First creates the lens via use case, then adds the books.
      *
      * @param name The name for the new lens
      */
@@ -277,22 +269,36 @@ class LibraryActionsViewModel(
 
         viewModelScope.launch {
             isAddingToLens.value = true
-            try {
-                val bookIds = selectedIds.toList()
-                // Create the lens
-                val newLens = lensApi.createLens(name, null)
-                logger.info { "Created lens '${newLens.name}' with id ${newLens.id}" }
-                // Add books to the new lens
-                lensApi.addBooks(newLens.id, bookIds)
-                logger.info { "Added ${bookIds.size} books to new lens ${newLens.id}" }
-                _events.emit(LibraryActionEvent.LensCreatedAndBooksAdded(newLens.name, bookIds.size))
-                selectionManager.clearAfterAction()
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to create lens and add books" }
-                _events.emit(LibraryActionEvent.AddToLensFailed(e.message ?: "Unknown error"))
-            } finally {
-                isAddingToLens.value = false
+            val bookIds = selectedIds.toList()
+
+            // Create the lens
+            when (val createResult = createLensUseCase(name, null)) {
+                is Success -> {
+                    val newLens = createResult.data
+                    logger.info { "Created lens '${newLens.name}' with id ${newLens.id}" }
+
+                    // Add books to the new lens
+                    when (val addResult = addBooksToLensUseCase(newLens.id, bookIds)) {
+                        is Success -> {
+                            logger.info { "Added ${bookIds.size} books to new lens ${newLens.id}" }
+                            _events.emit(
+                                LibraryActionEvent.LensCreatedAndBooksAdded(newLens.name, bookIds.size)
+                            )
+                            selectionManager.clearAfterAction()
+                        }
+                        is Failure -> {
+                            logger.error { "Failed to add books to new lens: ${addResult.message}" }
+                            _events.emit(LibraryActionEvent.AddToLensFailed(addResult.message))
+                        }
+                    }
+                }
+                is Failure -> {
+                    logger.error { "Failed to create lens: ${createResult.message}" }
+                    _events.emit(LibraryActionEvent.AddToLensFailed(createResult.message))
+                }
             }
+
+            isAddingToLens.value = false
         }
     }
 }

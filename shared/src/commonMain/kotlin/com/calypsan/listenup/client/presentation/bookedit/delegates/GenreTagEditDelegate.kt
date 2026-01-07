@@ -5,6 +5,7 @@ package com.calypsan.listenup.client.presentation.bookedit.delegates
 import com.calypsan.listenup.client.presentation.bookedit.BookEditUiState
 import com.calypsan.listenup.client.presentation.bookedit.EditableGenre
 import com.calypsan.listenup.client.presentation.bookedit.EditableTag
+import com.calypsan.listenup.client.presentation.bookedit.displayName
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi

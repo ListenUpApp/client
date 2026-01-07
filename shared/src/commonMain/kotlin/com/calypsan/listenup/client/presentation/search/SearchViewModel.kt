@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.presentation.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.repository.SearchRepositoryContract
+import com.calypsan.listenup.client.domain.repository.SearchRepository
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.domain.model.SearchResult
@@ -133,7 +133,7 @@ sealed interface SearchNavAction {
  */
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SearchViewModel(
-    private val searchRepository: SearchRepositoryContract,
+    private val searchRepository: SearchRepository,
 ) : ViewModel() {
     val state: StateFlow<SearchUiState>
         field = MutableStateFlow(SearchUiState())

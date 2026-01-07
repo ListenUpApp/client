@@ -26,8 +26,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.model.BookDownloadState
-import com.calypsan.listenup.client.data.model.BookDownloadStatus
+import com.calypsan.listenup.client.domain.model.BookDownloadState
+import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 
 /**
  * Download button with visual state for book detail screen.

@@ -6,14 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.ContributorEntity
-import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
-import com.calypsan.listenup.client.data.local.db.toDomain
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.usecase.contributor.DeleteContributorUseCase
 import com.calypsan.listenup.client.util.calculateProgressMap
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,13 +28,13 @@ private val logger = KotlinLogging.logger {}
  * Loads contributor information and their books grouped by role.
  * Each role (author, narrator, etc.) becomes a section with a horizontal
  * preview of books and an optional "View All" action.
+ *
+ * Delegates delete operations to [DeleteContributorUseCase].
  */
 class ContributorDetailViewModel(
-    private val contributorDao: ContributorDao,
-    private val bookDao: BookDao,
-    private val imageStorage: ImageStorage,
+    private val contributorRepository: ContributorRepository,
     private val playbackPositionRepository: PlaybackPositionRepository,
-    private val contributorRepository: ContributorRepositoryContract,
+    private val deleteContributorUseCase: DeleteContributorUseCase,
 ) : ViewModel() {
     val state: StateFlow<ContributorDetailUiState>
         field = MutableStateFlow(ContributorDetailUiState())
@@ -56,8 +53,8 @@ class ContributorDetailViewModel(
         viewModelScope.launch {
             // Observe contributor and their roles together
             combine(
-                contributorDao.observeById(contributorId).filterNotNull(),
-                contributorDao.observeRolesWithCountForContributor(contributorId),
+                contributorRepository.observeById(contributorId).filterNotNull(),
+                contributorRepository.observeRolesWithCountForContributor(contributorId),
             ) { contributor, rolesWithCount ->
                 Pair(contributor, rolesWithCount)
             }.collect { (contributor, rolesWithCount) ->
@@ -109,25 +106,21 @@ class ContributorDetailViewModel(
         role: String,
     ): BooksForRoleResult {
         // Get the books once (not as a flow) for the preview
-        val booksWithContributors =
-            bookDao
-                .observeByContributorAndRole(contributorId, role)
+        val booksWithRole =
+            contributorRepository
+                .observeBooksForContributorRole(contributorId, role)
                 .first()
 
-        val books = booksWithContributors.map { bwc -> bwc.toDomain(imageStorage, includeSeries = false) }
+        val books = booksWithRole.map { it.book }
 
         // Extract creditedAs for books where the attribution differs from contributor name
         val creditedAsMap =
-            booksWithContributors
-                .mapNotNull { bwc ->
-                    val crossRef =
-                        bwc.contributorRoles.find {
-                            it.contributorId == contributorId && it.role == role
-                        }
-                    val creditedAs = crossRef?.creditedAs
+            booksWithRole
+                .mapNotNull { bwr ->
+                    val creditedAs = bwr.creditedAs
                     // Only include if creditedAs is set and differs from the contributor's actual name
                     if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
-                        bwc.book.id.value to creditedAs
+                        bwr.book.id.value to creditedAs
                     } else {
                         null
                     }
@@ -148,7 +141,7 @@ class ContributorDetailViewModel(
     /**
      * Confirm deletion of the contributor.
      *
-     * @return true if deletion was initiated (caller should navigate away)
+     * Delegates to [DeleteContributorUseCase].
      */
     fun onConfirmDelete(onDeleted: () -> Unit) {
         val contributorId = currentContributorId ?: return
@@ -159,15 +152,13 @@ class ContributorDetailViewModel(
             )
 
         viewModelScope.launch {
-            when (val result = contributorRepository.deleteContributor(contributorId)) {
+            when (val result = deleteContributorUseCase(contributorId)) {
                 is Success -> {
-                    logger.info { "Contributor deleted successfully" }
                     state.value = state.value.copy(isDeleting = false)
                     onDeleted()
                 }
 
                 is Failure -> {
-                    logger.warn { "Failed to delete contributor: ${result.message}" }
                     state.value =
                         state.value.copy(
                             isDeleting = false,
@@ -219,7 +210,7 @@ class ContributorDetailViewModel(
 data class ContributorDetailUiState(
     /** Start with loading=true to avoid briefly showing empty content before data loads */
     val isLoading: Boolean = true,
-    val contributor: ContributorEntity? = null,
+    val contributor: Contributor? = null,
     val roleSections: List<RoleSection> = emptyList(),
     val bookProgress: Map<String, Float> = emptyMap(),
     /** Maps bookId to creditedAs name when different from contributor's name */

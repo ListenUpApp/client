@@ -4,10 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.domain.model.User
+import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.ProfileEditRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
-import com.calypsan.listenup.client.data.repository.ProfileEditRepositoryContract
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,9 +26,9 @@ private val logger = KotlinLogging.logger {}
  * - When sync completes, handlers update local cache, UI updates automatically
  */
 class EditProfileViewModel(
-    private val profileEditRepository: ProfileEditRepositoryContract,
+    private val profileEditRepository: ProfileEditRepository,
     private val userRepository: UserRepository,
-    private val imageStorage: ImageStorage,
+    private val imageRepository: ImageRepository,
 ) : ViewModel() {
     val state: StateFlow<EditProfileUiState>
         field = MutableStateFlow(EditProfileUiState())
@@ -55,8 +55,8 @@ class EditProfileViewModel(
 
                     // Get local avatar path if it exists
                     val localAvatarPath =
-                        if (user.avatarType == "image" && imageStorage.userAvatarExists(user.id)) {
-                            imageStorage.getUserAvatarPath(user.id)
+                        if (user.avatarType == "image" && imageRepository.userAvatarExists(user.id)) {
+                            imageRepository.getUserAvatarPath(user.id)
                         } else {
                             null
                         }

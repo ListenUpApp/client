@@ -2,7 +2,7 @@ package com.calypsan.listenup.client.presentation.tagdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
+import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
  */
 class TagDetailViewModel(
     private val tagRepository: TagRepository,
-    private val bookRepository: BookRepositoryContract,
+    private val bookRepository: BookRepository,
 ) : ViewModel() {
     val state: StateFlow<TagDetailUiState>
         field = MutableStateFlow(TagDetailUiState())

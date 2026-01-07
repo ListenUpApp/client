@@ -44,7 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.calypsan.listenup.client.data.remote.model.ContributorMetadataSearchResult
+import com.calypsan.listenup.client.domain.model.ContributorMetadataCandidate
 import com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataUiState
 import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
 
@@ -64,7 +64,7 @@ fun ContributorMetadataSearchScreen(
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onRegionSelected: (AudibleRegion) -> Unit,
-    onResultClick: (ContributorMetadataSearchResult) -> Unit,
+    onResultClick: (ContributorMetadataCandidate) -> Unit,
     onBack: () -> Unit,
 ) {
     Scaffold(
@@ -269,7 +269,7 @@ private fun EmptyState(hasSearched: Boolean) {
  */
 @Composable
 private fun ContributorSearchResultItem(
-    result: ContributorMetadataSearchResult,
+    result: ContributorMetadataCandidate,
     onClick: () -> Unit,
 ) {
     Surface(

@@ -14,80 +14,13 @@ import com.calypsan.listenup.client.data.sync.push.ProfileAvatarHandler
 import com.calypsan.listenup.client.data.sync.push.ProfileAvatarPayload
 import com.calypsan.listenup.client.data.sync.push.ProfileUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.ProfileUpdatePayload
+import com.calypsan.listenup.client.domain.repository.ProfileEditRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.withContext
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 private val logger = KotlinLogging.logger {}
-
-/**
- * Contract for profile editing operations.
- *
- * Provides methods for modifying user profile data.
- * Uses offline-first pattern: changes are applied locally immediately
- * and queued for sync to server.
- */
-interface ProfileEditRepositoryContract {
-    /**
-     * Update the user's tagline.
-     *
-     * Applies update locally and queues for server sync.
-     *
-     * @param tagline The new tagline (or null to clear)
-     * @return Result indicating success or failure
-     */
-    suspend fun updateTagline(tagline: String?): Result<Unit>
-
-    /**
-     * Upload a new avatar image.
-     *
-     * Stores the image data for offline sync and queues for server upload.
-     * The avatar type is set to "image" locally with a pending indicator.
-     *
-     * @param imageData The compressed image bytes
-     * @param contentType The MIME type of the image (e.g., "image/jpeg")
-     * @return Result indicating success or failure
-     */
-    suspend fun uploadAvatar(
-        imageData: ByteArray,
-        contentType: String,
-    ): Result<Unit>
-
-    /**
-     * Revert to auto-generated avatar.
-     *
-     * Sets avatar type to "auto" locally and queues for server sync.
-     *
-     * @return Result indicating success or failure
-     */
-    suspend fun revertToAutoAvatar(): Result<Unit>
-
-    /**
-     * Update the user's name.
-     *
-     * Queues update for server sync. Server computes displayName from firstName + lastName.
-     * Local cache is updated when sync completes.
-     *
-     * @param firstName The user's first name
-     * @param lastName The user's last name
-     * @return Result indicating success or failure
-     */
-    suspend fun updateName(
-        firstName: String,
-        lastName: String,
-    ): Result<Unit>
-
-    /**
-     * Change the user's password.
-     *
-     * This is NOT an offline-first operation - requires immediate server confirmation.
-     *
-     * @param newPassword The new password to set
-     * @return Result indicating success or failure
-     */
-    suspend fun changePassword(newPassword: String): Result<Unit>
-}
 
 /**
  * Repository for profile editing operations using offline-first pattern.
@@ -101,13 +34,13 @@ interface ProfileEditRepositoryContract {
  * - Send changes to server
  * - Handle conflicts if server version is newer
  */
-class ProfileEditRepository(
+class ProfileEditRepositoryImpl(
     private val userDao: UserDao,
     private val pendingOperationRepository: PendingOperationRepositoryContract,
     private val profileUpdateHandler: ProfileUpdateHandler,
     private val profileAvatarHandler: ProfileAvatarHandler,
     private val profileApi: ProfileApiContract,
-) : ProfileEditRepositoryContract {
+) : ProfileEditRepository {
     /**
      * Update the user's tagline.
      */
@@ -298,8 +231,8 @@ class ProfileEditRepository(
                 }
 
                 is Failure -> {
-                    logger.error { "Password change failed: ${result.exception.message}" }
-                    Failure(result.exception)
+                    logger.error { "Password change failed: ${result.message}" }
+                    result
                 }
             }
         }

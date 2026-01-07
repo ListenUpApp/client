@@ -2,18 +2,15 @@ package com.calypsan.listenup.client.presentation.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.currentEpochMilliseconds
-import com.calypsan.listenup.client.data.remote.ActivityFeedApiContract
-import com.calypsan.listenup.client.data.remote.ActivityResponse
 import com.calypsan.listenup.client.domain.model.Activity
 import com.calypsan.listenup.client.domain.repository.ActivityRepository
+import com.calypsan.listenup.client.domain.usecase.activity.FetchActivitiesUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
@@ -33,11 +30,11 @@ private const val MAX_ACTIVITIES = 100
  * - After initial fetch, works completely offline
  *
  * @property activityRepository Repository for activity feed operations
- * @property activityFeedApi API for fetching initial activities
+ * @property fetchActivitiesUseCase Use case for fetching activities from API
  */
 class ActivityFeedViewModel(
     private val activityRepository: ActivityRepository,
-    private val activityFeedApi: ActivityFeedApiContract,
+    private val fetchActivitiesUseCase: FetchActivitiesUseCase,
 ) : ViewModel() {
     init {
         // Fetch initial activities if Room is empty
@@ -75,15 +72,8 @@ class ActivityFeedViewModel(
             }
 
             logger.debug { "Room is empty, fetching initial activities from API" }
-            try {
-                val response = activityFeedApi.getFeed(limit = INITIAL_FETCH_SIZE)
-                val activities = response.activities.map { it.toDomain() }
-                activityRepository.upsertAll(activities)
-                logger.info { "Fetched and stored ${activities.size} initial activities" }
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to fetch initial activities" }
-                // Not fatal - Room Flow will show empty state, SSE will populate over time
-            }
+            fetchActivitiesUseCase(limit = INITIAL_FETCH_SIZE)
+            // Not fatal if fails - Room Flow will show empty state, SSE will populate over time
         }
     }
 
@@ -93,58 +83,9 @@ class ActivityFeedViewModel(
      */
     fun refresh() {
         viewModelScope.launch {
-            try {
-                val response = activityFeedApi.getFeed(limit = INITIAL_FETCH_SIZE)
-                val activities = response.activities.map { it.toDomain() }
-                activityRepository.upsertAll(activities)
-                logger.debug { "Refreshed ${activities.size} activities from API" }
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to refresh activities" }
-            }
+            fetchActivitiesUseCase(limit = INITIAL_FETCH_SIZE)
         }
     }
-}
-
-/**
- * Convert API response to domain model.
- */
-private fun ActivityResponse.toDomain(): Activity {
-    // Parse ISO timestamp to epoch milliseconds
-    val createdAtMs =
-        try {
-            Instant.parse(createdAt).toEpochMilliseconds()
-        } catch (e: Exception) {
-            currentEpochMilliseconds()
-        }
-
-    return Activity(
-        id = id,
-        type = type,
-        userId = userId,
-        createdAtMs = createdAtMs,
-        user = Activity.ActivityUser(
-            displayName = userDisplayName,
-            avatarColor = userAvatarColor,
-            avatarType = userAvatarType,
-            avatarValue = userAvatarValue,
-        ),
-        book = if (bookId != null && bookTitle != null) {
-            Activity.ActivityBook(
-                id = bookId,
-                title = bookTitle,
-                authorName = bookAuthorName,
-                coverPath = bookCoverPath,
-            )
-        } else {
-            null
-        },
-        isReread = isReread,
-        durationMs = durationMs,
-        milestoneValue = milestoneValue,
-        milestoneUnit = milestoneUnit,
-        lensId = lensId,
-        lensName = lensName,
-    )
 }
 
 /**

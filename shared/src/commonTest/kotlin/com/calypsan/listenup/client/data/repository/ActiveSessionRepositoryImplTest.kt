@@ -2,8 +2,10 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActiveSessionWithDetails
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import dev.mokkery.answering.returns
 import dev.mokkery.every
+import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import dev.mokkery.verify
 import kotlinx.coroutines.flow.first
@@ -29,6 +31,12 @@ class ActiveSessionRepositoryImplTest {
     // --- Helper functions for creating test data ---
 
     private fun createMockDao(): ActiveSessionDao = mock<ActiveSessionDao>()
+
+    private fun createMockImageStorage(): ImageStorage {
+        val storage = mock<ImageStorage>()
+        every { storage.exists(any()) } returns false
+        return storage
+    }
 
     private fun createTestActiveSessionWithDetails(
         sessionId: String = "session-1",
@@ -59,8 +67,11 @@ class ActiveSessionRepositoryImplTest {
             authorName = authorName,
         )
 
-    private fun createRepository(dao: ActiveSessionDao): ActiveSessionRepositoryImpl =
-        ActiveSessionRepositoryImpl(dao)
+    private fun createRepository(
+        dao: ActiveSessionDao,
+        imageStorage: ImageStorage = createMockImageStorage(),
+    ): ActiveSessionRepositoryImpl =
+        ActiveSessionRepositoryImpl(dao, imageStorage)
 
     // ========== observeActiveSessions Tests ==========
 

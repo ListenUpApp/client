@@ -182,7 +182,7 @@ val downloadModule =
                 bookDao = get(),
                 workManager = WorkManager.getInstance(androidContext()),
                 fileManager = get(),
-                localPreferences = get(),
+                localPreferences = get<com.calypsan.listenup.client.domain.repository.LocalPreferences>(),
             )
         }
 
@@ -264,7 +264,7 @@ class ListenUp :
     private fun verifyCriticalKoinBindings() {
         val criticalTypes =
             listOf(
-                "SettingsRepository" to { get<com.calypsan.listenup.client.data.repository.SettingsRepository>() },
+                "SettingsRepository" to { get<com.calypsan.listenup.client.domain.repository.SettingsRepository>() },
                 "SyncManager" to { get<com.calypsan.listenup.client.data.sync.SyncManagerContract>() },
                 "ProgressTracker" to { get<ProgressTracker>() },
                 "PlaybackManager" to { get<PlaybackManager>() },

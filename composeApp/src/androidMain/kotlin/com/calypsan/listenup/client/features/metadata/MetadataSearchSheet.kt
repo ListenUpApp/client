@@ -39,7 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.calypsan.listenup.client.data.remote.model.MetadataSearchResult
+import com.calypsan.listenup.client.domain.repository.MetadataSearchResult
 import com.calypsan.listenup.client.presentation.metadata.MetadataUiState
 
 /**
@@ -199,7 +199,7 @@ private fun MetadataSearchResultItem(
                 // Author
                 if (result.authors.isNotEmpty()) {
                     Text(
-                        text = "by ${result.authors.joinToString { it.name }}",
+                        text = "by ${result.authors.joinToString()}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -210,7 +210,7 @@ private fun MetadataSearchResultItem(
                 // Narrator - KEY DIFFERENTIATOR from local metadata!
                 if (result.narrators.isNotEmpty()) {
                     Text(
-                        text = "Narrated by ${result.narrators.joinToString { it.name }}",
+                        text = "Narrated by ${result.narrators.joinToString()}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
@@ -223,14 +223,16 @@ private fun MetadataSearchResultItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(top = 4.dp),
                 ) {
-                    if (result.runtimeMinutes > 0) {
+                    val runtime = result.runtimeMinutes
+                    if (runtime != null && runtime > 0) {
                         Text(
-                            text = formatDuration(result.runtimeMinutes),
+                            text = formatDuration(runtime),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    if (result.rating > 0) {
+                    val rating = result.rating
+                    if (rating != null && rating > 0) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Star,
@@ -239,7 +241,7 @@ private fun MetadataSearchResultItem(
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                             Text(
-                                text = "%.1f".format(result.rating),
+                                text = "%.1f".format(rating),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

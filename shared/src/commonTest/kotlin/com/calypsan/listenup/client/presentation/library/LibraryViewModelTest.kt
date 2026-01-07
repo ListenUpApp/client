@@ -1,27 +1,25 @@
 package com.calypsan.listenup.client.presentation.library
 
 import com.calypsan.listenup.client.core.AccessToken
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.ContributorEntity
-import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
-import com.calypsan.listenup.client.data.local.db.SeriesDao
-import com.calypsan.listenup.client.data.local.db.SeriesEntity
-import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
-import com.calypsan.listenup.client.data.local.db.SyncDao
-import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
-import com.calypsan.listenup.client.data.sync.SyncManagerContract
-import com.calypsan.listenup.client.data.sync.model.SyncStatus
-import com.calypsan.listenup.client.domain.model.Book
-import com.calypsan.listenup.client.domain.model.BookSeries
+import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
+import com.calypsan.listenup.client.domain.model.Series
+import com.calypsan.listenup.client.domain.model.SeriesWithBooks
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
+import com.calypsan.listenup.client.domain.model.SyncState
+import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
+import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -31,7 +29,6 @@ import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -68,7 +65,7 @@ class LibraryViewModelTest {
     private fun createTestBook(
         id: String = "book-1",
         title: String = "Test Book",
-        authors: List<Contributor> = listOf(Contributor("author-1", "Test Author")),
+        authors: List<BookContributor> = listOf(BookContributor("author-1", "Test Author")),
         duration: Long = 3_600_000L, // 1 hour
         publishYear: Int? = 2023,
         seriesName: String? = null,
@@ -100,16 +97,12 @@ class LibraryViewModelTest {
         id: String = "series-1",
         name: String = "Test Series",
         createdAt: Timestamp = Timestamp(1000L),
-    ): SeriesEntity =
-        SeriesEntity(
+    ): Series =
+        Series(
             id = id,
             name = name,
             description = null,
-            syncState = SyncState.SYNCED,
-            lastModified = createdAt,
-            serverVersion = createdAt,
             createdAt = createdAt,
-            updatedAt = createdAt,
         )
 
     private fun createTestContributor(
@@ -119,31 +112,25 @@ class LibraryViewModelTest {
     ): ContributorWithBookCount =
         ContributorWithBookCount(
             contributor =
-                ContributorEntity(
+                Contributor(
                     id = id,
                     name = name,
                     description = null,
                     imagePath = null,
-                    syncState = SyncState.SYNCED,
-                    lastModified = Timestamp(1000L),
-                    serverVersion = Timestamp(1000L),
-                    createdAt = Timestamp(1000L),
-                    updatedAt = Timestamp(1000L),
                 ),
             bookCount = bookCount,
         )
 
-    private fun createDummyBookEntity(id: String): com.calypsan.listenup.client.data.local.db.BookEntity {
-        val now = Timestamp(Clock.System.now().toEpochMilliseconds())
-        return com.calypsan.listenup.client.data.local.db.BookEntity(
+    private fun createDummyBook(id: String): Book {
+        val now = Timestamp(kotlin.time.Clock.System.now().toEpochMilliseconds())
+        return Book(
             id = BookId(id),
             title = "Book $id",
-            coverUrl = null,
-            totalDuration = 3600000L,
-            syncState = SyncState.SYNCED,
-            lastModified = now,
-            serverVersion = now,
-            createdAt = now,
+            coverPath = null,
+            duration = 3600000L,
+            authors = emptyList(),
+            narrators = emptyList(),
+            addedAt = now,
             updatedAt = now,
         )
     }
@@ -151,26 +138,26 @@ class LibraryViewModelTest {
     // ========== Test Fixture Builder ==========
 
     private class TestFixture {
-        val bookRepository: BookRepositoryContract = mock()
-        val seriesDao: SeriesDao = mock()
-        val contributorDao: ContributorDao = mock()
-        val syncManager: SyncManagerContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        val syncDao: SyncDao = mock()
+        val bookRepository: BookRepository = mock()
+        val seriesRepository: SeriesRepository = mock()
+        val contributorRepository: ContributorRepository = mock()
+        val syncRepository: SyncRepository = mock()
+        val settingsRepository: SettingsRepository = mock()
+        val syncStatusRepository: SyncStatusRepository = mock()
         val playbackPositionRepository: PlaybackPositionRepository = mock()
         val selectionManager: LibrarySelectionManager = LibrarySelectionManager()
 
-        val syncStateFlow = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
+        val syncStateFlow = MutableStateFlow<SyncState>(SyncState.Idle)
 
         fun build(): LibraryViewModel =
             LibraryViewModel(
                 bookRepository = bookRepository,
-                seriesDao = seriesDao,
-                contributorDao = contributorDao,
+                seriesRepository = seriesRepository,
+                contributorRepository = contributorRepository,
                 playbackPositionRepository = playbackPositionRepository,
-                syncManager = syncManager,
+                syncRepository = syncRepository,
                 settingsRepository = settingsRepository,
-                syncDao = syncDao,
+                syncStatusRepository = syncStatusRepository,
                 selectionManager = selectionManager,
             )
     }
@@ -180,10 +167,10 @@ class LibraryViewModelTest {
 
         // Default stubs for all dependencies
         every { fixture.bookRepository.observeBooks() } returns flowOf(emptyList())
-        every { fixture.seriesDao.observeAllWithBooks() } returns flowOf(emptyList())
-        every { fixture.contributorDao.observeByRoleWithCount("author") } returns flowOf(emptyList())
-        every { fixture.contributorDao.observeByRoleWithCount("narrator") } returns flowOf(emptyList())
-        every { fixture.syncManager.syncState } returns fixture.syncStateFlow
+        every { fixture.seriesRepository.observeAllWithBooks() } returns flowOf(emptyList())
+        every { fixture.contributorRepository.observeContributorsByRole("author") } returns flowOf(emptyList())
+        every { fixture.contributorRepository.observeContributorsByRole("narrator") } returns flowOf(emptyList())
+        every { fixture.syncRepository.syncState } returns fixture.syncStateFlow
         every { fixture.playbackPositionRepository.observeAll() } returns flowOf(emptyMap())
 
         // Default settings stubs (no persisted state)
@@ -514,17 +501,17 @@ class LibraryViewModelTest {
                     createTestBook(
                         id = "1",
                         title = "Zebra Book",
-                        authors = listOf(Contributor("a1", "Alice")),
+                        authors = listOf(BookContributor("a1", "Alice")),
                     ),
                     createTestBook(
                         id = "2",
                         title = "Apple Book",
-                        authors = listOf(Contributor("b1", "Bob")),
+                        authors = listOf(BookContributor("b1", "Bob")),
                     ),
                     createTestBook(
                         id = "3",
                         title = "Cherry Book",
-                        authors = listOf(Contributor("a1", "Alice")),
+                        authors = listOf(BookContributor("a1", "Alice")),
                     ),
                 )
             val fixture = createFixture()
@@ -689,17 +676,17 @@ class LibraryViewModelTest {
                 listOf(
                     SeriesWithBooks(
                         series = createTestSeries(id = "1", name = "Zebra Series"),
-                        books = listOf(createDummyBookEntity("z1"), createDummyBookEntity("z2")),
-                        bookSequences = emptyList(),
+                        books = listOf(createDummyBook("z1"), createDummyBook("z2")),
+                        bookSequences = emptyMap(),
                     ),
                     SeriesWithBooks(
                         series = createTestSeries(id = "2", name = "Apple Series"),
-                        books = listOf(createDummyBookEntity("a1"), createDummyBookEntity("a2")),
-                        bookSequences = emptyList(),
+                        books = listOf(createDummyBook("a1"), createDummyBook("a2")),
+                        bookSequences = emptyMap(),
                     ),
                 )
             val fixture = createFixture()
-            every { fixture.seriesDao.observeAllWithBooks() } returns flowOf(seriesList)
+            every { fixture.seriesRepository.observeAllWithBooks() } returns flowOf(seriesList)
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -717,22 +704,21 @@ class LibraryViewModelTest {
                 listOf(
                     SeriesWithBooks(
                         series = createTestSeries(id = "1", name = "Small"),
-                        books = listOf(createDummyBookEntity("s1"), createDummyBookEntity("s2")),
-                        bookSequences = emptyList(),
+                        books = listOf(createDummyBook("s1"), createDummyBook("s2")),
+                        bookSequences = emptyMap(),
                     ),
                     SeriesWithBooks(
                         series = createTestSeries(id = "2", name = "Big"),
-                        books =
-                            listOf(
-                                createDummyBookEntity("b1"),
-                                createDummyBookEntity("b2"),
-                                createDummyBookEntity("b3"),
-                            ),
-                        bookSequences = emptyList(),
+                        books = listOf(
+                            createDummyBook("b1"),
+                            createDummyBook("b2"),
+                            createDummyBook("b3"),
+                        ),
+                        bookSequences = emptyMap(),
                     ),
                 )
             val fixture = createFixture()
-            every { fixture.seriesDao.observeAllWithBooks() } returns flowOf(seriesList)
+            every { fixture.seriesRepository.observeAllWithBooks() } returns flowOf(seriesList)
             everySuspend { fixture.settingsRepository.setSeriesSortState(any()) } returns Unit
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
@@ -759,7 +745,7 @@ class LibraryViewModelTest {
                     createTestContributor(id = "2", name = "Adam"),
                 )
             val fixture = createFixture()
-            every { fixture.contributorDao.observeByRoleWithCount("author") } returns flowOf(authors)
+            every { fixture.contributorRepository.observeContributorsByRole("author") } returns flowOf(authors)
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -779,7 +765,7 @@ class LibraryViewModelTest {
                     createTestContributor(id = "2", name = "Many Books", bookCount = 10),
                 )
             val fixture = createFixture()
-            every { fixture.contributorDao.observeByRoleWithCount("author") } returns flowOf(authors)
+            every { fixture.contributorRepository.observeContributorsByRole("author") } returns flowOf(authors)
             everySuspend { fixture.settingsRepository.setAuthorsSortState(any()) } returns Unit
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
@@ -802,7 +788,7 @@ class LibraryViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.settingsRepository.getAccessToken() } returns AccessToken("token")
-            everySuspend { fixture.syncDao.getValue(SyncDao.KEY_LAST_SYNC_BOOKS) } returns null // Never synced
+            everySuspend { fixture.syncStatusRepository.getLastSyncTime() } returns null // Never synced
             everySuspend { fixture.bookRepository.refreshBooks() } returns Result.Success(Unit)
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
@@ -823,7 +809,7 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             everySuspend { fixture.settingsRepository.getAccessToken() } returns null // Not authenticated
             // Still called before if check
-            everySuspend { fixture.syncDao.getValue(SyncDao.KEY_LAST_SYNC_BOOKS) } returns null
+            everySuspend { fixture.syncStatusRepository.getLastSyncTime() } returns null
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()

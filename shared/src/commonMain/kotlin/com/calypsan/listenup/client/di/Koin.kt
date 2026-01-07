@@ -44,46 +44,50 @@ import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesApi
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
-import com.calypsan.listenup.client.data.repository.AuthSessionContract
-import com.calypsan.listenup.client.data.repository.BookEditRepository
-import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
-import com.calypsan.listenup.client.data.repository.BookRepository
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
-import com.calypsan.listenup.client.data.repository.ContributorEditRepository
-import com.calypsan.listenup.client.data.repository.ContributorEditRepositoryContract
-import com.calypsan.listenup.client.data.repository.ContributorRepository
-import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
+// Data layer repository implementations
+import com.calypsan.listenup.client.data.repository.AuthRepositoryImpl
+import com.calypsan.listenup.client.data.repository.BookEditRepositoryImpl
+import com.calypsan.listenup.client.data.repository.BookRepositoryImpl
+import com.calypsan.listenup.client.data.repository.ContributorEditRepository as ContributorEditRepositoryImpl
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
-import com.calypsan.listenup.client.data.repository.HomeRepository
-import com.calypsan.listenup.client.data.repository.HomeRepositoryContract
+import com.calypsan.listenup.client.data.repository.EventStreamRepositoryImpl
+import com.calypsan.listenup.client.data.repository.HomeRepositoryImpl
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
-import com.calypsan.listenup.client.data.repository.LeaderboardRepository
-import com.calypsan.listenup.client.data.repository.LeaderboardRepositoryContract
-import com.calypsan.listenup.client.data.repository.LibraryPreferencesContract
-import com.calypsan.listenup.client.data.repository.LibrarySyncContract
-import com.calypsan.listenup.client.data.repository.LocalPreferencesContract
-import com.calypsan.listenup.client.data.repository.MetadataRepository
-import com.calypsan.listenup.client.data.repository.MetadataRepositoryContract
-import com.calypsan.listenup.client.data.repository.PlaybackPreferencesContract
-import com.calypsan.listenup.client.data.repository.ProfileEditRepository
-import com.calypsan.listenup.client.data.repository.ProfileEditRepositoryContract
-import com.calypsan.listenup.client.data.repository.SearchRepository
-import com.calypsan.listenup.client.data.repository.SearchRepositoryContract
-import com.calypsan.listenup.client.data.repository.SeriesEditRepository
-import com.calypsan.listenup.client.data.repository.SeriesEditRepositoryContract
-import com.calypsan.listenup.client.data.repository.SeriesRepository
-import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
-import com.calypsan.listenup.client.data.repository.ServerConfigContract
+import com.calypsan.listenup.client.data.repository.ImageRepositoryImpl
+import com.calypsan.listenup.client.data.repository.LeaderboardRepositoryImpl
+import com.calypsan.listenup.client.data.repository.MetadataRepositoryImpl
+import com.calypsan.listenup.client.data.repository.ProfileEditRepositoryImpl
+import com.calypsan.listenup.client.data.repository.SearchRepositoryImpl
+import com.calypsan.listenup.client.data.repository.SeriesEditRepository as SeriesEditRepositoryImpl
 import com.calypsan.listenup.client.data.repository.ServerMigrationHelper
-import com.calypsan.listenup.client.data.repository.ServerRepository
-import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
+import com.calypsan.listenup.client.data.repository.ServerRepositoryImpl
 import com.calypsan.listenup.client.data.repository.ServerUrlChangeListener
-import com.calypsan.listenup.client.data.repository.SettingsRepository
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.data.repository.SettingsRepositoryImpl
+import com.calypsan.listenup.client.data.repository.StatsRepositoryImpl
+import com.calypsan.listenup.client.data.repository.SyncRepositoryImpl
+import com.calypsan.listenup.client.data.repository.UserProfileRepositoryImpl
 import com.calypsan.listenup.client.data.repository.UserRepositoryImpl
+
+// Domain layer repository interfaces (the contracts)
+import com.calypsan.listenup.client.domain.repository.AuthRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.ContributorEditRepository
+import com.calypsan.listenup.client.domain.repository.HomeRepository
+import com.calypsan.listenup.client.domain.repository.LibraryPreferences
+import com.calypsan.listenup.client.domain.repository.LibrarySync
+import com.calypsan.listenup.client.domain.repository.LocalPreferences
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.domain.repository.SearchRepository
+import com.calypsan.listenup.client.domain.repository.SeriesEditRepository
+import com.calypsan.listenup.client.domain.repository.ServerConfig
+import com.calypsan.listenup.client.domain.repository.ServerRepository
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.StatsRepository
+import com.calypsan.listenup.client.domain.repository.SyncRepository
+import com.calypsan.listenup.client.domain.repository.RegistrationStatusStream
+import com.calypsan.listenup.client.domain.repository.UserProfileRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
-import com.calypsan.listenup.client.data.repository.StatsRepository
-import com.calypsan.listenup.client.data.repository.StatsRepositoryContract
 import com.calypsan.listenup.client.data.sync.FtsPopulator
 import com.calypsan.listenup.client.data.sync.FtsPopulatorContract
 import com.calypsan.listenup.client.data.sync.ImageDownloader
@@ -129,20 +133,74 @@ import com.calypsan.listenup.client.data.sync.push.UserPreferencesHandler
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
 import com.calypsan.listenup.client.domain.repository.ActiveSessionRepository
 import com.calypsan.listenup.client.domain.repository.ActivityRepository
+import com.calypsan.listenup.client.domain.repository.AdminRepository
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
 import com.calypsan.listenup.client.domain.repository.GenreRepository
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.repository.LensRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.ProfileRepository
+import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import com.calypsan.listenup.client.data.repository.ActiveSessionRepositoryImpl
 import com.calypsan.listenup.client.data.repository.ActivityRepositoryImpl
+import com.calypsan.listenup.client.data.repository.AdminRepositoryImpl
 import com.calypsan.listenup.client.data.repository.CollectionRepositoryImpl
 import com.calypsan.listenup.client.data.repository.GenreRepositoryImpl
 import com.calypsan.listenup.client.data.repository.LensRepositoryImpl
 import com.calypsan.listenup.client.data.repository.PlaybackPositionRepositoryImpl
+import com.calypsan.listenup.client.data.repository.ProfileRepositoryImpl
+import com.calypsan.listenup.client.data.repository.RegistrationStatusStreamImpl
+import com.calypsan.listenup.client.data.repository.SessionRepositoryImpl
 import com.calypsan.listenup.client.data.repository.TagRepositoryImpl
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
+import com.calypsan.listenup.client.domain.usecase.auth.LoginUseCase
+import com.calypsan.listenup.client.domain.usecase.auth.LogoutUseCase
+import com.calypsan.listenup.client.domain.usecase.auth.RegisterUseCase
+import com.calypsan.listenup.client.domain.usecase.book.LoadBookForEditUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.ApproveUserUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.CreateInviteUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.DeleteUserUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.DenyUserUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.LoadInboxBooksUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.LoadInvitesUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.LoadPendingUsersUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.LoadServerSettingsUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.LoadUsersUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.ReleaseBooksUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.RevokeInviteUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.SetOpenRegistrationUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.StageCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.UnstageCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.UpdateServerSettingsUseCase
+import com.calypsan.listenup.client.domain.usecase.book.UpdateBookUseCase
+import com.calypsan.listenup.client.domain.usecase.contributor.ApplyContributorMetadataUseCase
+import com.calypsan.listenup.client.domain.usecase.contributor.DeleteContributorUseCase
+import com.calypsan.listenup.client.domain.usecase.contributor.UpdateContributorUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.AddBooksToCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.CreateCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.DeleteCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.GetUsersForSharingUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.LoadCollectionBooksUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.LoadCollectionSharesUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.RefreshCollectionsUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.RemoveBookFromCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.RemoveCollectionShareUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.ShareCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.UpdateCollectionNameUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.AddBooksToLensUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.DeleteLensUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.LoadLensDetailUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.RemoveBookFromLensUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.UpdateLensUseCase
+import com.calypsan.listenup.client.domain.usecase.metadata.ApplyMetadataMatchUseCase
+import com.calypsan.listenup.client.domain.usecase.profile.LoadUserProfileUseCase
+import com.calypsan.listenup.client.domain.usecase.activity.FetchActivitiesUseCase
+import com.calypsan.listenup.client.domain.usecase.series.UpdateSeriesUseCase
+import com.calypsan.listenup.client.domain.usecase.library.GetContinueListeningUseCase
+import com.calypsan.listenup.client.domain.usecase.library.RefreshLibraryUseCase
+import com.calypsan.listenup.client.domain.usecase.library.SearchBooksUseCase
 import com.calypsan.listenup.client.playback.PlaybackManager
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
@@ -175,20 +233,20 @@ val dataModule =
         // Note: SettingsRepository has no sync dependencies - it emits preference change events
         // that are observed by PreferencesSyncObserver (in syncModule) to avoid circular deps.
         single {
-            SettingsRepository(
+            SettingsRepositoryImpl(
                 secureStorage = get(),
                 instanceRepository = get(),
             )
         }
 
         // Bind segregated interfaces to the same SettingsRepository instance (ISP compliance)
-        single<SettingsRepositoryContract> { get<SettingsRepository>() }
-        single<AuthSessionContract> { get<SettingsRepository>() }
-        single<ServerConfigContract> { get<SettingsRepository>() }
-        single<LibrarySyncContract> { get<SettingsRepository>() }
-        single<LibraryPreferencesContract> { get<SettingsRepository>() }
-        single<PlaybackPreferencesContract> { get<SettingsRepository>() }
-        single<LocalPreferencesContract> { get<SettingsRepository>() }
+        single<SettingsRepository> { get<SettingsRepositoryImpl>() }
+        single<AuthSession> { get<SettingsRepositoryImpl>() }
+        single<ServerConfig> { get<SettingsRepositoryImpl>() }
+        single<LibrarySync> { get<SettingsRepositoryImpl>() }
+        single<LibraryPreferences> { get<SettingsRepositoryImpl>() }
+        single<PlaybackPreferences> { get<SettingsRepositoryImpl>() }
+        single<LocalPreferences> { get<SettingsRepositoryImpl>() }
     }
 
 /**
@@ -205,7 +263,7 @@ val networkModule =
         // Gets server URL dynamically from SettingsRepository
         // Bind to both concrete type and interface
         single {
-            val settingsRepository: SettingsRepositoryContract = get()
+            val settingsRepository: SettingsRepository = get()
             AuthApi(getServerUrl = { settingsRepository.getServerUrl() })
         } bind AuthApiContract::class
 
@@ -291,8 +349,8 @@ val repositoryModule =
         // ServerRepository - bridges mDNS discovery with database persistence
         // When active server's URL changes via mDNS rediscovery, updates SettingsRepository
         // and invalidates the API client cache to use the new IP address.
-        single {
-            ServerRepository(
+        single<ServerRepository> {
+            ServerRepositoryImpl(
                 serverDao = get(),
                 discoveryService = get(),
                 scope =
@@ -304,13 +362,13 @@ val repositoryModule =
                 urlChangeListener =
                     ServerUrlChangeListener { newUrl ->
                         // Update settings with new URL and invalidate API client
-                        val settings: SettingsRepositoryContract = get()
+                        val settings: SettingsRepository = get()
                         val apiClientFactory: ApiClientFactory = get()
                         settings.setServerUrl(newUrl)
                         apiClientFactory.invalidate()
                     },
             )
-        } bind ServerRepositoryContract::class
+        }
 
         // ServerMigrationHelper - migrates legacy single-server data
         single {
@@ -328,6 +386,273 @@ val repositoryModule =
 val useCaseModule =
     module {
         factoryOf(::GetInstanceUseCase)
+
+        // Auth use cases (using domain layer interfaces only)
+        factory {
+            LoginUseCase(
+                authRepository = get(),
+                authSession = get(),
+                userRepository = get(),
+            )
+        }
+        factory {
+            RegisterUseCase(
+                authRepository = get(),
+                authSession = get(),
+            )
+        }
+        factory {
+            LogoutUseCase(
+                authRepository = get(),
+                authSession = get(),
+                userRepository = get(),
+            )
+        }
+
+        // Library use cases (using domain layer interfaces only)
+        factory {
+            SearchBooksUseCase(
+                searchRepository = get(),
+            )
+        }
+        factory {
+            RefreshLibraryUseCase(
+                syncRepository = get(),
+            )
+        }
+        factory {
+            GetContinueListeningUseCase(
+                homeRepository = get(),
+            )
+        }
+
+        // Book use cases (using domain layer interfaces only)
+        factory {
+            LoadBookForEditUseCase(
+                bookRepository = get(),
+                genreRepository = get(),
+                tagRepository = get(),
+            )
+        }
+        factory {
+            UpdateBookUseCase(
+                bookEditRepository = get(),
+                genreRepository = get(),
+                tagRepository = get(),
+                imageRepository = get(),
+            )
+        }
+        // Metadata use cases
+        factory {
+            ApplyMetadataMatchUseCase(
+                metadataRepository = get(),
+                imageRepository = get(),
+            )
+        }
+        // Contributor use cases
+        factory {
+            UpdateContributorUseCase(
+                contributorEditRepository = get(),
+            )
+        }
+        factory {
+            DeleteContributorUseCase(
+                contributorRepository = get(),
+            )
+        }
+        factory {
+            ApplyContributorMetadataUseCase(
+                metadataRepository = get(),
+                imageRepository = get(),
+                contributorRepository = get<com.calypsan.listenup.client.domain.repository.ContributorRepository>(),
+            )
+        }
+        // Series use cases
+        factory {
+            UpdateSeriesUseCase(
+                seriesEditRepository = get(),
+                imageRepository = get(),
+            )
+        }
+        // Lens use cases
+        factory {
+            CreateLensUseCase(
+                lensRepository = get(),
+            )
+        }
+        factory {
+            UpdateLensUseCase(
+                lensRepository = get(),
+            )
+        }
+        factory {
+            DeleteLensUseCase(
+                lensRepository = get(),
+            )
+        }
+        factory {
+            LoadLensDetailUseCase(
+                lensRepository = get(),
+                imageRepository = get(),
+            )
+        }
+        factory {
+            RemoveBookFromLensUseCase(
+                lensRepository = get(),
+            )
+        }
+        factory {
+            AddBooksToLensUseCase(
+                lensRepository = get(),
+            )
+        }
+        // Collection use cases
+        factory {
+            CreateCollectionUseCase(
+                collectionRepository = get(),
+            )
+        }
+        factory {
+            DeleteCollectionUseCase(
+                collectionRepository = get(),
+            )
+        }
+        factory {
+            AddBooksToCollectionUseCase(
+                collectionRepository = get(),
+            )
+        }
+        factory {
+            RefreshCollectionsUseCase(
+                collectionRepository = get(),
+            )
+        }
+        factory {
+            UpdateCollectionNameUseCase(
+                collectionRepository = get(),
+            )
+        }
+        factory {
+            RemoveBookFromCollectionUseCase(
+                collectionRepository = get(),
+            )
+        }
+        factory {
+            LoadCollectionBooksUseCase(
+                collectionRepository = get(),
+            )
+        }
+        factory {
+            ShareCollectionUseCase(
+                collectionRepository = get(),
+            )
+        }
+        factory {
+            RemoveCollectionShareUseCase(
+                collectionRepository = get(),
+            )
+        }
+        factory {
+            LoadCollectionSharesUseCase(
+                collectionRepository = get(),
+                adminRepository = get(),
+            )
+        }
+        factory {
+            GetUsersForSharingUseCase(
+                adminRepository = get(),
+                collectionRepository = get(),
+                userRepository = get(),
+            )
+        }
+        // Admin user management use cases
+        factory {
+            LoadUsersUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            LoadPendingUsersUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            LoadInvitesUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            DeleteUserUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            RevokeInviteUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            ApproveUserUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            DenyUserUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            SetOpenRegistrationUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            CreateInviteUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            LoadServerSettingsUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            UpdateServerSettingsUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            LoadInboxBooksUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            ReleaseBooksUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            StageCollectionUseCase(
+                adminRepository = get(),
+            )
+        }
+        factory {
+            UnstageCollectionUseCase(
+                adminRepository = get(),
+            )
+        }
+        // Profile use cases
+        factory {
+            LoadUserProfileUseCase(
+                profileRepository = get(),
+            )
+        }
+        // Activity use cases
+        factory {
+            FetchActivitiesUseCase(
+                activityRepository = get(),
+            )
+        }
     }
 
 /**
@@ -430,10 +755,26 @@ val syncModule =
             MetadataApi(clientFactory = get())
         } bind MetadataApiContract::class
 
-        // MetadataRepository for metadata operations
-        single {
-            MetadataRepository(metadataApi = get())
-        } bind MetadataRepositoryContract::class
+        // MetadataRepository for metadata operations (SOLID: interface in domain, impl in data)
+        single<com.calypsan.listenup.client.domain.repository.MetadataRepository> {
+            MetadataRepositoryImpl(metadataApi = get())
+        }
+
+        // ImageRepository for image operations (SOLID: interface in domain, impl in data)
+        single<com.calypsan.listenup.client.domain.repository.ImageRepository> {
+            ImageRepositoryImpl(
+                imageDownloader = get(),
+                imageStorage = get(),
+                imageApi = get(),
+            )
+        }
+
+        // EventStreamRepository for real-time events (SOLID: interface in domain, impl in data)
+        single<com.calypsan.listenup.client.domain.repository.EventStreamRepository> {
+            EventStreamRepositoryImpl(
+                sseManager = get(),
+            )
+        }
 
         // AdminCollectionApi for admin collection operations
         single {
@@ -684,7 +1025,7 @@ val syncModule =
         // Started automatically on creation via the appScope.
         single {
             PreferencesSyncObserver(
-                settingsRepository = get(),
+                playbackPreferences = get(),
                 pendingOperationRepository = get(),
                 userPreferencesHandler = get(),
             ).also { observer ->
@@ -790,100 +1131,78 @@ val syncModule =
         } bind SyncManagerContract::class
 
         // SearchRepository for offline-first search
-        single {
-            SearchRepository(
+        single<SearchRepository> {
+            SearchRepositoryImpl(
                 searchApi = get(),
                 searchDao = get(),
                 imageStorage = get(),
             )
-        } bind SearchRepositoryContract::class
+        }
 
         // BookRepository for UI data access
-        single {
-            BookRepository(
+        single<BookRepository> {
+            BookRepositoryImpl(
                 bookDao = get(),
                 chapterDao = get(),
                 syncManager = get(),
                 imageStorage = get(),
             )
-        } bind BookRepositoryContract::class
+        }
 
         // HomeRepository for Home screen data (cross-device sync)
-        single {
-            HomeRepository(
+        single<HomeRepository> {
+            HomeRepositoryImpl(
                 bookRepository = get(),
                 playbackPositionDao = get(),
                 syncApi = get(),
-                userDao = get(),
                 networkMonitor = get(),
             )
-        } bind HomeRepositoryContract::class
+        }
 
         // StatsRepository for computing listening stats locally from events
-        single {
-            StatsRepository(
+        single<StatsRepository> {
+            StatsRepositoryImpl(
                 listeningEventDao = get(),
                 bookDao = get(),
             )
-        } bind StatsRepositoryContract::class
+        }
 
-        // LeaderboardRepository for offline-first leaderboard
+        // LeaderboardRepository for offline-first leaderboard (SOLID: interface in domain, impl in data)
         // Combines local listening events (current user) with activities (others)
         // Uses API only for initial All-time cache population
-        single {
-            LeaderboardRepository(
+        single<com.calypsan.listenup.client.domain.repository.LeaderboardRepository> {
+            LeaderboardRepositoryImpl(
                 listeningEventDao = get(),
                 activityDao = get(),
                 userStatsDao = get(),
                 userDao = get(),
                 leaderboardApi = get(),
             )
-        } bind LeaderboardRepositoryContract::class
+        }
 
-        // ContributorRepository for contributor search with offline fallback and observation
-        single {
-            ContributorRepository(
-                api = get(),
-                metadataApi = get(),
-                searchDao = get(),
-                contributorDao = get(),
-                networkMonitor = get(),
-            )
-        } bind ContributorRepositoryContract::class
-
-        // SeriesRepository for series search with offline fallback and observation
-        single {
-            SeriesRepository(
-                api = get(),
-                searchDao = get(),
-                seriesDao = get(),
-                networkMonitor = get(),
-            )
-        } bind SeriesRepositoryContract::class
-
-        // BookEditRepository for book editing operations (offline-first)
-        single {
-            BookEditRepository(
+        // BookEditRepository for book editing operations (offline-first, SOLID: domain interface)
+        single<com.calypsan.listenup.client.domain.repository.BookEditRepository> {
+            BookEditRepositoryImpl(
                 bookDao = get(),
                 pendingOperationRepository = get(),
                 bookUpdateHandler = get(),
                 setBookContributorsHandler = get(),
                 setBookSeriesHandler = get(),
             )
-        } bind BookEditRepositoryContract::class
+        }
 
-        // SeriesEditRepository for series editing operations (offline-first)
-        single {
-            SeriesEditRepository(
+        // SeriesEditRepository for series editing operations (offline-first, SOLID: domain interface)
+        single<SeriesEditRepository> {
+            SeriesEditRepositoryImpl(
                 seriesDao = get(),
                 pendingOperationRepository = get(),
                 seriesUpdateHandler = get(),
             )
-        } bind SeriesEditRepositoryContract::class
+        }
 
-        // ContributorEditRepository for contributor editing operations (offline-first)
-        single {
-            ContributorEditRepository(
+        // ContributorEditRepository for contributor editing operations (offline-first, SOLID: domain interface)
+        single<ContributorEditRepository> {
+            ContributorEditRepositoryImpl(
                 contributorDao = get(),
                 bookContributorDao = get(),
                 pendingOperationRepository = get(),
@@ -891,22 +1210,48 @@ val syncModule =
                 mergeContributorHandler = get(),
                 unmergeContributorHandler = get(),
             )
-        } bind ContributorEditRepositoryContract::class
+        }
 
-        // ProfileEditRepository for profile editing operations (offline-first)
-        single {
-            ProfileEditRepository(
+        // ProfileEditRepository for profile editing operations (offline-first, SOLID: domain interface)
+        single<com.calypsan.listenup.client.domain.repository.ProfileEditRepository> {
+            ProfileEditRepositoryImpl(
                 userDao = get(),
                 pendingOperationRepository = get(),
                 profileUpdateHandler = get(),
                 profileAvatarHandler = get(),
                 profileApi = get(),
             )
-        } bind ProfileEditRepositoryContract::class
+        }
 
-        // UserRepository for user profile data (SOLID: interface in domain, impl in data)
+        // UserRepository for current user profile data (SOLID: interface in domain, impl in data)
         single<UserRepository> {
-            UserRepositoryImpl(userDao = get())
+            UserRepositoryImpl(userDao = get(), sessionApi = get())
+        }
+
+        // UserProfileRepository for other users' profile data (avatars in activity feed, etc.)
+        single<UserProfileRepository> {
+            UserProfileRepositoryImpl(userProfileDao = get())
+        }
+
+        // AuthRepository for authentication operations (SOLID: interface in domain, impl in data)
+        single<AuthRepository> {
+            AuthRepositoryImpl(authApi = get())
+        }
+
+        // RegistrationStatusStream for SSE streaming during registration approval
+        single<RegistrationStatusStream> {
+            RegistrationStatusStreamImpl(
+                apiClientFactory = get(),
+                settingsRepository = get(),
+            )
+        }
+
+        // SyncRepository for library sync operations (SOLID: interface in domain, impl in data)
+        single<SyncRepository> {
+            SyncRepositoryImpl(
+                syncManager = get(),
+                scope = get(qualifier = org.koin.core.qualifier.named("appScope")),
+            )
         }
 
         // PlaybackPositionRepository for position tracking (SOLID: interface in domain, impl in data)
@@ -916,32 +1261,85 @@ val syncModule =
 
         // TagRepository for community tags (SOLID: interface in domain, impl in data)
         single<TagRepository> {
-            TagRepositoryImpl(dao = get())
+            TagRepositoryImpl(dao = get(), tagApi = get())
         }
 
         // GenreRepository for hierarchical genres (SOLID: interface in domain, impl in data)
         single<GenreRepository> {
-            GenreRepositoryImpl(dao = get())
+            GenreRepositoryImpl(dao = get(), genreApi = get())
         }
 
         // LensRepository for personal curation lenses (SOLID: interface in domain, impl in data)
         single<LensRepository> {
-            LensRepositoryImpl(dao = get())
+            LensRepositoryImpl(dao = get(), lensApi = get())
         }
 
         // CollectionRepository for admin collections (SOLID: interface in domain, impl in data)
         single<CollectionRepository> {
-            CollectionRepositoryImpl(dao = get())
+            CollectionRepositoryImpl(dao = get(), adminCollectionApi = get())
         }
 
         // ActivityRepository for activity feed (SOLID: interface in domain, impl in data)
         single<ActivityRepository> {
-            ActivityRepositoryImpl(dao = get())
+            ActivityRepositoryImpl(dao = get(), activityFeedApi = get())
         }
 
         // ActiveSessionRepository for live sessions (SOLID: interface in domain, impl in data)
         single<ActiveSessionRepository> {
-            ActiveSessionRepositoryImpl(dao = get())
+            ActiveSessionRepositoryImpl(dao = get(), imageStorage = get())
+        }
+
+        // AdminRepository for admin operations (SOLID: interface in domain, impl in data)
+        single<AdminRepository> {
+            AdminRepositoryImpl(adminApi = get())
+        }
+
+        // ProfileRepository for public user profiles (SOLID: interface in domain, impl in data)
+        single<ProfileRepository> {
+            ProfileRepositoryImpl(profileApi = get())
+        }
+
+        // SessionRepository for reading sessions (SOLID: interface in domain, impl in data)
+        single<SessionRepository> {
+            SessionRepositoryImpl(sessionApi = get())
+        }
+
+        // ContributorRepository for domain-layer contributor queries including search and metadata
+        single<com.calypsan.listenup.client.domain.repository.ContributorRepository> {
+            com.calypsan.listenup.client.data.repository.ContributorRepositoryImpl(
+                contributorDao = get(),
+                bookDao = get(),
+                searchDao = get(),
+                api = get(),
+                metadataApi = get(),
+                networkMonitor = get(),
+                imageStorage = get(),
+            )
+        }
+
+        // SeriesRepository for domain-layer series queries including search
+        single<com.calypsan.listenup.client.domain.repository.SeriesRepository> {
+            com.calypsan.listenup.client.data.repository.SeriesRepositoryImpl(
+                seriesDao = get(),
+                bookDao = get(),
+                searchDao = get(),
+                api = get(),
+                networkMonitor = get(),
+                imageStorage = get(),
+            )
+        }
+
+        // SyncStatusRepository for sync timestamp tracking (SOLID: interface in domain, impl in data)
+        single<com.calypsan.listenup.client.domain.repository.SyncStatusRepository> {
+            com.calypsan.listenup.client.data.repository.SyncStatusRepositoryImpl(syncDao = get())
+        }
+
+        // PendingOperationRepository (domain) for UI observation of sync status
+        // Wraps the data layer contract to provide domain models to ViewModels
+        single<com.calypsan.listenup.client.domain.repository.PendingOperationRepository> {
+            com.calypsan.listenup.client.data.repository.PendingOperationRepositoryImpl(
+                dataRepository = get(),
+            )
         }
     }
 

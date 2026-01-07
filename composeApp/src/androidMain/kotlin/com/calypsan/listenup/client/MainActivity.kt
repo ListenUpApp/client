@@ -32,8 +32,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
-import com.calypsan.listenup.client.data.repository.LocalPreferencesContract
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.LocalPreferences
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.deeplink.DeepLinkParser
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
@@ -143,7 +143,7 @@ class MainActivity : ComponentActivity() {
  * authentication state from SettingsRepository.
  */
 @Composable
-fun ListenUpApp(localPreferences: LocalPreferencesContract = koinInject()) {
+fun ListenUpApp(localPreferences: LocalPreferences = koinInject()) {
     // Observe theme preferences
     val themeMode by localPreferences.themeMode.collectAsState()
     val dynamicColorsEnabled by localPreferences.dynamicColorsEnabled.collectAsState()

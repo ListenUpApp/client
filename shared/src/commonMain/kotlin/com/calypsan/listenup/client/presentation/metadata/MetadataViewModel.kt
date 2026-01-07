@@ -2,15 +2,15 @@ package com.calypsan.listenup.client.presentation.metadata
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.remote.model.ApplyMatchRequest
-import com.calypsan.listenup.client.data.remote.model.CoverOption
-import com.calypsan.listenup.client.data.remote.model.MatchFields
-import com.calypsan.listenup.client.data.remote.model.MetadataBook
-import com.calypsan.listenup.client.data.remote.model.MetadataSearchResult
-import com.calypsan.listenup.client.data.remote.model.SeriesMatchEntry
-import com.calypsan.listenup.client.data.repository.MetadataRepositoryContract
-import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.repository.CoverOption
+import com.calypsan.listenup.client.domain.repository.MetadataBook
+import com.calypsan.listenup.client.domain.repository.MetadataContributor
+import com.calypsan.listenup.client.domain.repository.MetadataRepository
+import com.calypsan.listenup.client.domain.repository.MetadataSearchResult
+import com.calypsan.listenup.client.domain.usecase.metadata.ApplyMetadataMatchUseCase
+import com.calypsan.listenup.client.domain.usecase.metadata.MetadataMatchSelections
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,8 +101,8 @@ data class MetadataUiState(
  * 3. Apply the match to update the book
  */
 class MetadataViewModel(
-    private val metadataRepository: MetadataRepositoryContract,
-    private val imageDownloader: ImageDownloaderContract,
+    private val metadataRepository: MetadataRepository,
+    private val applyMetadataMatchUseCase: ApplyMetadataMatchUseCase,
 ) : ViewModel() {
     val state: StateFlow<MetadataUiState>
         field = MutableStateFlow(MetadataUiState())
@@ -274,13 +274,13 @@ class MetadataViewModel(
                             asin = result.asin,
                             title = result.title,
                             subtitle = result.subtitle,
-                            authors = result.authors,
-                            narrators = result.narrators,
-                            series = result.series,
+                            authors = result.authors.map { MetadataContributor(name = it) },
+                            narrators = result.narrators.map { MetadataContributor(name = it) },
+                            series = emptyList(), // Search results don't include series
                             coverUrl = result.coverUrl,
-                            runtimeMinutes = result.runtimeMinutes,
+                            runtimeMinutes = result.runtimeMinutes ?: 0,
                             releaseDate = result.releaseDate,
-                            rating = result.rating,
+                            rating = result.rating ?: 0.0,
                             ratingCount = result.ratingCount,
                             language = result.language,
                         )
@@ -441,7 +441,6 @@ class MetadataViewModel(
         val asin = currentState.selectedMatch?.asin ?: return
         val bookId = currentState.bookId
         val previewBook = currentState.previewBook ?: return
-        val selections = currentState.selections
 
         viewModelScope.launch {
             state.update {
@@ -451,60 +450,54 @@ class MetadataViewModel(
                 )
             }
 
-            try {
-                val request =
-                    buildMatchRequest(
-                        asin = asin,
-                        region = currentState.selectedRegion.code,
-                        selections = selections,
-                        previewBook = previewBook,
-                        coverUrl = currentState.selectedCoverUrl,
-                    )
-                metadataRepository.applyMatch(bookId, request)
+            val result = applyMetadataMatchUseCase(
+                bookId = bookId,
+                asin = asin,
+                region = currentState.selectedRegion.code,
+                selections = currentState.selections.toMatchSelections(),
+                previewBook = previewBook,
+                coverUrl = currentState.selectedCoverUrl,
+            )
 
-                // Download cover from server if cover was selected
-                if (selections.cover) {
-                    val bookIdObj = BookId(bookId)
-                    // Delete existing cover to ensure we download the new one
-                    imageDownloader.deleteCover(bookIdObj)
-                    // Download the new cover from server
-                    val downloadResult = imageDownloader.downloadCover(bookIdObj)
-                    when (downloadResult) {
-                        is com.calypsan.listenup.client.core.Result.Success -> {
-                            if (downloadResult.data) {
-                                logger.info { "Downloaded new cover for book $bookId" }
-                            } else {
-                                logger.info { "No cover available on server for book $bookId" }
-                            }
-                        }
-
-                        is com.calypsan.listenup.client.core.Result.Failure -> {
-                            logger.warn {
-                                "Failed to download cover for book $bookId: ${downloadResult.exception.message}"
-                            }
-                        }
+            when (result) {
+                is Success -> {
+                    state.update {
+                        it.copy(
+                            isApplying = false,
+                            applySuccess = true,
+                        )
                     }
                 }
-
-                state.update {
-                    it.copy(
-                        isApplying = false,
-                        applySuccess = true,
-                    )
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to apply metadata match" }
-                state.update {
-                    it.copy(
-                        isApplying = false,
-                        applyError = e.message ?: "Failed to apply metadata",
-                    )
+                is Failure -> {
+                    logger.error { "Failed to apply metadata match: ${result.message}" }
+                    state.update {
+                        it.copy(
+                            isApplying = false,
+                            applyError = result.message,
+                        )
+                    }
                 }
             }
         }
     }
+
+    /**
+     * Convert UI selections to domain use case selections.
+     */
+    private fun MetadataSelections.toMatchSelections(): MetadataMatchSelections =
+        MetadataMatchSelections(
+            cover = cover,
+            title = title,
+            subtitle = subtitle,
+            description = description,
+            publisher = publisher,
+            releaseDate = releaseDate,
+            language = language,
+            selectedAuthors = selectedAuthors,
+            selectedNarrators = selectedNarrators,
+            selectedSeries = selectedSeries,
+            selectedGenres = selectedGenres,
+        )
 
     /**
      * Reset all state. Call when dismissing the metadata flow.
@@ -531,46 +524,6 @@ class MetadataViewModel(
             selectedGenres = preview.genres.toSet(),
         )
 
-    /**
-     * Build the match request from current selections.
-     */
-    private fun buildMatchRequest(
-        asin: String,
-        region: String,
-        selections: MetadataSelections,
-        previewBook: MetadataBook,
-        coverUrl: String?,
-    ): ApplyMatchRequest =
-        ApplyMatchRequest(
-            asin = asin,
-            region = region,
-            fields =
-                MatchFields(
-                    title = selections.title,
-                    subtitle = selections.subtitle,
-                    description = selections.description,
-                    publisher = selections.publisher,
-                    releaseDate = selections.releaseDate,
-                    language = selections.language,
-                    cover = selections.cover,
-                ),
-            authors = selections.selectedAuthors.toList(),
-            narrators = selections.selectedNarrators.toList(),
-            series =
-                previewBook.series
-                    .filter { it.asin in selections.selectedSeries }
-                    .mapNotNull { series ->
-                        series.asin?.let { asin ->
-                            SeriesMatchEntry(
-                                asin = asin,
-                                applyName = true,
-                                applySequence = true,
-                            )
-                        }
-                    },
-            genres = selections.selectedGenres.toList(),
-            coverUrl = coverUrl, // Explicit cover URL (overrides Audible if provided)
-        )
 }
 
 /**

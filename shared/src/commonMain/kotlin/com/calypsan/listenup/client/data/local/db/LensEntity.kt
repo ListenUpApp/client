@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.local.db
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.calypsan.listenup.client.core.Timestamp
 
 /**
  * Room entity representing a lens in the local database.

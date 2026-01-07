@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.PlatformUtils
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.ServerUrl
@@ -89,7 +90,7 @@ class AuthApi(
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         } finally {
             client.close()
@@ -127,7 +128,7 @@ class AuthApi(
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         } finally {
             client.close()
@@ -169,7 +170,7 @@ class AuthApi(
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         } finally {
             client.close()
@@ -222,7 +223,7 @@ class AuthApi(
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         } finally {
             client.close()
@@ -248,7 +249,7 @@ class AuthApi(
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         } finally {
             client.close()

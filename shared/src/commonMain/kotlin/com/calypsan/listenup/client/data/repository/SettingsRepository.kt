@@ -7,284 +7,14 @@ import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.repository.AuthState as DomainAuthState
+import com.calypsan.listenup.client.domain.repository.PreferenceChangeEvent as DomainPreferenceChangeEvent
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-
-/**
- * Events emitted when user preferences change.
- * Observed by the sync layer to queue operations without creating circular dependencies.
- */
-sealed interface PreferenceChangeEvent {
-    /**
-     * Default playback speed was changed.
-     */
-    data class PlaybackSpeedChanged(
-        val speed: Float,
-    ) : PreferenceChangeEvent
-}
-
-// region Segregated Interfaces (ISP)
-
-/**
- * Contract for authentication and session management.
- *
- * Used by components that need to manage auth tokens, session state,
- * or observe authentication changes (ApiClientFactory, navigation, token providers).
- */
-interface AuthSessionContract {
-    /** Reactive authentication state. */
-    val authState: StateFlow<AuthState>
-
-    /** Save authentication tokens after successful login or token refresh. */
-    suspend fun saveAuthTokens(
-        access: AccessToken,
-        refresh: RefreshToken,
-        sessionId: String,
-        userId: String,
-    )
-
-    suspend fun getAccessToken(): AccessToken?
-
-    suspend fun getRefreshToken(): RefreshToken?
-
-    suspend fun getSessionId(): String?
-
-    suspend fun getUserId(): String?
-
-    /** Update only the access token (used during automatic token refresh). */
-    suspend fun updateAccessToken(token: AccessToken)
-
-    /** Clear authentication tokens (soft logout). */
-    suspend fun clearAuthTokens()
-
-    /** Check if user has stored authentication tokens. */
-    suspend fun isAuthenticated(): Boolean
-
-    /** Initialize authentication state on app startup. */
-    suspend fun initializeAuthState()
-
-    /** Check server status to determine if setup is required. */
-    suspend fun checkServerStatus(): AuthState
-
-    /**
-     * Refresh the open registration status from the server.
-     * Updates the NeedsLogin state with the latest value without showing loading state.
-     * Call this when entering the login screen to ensure the "Create Account" link is shown.
-     */
-    suspend fun refreshOpenRegistration()
-
-    /**
-     * Save pending registration state after submitting registration.
-     * This persists the user's credentials so we can auto-login after approval,
-     * even if the app restarts.
-     *
-     * @param userId The pending user's ID from registration response
-     * @param email The user's email address
-     * @param password The user's password (will be encrypted in storage)
-     */
-    suspend fun savePendingRegistration(
-        userId: String,
-        email: String,
-        password: String,
-    )
-
-    /**
-     * Get pending registration credentials for auto-login.
-     * @return Triple of (userId, email, encryptedPassword) if pending, null otherwise
-     */
-    suspend fun getPendingRegistration(): Triple<String, String, String>?
-
-    /**
-     * Clear pending registration state.
-     * Called after successful login or denial.
-     */
-    suspend fun clearPendingRegistration()
-}
-
-/**
- * Contract for server URL configuration.
- *
- * Used by components that need to know the server URL
- * (SSEManager, DownloadWorker, ImageApi, API clients).
- */
-interface ServerConfigContract {
-    suspend fun setServerUrl(url: ServerUrl)
-
-    suspend fun getServerUrl(): ServerUrl?
-
-    suspend fun hasServerConfigured(): Boolean
-
-    /** Disconnect from current server (clears URL and auth data). */
-    suspend fun disconnectFromServer()
-
-    /** Clear all settings including server URL (complete reset). */
-    suspend fun clearAll()
-}
-
-/**
- * Contract for library identity and sync verification.
- *
- * Used by SyncManager to detect when the server's library has changed
- * (e.g., server reinstalled, database wiped) and trigger appropriate
- * resync flows.
- */
-interface LibrarySyncContract {
-    /**
-     * Get the library ID this client is currently synced with.
-     * Returns null if this is the first sync (no library connected yet).
-     */
-    suspend fun getConnectedLibraryId(): String?
-
-    /**
-     * Store the library ID after successful sync verification.
-     * This becomes the reference point for future mismatch detection.
-     */
-    suspend fun setConnectedLibraryId(libraryId: String)
-
-    /**
-     * Clear the connected library ID.
-     * Called when switching servers or after detecting a mismatch.
-     */
-    suspend fun clearConnectedLibraryId()
-}
-
-/**
- * Contract for library display and sort preferences.
- *
- * Used by LibraryViewModel and SettingsViewModel for managing
- * how books, series, and contributors are displayed and sorted.
- */
-interface LibraryPreferencesContract {
-    // Sort state per tab
-    suspend fun getBooksSortState(): String?
-
-    suspend fun setBooksSortState(persistenceKey: String)
-
-    suspend fun getSeriesSortState(): String?
-
-    suspend fun setSeriesSortState(persistenceKey: String)
-
-    suspend fun getAuthorsSortState(): String?
-
-    suspend fun setAuthorsSortState(persistenceKey: String)
-
-    suspend fun getNarratorsSortState(): String?
-
-    suspend fun setNarratorsSortState(persistenceKey: String)
-
-    // Display options
-    suspend fun getIgnoreTitleArticles(): Boolean
-
-    suspend fun setIgnoreTitleArticles(ignore: Boolean)
-
-    suspend fun getHideSingleBookSeries(): Boolean
-
-    suspend fun setHideSingleBookSeries(hide: Boolean)
-}
-
-/**
- * Contract for playback preferences.
- *
- * Used by SettingsViewModel, NowPlayingViewModel, DownloadWorker,
- * and SyncManager for managing playback-related settings.
- */
-interface PlaybackPreferencesContract {
-    /** Flow of preference change events for sync layer. */
-    val preferenceChanges: SharedFlow<PreferenceChangeEvent>
-
-    /**
-     * Get the default playback speed for new books.
-     * @return Playback speed multiplier (e.g., 1.0, 1.25, 1.5). Default is 1.0.
-     */
-    suspend fun getDefaultPlaybackSpeed(): Float
-
-    /**
-     * Set the default playback speed for new books.
-     * This is a synced setting - will be pushed to server.
-     */
-    suspend fun setDefaultPlaybackSpeed(speed: Float)
-
-    /** Get whether spatial (5.1 surround) audio is preferred. */
-    suspend fun getSpatialPlayback(): Boolean
-
-    /** Set spatial audio preference (per-device setting). */
-    suspend fun setSpatialPlayback(enabled: Boolean)
-}
-
-/**
- * Contract for local device preferences.
- *
- * These settings do NOT sync to the server - they're device-specific.
- * Examples: theme, dynamic colors, haptics, download behavior.
- */
-interface LocalPreferencesContract {
-    // Appearance
-
-    /** Reactive theme mode preference. */
-    val themeMode: StateFlow<ThemeMode>
-
-    /** Reactive dynamic colors preference (Material You). */
-    val dynamicColorsEnabled: StateFlow<Boolean>
-
-    /** Set the theme mode (system/light/dark). */
-    suspend fun setThemeMode(mode: ThemeMode)
-
-    /** Set whether to use dynamic (wallpaper-based) colors. Android 12+ only. */
-    suspend fun setDynamicColorsEnabled(enabled: Boolean)
-
-    // Playback (local settings)
-
-    /** Reactive auto-rewind preference. */
-    val autoRewindEnabled: StateFlow<Boolean>
-
-    /** Set whether to auto-rewind when resuming playback. */
-    suspend fun setAutoRewindEnabled(enabled: Boolean)
-
-    // Downloads
-
-    /** Reactive WiFi-only downloads preference. */
-    val wifiOnlyDownloads: StateFlow<Boolean>
-
-    /** Reactive auto-remove finished downloads preference. */
-    val autoRemoveFinished: StateFlow<Boolean>
-
-    /** Set whether to only download on WiFi. */
-    suspend fun setWifiOnlyDownloads(enabled: Boolean)
-
-    /** Set whether to auto-remove downloads after finishing a book. */
-    suspend fun setAutoRemoveFinished(enabled: Boolean)
-
-    // Controls
-
-    /** Reactive haptic feedback preference. */
-    val hapticFeedbackEnabled: StateFlow<Boolean>
-
-    /** Set whether to enable haptic feedback on controls. */
-    suspend fun setHapticFeedbackEnabled(enabled: Boolean)
-
-    /** Initialize local preferences from storage. Call on app startup. */
-    suspend fun initializeLocalPreferences()
-}
-
-// endregion
-
-/**
- * Aggregate contract for backward compatibility.
- *
- * New code should depend on specific interfaces (AuthSessionContract,
- * ServerConfigContract, etc.) rather than this aggregate.
- */
-interface SettingsRepositoryContract :
-    AuthSessionContract,
-    ServerConfigContract,
-    LibrarySyncContract,
-    LibraryPreferencesContract,
-    PlaybackPreferencesContract,
-    LocalPreferencesContract
 
 /**
  * Repository for managing application settings and authentication state.
@@ -297,19 +27,19 @@ interface SettingsRepositoryContract :
  *
  * All sensitive data is stored via SecureStorage (encrypted at rest).
  */
-class SettingsRepository(
+class SettingsRepositoryImpl(
     private val secureStorage: SecureStorage,
     private val instanceRepository: InstanceRepository,
-) : SettingsRepositoryContract {
+) : com.calypsan.listenup.client.domain.repository.SettingsRepository {
     // Override properties can't use explicit backing fields - must use traditional pattern
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Initializing)
-    override val authState: StateFlow<AuthState> = _authState.asStateFlow()
+    private val _authState = MutableStateFlow<DomainAuthState>(DomainAuthState.Initializing)
+    override val authState: StateFlow<DomainAuthState> = _authState.asStateFlow()
 
     // Buffer of 1 ensures emit() doesn't suspend when no collectors are active.
     // This is appropriate for preference sync since we don't want settings changes
     // to block waiting for the sync layer.
-    private val _preferenceChanges = MutableSharedFlow<PreferenceChangeEvent>(extraBufferCapacity = 1)
-    override val preferenceChanges: SharedFlow<PreferenceChangeEvent> = _preferenceChanges.asSharedFlow()
+    private val _preferenceChanges = MutableSharedFlow<DomainPreferenceChangeEvent>(extraBufferCapacity = 1)
+    override val preferenceChanges: SharedFlow<DomainPreferenceChangeEvent> = _preferenceChanges.asSharedFlow()
 
     // Local preferences StateFlows (device-specific, NOT synced)
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
@@ -423,7 +153,7 @@ class SettingsRepository(
         secureStorage.save(KEY_SESSION_ID, sessionId)
         secureStorage.save(KEY_USER_ID, userId)
 
-        _authState.value = AuthState.Authenticated(userId, sessionId)
+        _authState.value = DomainAuthState.Authenticated(userId, sessionId)
     }
 
     /**
@@ -488,7 +218,7 @@ class SettingsRepository(
         // The server was reachable (we got a 401), so setup isn't required
         // Use cached open registration value if available
         val cachedOpenRegistration = getCachedOpenRegistration()
-        _authState.value = AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
+        _authState.value = DomainAuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
     }
 
     /**
@@ -497,7 +227,7 @@ class SettingsRepository(
      */
     override suspend fun clearAll() {
         secureStorage.clear()
-        _authState.value = AuthState.NeedsServerUrl
+        _authState.value = DomainAuthState.NeedsServerUrl
     }
 
     // State queries
@@ -539,12 +269,12 @@ class SettingsRepository(
      * If tokens exist, we trust them. If they're invalid, API calls will
      * fail with 401 and trigger re-auth at that point.
      */
-    private suspend fun deriveAuthState(): AuthState {
+    private suspend fun deriveAuthState(): DomainAuthState {
         val serverUrl = getServerUrl()
 
         // No URL configured → need server setup
         if (serverUrl == null) {
-            return AuthState.NeedsServerUrl
+            return DomainAuthState.NeedsServerUrl
         }
 
         // URL + Token = Authenticated (trust local state)
@@ -553,7 +283,7 @@ class SettingsRepository(
         val sessionId = getSessionId()
 
         if (hasToken && userId != null && sessionId != null) {
-            return AuthState.Authenticated(userId, sessionId)
+            return DomainAuthState.Authenticated(userId, sessionId)
         }
 
         // URL + Token but missing userId/sessionId → inconsistent state
@@ -562,14 +292,14 @@ class SettingsRepository(
         // as they cause "Unknown User" to appear in the UI.
         if (hasToken) {
             clearAuthTokens()
-            return AuthState.NeedsLogin(openRegistration = getCachedOpenRegistration())
+            return DomainAuthState.NeedsLogin(openRegistration = getCachedOpenRegistration())
         }
 
         // Check for pending registration (user registered but waiting for approval)
         val pendingRegistration = getPendingRegistration()
         if (pendingRegistration != null) {
             val (pendingUserId, pendingEmail, pendingPassword) = pendingRegistration
-            return AuthState.PendingApproval(
+            return DomainAuthState.PendingApproval(
                 userId = pendingUserId,
                 email = pendingEmail,
                 encryptedPassword = pendingPassword,
@@ -580,7 +310,7 @@ class SettingsRepository(
         // Don't check server status - that's a network call
         // Use cached open registration value if available
         val cachedOpenRegistration = getCachedOpenRegistration()
-        return AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
+        return DomainAuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
     }
 
     /**
@@ -591,8 +321,8 @@ class SettingsRepository(
      * On network failure, we stay in NeedsLogin - the server URL is never cleared
      * automatically. Users must explicitly change servers via settings.
      */
-    override suspend fun checkServerStatus(): AuthState {
-        _authState.value = AuthState.CheckingServer
+    override suspend fun checkServerStatus(): DomainAuthState {
+        _authState.value = DomainAuthState.CheckingServer
 
         return when (val result = instanceRepository.getInstance(forceRefresh = true)) {
             is Result.Success -> {
@@ -601,9 +331,9 @@ class SettingsRepository(
 
                 val newState =
                     if (result.data.setupRequired) {
-                        AuthState.NeedsSetup
+                        DomainAuthState.NeedsSetup
                     } else {
-                        AuthState.NeedsLogin(openRegistration = result.data.openRegistration)
+                        DomainAuthState.NeedsLogin(openRegistration = result.data.openRegistration)
                     }
                 _authState.value = newState
                 newState
@@ -613,8 +343,8 @@ class SettingsRepository(
                 // Server unreachable - stay in NeedsLogin with cached open registration value
                 // User can retry or check their connection
                 val cachedOpenRegistration = getCachedOpenRegistration()
-                _authState.value = AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
-                AuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
+                _authState.value = DomainAuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
+                DomainAuthState.NeedsLogin(openRegistration = cachedOpenRegistration)
             }
         }
     }
@@ -633,15 +363,15 @@ class SettingsRepository(
     override suspend fun refreshOpenRegistration() {
         // Only refresh if we're in NeedsLogin state
         val currentState = _authState.value
-        if (currentState !is AuthState.NeedsLogin) return
+        if (currentState !is DomainAuthState.NeedsLogin) return
 
         when (val result = instanceRepository.getInstance(forceRefresh = true)) {
             is Result.Success -> {
                 // Cache the value
                 secureStorage.save(KEY_OPEN_REGISTRATION, result.data.openRegistration.toString())
                 // Update state with new value (only if still in NeedsLogin)
-                if (_authState.value is AuthState.NeedsLogin) {
-                    _authState.value = AuthState.NeedsLogin(openRegistration = result.data.openRegistration)
+                if (_authState.value is DomainAuthState.NeedsLogin) {
+                    _authState.value = DomainAuthState.NeedsLogin(openRegistration = result.data.openRegistration)
                 }
             }
 
@@ -668,7 +398,7 @@ class SettingsRepository(
         secureStorage.delete(KEY_USER_ID)
         secureStorage.delete(KEY_OPEN_REGISTRATION)
         secureStorage.delete(KEY_CONNECTED_LIBRARY_ID)
-        _authState.value = AuthState.NeedsServerUrl
+        _authState.value = DomainAuthState.NeedsServerUrl
     }
 
     // Library sync identity
@@ -821,7 +551,7 @@ class SettingsRepository(
         secureStorage.save(KEY_DEFAULT_PLAYBACK_SPEED, speed.toString())
 
         // Emit event for sync layer to observe and queue
-        _preferenceChanges.emit(PreferenceChangeEvent.PlaybackSpeedChanged(speed))
+        _preferenceChanges.emit(DomainPreferenceChangeEvent.PlaybackSpeedChanged(speed))
     }
 
     // Local preferences (device-specific, NOT synced)
@@ -920,7 +650,7 @@ class SettingsRepository(
 
         // Update auth state to PendingApproval
         _authState.value =
-            AuthState.PendingApproval(
+            DomainAuthState.PendingApproval(
                 userId = userId,
                 email = email,
                 encryptedPassword = password,

@@ -13,7 +13,7 @@ import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.EntityType
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.sync.push.ContributorUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.ContributorUpdatePayload
 import com.calypsan.listenup.client.data.sync.push.MergeContributorHandler
@@ -124,7 +124,36 @@ class ContributorEditRepository(
     private val contributorUpdateHandler: ContributorUpdateHandler,
     private val mergeContributorHandler: MergeContributorHandler,
     private val unmergeContributorHandler: UnmergeContributorHandler,
-) : ContributorEditRepositoryContract {
+) : ContributorEditRepositoryContract,
+    com.calypsan.listenup.client.domain.repository.ContributorEditRepository {
+
+    // ========== Domain Interface Implementation ==========
+
+    /**
+     * Domain interface method - adapts to internal updateContributor implementation.
+     */
+    override suspend fun updateContributor(
+        contributorId: String,
+        name: String?,
+        biography: String?,
+        website: String?,
+        birthDate: String?,
+        deathDate: String?,
+        aliases: List<String>?,
+    ): Result<Unit> = updateContributor(
+        contributorId,
+        ContributorUpdateRequest(
+            name = name,
+            biography = biography,
+            website = website,
+            birthDate = birthDate,
+            deathDate = deathDate,
+            aliases = aliases,
+        ),
+    )
+
+    // ========== Data Layer Contract Implementation ==========
+
     /**
      * Update contributor metadata.
      */

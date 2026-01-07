@@ -46,8 +46,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.composeapp.R
-import com.calypsan.listenup.client.data.local.db.ServerEntity
-import com.calypsan.listenup.client.data.repository.ServerWithStatus
+import com.calypsan.listenup.client.domain.model.Server
+import com.calypsan.listenup.client.domain.model.ServerWithStatus
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.design.theme.LocalDarkTheme
 import com.calypsan.listenup.client.presentation.connect.ServerSelectUiEvent
@@ -457,7 +457,7 @@ private fun PreviewWithServers() {
         listOf(
             ServerWithStatus(
                 server =
-                    ServerEntity(
+                    Server(
                         id = "server-1",
                         name = "Living Room Server",
                         apiVersion = "v1",
@@ -471,7 +471,7 @@ private fun PreviewWithServers() {
             ),
             ServerWithStatus(
                 server =
-                    ServerEntity(
+                    Server(
                         id = "server-2",
                         name = "Office Server",
                         apiVersion = "v1",
@@ -504,7 +504,7 @@ private fun PreviewConnecting() {
         listOf(
             ServerWithStatus(
                 server =
-                    ServerEntity(
+                    Server(
                         id = "server-1",
                         name = "Living Room Server",
                         apiVersion = "v1",

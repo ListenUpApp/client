@@ -4,10 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.SeriesDao
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.remote.ImageApiContract
-import com.calypsan.listenup.client.data.repository.SeriesEditRepositoryContract
+import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
+import com.calypsan.listenup.client.domain.usecase.series.SeriesUpdateRequest
+import com.calypsan.listenup.client.domain.usecase.series.UpdateSeriesUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -88,16 +88,14 @@ sealed interface SeriesEditNavAction {
  * - Cover image staging and upload
  * - Tracking unsaved changes
  *
- * @property seriesDao DAO for loading series data
- * @property seriesEditRepository Repository for saving edits
- * @property imageStorage Local image storage for cover staging
- * @property imageApi API for uploading cover images
+ * @property seriesRepository Repository for loading series data
+ * @property updateSeriesUseCase Use case for saving series changes
+ * @property imageRepository Repository for cover image operations
  */
 class SeriesEditViewModel(
-    private val seriesDao: SeriesDao,
-    private val seriesEditRepository: SeriesEditRepositoryContract,
-    private val imageStorage: ImageStorage,
-    private val imageApi: ImageApiContract,
+    private val seriesRepository: SeriesRepository,
+    private val updateSeriesUseCase: UpdateSeriesUseCase,
+    private val imageRepository: ImageRepository,
 ) : ViewModel() {
     val state: StateFlow<SeriesEditUiState>
         field = MutableStateFlow(SeriesEditUiState())
@@ -117,19 +115,18 @@ class SeriesEditViewModel(
         viewModelScope.launch {
             state.update { it.copy(isLoading = true, seriesId = seriesId) }
 
-            val seriesWithBooks = seriesDao.getByIdWithBooks(seriesId)
-            if (seriesWithBooks == null) {
+            val series = seriesRepository.getById(seriesId)
+            if (series == null) {
                 state.update { it.copy(isLoading = false, error = "Series not found") }
                 return@launch
             }
 
-            val series = seriesWithBooks.series
-            val bookCount = seriesWithBooks.books.size
+            val bookCount = seriesRepository.getBookIdsForSeries(seriesId).size
 
             // Get cover path if it exists
             val coverPath =
-                if (imageStorage.seriesCoverExists(seriesId)) {
-                    imageStorage.getSeriesCoverPath(seriesId)
+                if (imageRepository.seriesCoverExists(seriesId)) {
+                    imageRepository.getSeriesCoverPath(seriesId)
                 } else {
                     null
                 }
@@ -230,9 +227,9 @@ class SeriesEditViewModel(
             state.update { it.copy(isUploadingCover = true, error = null) }
 
             // Save to staging location for preview (doesn't overwrite original)
-            when (val saveResult = imageStorage.saveSeriesCoverStaging(seriesId, imageData)) {
+            when (val saveResult = imageRepository.saveSeriesCoverStaging(seriesId, imageData)) {
                 is Success -> {
-                    val stagingPath = imageStorage.getSeriesCoverStagingPath(seriesId)
+                    val stagingPath = imageRepository.getSeriesCoverStagingPath(seriesId)
                     logger.info { "Cover saved to staging for preview: $stagingPath" }
 
                     // Store pending data for upload when Save Changes is clicked
@@ -274,7 +271,7 @@ class SeriesEditViewModel(
         viewModelScope.launch {
             // Delete staging cover if it exists
             if (state.value.stagingCoverPath != null) {
-                imageStorage.deleteSeriesCoverStaging(seriesId)
+                imageRepository.deleteSeriesCoverStaging(seriesId)
             }
 
             state.update {
@@ -291,9 +288,8 @@ class SeriesEditViewModel(
     }
 
     /**
-     * Save all changes to server and local database.
+     * Save all changes via the use case.
      */
-    @Suppress("CognitiveComplexMethod")
     private fun saveChanges() {
         val current = state.value
         if (!current.hasChanges) {
@@ -304,83 +300,38 @@ class SeriesEditViewModel(
         viewModelScope.launch {
             state.update { it.copy(isSaving = true, error = null) }
 
-            try {
-                // Update metadata if changed
-                val metadataChanged =
-                    current.name != originalName ||
-                        current.description != originalDescription
+            val metadataChanged = current.name != originalName || current.description != originalDescription
 
-                if (metadataChanged) {
-                    val name = if (current.name != originalName) current.name else null
-                    val description =
-                        if (current.description != originalDescription) {
-                            current.description.ifBlank { null }
-                        } else {
-                            null
-                        }
+            val result = updateSeriesUseCase(
+                SeriesUpdateRequest(
+                    seriesId = current.seriesId,
+                    name = current.name,
+                    description = current.description,
+                    metadataChanged = metadataChanged,
+                    nameChanged = current.name != originalName,
+                    descriptionChanged = current.description != originalDescription,
+                    pendingCoverData = current.pendingCoverData,
+                    pendingCoverFilename = current.pendingCoverFilename,
+                ),
+            )
 
-                    when (val result = seriesEditRepository.updateSeries(current.seriesId, name, description)) {
-                        is Success -> {
-                            logger.info { "Series metadata updated" }
-                        }
-
-                        is Failure -> {
-                            state.update { it.copy(isSaving = false, error = "Failed to save: ${result.message}") }
-                            return@launch
-                        }
+            when (result) {
+                is Success -> {
+                    state.update {
+                        it.copy(
+                            isSaving = false,
+                            hasChanges = false,
+                            pendingCoverData = null,
+                            pendingCoverFilename = null,
+                            stagingCoverPath = null,
+                        )
                     }
+                    navActions.value = SeriesEditNavAction.NavigateBack
                 }
-
-                // Commit staging cover and upload if changed
-                val pendingCoverData = current.pendingCoverData
-                val pendingCoverFilename = current.pendingCoverFilename
-                if (pendingCoverData != null && pendingCoverFilename != null) {
-                    // First, commit staging to main cover location
-                    when (val commitResult = imageStorage.commitSeriesCoverStaging(current.seriesId)) {
-                        is Success -> {
-                            logger.info { "Staging cover committed to main location" }
-                        }
-
-                        is Failure -> {
-                            logger.error { "Failed to commit staging cover: ${commitResult.message}" }
-                            // Continue anyway - try to upload
-                        }
-                    }
-
-                    // Then upload to server
-                    when (
-                        val result =
-                            imageApi.uploadSeriesCover(
-                                current.seriesId,
-                                pendingCoverData,
-                                pendingCoverFilename,
-                            )
-                    ) {
-                        is Success -> {
-                            logger.info { "Cover uploaded to server" }
-                        }
-
-                        is Failure -> {
-                            logger.error { "Failed to upload cover: ${result.message}" }
-                            // Cover is already saved locally, log but don't fail the save
-                            logger.warn { "Continuing despite cover upload failure (local cover saved)" }
-                        }
-                    }
+                is Failure -> {
+                    logger.error { "Failed to save series: ${result.message}" }
+                    state.update { it.copy(isSaving = false, error = "Failed to save: ${result.message}") }
                 }
-
-                state.update {
-                    it.copy(
-                        isSaving = false,
-                        hasChanges = false,
-                        pendingCoverData = null,
-                        pendingCoverFilename = null,
-                        stagingCoverPath = null,
-                    )
-                }
-                navActions.value = SeriesEditNavAction.NavigateBack
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to save series changes" }
-                state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }
             }
         }
     }
@@ -392,7 +343,7 @@ class SeriesEditViewModel(
         val seriesId = state.value.seriesId
         if (seriesId.isNotBlank() && state.value.stagingCoverPath != null) {
             viewModelScope.launch {
-                imageStorage.deleteSeriesCoverStaging(seriesId)
+                imageRepository.deleteSeriesCoverStaging(seriesId)
                 logger.debug { "Staging cover cleaned up on cancel" }
             }
         }
@@ -410,7 +361,7 @@ class SeriesEditViewModel(
             // viewModelScope is cancelled by this point, use GlobalScope for cleanup
             @Suppress("OPT_IN_USAGE")
             kotlinx.coroutines.GlobalScope.launch(com.calypsan.listenup.client.core.IODispatcher) {
-                imageStorage.deleteSeriesCoverStaging(seriesId)
+                imageRepository.deleteSeriesCoverStaging(seriesId)
                 logger.debug { "Staging cover cleaned up on ViewModel cleared" }
             }
         }

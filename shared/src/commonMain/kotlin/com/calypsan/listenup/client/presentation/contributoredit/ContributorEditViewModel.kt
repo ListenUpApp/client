@@ -6,13 +6,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.remote.ContributorSearchResult
-import com.calypsan.listenup.client.data.remote.ImageApiContract
-import com.calypsan.listenup.client.data.repository.ContributorEditRepositoryContract
-import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
-import com.calypsan.listenup.client.data.repository.ContributorUpdateRequest
+import com.calypsan.listenup.client.domain.model.ContributorSearchResult
+import com.calypsan.listenup.client.domain.repository.ContributorEditRepository
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.usecase.contributor.ContributorUpdateRequest
+import com.calypsan.listenup.client.domain.usecase.contributor.UpdateContributorUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -140,19 +139,17 @@ sealed interface ContributorEditNavAction {
  *    - Operation is queued for server sync
  * 2. Alias is added to the UI state
  *
- * @property contributorDao DAO for reading contributor data
- * @property contributorRepository Repository for contributor search
+ * @property contributorRepository Repository for contributor data and search
  * @property contributorEditRepository Repository for editing (offline-first)
- * @property imageApi API for image upload
- * @property imageStorage Local image storage
+ * @property updateContributorUseCase Use case for updating contributor
+ * @property imageRepository Repository for image operations
  */
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class ContributorEditViewModel(
-    private val contributorDao: ContributorDao,
-    private val contributorRepository: ContributorRepositoryContract,
-    private val contributorEditRepository: ContributorEditRepositoryContract,
-    private val imageApi: ImageApiContract,
-    private val imageStorage: ImageStorage,
+    private val contributorRepository: ContributorRepository,
+    private val contributorEditRepository: ContributorEditRepository,
+    private val updateContributorUseCase: UpdateContributorUseCase,
+    private val imageRepository: ImageRepository,
 ) : ViewModel() {
     val state: StateFlow<ContributorEditUiState>
         field = MutableStateFlow(ContributorEditUiState())
@@ -238,14 +235,11 @@ class ContributorEditViewModel(
         viewModelScope.launch {
             state.update { it.copy(isLoading = true, contributorId = contributorId) }
 
-            val contributor = contributorDao.getById(contributorId)
+            val contributor = contributorRepository.getById(contributorId)
             if (contributor == null) {
                 state.update { it.copy(isLoading = false, error = "Contributor not found") }
                 return@launch
             }
-
-            // Parse aliases from comma-separated string
-            val aliases = contributor.aliasList()
 
             // Store original values
             originalName = contributor.name
@@ -253,7 +247,7 @@ class ContributorEditViewModel(
             originalWebsite = contributor.website ?: ""
             originalBirthDate = contributor.birthDate ?: ""
             originalDeathDate = contributor.deathDate ?: ""
-            originalAliases = aliases
+            originalAliases = contributor.aliases
             originalImagePath = contributor.imagePath
 
             state.update {
@@ -265,7 +259,7 @@ class ContributorEditViewModel(
                     website = contributor.website ?: "",
                     birthDate = contributor.birthDate ?: "",
                     deathDate = contributor.deathDate ?: "",
-                    aliases = aliases,
+                    aliases = contributor.aliases,
                     hasChanges = false,
                 )
             }
@@ -442,14 +436,14 @@ class ContributorEditViewModel(
         viewModelScope.launch {
             state.update { it.copy(isUploadingImage = true, error = null) }
 
-            when (val result = imageApi.uploadContributorImage(contributorId, imageData, filename)) {
+            when (val result = imageRepository.uploadContributorImage(contributorId, imageData, filename)) {
                 is Success -> {
                     logger.info { "Contributor image uploaded successfully to server" }
 
                     // Save image locally for offline-first access
-                    when (val saveResult = imageStorage.saveContributorImage(contributorId, imageData)) {
+                    when (val saveResult = imageRepository.saveContributorImage(contributorId, imageData)) {
                         is Success -> {
-                            val localPath = imageStorage.getContributorImagePath(contributorId)
+                            val localPath = imageRepository.getContributorImagePath(contributorId)
                             logger.info { "Contributor image saved locally: $localPath" }
                             state.update {
                                 it.copy(
@@ -540,11 +534,11 @@ class ContributorEditViewModel(
             }
 
             is Failure -> {
-                logger.error(result.exception) { "Unmerge failed for alias '$aliasName'" }
+                result.exception?.let { logger.error(it) { "Unmerge failed for alias '$aliasName'" } }
                 state.update {
                     it.copy(
                         isSaving = false,
-                        error = "Failed to remove alias: ${result.exception.message}",
+                        error = "Failed to remove alias: ${result.message}",
                     )
                 }
             }
@@ -566,9 +560,9 @@ class ContributorEditViewModel(
     }
 
     /**
-     * Save all changes via the offline-first repository.
+     * Save all changes via the use case.
      *
-     * Flow:
+     * The use case orchestrates:
      * 1. Handle new aliases by merging contributors
      * 2. Update contributor metadata
      * 3. Changes are applied locally and queued for sync
@@ -583,70 +577,36 @@ class ContributorEditViewModel(
         viewModelScope.launch {
             state.update { it.copy(isSaving = true, error = null) }
 
-            try {
-                // 1. Handle new aliases - merge contributors
-                val newAliases = current.aliases.toSet() - originalAliases.toSet()
-                for (newAlias in newAliases) {
-                    val tracked = contributorsToMerge[newAlias.lowercase()]
-                    if (tracked != null && tracked.id != current.contributorId) {
-                        // This alias corresponds to an existing contributor - merge it
-                        when (
-                            val result =
-                                contributorEditRepository.mergeContributor(
-                                    targetId = current.contributorId,
-                                    sourceId = tracked.id,
-                                )
-                        ) {
-                            is Success -> {
-                                logger.info { "Merged contributor ${tracked.id} into ${current.contributorId}" }
-                            }
+            val newAliases = current.aliases.toSet() - originalAliases.toSet()
 
-                            is Failure -> {
-                                logger.warn { "Merge failed for ${tracked.id}: ${result.exception.message}" }
-                                // Continue - alias will still be added via update
-                            }
-                        }
-                    }
+            val result = updateContributorUseCase(
+                ContributorUpdateRequest(
+                    contributorId = current.contributorId,
+                    name = current.name,
+                    biography = current.description,
+                    website = current.website,
+                    birthDate = current.birthDate,
+                    deathDate = current.deathDate,
+                    aliases = current.aliases,
+                    newAliases = newAliases,
+                    contributorsToMerge = contributorsToMerge.toMap(),
+                ),
+            )
+
+            when (result) {
+                is Success -> {
+                    state.update { it.copy(isSaving = false, hasChanges = false) }
+                    navActions.value = ContributorEditNavAction.SaveSuccess
                 }
-
-                // 2. Update contributor metadata
-                val updateRequest =
-                    ContributorUpdateRequest(
-                        name = current.name,
-                        biography = current.description.ifBlank { null },
-                        website = current.website.ifBlank { null },
-                        birthDate = current.birthDate.ifBlank { null },
-                        deathDate = current.deathDate.ifBlank { null },
-                        aliases = current.aliases,
-                        imagePath = current.imagePath,
-                    )
-
-                when (
-                    val result =
-                        contributorEditRepository.updateContributor(
-                            current.contributorId,
-                            updateRequest,
+                is Failure -> {
+                    logger.error { "Failed to save contributor: ${result.message}" }
+                    state.update {
+                        it.copy(
+                            isSaving = false,
+                            error = "Failed to save: ${result.message}",
                         )
-                ) {
-                    is Success -> {
-                        logger.info { "Contributor update queued: ${current.name}" }
-                        state.update { it.copy(isSaving = false, hasChanges = false) }
-                        navActions.value = ContributorEditNavAction.SaveSuccess
-                    }
-
-                    is Failure -> {
-                        logger.error(result.exception) { "Failed to update contributor" }
-                        state.update {
-                            it.copy(
-                                isSaving = false,
-                                error = "Failed to save: ${result.exception.message}",
-                            )
-                        }
                     }
                 }
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to save contributor changes" }
-                state.update { it.copy(isSaving = false, error = "Failed to save: ${e.message}") }
             }
         }
     }

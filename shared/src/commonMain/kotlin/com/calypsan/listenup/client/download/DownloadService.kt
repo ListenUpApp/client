@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.download
 
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 
 /**
  * Result of a download operation.

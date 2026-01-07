@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.domain.imagepicker
 /**
  * Result from picking an image from the device gallery.
  */
-sealed class ImagePickerResult {
+sealed interface ImagePickerResult {
     /**
      * Successfully picked an image.
      *
@@ -15,7 +15,7 @@ sealed class ImagePickerResult {
         val data: ByteArray,
         val filename: String,
         val mimeType: String,
-    ) : ImagePickerResult() {
+    ) : ImagePickerResult {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other == null || this::class != other::class) return false
@@ -40,12 +40,12 @@ sealed class ImagePickerResult {
     /**
      * User cancelled the picker.
      */
-    data object Cancelled : ImagePickerResult()
+    data object Cancelled : ImagePickerResult
 
     /**
      * Error occurred while picking or reading the image.
      */
     data class Error(
         val message: String,
-    ) : ImagePickerResult()
+    ) : ImagePickerResult
 }

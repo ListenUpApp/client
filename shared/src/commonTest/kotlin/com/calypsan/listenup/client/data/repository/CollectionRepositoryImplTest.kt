@@ -1,8 +1,9 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
-import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -31,9 +32,10 @@ class CollectionRepositoryImplTest {
 
     private class TestFixture {
         val collectionDao: CollectionDao = mock()
+        val adminCollectionApi: AdminCollectionApiContract = mock()
 
         fun build(): CollectionRepositoryImpl =
-            CollectionRepositoryImpl(dao = collectionDao)
+            CollectionRepositoryImpl(dao = collectionDao, adminCollectionApi = adminCollectionApi)
     }
 
     private fun createFixture(): TestFixture {

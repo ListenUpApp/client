@@ -2,11 +2,11 @@ package com.calypsan.listenup.client.presentation.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.remote.LeaderboardCategory
-import com.calypsan.listenup.client.data.remote.StatsPeriod
-import com.calypsan.listenup.client.data.repository.CommunityStats
-import com.calypsan.listenup.client.data.repository.LeaderboardEntry
-import com.calypsan.listenup.client.data.repository.LeaderboardRepositoryContract
+import com.calypsan.listenup.client.domain.repository.CommunityStats
+import com.calypsan.listenup.client.domain.repository.LeaderboardCategory
+import com.calypsan.listenup.client.domain.repository.LeaderboardEntry
+import com.calypsan.listenup.client.domain.repository.LeaderboardPeriod
+import com.calypsan.listenup.client.domain.repository.LeaderboardRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,13 +34,13 @@ private val logger = KotlinLogging.logger {}
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LeaderboardViewModel(
-    private val leaderboardRepository: LeaderboardRepositoryContract,
+    private val leaderboardRepository: LeaderboardRepository,
 ) : ViewModel() {
     val state: StateFlow<LeaderboardUiState>
         field = MutableStateFlow(LeaderboardUiState())
 
     // Period trigger for reactive observation - flatMapLatest handles switching automatically
-    private val selectedPeriodFlow = MutableStateFlow(StatsPeriod.WEEK)
+    private val selectedPeriodFlow = MutableStateFlow(LeaderboardPeriod.WEEK)
 
     init {
         setupReactiveObservation()
@@ -52,7 +52,7 @@ class LeaderboardViewModel(
     fun selectCategory(category: LeaderboardCategory) {
         if (category == state.value.selectedCategory) return
 
-        logger.debug { "Category changed to ${category.value}" }
+        logger.debug { "Category changed to $category" }
         state.update { it.copy(selectedCategory = category) }
         resortEntries()
     }
@@ -70,10 +70,10 @@ class LeaderboardViewModel(
     /**
      * Select a new period (triggers reactive observation switch via flatMapLatest).
      */
-    fun selectPeriod(period: StatsPeriod) {
+    fun selectPeriod(period: LeaderboardPeriod) {
         if (period == state.value.selectedPeriod) return
 
-        logger.info { "Period changed from ${state.value.selectedPeriod.value} to ${period.value}" }
+        logger.info { "Period changed from ${state.value.selectedPeriod} to $period" }
         state.update { it.copy(selectedPeriod = period, isLoading = true) }
         selectedPeriodFlow.value = period
     }
@@ -106,7 +106,7 @@ class LeaderboardViewModel(
             selectedPeriodFlow
                 .flatMapLatest { period ->
                     val category = state.value.selectedCategory
-                    logger.info { "Observing leaderboard: period=${period.value}, category=${category.value}" }
+                    logger.info { "Observing leaderboard: period=$period, category=$category" }
                     leaderboardRepository.observeLeaderboard(period, category, limit = 10)
                 }.collect { entries ->
                     logger.debug { "Received ${entries.size} leaderboard entries" }
@@ -166,7 +166,7 @@ data class LeaderboardUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
     val selectedCategory: LeaderboardCategory = LeaderboardCategory.TIME,
-    val selectedPeriod: StatsPeriod = StatsPeriod.WEEK,
+    val selectedPeriod: LeaderboardPeriod = LeaderboardPeriod.WEEK,
     /** Entries sorted for current category */
     val entries: List<LeaderboardEntry> = emptyList(),
     /** All entries (unsorted) for re-sorting on category change */

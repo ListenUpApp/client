@@ -8,7 +8,9 @@ import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.model.InstanceId
+import com.calypsan.listenup.client.domain.repository.AuthState
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.repository.PreferenceChangeEvent
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
@@ -55,7 +57,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -72,7 +74,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -98,7 +100,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -118,7 +120,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -138,7 +140,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -170,7 +172,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -190,7 +192,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -210,7 +212,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -230,7 +232,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -250,7 +252,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -270,7 +272,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -296,7 +298,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -317,7 +319,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -337,7 +339,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -357,7 +359,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -377,7 +379,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -397,7 +399,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -417,7 +419,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -442,7 +444,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -472,7 +474,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -497,7 +499,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -505,7 +507,8 @@ class SettingsRepositoryTest {
             // Server unreachable
             everySuspend { instanceRepository.getInstance(forceRefresh = true) } returns
                 Result.Failure(
-                    Exception("Network error"),
+                    exception = Exception("Network error"),
+                    message = "Network error",
                 )
 
             // When - checkServerStatus handles network errors gracefully
@@ -522,7 +525,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -542,7 +545,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -562,7 +565,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -582,7 +585,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -602,7 +605,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -622,7 +625,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -646,7 +649,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -675,7 +678,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -695,7 +698,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -719,7 +722,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -746,7 +749,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )
@@ -772,7 +775,7 @@ class SettingsRepositoryTest {
             val storage = createMockStorage()
             val instanceRepository = createMockInstanceRepository()
             val repository =
-                SettingsRepository(
+                SettingsRepositoryImpl(
                     storage,
                     instanceRepository,
                 )

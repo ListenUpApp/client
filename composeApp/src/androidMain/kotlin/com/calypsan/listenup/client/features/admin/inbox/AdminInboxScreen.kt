@@ -54,7 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.calypsan.listenup.client.data.remote.InboxBookResponse
+import com.calypsan.listenup.client.domain.model.InboxBook
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.presentation.admin.AdminInboxUiState
@@ -93,8 +93,8 @@ fun AdminInboxScreen(
             val message =
                 buildString {
                     append("Released ${result.released} book${if (result.released != 1) "s" else ""}")
-                    if (result.public > 0) {
-                        append(" (${result.public} public)")
+                    if (result.publicCount > 0) {
+                        append(" (${result.publicCount} public)")
                     }
                 }
             snackbarHostState.showSnackbar(message)
@@ -275,7 +275,7 @@ private fun InboxContent(
 
 @Composable
 private fun InboxBookRow(
-    book: InboxBookResponse,
+    book: InboxBook,
     isSelected: Boolean,
     isReleasing: Boolean,
     onClick: () -> Unit,

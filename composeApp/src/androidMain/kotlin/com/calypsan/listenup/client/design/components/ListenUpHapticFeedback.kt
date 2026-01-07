@@ -7,7 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import com.calypsan.listenup.client.data.repository.LocalPreferencesContract
+import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import org.koin.compose.koinInject
 
 /**
@@ -71,7 +71,7 @@ class ListenUpHapticFeedback(
  * @return A [ListenUpHapticFeedback] instance for performing haptic feedback
  */
 @Composable
-fun rememberHapticFeedback(localPreferences: LocalPreferencesContract = koinInject()): ListenUpHapticFeedback {
+fun rememberHapticFeedback(localPreferences: LocalPreferences = koinInject()): ListenUpHapticFeedback {
     val platformHaptics = LocalHapticFeedback.current
     val hapticEnabled by localPreferences.hapticFeedbackEnabled.collectAsState()
 

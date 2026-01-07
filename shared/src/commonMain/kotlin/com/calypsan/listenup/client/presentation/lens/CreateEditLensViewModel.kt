@@ -2,8 +2,12 @@ package com.calypsan.listenup.client.presentation.lens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.remote.LensApiContract
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.DeleteLensUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.UpdateLensUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,10 +19,17 @@ private val logger = KotlinLogging.logger {}
 /**
  * ViewModel for Create/Edit Lens screen.
  *
+ * Thin presentation coordinator that delegates business logic to use cases:
+ * - [CreateLensUseCase]: Creates new lenses with validation
+ * - [UpdateLensUseCase]: Updates existing lenses with validation
+ * - [DeleteLensUseCase]: Deletes lenses
+ *
  * Handles both creating new lenses and editing existing ones.
  */
 class CreateEditLensViewModel(
-    private val lensApi: LensApiContract,
+    private val createLensUseCase: CreateLensUseCase,
+    private val updateLensUseCase: UpdateLensUseCase,
+    private val deleteLensUseCase: DeleteLensUseCase,
     private val lensRepository: LensRepository,
 ) : ViewModel() {
     val state: StateFlow<CreateEditLensUiState>
@@ -92,45 +103,40 @@ class CreateEditLensViewModel(
     /**
      * Save the lens (create or update).
      *
-     * @return true if successful and should navigate back
+     * Delegates to appropriate use case based on mode.
+     * Validation is handled by the use cases.
      */
     fun save(onSuccess: () -> Unit) {
         val currentState = state.value
-        if (currentState.name.isBlank()) {
-            state.update { it.copy(error = "Name is required") }
-            return
-        }
 
         viewModelScope.launch {
             state.update { it.copy(isSaving = true, error = null) }
 
-            try {
-                if (editingLensId != null) {
-                    // Update existing lens
-                    lensApi.updateLens(
-                        lensId = editingLensId!!,
-                        name = currentState.name.trim(),
-                        description = currentState.description.trim().takeIf { it.isNotEmpty() },
-                    )
-                    logger.info { "Updated lens: $editingLensId" }
-                } else {
-                    // Create new lens
-                    lensApi.createLens(
-                        name = currentState.name.trim(),
-                        description = currentState.description.trim().takeIf { it.isNotEmpty() },
-                    )
-                    logger.info { "Created new lens: ${currentState.name}" }
-                }
+            val result = if (editingLensId != null) {
+                updateLensUseCase(
+                    lensId = editingLensId!!,
+                    name = currentState.name,
+                    description = currentState.description.takeIf { it.isNotEmpty() },
+                )
+            } else {
+                createLensUseCase(
+                    name = currentState.name,
+                    description = currentState.description.takeIf { it.isNotEmpty() },
+                )
+            }
 
-                state.update { it.copy(isSaving = false) }
-                onSuccess()
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to save lens" }
-                state.update {
-                    it.copy(
-                        isSaving = false,
-                        error = "Failed to save: ${e.message}",
-                    )
+            when (result) {
+                is Success -> {
+                    state.update { it.copy(isSaving = false) }
+                    onSuccess()
+                }
+                is Failure -> {
+                    state.update {
+                        it.copy(
+                            isSaving = false,
+                            error = result.message,
+                        )
+                    }
                 }
             }
         }
@@ -138,6 +144,8 @@ class CreateEditLensViewModel(
 
     /**
      * Delete the current lens (edit mode only).
+     *
+     * Delegates to [DeleteLensUseCase].
      */
     fun delete(onSuccess: () -> Unit) {
         val lensId = editingLensId ?: return
@@ -145,18 +153,18 @@ class CreateEditLensViewModel(
         viewModelScope.launch {
             state.update { it.copy(isSaving = true, error = null) }
 
-            try {
-                lensApi.deleteLens(lensId)
-                logger.info { "Deleted lens: $lensId" }
-                state.update { it.copy(isSaving = false) }
-                onSuccess()
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to delete lens" }
-                state.update {
-                    it.copy(
-                        isSaving = false,
-                        error = "Failed to delete: ${e.message}",
-                    )
+            when (val result = deleteLensUseCase(lensId)) {
+                is Success -> {
+                    state.update { it.copy(isSaving = false) }
+                    onSuccess()
+                }
+                is Failure -> {
+                    state.update {
+                        it.copy(
+                            isSaving = false,
+                            error = result.message,
+                        )
+                    }
                 }
             }
         }

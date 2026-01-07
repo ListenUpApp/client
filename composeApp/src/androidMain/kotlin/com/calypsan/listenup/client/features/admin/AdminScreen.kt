@@ -59,8 +59,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.data.remote.AdminInvite
-import com.calypsan.listenup.client.data.remote.AdminUser
+import com.calypsan.listenup.client.domain.model.AdminUserInfo
+import com.calypsan.listenup.client.domain.model.InviteInfo
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.presentation.admin.AdminUiState
@@ -89,9 +89,9 @@ fun AdminScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    var userToDelete by remember { mutableStateOf<AdminUser?>(null) }
-    var inviteToRevoke by remember { mutableStateOf<AdminInvite?>(null) }
-    var userToDeny by remember { mutableStateOf<AdminUser?>(null) }
+    var userToDelete by remember { mutableStateOf<AdminUserInfo?>(null) }
+    var inviteToRevoke by remember { mutableStateOf<InviteInfo?>(null) }
+    var userToDeny by remember { mutableStateOf<AdminUserInfo?>(null) }
 
     LaunchedEffect(state.error) {
         state.error?.let {
@@ -205,11 +205,11 @@ private fun copyToClipboard(
 private fun AdminContent(
     state: AdminUiState,
     onOpenRegistrationChange: (Boolean) -> Unit,
-    onApproveUserClick: (AdminUser) -> Unit,
-    onDenyUserClick: (AdminUser) -> Unit,
-    onDeleteUserClick: (AdminUser) -> Unit,
-    onCopyInviteClick: (AdminInvite) -> Unit,
-    onRevokeInviteClick: (AdminInvite) -> Unit,
+    onApproveUserClick: (AdminUserInfo) -> Unit,
+    onDenyUserClick: (AdminUserInfo) -> Unit,
+    onDeleteUserClick: (AdminUserInfo) -> Unit,
+    onCopyInviteClick: (InviteInfo) -> Unit,
+    onRevokeInviteClick: (InviteInfo) -> Unit,
     onInviteClick: () -> Unit,
     onCollectionsClick: () -> Unit,
     onInboxClick: () -> Unit,
@@ -532,7 +532,7 @@ private fun SettingsCard(
 
 @Composable
 private fun PendingUserRow(
-    user: AdminUser,
+    user: AdminUserInfo,
     isApproving: Boolean,
     isDenying: Boolean,
     onApproveClick: () -> Unit,
@@ -634,7 +634,7 @@ private fun UserTableHeader(modifier: Modifier = Modifier) {
 
 @Composable
 private fun UserTableRow(
-    user: AdminUser,
+    user: AdminUserInfo,
     isDeleting: Boolean,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -711,7 +711,7 @@ private fun UserTableRow(
 
 @Composable
 private fun InviteRow(
-    invite: AdminInvite,
+    invite: InviteInfo,
     isRevoking: Boolean,
     onCopyClick: () -> Unit,
     onRevokeClick: () -> Unit,

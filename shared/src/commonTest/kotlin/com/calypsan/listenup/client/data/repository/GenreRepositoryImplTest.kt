@@ -1,8 +1,9 @@
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.GenreDao
 import com.calypsan.listenup.client.data.local.db.GenreEntity
+import com.calypsan.listenup.client.data.remote.GenreApiContract
 import dev.mokkery.MockMode
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -32,7 +33,12 @@ class GenreRepositoryImplTest {
 
     private fun createMockDao(): GenreDao = mock<GenreDao>(MockMode.autoUnit)
 
-    private fun createRepository(dao: GenreDao): GenreRepositoryImpl = GenreRepositoryImpl(dao)
+    private fun createMockApi(): GenreApiContract = mock<GenreApiContract>()
+
+    private fun createRepository(
+        dao: GenreDao,
+        genreApi: GenreApiContract = createMockApi(),
+    ): GenreRepositoryImpl = GenreRepositoryImpl(dao, genreApi)
 
     private fun createTestGenreEntity(
         id: String = "genre-1",

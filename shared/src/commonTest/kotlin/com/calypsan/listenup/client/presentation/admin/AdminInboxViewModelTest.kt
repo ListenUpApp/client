@@ -1,14 +1,17 @@
 package com.calypsan.listenup.client.presentation.admin
 
-import com.calypsan.listenup.client.data.remote.AdminApiContract
-import com.calypsan.listenup.client.data.remote.CollectionRef
-import com.calypsan.listenup.client.data.remote.InboxBookResponse
-import com.calypsan.listenup.client.data.remote.InboxBooksResponse
-import com.calypsan.listenup.client.data.remote.ReleaseInboxBooksResponse
-import com.calypsan.listenup.client.data.sync.SSEEventType
-import com.calypsan.listenup.client.data.sync.SSEManagerContract
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.model.AdminEvent
+import com.calypsan.listenup.client.domain.model.InboxBook
+import com.calypsan.listenup.client.domain.repository.EventStreamRepository
+import com.calypsan.listenup.client.domain.model.InboxReleaseResult
+import com.calypsan.listenup.client.domain.model.StagedCollection
+import com.calypsan.listenup.client.domain.usecase.admin.LoadInboxBooksUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.ReleaseBooksUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.StageCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.UnstageCollectionUseCase
 import dev.mokkery.answering.returns
-import dev.mokkery.answering.throws
 import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.mock
@@ -39,35 +42,36 @@ class AdminInboxViewModelTest {
         title: String = "Test Book",
         author: String? = "Test Author",
         stagedCollectionIds: List<String> = emptyList(),
-    ) = InboxBookResponse(
+    ) = InboxBook(
         id = id,
         title = title,
         author = author,
         coverUrl = null,
         duration = 3600000, // 1 hour
         stagedCollectionIds = stagedCollectionIds,
-        stagedCollections = stagedCollectionIds.map { CollectionRef(it, "Collection $it") },
+        stagedCollections = stagedCollectionIds.map { StagedCollection(it, "Collection $it") },
         scannedAt = "2024-01-01T00:00:00Z",
     )
 
-    private fun createMockAdminApi(
-        books: List<InboxBookResponse> = emptyList(),
-    ): AdminApiContract {
-        val adminApi: AdminApiContract = mock()
-        everySuspend { adminApi.listInboxBooks() } returns
-            InboxBooksResponse(
-                books = books,
-                total = books.size,
-            )
-        return adminApi
-    }
+    private class TestFixture {
+        val loadInboxBooksUseCase: LoadInboxBooksUseCase = mock()
+        val releaseBooksUseCase: ReleaseBooksUseCase = mock()
+        val stageCollectionUseCase: StageCollectionUseCase = mock()
+        val unstageCollectionUseCase: UnstageCollectionUseCase = mock()
+        val eventStreamRepository: EventStreamRepository = mock()
+        val adminEvents = MutableSharedFlow<AdminEvent>(extraBufferCapacity = 1)
 
-    private fun createMockSSEManager(): Pair<SSEManagerContract, MutableSharedFlow<SSEEventType>> {
-        val sseManager: SSEManagerContract = mock()
-        // Use extraBufferCapacity to prevent emit from suspending in tests
-        val eventFlow = MutableSharedFlow<SSEEventType>(extraBufferCapacity = 1)
-        every { sseManager.eventFlow } returns eventFlow
-        return sseManager to eventFlow
+        init {
+            every { eventStreamRepository.adminEvents } returns adminEvents
+        }
+
+        fun build() = AdminInboxViewModel(
+            loadInboxBooksUseCase = loadInboxBooksUseCase,
+            releaseBooksUseCase = releaseBooksUseCase,
+            stageCollectionUseCase = stageCollectionUseCase,
+            unstageCollectionUseCase = unstageCollectionUseCase,
+            eventStreamRepository = eventStreamRepository,
+        )
     }
 
     @BeforeTest
@@ -83,58 +87,49 @@ class AdminInboxViewModelTest {
     @Test
     fun `initial state is loading`() =
         runTest {
-            val adminApi = createMockAdminApi()
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(emptyList())
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
 
             assertTrue(viewModel.state.value.isLoading)
         }
 
     @Test
-    fun `loadInboxBooks fetches books from API`() =
+    fun `loadInboxBooks fetches books from use case`() =
         runTest {
             val books =
                 listOf(
                     createInboxBook("book-1", "Book One"),
                     createInboxBook("book-2", "Book Two"),
                 )
-            val adminApi = createMockAdminApi(books)
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
             assertEquals(2, viewModel.state.value.books.size)
-            assertEquals(
-                "book-1",
-                viewModel.state.value.books[0]
-                    .id,
-            )
-            assertEquals(
-                "book-2",
-                viewModel.state.value.books[1]
-                    .id,
-            )
+            assertEquals("book-1", viewModel.state.value.books[0].id)
+            assertEquals("book-2", viewModel.state.value.books[1].id)
         }
 
     @Test
     fun `loadInboxBooks handles error`() =
         runTest {
-            val adminApi: AdminApiContract = mock()
-            everySuspend { adminApi.listInboxBooks() } throws RuntimeException("Network error")
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Failure(
+                RuntimeException("Network error"),
+                "Network error",
+            )
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
             assertTrue(
-                viewModel.state.value.error
-                    ?.contains("Network error") == true ||
-                    viewModel.state.value.error
-                        ?.contains("Failed to load") == true,
+                viewModel.state.value.error?.contains("Network error") == true,
             )
         }
 
@@ -142,41 +137,32 @@ class AdminInboxViewModelTest {
     fun `toggleBookSelection adds book to selection`() =
         runTest {
             val books = listOf(createInboxBook("book-1"))
-            val adminApi = createMockAdminApi(books)
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.toggleBookSelection("book-1")
 
-            assertTrue(
-                viewModel.state.value.selectedBookIds
-                    .contains("book-1"),
-            )
+            assertTrue(viewModel.state.value.selectedBookIds.contains("book-1"))
         }
 
     @Test
     fun `toggleBookSelection removes book from selection if already selected`() =
         runTest {
             val books = listOf(createInboxBook("book-1"))
-            val adminApi = createMockAdminApi(books)
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.toggleBookSelection("book-1")
-            assertTrue(
-                viewModel.state.value.selectedBookIds
-                    .contains("book-1"),
-            )
+            assertTrue(viewModel.state.value.selectedBookIds.contains("book-1"))
 
             viewModel.toggleBookSelection("book-1")
-            assertFalse(
-                viewModel.state.value.selectedBookIds
-                    .contains("book-1"),
-            )
+            assertFalse(viewModel.state.value.selectedBookIds.contains("book-1"))
         }
 
     @Test
@@ -188,10 +174,10 @@ class AdminInboxViewModelTest {
                     createInboxBook("book-2"),
                     createInboxBook("book-3"),
                 )
-            val adminApi = createMockAdminApi(books)
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.selectAll()
@@ -204,69 +190,60 @@ class AdminInboxViewModelTest {
     fun `clearSelection clears all selections`() =
         runTest {
             val books = listOf(createInboxBook("book-1"), createInboxBook("book-2"))
-            val adminApi = createMockAdminApi(books)
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.selectAll()
             assertEquals(2, viewModel.state.value.selectedBookIds.size)
 
             viewModel.clearSelection()
-            assertTrue(
-                viewModel.state.value.selectedBookIds
-                    .isEmpty(),
-            )
+            assertTrue(viewModel.state.value.selectedBookIds.isEmpty())
         }
 
     @Test
-    fun `releaseBooks calls API and removes books from local state`() =
+    fun `releaseBooks calls use case and removes books from local state`() =
         runTest {
             val books = listOf(createInboxBook("book-1"), createInboxBook("book-2"))
-            val adminApi = createMockAdminApi(books)
-            everySuspend { adminApi.releaseBooks(listOf("book-1")) } returns
-                ReleaseInboxBooksResponse(
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
+            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns Success(
+                InboxReleaseResult(
                     released = 1,
-                    public = 1,
+                    publicCount = 1,
                     toCollections = 0,
-                )
-            val (sseManager, _) = createMockSSEManager()
+                ),
+            )
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.releaseBooks(listOf("book-1"))
             advanceUntilIdle()
 
             assertEquals(1, viewModel.state.value.books.size)
-            assertEquals(
-                "book-2",
-                viewModel.state.value.books[0]
-                    .id,
-            )
+            assertEquals("book-2", viewModel.state.value.books[0].id)
             assertFalse(viewModel.state.value.isReleasing)
-            assertEquals(
-                1,
-                viewModel.state.value.lastReleaseResult
-                    ?.released,
-            )
+            assertEquals(1, viewModel.state.value.lastReleaseResult?.released)
         }
 
     @Test
     fun `releaseBooks clears selection after success`() =
         runTest {
             val books = listOf(createInboxBook("book-1"), createInboxBook("book-2"))
-            val adminApi = createMockAdminApi(books)
-            everySuspend { adminApi.releaseBooks(listOf("book-1")) } returns
-                ReleaseInboxBooksResponse(
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
+            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns Success(
+                InboxReleaseResult(
                     released = 1,
-                    public = 1,
+                    publicCount = 1,
                     toCollections = 0,
-                )
-            val (sseManager, _) = createMockSSEManager()
+                ),
+            )
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.toggleBookSelection("book-1")
@@ -275,21 +252,21 @@ class AdminInboxViewModelTest {
             viewModel.releaseBooks(listOf("book-1"))
             advanceUntilIdle()
 
-            assertTrue(
-                viewModel.state.value.selectedBookIds
-                    .isEmpty(),
-            )
+            assertTrue(viewModel.state.value.selectedBookIds.isEmpty())
         }
 
     @Test
     fun `releaseBooks handles error`() =
         runTest {
             val books = listOf(createInboxBook("book-1"))
-            val adminApi = createMockAdminApi(books)
-            everySuspend { adminApi.releaseBooks(listOf("book-1")) } throws RuntimeException("Failed")
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
+            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns Failure(
+                RuntimeException("Failed"),
+                "Failed",
+            )
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.releaseBooks(listOf("book-1"))
@@ -305,38 +282,38 @@ class AdminInboxViewModelTest {
     fun `stageCollection reloads books after success`() =
         runTest {
             val books = listOf(createInboxBook("book-1"))
-            val adminApi = createMockAdminApi(books)
-            everySuspend { adminApi.stageCollection("book-1", "coll-1") } returns Unit
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
+            everySuspend { fixture.stageCollectionUseCase("book-1", "coll-1") } returns Success(Unit)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.stageCollection("book-1", "coll-1")
             advanceUntilIdle()
 
-            // Verify API was called
-            verifySuspend(VerifyMode.atLeast(1)) { adminApi.stageCollection("book-1", "coll-1") }
-            // Verify books were reloaded
-            verifySuspend(VerifyMode.atLeast(2)) { adminApi.listInboxBooks() }
+            // Verify use case was called
+            verifySuspend(VerifyMode.atLeast(1)) { fixture.stageCollectionUseCase("book-1", "coll-1") }
+            // Verify books were reloaded (called at least twice - init + after stage)
+            verifySuspend(VerifyMode.atLeast(2)) { fixture.loadInboxBooksUseCase() }
         }
 
     @Test
     fun `unstageCollection reloads books after success`() =
         runTest {
             val books = listOf(createInboxBook("book-1", stagedCollectionIds = listOf("coll-1")))
-            val adminApi = createMockAdminApi(books)
-            everySuspend { adminApi.unstageCollection("book-1", "coll-1") } returns Unit
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
+            everySuspend { fixture.unstageCollectionUseCase("book-1", "coll-1") } returns Success(Unit)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.unstageCollection("book-1", "coll-1")
             advanceUntilIdle()
 
-            verifySuspend(VerifyMode.atLeast(1)) { adminApi.unstageCollection("book-1", "coll-1") }
-            verifySuspend(VerifyMode.atLeast(2)) { adminApi.listInboxBooks() }
+            verifySuspend(VerifyMode.atLeast(1)) { fixture.unstageCollectionUseCase("book-1", "coll-1") }
+            verifySuspend(VerifyMode.atLeast(2)) { fixture.loadInboxBooksUseCase() }
         }
 
     @Test
@@ -346,10 +323,10 @@ class AdminInboxViewModelTest {
                 listOf(
                     createInboxBook("book-1", stagedCollectionIds = emptyList()),
                 )
-            val adminApi = createMockAdminApi(books)
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.toggleBookSelection("book-1")
@@ -364,10 +341,10 @@ class AdminInboxViewModelTest {
                 listOf(
                     createInboxBook("book-1", stagedCollectionIds = listOf("coll-1")),
                 )
-            val adminApi = createMockAdminApi(books)
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.toggleBookSelection("book-1")
@@ -379,67 +356,54 @@ class AdminInboxViewModelTest {
     fun `SSE InboxBookReleased event removes book from list`() =
         runTest {
             val books = listOf(createInboxBook("book-1"), createInboxBook("book-2"))
-            val adminApi = createMockAdminApi(books)
-            val (sseManager, eventFlow) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             assertEquals(2, viewModel.state.value.books.size)
 
             // Emit SSE event
-            eventFlow.emit(SSEEventType.InboxBookReleased("book-1"))
+            fixture.adminEvents.emit(AdminEvent.InboxBookReleased("book-1"))
             advanceUntilIdle()
 
             assertEquals(1, viewModel.state.value.books.size)
-            assertEquals(
-                "book-2",
-                viewModel.state.value.books[0]
-                    .id,
-            )
+            assertEquals("book-2", viewModel.state.value.books[0].id)
         }
 
     @Test
     fun `SSE InboxBookAdded event reloads books`() =
         runTest {
             val books = listOf(createInboxBook("book-1"))
-            val (sseManager, eventFlow) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
 
-            // Create a fresh mock for this test to track call count from scratch
-            val adminApi: AdminApiContract = mock()
-            everySuspend { adminApi.listInboxBooks() } returns
-                InboxBooksResponse(
-                    books = books,
-                    total = books.size,
-                )
-
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
-            // Initial load done - isLoading should be false
+            // Initial load done
             assertFalse(viewModel.state.value.isLoading)
             assertEquals(1, viewModel.state.value.books.size)
 
-            // Track that we're about to reload
-            val initialBooks = viewModel.state.value.books
-
-            // Emit SSE event for new book (same pattern as InboxBookReleased test)
-            eventFlow.emit(SSEEventType.InboxBookAdded(bookId = "book-2", title = "New Book"))
+            // Emit SSE event for new book
+            fixture.adminEvents.emit(AdminEvent.InboxBookAdded(bookId = "book-2", title = "New Book"))
             advanceUntilIdle()
 
-            // The reload should have been triggered - verify by checking loading state cycled
-            // Or simply verify the API was called at least twice
-            verifySuspend(VerifyMode.atLeast(2)) { adminApi.listInboxBooks() }
+            // The reload should have been triggered - verify by checking use case was called twice
+            verifySuspend(VerifyMode.atLeast(2)) { fixture.loadInboxBooksUseCase() }
         }
 
     @Test
     fun `clearError clears error state`() =
         runTest {
-            val adminApi: AdminApiContract = mock()
-            everySuspend { adminApi.listInboxBooks() } throws RuntimeException("Error")
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Failure(
+                RuntimeException("Error"),
+                "Error",
+            )
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             assertTrue(viewModel.state.value.error != null)
@@ -453,16 +417,17 @@ class AdminInboxViewModelTest {
     fun `clearReleaseResult clears last release result`() =
         runTest {
             val books = listOf(createInboxBook("book-1"))
-            val adminApi = createMockAdminApi(books)
-            everySuspend { adminApi.releaseBooks(listOf("book-1")) } returns
-                ReleaseInboxBooksResponse(
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
+            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns Success(
+                InboxReleaseResult(
                     released = 1,
-                    public = 1,
+                    publicCount = 1,
                     toCollections = 0,
-                )
-            val (sseManager, _) = createMockSSEManager()
+                ),
+            )
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             viewModel.releaseBooks(listOf("book-1"))
@@ -479,10 +444,10 @@ class AdminInboxViewModelTest {
     fun `hasBooks returns true when books exist`() =
         runTest {
             val books = listOf(createInboxBook("book-1"))
-            val adminApi = createMockAdminApi(books)
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             assertTrue(viewModel.state.value.hasBooks)
@@ -491,10 +456,10 @@ class AdminInboxViewModelTest {
     @Test
     fun `hasBooks returns false when no books`() =
         runTest {
-            val adminApi = createMockAdminApi(emptyList())
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(emptyList())
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.hasBooks)
@@ -504,10 +469,10 @@ class AdminInboxViewModelTest {
     fun `hasSelection returns true when books are selected`() =
         runTest {
             val books = listOf(createInboxBook("book-1"))
-            val adminApi = createMockAdminApi(books)
-            val (sseManager, _) = createMockSSEManager()
+            val fixture = TestFixture()
+            everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
 
-            val viewModel = AdminInboxViewModel(adminApi, sseManager)
+            val viewModel = fixture.build()
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.hasSelection)

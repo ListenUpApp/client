@@ -22,33 +22,30 @@ import org.koin.dsl.module
 val authPresentationModule =
     module {
         factory { ServerSelectViewModel(serverRepository = get(), settingsRepository = get()) }
-        factory { ServerConnectViewModel(settingsRepository = get()) }
+        factory { ServerConnectViewModel(settingsRepository = get(), instanceRepository = get()) }
         factory {
             com.calypsan.listenup.client.presentation.auth.SetupViewModel(
-                authApi = get(),
+                authRepository = get(),
                 settingsRepository = get(),
-                userDao = get(),
+                userRepository = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.auth.LoginViewModel(
-                authApi = get(),
-                settingsRepository = get(),
-                userDao = get(),
+                loginUseCase = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.auth.RegisterViewModel(
-                authApi = get(),
-                settingsRepository = get(),
+                registerUseCase = get(),
             )
         }
         // PendingApprovalViewModel - takes userId, email, password as parameters
         factory { params ->
             PendingApprovalViewModel(
-                authApi = get(),
+                authRepository = get(),
                 settingsRepository = get(),
-                apiClientFactory = get(),
+                registrationStatusStream = get(),
                 userId = params.get<String>(0),
                 email = params.get<String>(1),
                 password = params.get<String>(2),
@@ -57,9 +54,9 @@ val authPresentationModule =
         // InviteRegistrationViewModel - takes serverUrl and inviteCode as parameters
         factory { params ->
             InviteRegistrationViewModel(
-                inviteApi = get(),
+                inviteRepository = get(),
                 settingsRepository = get(),
-                userDao = get(),
+                userRepository = get(),
                 serverUrl = params.get<String>(0),
                 inviteCode = params.get<String>(1),
             )
@@ -71,23 +68,41 @@ val authPresentationModule =
  */
 val adminPresentationModule =
     module {
-        factory { AdminViewModel(adminApi = get(), instanceApi = get(), sseManager = get()) }
-        factory { CreateInviteViewModel(adminApi = get()) }
+        factory {
+            AdminViewModel(
+                instanceRepository = get(),
+                loadUsersUseCase = get(),
+                loadPendingUsersUseCase = get(),
+                loadInvitesUseCase = get(),
+                deleteUserUseCase = get(),
+                revokeInviteUseCase = get(),
+                approveUserUseCase = get(),
+                denyUserUseCase = get(),
+                setOpenRegistrationUseCase = get(),
+                eventStreamRepository = get(),
+            )
+        }
+        factory { CreateInviteViewModel(createInviteUseCase = get()) }
         factory {
             com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel(
-                adminApi = get(),
+                loadServerSettingsUseCase = get(),
+                updateServerSettingsUseCase = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel(
-                adminApi = get(),
-                sseManager = get(),
+                loadInboxBooksUseCase = get(),
+                releaseBooksUseCase = get(),
+                stageCollectionUseCase = get(),
+                unstageCollectionUseCase = get(),
+                eventStreamRepository = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel(
-                collectionDao = get(),
-                adminCollectionApi = get(),
+                collectionRepository = get(),
+                createCollectionUseCase = get(),
+                deleteCollectionUseCase = get(),
             )
         }
         // AdminCollectionDetailViewModel - takes collectionId as parameter
@@ -95,9 +110,13 @@ val adminPresentationModule =
             com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel(
                 collectionId = params.get<String>(0),
                 collectionRepository = get(),
-                adminCollectionApi = get(),
-                adminApi = get(),
-                userDao = get(),
+                loadCollectionBooksUseCase = get(),
+                loadCollectionSharesUseCase = get(),
+                updateCollectionNameUseCase = get(),
+                removeBookFromCollectionUseCase = get(),
+                shareCollectionUseCase = get(),
+                removeCollectionShareUseCase = get(),
+                getUsersForSharingUseCase = get(),
             )
         }
     }
@@ -115,12 +134,12 @@ val libraryPresentationModule =
         single {
             LibraryViewModel(
                 bookRepository = get(),
-                seriesDao = get(),
-                contributorDao = get(),
+                seriesRepository = get(),
+                contributorRepository = get(),
                 playbackPositionRepository = get(),
-                syncManager = get(),
+                syncRepository = get(),
                 settingsRepository = get(),
-                syncDao = get(),
+                syncStatusRepository = get(),
                 selectionManager = get(),
             )
         }
@@ -130,10 +149,12 @@ val libraryPresentationModule =
             LibraryActionsViewModel(
                 selectionManager = get(),
                 userRepository = get(),
-                collectionDao = get(),
-                adminCollectionApi = get(),
+                collectionRepository = get(),
                 lensRepository = get(),
-                lensApi = get(),
+                addBooksToCollectionUseCase = get(),
+                refreshCollectionsUseCase = get(),
+                addBooksToLensUseCase = get(),
+                createLensUseCase = get(),
             )
         }
 
@@ -153,40 +174,31 @@ val bookPresentationModule =
             com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel(
                 bookRepository = get(),
                 genreRepository = get(),
-                tagApi = get(),
                 tagRepository = get(),
-                tagDao = get(),
-                playbackPositionDao = get(),
-                userDao = get(),
+                playbackPositionRepository = get(),
+                userRepository = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.bookdetail.BookReadersViewModel(
-                sessionApi = get(),
-                sseManager = get(),
+                sessionRepository = get(),
+                eventStreamRepository = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.bookedit.BookEditViewModel(
-                bookRepository = get(),
-                bookEditRepository = get(),
+                loadBookForEditUseCase = get(),
+                updateBookUseCase = get(),
                 contributorRepository = get(),
                 seriesRepository = get(),
-                genreApi = get(),
-                genreRepository = get(),
-                genreDao = get(),
-                tagApi = get(),
-                tagRepository = get(),
-                tagDao = get(),
-                imageApi = get(),
-                imageStorage = get(),
+                imageRepository = get(),
             )
         }
         // MetadataViewModel for Audible metadata search and matching
         factory {
             com.calypsan.listenup.client.presentation.metadata.MetadataViewModel(
                 metadataRepository = get(),
-                imageDownloader = get(),
+                applyMetadataMatchUseCase = get(),
             )
         }
     }
@@ -198,17 +210,15 @@ val seriesPresentationModule =
     module {
         factory {
             com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel(
-                seriesDao = get(),
-                bookRepository = get(),
-                imageStorage = get(),
+                seriesRepository = get<com.calypsan.listenup.client.domain.repository.SeriesRepository>(),
+                imageRepository = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.seriesedit.SeriesEditViewModel(
-                seriesDao = get(),
-                seriesEditRepository = get(),
-                imageStorage = get(),
-                imageApi = get(),
+                seriesRepository = get<com.calypsan.listenup.client.domain.repository.SeriesRepository>(),
+                updateSeriesUseCase = get(),
+                imageRepository = get(),
             )
         }
     }
@@ -220,36 +230,30 @@ val contributorPresentationModule =
     module {
         factory {
             com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel(
-                contributorDao = get(),
-                bookDao = get(),
-                imageStorage = get(),
+                contributorRepository = get<com.calypsan.listenup.client.domain.repository.ContributorRepository>(),
                 playbackPositionRepository = get(),
-                contributorRepository = get(),
+                deleteContributorUseCase = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.contributordetail.ContributorBooksViewModel(
-                contributorDao = get(),
-                bookDao = get(),
-                imageStorage = get(),
+                contributorRepository = get<com.calypsan.listenup.client.domain.repository.ContributorRepository>(),
                 playbackPositionRepository = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.contributoredit.ContributorEditViewModel(
-                contributorDao = get(),
-                contributorRepository = get(),
+                contributorRepository = get<com.calypsan.listenup.client.domain.repository.ContributorRepository>(),
                 contributorEditRepository = get(),
-                imageApi = get(),
-                imageStorage = get(),
+                updateContributorUseCase = get(),
+                imageRepository = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataViewModel(
-                contributorDao = get(),
-                metadataApi = get(),
-                imageApi = get(),
-                imageStorage = get(),
+                contributorRepository = get<com.calypsan.listenup.client.domain.repository.ContributorRepository>(),
+                metadataRepository = get(),
+                applyContributorMetadataUseCase = get(),
             )
         }
     }
@@ -262,6 +266,7 @@ val discoverPresentationModule =
         factory {
             com.calypsan.listenup.client.presentation.home.HomeViewModel(
                 homeRepository = get(),
+                userRepository = get(),
                 lensRepository = get(),
             )
         }
@@ -269,19 +274,16 @@ val discoverPresentationModule =
         factory { HomeStatsViewModel(statsRepository = get()) }
         factory {
             com.calypsan.listenup.client.presentation.discover.DiscoverViewModel(
-                bookDao = get(),
+                bookRepository = get(),
                 activeSessionRepository = get(),
                 authSession = get(),
-                lensDao = get(),
                 lensRepository = get(),
-                lensApi = get(),
-                imageStorage = get(),
             )
         }
         // LeaderboardViewModel for discover screen leaderboard
         factory { LeaderboardViewModel(leaderboardRepository = get()) }
         // ActivityFeedViewModel for discover screen activity feed
-        factory { ActivityFeedViewModel(activityRepository = get(), activityFeedApi = get()) }
+        factory { ActivityFeedViewModel(activityRepository = get(), fetchActivitiesUseCase = get()) }
     }
 
 /**
@@ -297,15 +299,16 @@ val tagLensPresentationModule =
         }
         factory {
             com.calypsan.listenup.client.presentation.lens.LensDetailViewModel(
-                lensApi = get(),
-                lensDao = get(),
+                loadLensDetailUseCase = get(),
+                removeBookFromLensUseCase = get(),
                 userRepository = get(),
-                imageStorage = get(),
             )
         }
         factory {
             com.calypsan.listenup.client.presentation.lens.CreateEditLensViewModel(
-                lensApi = get(),
+                createLensUseCase = get(),
+                updateLensUseCase = get(),
+                deleteLensUseCase = get(),
                 lensRepository = get(),
             )
         }
@@ -319,10 +322,9 @@ val profilePresentationModule =
         // UserProfileViewModel for viewing user profiles
         factory {
             com.calypsan.listenup.client.presentation.profile.UserProfileViewModel(
-                profileApi = get(),
+                loadUserProfileUseCase = get(),
                 userRepository = get(),
-                imageStorage = get(),
-                imageDownloader = get(),
+                imageRepository = get(),
             )
         }
         // EditProfileViewModel for editing own profile
@@ -330,7 +332,7 @@ val profilePresentationModule =
             com.calypsan.listenup.client.presentation.profile.EditProfileViewModel(
                 profileEditRepository = get(),
                 userRepository = get(),
-                imageStorage = get(),
+                imageRepository = get(),
             )
         }
     }
@@ -342,11 +344,11 @@ val settingsPresentationModule =
     module {
         factory {
             SettingsViewModel(
-                settingsRepository = get(),
-                userPreferencesApi = get(),
+                settingsRepository = get<com.calypsan.listenup.client.domain.repository.SettingsRepository>(),
+                userPreferencesRepository = get(),
                 instanceRepository = get(),
-                serverConfigContract = get(),
-                authSessionContract = get(),
+                serverConfig = get<com.calypsan.listenup.client.domain.repository.ServerConfig>(),
+                authSession = get<com.calypsan.listenup.client.domain.repository.AuthSession>(),
             )
         }
         // SyncIndicatorViewModel as singleton for app-wide sync status

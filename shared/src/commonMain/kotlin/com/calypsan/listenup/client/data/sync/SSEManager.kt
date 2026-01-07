@@ -33,7 +33,7 @@ import com.calypsan.listenup.client.data.remote.model.SSEUserData
 import com.calypsan.listenup.client.data.remote.model.SSEUserDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserPendingEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserStatsUpdatedEvent
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.prepareGet
@@ -673,56 +673,56 @@ class SSEManager(
 }
 
 /**
- * Sealed class for type-safe SSE event handling.
+ * Sealed interface for type-safe SSE event handling.
  * Each event type corresponds to a server event defined in sse/events.go.
  */
-sealed class SSEEventType {
+sealed interface SSEEventType {
     data class BookCreated(
         val book: com.calypsan.listenup.client.data.remote.model.BookResponse,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     data class BookUpdated(
         val book: com.calypsan.listenup.client.data.remote.model.BookResponse,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     data class BookDeleted(
         val bookId: String,
         val deletedAt: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     data class ScanStarted(
         val libraryId: String,
         val startedAt: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     data class ScanCompleted(
         val libraryId: String,
         val booksAdded: Int,
         val booksUpdated: Int,
         val booksRemoved: Int,
-    ) : SSEEventType()
+    ) : SSEEventType
 
-    data object Heartbeat : SSEEventType()
+    data object Heartbeat : SSEEventType
 
     /**
      * SSE connection was re-established after a disconnect.
      * Triggers delta sync to catch up on missed events.
      */
-    data object Reconnected : SSEEventType()
+    data object Reconnected : SSEEventType
 
     /**
      * Admin-only: New user registered and is pending approval.
      */
     data class UserPending(
         val user: SSEUserData,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * Admin-only: Pending user was approved.
      */
     data class UserApproved(
         val user: SSEUserData,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * Current user's account was deleted.
@@ -731,7 +731,7 @@ sealed class SSEEventType {
     data class UserDeleted(
         val userId: String,
         val reason: String?,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     // Collection events (admin-only)
 
@@ -742,7 +742,7 @@ sealed class SSEEventType {
         val id: String,
         val name: String,
         val bookCount: Int,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * Admin-only: Collection was updated.
@@ -751,7 +751,7 @@ sealed class SSEEventType {
         val id: String,
         val name: String,
         val bookCount: Int,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * Admin-only: Collection was deleted.
@@ -759,7 +759,7 @@ sealed class SSEEventType {
     data class CollectionDeleted(
         val id: String,
         val name: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * Admin-only: Book was added to a collection.
@@ -768,7 +768,7 @@ sealed class SSEEventType {
         val collectionId: String,
         val collectionName: String,
         val bookId: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * Admin-only: Book was removed from a collection.
@@ -777,7 +777,7 @@ sealed class SSEEventType {
         val collectionId: String,
         val collectionName: String,
         val bookId: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     // Lens events
 
@@ -794,7 +794,7 @@ sealed class SSEEventType {
         val ownerAvatarColor: String,
         val createdAt: String,
         val updatedAt: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * An existing lens was updated.
@@ -809,7 +809,7 @@ sealed class SSEEventType {
         val ownerAvatarColor: String,
         val createdAt: String,
         val updatedAt: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * A lens was deleted.
@@ -817,7 +817,7 @@ sealed class SSEEventType {
     data class LensDeleted(
         val id: String,
         val ownerId: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * A book was added to a lens.
@@ -827,7 +827,7 @@ sealed class SSEEventType {
         val ownerId: String,
         val bookId: String,
         val bookCount: Int,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * A book was removed from a lens.
@@ -837,7 +837,7 @@ sealed class SSEEventType {
         val ownerId: String,
         val bookId: String,
         val bookCount: Int,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     // Tag events
 
@@ -848,7 +848,7 @@ sealed class SSEEventType {
         val id: String,
         val slug: String,
         val bookCount: Int,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * A tag was added to a book.
@@ -858,7 +858,7 @@ sealed class SSEEventType {
         val tagId: String,
         val tagSlug: String,
         val tagBookCount: Int,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * A tag was removed from a book.
@@ -868,7 +868,7 @@ sealed class SSEEventType {
         val tagId: String,
         val tagSlug: String,
         val tagBookCount: Int,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     // Inbox events (admin-only)
 
@@ -878,14 +878,14 @@ sealed class SSEEventType {
     data class InboxBookAdded(
         val bookId: String,
         val title: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * Admin-only: A book was released from the inbox.
      */
     data class InboxBookReleased(
         val bookId: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     // Listening events
 
@@ -900,7 +900,7 @@ sealed class SSEEventType {
         val totalListenTimeMs: Long,
         val isFinished: Boolean,
         val lastPlayedAt: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * A reading session was created or updated.
@@ -912,7 +912,7 @@ sealed class SSEEventType {
         val isCompleted: Boolean,
         val listenTimeMs: Long,
         val finishedAt: String?,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * A listening event was created on another device.
@@ -928,7 +928,7 @@ sealed class SSEEventType {
         val playbackSpeed: Float,
         val deviceId: String,
         val createdAt: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     // Activity events
 
@@ -955,7 +955,7 @@ sealed class SSEEventType {
         val milestoneUnit: String? = null,
         val lensId: String? = null,
         val lensName: String? = null,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     // Profile events
 
@@ -971,7 +971,7 @@ sealed class SSEEventType {
         val avatarValue: String?,
         val avatarColor: String,
         val tagline: String?,
-    ) : SSEEventType() {
+    ) : SSEEventType {
         val displayName: String get() = "$firstName $lastName".trim()
     }
 
@@ -986,7 +986,7 @@ sealed class SSEEventType {
         val userId: String,
         val bookId: String,
         val startedAt: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * A reading session ended.
@@ -994,7 +994,7 @@ sealed class SSEEventType {
      */
     data class SessionEnded(
         val sessionId: String,
-    ) : SSEEventType()
+    ) : SSEEventType
 
     /**
      * A user's all-time stats were updated.
@@ -1009,5 +1009,5 @@ sealed class SSEEventType {
         val totalTimeMs: Long,
         val totalBooks: Int,
         val currentStreak: Int,
-    ) : SSEEventType()
+    ) : SSEEventType
 }

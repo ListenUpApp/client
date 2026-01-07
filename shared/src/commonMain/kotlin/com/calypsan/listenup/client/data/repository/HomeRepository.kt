@@ -6,10 +6,10 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
+import com.calypsan.listenup.client.domain.repository.HomeRepository
+import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -18,43 +18,9 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /**
- * Contract interface for home repository operations.
- *
- * Extracted to enable mocking in tests. Production implementation
- * is [HomeRepository], test implementation can be a mock or fake.
- */
-interface HomeRepositoryContract {
-    /**
-     * Fetch books the user is currently listening to.
-     *
-     * @param limit Maximum number of books to return
-     * @return Result containing list of ContinueListeningBook on success
-     */
-    suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningBook>>
-
-    /**
-     * Observe continue listening books from local database.
-     *
-     * Provides real-time updates when playback positions change locally.
-     * This is local-first: changes appear immediately without waiting for sync.
-     *
-     * @param limit Maximum number of books to return
-     * @return Flow emitting list of ContinueListeningBook whenever positions change
-     */
-    fun observeContinueListening(limit: Int = 10): Flow<List<ContinueListeningBook>>
-
-    /**
-     * Observe current user for greeting display.
-     *
-     * @return Flow that emits UserEntity when available
-     */
-    fun observeCurrentUser(): Flow<UserEntity?>
-}
-
-/**
  * Repository for Home screen data.
  *
- * Handles fetching continue listening books and user data for the greeting.
+ * Handles fetching continue listening books.
  *
  * Architecture: Local-first when offline, server-first when online.
  * - Checks network status before attempting server call
@@ -64,16 +30,14 @@ interface HomeRepositoryContract {
  * @property bookRepository Repository for fetching book details (fallback only)
  * @property playbackPositionDao DAO for playback positions (fallback only)
  * @property syncApi API for fetching server progress
- * @property userDao DAO for user data
  * @property networkMonitor Monitor for checking network connectivity
  */
-class HomeRepository(
-    private val bookRepository: BookRepositoryContract,
+class HomeRepositoryImpl(
+    private val bookRepository: com.calypsan.listenup.client.domain.repository.BookRepository,
     private val playbackPositionDao: PlaybackPositionDao,
     private val syncApi: SyncApiContract,
-    private val userDao: UserDao,
     private val networkMonitor: NetworkMonitor,
-) : HomeRepositoryContract {
+) : HomeRepository {
     private val logger = KotlinLogging.logger {}
 
     /**
@@ -243,11 +207,4 @@ class HomeRepository(
                 }
                 result
             }
-
-    /**
-     * Observe current user for greeting display.
-     *
-     * @return Flow that emits UserEntity when available
-     */
-    override fun observeCurrentUser(): Flow<UserEntity?> = userDao.observeCurrentUser()
 }

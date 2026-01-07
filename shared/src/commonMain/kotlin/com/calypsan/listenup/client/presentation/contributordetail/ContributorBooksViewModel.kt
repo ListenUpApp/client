@@ -4,12 +4,9 @@ package com.calypsan.listenup.client.presentation.contributordetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
-import com.calypsan.listenup.client.data.local.db.toDomain
-import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.util.calculateProgressMap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,9 +21,7 @@ import kotlinx.coroutines.launch
  * Series appear first (alphabetically), followed by standalone books.
  */
 class ContributorBooksViewModel(
-    private val contributorDao: ContributorDao,
-    private val bookDao: BookDao,
-    private val imageStorage: ImageStorage,
+    private val contributorRepository: ContributorRepository,
     private val playbackPositionRepository: PlaybackPositionRepository,
 ) : ViewModel() {
     val state: StateFlow<ContributorBooksUiState>
@@ -46,14 +41,14 @@ class ContributorBooksViewModel(
 
         viewModelScope.launch {
             // Load contributor name for the title
-            contributorDao.observeById(contributorId).filterNotNull().collectLatest { contributor ->
+            contributorRepository.observeById(contributorId).filterNotNull().collectLatest { contributor ->
                 state.value = state.value.copy(contributorName = contributor.name)
             }
         }
 
         viewModelScope.launch {
-            bookDao.observeByContributorAndRole(contributorId, role).collectLatest { booksWithContributors ->
-                val books = booksWithContributors.map { it.toDomain(imageStorage) }
+            contributorRepository.observeBooksForContributorRole(contributorId, role).collectLatest { booksWithRole ->
+                val books = booksWithRole.map { it.book }
                 val contributorName = state.value.contributorName
 
                 // Load progress for all books
@@ -61,15 +56,11 @@ class ContributorBooksViewModel(
 
                 // Extract creditedAs for books where the attribution differs
                 val bookCreditedAs =
-                    booksWithContributors
-                        .mapNotNull { bwc ->
-                            val crossRef =
-                                bwc.contributorRoles.find {
-                                    it.contributorId == contributorId && it.role == role
-                                }
-                            val creditedAs = crossRef?.creditedAs
+                    booksWithRole
+                        .mapNotNull { bwr ->
+                            val creditedAs = bwr.creditedAs
                             if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
-                                bwc.book.id.value to creditedAs
+                                bwr.book.id.value to creditedAs
                             } else {
                                 null
                             }

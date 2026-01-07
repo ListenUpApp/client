@@ -8,7 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.remote.DailyListeningResponse
+import com.calypsan.listenup.client.domain.repository.DailyListening
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
@@ -38,7 +38,7 @@ import java.util.Locale
  */
 @Composable
 fun DailyListeningChart(
-    dailyListening: List<DailyListeningResponse>,
+    dailyListening: List<DailyListening>,
     maxListenTimeMs: Long,
     modifier: Modifier = Modifier,
 ) {

@@ -1,7 +1,10 @@
 package com.calypsan.listenup.client.data.local.images
 
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -45,9 +48,9 @@ class CommonImageStorage(
             try {
                 val file = getCoverFile(bookId)
                 writeBytes(file, imageData)
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to save cover for book ${bookId.value}", e))
+                Failure(IOException("Failed to save cover for book ${bookId.value}", e))
             }
         }
 
@@ -60,9 +63,9 @@ class CommonImageStorage(
             try {
                 val file = getCoverFile(bookId)
                 deleteIfExists(file)
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to delete cover for book ${bookId.value}", e))
+                Failure(IOException("Failed to delete cover for book ${bookId.value}", e))
             }
         }
 
@@ -76,9 +79,9 @@ class CommonImageStorage(
             try {
                 val file = getCoverStagingFile(bookId)
                 writeBytes(file, imageData)
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to save staging cover for book ${bookId.value}", e))
+                Failure(IOException("Failed to save staging cover for book ${bookId.value}", e))
             }
         }
 
@@ -91,7 +94,7 @@ class CommonImageStorage(
                 val targetFile = getCoverFile(bookId)
 
                 if (!SystemFileSystem.exists(stagingFile)) {
-                    return@withContext Result.Failure(
+                    return@withContext Failure(
                         IOException("No staging cover to commit for book ${bookId.value}"),
                     )
                 }
@@ -101,9 +104,9 @@ class CommonImageStorage(
                 writeBytes(targetFile, data)
                 SystemFileSystem.delete(stagingFile)
 
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to commit staging cover for book ${bookId.value}", e))
+                Failure(IOException("Failed to commit staging cover for book ${bookId.value}", e))
             }
         }
 
@@ -111,9 +114,9 @@ class CommonImageStorage(
         withContext(Dispatchers.IO) {
             try {
                 deleteIfExists(getCoverStagingFile(bookId))
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to delete staging cover for book ${bookId.value}", e))
+                Failure(IOException("Failed to delete staging cover for book ${bookId.value}", e))
             }
         }
 
@@ -131,9 +134,9 @@ class CommonImageStorage(
                 // Clear user avatars
                 deletedCount += clearDirectory(avatarsDir)
 
-                Result.Success(deletedCount)
+                Success(deletedCount)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to clear image cache", e))
+                Failure(IOException("Failed to clear image cache", e))
             }
         }
 
@@ -147,9 +150,9 @@ class CommonImageStorage(
             try {
                 val file = getContributorFile(contributorId)
                 writeBytes(file, imageData)
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to save image for contributor $contributorId", e))
+                Failure(IOException("Failed to save image for contributor $contributorId", e))
             }
         }
 
@@ -162,9 +165,9 @@ class CommonImageStorage(
         withContext(Dispatchers.IO) {
             try {
                 deleteIfExists(getContributorFile(contributorId))
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to delete image for contributor $contributorId", e))
+                Failure(IOException("Failed to delete image for contributor $contributorId", e))
             }
         }
 
@@ -178,9 +181,9 @@ class CommonImageStorage(
             try {
                 val file = getSeriesCoverFile(seriesId)
                 writeBytes(file, imageData)
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to save cover for series $seriesId", e))
+                Failure(IOException("Failed to save cover for series $seriesId", e))
             }
         }
 
@@ -192,9 +195,9 @@ class CommonImageStorage(
         withContext(Dispatchers.IO) {
             try {
                 deleteIfExists(getSeriesCoverFile(seriesId))
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to delete cover for series $seriesId", e))
+                Failure(IOException("Failed to delete cover for series $seriesId", e))
             }
         }
 
@@ -208,9 +211,9 @@ class CommonImageStorage(
             try {
                 val file = getSeriesCoverStagingFile(seriesId)
                 writeBytes(file, imageData)
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to save staging cover for series $seriesId", e))
+                Failure(IOException("Failed to save staging cover for series $seriesId", e))
             }
         }
 
@@ -223,7 +226,7 @@ class CommonImageStorage(
                 val targetFile = getSeriesCoverFile(seriesId)
 
                 if (!SystemFileSystem.exists(stagingFile)) {
-                    return@withContext Result.Failure(
+                    return@withContext Failure(
                         IOException("No staging cover to commit for series $seriesId"),
                     )
                 }
@@ -233,9 +236,9 @@ class CommonImageStorage(
                 writeBytes(targetFile, data)
                 SystemFileSystem.delete(stagingFile)
 
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to commit staging cover for series $seriesId", e))
+                Failure(IOException("Failed to commit staging cover for series $seriesId", e))
             }
         }
 
@@ -243,9 +246,9 @@ class CommonImageStorage(
         withContext(Dispatchers.IO) {
             try {
                 deleteIfExists(getSeriesCoverStagingFile(seriesId))
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to delete staging cover for series $seriesId", e))
+                Failure(IOException("Failed to delete staging cover for series $seriesId", e))
             }
         }
 
@@ -259,9 +262,9 @@ class CommonImageStorage(
             try {
                 val file = getUserAvatarFile(userId)
                 writeBytes(file, imageData)
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to save avatar for user $userId", e))
+                Failure(IOException("Failed to save avatar for user $userId", e))
             }
         }
 
@@ -273,9 +276,9 @@ class CommonImageStorage(
         withContext(Dispatchers.IO) {
             try {
                 deleteIfExists(getUserAvatarFile(userId))
-                Result.Success(Unit)
+                Success(Unit)
             } catch (e: Exception) {
-                Result.Failure(IOException("Failed to delete avatar for user $userId", e))
+                Failure(IOException("Failed to delete avatar for user $userId", e))
             }
         }
 

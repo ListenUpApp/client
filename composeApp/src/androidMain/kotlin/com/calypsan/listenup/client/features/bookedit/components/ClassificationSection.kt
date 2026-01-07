@@ -23,6 +23,8 @@ import com.calypsan.listenup.client.design.components.AutocompleteResultItem
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.presentation.bookedit.EditableGenre
 import com.calypsan.listenup.client.presentation.bookedit.EditableTag
+import com.calypsan.listenup.client.presentation.bookedit.displayName
+import com.calypsan.listenup.client.presentation.bookedit.parentPath
 
 /**
  * Classification section with genres and tags.

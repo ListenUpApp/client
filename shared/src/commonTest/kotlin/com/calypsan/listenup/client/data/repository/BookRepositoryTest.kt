@@ -4,15 +4,15 @@ import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.BookWithContributors
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
-import com.calypsan.listenup.client.data.local.db.ChapterId
+import com.calypsan.listenup.client.core.ChapterId
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -38,8 +38,8 @@ class BookRepositoryTest {
         val syncManager: SyncManagerContract = mock()
         val imageStorage: ImageStorage = mock()
 
-        fun build(): BookRepository =
-            BookRepository(
+        fun build(): BookRepositoryImpl =
+            BookRepositoryImpl(
                 bookDao = bookDao,
                 chapterDao = chapterDao,
                 syncManager = syncManager,
@@ -417,7 +417,7 @@ class BookRepositoryTest {
             // Given
             val fixture = createFixture()
             val exception = Exception("Network error")
-            everySuspend { fixture.syncManager.sync() } returns Result.Failure(exception)
+            everySuspend { fixture.syncManager.sync() } returns Result.Failure(exception = exception, message = "Network error")
             val repository = fixture.build()
 
             // When

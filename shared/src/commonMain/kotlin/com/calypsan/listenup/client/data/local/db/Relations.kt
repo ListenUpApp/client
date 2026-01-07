@@ -6,6 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.Junction
 import androidx.room.Relation
+import com.calypsan.listenup.client.core.BookId
 
 /**
  * Cross-reference entity for the many-to-many relationship between Books and Contributors.

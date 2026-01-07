@@ -1,18 +1,19 @@
 package com.calypsan.listenup.client.presentation.library
 
-import com.calypsan.listenup.client.data.local.db.CollectionDao
-import com.calypsan.listenup.client.data.local.db.CollectionEntity
-import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
-import com.calypsan.listenup.client.data.remote.LensApiContract
-import com.calypsan.listenup.client.data.remote.LensOwnerResponse
-import com.calypsan.listenup.client.data.remote.LensResponse
+import com.calypsan.listenup.client.checkIs
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.model.Collection
 import com.calypsan.listenup.client.domain.model.Lens
 import com.calypsan.listenup.client.domain.model.User
+import com.calypsan.listenup.client.domain.repository.CollectionRepository
 import com.calypsan.listenup.client.domain.repository.LensRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
+import com.calypsan.listenup.client.domain.usecase.collection.AddBooksToCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.RefreshCollectionsUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.AddBooksToLensUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
 import dev.mokkery.answering.returns
-import dev.mokkery.answering.throws
 import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
@@ -21,20 +22,17 @@ import dev.mokkery.verifySuspend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import com.calypsan.listenup.client.checkIs
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 /**
  * Tests for LibraryActionsViewModel.
@@ -60,23 +58,27 @@ class LibraryActionsViewModelTest {
     private class TestFixture {
         val selectionManager = LibrarySelectionManager()
         val userRepository: UserRepository = mock()
-        val collectionDao: CollectionDao = mock()
-        val adminCollectionApi: AdminCollectionApiContract = mock()
+        val collectionRepository: CollectionRepository = mock()
         val lensRepository: LensRepository = mock()
-        val lensApi: LensApiContract = mock()
+        val addBooksToCollectionUseCase: AddBooksToCollectionUseCase = mock()
+        val refreshCollectionsUseCase: RefreshCollectionsUseCase = mock()
+        val addBooksToLensUseCase: AddBooksToLensUseCase = mock()
+        val createLensUseCase: CreateLensUseCase = mock()
 
         val userFlow = MutableStateFlow<User?>(null)
-        val collectionsFlow = MutableStateFlow<List<CollectionEntity>>(emptyList())
+        val collectionsFlow = MutableStateFlow<List<Collection>>(emptyList())
         val lensesFlow = MutableStateFlow<List<Lens>>(emptyList())
 
         fun build(): LibraryActionsViewModel =
             LibraryActionsViewModel(
                 selectionManager = selectionManager,
                 userRepository = userRepository,
-                collectionDao = collectionDao,
-                adminCollectionApi = adminCollectionApi,
+                collectionRepository = collectionRepository,
                 lensRepository = lensRepository,
-                lensApi = lensApi,
+                addBooksToCollectionUseCase = addBooksToCollectionUseCase,
+                refreshCollectionsUseCase = refreshCollectionsUseCase,
+                addBooksToLensUseCase = addBooksToLensUseCase,
+                createLensUseCase = createLensUseCase,
             )
     }
 
@@ -85,7 +87,7 @@ class LibraryActionsViewModelTest {
 
         // Default stubs for reactive observation
         every { fixture.userRepository.observeCurrentUser() } returns fixture.userFlow
-        every { fixture.collectionDao.observeAll() } returns fixture.collectionsFlow
+        every { fixture.collectionRepository.observeAll() } returns fixture.collectionsFlow
         every { fixture.lensRepository.observeMyLenses(any()) } returns fixture.lensesFlow
 
         return fixture
@@ -112,13 +114,13 @@ class LibraryActionsViewModelTest {
         id: String = "collection-1",
         name: String = "Test Collection",
         bookCount: Int = 0,
-    ): CollectionEntity =
-        CollectionEntity(
+    ): Collection =
+        Collection(
             id = id,
             name = name,
             bookCount = bookCount,
-            createdAt = Timestamp(1704067200000L),
-            updatedAt = Timestamp(1704067200000L),
+            createdAtMs = 1704067200000L,
+            updatedAtMs = 1704067200000L,
         )
 
     private fun createLens(
@@ -137,25 +139,6 @@ class LibraryActionsViewModelTest {
             totalDurationSeconds = 0,
             createdAtMs = 1704067200000L,
             updatedAtMs = 1704067200000L,
-        )
-
-    private fun createLensResponse(
-        id: String = "lens-1",
-        name: String = "My Lens",
-    ): LensResponse =
-        LensResponse(
-            id = id,
-            name = name,
-            description = "",
-            owner = LensOwnerResponse(
-                id = "user-1",
-                displayName = "Test User",
-                avatarColor = "#6B7280",
-            ),
-            bookCount = 0,
-            totalDuration = 0,
-            createdAt = "2024-01-01T00:00:00Z",
-            updatedAt = "2024-01-01T00:00:00Z",
         )
 
     @BeforeTest
@@ -227,18 +210,18 @@ class LibraryActionsViewModelTest {
             viewModel.addSelectedToCollection("collection-1")
             advanceUntilIdle()
 
-            // Then - API should not be called, loading should be false
+            // Then - use case should not be called, loading should be false
             assertFalse(viewModel.isAddingToCollection.value)
         }
 
     @Test
-    fun `addSelectedToCollection calls API with selected book IDs`() =
+    fun `addSelectedToCollection calls use case with selected book IDs`() =
         runTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
             fixture.selectionManager.toggleSelection("book-2")
-            everySuspend { fixture.adminCollectionApi.addBooks(any(), any()) } returns Unit
+            everySuspend { fixture.addBooksToCollectionUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -247,7 +230,7 @@ class LibraryActionsViewModelTest {
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.adminCollectionApi.addBooks("collection-1", any()) }
+            verifySuspend { fixture.addBooksToCollectionUseCase("collection-1", any()) }
         }
 
     @Test
@@ -256,7 +239,7 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.adminCollectionApi.addBooks(any(), any()) } returns Unit
+            everySuspend { fixture.addBooksToCollectionUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
             checkIs<SelectionMode.Active>(fixture.selectionManager.selectionMode.value)
@@ -275,7 +258,10 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.adminCollectionApi.addBooks(any(), any()) } throws RuntimeException("Network error")
+            everySuspend { fixture.addBooksToCollectionUseCase(any(), any()) } returns Failure(
+                RuntimeException("Network error"),
+                "Network error"
+            )
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -293,7 +279,7 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.adminCollectionApi.addBooks(any(), any()) } returns Unit
+            everySuspend { fixture.addBooksToCollectionUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -319,17 +305,17 @@ class LibraryActionsViewModelTest {
             viewModel.addSelectedToLens("lens-1")
             advanceUntilIdle()
 
-            // Then - API should not be called
+            // Then - use case should not be called
             assertFalse(viewModel.isAddingToLens.value)
         }
 
     @Test
-    fun `addSelectedToLens calls API with selected book IDs`() =
+    fun `addSelectedToLens calls use case with selected book IDs`() =
         runTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.lensApi.addBooks(any(), any()) } returns Unit
+            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -338,7 +324,7 @@ class LibraryActionsViewModelTest {
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.lensApi.addBooks("lens-1", any()) }
+            verifySuspend { fixture.addBooksToLensUseCase("lens-1", any()) }
         }
 
     @Test
@@ -347,7 +333,7 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.lensApi.addBooks(any(), any()) } returns Unit
+            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -365,7 +351,10 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.lensApi.addBooks(any(), any()) } throws RuntimeException("Server error")
+            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Failure(
+                RuntimeException("Server error"),
+                "Server error"
+            )
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -391,7 +380,7 @@ class LibraryActionsViewModelTest {
             viewModel.createLensAndAddBooks("New Lens")
             advanceUntilIdle()
 
-            // Then - API should not be called
+            // Then - use case should not be called
             assertFalse(viewModel.isAddingToLens.value)
         }
 
@@ -401,9 +390,9 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            val newLens = createLensResponse(id = "new-lens", name = "My New Lens")
-            everySuspend { fixture.lensApi.createLens(any(), any()) } returns newLens
-            everySuspend { fixture.lensApi.addBooks(any(), any()) } returns Unit
+            val newLens = createLens(id = "new-lens", name = "My New Lens")
+            everySuspend { fixture.createLensUseCase(any(), any()) } returns Success(newLens)
+            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -412,8 +401,8 @@ class LibraryActionsViewModelTest {
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.lensApi.createLens("My New Lens", null) }
-            verifySuspend { fixture.lensApi.addBooks("new-lens", any()) }
+            verifySuspend { fixture.createLensUseCase("My New Lens", null) }
+            verifySuspend { fixture.addBooksToLensUseCase("new-lens", any()) }
         }
 
     @Test
@@ -422,9 +411,9 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            val newLens = createLensResponse()
-            everySuspend { fixture.lensApi.createLens(any(), any()) } returns newLens
-            everySuspend { fixture.lensApi.addBooks(any(), any()) } returns Unit
+            val newLens = createLens()
+            everySuspend { fixture.createLensUseCase(any(), any()) } returns Success(newLens)
+            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -442,7 +431,10 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.lensApi.createLens(any(), any()) } throws RuntimeException("Failed to create lens")
+            everySuspend { fixture.createLensUseCase(any(), any()) } returns Failure(
+                RuntimeException("Failed to create lens"),
+                "Failed to create lens"
+            )
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -460,9 +452,12 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            val newLens = createLensResponse()
-            everySuspend { fixture.lensApi.createLens(any(), any()) } returns newLens
-            everySuspend { fixture.lensApi.addBooks(any(), any()) } throws RuntimeException("Failed to add books")
+            val newLens = createLens()
+            everySuspend { fixture.createLensUseCase(any(), any()) } returns Success(newLens)
+            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Failure(
+                RuntimeException("Failed to add books"),
+                "Failed to add books"
+            )
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -480,9 +475,9 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            val newLens = createLensResponse()
-            everySuspend { fixture.lensApi.createLens(any(), any()) } returns newLens
-            everySuspend { fixture.lensApi.addBooks(any(), any()) } returns Unit
+            val newLens = createLens()
+            everySuspend { fixture.createLensUseCase(any(), any()) } returns Success(newLens)
+            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 

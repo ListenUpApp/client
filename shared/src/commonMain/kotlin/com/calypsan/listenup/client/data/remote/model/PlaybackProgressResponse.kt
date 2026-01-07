@@ -2,7 +2,7 @@
 
 package com.calypsan.listenup.client.data.remote.model
 
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

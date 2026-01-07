@@ -2,13 +2,12 @@ package com.calypsan.listenup.client.presentation.lens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.LensDao
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.model.LensBook
+import com.calypsan.listenup.client.domain.model.LensDetail
 import com.calypsan.listenup.client.domain.repository.UserRepository
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.remote.LensApiContract
-import com.calypsan.listenup.client.data.remote.LensBookResponse
-import com.calypsan.listenup.client.data.remote.LensDetailResponse
+import com.calypsan.listenup.client.domain.usecase.lens.LoadLensDetailUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.RemoveBookFromLensUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,10 +26,9 @@ private val logger = KotlinLogging.logger {}
  * - List of books in the lens
  */
 class LensDetailViewModel(
-    private val lensApi: LensApiContract,
-    private val lensDao: LensDao,
+    private val loadLensDetailUseCase: LoadLensDetailUseCase,
+    private val removeBookFromLensUseCase: RemoveBookFromLensUseCase,
     private val userRepository: UserRepository,
-    private val imageStorage: ImageStorage,
 ) : ViewModel() {
     val state: StateFlow<LensDetailUiState>
         field = MutableStateFlow(LensDetailUiState())
@@ -49,52 +47,33 @@ class LensDetailViewModel(
         viewModelScope.launch {
             state.update { it.copy(isLoading = true, error = null) }
 
-            try {
-                // Get current user ID for ownership check
-                val currentUserId = userRepository.observeCurrentUser().first()?.id
+            // Get current user ID for ownership check
+            val currentUserId = userRepository.observeCurrentUser().first()?.id
 
-                // Fetch lens detail from server
-                val lensDetail = lensApi.getLens(lensId)
-
-                // Update local cache (use DAO directly for read+write operation)
-                lensDao.getById(lensId)?.let { cached ->
-                    lensDao.upsert(
-                        cached.copy(
-                            bookCount = lensDetail.bookCount,
-                            totalDurationSeconds = lensDetail.totalDuration,
-                        ),
-                    )
-                }
-
-                // Map books to use local cover paths instead of server paths
-                val booksWithLocalCovers =
-                    lensDetail.books.map { book ->
-                        val bookId = BookId(book.id)
-                        val localCoverPath =
-                            if (imageStorage.exists(bookId)) {
-                                imageStorage.getCoverPath(bookId)
-                            } else {
-                                null
-                            }
-                        book.copy(coverPath = localCoverPath)
+            // Load lens detail via use case (handles API call, cache update, and cover resolution)
+            when (val result = loadLensDetailUseCase(lensId)) {
+                is Success -> {
+                    val lensDetail = result.data
+                    state.update {
+                        it.copy(
+                            isLoading = false,
+                            lensDetail = lensDetail,
+                            isOwner = currentUserId == lensDetail.owner.id,
+                            error = null,
+                        )
                     }
-
-                state.update {
-                    it.copy(
-                        isLoading = false,
-                        lensDetail = lensDetail.copy(books = booksWithLocalCovers),
-                        isOwner = currentUserId == lensDetail.owner.id,
-                        error = null,
-                    )
+                    logger.debug { "Loaded lens detail: ${lensDetail.name}" }
                 }
-                logger.debug { "Loaded lens detail: ${lensDetail.name}" }
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to load lens: $lensId" }
-                state.update {
-                    it.copy(
-                        isLoading = false,
-                        error = "Failed to load lens: ${e.message}",
-                    )
+                else -> {
+                    val errorMessage = (result as? com.calypsan.listenup.client.core.Failure)?.message
+                        ?: "Failed to load lens"
+                    logger.error { "Failed to load lens: $lensId - $errorMessage" }
+                    state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = errorMessage,
+                        )
+                    }
                 }
             }
         }
@@ -107,16 +86,20 @@ class LensDetailViewModel(
         val lensId = currentLensId ?: return
 
         viewModelScope.launch {
-            try {
-                lensApi.removeBook(lensId, bookId)
-                // Reload to get updated book list
-                currentLensId = null // Force reload
-                loadLens(lensId)
-                logger.info { "Removed book $bookId from lens $lensId" }
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to remove book from lens" }
-                state.update {
-                    it.copy(error = "Failed to remove book: ${e.message}")
+            when (val result = removeBookFromLensUseCase(lensId, bookId)) {
+                is Success -> {
+                    // Reload to get updated book list
+                    currentLensId = null // Force reload
+                    loadLens(lensId)
+                    logger.info { "Removed book $bookId from lens $lensId" }
+                }
+                else -> {
+                    val errorMessage = (result as? com.calypsan.listenup.client.core.Failure)?.message
+                        ?: "Failed to remove book"
+                    logger.error { "Failed to remove book from lens: $errorMessage" }
+                    state.update {
+                        it.copy(error = errorMessage)
+                    }
                 }
             }
         }
@@ -140,7 +123,7 @@ class LensDetailViewModel(
  */
 data class LensDetailUiState(
     val isLoading: Boolean = true,
-    val lensDetail: LensDetailResponse? = null,
+    val lensDetail: LensDetail? = null,
     val isOwner: Boolean = false,
     val error: String? = null,
 ) {
@@ -149,6 +132,6 @@ data class LensDetailUiState(
     val ownerDisplayName: String get() = lensDetail?.owner?.displayName ?: ""
     val ownerAvatarColor: String get() = lensDetail?.owner?.avatarColor ?: "#6B7280"
     val bookCount: Int get() = lensDetail?.bookCount ?: 0
-    val totalDurationSeconds: Long get() = lensDetail?.totalDuration ?: 0
-    val books: List<LensBookResponse> get() = lensDetail?.books ?: emptyList()
+    val totalDurationSeconds: Long get() = lensDetail?.totalDurationSeconds ?: 0
+    val books: List<LensBook> get() = lensDetail?.books ?: emptyList()
 }

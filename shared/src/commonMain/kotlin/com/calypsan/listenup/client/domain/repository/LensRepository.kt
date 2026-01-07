@@ -57,4 +57,67 @@ interface LensRepository {
      * @return Count of discover lenses
      */
     suspend fun countDiscoverLenses(currentUserId: String): Int
+
+    /**
+     * Fetch discover lenses from API and cache locally.
+     *
+     * Used for initial population of discover lenses when Room is empty,
+     * and for manual refresh. Fetches lenses from other users via API
+     * and stores them in the local database.
+     *
+     * @return Number of lenses fetched and cached
+     */
+    suspend fun fetchAndCacheDiscoverLenses(): Int
+
+    /**
+     * Get full lens detail including books from the server.
+     *
+     * Fetches lens details via API and updates local cache.
+     *
+     * @param lensId The lens ID to fetch
+     * @return The lens detail with books
+     */
+    suspend fun getLensDetail(lensId: String): com.calypsan.listenup.client.domain.model.LensDetail
+
+    /**
+     * Remove a book from a lens.
+     *
+     * @param lensId The lens to remove from
+     * @param bookId The book to remove
+     */
+    suspend fun removeBookFromLens(lensId: String, bookId: String)
+
+    /**
+     * Add books to a lens.
+     *
+     * @param lensId The lens to add to
+     * @param bookIds The books to add
+     */
+    suspend fun addBooksToLens(lensId: String, bookIds: List<String>)
+
+    /**
+     * Create a new lens.
+     *
+     * @param name The lens name
+     * @param description Optional description
+     * @return The created lens
+     */
+    suspend fun createLens(name: String, description: String?): Lens
+
+    /**
+     * Update an existing lens.
+     *
+     * @param lensId The lens ID to update
+     * @param name The new name
+     * @param description The new description (null to clear)
+     * @return The updated lens
+     */
+    suspend fun updateLens(lensId: String, name: String, description: String?): Lens
+
+    /**
+     * Delete a lens.
+     *
+     * @param lensId The lens ID to delete
+     */
+    suspend fun deleteLens(lensId: String)
 }

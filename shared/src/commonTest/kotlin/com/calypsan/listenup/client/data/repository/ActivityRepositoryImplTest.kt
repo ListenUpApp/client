@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.data.local.db.ActivityDao
 import com.calypsan.listenup.client.data.local.db.ActivityEntity
+import com.calypsan.listenup.client.data.remote.ActivityFeedApiContract
 import com.calypsan.listenup.client.domain.model.Activity
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -35,8 +36,13 @@ class ActivityRepositoryImplTest {
 
     private fun createMockDao(): ActivityDao = mock<ActivityDao>()
 
-    private fun createRepository(dao: ActivityDao = createMockDao()): ActivityRepositoryImpl =
-        ActivityRepositoryImpl(dao)
+    private fun createMockApi(): ActivityFeedApiContract = mock<ActivityFeedApiContract>()
+
+    private fun createRepository(
+        dao: ActivityDao = createMockDao(),
+        api: ActivityFeedApiContract = createMockApi(),
+    ): ActivityRepositoryImpl =
+        ActivityRepositoryImpl(dao, api)
 
     // ========== Test Data Factories ==========
 

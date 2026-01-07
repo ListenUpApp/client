@@ -30,7 +30,7 @@ import com.calypsan.listenup.client.data.remote.model.ApiResponse
 fun <T> ApiResponse<T>.dataOrThrow(errorMessage: String): T =
     when (val result = toResult()) {
         is Success -> result.data ?: throw ApiException(message = errorMessage)
-        is Failure -> throw result.exception
+        is Failure -> throw result.exception ?: ApiException(message = result.message)
     }
 
 /**

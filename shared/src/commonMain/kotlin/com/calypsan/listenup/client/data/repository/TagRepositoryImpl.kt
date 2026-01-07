@@ -1,8 +1,11 @@
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
+import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import kotlinx.coroutines.flow.Flow
@@ -10,14 +13,17 @@ import kotlinx.coroutines.flow.map
 import kotlin.time.Instant
 
 /**
- * Implementation of TagRepository using Room.
+ * Implementation of TagRepository using Room and TagApi.
  *
- * Wraps TagDao and converts entities to domain models.
+ * Handles tag operations with API calls and local Room updates
+ * for immediate reactivity.
  *
  * @property dao Room DAO for tag operations
+ * @property tagApi API client for server tag operations
  */
 class TagRepositoryImpl(
     private val dao: TagDao,
+    private val tagApi: TagApiContract,
 ) : TagRepository {
     override fun observeAll(): Flow<List<Tag>> =
         dao.observeAllTags().map { entities ->
@@ -51,6 +57,31 @@ class TagRepositoryImpl(
         dao.observeBookIdsForTag(tagId).map { bookIds ->
             bookIds.map { it.value }
         }
+
+    override suspend fun addTagToBook(bookId: String, tagSlugOrName: String): Tag {
+        // Call API to add tag (creates if doesn't exist)
+        val tag = tagApi.addTagToBook(bookId, tagSlugOrName)
+
+        // Update local Room for immediate reactivity
+        val entity = TagEntity(
+            id = tag.id,
+            slug = tag.slug,
+            bookCount = tag.bookCount,
+            createdAt = tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) } ?: Timestamp.now(),
+        )
+        dao.upsert(entity)
+        dao.insertBookTag(BookTagCrossRef(bookId = BookId(bookId), tagId = tag.id))
+
+        return tag
+    }
+
+    override suspend fun removeTagFromBook(bookId: String, tagSlug: String, tagId: String) {
+        // Call API to remove tag
+        tagApi.removeTagFromBook(bookId, tagSlug)
+
+        // Update local Room for immediate reactivity
+        dao.deleteBookTag(BookId(bookId), tagId)
+    }
 }
 
 /**

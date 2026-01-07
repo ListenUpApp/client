@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.BookContributor
 
 /**
  * Authors and Narrators displayed as centered, clickable text.
@@ -21,8 +21,8 @@ import com.calypsan.listenup.client.domain.model.Contributor
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TalentSection(
-    authors: List<Contributor>,
-    narrators: List<Contributor>,
+    authors: List<BookContributor>,
+    narrators: List<BookContributor>,
     onContributorClick: (contributorId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -60,7 +60,7 @@ fun TalentSection(
 @Composable
 private fun TalentLine(
     prefix: String,
-    contributors: List<Contributor>,
+    contributors: List<BookContributor>,
     onContributorClick: (contributorId: String) -> Unit,
 ) {
     FlowRow(
@@ -104,9 +104,9 @@ private fun TalentLine(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TalentSectionWithRoles(
-    authors: List<Contributor>,
-    narrators: List<Contributor>,
-    allContributors: List<Contributor>,
+    authors: List<BookContributor>,
+    narrators: List<BookContributor>,
+    allContributors: List<BookContributor>,
     onContributorClick: (contributorId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {

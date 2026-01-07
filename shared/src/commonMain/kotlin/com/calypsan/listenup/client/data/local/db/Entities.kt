@@ -3,6 +3,9 @@ package com.calypsan.listenup.client.data.local.db
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.ChapterId
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 
 /**

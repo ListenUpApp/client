@@ -51,7 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.data.remote.AdminUser
+import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpTextField
@@ -496,7 +496,7 @@ private fun AddMemberBottomSheet(
     sheetState: androidx.compose.material3.SheetState,
     isLoading: Boolean,
     isSharing: Boolean,
-    users: List<AdminUser>,
+    users: List<AdminUserInfo>,
     onDismiss: () -> Unit,
     onUserSelected: (String) -> Unit,
 ) {

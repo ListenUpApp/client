@@ -10,7 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.remote.StatsPeriod
+import com.calypsan.listenup.client.domain.repository.LeaderboardPeriod
 
 /**
  * Leaderboard header with title and period selector.
@@ -21,8 +21,8 @@ import com.calypsan.listenup.client.data.remote.StatsPeriod
  */
 @Composable
 fun LeaderboardHeader(
-    selectedPeriod: StatsPeriod,
-    onPeriodSelected: (StatsPeriod) -> Unit,
+    selectedPeriod: LeaderboardPeriod,
+    onPeriodSelected: (LeaderboardPeriod) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -42,18 +42,18 @@ fun LeaderboardHeader(
         ) {
             PeriodChip(
                 label = "Week",
-                selected = selectedPeriod == StatsPeriod.WEEK,
-                onClick = { onPeriodSelected(StatsPeriod.WEEK) },
+                selected = selectedPeriod == LeaderboardPeriod.WEEK,
+                onClick = { onPeriodSelected(LeaderboardPeriod.WEEK) },
             )
             PeriodChip(
                 label = "Month",
-                selected = selectedPeriod == StatsPeriod.MONTH,
-                onClick = { onPeriodSelected(StatsPeriod.MONTH) },
+                selected = selectedPeriod == LeaderboardPeriod.MONTH,
+                onClick = { onPeriodSelected(LeaderboardPeriod.MONTH) },
             )
             PeriodChip(
                 label = "All",
-                selected = selectedPeriod == StatsPeriod.ALL,
-                onClick = { onPeriodSelected(StatsPeriod.ALL) },
+                selected = selectedPeriod == LeaderboardPeriod.ALL,
+                onClick = { onPeriodSelected(LeaderboardPeriod.ALL) },
             )
         }
     }

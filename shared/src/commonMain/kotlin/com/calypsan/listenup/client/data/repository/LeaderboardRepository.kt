@@ -2,23 +2,26 @@
 
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.ActivityDao
-import com.calypsan.listenup.client.data.local.db.CommunityStatsProjection
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
-import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.local.db.UserLeaderboardStats
 import com.calypsan.listenup.client.data.local.db.UserStatsDao
 import com.calypsan.listenup.client.data.local.db.UserStatsEntity
 import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
-import com.calypsan.listenup.client.data.remote.LeaderboardCategory
-import com.calypsan.listenup.client.data.remote.StatsPeriod
+import com.calypsan.listenup.client.data.remote.LeaderboardCategory as ApiLeaderboardCategory
+import com.calypsan.listenup.client.data.remote.StatsPeriod as ApiStatsPeriod
+import com.calypsan.listenup.client.domain.repository.CommunityStats
+import com.calypsan.listenup.client.domain.repository.LeaderboardCategory
+import com.calypsan.listenup.client.domain.repository.LeaderboardEntry
+import com.calypsan.listenup.client.domain.repository.LeaderboardPeriod
+import com.calypsan.listenup.client.domain.repository.LeaderboardRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -27,46 +30,6 @@ private val logger = KotlinLogging.logger {}
 
 /** Milliseconds in a day */
 private const val MS_PER_DAY = 86_400_000L
-
-/**
- * Contract interface for leaderboard repository operations.
- */
-interface LeaderboardRepositoryContract {
-    /**
-     * Observe leaderboard entries for a given period and category.
-     * Entries are automatically sorted by the category value.
-     *
-     * @param period Time period to aggregate
-     * @param category Ranking category (time, books, streak)
-     * @param limit Maximum number of entries
-     * @return Flow of leaderboard entries
-     */
-    fun observeLeaderboard(
-        period: StatsPeriod,
-        category: LeaderboardCategory,
-        limit: Int = 10,
-    ): Flow<List<LeaderboardEntry>>
-
-    /**
-     * Observe community aggregate stats for a given period.
-     *
-     * @param period Time period to aggregate
-     * @return Flow of community stats
-     */
-    fun observeCommunityStats(period: StatsPeriod): Flow<CommunityStats>
-
-    /**
-     * Fetch and cache user stats for All-time leaderboard.
-     * Called when the user_stats cache is empty.
-     * Returns true if stats were fetched successfully.
-     */
-    suspend fun fetchAndCacheUserStats(): Boolean
-
-    /**
-     * Check if user stats cache is empty.
-     */
-    suspend fun isUserStatsCacheEmpty(): Boolean
-}
 
 /**
  * Offline-first leaderboard data source.
@@ -84,13 +47,13 @@ interface LeaderboardRepositoryContract {
  * @property userDao DAO for current user info
  * @property leaderboardApi API for fetching initial All-time stats
  */
-class LeaderboardRepository(
+class LeaderboardRepositoryImpl(
     private val listeningEventDao: ListeningEventDao,
     private val activityDao: ActivityDao,
     private val userStatsDao: UserStatsDao,
     private val userDao: UserDao,
     private val leaderboardApi: LeaderboardApiContract,
-) : LeaderboardRepositoryContract {
+) : LeaderboardRepository {
     /**
      * Observe leaderboard entries for a given period.
      *
@@ -99,18 +62,18 @@ class LeaderboardRepository(
      * - All-time: Use cached user_stats from server
      */
     override fun observeLeaderboard(
-        period: StatsPeriod,
+        period: LeaderboardPeriod,
         category: LeaderboardCategory,
         limit: Int,
     ): Flow<List<LeaderboardEntry>> {
         logger.debug { "Observing leaderboard: period=$period, category=$category" }
 
         return when (period) {
-            StatsPeriod.WEEK, StatsPeriod.MONTH, StatsPeriod.DAY, StatsPeriod.YEAR -> {
+            LeaderboardPeriod.WEEK, LeaderboardPeriod.MONTH, LeaderboardPeriod.DAY, LeaderboardPeriod.YEAR -> {
                 observeFromActivities(period, category, limit)
             }
 
-            StatsPeriod.ALL -> {
+            LeaderboardPeriod.ALL -> {
                 observeFromUserStats(category, limit)
             }
         }
@@ -122,7 +85,7 @@ class LeaderboardRepository(
      * others' stats from activities.
      */
     private fun observeFromActivities(
-        period: StatsPeriod,
+        period: LeaderboardPeriod,
         category: LeaderboardCategory,
         limit: Int,
     ): Flow<List<LeaderboardEntry>> {
@@ -183,16 +146,16 @@ class LeaderboardRepository(
     /**
      * Observe community aggregate stats for a given period.
      */
-    override fun observeCommunityStats(period: StatsPeriod): Flow<CommunityStats> =
+    override fun observeCommunityStats(period: LeaderboardPeriod): Flow<CommunityStats> =
         when (period) {
-            StatsPeriod.ALL -> observeCommunityStatsFromUserStats()
+            LeaderboardPeriod.ALL -> observeCommunityStatsFromUserStats()
             else -> observeCommunityStatsFromActivities(period)
         }
 
     /**
      * Community stats from activities table (Week/Month/Year).
      */
-    private fun observeCommunityStatsFromActivities(period: StatsPeriod): Flow<CommunityStats> {
+    private fun observeCommunityStatsFromActivities(period: LeaderboardPeriod): Flow<CommunityStats> {
         val periodStartMs = periodToEpochMillis(period)
 
         return combine(
@@ -302,7 +265,7 @@ class LeaderboardRepository(
     private fun observeMyStreak(): Flow<Int> =
         listeningEventDao
             .observeDistinctDaysSince(0)
-            .map { days -> calculateStreak(days) }
+            .map { days: List<Long> -> calculateStreak(days) }
 
     /**
      * Calculate streak from sorted day numbers (descending).
@@ -341,14 +304,14 @@ class LeaderboardRepository(
     /**
      * Convert period to epoch milliseconds for start of period.
      */
-    private fun periodToEpochMillis(period: StatsPeriod): Long {
+    private fun periodToEpochMillis(period: LeaderboardPeriod): Long {
         val now = Clock.System.now().toEpochMilliseconds()
         return when (period) {
-            StatsPeriod.DAY -> now - MS_PER_DAY
-            StatsPeriod.WEEK -> now - (7 * MS_PER_DAY)
-            StatsPeriod.MONTH -> now - (30 * MS_PER_DAY)
-            StatsPeriod.YEAR -> now - (365 * MS_PER_DAY)
-            StatsPeriod.ALL -> 0L
+            LeaderboardPeriod.DAY -> now - MS_PER_DAY
+            LeaderboardPeriod.WEEK -> now - (7 * MS_PER_DAY)
+            LeaderboardPeriod.MONTH -> now - (30 * MS_PER_DAY)
+            LeaderboardPeriod.YEAR -> now - (365 * MS_PER_DAY)
+            LeaderboardPeriod.ALL -> 0L
         }
     }
 
@@ -364,8 +327,8 @@ class LeaderboardRepository(
             logger.debug { "Fetching initial user stats for All-time leaderboard" }
             val response =
                 leaderboardApi.getLeaderboard(
-                    period = StatsPeriod.ALL,
-                    category = LeaderboardCategory.TIME,
+                    period = ApiStatsPeriod.ALL,
+                    category = ApiLeaderboardCategory.TIME,
                     limit = 100, // Get all users for caching
                 )
 
@@ -403,69 +366,6 @@ class LeaderboardRepository(
      * Used to determine if initial fetch is needed for All-time period.
      */
     override suspend fun isUserStatsCacheEmpty(): Boolean = userStatsDao.count() == 0
-}
-
-/**
- * Domain model for a leaderboard entry.
- */
-data class LeaderboardEntry(
-    val rank: Int,
-    val userId: String,
-    val displayName: String,
-    val avatarColor: String,
-    val avatarType: String,
-    val avatarValue: String?,
-    val timeMs: Long,
-    val booksCount: Int,
-    val streakDays: Int,
-    val isCurrentUser: Boolean,
-) {
-    /**
-     * Get the value for a specific category.
-     */
-    fun valueFor(category: LeaderboardCategory): Long =
-        when (category) {
-            LeaderboardCategory.TIME -> timeMs
-            LeaderboardCategory.BOOKS -> booksCount.toLong()
-            LeaderboardCategory.STREAK -> streakDays.toLong()
-        }
-
-    /**
-     * Format the value as a human-readable label.
-     */
-    fun labelFor(category: LeaderboardCategory): String =
-        when (category) {
-            LeaderboardCategory.TIME -> formatDuration(timeMs)
-            LeaderboardCategory.BOOKS -> "$booksCount books"
-            LeaderboardCategory.STREAK -> "$streakDays days"
-        }
-}
-
-/**
- * Community aggregate stats.
- */
-data class CommunityStats(
-    val totalTimeMs: Long,
-    val totalBooks: Int,
-    val activeUsers: Int,
-) {
-    val totalTimeLabel: String get() = formatDuration(totalTimeMs)
-}
-
-/**
- * Format milliseconds as human-readable duration.
- * Examples: "2h 30m", "45m", "1h"
- */
-private fun formatDuration(ms: Long): String {
-    val totalMinutes = ms / 60_000
-    val hours = totalMinutes / 60
-    val minutes = totalMinutes % 60
-
-    return when {
-        hours == 0L -> "${minutes}m"
-        minutes == 0L -> "${hours}h"
-        else -> "${hours}h ${minutes}m"
-    }
 }
 
 /**

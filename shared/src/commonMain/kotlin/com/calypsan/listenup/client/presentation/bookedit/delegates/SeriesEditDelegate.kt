@@ -2,8 +2,8 @@
 
 package com.calypsan.listenup.client.presentation.bookedit.delegates
 
-import com.calypsan.listenup.client.data.remote.SeriesSearchResult
-import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
+import com.calypsan.listenup.client.domain.model.SeriesSearchResult
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.presentation.bookedit.BookEditUiState
 import com.calypsan.listenup.client.presentation.bookedit.EditableSeries
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -42,7 +42,7 @@ private const val SEARCH_LIMIT = 10
  */
 class SeriesEditDelegate(
     private val state: MutableStateFlow<BookEditUiState>,
-    private val seriesRepository: SeriesRepositoryContract,
+    private val seriesRepository: SeriesRepository,
     private val scope: CoroutineScope,
     private val onChangesMade: () -> Unit,
 ) {

@@ -3,13 +3,13 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.IODispatcher
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.BookSearchResult
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.TagEntity
-import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SearchFacetsResponse
 import com.calypsan.listenup.client.data.remote.SearchHitResponse
@@ -26,32 +26,6 @@ import kotlinx.coroutines.withContext
 import kotlin.time.measureTimedValue
 
 private val logger = KotlinLogging.logger {}
-
-/**
- * Contract interface for search repository operations.
- *
- * Extracted to enable mocking in tests. Production implementation
- * is [SearchRepository], test implementation can be a mock or fake.
- */
-interface SearchRepositoryContract {
-    /**
-     * Search across books, contributors, and series.
-     *
-     * @param query Search query string
-     * @param types Types to search (null = all)
-     * @param genres Genre slugs to filter by
-     * @param genrePath Genre path prefix for hierarchical filtering
-     * @param limit Max results per type
-     * @return SearchResult with hits and metadata
-     */
-    suspend fun search(
-        query: String,
-        types: List<SearchHitType>? = null,
-        genres: List<String>? = null,
-        genrePath: String? = null,
-        limit: Int = 20,
-    ): SearchResult
-}
 
 /**
  * Repository for search operations.
@@ -71,11 +45,11 @@ interface SearchRepositoryContract {
  * @property searchDao Local FTS5 search DAO
  * @property imageStorage For resolving local cover paths
  */
-class SearchRepository(
+class SearchRepositoryImpl(
     private val searchApi: SearchApiContract,
     private val searchDao: SearchDao,
     private val imageStorage: ImageStorage,
-) : SearchRepositoryContract {
+) : com.calypsan.listenup.client.domain.repository.SearchRepository {
     /**
      * Search across books, contributors, and series.
      *

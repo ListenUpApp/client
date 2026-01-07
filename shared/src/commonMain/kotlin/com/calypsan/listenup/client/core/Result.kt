@@ -7,6 +7,33 @@ import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
 /**
+ * Typed error codes for business logic failures.
+ * Enables consistent error handling across the application.
+ */
+enum class ErrorCode {
+    /** Input validation failed (email format, password length, etc.) */
+    VALIDATION_ERROR,
+
+    /** Network is unavailable */
+    NETWORK_UNAVAILABLE,
+
+    /** Authentication required or session expired */
+    UNAUTHORIZED,
+
+    /** Requested resource not found */
+    NOT_FOUND,
+
+    /** Conflict with existing data */
+    CONFLICT,
+
+    /** Server returned an error */
+    SERVER_ERROR,
+
+    /** Unclassified error */
+    UNKNOWN,
+}
+
+/**
  * A discriminated union representing either success or failure.
  * Using sealed interface instead of sealed class for maximum flexibility with Kotlin 2.2.
  *
@@ -23,17 +50,54 @@ sealed interface Result<out T> {
     ) : Result<T>
 
     /**
-     * Represents a failed result containing an exception
+     * Represents a failed result containing an exception and/or error information
      */
     data class Failure(
-        val exception: Exception,
-        val message: String = exception.message ?: "Unknown error",
+        val exception: Exception? = null,
+        val message: String,
+        val errorCode: ErrorCode = ErrorCode.UNKNOWN,
     ) : Result<Nothing>
 }
 
 // Type aliases for cleaner code
 typealias Success<T> = Result.Success<T>
 typealias Failure = Result.Failure
+
+// ========== Helper Constructors ==========
+
+/**
+ * Create a Failure from an exception, using the exception's message.
+ * This is the most common way to create a Failure when catching exceptions.
+ */
+fun Failure(exception: Exception): Failure =
+    Failure(exception = exception, message = exception.message ?: "Unknown error")
+
+/** Create a validation error failure */
+fun validationError(message: String): Failure =
+    Failure(message = message, errorCode = ErrorCode.VALIDATION_ERROR)
+
+/** Create a network unavailable failure */
+fun networkError(message: String = "Network unavailable", exception: Exception? = null): Failure =
+    Failure(exception = exception, message = message, errorCode = ErrorCode.NETWORK_UNAVAILABLE)
+
+/** Create an unauthorized failure */
+fun unauthorizedError(message: String = "Session expired"): Failure =
+    Failure(message = message, errorCode = ErrorCode.UNAUTHORIZED)
+
+/** Create a not found failure */
+fun notFoundError(message: String = "Resource not found"): Failure =
+    Failure(message = message, errorCode = ErrorCode.NOT_FOUND)
+
+/** Create a server error failure */
+fun serverError(message: String, exception: Exception? = null): Failure =
+    Failure(exception = exception, message = message, errorCode = ErrorCode.SERVER_ERROR)
+
+/**
+ * Get the exception from a Failure, creating one from the message if not present.
+ * Useful for throw statements: `throw failure.exceptionOrFromMessage()`
+ */
+fun Failure.exceptionOrFromMessage(): Exception =
+    exception ?: IllegalStateException(message)
 
 /**
  * Returns true if this result is Success.
@@ -78,12 +142,13 @@ inline fun <T> Result<T>.getOrDefault(defaultValue: () -> T): T =
     }
 
 /**
- * Returns the data if Success, or throws the exception if Failure
+ * Returns the data if Success, or throws the exception if Failure.
+ * If the Failure has no exception, throws an IllegalStateException with the message.
  */
 fun <T> Result<T>.getOrThrow(): T =
     when (this) {
         is Success -> data
-        is Failure -> throw exception
+        is Failure -> throw exception ?: IllegalStateException(message)
     }
 
 /**
@@ -122,20 +187,22 @@ inline fun <T> Result<T>.onSuccess(action: (T) -> Unit): Result<T> {
 }
 
 /**
- * Execute a side effect on failure and return the original Result
+ * Execute a side effect on failure and return the original Result.
+ * The action receives the Failure object for access to message, errorCode, and optional exception.
  */
-inline fun <T> Result<T>.onFailure(action: (Exception) -> Unit): Result<T> {
-    if (this is Failure) action(exception)
+inline fun <T> Result<T>.onFailure(action: (Failure) -> Unit): Result<T> {
+    if (this is Failure) action(this)
     return this
 }
 
 /**
- * Recover from failure by providing a fallback value
+ * Recover from failure by providing a fallback value.
+ * The recovery function receives the Failure object for access to message, errorCode, and optional exception.
  */
-inline fun <T> Result<T>.recover(recovery: (Exception) -> T): Result<T> =
+inline fun <T> Result<T>.recover(recovery: (Failure) -> T): Result<T> =
     when (this) {
         is Success -> this
-        is Failure -> Success(recovery(exception))
+        is Failure -> Success(recovery(this))
     }
 
 /**
@@ -154,7 +221,7 @@ suspend inline fun <T> suspendRunCatching(crossinline block: suspend () -> T): R
     } catch (e: CancellationException) {
         throw e // Preserve coroutine cancellation
     } catch (e: Exception) {
-        Failure(e)
+        Failure(exception = e, message = e.message ?: "Unknown error")
     }
 }
 
@@ -169,6 +236,6 @@ inline fun <T> runCatching(block: () -> T): Result<T> {
     return try {
         Success(block())
     } catch (e: Exception) {
-        Failure(e)
+        Failure(exception = e, message = e.message ?: "Unknown error")
     }
 }

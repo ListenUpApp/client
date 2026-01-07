@@ -2,18 +2,17 @@ package com.calypsan.listenup.client.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
-import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
-import com.calypsan.listenup.client.data.local.db.SeriesDao
-import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
-import com.calypsan.listenup.client.data.local.db.SyncDao
-import com.calypsan.listenup.client.data.local.db.getLastSyncTime
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
-import com.calypsan.listenup.client.data.sync.SyncManagerContract
-import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.SyncState
+import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
+import com.calypsan.listenup.client.domain.model.SeriesWithBooks
+import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.SyncRepository
+import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 import com.calypsan.listenup.client.util.sortableTitle
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,13 +40,13 @@ private val logger = KotlinLogging.logger {}
  * with [LibraryActionsViewModel] for coordinated batch operations.
  */
 class LibraryViewModel(
-    private val bookRepository: BookRepositoryContract,
-    private val seriesDao: SeriesDao,
-    private val contributorDao: ContributorDao,
+    private val bookRepository: BookRepository,
+    private val seriesRepository: SeriesRepository,
+    private val contributorRepository: ContributorRepository,
     private val playbackPositionRepository: PlaybackPositionRepository,
-    private val syncManager: SyncManagerContract,
-    private val settingsRepository: SettingsRepositoryContract,
-    private val syncDao: SyncDao,
+    private val syncRepository: SyncRepository,
+    private val settingsRepository: SettingsRepository,
+    private val syncStatusRepository: SyncStatusRepository,
     private val selectionManager: LibrarySelectionManager,
 ) : ViewModel() {
     // ═══════════════════════════════════════════════════════════════════════
@@ -120,7 +119,7 @@ class LibraryViewModel(
      */
     val series: StateFlow<List<SeriesWithBooks>> =
         combine(
-            seriesDao.observeAllWithBooks(),
+            seriesRepository.observeAllWithBooks(),
             seriesSortState,
             hideSingleBookSeries,
         ) { series, sortState, hideSingle ->
@@ -142,7 +141,7 @@ class LibraryViewModel(
      */
     val authors: StateFlow<List<ContributorWithBookCount>> =
         combine(
-            contributorDao.observeByRoleWithCount("author"),
+            contributorRepository.observeContributorsByRole("author"),
             authorsSortState,
         ) { authors, sortState ->
             sortContributors(authors, sortState)
@@ -157,7 +156,7 @@ class LibraryViewModel(
      */
     val narrators: StateFlow<List<ContributorWithBookCount>> =
         combine(
-            contributorDao.observeByRoleWithCount("narrator"),
+            contributorRepository.observeContributorsByRole("narrator"),
             narratorsSortState,
         ) { narrators, sortState ->
             sortContributors(narrators, sortState)
@@ -172,7 +171,7 @@ class LibraryViewModel(
     // ═══════════════════════════════════════════════════════════════════════
 
     /** Observable sync status. */
-    val syncState: StateFlow<SyncStatus> = syncManager.syncState
+    val syncState: StateFlow<SyncState> = syncRepository.syncState
 
     // ═══════════════════════════════════════════════════════════════════════
     // PROGRESS TRACKING
@@ -274,7 +273,7 @@ class LibraryViewModel(
         logger.debug { "Screen became visible, checking if initial sync needed..." }
         viewModelScope.launch {
             val isAuthenticated = settingsRepository.getAccessToken() != null
-            val lastSyncTime = syncDao.getLastSyncTime()
+            val lastSyncTime = syncStatusRepository.getLastSyncTime()
 
             if (isAuthenticated && lastSyncTime == null) {
                 logger.info { "User authenticated but never synced, triggering initial sync..." }

@@ -3,11 +3,9 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
-import com.calypsan.listenup.client.data.remote.DailyListeningResponse
-import com.calypsan.listenup.client.data.remote.GenreListeningResponse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -18,31 +16,6 @@ private val logger = KotlinLogging.logger {}
 
 /** Milliseconds in a day */
 private const val MS_PER_DAY = 86_400_000L
-
-/**
- * Contract interface for stats repository operations.
- */
-interface StatsRepositoryContract {
-    /**
-     * Observe weekly stats (7 days) for the home screen.
-     *
-     * Emits new values whenever listening events are added or modified.
-     */
-    fun observeWeeklyStats(): Flow<HomeStats>
-}
-
-/**
- * Computed stats for the home screen.
- *
- * All stats are computed locally from listening events.
- */
-data class HomeStats(
-    val totalListenTimeMs: Long,
-    val currentStreakDays: Int,
-    val longestStreakDays: Int,
-    val dailyListening: List<DailyListeningResponse>,
-    val genreBreakdown: List<GenreListeningResponse>,
-)
 
 /**
  * Repository for computing listening statistics from local events.
@@ -58,17 +31,22 @@ data class HomeStats(
  * @property listeningEventDao DAO for listening events
  * @property bookDao DAO for book metadata (genres)
  */
-class StatsRepository(
+// Import domain types
+private typealias DomainHomeStats = com.calypsan.listenup.client.domain.repository.HomeStats
+private typealias DomainDailyListening = com.calypsan.listenup.client.domain.repository.DailyListening
+private typealias DomainGenreListening = com.calypsan.listenup.client.domain.repository.GenreListening
+
+class StatsRepositoryImpl(
     private val listeningEventDao: ListeningEventDao,
     private val bookDao: BookDao,
-) : StatsRepositoryContract {
+) : com.calypsan.listenup.client.domain.repository.StatsRepository {
     /**
      * Observe weekly stats (7 days) for the home screen.
      *
      * Automatically recomputes when events change.
      * Uses observeEventsSince (no upper bound) so new events trigger updates.
      */
-    override fun observeWeeklyStats(): Flow<HomeStats> {
+    override fun observeWeeklyStats(): Flow<DomainHomeStats> {
         val weekAgo = Clock.System.now().toEpochMilliseconds() - (7 * MS_PER_DAY)
 
         return listeningEventDao.observeEventsSince(weekAgo).map { events ->
@@ -86,7 +64,7 @@ class StatsRepository(
         events: List<ListeningEventEntity>,
         startMs: Long,
         endMs: Long,
-    ): HomeStats {
+    ): DomainHomeStats {
         logger.debug { "Computing stats from ${events.size} events" }
 
         val totalTime = events.sumOf { it.durationMs }
@@ -98,7 +76,7 @@ class StatsRepository(
             "Stats computed: ${totalTime}ms total, streak=$currentStreak, genres=${genreBreakdown.size}"
         }
 
-        return HomeStats(
+        return DomainHomeStats(
             totalListenTimeMs = totalTime,
             currentStreakDays = currentStreak,
             longestStreakDays = longestStreak,
@@ -116,7 +94,7 @@ class StatsRepository(
         events: List<ListeningEventEntity>,
         startMs: Long,
         endMs: Long,
-    ): List<DailyListeningResponse> {
+    ): List<DomainDailyListening> {
         // Group events by day
         val byDay =
             events.groupBy { event ->
@@ -125,7 +103,7 @@ class StatsRepository(
             }
 
         // Generate 7 days, filling in zeros for days without activity
-        val result = mutableListOf<DailyListeningResponse>()
+        val result = mutableListOf<DomainDailyListening>()
         var dayStart = (startMs / MS_PER_DAY) * MS_PER_DAY
 
         while (dayStart < endMs) {
@@ -134,7 +112,7 @@ class StatsRepository(
             val booksListened = dayEvents.map { it.bookId }.distinct().size
 
             result.add(
-                DailyListeningResponse(
+                DomainDailyListening(
                     date = formatDate(dayStart),
                     listenTimeMs = totalMs,
                     booksListened = booksListened,
@@ -150,7 +128,7 @@ class StatsRepository(
     /**
      * Compute genre breakdown by joining events with book metadata.
      */
-    private suspend fun computeGenreBreakdown(events: List<ListeningEventEntity>): List<GenreListeningResponse> {
+    private suspend fun computeGenreBreakdown(events: List<ListeningEventEntity>): List<DomainGenreListening> {
         if (events.isEmpty()) return emptyList()
 
         // Group by book first
@@ -190,7 +168,7 @@ class StatsRepository(
             .entries
             .sortedByDescending { it.value }
             .map { (genre, durationMs) ->
-                GenreListeningResponse(
+                DomainGenreListening(
                     genreSlug = genre.lowercase().replace(" ", "-"),
                     genreName = genre,
                     listenTimeMs = durationMs,

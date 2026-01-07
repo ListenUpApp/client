@@ -12,7 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.remote.SessionSummary
+import com.calypsan.listenup.client.domain.model.SessionSummary
 import com.calypsan.listenup.client.util.toRelativeOrMonthYear
 import kotlin.time.Duration.Companion.milliseconds
 

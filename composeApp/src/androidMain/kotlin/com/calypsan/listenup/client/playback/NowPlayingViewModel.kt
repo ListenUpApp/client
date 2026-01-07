@@ -6,9 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.session.MediaController
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.repository.BookRepository
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.model.Chapter
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
@@ -31,7 +31,7 @@ class NowPlayingViewModel(
     private val bookRepository: BookRepository,
     private val sleepTimerManager: SleepTimerManager,
     private val mediaControllerHolder: MediaControllerHolder,
-    private val settingsRepository: SettingsRepositoryContract,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
     val state: StateFlow<NowPlayingState>
         field = MutableStateFlow(NowPlayingState())

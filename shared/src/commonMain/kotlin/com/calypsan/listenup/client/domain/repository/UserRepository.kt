@@ -40,4 +40,31 @@ interface UserRepository {
      * @return User if logged in, null otherwise
      */
     suspend fun getCurrentUser(): User?
+
+    /**
+     * Save or update user data.
+     *
+     * Used after login to persist the user's profile locally.
+     * If user already exists, updates their data.
+     *
+     * @param user The user to save
+     */
+    suspend fun saveUser(user: User)
+
+    /**
+     * Clear all user data.
+     *
+     * Used during logout to remove local user profile.
+     */
+    suspend fun clearUsers()
+
+    /**
+     * Refresh current user data from the server.
+     *
+     * Fetches the user's profile from the server and saves it locally.
+     * Used when local user data is missing but authentication tokens exist.
+     *
+     * @return The refreshed user on success, null if fetch failed or not authenticated
+     */
+    suspend fun refreshCurrentUser(): User?
 }

@@ -3,10 +3,10 @@ package com.calypsan.listenup.client.presentation.connect
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.ServerUrl
-import com.calypsan.listenup.client.data.discovery.DiscoveredServer
-import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
-import com.calypsan.listenup.client.data.repository.ServerWithStatus
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.model.DiscoveredServer
+import com.calypsan.listenup.client.domain.model.ServerWithStatus
+import com.calypsan.listenup.client.domain.repository.ServerRepository
+import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -63,8 +63,8 @@ sealed interface ServerSelectUiEvent {
  * merged with any previously connected servers (which may be offline).
  */
 class ServerSelectViewModel(
-    private val serverRepository: ServerRepositoryContract,
-    private val settingsRepository: SettingsRepositoryContract,
+    private val serverRepository: ServerRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
     val state: StateFlow<ServerSelectUiState>
         field = MutableStateFlow(ServerSelectUiState())
