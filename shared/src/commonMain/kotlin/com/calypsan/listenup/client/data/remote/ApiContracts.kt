@@ -673,25 +673,6 @@ interface SeriesApiContract {
     ): Result<SeriesEditResponse>
 }
 
-// =============================================================================
-// Aggregate Interface (for backward compatibility)
-// =============================================================================
-
-/**
- * Aggregate contract interface for ListenUp API operations.
- *
- * Extends all domain-specific API contracts for backward compatibility.
- * New code should prefer using the specific contracts (BookApiContract,
- * ContributorApiContract, etc.) following ISP.
- *
- * Production implementation is [ListenUpApi].
- */
-interface ListenUpApiContract :
-    InstanceApiContract,
-    BookApiContract,
-    ContributorApiContract,
-    SeriesApiContract
-
 /**
  * Contributor search result for autocomplete.
  *

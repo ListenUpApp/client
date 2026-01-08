@@ -3,8 +3,8 @@ package com.calypsan.listenup.client.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.domain.repository.AuthRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.RegistrationStatusStream
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.repository.StreamedRegistrationStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Job
@@ -26,7 +26,7 @@ private const val POLL_INTERVAL_MS = 5000L
  */
 class PendingApprovalViewModel(
     private val authRepository: AuthRepository,
-    private val settingsRepository: SettingsRepository,
+    private val authSession: AuthSession,
     private val registrationStatusStream: RegistrationStatusStream,
     val userId: String,
     val email: String,
@@ -132,7 +132,7 @@ class PendingApprovalViewModel(
             val loginResult = authRepository.login(email, password)
 
             // Save tokens
-            settingsRepository.saveAuthTokens(
+            authSession.saveAuthTokens(
                 access = loginResult.accessToken,
                 refresh = loginResult.refreshToken,
                 sessionId = loginResult.sessionId,
@@ -140,14 +140,14 @@ class PendingApprovalViewModel(
             )
 
             // Clear pending registration
-            settingsRepository.clearPendingRegistration()
+            authSession.clearPendingRegistration()
 
             logger.info { "Auto-login successful!" }
             state.value = state.value.copy(status = PendingApprovalStatus.LoginSuccess)
         } catch (e: Exception) {
             logger.error(e) { "Auto-login failed" }
             // Clear pending and let user log in manually
-            settingsRepository.clearPendingRegistration()
+            authSession.clearPendingRegistration()
             state.value =
                 state.value.copy(
                     status =
@@ -159,7 +159,7 @@ class PendingApprovalViewModel(
     }
 
     private suspend fun handleDenied(message: String? = null) {
-        settingsRepository.clearPendingRegistration()
+        authSession.clearPendingRegistration()
         state.value =
             state.value.copy(
                 status =
@@ -174,7 +174,7 @@ class PendingApprovalViewModel(
      */
     fun cancelRegistration() {
         viewModelScope.launch {
-            settingsRepository.clearPendingRegistration()
+            authSession.clearPendingRegistration()
         }
     }
 }

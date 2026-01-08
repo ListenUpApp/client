@@ -13,7 +13,8 @@ import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.domain.model.AudioFile
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.data.sync.sse.PlaybackStateProvider
 import com.calypsan.listenup.client.domain.model.Chapter
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
@@ -41,7 +42,8 @@ private val logger = KotlinLogging.logger {}
  * - Negotiate audio format with server for transcoding support
  */
 class PlaybackManager(
-    private val settingsRepository: SettingsRepository,
+    private val serverConfig: ServerConfig,
+    private val playbackPreferences: PlaybackPreferences,
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
     private val imageStorage: ImageStorage,
@@ -111,7 +113,7 @@ class PlaybackManager(
         tokenProvider.prepareForPlayback()
 
         // 2. Get server URL
-        val serverUrl = settingsRepository.getServerUrl()?.value
+        val serverUrl = serverConfig.getServerUrl()?.value
         if (serverUrl == null) {
             logger.error { "No server URL configured" }
             return null
@@ -246,7 +248,7 @@ class PlaybackManager(
                 savedPosition.playbackSpeed
             } else {
                 // Use universal default speed (synced across devices)
-                settingsRepository.getDefaultPlaybackSpeed()
+                playbackPreferences.getDefaultPlaybackSpeed()
             }
 
         logger.debug {
@@ -412,7 +414,7 @@ class PlaybackManager(
         val retryDelayMs = 5000L
 
         // Get spatial audio setting from repository
-        val spatial = settingsRepository.getSpatialPlayback()
+        val spatial = playbackPreferences.getSpatialPlayback()
 
         repeat(maxRetries) { attempt ->
             when (val result = api.preparePlayback(bookId, audioFileId, capabilities, spatial)) {

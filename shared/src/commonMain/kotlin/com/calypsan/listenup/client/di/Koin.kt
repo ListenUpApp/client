@@ -27,7 +27,6 @@ import com.calypsan.listenup.client.data.remote.LeaderboardApi
 import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
 import com.calypsan.listenup.client.data.remote.LensApi
 import com.calypsan.listenup.client.data.remote.LensApiContract
-import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.MetadataApi
 import com.calypsan.listenup.client.data.remote.MetadataApiContract
 import com.calypsan.listenup.client.data.remote.ProfileApi
@@ -82,7 +81,6 @@ import com.calypsan.listenup.client.domain.repository.SearchRepository
 import com.calypsan.listenup.client.domain.repository.SeriesEditRepository
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.domain.repository.ServerRepository
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.repository.StatsRepository
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.RegistrationStatusStream
@@ -239,8 +237,7 @@ val dataModule =
             )
         }
 
-        // Bind segregated interfaces to the same SettingsRepository instance (ISP compliance)
-        single<SettingsRepository> { get<SettingsRepositoryImpl>() }
+        // Bind segregated interfaces to the same SettingsRepositoryImpl instance (ISP compliance)
         single<AuthSession> { get<SettingsRepositoryImpl>() }
         single<ServerConfig> { get<SettingsRepositoryImpl>() }
         single<LibrarySync> { get<SettingsRepositoryImpl>() }
@@ -260,11 +257,11 @@ val dataModule =
 val networkModule =
     module {
         // AuthApi - handles login, logout, and token refresh
-        // Gets server URL dynamically from SettingsRepository
+        // Gets server URL dynamically from ServerConfig
         // Bind to both concrete type and interface
         single {
-            val settingsRepository: SettingsRepository = get()
-            AuthApi(getServerUrl = { settingsRepository.getServerUrl() })
+            val serverConfig: ServerConfig = get()
+            AuthApi(getServerUrl = { serverConfig.getServerUrl() })
         } bind AuthApiContract::class
 
         // InviteApi - handles public invite operations (no auth required)
@@ -274,7 +271,8 @@ val networkModule =
         // ApiClientFactory - creates authenticated HTTP clients with auto-refresh
         single {
             ApiClientFactory(
-                settingsRepository = get(),
+                serverConfig = get(),
+                authSession = get(),
                 authApi = get(),
             )
         }
@@ -289,7 +287,6 @@ val networkModule =
         }
 
         // Bind segregated interfaces to the same ListenUpApi instance (ISP compliance)
-        single<ListenUpApiContract> { get<ListenUpApi>() }
         single<InstanceApiContract> { get<ListenUpApi>() }
         single<BookApiContract> { get<ListenUpApi>() }
         single<ContributorApiContract> { get<ListenUpApi>() }
@@ -347,7 +344,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().userStatsDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
-        // When active server's URL changes via mDNS rediscovery, updates SettingsRepository
+        // When active server's URL changes via mDNS rediscovery, updates ServerConfig
         // and invalidates the API client cache to use the new IP address.
         single<ServerRepository> {
             ServerRepositoryImpl(
@@ -362,9 +359,9 @@ val repositoryModule =
                 urlChangeListener =
                     ServerUrlChangeListener { newUrl ->
                         // Update settings with new URL and invalidate API client
-                        val settings: SettingsRepository = get()
+                        val serverConfig: ServerConfig = get()
                         val apiClientFactory: ApiClientFactory = get()
-                        settings.setServerUrl(newUrl)
+                        serverConfig.setServerUrl(newUrl)
                         apiClientFactory.invalidate()
                     },
             )
@@ -683,7 +680,7 @@ val syncModule =
 
         // Image API for downloading cover images and uploading images
         single {
-            ImageApi(clientFactory = get(), settingsRepository = get())
+            ImageApi(clientFactory = get(), serverConfig = get())
         } bind ImageApiContract::class
 
         // Image downloader for batch cover downloads during sync
@@ -699,7 +696,7 @@ val syncModule =
         single {
             SSEManager(
                 clientFactory = get(),
-                settingsRepository = get(),
+                serverConfig = get(),
                 scope =
                     get(
                         qualifier =
@@ -1114,7 +1111,9 @@ val syncModule =
                 coordinator = get(),
                 sseManager = get(),
                 userPreferencesApi = get(),
-                settingsRepository = get(),
+                authSession = get(),
+                playbackPreferences = get(),
+                librarySync = get(),
                 instanceRepository = get(),
                 pendingOperationDao = get(),
                 libraryResetHelper = get(),
@@ -1242,7 +1241,7 @@ val syncModule =
         single<RegistrationStatusStream> {
             RegistrationStatusStreamImpl(
                 apiClientFactory = get(),
-                settingsRepository = get(),
+                serverConfig = get(),
             )
         }
 

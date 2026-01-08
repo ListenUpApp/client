@@ -298,17 +298,3 @@ interface LocalPreferences {
 }
 
 // endregion
-
-/**
- * Aggregate contract for backward compatibility.
- *
- * New code should depend on specific interfaces (AuthSession,
- * ServerConfig, etc.) rather than this aggregate.
- */
-interface SettingsRepository :
-    AuthSession,
-    ServerConfig,
-    LibrarySync,
-    LibraryPreferences,
-    PlaybackPreferences,
-    LocalPreferences

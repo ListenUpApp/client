@@ -11,7 +11,9 @@ import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.LibrarySync
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
@@ -82,7 +84,9 @@ class SyncManager(
     private val coordinator: SyncCoordinator,
     private val sseManager: SSEManagerContract,
     private val userPreferencesApi: UserPreferencesApiContract,
-    private val settingsRepository: SettingsRepository,
+    private val authSession: AuthSession,
+    private val playbackPreferences: PlaybackPreferences,
+    private val librarySync: LibrarySync,
     private val instanceRepository: InstanceRepository,
     private val pendingOperationDao: PendingOperationDao,
     private val libraryResetHelper: LibraryResetHelperContract,
@@ -118,7 +122,7 @@ class SyncManager(
                 // Disconnect SSE first to stop any further events
                 sseManager.disconnect()
                 // Clear auth tokens - this will trigger AuthState.NeedsLogin
-                settingsRepository.clearAuthTokens()
+                authSession.clearAuthTokens()
             }
         }
     }
@@ -282,7 +286,7 @@ class SyncManager(
             when (val result = userPreferencesApi.getPreferences()) {
                 is Result.Success -> {
                     val prefs = result.data
-                    settingsRepository.setDefaultPlaybackSpeed(prefs.defaultPlaybackSpeed)
+                    playbackPreferences.setDefaultPlaybackSpeed(prefs.defaultPlaybackSpeed)
                     logger.info { "User preferences synced: defaultPlaybackSpeed=${prefs.defaultPlaybackSpeed}" }
                 }
 
@@ -309,14 +313,14 @@ class SyncManager(
      * @return LibraryMismatch status if IDs don't match, null if verification passes
      */
     private suspend fun verifyLibraryIdentity(): SyncStatus.LibraryMismatch? {
-        val storedLibraryId = settingsRepository.getConnectedLibraryId()
+        val storedLibraryId = librarySync.getConnectedLibraryId()
 
         // First sync? Fetch and store the library ID, then continue
         if (storedLibraryId == null) {
             logger.info { "First sync - fetching library ID from server" }
             val instance = instanceRepository.getInstance(forceRefresh = true).getOrNull()
             if (instance != null) {
-                settingsRepository.setConnectedLibraryId(instance.id.value)
+                librarySync.setConnectedLibraryId(instance.id.value)
                 logger.info { "Stored library ID: ${instance.id.value}" }
             }
             return null

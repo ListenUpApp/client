@@ -3,7 +3,8 @@ package com.calypsan.listenup.client.data.remote
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.ServerUrl
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
@@ -34,7 +35,8 @@ private val logger = KotlinLogging.logger {}
  * Call [close] to release resources when no longer needed.
  */
 class ApiClientFactory(
-    private val settingsRepository: SettingsRepository,
+    private val serverConfig: ServerConfig,
+    private val authSession: AuthSession,
     private val authApi: AuthApiContract,
 ) {
     private val mutex = Mutex()
@@ -71,12 +73,12 @@ class ApiClientFactory(
      */
     suspend fun getStreamingClient(): HttpClient {
         val serverUrl =
-            settingsRepository.getServerUrl()
+            serverConfig.getServerUrl()
                 ?: error("Server URL not configured")
 
         return createStreamingHttpClient(
             serverUrl = serverUrl,
-            settingsRepository = settingsRepository,
+            authSession = authSession,
             authApi = authApi,
         )
     }
@@ -93,7 +95,7 @@ class ApiClientFactory(
      */
     suspend fun getUnauthenticatedStreamingClient(): HttpClient {
         val serverUrl =
-            settingsRepository.getServerUrl()
+            serverConfig.getServerUrl()
                 ?: error("Server URL not configured")
 
         return createUnauthenticatedStreamingHttpClient(serverUrl)
@@ -101,7 +103,7 @@ class ApiClientFactory(
 
     private suspend fun createClient(): HttpClient {
         val serverUrl =
-            settingsRepository.getServerUrl()
+            serverConfig.getServerUrl()
                 ?: error("Server URL not configured")
 
         logger.info { "Creating HTTP client for server: ${serverUrl.value}" }
@@ -130,8 +132,8 @@ class ApiClientFactory(
                 bearer {
                     // Load initial tokens from storage
                     loadTokens {
-                        val access = settingsRepository.getAccessToken()?.value
-                        val refresh = settingsRepository.getRefreshToken()?.value
+                        val access = authSession.getAccessToken()?.value
+                        val refresh = authSession.getRefreshToken()?.value
 
                         if (access != null && refresh != null) {
                             BearerTokens(
@@ -146,14 +148,14 @@ class ApiClientFactory(
                     // Refresh tokens when receiving 401 Unauthorized
                     refreshTokens {
                         val currentRefreshToken =
-                            settingsRepository.getRefreshToken()
+                            authSession.getRefreshToken()
                                 ?: error("No refresh token available")
 
                         try {
                             val response = authApi.refresh(currentRefreshToken)
 
                             // Save new tokens to storage
-                            settingsRepository.saveAuthTokens(
+                            authSession.saveAuthTokens(
                                 access = AccessToken(response.accessToken),
                                 refresh = RefreshToken(response.refreshToken),
                                 sessionId = response.sessionId,
@@ -167,7 +169,7 @@ class ApiClientFactory(
                         } catch (e: Exception) {
                             // Refresh failed - clear auth state and force re-login
                             logger.warn(e) { "Token refresh failed, clearing auth state" }
-                            settingsRepository.clearAuthTokens()
+                            authSession.clearAuthTokens()
                             null
                         }
                     }
@@ -220,13 +222,13 @@ class ApiClientFactory(
  * with infinite timeouts at the engine level.
  *
  * @param serverUrl Base server URL
- * @param settingsRepository For loading auth tokens
+ * @param authSession For loading auth tokens
  * @param authApi For refreshing tokens
  * @return HttpClient with streaming configuration and infinite timeouts
  */
 internal expect suspend fun createStreamingHttpClient(
     serverUrl: ServerUrl,
-    settingsRepository: SettingsRepository,
+    authSession: AuthSession,
     authApi: AuthApiContract,
 ): HttpClient
 

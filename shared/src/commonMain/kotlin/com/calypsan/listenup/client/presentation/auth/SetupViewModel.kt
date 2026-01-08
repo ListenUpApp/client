@@ -5,7 +5,7 @@ package com.calypsan.listenup.client.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.domain.repository.AuthRepository
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
  */
 class SetupViewModel(
     private val authRepository: AuthRepository,
-    private val settingsRepository: SettingsRepository,
+    private val authSession: AuthSession,
     private val userRepository: UserRepository,
 ) : ViewModel() {
     val state: StateFlow<SetupUiState>
@@ -113,7 +113,7 @@ class SetupViewModel(
                     )
 
                 // Store tokens - this triggers AuthState.Authenticated
-                settingsRepository.saveAuthTokens(
+                authSession.saveAuthTokens(
                     access = result.accessToken,
                     refresh = result.refreshToken,
                     sessionId = result.sessionId,

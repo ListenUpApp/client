@@ -2,8 +2,8 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
 import com.calypsan.listenup.client.domain.repository.RegistrationStatusStream
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.domain.repository.StreamedRegistrationStatus
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
@@ -23,7 +23,7 @@ private val logger = KotlinLogging.logger {}
  */
 class RegistrationStatusStreamImpl(
     private val apiClientFactory: ApiClientFactory,
-    private val settingsRepository: SettingsRepository,
+    private val serverConfig: ServerConfig,
 ) : RegistrationStatusStream {
     private val json =
         Json {
@@ -34,7 +34,7 @@ class RegistrationStatusStreamImpl(
     override fun streamStatus(userId: String): Flow<StreamedRegistrationStatus> =
         flow {
             val serverUrl =
-                settingsRepository.getServerUrl()
+                serverConfig.getServerUrl()
                     ?: error("Server URL not configured")
 
             val httpClient = apiClientFactory.getUnauthenticatedStreamingClient()

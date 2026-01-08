@@ -61,12 +61,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.calypsan.listenup.client.domain.model.ProfileLensSummary
-import com.calypsan.listenup.client.domain.model.ProfileRecentBook
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.getInitials
+import com.calypsan.listenup.client.domain.model.ProfileLensSummary
+import com.calypsan.listenup.client.domain.model.ProfileRecentBook
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.presentation.profile.UserProfileUiState
 import com.calypsan.listenup.client.presentation.profile.UserProfileViewModel
 import org.koin.compose.koinInject
@@ -271,9 +271,9 @@ private fun ProfileHeader(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val settingsRepository: SettingsRepository = koinInject()
+    val serverConfig: ServerConfig = koinInject()
     val serverUrl by produceState<String?>(null) {
-        value = settingsRepository.getServerUrl()?.value
+        value = serverConfig.getServerUrl()?.value
     }
 
     Column(

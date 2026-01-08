@@ -32,7 +32,6 @@ import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.GenreApiContract
 import com.calypsan.listenup.client.data.remote.ImageApiContract
 import com.calypsan.listenup.client.data.remote.InstanceApiContract
-import com.calypsan.listenup.client.data.remote.ListenUpApiContract
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.SyncApiContract
@@ -44,7 +43,7 @@ import com.calypsan.listenup.client.domain.repository.LibraryPreferences
 import com.calypsan.listenup.client.domain.repository.LibrarySync
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ServerConfig
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import com.calypsan.listenup.client.data.sync.push.OperationHandler
 import com.calypsan.listenup.client.data.sync.sse.PlaybackStateProvider
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
@@ -114,17 +113,17 @@ class KoinModuleVerifyTest {
                     PlaybackManager::class,
                     PlaybackStateProvider::class,
                     DownloadService::class,
-                    // Repositories and APIs from other modules
-                    SettingsRepository::class,
+                    // Settings interfaces (ISP-compliant segregated interfaces)
                     AuthSession::class,
                     LibrarySync::class,
                     ServerConfig::class,
                     LibraryPreferences::class,
                     PlaybackPreferences::class,
+                    LocalPreferences::class,
+                    // Repositories and APIs from other modules
                     InstanceRepository::class,
                     AuthApiContract::class,
                     ApiClientFactory::class,
-                    ListenUpApiContract::class,
                     InstanceApiContract::class,
                     BookApiContract::class,
                     ContributorApiContract::class,

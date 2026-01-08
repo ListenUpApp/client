@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.AuthState
 import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
@@ -62,14 +62,14 @@ import org.koin.compose.koinInject
  */
 @Composable
 fun ListenUpNavigation(
-    settingsRepository: SettingsRepository = koinInject(),
+    authSession: AuthSession = koinInject(),
     deepLinkManager: DeepLinkManager = koinInject(),
 ) {
     // Initialize auth state on first composition
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         scope.launch {
-            settingsRepository.initializeAuthState()
+            authSession.initializeAuthState()
         }
     }
 
@@ -77,7 +77,7 @@ fun ListenUpNavigation(
     val pendingInvite by deepLinkManager.pendingInvite.collectAsState()
 
     // Observe auth state changes
-    val authState by settingsRepository.authState.collectAsState()
+    val authState by authSession.authState.collectAsState()
 
     // Check for pending invite BEFORE auth state routing
     // This allows invite registration even when already authenticated
@@ -119,7 +119,7 @@ fun ListenUpNavigation(
         }
 
         is AuthState.NeedsLogin -> {
-            LoginNavigation(settingsRepository, currentAuthState.openRegistration)
+            LoginNavigation(authSession, currentAuthState.openRegistration)
         }
 
         is AuthState.PendingApproval -> {
@@ -131,7 +131,7 @@ fun ListenUpNavigation(
         }
 
         is AuthState.Authenticated -> {
-            AuthenticatedNavigation(settingsRepository)
+            AuthenticatedNavigation(authSession)
         }
     }
 }
@@ -285,16 +285,17 @@ private fun SetupNavigation() {
  */
 @Composable
 private fun LoginNavigation(
-    settingsRepository: SettingsRepository,
+    authSession: AuthSession,
     openRegistration: Boolean,
 ) {
     val scope = rememberCoroutineScope()
     val backStack = remember { mutableStateListOf<Route>(Login) }
+    val serverConfig: com.calypsan.listenup.client.domain.repository.ServerConfig = koinInject()
 
     // Refresh open registration value from server
     // This ensures the "Create Account" link appears if admin enabled it
     LaunchedEffect(Unit) {
-        settingsRepository.refreshOpenRegistration()
+        authSession.refreshOpenRegistration()
     }
 
     NavDisplay(
@@ -308,7 +309,7 @@ private fun LoginNavigation(
                             onChangeServer = {
                                 scope.launch {
                                     // Clear server URL to go back to server selection
-                                    settingsRepository.disconnectFromServer()
+                                    serverConfig.disconnectFromServer()
                                 }
                             },
                             onRegister = {
@@ -347,7 +348,7 @@ private fun LoginNavigation(
 @Suppress("LongMethod")
 @Composable
 private fun AuthenticatedNavigation(
-    settingsRepository: SettingsRepository,
+    authSession: AuthSession,
     libraryResetHelper: LibraryResetHelperContract = koinInject(),
 ) {
     val scope = rememberCoroutineScope()
@@ -416,7 +417,7 @@ private fun AuthenticatedNavigation(
                                         // Clear library data before signing out
                                         // This ensures next login (same or different user) gets fresh data
                                         libraryResetHelper.clearLibraryData()
-                                        settingsRepository.clearAuthTokens()
+                                        authSession.clearAuthTokens()
                                     }
                                 },
                                 onUserProfileClick = { userId ->

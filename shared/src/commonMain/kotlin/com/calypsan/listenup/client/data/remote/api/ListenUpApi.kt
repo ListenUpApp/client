@@ -12,7 +12,10 @@ import com.calypsan.listenup.client.data.remote.BookEditResponse
 import com.calypsan.listenup.client.data.remote.BookUpdateRequest
 import com.calypsan.listenup.client.data.remote.ContributorInput
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
-import com.calypsan.listenup.client.data.remote.ListenUpApiContract
+import com.calypsan.listenup.client.data.remote.BookApiContract
+import com.calypsan.listenup.client.data.remote.ContributorApiContract
+import com.calypsan.listenup.client.data.remote.InstanceApiContract
+import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.MergeContributorResponse
 import com.calypsan.listenup.client.data.remote.SeriesEditResponse
 import com.calypsan.listenup.client.data.remote.SeriesInput
@@ -66,7 +69,10 @@ private val logger = KotlinLogging.logger {}
 class ListenUpApi(
     private val baseUrl: String,
     private val apiClientFactory: ApiClientFactory? = null,
-) : ListenUpApiContract {
+) : InstanceApiContract,
+    BookApiContract,
+    ContributorApiContract,
+    SeriesApiContract {
     /**
      * Simple HTTP client for public endpoints (no authentication).
      * Used for endpoints like getInstance that don't require credentials.

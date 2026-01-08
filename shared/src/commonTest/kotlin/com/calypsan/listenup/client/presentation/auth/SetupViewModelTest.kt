@@ -5,8 +5,8 @@ import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.domain.repository.AuthRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.LoginResult
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
@@ -51,13 +51,13 @@ class SetupViewModelTest {
 
     private class TestFixture {
         val authRepository: AuthRepository = mock()
-        val settingsRepository: SettingsRepository = mock()
+        val authSession: AuthSession = mock()
         val userRepository: UserRepository = mock()
 
         fun build(): SetupViewModel =
             SetupViewModel(
                 authRepository = authRepository,
-                settingsRepository = settingsRepository,
+                authSession = authSession,
                 userRepository = userRepository,
             )
     }
@@ -66,7 +66,7 @@ class SetupViewModelTest {
         val fixture = TestFixture()
 
         // Default stubs for successful operations
-        everySuspend { fixture.settingsRepository.saveAuthTokens(any(), any(), any(), any()) } returns Unit
+        everySuspend { fixture.authSession.saveAuthTokens(any(), any(), any(), any()) } returns Unit
         everySuspend { fixture.userRepository.saveUser(any()) } returns Unit
 
         return fixture
@@ -434,7 +434,7 @@ class SetupViewModelTest {
 
             // Then
             verifySuspend {
-                fixture.settingsRepository.saveAuthTokens(
+                fixture.authSession.saveAuthTokens(
                     access = AccessToken("my-access-token"),
                     refresh = RefreshToken("my-refresh-token"),
                     sessionId = "my-session",

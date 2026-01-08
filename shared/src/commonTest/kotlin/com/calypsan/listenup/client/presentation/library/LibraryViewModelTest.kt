@@ -16,9 +16,10 @@ import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.LibraryPreferences
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -142,7 +143,8 @@ class LibraryViewModelTest {
         val seriesRepository: SeriesRepository = mock()
         val contributorRepository: ContributorRepository = mock()
         val syncRepository: SyncRepository = mock()
-        val settingsRepository: SettingsRepository = mock()
+        val authSession: AuthSession = mock()
+        val libraryPreferences: LibraryPreferences = mock()
         val syncStatusRepository: SyncStatusRepository = mock()
         val playbackPositionRepository: PlaybackPositionRepository = mock()
         val selectionManager: LibrarySelectionManager = LibrarySelectionManager()
@@ -156,7 +158,8 @@ class LibraryViewModelTest {
                 contributorRepository = contributorRepository,
                 playbackPositionRepository = playbackPositionRepository,
                 syncRepository = syncRepository,
-                settingsRepository = settingsRepository,
+                authSession = authSession,
+                libraryPreferences = libraryPreferences,
                 syncStatusRepository = syncStatusRepository,
                 selectionManager = selectionManager,
             )
@@ -173,13 +176,13 @@ class LibraryViewModelTest {
         every { fixture.syncRepository.syncState } returns fixture.syncStateFlow
         every { fixture.playbackPositionRepository.observeAll() } returns flowOf(emptyMap())
 
-        // Default settings stubs (no persisted state)
-        everySuspend { fixture.settingsRepository.getBooksSortState() } returns null
-        everySuspend { fixture.settingsRepository.getSeriesSortState() } returns null
-        everySuspend { fixture.settingsRepository.getAuthorsSortState() } returns null
-        everySuspend { fixture.settingsRepository.getNarratorsSortState() } returns null
-        everySuspend { fixture.settingsRepository.getIgnoreTitleArticles() } returns true
-        everySuspend { fixture.settingsRepository.getHideSingleBookSeries() } returns true
+        // Default library preferences stubs (no persisted state)
+        everySuspend { fixture.libraryPreferences.getBooksSortState() } returns null
+        everySuspend { fixture.libraryPreferences.getSeriesSortState() } returns null
+        everySuspend { fixture.libraryPreferences.getAuthorsSortState() } returns null
+        everySuspend { fixture.libraryPreferences.getNarratorsSortState() } returns null
+        everySuspend { fixture.libraryPreferences.getIgnoreTitleArticles() } returns true
+        everySuspend { fixture.libraryPreferences.getHideSingleBookSeries() } returns true
 
         return fixture
     }
@@ -253,7 +256,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.getBooksSortState() } returns "duration:descending"
+            everySuspend { fixture.libraryPreferences.getBooksSortState() } returns "duration:descending"
 
             // When
             val viewModel = fixture.build()
@@ -269,7 +272,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.getSeriesSortState() } returns "book_count:descending"
+            everySuspend { fixture.libraryPreferences.getSeriesSortState() } returns "book_count:descending"
 
             // When
             val viewModel = fixture.build()
@@ -285,7 +288,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.getBooksSortState() } returns "invalid:garbage"
+            everySuspend { fixture.libraryPreferences.getBooksSortState() } returns "invalid:garbage"
 
             // When
             val viewModel = fixture.build()
@@ -303,7 +306,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.setBooksSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
 
             // When
@@ -319,7 +322,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.setBooksSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -336,7 +339,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.setBooksSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
             advanceUntilIdle()
             assertEquals(SortDirection.ASCENDING, viewModel.booksSortState.value.direction)
@@ -354,7 +357,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.setBooksSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -363,7 +366,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.settingsRepository.setBooksSortState("year:descending") }
+            verifySuspend { fixture.libraryPreferences.setBooksSortState("year:descending") }
         }
 
     @Test
@@ -371,7 +374,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.setSeriesSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setSeriesSortState(any()) } returns Unit
             val viewModel = fixture.build()
 
             // When
@@ -387,7 +390,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.setAuthorsSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setAuthorsSortState(any()) } returns Unit
             val viewModel = fixture.build()
 
             // When
@@ -405,7 +408,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.setIgnoreTitleArticles(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setIgnoreTitleArticles(any()) } returns Unit
             val viewModel = fixture.build()
             advanceUntilIdle()
             assertEquals(true, viewModel.ignoreTitleArticles.value)
@@ -416,7 +419,7 @@ class LibraryViewModelTest {
 
             // Then
             assertEquals(false, viewModel.ignoreTitleArticles.value)
-            verifySuspend { fixture.settingsRepository.setIgnoreTitleArticles(false) }
+            verifySuspend { fixture.libraryPreferences.setIgnoreTitleArticles(false) }
         }
 
     // ========== Books Sorting Tests ==========
@@ -456,7 +459,7 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
-            everySuspend { fixture.settingsRepository.setBooksSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -481,7 +484,7 @@ class LibraryViewModelTest {
                     createTestBook(id = "3", title = "A Mango"),
                 )
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.getIgnoreTitleArticles() } returns true
+            everySuspend { fixture.libraryPreferences.getIgnoreTitleArticles() } returns true
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
@@ -516,7 +519,7 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
-            everySuspend { fixture.settingsRepository.setBooksSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -545,7 +548,7 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
-            everySuspend { fixture.settingsRepository.setBooksSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -573,7 +576,7 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
-            everySuspend { fixture.settingsRepository.setBooksSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -599,7 +602,7 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
-            everySuspend { fixture.settingsRepository.setBooksSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -626,7 +629,7 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
-            everySuspend { fixture.settingsRepository.setBooksSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -652,7 +655,7 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
-            everySuspend { fixture.settingsRepository.setBooksSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -719,7 +722,7 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             every { fixture.seriesRepository.observeAllWithBooks() } returns flowOf(seriesList)
-            everySuspend { fixture.settingsRepository.setSeriesSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setSeriesSortState(any()) } returns Unit
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -766,7 +769,7 @@ class LibraryViewModelTest {
                 )
             val fixture = createFixture()
             every { fixture.contributorRepository.observeContributorsByRole("author") } returns flowOf(authors)
-            everySuspend { fixture.settingsRepository.setAuthorsSortState(any()) } returns Unit
+            everySuspend { fixture.libraryPreferences.setAuthorsSortState(any()) } returns Unit
             val viewModel = fixture.build()
             collectInBackground<Unit>(viewModel)
             advanceUntilIdle()
@@ -787,7 +790,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.getAccessToken() } returns AccessToken("token")
+            everySuspend { fixture.authSession.getAccessToken() } returns AccessToken("token")
             everySuspend { fixture.syncStatusRepository.getLastSyncTime() } returns null // Never synced
             everySuspend { fixture.bookRepository.refreshBooks() } returns Result.Success(Unit)
             val viewModel = fixture.build()
@@ -807,7 +810,7 @@ class LibraryViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.settingsRepository.getAccessToken() } returns null // Not authenticated
+            everySuspend { fixture.authSession.getAccessToken() } returns null // Not authenticated
             // Still called before if check
             everySuspend { fixture.syncStatusRepository.getLastSyncTime() } returns null
             val viewModel = fixture.build()

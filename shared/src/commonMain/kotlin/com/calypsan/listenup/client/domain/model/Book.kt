@@ -47,7 +47,7 @@ data class Book(
     val abridged: Boolean = false, // Whether this is an abridged version
     val rating: Double? = null,
 ) {
-    // Convenience properties for backward compatibility with single-series UI code
+    // Convenience properties for accessing primary series (first in list)
     val seriesId: String? get() = series.firstOrNull()?.seriesId
     val seriesName: String? get() = series.firstOrNull()?.seriesName
     val seriesSequence: String? get() = series.firstOrNull()?.sequence

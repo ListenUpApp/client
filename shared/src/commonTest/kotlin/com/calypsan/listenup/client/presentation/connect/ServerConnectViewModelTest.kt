@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.presentation.connect
 import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.error.ServerConnectError
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import dev.mokkery.mock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,12 +44,12 @@ class ServerConnectViewModelTest {
     // ========== Test Fixtures ==========
 
     private class TestFixture {
-        val settingsRepository: SettingsRepository = mock()
+        val serverConfig: ServerConfig = mock()
         val instanceRepository: InstanceRepository = mock()
 
         fun build(): ServerConnectViewModel =
             ServerConnectViewModel(
-                settingsRepository = settingsRepository,
+                serverConfig = serverConfig,
                 instanceRepository = instanceRepository,
             )
     }

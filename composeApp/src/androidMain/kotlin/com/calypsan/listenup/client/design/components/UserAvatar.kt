@@ -32,9 +32,9 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.model.User
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.ImageStorage
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import org.koin.compose.koinInject
 import java.io.File
 
@@ -67,10 +67,10 @@ fun UserAvatar(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val settingsRepository: SettingsRepository = koinInject()
+    val serverConfig: ServerConfig = koinInject()
     val imageStorage: ImageStorage = koinInject()
     val serverUrl by produceState<String?>(null) {
-        value = settingsRepository.getServerUrl()?.value
+        value = serverConfig.getServerUrl()?.value
     }
 
     val hasImageAvatar = user?.avatarType == "image" && !user.avatarValue.isNullOrEmpty()

@@ -30,7 +30,12 @@ import kotlinx.coroutines.flow.asStateFlow
 class SettingsRepositoryImpl(
     private val secureStorage: SecureStorage,
     private val instanceRepository: InstanceRepository,
-) : com.calypsan.listenup.client.domain.repository.SettingsRepository {
+) : com.calypsan.listenup.client.domain.repository.AuthSession,
+    com.calypsan.listenup.client.domain.repository.ServerConfig,
+    com.calypsan.listenup.client.domain.repository.LibrarySync,
+    com.calypsan.listenup.client.domain.repository.LibraryPreferences,
+    com.calypsan.listenup.client.domain.repository.PlaybackPreferences,
+    com.calypsan.listenup.client.domain.repository.LocalPreferences {
     // Override properties can't use explicit backing fields - must use traditional pattern
     private val _authState = MutableStateFlow<DomainAuthState>(DomainAuthState.Initializing)
     override val authState: StateFlow<DomainAuthState> = _authState.asStateFlow()

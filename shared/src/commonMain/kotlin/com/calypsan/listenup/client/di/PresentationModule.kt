@@ -21,12 +21,12 @@ import org.koin.dsl.module
  */
 val authPresentationModule =
     module {
-        factory { ServerSelectViewModel(serverRepository = get(), settingsRepository = get()) }
-        factory { ServerConnectViewModel(settingsRepository = get(), instanceRepository = get()) }
+        factory { ServerSelectViewModel(serverRepository = get(), serverConfig = get()) }
+        factory { ServerConnectViewModel(serverConfig = get(), instanceRepository = get()) }
         factory {
             com.calypsan.listenup.client.presentation.auth.SetupViewModel(
                 authRepository = get(),
-                settingsRepository = get(),
+                authSession = get(),
                 userRepository = get(),
             )
         }
@@ -44,7 +44,7 @@ val authPresentationModule =
         factory { params ->
             PendingApprovalViewModel(
                 authRepository = get(),
-                settingsRepository = get(),
+                authSession = get(),
                 registrationStatusStream = get(),
                 userId = params.get<String>(0),
                 email = params.get<String>(1),
@@ -55,7 +55,8 @@ val authPresentationModule =
         factory { params ->
             InviteRegistrationViewModel(
                 inviteRepository = get(),
-                settingsRepository = get(),
+                serverConfig = get(),
+                authSession = get(),
                 userRepository = get(),
                 serverUrl = params.get<String>(0),
                 inviteCode = params.get<String>(1),
@@ -138,7 +139,8 @@ val libraryPresentationModule =
                 contributorRepository = get(),
                 playbackPositionRepository = get(),
                 syncRepository = get(),
-                settingsRepository = get(),
+                authSession = get(),
+                libraryPreferences = get(),
                 syncStatusRepository = get(),
                 selectionManager = get(),
             )
@@ -344,11 +346,13 @@ val settingsPresentationModule =
     module {
         factory {
             SettingsViewModel(
-                settingsRepository = get<com.calypsan.listenup.client.domain.repository.SettingsRepository>(),
+                libraryPreferences = get(),
+                playbackPreferences = get(),
+                localPreferences = get(),
                 userPreferencesRepository = get(),
                 instanceRepository = get(),
-                serverConfig = get<com.calypsan.listenup.client.domain.repository.ServerConfig>(),
-                authSession = get<com.calypsan.listenup.client.domain.repository.AuthSession>(),
+                serverConfig = get(),
+                authSession = get(),
             )
         }
         // SyncIndicatorViewModel as singleton for app-wide sync status

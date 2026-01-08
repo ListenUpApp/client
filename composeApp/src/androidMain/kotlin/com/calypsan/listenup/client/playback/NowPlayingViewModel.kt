@@ -7,9 +7,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.session.MediaController
 import com.calypsan.listenup.client.core.BookId
-import com.calypsan.listenup.client.domain.repository.BookRepository
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.model.Chapter
+import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +31,7 @@ class NowPlayingViewModel(
     private val bookRepository: BookRepository,
     private val sleepTimerManager: SleepTimerManager,
     private val mediaControllerHolder: MediaControllerHolder,
-    private val settingsRepository: SettingsRepository,
+    private val playbackPreferences: PlaybackPreferences,
 ) : ViewModel() {
     val state: StateFlow<NowPlayingState>
         field = MutableStateFlow(NowPlayingState())
@@ -57,7 +57,7 @@ class NowPlayingViewModel(
 
     private fun loadDefaultPlaybackSpeed() {
         viewModelScope.launch {
-            val defaultSpeed = settingsRepository.getDefaultPlaybackSpeed()
+            val defaultSpeed = playbackPreferences.getDefaultPlaybackSpeed()
             state.update { it.copy(defaultPlaybackSpeed = defaultSpeed) }
         }
     }
@@ -541,7 +541,7 @@ class NowPlayingViewModel(
      */
     fun resetSpeedToDefault() {
         viewModelScope.launch {
-            val defaultSpeed = settingsRepository.getDefaultPlaybackSpeed()
+            val defaultSpeed = playbackPreferences.getDefaultPlaybackSpeed()
             mediaController?.playbackParameters = PlaybackParameters(defaultSpeed)
             // Notify PlaybackManager that user reset to default
             playbackManager.onSpeedReset(defaultSpeed)
@@ -551,7 +551,7 @@ class NowPlayingViewModel(
     /**
      * Get the universal default playback speed.
      */
-    suspend fun getDefaultPlaybackSpeed(): Float = settingsRepository.getDefaultPlaybackSpeed()
+    suspend fun getDefaultPlaybackSpeed(): Float = playbackPreferences.getDefaultPlaybackSpeed()
 
     fun cycleSpeed() {
         val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)

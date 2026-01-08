@@ -7,9 +7,10 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.repository.LibraryPreferences
+import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ServerConfig
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.repository.UserPreferencesRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -79,7 +80,9 @@ data class SettingsUiState(
  * revert local state.
  */
 class SettingsViewModel(
-    private val settingsRepository: SettingsRepository,
+    private val libraryPreferences: LibraryPreferences,
+    private val playbackPreferences: PlaybackPreferences,
+    private val localPreferences: LocalPreferences,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val instanceRepository: InstanceRepository,
     private val serverConfig: ServerConfig,
@@ -91,7 +94,7 @@ class SettingsViewModel(
     /**
      * Combined UI state that merges:
      * - Internal state (synced settings, loading states)
-     * - Reactive local preferences from SettingsRepository
+     * - Reactive local preferences from LocalPreferences
      *
      * Uses nested combine to stay within the 5-parameter type-safe overload.
      */
@@ -100,15 +103,15 @@ class SettingsViewModel(
             internalState,
             // Combine first group of local settings (5-param overload)
             combine(
-                settingsRepository.themeMode,
-                settingsRepository.dynamicColorsEnabled,
-                settingsRepository.autoRewindEnabled,
-                settingsRepository.wifiOnlyDownloads,
-                settingsRepository.autoRemoveFinished,
+                localPreferences.themeMode,
+                localPreferences.dynamicColorsEnabled,
+                localPreferences.autoRewindEnabled,
+                localPreferences.wifiOnlyDownloads,
+                localPreferences.autoRemoveFinished,
             ) { theme, dynamicColors, autoRewind, wifiOnly, autoRemove ->
                 LocalDisplaySettings(theme, dynamicColors, autoRewind, wifiOnly, autoRemove)
             },
-            settingsRepository.hapticFeedbackEnabled,
+            localPreferences.hapticFeedbackEnabled,
         ) { internal, localDisplay, haptics ->
             internal.copy(
                 themeMode = localDisplay.themeMode,
@@ -137,10 +140,10 @@ class SettingsViewModel(
     private fun loadSettings() {
         viewModelScope.launch {
             // Load local settings that aren't reactive StateFlows
-            val spatialPlayback = settingsRepository.getSpatialPlayback()
-            val ignoreTitleArticles = settingsRepository.getIgnoreTitleArticles()
-            val hideSingleBookSeries = settingsRepository.getHideSingleBookSeries()
-            val defaultPlaybackSpeed = settingsRepository.getDefaultPlaybackSpeed()
+            val spatialPlayback = playbackPreferences.getSpatialPlayback()
+            val ignoreTitleArticles = libraryPreferences.getIgnoreTitleArticles()
+            val hideSingleBookSeries = libraryPreferences.getHideSingleBookSeries()
+            val defaultPlaybackSpeed = playbackPreferences.getDefaultPlaybackSpeed()
 
             // Load server URL from local storage
             val serverUrl = serverConfig.getServerUrl()?.value
@@ -201,7 +204,7 @@ class SettingsViewModel(
                 }
 
                 // Update local cache for offline access
-                settingsRepository.setDefaultPlaybackSpeed(prefs.defaultPlaybackSpeed)
+                playbackPreferences.setDefaultPlaybackSpeed(prefs.defaultPlaybackSpeed)
             }
 
             is Failure -> {
@@ -226,7 +229,7 @@ class SettingsViewModel(
     fun setDefaultPlaybackSpeed(speed: Float) {
         viewModelScope.launch {
             // Update local cache immediately (optimistic)
-            settingsRepository.setDefaultPlaybackSpeed(speed)
+            playbackPreferences.setDefaultPlaybackSpeed(speed)
             internalState.update { it.copy(defaultPlaybackSpeed = speed) }
 
             // Sync to server in background
@@ -287,7 +290,7 @@ class SettingsViewModel(
      */
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
-            settingsRepository.setThemeMode(mode)
+            localPreferences.setThemeMode(mode)
             // StateFlow update handled by combine
         }
     }
@@ -298,7 +301,7 @@ class SettingsViewModel(
      */
     fun setDynamicColorsEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setDynamicColorsEnabled(enabled)
+            localPreferences.setDynamicColorsEnabled(enabled)
         }
     }
 
@@ -308,7 +311,7 @@ class SettingsViewModel(
      */
     fun setAutoRewindEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setAutoRewindEnabled(enabled)
+            localPreferences.setAutoRewindEnabled(enabled)
         }
     }
 
@@ -318,7 +321,7 @@ class SettingsViewModel(
      */
     fun setWifiOnlyDownloads(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setWifiOnlyDownloads(enabled)
+            localPreferences.setWifiOnlyDownloads(enabled)
         }
     }
 
@@ -328,7 +331,7 @@ class SettingsViewModel(
      */
     fun setAutoRemoveFinished(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setAutoRemoveFinished(enabled)
+            localPreferences.setAutoRemoveFinished(enabled)
         }
     }
 
@@ -338,7 +341,7 @@ class SettingsViewModel(
      */
     fun setHapticFeedbackEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setHapticFeedbackEnabled(enabled)
+            localPreferences.setHapticFeedbackEnabled(enabled)
         }
     }
 
@@ -348,7 +351,7 @@ class SettingsViewModel(
      */
     fun setSpatialPlayback(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setSpatialPlayback(enabled)
+            playbackPreferences.setSpatialPlayback(enabled)
             internalState.update { it.copy(spatialPlayback = enabled) }
         }
     }
@@ -359,7 +362,7 @@ class SettingsViewModel(
      */
     fun setIgnoreTitleArticles(ignore: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setIgnoreTitleArticles(ignore)
+            libraryPreferences.setIgnoreTitleArticles(ignore)
             internalState.update { it.copy(ignoreTitleArticles = ignore) }
         }
     }
@@ -370,7 +373,7 @@ class SettingsViewModel(
      */
     fun setHideSingleBookSeries(hide: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setHideSingleBookSeries(hide)
+            libraryPreferences.setHideSingleBookSeries(hide)
             internalState.update { it.copy(hideSingleBookSeries = hide) }
         }
     }

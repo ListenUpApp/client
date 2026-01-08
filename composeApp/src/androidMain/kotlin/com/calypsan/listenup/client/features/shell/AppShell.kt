@@ -22,7 +22,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.domain.model.SyncState
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
@@ -86,8 +85,8 @@ fun AppShell(
     // Inject dependencies
     val syncRepository: SyncRepository = koinInject()
     val userRepository: UserRepository = koinInject()
-    val settingsRepository: SettingsRepository = koinInject()
     val syncStatusRepository: SyncStatusRepository = koinInject()
+    val authSession: com.calypsan.listenup.client.domain.repository.AuthSession = koinInject()
     val searchViewModel: SearchViewModel = koinViewModel()
     val syncIndicatorViewModel: SyncIndicatorViewModel = koinViewModel()
 
@@ -99,7 +98,7 @@ fun AppShell(
 
     // Trigger sync on shell entry (not just when Library is visible)
     LaunchedEffect(Unit) {
-        val isAuthenticated = settingsRepository.getAccessToken() != null
+        val isAuthenticated = authSession.getAccessToken() != null
         val lastSyncTime = syncStatusRepository.getLastSyncTime()
         if (isAuthenticated && lastSyncTime == null) {
             syncRepository.sync()
@@ -109,7 +108,7 @@ fun AppShell(
     // Fetch user data if missing from database but authenticated
     // This handles the case where database was cleared but tokens remain
     LaunchedEffect(Unit) {
-        val hasTokens = settingsRepository.getAccessToken() != null
+        val hasTokens = authSession.getAccessToken() != null
         val existingUser = userRepository.getCurrentUser()
 
         if (hasTokens && existingUser == null) {

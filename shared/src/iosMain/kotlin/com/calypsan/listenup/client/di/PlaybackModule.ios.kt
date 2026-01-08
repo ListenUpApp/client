@@ -50,7 +50,7 @@ val iosPlaybackModule: Module =
         // Audio token provider
         single<AudioTokenProvider> {
             IosAudioTokenProvider(
-                settingsRepository = get(),
+                authSession = get(),
                 authApi = get(),
                 scope = get(qualifier = named("playbackScope")),
             )
@@ -64,7 +64,7 @@ val iosPlaybackModule: Module =
             IosDownloadService(
                 downloadDao = get(),
                 bookDao = get(),
-                settingsRepository = get(),
+                serverConfig = get(),
                 tokenProvider = get(),
                 fileManager = get(),
                 scope = get(qualifier = named("playbackScope")),
@@ -96,7 +96,8 @@ val iosPlaybackModule: Module =
         // Playback manager
         single {
             PlaybackManager(
-                settingsRepository = get(),
+                serverConfig = get(),
+                playbackPreferences = get(),
                 bookDao = get(),
                 chapterDao = get(),
                 imageStorage = get(),

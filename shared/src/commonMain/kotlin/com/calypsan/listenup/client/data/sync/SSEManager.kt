@@ -33,7 +33,7 @@ import com.calypsan.listenup.client.data.remote.model.SSEUserData
 import com.calypsan.listenup.client.data.remote.model.SSEUserDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserPendingEvent
 import com.calypsan.listenup.client.data.remote.model.SSEUserStatsUpdatedEvent
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.prepareGet
@@ -80,7 +80,7 @@ private val logger = KotlinLogging.logger {}
  */
 class SSEManager(
     private val clientFactory: ApiClientFactory,
-    private val settingsRepository: SettingsRepository,
+    private val serverConfig: ServerConfig,
     private val scope: CoroutineScope,
 ) : SSEManagerContract {
     private val _eventFlow = MutableSharedFlow<SSEEventType>(replay = 0, extraBufferCapacity = 64)
@@ -132,7 +132,7 @@ class SSEManager(
                 while (isActive) {
                     try {
                         // Check if server URL is configured before attempting connection
-                        val serverUrl = settingsRepository.getServerUrl()
+                        val serverUrl = serverConfig.getServerUrl()
                         if (serverUrl == null) {
                             logger.debug { "Server URL not configured, skipping SSE connection" }
                             break // Don't reconnect if not configured
@@ -193,7 +193,7 @@ class SSEManager(
     private suspend fun streamEvents() {
         logger.trace { "Getting server URL..." }
         val serverUrl =
-            settingsRepository.getServerUrl()
+            serverConfig.getServerUrl()
                 ?: error("Server URL not configured")
         logger.trace { "Server URL: $serverUrl" }
 

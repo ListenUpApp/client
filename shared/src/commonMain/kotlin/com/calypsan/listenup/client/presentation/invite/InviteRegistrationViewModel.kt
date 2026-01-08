@@ -5,8 +5,9 @@ package com.calypsan.listenup.client.presentation.invite
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.ServerUrl
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.InviteRepository
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +26,8 @@ import kotlinx.coroutines.launch
  */
 class InviteRegistrationViewModel(
     private val inviteRepository: InviteRepository,
-    private val settingsRepository: SettingsRepository,
+    private val serverConfig: ServerConfig,
+    private val authSession: AuthSession,
     private val userRepository: UserRepository,
     private val serverUrl: String,
     private val inviteCode: String,
@@ -123,10 +125,10 @@ class InviteRegistrationViewModel(
                 val result = inviteRepository.claimInvite(serverUrl, inviteCode, password)
 
                 // Save the server URL first (before tokens, as it's needed for auth state)
-                settingsRepository.setServerUrl(ServerUrl(serverUrl))
+                serverConfig.setServerUrl(ServerUrl(serverUrl))
 
                 // Store auth tokens - this triggers AuthState.Authenticated
-                settingsRepository.saveAuthTokens(
+                authSession.saveAuthTokens(
                     access = result.accessToken,
                     refresh = result.refreshToken,
                     sessionId = result.sessionId,

@@ -76,7 +76,7 @@ val playbackModule =
         // Bind to interface for shared code, but use concrete Android implementation
         single<AudioTokenProvider> {
             AndroidAudioTokenProvider(
-                settingsRepository = get(),
+                authSession = get(),
                 authApi = get(),
                 scope = get(),
             )
@@ -119,7 +119,8 @@ val playbackModule =
         // Playback manager - orchestrates playback startup
         single {
             PlaybackManager(
-                settingsRepository = get(),
+                serverConfig = get(),
+                playbackPreferences = get(),
                 bookDao = get(),
                 chapterDao = get(),
                 imageStorage = get(),
@@ -159,7 +160,7 @@ val playbackModule =
                 bookRepository = get(),
                 sleepTimerManager = get(),
                 mediaControllerHolder = get(),
-                settingsRepository = get(),
+                playbackPreferences = get(),
             )
         }
     }
@@ -221,7 +222,8 @@ class ListenUp :
                 downloadDao = get(),
                 fileManager = get(),
                 tokenProvider = get<AndroidAudioTokenProvider>(),
-                settingsRepository = get(),
+                serverConfig = get(),
+                playbackPreferences = get(),
                 playbackApi = get(),
                 capabilityDetector = get(),
             )
@@ -264,7 +266,8 @@ class ListenUp :
     private fun verifyCriticalKoinBindings() {
         val criticalTypes =
             listOf(
-                "SettingsRepository" to { get<com.calypsan.listenup.client.domain.repository.SettingsRepository>() },
+                "ServerConfig" to { get<com.calypsan.listenup.client.domain.repository.ServerConfig>() },
+                "AuthSession" to { get<com.calypsan.listenup.client.domain.repository.AuthSession>() },
                 "SyncManager" to { get<com.calypsan.listenup.client.data.sync.SyncManagerContract>() },
                 "ProgressTracker" to { get<ProgressTracker>() },
                 "PlaybackManager" to { get<PlaybackManager>() },

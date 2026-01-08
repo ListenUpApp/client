@@ -28,9 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.calypsan.listenup.client.domain.model.ReaderInfo
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.design.components.getInitials
+import com.calypsan.listenup.client.domain.model.ReaderInfo
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.util.toRelativeOrMonthYear
 import org.koin.compose.koinInject
 
@@ -55,9 +55,9 @@ fun ReaderRow(
     onUserClick: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    val settingsRepository: SettingsRepository = koinInject()
+    val serverConfig: ServerConfig = koinInject()
     val serverUrl by produceState<String?>(null) {
-        value = settingsRepository.getServerUrl()?.value
+        value = serverConfig.getServerUrl()?.value
     }
 
     val hasImageAvatar = reader.avatarType == "image" && !reader.avatarValue.isNullOrEmpty()

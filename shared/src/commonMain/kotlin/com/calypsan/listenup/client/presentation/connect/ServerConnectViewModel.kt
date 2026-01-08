@@ -10,7 +10,7 @@ import com.calypsan.listenup.client.core.error.ErrorMapper
 import com.calypsan.listenup.client.core.error.ServerConnectError
 import com.calypsan.listenup.client.core.error.UnknownError
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.URLParserException
 import io.ktor.http.Url
@@ -28,7 +28,7 @@ private val logger = KotlinLogging.logger {}
  * - Manage server URL input state
  * - Validate URL format and accessibility
  * - Verify server is a ListenUp instance
- * - Save verified URL to SettingsRepository
+ * - Save verified URL to ServerConfig
  * - Provide error feedback for user
  *
  * Event-driven architecture:
@@ -41,7 +41,7 @@ private val logger = KotlinLogging.logger {}
  * 2. Network verification via InstanceRepository.verifyServer()
  */
 class ServerConnectViewModel(
-    private val settingsRepository: SettingsRepository,
+    private val serverConfig: ServerConfig,
     private val instanceRepository: InstanceRepository,
 ) : ViewModel() {
     val state: StateFlow<ServerConnectUiState>
@@ -140,7 +140,7 @@ class ServerConnectViewModel(
      * - Response parsing and validation
      *
      * On success:
-     * - Saves verified URL to SettingsRepository
+     * - Saves verified URL to ServerConfig
      * - UI navigates to next screen (handled by UI layer observing success)
      *
      * On failure:
@@ -154,7 +154,7 @@ class ServerConnectViewModel(
             when (val result = instanceRepository.verifyServer(url)) {
                 is Success -> {
                     // Save the verified URL (with successful protocol)
-                    settingsRepository.setServerUrl(ServerUrl(result.data.verifiedUrl))
+                    serverConfig.setServerUrl(ServerUrl(result.data.verifiedUrl))
 
                     // Set verified flag (UI will observe and navigate)
                     state.update { it.copy(isLoading = false, isVerified = true) }

@@ -6,11 +6,12 @@ import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
 import com.calypsan.listenup.client.domain.model.SeriesWithBooks
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.LibraryPreferences
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
-import com.calypsan.listenup.client.domain.repository.SettingsRepository
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 import com.calypsan.listenup.client.util.sortableTitle
@@ -45,7 +46,8 @@ class LibraryViewModel(
     private val contributorRepository: ContributorRepository,
     private val playbackPositionRepository: PlaybackPositionRepository,
     private val syncRepository: SyncRepository,
-    private val settingsRepository: SettingsRepository,
+    private val authSession: AuthSession,
+    private val libraryPreferences: LibraryPreferences,
     private val syncStatusRepository: SyncStatusRepository,
     private val selectionManager: LibrarySelectionManager,
 ) : ViewModel() {
@@ -231,22 +233,22 @@ class LibraryViewModel(
     init {
         // Load persisted sort states and preferences
         viewModelScope.launch {
-            settingsRepository.getBooksSortState()?.let { key ->
+            libraryPreferences.getBooksSortState()?.let { key ->
                 SortState.fromPersistenceKey(key)?.let { booksSortState.value = it }
             }
-            settingsRepository.getSeriesSortState()?.let { key ->
+            libraryPreferences.getSeriesSortState()?.let { key ->
                 SortState.fromPersistenceKey(key)?.let { seriesSortState.value = it }
             }
-            settingsRepository.getAuthorsSortState()?.let { key ->
+            libraryPreferences.getAuthorsSortState()?.let { key ->
                 SortState.fromPersistenceKey(key)?.let { authorsSortState.value = it }
             }
-            settingsRepository.getNarratorsSortState()?.let { key ->
+            libraryPreferences.getNarratorsSortState()?.let { key ->
                 SortState.fromPersistenceKey(key)?.let { narratorsSortState.value = it }
             }
             // Load article handling preference
-            ignoreTitleArticles.value = settingsRepository.getIgnoreTitleArticles()
+            ignoreTitleArticles.value = libraryPreferences.getIgnoreTitleArticles()
             // Load series display preference
-            hideSingleBookSeries.value = settingsRepository.getHideSingleBookSeries()
+            hideSingleBookSeries.value = libraryPreferences.getHideSingleBookSeries()
         }
 
         logger.debug { "Initialized (auto-sync deferred until screen visible)" }
@@ -263,8 +265,8 @@ class LibraryViewModel(
     fun onScreenVisible() {
         // Reload preferences in case user changed them in Settings
         viewModelScope.launch {
-            hideSingleBookSeries.value = settingsRepository.getHideSingleBookSeries()
-            ignoreTitleArticles.value = settingsRepository.getIgnoreTitleArticles()
+            hideSingleBookSeries.value = libraryPreferences.getHideSingleBookSeries()
+            ignoreTitleArticles.value = libraryPreferences.getIgnoreTitleArticles()
         }
 
         if (hasPerformedInitialSync) return
@@ -272,7 +274,7 @@ class LibraryViewModel(
 
         logger.debug { "Screen became visible, checking if initial sync needed..." }
         viewModelScope.launch {
-            val isAuthenticated = settingsRepository.getAccessToken() != null
+            val isAuthenticated = authSession.getAccessToken() != null
             val lastSyncTime = syncStatusRepository.getLastSyncTime()
 
             if (isAuthenticated && lastSyncTime == null) {
@@ -371,7 +373,7 @@ class LibraryViewModel(
         val newValue = !ignoreTitleArticles.value
         ignoreTitleArticles.value = newValue
         viewModelScope.launch {
-            settingsRepository.setIgnoreTitleArticles(newValue)
+            libraryPreferences.setIgnoreTitleArticles(newValue)
         }
     }
 
@@ -384,28 +386,28 @@ class LibraryViewModel(
     private fun updateBooksSortState(state: SortState) {
         booksSortState.value = state
         viewModelScope.launch {
-            settingsRepository.setBooksSortState(state.persistenceKey)
+            libraryPreferences.setBooksSortState(state.persistenceKey)
         }
     }
 
     private fun updateSeriesSortState(state: SortState) {
         seriesSortState.value = state
         viewModelScope.launch {
-            settingsRepository.setSeriesSortState(state.persistenceKey)
+            libraryPreferences.setSeriesSortState(state.persistenceKey)
         }
     }
 
     private fun updateAuthorsSortState(state: SortState) {
         authorsSortState.value = state
         viewModelScope.launch {
-            settingsRepository.setAuthorsSortState(state.persistenceKey)
+            libraryPreferences.setAuthorsSortState(state.persistenceKey)
         }
     }
 
     private fun updateNarratorsSortState(state: SortState) {
         narratorsSortState.value = state
         viewModelScope.launch {
-            settingsRepository.setNarratorsSortState(state.persistenceKey)
+            libraryPreferences.setNarratorsSortState(state.persistenceKey)
         }
     }
 
