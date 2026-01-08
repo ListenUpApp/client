@@ -44,6 +44,7 @@ class AdminSettingsViewModel(
                             inboxCount = result.data.inboxCount,
                         )
                 }
+
                 is Failure -> {
                     logger.error { "Failed to load server settings: ${result.message}" }
                     state.value =
@@ -102,6 +103,7 @@ class AdminSettingsViewModel(
                         )
                     logger.info { "Inbox workflow ${if (enabled) "enabled" else "disabled"}" }
                 }
+
                 is Failure -> {
                     logger.error { "Failed to update server settings: ${result.message}" }
                     state.value =

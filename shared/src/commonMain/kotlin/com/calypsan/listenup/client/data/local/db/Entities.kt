@@ -5,7 +5,10 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.ChapterId
+import com.calypsan.listenup.client.core.ContributorId
+import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.core.UserId
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 
 /**
@@ -17,7 +20,7 @@ import com.calypsan.listenup.client.core.currentEpochMilliseconds
 @Entity(tableName = "users")
 data class UserEntity(
     @PrimaryKey
-    val id: String,
+    val id: UserId,
     val email: String,
     val displayName: String,
     /**
@@ -33,12 +36,12 @@ data class UserEntity(
      * Creation timestamp in Unix epoch milliseconds.
      * Use kotlin.time.Instant for domain model conversion.
      */
-    val createdAt: Long,
+    val createdAt: Timestamp,
     /**
      * Last update timestamp in Unix epoch milliseconds.
      * Use kotlin.time.Instant for domain model conversion.
      */
-    val updatedAt: Long,
+    val updatedAt: Timestamp,
     /**
      * Avatar type: "auto" for generated avatar, "image" for uploaded image.
      */
@@ -167,7 +170,7 @@ data class ChapterEntity(
     indices = [Index(value = ["syncState"])],
 )
 data class SeriesEntity(
-    @PrimaryKey val id: String,
+    @PrimaryKey val id: SeriesId,
     val name: String,
     val description: String?,
     // Sync fields
@@ -198,7 +201,7 @@ data class SeriesEntity(
     ],
 )
 data class ContributorEntity(
-    @PrimaryKey val id: String,
+    @PrimaryKey val id: ContributorId,
     val name: String,
     val description: String?,
     val imagePath: String?,

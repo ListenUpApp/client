@@ -115,7 +115,10 @@ class AdminViewModel(
             // Load users and invites independently so one failure doesn't block the other
             val users =
                 when (val result = loadUsersUseCase()) {
-                    is Success -> result.data
+                    is Success -> {
+                        result.data
+                    }
+
                     is Failure -> {
                         state.value = state.value.copy(error = "Failed to load users: ${result.message}")
                         emptyList()
@@ -130,7 +133,10 @@ class AdminViewModel(
 
             val pendingInvites =
                 when (val result = loadInvitesUseCase()) {
-                    is Success -> result.data.filter { it.claimedAt == null }
+                    is Success -> {
+                        result.data.filter { it.claimedAt == null }
+                    }
+
                     is Failure -> {
                         if (state.value.error == null) {
                             state.value = state.value.copy(error = "Failed to load invites: ${result.message}")
@@ -170,6 +176,7 @@ class AdminViewModel(
                             users = updatedUsers,
                         )
                 }
+
                 is Failure -> {
                     state.value =
                         state.value.copy(
@@ -194,6 +201,7 @@ class AdminViewModel(
                             pendingInvites = updatedInvites,
                         )
                 }
+
                 is Failure -> {
                     state.value =
                         state.value.copy(
@@ -232,6 +240,7 @@ class AdminViewModel(
                             users = updatedUsers,
                         )
                 }
+
                 is Failure -> {
                     state.value =
                         state.value.copy(
@@ -256,6 +265,7 @@ class AdminViewModel(
                             pendingUsers = updatedPending,
                         )
                 }
+
                 is Failure -> {
                     state.value =
                         state.value.copy(
@@ -279,6 +289,7 @@ class AdminViewModel(
                             openRegistration = enabled,
                         )
                 }
+
                 is Failure -> {
                     state.value =
                         state.value.copy(

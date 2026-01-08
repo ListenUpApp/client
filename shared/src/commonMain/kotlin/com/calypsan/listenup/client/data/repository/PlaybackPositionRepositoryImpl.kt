@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
@@ -20,11 +20,9 @@ import kotlinx.coroutines.flow.map
 class PlaybackPositionRepositoryImpl(
     private val dao: PlaybackPositionDao,
 ) : PlaybackPositionRepository {
-    override suspend fun get(bookId: String): PlaybackPosition? =
-        dao.get(BookId(bookId))?.toDomain()
+    override suspend fun get(bookId: String): PlaybackPosition? = dao.get(BookId(bookId))?.toDomain()
 
-    override fun observe(bookId: String): Flow<PlaybackPosition?> =
-        dao.observe(BookId(bookId)).map { it?.toDomain() }
+    override fun observe(bookId: String): Flow<PlaybackPosition?> = dao.observe(BookId(bookId)).map { it?.toDomain() }
 
     override fun observeAll(): Flow<Map<String, PlaybackPosition>> =
         dao.observeAll().map { positions ->
@@ -43,15 +41,16 @@ class PlaybackPositionRepositoryImpl(
         val now = currentEpochMilliseconds()
         val existing = dao.get(BookId(bookId))
 
-        val entity = PlaybackPositionEntity(
-            bookId = BookId(bookId),
-            positionMs = positionMs,
-            playbackSpeed = playbackSpeed,
-            hasCustomSpeed = hasCustomSpeed,
-            updatedAt = now,
-            syncedAt = existing?.syncedAt,
-            lastPlayedAt = now,
-        )
+        val entity =
+            PlaybackPositionEntity(
+                bookId = BookId(bookId),
+                positionMs = positionMs,
+                playbackSpeed = playbackSpeed,
+                hasCustomSpeed = hasCustomSpeed,
+                updatedAt = now,
+                syncedAt = existing?.syncedAt,
+                lastPlayedAt = now,
+            )
         dao.save(entity)
     }
 

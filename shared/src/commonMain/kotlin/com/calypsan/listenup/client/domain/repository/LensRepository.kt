@@ -85,7 +85,10 @@ interface LensRepository {
      * @param lensId The lens to remove from
      * @param bookId The book to remove
      */
-    suspend fun removeBookFromLens(lensId: String, bookId: String)
+    suspend fun removeBookFromLens(
+        lensId: String,
+        bookId: String,
+    )
 
     /**
      * Add books to a lens.
@@ -93,7 +96,10 @@ interface LensRepository {
      * @param lensId The lens to add to
      * @param bookIds The books to add
      */
-    suspend fun addBooksToLens(lensId: String, bookIds: List<String>)
+    suspend fun addBooksToLens(
+        lensId: String,
+        bookIds: List<String>,
+    )
 
     /**
      * Create a new lens.
@@ -102,7 +108,10 @@ interface LensRepository {
      * @param description Optional description
      * @return The created lens
      */
-    suspend fun createLens(name: String, description: String?): Lens
+    suspend fun createLens(
+        name: String,
+        description: String?,
+    ): Lens
 
     /**
      * Update an existing lens.
@@ -112,7 +121,11 @@ interface LensRepository {
      * @param description The new description (null to clear)
      * @return The updated lens
      */
-    suspend fun updateLens(lensId: String, name: String, description: String?): Lens
+    suspend fun updateLens(
+        lensId: String,
+        name: String,
+        description: String?,
+    ): Lens
 
     /**
      * Delete a lens.

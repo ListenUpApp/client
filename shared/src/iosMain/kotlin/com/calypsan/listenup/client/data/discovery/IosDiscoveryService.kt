@@ -19,7 +19,6 @@ import platform.Foundation.NSString
 import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.create
 import platform.darwin.NSObject
-import kotlin.experimental.ExperimentalObjCRefinement
 
 private val logger = KotlinLogging.logger {}
 

@@ -30,17 +30,13 @@ class TagRepositoryImpl(
             entities.map { it.toDomain() }
         }
 
-    override suspend fun getAll(): List<Tag> =
-        dao.getAllTags().map { it.toDomain() }
+    override suspend fun getAll(): List<Tag> = dao.getAllTags().map { it.toDomain() }
 
-    override suspend fun getById(id: String): Tag? =
-        dao.getById(id)?.toDomain()
+    override suspend fun getById(id: String): Tag? = dao.getById(id)?.toDomain()
 
-    override fun observeById(id: String): Flow<Tag?> =
-        dao.observeById(id).map { it?.toDomain() }
+    override fun observeById(id: String): Flow<Tag?> = dao.observeById(id).map { it?.toDomain() }
 
-    override suspend fun getBySlug(slug: String): Tag? =
-        dao.getBySlug(slug)?.toDomain()
+    override suspend fun getBySlug(slug: String): Tag? = dao.getBySlug(slug)?.toDomain()
 
     override fun observeTagsForBook(bookId: String): Flow<List<Tag>> =
         dao.observeTagsForBook(BookId(bookId)).map { entities ->
@@ -50,32 +46,39 @@ class TagRepositoryImpl(
     override suspend fun getTagsForBook(bookId: String): List<Tag> =
         dao.getTagsForBook(BookId(bookId)).map { it.toDomain() }
 
-    override suspend fun getBookIdsForTag(tagId: String): List<String> =
-        dao.getBookIdsForTag(tagId).map { it.value }
+    override suspend fun getBookIdsForTag(tagId: String): List<String> = dao.getBookIdsForTag(tagId).map { it.value }
 
     override fun observeBookIdsForTag(tagId: String): Flow<List<String>> =
         dao.observeBookIdsForTag(tagId).map { bookIds ->
             bookIds.map { it.value }
         }
 
-    override suspend fun addTagToBook(bookId: String, tagSlugOrName: String): Tag {
+    override suspend fun addTagToBook(
+        bookId: String,
+        tagSlugOrName: String,
+    ): Tag {
         // Call API to add tag (creates if doesn't exist)
         val tag = tagApi.addTagToBook(bookId, tagSlugOrName)
 
         // Update local Room for immediate reactivity
-        val entity = TagEntity(
-            id = tag.id,
-            slug = tag.slug,
-            bookCount = tag.bookCount,
-            createdAt = tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) } ?: Timestamp.now(),
-        )
+        val entity =
+            TagEntity(
+                id = tag.id,
+                slug = tag.slug,
+                bookCount = tag.bookCount,
+                createdAt = tag.createdAt?.let { Timestamp(it.toEpochMilliseconds()) } ?: Timestamp.now(),
+            )
         dao.upsert(entity)
         dao.insertBookTag(BookTagCrossRef(bookId = BookId(bookId), tagId = tag.id))
 
         return tag
     }
 
-    override suspend fun removeTagFromBook(bookId: String, tagSlug: String, tagId: String) {
+    override suspend fun removeTagFromBook(
+        bookId: String,
+        tagSlug: String,
+        tagId: String,
+    ) {
         // Call API to remove tag
         tagApi.removeTagFromBook(bookId, tagSlug)
 

@@ -3,7 +3,6 @@ package com.calypsan.listenup.client.domain.usecase.lens
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.domain.model.LensBook
 import com.calypsan.listenup.client.domain.model.LensDetail
 import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.repository.LensRepository
@@ -39,15 +38,17 @@ open class LoadLensDetailUseCase(
             val lensDetail = lensRepository.getLensDetail(lensId)
 
             // Resolve local cover paths for books
-            val booksWithLocalCovers = lensDetail.books.map { book ->
-                val bookId = BookId(book.id)
-                val localCoverPath = if (imageRepository.bookCoverExists(bookId)) {
-                    imageRepository.getBookCoverPath(bookId)
-                } else {
-                    null
+            val booksWithLocalCovers =
+                lensDetail.books.map { book ->
+                    val bookId = BookId(book.id)
+                    val localCoverPath =
+                        if (imageRepository.bookCoverExists(bookId)) {
+                            imageRepository.getBookCoverPath(bookId)
+                        } else {
+                            null
+                        }
+                    book.copy(coverPath = localCoverPath)
                 }
-                book.copy(coverPath = localCoverPath)
-            }
 
             lensDetail.copy(books = booksWithLocalCovers)
         }

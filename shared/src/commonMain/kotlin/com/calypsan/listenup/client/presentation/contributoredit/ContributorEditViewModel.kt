@@ -579,25 +579,27 @@ class ContributorEditViewModel(
 
             val newAliases = current.aliases.toSet() - originalAliases.toSet()
 
-            val result = updateContributorUseCase(
-                ContributorUpdateRequest(
-                    contributorId = current.contributorId,
-                    name = current.name,
-                    biography = current.description,
-                    website = current.website,
-                    birthDate = current.birthDate,
-                    deathDate = current.deathDate,
-                    aliases = current.aliases,
-                    newAliases = newAliases,
-                    contributorsToMerge = contributorsToMerge.toMap(),
-                ),
-            )
+            val result =
+                updateContributorUseCase(
+                    ContributorUpdateRequest(
+                        contributorId = current.contributorId,
+                        name = current.name,
+                        biography = current.description,
+                        website = current.website,
+                        birthDate = current.birthDate,
+                        deathDate = current.deathDate,
+                        aliases = current.aliases,
+                        newAliases = newAliases,
+                        contributorsToMerge = contributorsToMerge.toMap(),
+                    ),
+                )
 
             when (result) {
                 is Success -> {
                     state.update { it.copy(isSaving = false, hasChanges = false) }
                     navActions.value = ContributorEditNavAction.SaveSuccess
                 }
+
                 is Failure -> {
                     logger.error { "Failed to save contributor: ${result.message}" }
                     state.update {

@@ -1,9 +1,11 @@
 package com.calypsan.listenup.client.data.remote.model
 
+import com.calypsan.listenup.client.core.ContributorId
+import com.calypsan.listenup.client.core.SeriesId
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.util.parseToTimestampOrNow
 
 fun SeriesResponse.toEntity(): SeriesEntity {
@@ -12,7 +14,7 @@ fun SeriesResponse.toEntity(): SeriesEntity {
     val serverCreatedAt = createdAt.parseToTimestampOrNow()
 
     return SeriesEntity(
-        id = id,
+        id = SeriesId(id),
         name = name,
         description = description,
         syncState = SyncState.SYNCED,
@@ -35,7 +37,7 @@ fun ContributorResponse.toEntity(): ContributorEntity {
     // (e.g., "/api/v1/contributors/{id}/image") which is not a local file path.
     // Images must be downloaded separately and the local path set afterward.
     return ContributorEntity(
-        id = id,
+        id = ContributorId(id),
         name = name,
         description = biography,
         imagePath = null,

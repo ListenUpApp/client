@@ -53,16 +53,18 @@ open class UpdateSeriesUseCase(
             // 1. Update metadata if changed
             if (request.metadataChanged) {
                 val name = if (request.nameChanged) request.name else null
-                val description = if (request.descriptionChanged) {
-                    request.description?.ifBlank { null }
-                } else {
-                    null
-                }
+                val description =
+                    if (request.descriptionChanged) {
+                        request.description?.ifBlank { null }
+                    } else {
+                        null
+                    }
 
                 when (val result = seriesEditRepository.updateSeries(request.seriesId, name, description)) {
                     is Success -> {
                         logger.info { "Series metadata updated" }
                     }
+
                     is Failure -> {
                         throw result.exception ?: Exception(result.message)
                     }
@@ -90,6 +92,7 @@ open class UpdateSeriesUseCase(
             is Success -> {
                 logger.info { "Staging cover committed to main location" }
             }
+
             is Failure -> {
                 logger.error { "Failed to commit staging cover: ${commitResult.message}" }
                 // Continue anyway - try to upload
@@ -101,6 +104,7 @@ open class UpdateSeriesUseCase(
             is Success -> {
                 logger.info { "Cover uploaded to server" }
             }
+
             is Failure -> {
                 logger.error { "Failed to upload cover: ${result.message}" }
                 logger.warn { "Continuing despite cover upload failure (local cover saved)" }
@@ -145,7 +149,9 @@ data class SeriesUpdateRequest(
         if (pendingCoverData != null) {
             if (other.pendingCoverData == null) return false
             if (!pendingCoverData.contentEquals(other.pendingCoverData)) return false
-        } else if (other.pendingCoverData != null) return false
+        } else if (other.pendingCoverData != null) {
+            return false
+        }
         if (pendingCoverFilename != other.pendingCoverFilename) return false
 
         return true

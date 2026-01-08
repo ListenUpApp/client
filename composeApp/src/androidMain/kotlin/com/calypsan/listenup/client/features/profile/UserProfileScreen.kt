@@ -258,6 +258,7 @@ private fun ProfileContent(
     }
 }
 
+@Suppress("UnusedParameter")
 @Composable
 private fun ProfileHeader(
     displayName: String,

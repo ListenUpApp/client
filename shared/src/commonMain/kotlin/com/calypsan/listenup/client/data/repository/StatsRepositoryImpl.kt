@@ -2,8 +2,8 @@
 
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -31,7 +31,6 @@ private const val MS_PER_DAY = 86_400_000L
  * @property listeningEventDao DAO for listening events
  * @property bookDao DAO for book metadata (genres)
  */
-// Import domain types
 private typealias DomainHomeStats = com.calypsan.listenup.client.domain.repository.HomeStats
 private typealias DomainDailyListening = com.calypsan.listenup.client.domain.repository.DailyListening
 private typealias DomainGenreListening = com.calypsan.listenup.client.domain.repository.GenreListening
@@ -99,12 +98,12 @@ class StatsRepositoryImpl(
         val byDay =
             events.groupBy { event ->
                 // Floor to start of day
-                (event.endedAt / MS_PER_DAY) * MS_PER_DAY
+                event.endedAt / MS_PER_DAY * MS_PER_DAY
             }
 
         // Generate 7 days, filling in zeros for days without activity
         val result = mutableListOf<DomainDailyListening>()
-        var dayStart = (startMs / MS_PER_DAY) * MS_PER_DAY
+        var dayStart = startMs / MS_PER_DAY * MS_PER_DAY
 
         while (dayStart < endMs) {
             val dayEvents = byDay[dayStart] ?: emptyList()
@@ -172,7 +171,7 @@ class StatsRepositoryImpl(
                     genreSlug = genre.lowercase().replace(" ", "-"),
                     genreName = genre,
                     listenTimeMs = durationMs,
-                    percentage = if (totalMs > 0) (durationMs.toDouble() / totalMs) * 100 else 0.0,
+                    percentage = if (totalMs > 0) durationMs.toDouble() / totalMs * 100 else 0.0,
                 )
             }
     }
@@ -192,7 +191,7 @@ class StatsRepositoryImpl(
             return Pair(0, 0)
         }
 
-        val todayStart = (Clock.System.now().toEpochMilliseconds() / MS_PER_DAY) * MS_PER_DAY
+        val todayStart = Clock.System.now().toEpochMilliseconds() / MS_PER_DAY * MS_PER_DAY
         val yesterdayStart = todayStart - MS_PER_DAY
 
         // Convert to set for O(1) lookup

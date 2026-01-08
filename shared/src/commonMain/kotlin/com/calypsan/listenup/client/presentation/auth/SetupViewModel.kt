@@ -166,4 +166,3 @@ private fun Exception.toSetupErrorType(): SetupErrorType =
             SetupErrorType.ServerError
         }
     }
-

@@ -75,15 +75,21 @@ class LoginViewModel(
         val message = failure.message
 
         // Check for validation errors from use case (exception might be null for validation errors)
-        if (exception is IllegalArgumentException || failure.errorCode == com.calypsan.listenup.client.core.ErrorCode.VALIDATION_ERROR) {
+        if (exception is IllegalArgumentException ||
+            failure.errorCode == com.calypsan.listenup.client.core.ErrorCode.VALIDATION_ERROR
+        ) {
             return when {
-                message.contains("email", ignoreCase = true) ->
+                message.contains("email", ignoreCase = true) -> {
                     LoginErrorType.ValidationError(LoginField.EMAIL)
+                }
 
-                message.contains("password", ignoreCase = true) ->
+                message.contains("password", ignoreCase = true) -> {
                     LoginErrorType.ValidationError(LoginField.PASSWORD)
+                }
 
-                else -> LoginErrorType.ServerError(message)
+                else -> {
+                    LoginErrorType.ServerError(message)
+                }
             }
         }
 

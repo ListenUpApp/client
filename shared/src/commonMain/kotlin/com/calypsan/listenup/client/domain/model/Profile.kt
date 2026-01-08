@@ -43,12 +43,13 @@ data class UserProfile(
      * Returns the user's initials for fallback avatar display.
      */
     val initials: String
-        get() = displayName
-            .split(" ")
-            .take(2)
-            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-            .joinToString("")
-            .ifEmpty { displayName.take(1).uppercase() }
+        get() =
+            displayName
+                .split(" ")
+                .take(2)
+                .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+                .joinToString("")
+                .ifEmpty { displayName.take(1).uppercase() }
 
     /**
      * Returns formatted listening time (e.g., "42h 30m").
@@ -56,7 +57,7 @@ data class UserProfile(
     val formattedListenTime: String
         get() {
             val hours = totalListenTimeMs / (1000 * 60 * 60)
-            val minutes = (totalListenTimeMs / (1000 * 60)) % 60
+            val minutes = totalListenTimeMs / (1000 * 60) % 60
             return when {
                 hours > 0 -> "${hours}h ${minutes}m"
                 minutes > 0 -> "${minutes}m"

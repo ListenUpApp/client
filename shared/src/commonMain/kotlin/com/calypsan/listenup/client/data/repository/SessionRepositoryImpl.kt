@@ -1,6 +1,5 @@
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.map
@@ -23,9 +22,10 @@ class SessionRepositoryImpl(
 ) : SessionRepository {
     override suspend fun getBookReaders(bookId: String): List<ReaderInfo> {
         val result = sessionApi.getBookReaders(bookId)
-        return when (result) {
-            is Success -> result.data.otherReaders.map { it.toDomain() }
-            else -> emptyList()
+        return if (result is Success) {
+            result.data.otherReaders.map { it.toDomain() }
+        } else {
+            emptyList()
         }
     }
 

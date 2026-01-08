@@ -82,7 +82,9 @@ class HomeRepositoryImpl(
                     Success(books)
                 }
 
-                is Failure -> result
+                is Failure -> {
+                    result
+                }
             }
         } catch (e: Exception) {
             logger.error(e) { "fetchFromServer failed" }
@@ -97,7 +99,9 @@ class HomeRepositoryImpl(
         val positions = playbackPositionDao.getRecentPositions(limit)
         logger.info { "fetchFromLocal: found ${positions.size} playback positions" }
         positions.forEachIndexed { index, pos ->
-            logger.debug { "  position[$index]: bookId=${pos.bookId.value}, positionMs=${pos.positionMs}, lastPlayedAt=${pos.lastPlayedAt}" }
+            logger.debug {
+                "  position[$index]: bookId=${pos.bookId.value}, positionMs=${pos.positionMs}, lastPlayedAt=${pos.lastPlayedAt}"
+            }
         }
 
         if (positions.isEmpty()) {
@@ -169,9 +173,10 @@ class HomeRepositoryImpl(
         playbackPositionDao
             .observeAll()
             .mapLatest { positions ->
-                val sortedPositions = positions
-                    .sortedByDescending { it.lastPlayedAt ?: it.updatedAt }
-                    .take(limit)
+                val sortedPositions =
+                    positions
+                        .sortedByDescending { it.lastPlayedAt ?: it.updatedAt }
+                        .take(limit)
 
                 val result = mutableListOf<ContinueListeningBook>()
                 for (position in sortedPositions) {

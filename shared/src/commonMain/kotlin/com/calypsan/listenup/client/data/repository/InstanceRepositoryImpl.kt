@@ -1,10 +1,10 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Instance
@@ -130,6 +130,7 @@ class InstanceRepositoryImpl(
                             logger.info { "Server verified at $currentUrl" }
                             return Success(VerifiedServer(result.data, currentUrl))
                         }
+
                         is Failure -> {
                             throw result.exceptionOrFromMessage()
                         }
@@ -139,9 +140,10 @@ class InstanceRepositoryImpl(
                 }
             } catch (e: Exception) {
                 val errorMessage = e.message?.lowercase() ?: ""
-                val isSslError = errorMessage.contains("ssl") ||
-                    errorMessage.contains("tls") ||
-                    errorMessage.contains("handshake")
+                val isSslError =
+                    errorMessage.contains("ssl") ||
+                        errorMessage.contains("tls") ||
+                        errorMessage.contains("handshake")
 
                 if (isSslError && index < urlsToTry.size - 1) {
                     logger.debug { "SSL error at $currentUrl, trying HTTP fallback" }

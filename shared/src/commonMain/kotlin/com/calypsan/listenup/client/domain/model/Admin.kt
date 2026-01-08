@@ -33,11 +33,12 @@ data class AdminUserInfo(
      * displayName > "firstName lastName" > email
      */
     val displayableName: String
-        get() = displayName?.takeIf { it.isNotBlank() }
-            ?: listOfNotNull(firstName, lastName)
-                .joinToString(" ")
-                .takeIf { it.isNotBlank() }
-            ?: email
+        get() =
+            displayName?.takeIf { it.isNotBlank() }
+                ?: listOfNotNull(firstName, lastName)
+                    .joinToString(" ")
+                    .takeIf { it.isNotBlank() }
+                ?: email
 
     /**
      * Whether this user is protected from deletion/modification.

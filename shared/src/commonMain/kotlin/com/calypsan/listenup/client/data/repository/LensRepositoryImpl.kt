@@ -42,14 +42,11 @@ class LensRepositoryImpl(
             entities.map { it.toDomain() }
         }
 
-    override fun observeById(id: String): Flow<Lens?> =
-        dao.observeById(id).map { it?.toDomain() }
+    override fun observeById(id: String): Flow<Lens?> = dao.observeById(id).map { it?.toDomain() }
 
-    override suspend fun getById(id: String): Lens? =
-        dao.getById(id)?.toDomain()
+    override suspend fun getById(id: String): Lens? = dao.getById(id)?.toDomain()
 
-    override suspend fun countDiscoverLenses(currentUserId: String): Int =
-        dao.countDiscoverLenses(currentUserId)
+    override suspend fun countDiscoverLenses(currentUserId: String): Int = dao.countDiscoverLenses(currentUserId)
 
     /**
      * Fetch discover lenses from API and cache locally.
@@ -62,11 +59,12 @@ class LensRepositoryImpl(
     override suspend fun fetchAndCacheDiscoverLenses(): Int {
         logger.debug { "Fetching discover lenses from API" }
         val userLenses = lensApi.discoverLenses()
-        val entities = userLenses.flatMap { userLensesResponse ->
-            userLensesResponse.lenses.map { lens ->
-                lens.toEntity()
+        val entities =
+            userLenses.flatMap { userLensesResponse ->
+                userLensesResponse.lenses.map { lens ->
+                    lens.toEntity()
+                }
             }
-        }
         dao.upsertAll(entities)
         logger.info { "Fetched and cached ${entities.size} discover lenses" }
         return entities.size
@@ -89,17 +87,26 @@ class LensRepositoryImpl(
         return response.toDomain()
     }
 
-    override suspend fun removeBookFromLens(lensId: String, bookId: String) {
+    override suspend fun removeBookFromLens(
+        lensId: String,
+        bookId: String,
+    ) {
         logger.info { "Removing book $bookId from lens $lensId" }
         lensApi.removeBook(lensId, bookId)
     }
 
-    override suspend fun addBooksToLens(lensId: String, bookIds: List<String>) {
+    override suspend fun addBooksToLens(
+        lensId: String,
+        bookIds: List<String>,
+    ) {
         logger.info { "Adding ${bookIds.size} books to lens $lensId" }
         lensApi.addBooks(lensId, bookIds)
     }
 
-    override suspend fun createLens(name: String, description: String?): Lens {
+    override suspend fun createLens(
+        name: String,
+        description: String?,
+    ): Lens {
         logger.info { "Creating lens: $name" }
         val response = lensApi.createLens(name, description)
         // Cache the new lens locally
@@ -107,7 +114,11 @@ class LensRepositoryImpl(
         return response.toDomain()
     }
 
-    override suspend fun updateLens(lensId: String, name: String, description: String?): Lens {
+    override suspend fun updateLens(
+        lensId: String,
+        name: String,
+        description: String?,
+    ): Lens {
         logger.info { "Updating lens $lensId: $name" }
         val response = lensApi.updateLens(lensId, name, description)
         // Update local cache
@@ -134,16 +145,18 @@ class LensRepositoryImpl(
  * Convert LensResponse API model to Lens domain model.
  */
 fun LensResponse.toDomain(): Lens {
-    val createdAtMs = try {
-        Instant.parse(createdAt).toEpochMilliseconds()
-    } catch (e: Exception) {
-        currentEpochMilliseconds()
-    }
-    val updatedAtMs = try {
-        Instant.parse(updatedAt).toEpochMilliseconds()
-    } catch (e: Exception) {
-        currentEpochMilliseconds()
-    }
+    val createdAtMs =
+        try {
+            Instant.parse(createdAt).toEpochMilliseconds()
+        } catch (e: Exception) {
+            currentEpochMilliseconds()
+        }
+    val updatedAtMs =
+        try {
+            Instant.parse(updatedAt).toEpochMilliseconds()
+        } catch (e: Exception) {
+            currentEpochMilliseconds()
+        }
 
     return Lens(
         id = id,
@@ -163,16 +176,18 @@ fun LensResponse.toDomain(): Lens {
  * Convert API response to Room entity.
  */
 private fun LensResponse.toEntity(): LensEntity {
-    val createdAtMs = try {
-        Instant.parse(createdAt).toEpochMilliseconds()
-    } catch (e: Exception) {
-        currentEpochMilliseconds()
-    }
-    val updatedAtMs = try {
-        Instant.parse(updatedAt).toEpochMilliseconds()
-    } catch (e: Exception) {
-        currentEpochMilliseconds()
-    }
+    val createdAtMs =
+        try {
+            Instant.parse(createdAt).toEpochMilliseconds()
+        } catch (e: Exception) {
+            currentEpochMilliseconds()
+        }
+    val updatedAtMs =
+        try {
+            Instant.parse(updatedAt).toEpochMilliseconds()
+        } catch (e: Exception) {
+            currentEpochMilliseconds()
+        }
 
     return LensEntity(
         id = id,
@@ -213,20 +228,22 @@ private fun LensDetailResponse.toDomain(): LensDetail =
         id = id,
         name = name,
         description = description,
-        owner = LensOwner(
-            id = owner.id,
-            displayName = owner.displayName,
-            avatarColor = owner.avatarColor,
-        ),
+        owner =
+            LensOwner(
+                id = owner.id,
+                displayName = owner.displayName,
+                avatarColor = owner.avatarColor,
+            ),
         bookCount = bookCount,
         totalDurationSeconds = totalDuration,
-        books = books.map { book ->
-            LensBook(
-                id = book.id,
-                title = book.title,
-                authorNames = book.authorNames,
-                coverPath = book.coverPath,
-                durationSeconds = book.durationSeconds,
-            )
-        },
+        books =
+            books.map { book ->
+                LensBook(
+                    id = book.id,
+                    title = book.title,
+                    authorNames = book.authorNames,
+                    coverPath = book.coverPath,
+                    durationSeconds = book.durationSeconds,
+                )
+            },
     )

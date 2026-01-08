@@ -4,6 +4,7 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
+import com.calypsan.listenup.client.core.UserId
 import com.calypsan.listenup.client.data.remote.AuthUser
 import com.calypsan.listenup.client.data.remote.InviteApiContract
 import com.calypsan.listenup.client.domain.model.InviteDetails
@@ -24,7 +25,6 @@ import com.calypsan.listenup.client.data.remote.InviteDetails as ApiInviteDetail
 class InviteRepositoryImpl(
     private val inviteApi: InviteApiContract,
 ) : InviteRepository {
-
     override suspend fun getInviteDetails(
         serverUrl: String,
         code: String,
@@ -68,7 +68,7 @@ private fun ApiInviteDetails.toDomain(): InviteDetails =
 @OptIn(ExperimentalTime::class)
 private fun AuthUser.toDomain(): User =
     User(
-        id = id,
+        id = UserId(id),
         email = email,
         displayName = displayName,
         firstName = firstName.ifEmpty { null },

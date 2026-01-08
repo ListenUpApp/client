@@ -43,49 +43,37 @@ import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesApi
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.remote.api.ListenUpApi
-// Data layer repository implementations
+import com.calypsan.listenup.client.data.repository.ActiveSessionRepositoryImpl
+import com.calypsan.listenup.client.data.repository.ActivityRepositoryImpl
+import com.calypsan.listenup.client.data.repository.AdminRepositoryImpl
 import com.calypsan.listenup.client.data.repository.AuthRepositoryImpl
 import com.calypsan.listenup.client.data.repository.BookEditRepositoryImpl
 import com.calypsan.listenup.client.data.repository.BookRepositoryImpl
-import com.calypsan.listenup.client.data.repository.ContributorEditRepository as ContributorEditRepositoryImpl
+import com.calypsan.listenup.client.data.repository.CollectionRepositoryImpl
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.repository.EventStreamRepositoryImpl
+import com.calypsan.listenup.client.data.repository.GenreRepositoryImpl
 import com.calypsan.listenup.client.data.repository.HomeRepositoryImpl
-import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.ImageRepositoryImpl
+import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.LeaderboardRepositoryImpl
+import com.calypsan.listenup.client.data.repository.LensRepositoryImpl
 import com.calypsan.listenup.client.data.repository.MetadataRepositoryImpl
+import com.calypsan.listenup.client.data.repository.PlaybackPositionRepositoryImpl
 import com.calypsan.listenup.client.data.repository.ProfileEditRepositoryImpl
+import com.calypsan.listenup.client.data.repository.ProfileRepositoryImpl
+import com.calypsan.listenup.client.data.repository.RegistrationStatusStreamImpl
 import com.calypsan.listenup.client.data.repository.SearchRepositoryImpl
-import com.calypsan.listenup.client.data.repository.SeriesEditRepository as SeriesEditRepositoryImpl
 import com.calypsan.listenup.client.data.repository.ServerMigrationHelper
 import com.calypsan.listenup.client.data.repository.ServerRepositoryImpl
 import com.calypsan.listenup.client.data.repository.ServerUrlChangeListener
+import com.calypsan.listenup.client.data.repository.SessionRepositoryImpl
 import com.calypsan.listenup.client.data.repository.SettingsRepositoryImpl
 import com.calypsan.listenup.client.data.repository.StatsRepositoryImpl
 import com.calypsan.listenup.client.data.repository.SyncRepositoryImpl
+import com.calypsan.listenup.client.data.repository.TagRepositoryImpl
 import com.calypsan.listenup.client.data.repository.UserProfileRepositoryImpl
 import com.calypsan.listenup.client.data.repository.UserRepositoryImpl
-
-// Domain layer repository interfaces (the contracts)
-import com.calypsan.listenup.client.domain.repository.AuthRepository
-import com.calypsan.listenup.client.domain.repository.AuthSession
-import com.calypsan.listenup.client.domain.repository.BookRepository
-import com.calypsan.listenup.client.domain.repository.ContributorEditRepository
-import com.calypsan.listenup.client.domain.repository.HomeRepository
-import com.calypsan.listenup.client.domain.repository.LibraryPreferences
-import com.calypsan.listenup.client.domain.repository.LibrarySync
-import com.calypsan.listenup.client.domain.repository.LocalPreferences
-import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
-import com.calypsan.listenup.client.domain.repository.SearchRepository
-import com.calypsan.listenup.client.domain.repository.SeriesEditRepository
-import com.calypsan.listenup.client.domain.repository.ServerConfig
-import com.calypsan.listenup.client.domain.repository.ServerRepository
-import com.calypsan.listenup.client.domain.repository.StatsRepository
-import com.calypsan.listenup.client.domain.repository.SyncRepository
-import com.calypsan.listenup.client.domain.repository.RegistrationStatusStream
-import com.calypsan.listenup.client.domain.repository.UserProfileRepository
-import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.data.sync.FtsPopulator
 import com.calypsan.listenup.client.data.sync.FtsPopulatorContract
 import com.calypsan.listenup.client.data.sync.ImageDownloader
@@ -132,30 +120,34 @@ import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
 import com.calypsan.listenup.client.domain.repository.ActiveSessionRepository
 import com.calypsan.listenup.client.domain.repository.ActivityRepository
 import com.calypsan.listenup.client.domain.repository.AdminRepository
+import com.calypsan.listenup.client.domain.repository.AuthRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
+import com.calypsan.listenup.client.domain.repository.ContributorEditRepository
 import com.calypsan.listenup.client.domain.repository.GenreRepository
+import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.LibraryPreferences
+import com.calypsan.listenup.client.domain.repository.LibrarySync
+import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ProfileRepository
+import com.calypsan.listenup.client.domain.repository.RegistrationStatusStream
+import com.calypsan.listenup.client.domain.repository.SearchRepository
+import com.calypsan.listenup.client.domain.repository.SeriesEditRepository
+import com.calypsan.listenup.client.domain.repository.ServerConfig
+import com.calypsan.listenup.client.domain.repository.ServerRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
+import com.calypsan.listenup.client.domain.repository.StatsRepository
+import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
-import com.calypsan.listenup.client.data.repository.ActiveSessionRepositoryImpl
-import com.calypsan.listenup.client.data.repository.ActivityRepositoryImpl
-import com.calypsan.listenup.client.data.repository.AdminRepositoryImpl
-import com.calypsan.listenup.client.data.repository.CollectionRepositoryImpl
-import com.calypsan.listenup.client.data.repository.GenreRepositoryImpl
-import com.calypsan.listenup.client.data.repository.LensRepositoryImpl
-import com.calypsan.listenup.client.data.repository.PlaybackPositionRepositoryImpl
-import com.calypsan.listenup.client.data.repository.ProfileRepositoryImpl
-import com.calypsan.listenup.client.data.repository.RegistrationStatusStreamImpl
-import com.calypsan.listenup.client.data.repository.SessionRepositoryImpl
-import com.calypsan.listenup.client.data.repository.TagRepositoryImpl
+import com.calypsan.listenup.client.domain.repository.UserProfileRepository
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
-import com.calypsan.listenup.client.domain.usecase.auth.LoginUseCase
-import com.calypsan.listenup.client.domain.usecase.auth.LogoutUseCase
-import com.calypsan.listenup.client.domain.usecase.auth.RegisterUseCase
-import com.calypsan.listenup.client.domain.usecase.book.LoadBookForEditUseCase
+import com.calypsan.listenup.client.domain.usecase.activity.FetchActivitiesUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.ApproveUserUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.CreateInviteUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.DeleteUserUseCase
@@ -171,10 +163,11 @@ import com.calypsan.listenup.client.domain.usecase.admin.SetOpenRegistrationUseC
 import com.calypsan.listenup.client.domain.usecase.admin.StageCollectionUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.UnstageCollectionUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.UpdateServerSettingsUseCase
+import com.calypsan.listenup.client.domain.usecase.auth.LoginUseCase
+import com.calypsan.listenup.client.domain.usecase.auth.LogoutUseCase
+import com.calypsan.listenup.client.domain.usecase.auth.RegisterUseCase
+import com.calypsan.listenup.client.domain.usecase.book.LoadBookForEditUseCase
 import com.calypsan.listenup.client.domain.usecase.book.UpdateBookUseCase
-import com.calypsan.listenup.client.domain.usecase.contributor.ApplyContributorMetadataUseCase
-import com.calypsan.listenup.client.domain.usecase.contributor.DeleteContributorUseCase
-import com.calypsan.listenup.client.domain.usecase.contributor.UpdateContributorUseCase
 import com.calypsan.listenup.client.domain.usecase.collection.AddBooksToCollectionUseCase
 import com.calypsan.listenup.client.domain.usecase.collection.CreateCollectionUseCase
 import com.calypsan.listenup.client.domain.usecase.collection.DeleteCollectionUseCase
@@ -186,24 +179,28 @@ import com.calypsan.listenup.client.domain.usecase.collection.RemoveBookFromColl
 import com.calypsan.listenup.client.domain.usecase.collection.RemoveCollectionShareUseCase
 import com.calypsan.listenup.client.domain.usecase.collection.ShareCollectionUseCase
 import com.calypsan.listenup.client.domain.usecase.collection.UpdateCollectionNameUseCase
+import com.calypsan.listenup.client.domain.usecase.contributor.ApplyContributorMetadataUseCase
+import com.calypsan.listenup.client.domain.usecase.contributor.DeleteContributorUseCase
+import com.calypsan.listenup.client.domain.usecase.contributor.UpdateContributorUseCase
 import com.calypsan.listenup.client.domain.usecase.lens.AddBooksToLensUseCase
 import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
 import com.calypsan.listenup.client.domain.usecase.lens.DeleteLensUseCase
 import com.calypsan.listenup.client.domain.usecase.lens.LoadLensDetailUseCase
 import com.calypsan.listenup.client.domain.usecase.lens.RemoveBookFromLensUseCase
 import com.calypsan.listenup.client.domain.usecase.lens.UpdateLensUseCase
-import com.calypsan.listenup.client.domain.usecase.metadata.ApplyMetadataMatchUseCase
-import com.calypsan.listenup.client.domain.usecase.profile.LoadUserProfileUseCase
-import com.calypsan.listenup.client.domain.usecase.activity.FetchActivitiesUseCase
-import com.calypsan.listenup.client.domain.usecase.series.UpdateSeriesUseCase
 import com.calypsan.listenup.client.domain.usecase.library.GetContinueListeningUseCase
 import com.calypsan.listenup.client.domain.usecase.library.RefreshLibraryUseCase
 import com.calypsan.listenup.client.domain.usecase.library.SearchBooksUseCase
+import com.calypsan.listenup.client.domain.usecase.metadata.ApplyMetadataMatchUseCase
+import com.calypsan.listenup.client.domain.usecase.profile.LoadUserProfileUseCase
+import com.calypsan.listenup.client.domain.usecase.series.UpdateSeriesUseCase
 import com.calypsan.listenup.client.playback.PlaybackManager
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import com.calypsan.listenup.client.data.repository.ContributorEditRepository as ContributorEditRepositoryImpl
+import com.calypsan.listenup.client.data.repository.SeriesEditRepository as SeriesEditRepositoryImpl
 
 /**
  * Platform-specific storage module.
@@ -1249,7 +1246,12 @@ val syncModule =
         single<SyncRepository> {
             SyncRepositoryImpl(
                 syncManager = get(),
-                scope = get(qualifier = org.koin.core.qualifier.named("appScope")),
+                scope =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("appScope"),
+                    ),
             )
         }
 
@@ -1330,7 +1332,8 @@ val syncModule =
 
         // SyncStatusRepository for sync timestamp tracking (SOLID: interface in domain, impl in data)
         single<com.calypsan.listenup.client.domain.repository.SyncStatusRepository> {
-            com.calypsan.listenup.client.data.repository.SyncStatusRepositoryImpl(syncDao = get())
+            com.calypsan.listenup.client.data.repository
+                .SyncStatusRepositoryImpl(syncDao = get())
         }
 
         // PendingOperationRepository (domain) for UI observation of sync status

@@ -41,8 +41,7 @@ class ActivityRepositoryImplTest {
     private fun createRepository(
         dao: ActivityDao = createMockDao(),
         api: ActivityFeedApiContract = createMockApi(),
-    ): ActivityRepositoryImpl =
-        ActivityRepositoryImpl(dao, api)
+    ): ActivityRepositoryImpl = ActivityRepositoryImpl(dao, api)
 
     // ========== Test Data Factories ==========
 
@@ -152,10 +151,11 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entities = listOf(
-                createActivityEntity(id = "act-1"),
-                createActivityEntity(id = "act-2"),
-            )
+            val entities =
+                listOf(
+                    createActivityEntity(id = "act-1"),
+                    createActivityEntity(id = "act-2"),
+                )
             every { dao.observeRecent(10) } returns flowOf(entities)
             val repository = createRepository(dao)
 
@@ -229,10 +229,11 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entities = listOf(
-                createActivityEntity(id = "old-1", createdAt = 1704000000000L),
-                createActivityEntity(id = "old-2", createdAt = 1703900000000L),
-            )
+            val entities =
+                listOf(
+                    createActivityEntity(id = "old-1", createdAt = 1704000000000L),
+                    createActivityEntity(id = "old-2", createdAt = 1703900000000L),
+                )
             everySuspend { dao.getOlderThan(1704067200000L, 10) } returns entities
             val repository = createRepository(dao)
 
@@ -612,10 +613,11 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                bookId = "book-123",
-                bookTitle = "Mistborn",
-            )
+            val entity =
+                createActivityEntity(
+                    bookId = "book-123",
+                    bookTitle = "Mistborn",
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -633,10 +635,11 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                bookId = null,
-                bookTitle = "Some Title", // Even if title is present
-            )
+            val entity =
+                createActivityEntity(
+                    bookId = null,
+                    bookTitle = "Some Title", // Even if title is present
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -652,10 +655,11 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                bookId = "book-123", // Even if id is present
-                bookTitle = null,
-            )
+            val entity =
+                createActivityEntity(
+                    bookId = "book-123", // Even if id is present
+                    bookTitle = null,
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -687,11 +691,12 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                bookId = "book-1",
-                bookTitle = "Elantris",
-                bookAuthorName = "Brandon Sanderson",
-            )
+            val entity =
+                createActivityEntity(
+                    bookId = "book-1",
+                    bookTitle = "Elantris",
+                    bookAuthorName = "Brandon Sanderson",
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -708,11 +713,12 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                bookId = "book-1",
-                bookTitle = "Unknown Author Book",
-                bookAuthorName = null,
-            )
+            val entity =
+                createActivityEntity(
+                    bookId = "book-1",
+                    bookTitle = "Unknown Author Book",
+                    bookAuthorName = null,
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -729,11 +735,12 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                bookId = "book-1",
-                bookTitle = "Test Book",
-                bookCoverPath = "/covers/book-1.webp",
-            )
+            val entity =
+                createActivityEntity(
+                    bookId = "book-1",
+                    bookTitle = "Test Book",
+                    bookCoverPath = "/covers/book-1.webp",
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -750,11 +757,12 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                bookId = "book-1",
-                bookTitle = "No Cover Book",
-                bookCoverPath = null,
-            )
+            val entity =
+                createActivityEntity(
+                    bookId = "book-1",
+                    bookTitle = "No Cover Book",
+                    bookCoverPath = null,
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -773,11 +781,12 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                type = "started_book",
-                bookId = "book-1",
-                bookTitle = "New Read",
-            )
+            val entity =
+                createActivityEntity(
+                    type = "started_book",
+                    bookId = "book-1",
+                    bookTitle = "New Read",
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -794,11 +803,12 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                type = "finished_book",
-                bookId = "book-1",
-                bookTitle = "Completed Read",
-            )
+            val entity =
+                createActivityEntity(
+                    type = "finished_book",
+                    bookId = "book-1",
+                    bookTitle = "Completed Read",
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -815,11 +825,12 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createMilestoneActivityEntity(
-                type = "streak_milestone",
-                milestoneValue = 30,
-                milestoneUnit = "days",
-            )
+            val entity =
+                createMilestoneActivityEntity(
+                    type = "streak_milestone",
+                    milestoneValue = 30,
+                    milestoneUnit = "days",
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -838,11 +849,12 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createMilestoneActivityEntity(
-                type = "listening_milestone",
-                milestoneValue = 100,
-                milestoneUnit = "hours",
-            )
+            val entity =
+                createMilestoneActivityEntity(
+                    type = "listening_milestone",
+                    milestoneValue = 100,
+                    milestoneUnit = "hours",
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -860,10 +872,11 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createLensActivityEntity(
-                lensId = "lens-xyz",
-                lensName = "Sci-Fi Favorites",
-            )
+            val entity =
+                createLensActivityEntity(
+                    lensId = "lens-xyz",
+                    lensName = "Sci-Fi Favorites",
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -882,12 +895,13 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                type = "listening_session",
-                bookId = "book-1",
-                bookTitle = "Podcast Episode",
-                durationMs = 1800000L, // 30 minutes
-            )
+            val entity =
+                createActivityEntity(
+                    type = "listening_session",
+                    bookId = "book-1",
+                    bookTitle = "Podcast Episode",
+                    durationMs = 1800000L, // 30 minutes
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -907,12 +921,13 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                userDisplayName = "",
-                userAvatarColor = "",
-                userAvatarType = "",
-                userAvatarValue = "",
-            )
+            val entity =
+                createActivityEntity(
+                    userDisplayName = "",
+                    userAvatarColor = "",
+                    userAvatarType = "",
+                    userAvatarValue = "",
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -931,11 +946,12 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                createdAt = 0L,
-                durationMs = 0L,
-                milestoneValue = 0,
-            )
+            val entity =
+                createActivityEntity(
+                    createdAt = 0L,
+                    durationMs = 0L,
+                    milestoneValue = 0,
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -970,12 +986,13 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                type = "finished_book",
-                isReread = true,
-                bookId = "book-1",
-                bookTitle = "Re-read Favorite",
-            )
+            val entity =
+                createActivityEntity(
+                    type = "finished_book",
+                    isReread = true,
+                    bookId = "book-1",
+                    bookTitle = "Re-read Favorite",
+                )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -993,11 +1010,12 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entities = listOf(
-                createActivityEntity(id = "act-1", type = "finished_book"),
-                createMilestoneActivityEntity(id = "act-2", type = "listening_milestone"),
-                createLensActivityEntity(id = "act-3"),
-            )
+            val entities =
+                listOf(
+                    createActivityEntity(id = "act-1", type = "finished_book"),
+                    createMilestoneActivityEntity(id = "act-2", type = "listening_milestone"),
+                    createLensActivityEntity(id = "act-3"),
+                )
             every { dao.observeRecent(any()) } returns flowOf(entities)
             val repository = createRepository(dao)
 
@@ -1019,14 +1037,15 @@ class ActivityRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(
-                id = "older-act",
-                type = "started_book",
-                userId = "user-456",
-                userDisplayName = "Bob",
-                bookId = "book-old",
-                bookTitle = "Old Book",
-            )
+            val entity =
+                createActivityEntity(
+                    id = "older-act",
+                    type = "started_book",
+                    userId = "user-456",
+                    userDisplayName = "Bob",
+                    bookId = "book-old",
+                    bookTitle = "Old Book",
+                )
             everySuspend { dao.getOlderThan(any(), any()) } returns listOf(entity)
             val repository = createRepository(dao)
 

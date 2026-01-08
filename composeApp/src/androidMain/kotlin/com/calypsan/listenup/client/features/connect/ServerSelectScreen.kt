@@ -46,10 +46,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.composeapp.R
-import com.calypsan.listenup.client.domain.model.Server
-import com.calypsan.listenup.client.domain.model.ServerWithStatus
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.design.theme.LocalDarkTheme
+import com.calypsan.listenup.client.domain.model.Server
+import com.calypsan.listenup.client.domain.model.ServerWithStatus
 import com.calypsan.listenup.client.presentation.connect.ServerSelectUiEvent
 import com.calypsan.listenup.client.presentation.connect.ServerSelectUiState
 import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel

@@ -62,10 +62,11 @@ class CreateInviteViewModelTest {
     fun `createInvite validates empty name`() =
         runTest {
             val createInviteUseCase: CreateInviteUseCase = mock()
-            everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns Failure(
-                RuntimeException("Name is required"),
-                "Name is required"
-            )
+            everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns
+                Failure(
+                    RuntimeException("Name is required"),
+                    "Name is required",
+                )
             val viewModel = CreateInviteViewModel(createInviteUseCase)
 
             viewModel.createInvite(name = "", email = "test@example.com", role = "user", expiresInDays = 7)
@@ -80,10 +81,11 @@ class CreateInviteViewModelTest {
     fun `createInvite validates invalid email`() =
         runTest {
             val createInviteUseCase: CreateInviteUseCase = mock()
-            everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns Failure(
-                RuntimeException("Invalid email"),
-                "Invalid email"
-            )
+            everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns
+                Failure(
+                    RuntimeException("Invalid email"),
+                    "Invalid email",
+                )
             val viewModel = CreateInviteViewModel(createInviteUseCase)
 
             viewModel.createInvite(name = "Test User", email = "invalid-email", role = "user", expiresInDays = 7)
@@ -113,10 +115,11 @@ class CreateInviteViewModelTest {
     fun `createInvite handles email already exists error`() =
         runTest {
             val createInviteUseCase: CreateInviteUseCase = mock()
-            everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns Failure(
-                RuntimeException("Email already exists"),
-                "Email already exists"
-            )
+            everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns
+                Failure(
+                    RuntimeException("Email already exists"),
+                    "Email already exists",
+                )
             val viewModel = CreateInviteViewModel(createInviteUseCase)
 
             viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
@@ -130,10 +133,11 @@ class CreateInviteViewModelTest {
     fun `createInvite handles network error`() =
         runTest {
             val createInviteUseCase: CreateInviteUseCase = mock()
-            everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns Failure(
-                RuntimeException("Network connection failed"),
-                "Network connection failed"
-            )
+            everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns
+                Failure(
+                    RuntimeException("Network connection failed"),
+                    "Network connection failed",
+                )
             val viewModel = CreateInviteViewModel(createInviteUseCase)
 
             viewModel.createInvite(name = "Test", email = "test@example.com", role = "user", expiresInDays = 7)
@@ -147,10 +151,11 @@ class CreateInviteViewModelTest {
     fun `clearError resets to Idle`() =
         runTest {
             val createInviteUseCase: CreateInviteUseCase = mock()
-            everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns Failure(
-                RuntimeException("Name is required"),
-                "Name is required"
-            )
+            everySuspend { createInviteUseCase(any(), any(), any(), any()) } returns
+                Failure(
+                    RuntimeException("Name is required"),
+                    "Name is required",
+                )
             val viewModel = CreateInviteViewModel(createInviteUseCase)
 
             viewModel.createInvite(name = "", email = "test@example.com", role = "user", expiresInDays = 7)

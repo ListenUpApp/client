@@ -32,7 +32,10 @@ open class ShareCollectionUseCase(
      * @param userId The user to share with
      * @return Result containing the created share summary or a failure
      */
-    open suspend operator fun invoke(collectionId: String, userId: String): Result<CollectionShareSummary> {
+    open suspend operator fun invoke(
+        collectionId: String,
+        userId: String,
+    ): Result<CollectionShareSummary> {
         logger.info { "Sharing collection $collectionId with user $userId" }
 
         return suspendRunCatching {

@@ -1,5 +1,7 @@
 package com.calypsan.listenup.client.domain.model
 
+import com.calypsan.listenup.client.core.ContributorId
+
 /**
  * Domain model representing a book contributor (author, narrator, etc).
  *
@@ -12,7 +14,7 @@ package com.calypsan.listenup.client.domain.model
  * see [BookContributor].
  */
 data class Contributor(
-    val id: String,
+    val id: ContributorId,
     val name: String,
     val description: String? = null,
     val imagePath: String? = null,

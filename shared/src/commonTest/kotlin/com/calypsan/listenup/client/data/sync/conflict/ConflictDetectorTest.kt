@@ -1,8 +1,9 @@
 package com.calypsan.listenup.client.data.sync.conflict
 
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
-import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.EntityType
@@ -12,7 +13,6 @@ import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.core.Timestamp
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
 import dev.mokkery.mock
@@ -332,7 +332,9 @@ class ConflictDetectorTest {
         updatedAt: Long,
     ): ContributorEntity =
         ContributorEntity(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .ContributorId(id),
             name = "Contributor $id",
             description = null,
             imagePath = null,
@@ -348,7 +350,9 @@ class ConflictDetectorTest {
         updatedAt: Long,
     ): SeriesEntity =
         SeriesEntity(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .SeriesId(id),
             name = "Series $id",
             description = null,
             syncState = SyncState.SYNCED,

@@ -1,9 +1,10 @@
 package com.calypsan.listenup.client.data.local.db
 
-import com.calypsan.listenup.client.domain.repository.ImageStorage
+import com.calypsan.listenup.client.core.ContributorId
 import com.calypsan.listenup.client.domain.model.Book
-import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.model.BookSeries
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 
 /**
  * Extension function to convert BookEntity to domain Book model.
@@ -63,12 +64,12 @@ fun BookEntity.toDomain(
  */
 fun List<BookContributorCrossRef>.extractByRole(
     role: String,
-    contributorsById: Map<String, ContributorEntity>,
+    contributorsById: Map<ContributorId, ContributorEntity>,
 ): List<BookContributor> =
     filter { it.role == role }
         .mapNotNull { crossRef ->
             contributorsById[crossRef.contributorId]?.let { entity ->
-                BookContributor(entity.id, crossRef.creditedAs ?: entity.name)
+                BookContributor(entity.id.value, crossRef.creditedAs ?: entity.name)
             }
         }.distinctBy { it.id }
 
@@ -102,7 +103,7 @@ fun BookWithContributors.toDomain(
             seriesSequences.mapNotNull { seq ->
                 seriesById[seq.seriesId]?.let { seriesEntity ->
                     BookSeries(
-                        seriesId = seriesEntity.id,
+                        seriesId = seriesEntity.id.value,
                         seriesName = seriesEntity.name,
                         sequence = seq.sequence,
                     )

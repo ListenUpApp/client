@@ -45,10 +45,6 @@ class AudiobookNotificationProvider(
         private var icNotification: Int = 0
         private var icPlay: Int = 0
         private var icPause: Int = 0
-        private var icReplay30: Int = 0
-        private var icForward30: Int = 0
-        private var icSkipPreviousChapter: Int = 0
-        private var icSkipNextChapter: Int = 0
 
         /**
          * Get custom commands to add to the session.
@@ -73,10 +69,6 @@ class AudiobookNotificationProvider(
         icNotification = resources.getIdentifier("ic_notification", "drawable", packageName)
         icPlay = resources.getIdentifier("ic_play", "drawable", packageName)
         icPause = resources.getIdentifier("ic_pause", "drawable", packageName)
-        icReplay30 = resources.getIdentifier("ic_replay_30", "drawable", packageName)
-        icForward30 = resources.getIdentifier("ic_forward_30", "drawable", packageName)
-        icSkipPreviousChapter = resources.getIdentifier("ic_skip_previous_chapter", "drawable", packageName)
-        icSkipNextChapter = resources.getIdentifier("ic_skip_next_chapter", "drawable", packageName)
     }
 
     private fun createNotificationChannel() {
@@ -143,34 +135,28 @@ class AudiobookNotificationProvider(
         val actions = mutableListOf<NotificationCompat.Action>()
 
         // Previous chapter
-        if (icSkipPreviousChapter != 0) {
-            actions.add(
-                actionFactory.createCustomActionFromCustomCommandButton(
-                    mediaSession,
-                    CommandButton
-                        .Builder(CommandButton.ICON_PREVIOUS)
-                        .setDisplayName("Previous chapter")
-                        .setIconResId(icSkipPreviousChapter)
-                        .setSessionCommand(SessionCommand(COMMAND_PREV_CHAPTER, Bundle.EMPTY))
-                        .build(),
-                ),
-            )
-        }
+        actions.add(
+            actionFactory.createCustomActionFromCustomCommandButton(
+                mediaSession,
+                CommandButton
+                    .Builder(CommandButton.ICON_PREVIOUS)
+                    .setDisplayName("Previous chapter")
+                    .setSessionCommand(SessionCommand(COMMAND_PREV_CHAPTER, Bundle.EMPTY))
+                    .build(),
+            ),
+        )
 
         // Skip back 30s
-        if (icReplay30 != 0) {
-            actions.add(
-                actionFactory.createCustomActionFromCustomCommandButton(
-                    mediaSession,
-                    CommandButton
-                        .Builder(CommandButton.ICON_REWIND)
-                        .setDisplayName("Skip back 30 seconds")
-                        .setIconResId(icReplay30)
-                        .setSessionCommand(SessionCommand(COMMAND_SKIP_BACK_30, Bundle.EMPTY))
-                        .build(),
-                ),
-            )
-        }
+        actions.add(
+            actionFactory.createCustomActionFromCustomCommandButton(
+                mediaSession,
+                CommandButton
+                    .Builder(CommandButton.ICON_REWIND)
+                    .setDisplayName("Skip back 30 seconds")
+                    .setSessionCommand(SessionCommand(COMMAND_SKIP_BACK_30, Bundle.EMPTY))
+                    .build(),
+            ),
+        )
 
         // Play/Pause - use standard media action
         val playPauseIcon =
@@ -189,34 +175,28 @@ class AudiobookNotificationProvider(
         actions.add(playPauseAction)
 
         // Skip forward 30s
-        if (icForward30 != 0) {
-            actions.add(
-                actionFactory.createCustomActionFromCustomCommandButton(
-                    mediaSession,
-                    CommandButton
-                        .Builder(CommandButton.ICON_FAST_FORWARD)
-                        .setDisplayName("Skip forward 30 seconds")
-                        .setIconResId(icForward30)
-                        .setSessionCommand(SessionCommand(COMMAND_SKIP_FORWARD_30, Bundle.EMPTY))
-                        .build(),
-                ),
-            )
-        }
+        actions.add(
+            actionFactory.createCustomActionFromCustomCommandButton(
+                mediaSession,
+                CommandButton
+                    .Builder(CommandButton.ICON_FAST_FORWARD)
+                    .setDisplayName("Skip forward 30 seconds")
+                    .setSessionCommand(SessionCommand(COMMAND_SKIP_FORWARD_30, Bundle.EMPTY))
+                    .build(),
+            ),
+        )
 
         // Next chapter
-        if (icSkipNextChapter != 0) {
-            actions.add(
-                actionFactory.createCustomActionFromCustomCommandButton(
-                    mediaSession,
-                    CommandButton
-                        .Builder(CommandButton.ICON_NEXT)
-                        .setDisplayName("Next chapter")
-                        .setIconResId(icSkipNextChapter)
-                        .setSessionCommand(SessionCommand(COMMAND_NEXT_CHAPTER, Bundle.EMPTY))
-                        .build(),
-                ),
-            )
-        }
+        actions.add(
+            actionFactory.createCustomActionFromCustomCommandButton(
+                mediaSession,
+                CommandButton
+                    .Builder(CommandButton.ICON_NEXT)
+                    .setDisplayName("Next chapter")
+                    .setSessionCommand(SessionCommand(COMMAND_NEXT_CHAPTER, Bundle.EMPTY))
+                    .build(),
+            ),
+        )
 
         actions.forEach { builder.addAction(it) }
 
@@ -239,11 +219,7 @@ class AudiobookNotificationProvider(
         session: MediaSession,
         action: String,
         extras: Bundle,
-    ): Boolean {
-        // Custom command handling is done in PlaybackService's MediaSessionCallback
-        // This method is kept for interface compliance
-        return false
-    }
+    ): Boolean = false
 
     /**
      * Build chapter subtitle with time remaining.

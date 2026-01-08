@@ -65,8 +65,7 @@ class HomeViewModel(
                             error = "Failed to load continue listening",
                         )
                     }
-                }
-                .collect { books ->
+                }.collect { books ->
                     logger.debug { "Continue listening updated: ${books.size} books" }
                     state.update {
                         it.copy(
@@ -108,7 +107,7 @@ class HomeViewModel(
                 logger.debug { "User first name updated: $firstName" }
 
                 // Start observing lenses when we have a user ID
-                val userId = user?.id
+                val userId = user?.id?.value
                 if (userId != null && userId != currentUserId) {
                     currentUserId = userId
                     observeMyLenses(userId)

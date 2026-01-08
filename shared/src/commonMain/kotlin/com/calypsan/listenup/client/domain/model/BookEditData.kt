@@ -68,9 +68,7 @@ data class PendingCover(
         return data.contentEquals(other.data) && filename == other.filename
     }
 
-    override fun hashCode(): Int {
-        return 31 * data.contentHashCode() + filename.hashCode()
-    }
+    override fun hashCode(): Int = 31 * data.contentHashCode() + filename.hashCode()
 }
 
 /**

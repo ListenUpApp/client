@@ -56,7 +56,9 @@ class SeriesEditViewModelTest {
         name: String = "Test Series",
         description: String? = "A test series",
     ) = Series(
-        id = id,
+        id =
+            com.calypsan.listenup.client.core
+                .SeriesId(id),
         name = name,
         description = description,
     )

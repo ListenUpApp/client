@@ -4,10 +4,10 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.AdminEvent
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
-import com.calypsan.listenup.client.domain.repository.EventStreamRepository
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.model.InstanceId
 import com.calypsan.listenup.client.domain.model.InviteInfo
+import com.calypsan.listenup.client.domain.repository.EventStreamRepository
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.admin.ApproveUserUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.DeleteUserUseCase
@@ -126,18 +126,19 @@ class AdminViewModelTest {
             everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
             everySuspend { loadInvitesUseCase() } returns Success(emptyList())
 
-            val viewModel = AdminViewModel(
-                instanceRepository = instanceRepo,
-                loadUsersUseCase = loadUsersUseCase,
-                loadPendingUsersUseCase = loadPendingUsersUseCase,
-                loadInvitesUseCase = loadInvitesUseCase,
-                deleteUserUseCase = deleteUserUseCase,
-                revokeInviteUseCase = revokeInviteUseCase,
-                approveUserUseCase = approveUserUseCase,
-                denyUserUseCase = denyUserUseCase,
-                setOpenRegistrationUseCase = setOpenRegistrationUseCase,
-                eventStreamRepository = createMockEventStreamRepository(),
-            )
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
 
             assertTrue(viewModel.state.value.isLoading)
         }
@@ -161,18 +162,19 @@ class AdminViewModelTest {
             everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
             everySuspend { loadInvitesUseCase() } returns Success(invites)
 
-            val viewModel = AdminViewModel(
-                instanceRepository = instanceRepo,
-                loadUsersUseCase = loadUsersUseCase,
-                loadPendingUsersUseCase = loadPendingUsersUseCase,
-                loadInvitesUseCase = loadInvitesUseCase,
-                deleteUserUseCase = deleteUserUseCase,
-                revokeInviteUseCase = revokeInviteUseCase,
-                approveUserUseCase = approveUserUseCase,
-                denyUserUseCase = denyUserUseCase,
-                setOpenRegistrationUseCase = setOpenRegistrationUseCase,
-                eventStreamRepository = createMockEventStreamRepository(),
-            )
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
@@ -193,30 +195,36 @@ class AdminViewModelTest {
             val denyUserUseCase: DenyUserUseCase = mock()
             val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
 
-            val invites = listOf(
-                createInvite("pending", claimedAt = null),
-                createInvite("claimed", claimedAt = "2024-01-15T00:00:00Z"),
-            )
+            val invites =
+                listOf(
+                    createInvite("pending", claimedAt = null),
+                    createInvite("claimed", claimedAt = "2024-01-15T00:00:00Z"),
+                )
             everySuspend { loadUsersUseCase() } returns Success(emptyList())
             everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
             everySuspend { loadInvitesUseCase() } returns Success(invites)
 
-            val viewModel = AdminViewModel(
-                instanceRepository = instanceRepo,
-                loadUsersUseCase = loadUsersUseCase,
-                loadPendingUsersUseCase = loadPendingUsersUseCase,
-                loadInvitesUseCase = loadInvitesUseCase,
-                deleteUserUseCase = deleteUserUseCase,
-                revokeInviteUseCase = revokeInviteUseCase,
-                approveUserUseCase = approveUserUseCase,
-                denyUserUseCase = denyUserUseCase,
-                setOpenRegistrationUseCase = setOpenRegistrationUseCase,
-                eventStreamRepository = createMockEventStreamRepository(),
-            )
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
 
             assertEquals(1, viewModel.state.value.pendingInvites.size)
-            assertEquals("pending", viewModel.state.value.pendingInvites[0].id)
+            assertEquals(
+                "pending",
+                viewModel.state.value.pendingInvites[0]
+                    .id,
+            )
         }
 
     @Test
@@ -236,22 +244,26 @@ class AdminViewModelTest {
             everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
             everySuspend { loadInvitesUseCase() } returns Success(emptyList())
 
-            val viewModel = AdminViewModel(
-                instanceRepository = instanceRepo,
-                loadUsersUseCase = loadUsersUseCase,
-                loadPendingUsersUseCase = loadPendingUsersUseCase,
-                loadInvitesUseCase = loadInvitesUseCase,
-                deleteUserUseCase = deleteUserUseCase,
-                revokeInviteUseCase = revokeInviteUseCase,
-                approveUserUseCase = approveUserUseCase,
-                denyUserUseCase = denyUserUseCase,
-                setOpenRegistrationUseCase = setOpenRegistrationUseCase,
-                eventStreamRepository = createMockEventStreamRepository(),
-            )
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
-            assertTrue(viewModel.state.value.error?.contains("users") == true)
+            assertTrue(
+                viewModel.state.value.error
+                    ?.contains("users") == true,
+            )
         }
 
     @Test
@@ -273,18 +285,19 @@ class AdminViewModelTest {
             everySuspend { loadInvitesUseCase() } returns Success(emptyList())
             everySuspend { deleteUserUseCase("user-1") } returns Success(Unit)
 
-            val viewModel = AdminViewModel(
-                instanceRepository = instanceRepo,
-                loadUsersUseCase = loadUsersUseCase,
-                loadPendingUsersUseCase = loadPendingUsersUseCase,
-                loadInvitesUseCase = loadInvitesUseCase,
-                deleteUserUseCase = deleteUserUseCase,
-                revokeInviteUseCase = revokeInviteUseCase,
-                approveUserUseCase = approveUserUseCase,
-                denyUserUseCase = denyUserUseCase,
-                setOpenRegistrationUseCase = setOpenRegistrationUseCase,
-                eventStreamRepository = createMockEventStreamRepository(),
-            )
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
             assertEquals(2, viewModel.state.value.users.size)
 
@@ -292,7 +305,11 @@ class AdminViewModelTest {
             advanceUntilIdle()
 
             assertEquals(1, viewModel.state.value.users.size)
-            assertEquals("user-2", viewModel.state.value.users[0].id)
+            assertEquals(
+                "user-2",
+                viewModel.state.value.users[0]
+                    .id,
+            )
         }
 
     @Test
@@ -314,25 +331,30 @@ class AdminViewModelTest {
             everySuspend { loadInvitesUseCase() } returns Success(invites)
             everySuspend { revokeInviteUseCase("invite-1") } returns Success(Unit)
 
-            val viewModel = AdminViewModel(
-                instanceRepository = instanceRepo,
-                loadUsersUseCase = loadUsersUseCase,
-                loadPendingUsersUseCase = loadPendingUsersUseCase,
-                loadInvitesUseCase = loadInvitesUseCase,
-                deleteUserUseCase = deleteUserUseCase,
-                revokeInviteUseCase = revokeInviteUseCase,
-                approveUserUseCase = approveUserUseCase,
-                denyUserUseCase = denyUserUseCase,
-                setOpenRegistrationUseCase = setOpenRegistrationUseCase,
-                eventStreamRepository = createMockEventStreamRepository(),
-            )
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
 
             viewModel.revokeInvite("invite-1")
             advanceUntilIdle()
 
             assertEquals(1, viewModel.state.value.pendingInvites.size)
-            assertEquals("invite-2", viewModel.state.value.pendingInvites[0].id)
+            assertEquals(
+                "invite-2",
+                viewModel.state.value.pendingInvites[0]
+                    .id,
+            )
         }
 
     @Test
@@ -352,18 +374,19 @@ class AdminViewModelTest {
             everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
             everySuspend { loadInvitesUseCase() } returns Success(emptyList())
 
-            val viewModel = AdminViewModel(
-                instanceRepository = instanceRepo,
-                loadUsersUseCase = loadUsersUseCase,
-                loadPendingUsersUseCase = loadPendingUsersUseCase,
-                loadInvitesUseCase = loadInvitesUseCase,
-                deleteUserUseCase = deleteUserUseCase,
-                revokeInviteUseCase = revokeInviteUseCase,
-                approveUserUseCase = approveUserUseCase,
-                denyUserUseCase = denyUserUseCase,
-                setOpenRegistrationUseCase = setOpenRegistrationUseCase,
-                eventStreamRepository = createMockEventStreamRepository(),
-            )
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
             assertTrue(viewModel.state.value.error != null)
 

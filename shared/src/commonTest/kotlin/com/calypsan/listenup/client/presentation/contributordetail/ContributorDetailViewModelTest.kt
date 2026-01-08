@@ -4,10 +4,11 @@ import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.ContributorRole
+import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.model.RoleWithBookCount
 import com.calypsan.listenup.client.domain.repository.BookWithContributorRole
 import com.calypsan.listenup.client.domain.repository.ContributorRepository
-import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.usecase.contributor.DeleteContributorUseCase
 import dev.mokkery.answering.returns
@@ -87,7 +88,9 @@ class ContributorDetailViewModelTest {
         description: String? = "A prolific author",
     ): Contributor =
         Contributor(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .ContributorId(id),
             name = name,
             description = description,
             imagePath = null,
@@ -190,7 +193,7 @@ class ContributorDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val contributor = createContributor(name = "Stephen King", description = "Master of horror")
-            val roles = listOf(RoleWithBookCount(role = "author", bookCount = 5))
+            val roles = listOf(RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 5))
 
             val viewModel = fixture.build()
 
@@ -214,11 +217,11 @@ class ContributorDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val contributor = createContributor()
-            val authorRole = RoleWithBookCount(role = "author", bookCount = 2)
+            val authorRole = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 2)
             val book = createBook(id = "book-1", title = "The Shining")
             val bookWithContributors = createBookWithContributorRole(book)
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
                 flowOf(
                     listOf(bookWithContributors),
                 )
@@ -233,7 +236,7 @@ class ContributorDetailViewModelTest {
             // Then
             val state = viewModel.state.value
             assertEquals(1, state.roleSections.size)
-            assertEquals("author", state.roleSections[0].role)
+            assertEquals(ContributorRole.AUTHOR.apiValue, state.roleSections[0].role)
             assertEquals(1, state.roleSections[0].previewBooks.size)
             assertEquals("The Shining", state.roleSections[0].previewBooks[0].title)
         }
@@ -244,17 +247,17 @@ class ContributorDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val contributor = createContributor()
-            val authorRole = RoleWithBookCount(role = "author", bookCount = 3)
-            val narratorRole = RoleWithBookCount(role = "narrator", bookCount = 2)
+            val authorRole = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 3)
+            val narratorRole = RoleWithBookCount(role = ContributorRole.NARRATOR.apiValue, bookCount = 2)
 
             val book1 = createBook(id = "book-1", title = "Author Book")
             val book2 = createBook(id = "book-2", title = "Narrator Book")
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
                 flowOf(
                     listOf(createBookWithContributorRole(book1)),
                 )
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "narrator") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.NARRATOR.apiValue) } returns
                 flowOf(
                     listOf(createBookWithContributorRole(book2)),
                 )
@@ -269,30 +272,30 @@ class ContributorDetailViewModelTest {
             // Then
             val state = viewModel.state.value
             assertEquals(2, state.roleSections.size)
-            assertEquals("author", state.roleSections[0].role)
-            assertEquals("narrator", state.roleSections[1].role)
+            assertEquals(ContributorRole.AUTHOR.apiValue, state.roleSections[0].role)
+            assertEquals(ContributorRole.NARRATOR.apiValue, state.roleSections[1].role)
         }
 
     // ========== Role Display Name Tests ==========
 
     @Test
     fun `roleToDisplayName converts author to Written By`() {
-        assertEquals("Written By", ContributorDetailViewModel.roleToDisplayName("author"))
+        assertEquals("Written By", ContributorDetailViewModel.roleToDisplayName(ContributorRole.AUTHOR.apiValue))
     }
 
     @Test
     fun `roleToDisplayName converts narrator to Narrated By`() {
-        assertEquals("Narrated By", ContributorDetailViewModel.roleToDisplayName("narrator"))
+        assertEquals("Narrated By", ContributorDetailViewModel.roleToDisplayName(ContributorRole.NARRATOR.apiValue))
     }
 
     @Test
     fun `roleToDisplayName converts translator to Translated By`() {
-        assertEquals("Translated By", ContributorDetailViewModel.roleToDisplayName("translator"))
+        assertEquals("Translated By", ContributorDetailViewModel.roleToDisplayName(ContributorRole.TRANSLATOR.apiValue))
     }
 
     @Test
     fun `roleToDisplayName converts editor to Edited By`() {
-        assertEquals("Edited By", ContributorDetailViewModel.roleToDisplayName("editor"))
+        assertEquals("Edited By", ContributorDetailViewModel.roleToDisplayName(ContributorRole.EDITOR.apiValue))
     }
 
     @Test
@@ -313,10 +316,10 @@ class ContributorDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val contributor = createContributor()
-            val role = RoleWithBookCount(role = "author", bookCount = 1)
+            val role = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 1)
             val book = createBook(id = "book-1", duration = 10_000L)
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
                 flowOf(
                     listOf(createBookWithContributorRole(book)),
                 )
@@ -344,10 +347,10 @@ class ContributorDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val contributor = createContributor()
-            val role = RoleWithBookCount(role = "author", bookCount = 1)
+            val role = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 1)
             val book = createBook(id = "book-1", duration = 10_000L)
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
                 flowOf(
                     listOf(createBookWithContributorRole(book)),
                 )
@@ -376,10 +379,10 @@ class ContributorDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val contributor = createContributor()
-            val role = RoleWithBookCount(role = "author", bookCount = 1)
+            val role = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 1)
             val book = createBook(id = "book-1", duration = 10_000L)
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
                 flowOf(
                     listOf(createBookWithContributorRole(book)),
                 )
@@ -403,7 +406,7 @@ class ContributorDetailViewModelTest {
     fun `RoleSection showViewAll is true when bookCount exceeds threshold`() {
         val section =
             RoleSection(
-                role = "author",
+                role = ContributorRole.AUTHOR.apiValue,
                 displayName = "Written By",
                 bookCount = ContributorDetailViewModel.VIEW_ALL_THRESHOLD + 1,
                 previewBooks = emptyList(),
@@ -416,7 +419,7 @@ class ContributorDetailViewModelTest {
     fun `RoleSection showViewAll is false when bookCount at threshold`() {
         val section =
             RoleSection(
-                role = "author",
+                role = ContributorRole.AUTHOR.apiValue,
                 displayName = "Written By",
                 bookCount = ContributorDetailViewModel.VIEW_ALL_THRESHOLD,
                 previewBooks = emptyList(),
@@ -429,7 +432,7 @@ class ContributorDetailViewModelTest {
     fun `RoleSection showViewAll is false when bookCount below threshold`() {
         val section =
             RoleSection(
-                role = "author",
+                role = ContributorRole.AUTHOR.apiValue,
                 displayName = "Written By",
                 bookCount = 3,
                 previewBooks = emptyList(),
@@ -446,10 +449,10 @@ class ContributorDetailViewModelTest {
             // Given - coverPath is now resolved in repository, ViewModel just passes it through
             val fixture = createFixture()
             val contributor = createContributor()
-            val role = RoleWithBookCount(role = "author", bookCount = 1)
+            val role = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 1)
             val book = createBook(id = "book-1", coverPath = "/path/to/cover.jpg")
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
                 flowOf(
                     listOf(createBookWithContributorRole(book)),
                 )
@@ -472,10 +475,10 @@ class ContributorDetailViewModelTest {
             // Given
             val fixture = createFixture()
             val contributor = createContributor()
-            val role = RoleWithBookCount(role = "author", bookCount = 1)
+            val role = RoleWithBookCount(role = ContributorRole.AUTHOR.apiValue, bookCount = 1)
             val book = createBook(id = "book-1", coverPath = null)
 
-            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", "author") } returns
+            every { fixture.contributorRepository.observeBooksForContributorRole("contributor-1", ContributorRole.AUTHOR.apiValue) } returns
                 flowOf(
                     listOf(createBookWithContributorRole(book)),
                 )

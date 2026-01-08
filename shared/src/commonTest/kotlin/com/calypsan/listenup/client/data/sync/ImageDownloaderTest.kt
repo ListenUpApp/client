@@ -1,14 +1,14 @@
 package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.checkIs
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
 import com.calypsan.listenup.client.data.local.images.ExtractedColors
-import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.remote.ImageApiContract
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend

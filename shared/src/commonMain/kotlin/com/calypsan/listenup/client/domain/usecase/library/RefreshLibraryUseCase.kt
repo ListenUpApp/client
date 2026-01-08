@@ -124,19 +124,25 @@ open class RefreshLibraryUseCase(
     private fun mapErrorMessage(failure: Failure): String {
         val exceptionMessage = failure.exception?.message
         return when {
-            exceptionMessage?.contains("network", ignoreCase = true) == true ->
+            exceptionMessage?.contains("network", ignoreCase = true) == true -> {
                 "Unable to connect to server. Check your network connection."
+            }
 
-            exceptionMessage?.contains("unauthorized", ignoreCase = true) == true ->
+            exceptionMessage?.contains("unauthorized", ignoreCase = true) == true -> {
                 "Session expired. Please log in again."
+            }
 
-            exceptionMessage?.contains("timeout", ignoreCase = true) == true ->
+            exceptionMessage?.contains("timeout", ignoreCase = true) == true -> {
                 "Server is not responding. Please try again later."
+            }
 
-            exceptionMessage?.contains("mismatch", ignoreCase = true) == true ->
+            exceptionMessage?.contains("mismatch", ignoreCase = true) == true -> {
                 "Server library has changed. Local data needs to be reset."
+            }
 
-            else -> failure.message
+            else -> {
+                failure.message
+            }
         }
     }
 }

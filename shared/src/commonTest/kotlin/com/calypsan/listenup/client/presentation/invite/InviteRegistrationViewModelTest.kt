@@ -50,16 +50,19 @@ class InviteRegistrationViewModelTest {
             refreshToken = RefreshToken("refresh-token"),
             sessionId = "session-id",
             userId = "user-id",
-            user = User(
-                id = "user-id",
-                email = "invited@example.com",
-                displayName = "Invited User",
-                firstName = "Invited",
-                lastName = "User",
-                isAdmin = false,
-                createdAtMs = 0L,
-                updatedAtMs = 0L,
-            ),
+            user =
+                User(
+                    id =
+                        com.calypsan.listenup.client.core
+                            .UserId("user-id"),
+                    email = "invited@example.com",
+                    displayName = "Invited User",
+                    firstName = "Invited",
+                    lastName = "User",
+                    isAdmin = false,
+                    createdAtMs = 0L,
+                    updatedAtMs = 0L,
+                ),
         )
 
     @BeforeTest

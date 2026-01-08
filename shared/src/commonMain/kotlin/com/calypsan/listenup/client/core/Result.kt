@@ -73,12 +73,13 @@ fun Failure(exception: Exception): Failure =
     Failure(exception = exception, message = exception.message ?: "Unknown error")
 
 /** Create a validation error failure */
-fun validationError(message: String): Failure =
-    Failure(message = message, errorCode = ErrorCode.VALIDATION_ERROR)
+fun validationError(message: String): Failure = Failure(message = message, errorCode = ErrorCode.VALIDATION_ERROR)
 
 /** Create a network unavailable failure */
-fun networkError(message: String = "Network unavailable", exception: Exception? = null): Failure =
-    Failure(exception = exception, message = message, errorCode = ErrorCode.NETWORK_UNAVAILABLE)
+fun networkError(
+    message: String = "Network unavailable",
+    exception: Exception? = null,
+): Failure = Failure(exception = exception, message = message, errorCode = ErrorCode.NETWORK_UNAVAILABLE)
 
 /** Create an unauthorized failure */
 fun unauthorizedError(message: String = "Session expired"): Failure =
@@ -89,15 +90,16 @@ fun notFoundError(message: String = "Resource not found"): Failure =
     Failure(message = message, errorCode = ErrorCode.NOT_FOUND)
 
 /** Create a server error failure */
-fun serverError(message: String, exception: Exception? = null): Failure =
-    Failure(exception = exception, message = message, errorCode = ErrorCode.SERVER_ERROR)
+fun serverError(
+    message: String,
+    exception: Exception? = null,
+): Failure = Failure(exception = exception, message = message, errorCode = ErrorCode.SERVER_ERROR)
 
 /**
  * Get the exception from a Failure, creating one from the message if not present.
  * Useful for throw statements: `throw failure.exceptionOrFromMessage()`
  */
-fun Failure.exceptionOrFromMessage(): Exception =
-    exception ?: IllegalStateException(message)
+fun Failure.exceptionOrFromMessage(): Exception = exception ?: IllegalStateException(message)
 
 /**
  * Returns true if this result is Success.

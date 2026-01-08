@@ -8,12 +8,12 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.BookEditData
-import com.calypsan.listenup.client.domain.repository.ContributorRepository
-import com.calypsan.listenup.client.domain.repository.ImageRepository
-import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.domain.model.BookMetadata
 import com.calypsan.listenup.client.domain.model.BookUpdateRequest
 import com.calypsan.listenup.client.domain.model.PendingCover
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import com.calypsan.listenup.client.domain.usecase.book.LoadBookForEditUseCase
 import com.calypsan.listenup.client.domain.usecase.book.UpdateBookUseCase
 import com.calypsan.listenup.client.presentation.bookedit.delegates.ContributorEditDelegate
@@ -110,9 +110,10 @@ class BookEditViewModel(
                     originalState = editData
 
                     // Determine visible roles from existing contributors
-                    val rolesFromContributors = editData.contributors
-                        .flatMap { it.roles }
-                        .toSet()
+                    val rolesFromContributors =
+                        editData.contributors
+                            .flatMap { it.roles }
+                            .toSet()
 
                     // Always show Author section, plus any roles that have contributors
                     val initialVisibleRoles = rolesFromContributors + ContributorRole.AUTHOR
@@ -353,12 +354,13 @@ class BookEditViewModel(
         val current = _state.value
 
         val currentMetadata = current.toMetadata()
-        val hasChanges = currentMetadata != original.metadata ||
-            current.contributors != original.contributors ||
-            current.series != original.series ||
-            current.genres != original.genres ||
-            current.tags != original.tags ||
-            current.pendingCoverData != null
+        val hasChanges =
+            currentMetadata != original.metadata ||
+                current.contributors != original.contributors ||
+                current.series != original.series ||
+                current.genres != original.genres ||
+                current.tags != original.tags ||
+                current.pendingCoverData != null
 
         _state.update { it.copy(hasChanges = hasChanges) }
     }
@@ -411,36 +413,39 @@ class BookEditViewModel(
     /**
      * Build [BookMetadata] from current UI state.
      */
-    private fun BookEditUiState.toMetadata(): BookMetadata = BookMetadata(
-        title = title,
-        subtitle = subtitle,
-        description = description,
-        publishYear = publishYear,
-        publisher = publisher,
-        language = language,
-        isbn = isbn,
-        asin = asin,
-        abridged = abridged,
-        addedAt = addedAt,
-    )
+    private fun BookEditUiState.toMetadata(): BookMetadata =
+        BookMetadata(
+            title = title,
+            subtitle = subtitle,
+            description = description,
+            publishYear = publishYear,
+            publisher = publisher,
+            language = language,
+            isbn = isbn,
+            asin = asin,
+            abridged = abridged,
+            addedAt = addedAt,
+        )
 
     /**
      * Build [BookUpdateRequest] from current UI state.
      */
-    private fun BookEditUiState.toUpdateRequest(): BookUpdateRequest = BookUpdateRequest(
-        bookId = bookId,
-        metadata = toMetadata(),
-        contributors = contributors,
-        series = series,
-        genres = genres,
-        tags = tags,
-        pendingCover = if (pendingCoverData != null && pendingCoverFilename != null) {
-            PendingCover(
-                data = pendingCoverData,
-                filename = pendingCoverFilename,
-            )
-        } else {
-            null
-        },
-    )
+    private fun BookEditUiState.toUpdateRequest(): BookUpdateRequest =
+        BookUpdateRequest(
+            bookId = bookId,
+            metadata = toMetadata(),
+            contributors = contributors,
+            series = series,
+            genres = genres,
+            tags = tags,
+            pendingCover =
+                if (pendingCoverData != null && pendingCoverFilename != null) {
+                    PendingCover(
+                        data = pendingCoverData,
+                        filename = pendingCoverFilename,
+                    )
+                } else {
+                    null
+                },
+        )
 }

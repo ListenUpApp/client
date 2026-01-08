@@ -4,14 +4,14 @@ import com.calypsan.listenup.client.TestData
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.BookEditData
-import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.model.BookMetadata
 import com.calypsan.listenup.client.domain.model.ContributorSearchResponse
 import com.calypsan.listenup.client.domain.model.ContributorSearchResult
 import com.calypsan.listenup.client.domain.model.SeriesSearchResponse
 import com.calypsan.listenup.client.domain.model.SeriesSearchResult
 import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
-import com.calypsan.listenup.client.domain.model.BookMetadata
 import com.calypsan.listenup.client.domain.usecase.book.LoadBookForEditUseCase
 import com.calypsan.listenup.client.domain.usecase.book.UpdateBookUseCase
 import dev.mokkery.answering.returns
@@ -102,28 +102,30 @@ class BookEditViewModelTest {
         allGenres: List<EditableGenre> = emptyList(),
         allTags: List<EditableTag> = emptyList(),
         coverPath: String? = null,
-    ): BookEditData = BookEditData(
-        bookId = bookId,
-        metadata = BookMetadata(
-            title = title,
-            subtitle = subtitle,
-            description = description,
-            publishYear = publishYear,
-            publisher = publisher,
-            language = language,
-            isbn = isbn,
-            asin = asin,
-            abridged = abridged,
-            addedAt = addedAt,
-        ),
-        contributors = contributors,
-        series = series,
-        genres = genres,
-        tags = tags,
-        allGenres = allGenres,
-        allTags = allTags,
-        coverPath = coverPath,
-    )
+    ): BookEditData =
+        BookEditData(
+            bookId = bookId,
+            metadata =
+                BookMetadata(
+                    title = title,
+                    subtitle = subtitle,
+                    description = description,
+                    publishYear = publishYear,
+                    publisher = publisher,
+                    language = language,
+                    isbn = isbn,
+                    asin = asin,
+                    abridged = abridged,
+                    addedAt = addedAt,
+                ),
+            contributors = contributors,
+            series = series,
+            genres = genres,
+            tags = tags,
+            allGenres = allGenres,
+            allTags = allTags,
+            coverPath = coverPath,
+        )
 
     @BeforeTest
     fun setup() {
@@ -159,16 +161,17 @@ class BookEditViewModelTest {
             val fixture = createFixture()
             val author = EditableContributor(id = "author-1", name = "Brandon Sanderson", roles = setOf(ContributorRole.AUTHOR))
             val narrator = EditableContributor(id = "narrator-1", name = "Michael Kramer", roles = setOf(ContributorRole.NARRATOR))
-            val editData = createBookEditData(
-                bookId = "book-1",
-                title = "The Way of Kings",
-                subtitle = "Book One of the Stormlight Archive",
-                description = "An epic fantasy adventure",
-                publishYear = "2010",
-                publisher = "Tor Books",
-                language = "en",
-                contributors = listOf(author, narrator),
-            )
+            val editData =
+                createBookEditData(
+                    bookId = "book-1",
+                    title = "The Way of Kings",
+                    subtitle = "Book One of the Stormlight Archive",
+                    description = "An epic fantasy adventure",
+                    publishYear = "2010",
+                    publisher = "Tor Books",
+                    language = "en",
+                    contributors = listOf(author, narrator),
+                )
             everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
 
@@ -212,16 +215,18 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val contributor = EditableContributor(
-                id = "person-1",
-                name = "Patrick Rothfuss",
-                roles = setOf(ContributorRole.AUTHOR, ContributorRole.NARRATOR),
-            )
-            val editData = createBookEditData(
-                bookId = "book-1",
-                title = "The Name of the Wind",
-                contributors = listOf(contributor),
-            )
+            val contributor =
+                EditableContributor(
+                    id = "person-1",
+                    name = "Patrick Rothfuss",
+                    roles = setOf(ContributorRole.AUTHOR, ContributorRole.NARRATOR),
+                )
+            val editData =
+                createBookEditData(
+                    bookId = "book-1",
+                    title = "The Name of the Wind",
+                    contributors = listOf(contributor),
+                )
             everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
 
@@ -378,7 +383,9 @@ class BookEditViewModelTest {
             assertEquals(1, viewModel.state.value.authors.size)
 
             // When
-            val editable = viewModel.state.value.contributors.first()
+            val editable =
+                viewModel.state.value.contributors
+                    .first()
             viewModel.onEvent(BookEditUiEvent.RemoveContributor(editable, ContributorRole.AUTHOR))
 
             // Then
@@ -405,7 +412,12 @@ class BookEditViewModelTest {
 
             // Then
             assertEquals(1, viewModel.state.value.series.size)
-            assertEquals("The Stormlight Archive", viewModel.state.value.series.first().name)
+            assertEquals(
+                "The Stormlight Archive",
+                viewModel.state.value.series
+                    .first()
+                    .name,
+            )
             assertTrue(viewModel.state.value.hasChanges)
         }
 
@@ -425,8 +437,17 @@ class BookEditViewModelTest {
 
             // Then
             assertEquals(1, viewModel.state.value.series.size)
-            assertEquals("New Fantasy Series", viewModel.state.value.series.first().name)
-            assertNull(viewModel.state.value.series.first().id) // New series has no ID
+            assertEquals(
+                "New Fantasy Series",
+                viewModel.state.value.series
+                    .first()
+                    .name,
+            )
+            assertNull(
+                viewModel.state.value.series
+                    .first()
+                    .id,
+            ) // New series has no ID
         }
 
     @Test
@@ -442,11 +463,18 @@ class BookEditViewModelTest {
             advanceUntilIdle()
 
             // When
-            val loadedSeries = viewModel.state.value.series.first()
+            val loadedSeries =
+                viewModel.state.value.series
+                    .first()
             viewModel.onEvent(BookEditUiEvent.SeriesSequenceChanged(loadedSeries, "1"))
 
             // Then
-            assertEquals("1", viewModel.state.value.series.first().sequence)
+            assertEquals(
+                "1",
+                viewModel.state.value.series
+                    .first()
+                    .sequence,
+            )
             assertTrue(viewModel.state.value.hasChanges)
         }
 
@@ -469,7 +497,12 @@ class BookEditViewModelTest {
 
             // Then
             assertEquals(1, viewModel.state.value.genres.size)
-            assertEquals("Fantasy", viewModel.state.value.genres.first().name)
+            assertEquals(
+                "Fantasy",
+                viewModel.state.value.genres
+                    .first()
+                    .name,
+            )
             assertTrue(viewModel.state.value.hasChanges)
         }
 
@@ -487,7 +520,9 @@ class BookEditViewModelTest {
             assertEquals(1, viewModel.state.value.genres.size)
 
             // When
-            val editableGenre = viewModel.state.value.genres.first()
+            val editableGenre =
+                viewModel.state.value.genres
+                    .first()
             viewModel.onEvent(BookEditUiEvent.RemoveGenre(editableGenre))
 
             // Then
@@ -514,7 +549,12 @@ class BookEditViewModelTest {
 
             // Then
             assertEquals(1, viewModel.state.value.tags.size)
-            assertEquals("Favorites", viewModel.state.value.tags.first().displayName())
+            assertEquals(
+                "Favorites",
+                viewModel.state.value.tags
+                    .first()
+                    .displayName(),
+            )
             assertTrue(viewModel.state.value.hasChanges)
         }
 
@@ -532,7 +572,9 @@ class BookEditViewModelTest {
             assertEquals(1, viewModel.state.value.tags.size)
 
             // When
-            val editableTag = viewModel.state.value.tags.first()
+            val editableTag =
+                viewModel.state.value.tags
+                    .first()
             viewModel.onEvent(BookEditUiEvent.RemoveTag(editableTag))
 
             // Then

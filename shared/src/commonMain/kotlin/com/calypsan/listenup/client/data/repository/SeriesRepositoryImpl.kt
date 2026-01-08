@@ -9,7 +9,6 @@ import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.toDomain
-import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.repository.common.QueryUtils
 import com.calypsan.listenup.client.domain.model.Book
@@ -17,6 +16,7 @@ import com.calypsan.listenup.client.domain.model.Series
 import com.calypsan.listenup.client.domain.model.SeriesSearchResponse
 import com.calypsan.listenup.client.domain.model.SeriesSearchResult
 import com.calypsan.listenup.client.domain.model.SeriesWithBooks
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -63,16 +63,14 @@ class SeriesRepositoryImpl(
             entity?.toDomain()
         }
 
-    override suspend fun getById(id: String): Series? =
-        seriesDao.getById(id)?.toDomain()
+    override suspend fun getById(id: String): Series? = seriesDao.getById(id)?.toDomain()
 
     override fun observeByBookId(bookId: String): Flow<Series?> =
         seriesDao.observeByBookId(bookId).map { entity ->
             entity?.toDomain()
         }
 
-    override suspend fun getBookIdsForSeries(seriesId: String): List<String> =
-        seriesDao.getBookIdsForSeries(seriesId)
+    override suspend fun getBookIdsForSeries(seriesId: String): List<String> = seriesDao.getBookIdsForSeries(seriesId)
 
     override fun observeBookIdsForSeries(seriesId: String): Flow<List<String>> =
         seriesDao.observeBookIdsForSeries(seriesId)
@@ -82,14 +80,16 @@ class SeriesRepositoryImpl(
     override fun observeAllWithBooks(): Flow<List<SeriesWithBooks>> =
         seriesDao.observeAllWithBooks().map { entities ->
             entities.map { entity ->
-                val books = entity.books.map { bookEntity ->
-                    // Use bookDao to get full BookWithContributors if needed
-                    // For library view, basic book info is sufficient
-                    bookEntity.toDomain(imageStorage)
-                }
-                val sequences = entity.bookSequences.associate {
-                    it.bookId.value to it.sequence
-                }
+                val books =
+                    entity.books.map { bookEntity ->
+                        // Use bookDao to get full BookWithContributors if needed
+                        // For library view, basic book info is sufficient
+                        bookEntity.toDomain(imageStorage)
+                    }
+                val sequences =
+                    entity.bookSequences.associate {
+                        it.bookId.value to it.sequence
+                    }
                 SeriesWithBooks(
                     series = entity.series.toDomain(),
                     books = books,
@@ -103,12 +103,14 @@ class SeriesRepositoryImpl(
     override fun observeSeriesWithBooks(seriesId: String): Flow<SeriesWithBooks?> =
         seriesDao.observeByIdWithBooks(seriesId).map { entity ->
             entity?.let {
-                val books = it.books.map { bookEntity ->
-                    bookEntity.toDomain(imageStorage)
-                }
-                val sequences = it.bookSequences.associate { seq ->
-                    seq.bookId.value to seq.sequence
-                }
+                val books =
+                    it.books.map { bookEntity ->
+                        bookEntity.toDomain(imageStorage)
+                    }
+                val sequences =
+                    it.bookSequences.associate { seq ->
+                        seq.bookId.value to seq.sequence
+                    }
                 SeriesWithBooks(
                     series = it.series.toDomain(),
                     books = books,
@@ -211,7 +213,7 @@ private fun SeriesEntity.toDomain(): Series =
 
 private fun SeriesEntity.toSearchResult(): SeriesSearchResult =
     SeriesSearchResult(
-        id = id,
+        id = id.value,
         name = name,
         bookCount = 0, // Not available in offline mode
     )
@@ -227,9 +229,7 @@ private fun com.calypsan.listenup.client.data.remote.SeriesSearchResult.toDomain
  * Convert BookEntity to domain Book model for series listing.
  * Simplified version without full contributor details.
  */
-private fun com.calypsan.listenup.client.data.local.db.BookEntity.toDomain(
-    imageStorage: ImageStorage,
-): Book {
+private fun com.calypsan.listenup.client.data.local.db.BookEntity.toDomain(imageStorage: ImageStorage): Book {
     val coverPath = if (imageStorage.exists(id)) imageStorage.getCoverPath(id) else null
     return Book(
         id = id,

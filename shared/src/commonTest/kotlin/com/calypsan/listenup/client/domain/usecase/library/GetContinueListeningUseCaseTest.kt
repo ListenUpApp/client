@@ -134,10 +134,11 @@ class GetContinueListeningUseCaseTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val expectedBooks = listOf(
-                createContinueListeningBook(bookId = "book-1"),
-                createContinueListeningBook(bookId = "book-2"),
-            )
+            val expectedBooks =
+                listOf(
+                    createContinueListeningBook(bookId = "book-1"),
+                    createContinueListeningBook(bookId = "book-2"),
+                )
             everySuspend { fixture.homeRepository.getContinueListening(any()) } returns
                 Success(expectedBooks)
             val useCase = fixture.build()
@@ -240,10 +241,11 @@ class GetContinueListeningUseCaseTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val expectedBooks = listOf(
-                createContinueListeningBook(bookId = "book-1"),
-                createContinueListeningBook(bookId = "book-2"),
-            )
+            val expectedBooks =
+                listOf(
+                    createContinueListeningBook(bookId = "book-1"),
+                    createContinueListeningBook(bookId = "book-2"),
+                )
             every { fixture.homeRepository.observeContinueListening(any()) } returns
                 flowOf(expectedBooks)
             val useCase = fixture.build()

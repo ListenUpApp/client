@@ -6,9 +6,9 @@ import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.MetadataApiContract
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import dev.mokkery.MockMode
 import dev.mokkery.answering.returns
@@ -69,7 +69,9 @@ class ContributorRepositoryImplTest {
         updatedAt: Long = 1000L,
     ): ContributorEntity =
         ContributorEntity(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .ContributorId(id),
             name = name,
             description = description,
             imagePath = imagePath,
@@ -128,10 +130,10 @@ class ContributorRepositoryImplTest {
 
             // Then
             assertEquals(2, result.size)
-            assertEquals("contrib-1", result[0].id)
+            assertEquals("contrib-1", result[0].id.value)
             assertEquals("Brandon Sanderson", result[0].name)
             assertEquals("Fantasy author", result[0].description)
-            assertEquals("contrib-2", result[1].id)
+            assertEquals("contrib-2", result[1].id.value)
             assertEquals("Michael Kramer", result[1].name)
             assertEquals("Audiobook narrator", result[1].description)
         }
@@ -211,7 +213,7 @@ class ContributorRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("contrib-1", result.id)
+            assertEquals("contrib-1", result.id.value)
             assertEquals("Stephen King", result.name)
             assertEquals("Horror author", result.description)
             assertEquals("https://stephenking.com", result.website)
@@ -242,7 +244,7 @@ class ContributorRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("contrib-42", result.id)
+            assertEquals("contrib-42", result.id.value)
             assertEquals("Test Author", result.name)
             assertEquals("Test description", result.description)
             assertEquals("/images/author.jpg", result.imagePath)
@@ -304,7 +306,7 @@ class ContributorRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("contrib-1", result.id)
+            assertEquals("contrib-1", result.id.value)
             assertEquals("Neil Gaiman", result.name)
             assertEquals("Fantasy/Horror author", result.description)
         }
@@ -334,7 +336,7 @@ class ContributorRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("complete-contrib", result.id)
+            assertEquals("complete-contrib", result.id.value)
             assertEquals("Complete Author", result.name)
             assertEquals("Full biography here", result.description)
             assertEquals("/path/to/image.jpg", result.imagePath)
@@ -422,7 +424,7 @@ class ContributorRepositoryImplTest {
 
             // Then
             assertEquals(1, result.size)
-            assertEquals("contrib-1", result[0].id)
+            assertEquals("contrib-1", result[0].id.value)
             assertEquals("Kate Reading", result[0].name)
             assertEquals("Narrator", result[0].description)
             assertEquals(listOf("Katherine Reading"), result[0].aliases)
@@ -504,7 +506,7 @@ class ContributorRepositoryImplTest {
 
             // Then
             assertEquals(1, result.size)
-            assertEquals("contrib-5", result[0].id)
+            assertEquals("contrib-5", result[0].id.value)
             assertEquals("Tim Gerard Reynolds", result[0].name)
             assertEquals("Audiobook narrator", result[0].description)
             assertEquals("/images/tgr.jpg", result[0].imagePath)
@@ -653,7 +655,7 @@ class ContributorRepositoryImplTest {
 
             // Then - verify all fields are mapped
             assertNotNull(result)
-            assertEquals("conversion-test", result.id)
+            assertEquals("conversion-test", result.id.value)
             assertEquals("Full Name", result.name)
             assertEquals("Full description", result.description)
             assertEquals("/full/path.jpg", result.imagePath)
@@ -691,7 +693,7 @@ class ContributorRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("minimal-contrib", result.id)
+            assertEquals("minimal-contrib", result.id.value)
             assertEquals("Minimal Author", result.name)
             assertNull(result.description)
             assertNull(result.imagePath)
@@ -854,8 +856,8 @@ class ContributorRepositoryImplTest {
 
             // Then
             assertEquals(100, result.size)
-            assertEquals("contrib-1", result[0].id)
-            assertEquals("contrib-100", result[99].id)
+            assertEquals("contrib-1", result[0].id.value)
+            assertEquals("contrib-100", result[99].id.value)
         }
 
     @Test

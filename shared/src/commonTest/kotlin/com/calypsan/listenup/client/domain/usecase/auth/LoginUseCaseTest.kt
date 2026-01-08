@@ -72,16 +72,19 @@ class LoginUseCaseTest {
             refreshToken = RefreshToken(refreshToken),
             sessionId = sessionId,
             userId = userId,
-            user = User(
-                id = userId,
-                email = email,
-                displayName = "Test User",
-                firstName = "Test",
-                lastName = "User",
-                isAdmin = false,
-                createdAtMs = 1704067200000L,
-                updatedAtMs = 1704067200000L,
-            ),
+            user =
+                User(
+                    id =
+                        com.calypsan.listenup.client.core
+                            .UserId(userId),
+                    email = email,
+                    displayName = "Test User",
+                    firstName = "Test",
+                    lastName = "User",
+                    isAdmin = false,
+                    createdAtMs = 1704067200000L,
+                    updatedAtMs = 1704067200000L,
+                ),
         )
 
     // ========== Email Validation Tests ==========
@@ -261,7 +264,7 @@ class LoginUseCaseTest {
             // Then
             val success = assertIs<Success<*>>(result)
             val user = success.data as User
-            assertEquals("user-1", user.id)
+            assertEquals("user-1", user.id.value)
             assertEquals("test@example.com", user.email)
         }
 

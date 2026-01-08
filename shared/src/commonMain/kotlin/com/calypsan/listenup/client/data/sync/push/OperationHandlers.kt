@@ -1,10 +1,10 @@
 package com.calypsan.listenup.client.data.sync.push
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
-import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -361,7 +361,9 @@ class ListeningEventHandler(
                 }
             }
 
-            is Failure -> result
+            is Failure -> {
+                result
+            }
         }
     }
 
@@ -586,7 +588,9 @@ class ProfileUpdateHandler(
                 Success(Unit)
             }
 
-            is Failure -> result
+            is Failure -> {
+                result
+            }
         }
 }
 
@@ -648,7 +652,9 @@ class ProfileAvatarHandler(
                 Success(Unit)
             }
 
-            is Failure -> result
+            is Failure -> {
+                result
+            }
         }
     }
 }

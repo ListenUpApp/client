@@ -450,14 +450,15 @@ class MetadataViewModel(
                 )
             }
 
-            val result = applyMetadataMatchUseCase(
-                bookId = bookId,
-                asin = asin,
-                region = currentState.selectedRegion.code,
-                selections = currentState.selections.toMatchSelections(),
-                previewBook = previewBook,
-                coverUrl = currentState.selectedCoverUrl,
-            )
+            val result =
+                applyMetadataMatchUseCase(
+                    bookId = bookId,
+                    asin = asin,
+                    region = currentState.selectedRegion.code,
+                    selections = currentState.selections.toMatchSelections(),
+                    previewBook = previewBook,
+                    coverUrl = currentState.selectedCoverUrl,
+                )
 
             when (result) {
                 is Success -> {
@@ -468,6 +469,7 @@ class MetadataViewModel(
                         )
                     }
                 }
+
                 is Failure -> {
                     logger.error { "Failed to apply metadata match: ${result.message}" }
                     state.update {
@@ -523,7 +525,6 @@ class MetadataViewModel(
             selectedSeries = preview.series.mapNotNull { it.asin }.toSet(),
             selectedGenres = preview.genres.toSet(),
         )
-
 }
 
 /**

@@ -2,6 +2,8 @@ package com.calypsan.listenup.client.data.remote.model
 
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.ChapterId
+import com.calypsan.listenup.client.core.ContributorId
+import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
@@ -81,7 +83,7 @@ fun BookContributorResponse.toEntity(
 ): com.calypsan.listenup.client.data.local.db.BookContributorCrossRef =
     com.calypsan.listenup.client.data.local.db.BookContributorCrossRef(
         bookId = bookId,
-        contributorId = contributorId,
+        contributorId = ContributorId(contributorId),
         role = role,
         creditedAs = creditedAs,
     )
@@ -89,7 +91,7 @@ fun BookContributorResponse.toEntity(
 fun BookSeriesInfoResponse.toEntity(bookId: BookId): com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef =
     com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef(
         bookId = bookId,
-        seriesId = seriesId,
+        seriesId = SeriesId(seriesId),
         sequence = sequence,
     )
 

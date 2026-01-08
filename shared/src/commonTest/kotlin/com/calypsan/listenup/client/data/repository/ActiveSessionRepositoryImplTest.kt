@@ -70,8 +70,7 @@ class ActiveSessionRepositoryImplTest {
     private fun createRepository(
         dao: ActiveSessionDao,
         imageStorage: ImageStorage = createMockImageStorage(),
-    ): ActiveSessionRepositoryImpl =
-        ActiveSessionRepositoryImpl(dao, imageStorage)
+    ): ActiveSessionRepositoryImpl = ActiveSessionRepositoryImpl(dao, imageStorage)
 
     // ========== observeActiveSessions Tests ==========
 

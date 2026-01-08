@@ -21,11 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
-import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
@@ -244,7 +244,7 @@ fun AppShell(
             onAdminClick = onAdminClick,
             onSettingsClick = onSettingsClick,
             onSignOutClick = onSignOut,
-            onMyProfileClick = { user?.id?.let(onUserProfileClick) },
+            onMyProfileClick = { user?.id?.value?.let(onUserProfileClick) },
             onSyncIndicatorClick = { syncIndicatorViewModel.toggleExpanded() },
             scrollBehavior = scrollBehavior,
             showAvatar = showAvatarInTopBar,
@@ -357,7 +357,7 @@ fun AppShell(
                     onAdminClick = onAdminClick,
                     onSettingsClick = onSettingsClick,
                     onSignOutClick = onSignOut,
-                    onMyProfileClick = { user?.id?.let(onUserProfileClick) },
+                    onMyProfileClick = { user?.id?.value?.let(onUserProfileClick) },
                 )
                 Scaffold(
                     modifier =
@@ -381,7 +381,7 @@ fun AppShell(
                 onAdminClick = onAdminClick,
                 onSettingsClick = onSettingsClick,
                 onSignOutClick = onSignOut,
-                onMyProfileClick = { user?.id?.let(onUserProfileClick) },
+                onMyProfileClick = { user?.id?.value?.let(onUserProfileClick) },
             ) {
                 Scaffold(
                     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),

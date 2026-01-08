@@ -42,8 +42,7 @@ class LensRepositoryImplTest {
     private fun createRepository(
         dao: LensDao = createMockLensDao(),
         lensApi: LensApiContract = createMockLensApi(),
-    ): LensRepositoryImpl =
-        LensRepositoryImpl(dao, lensApi)
+    ): LensRepositoryImpl = LensRepositoryImpl(dao, lensApi)
 
     // ========== Test Data Factories ==========
 

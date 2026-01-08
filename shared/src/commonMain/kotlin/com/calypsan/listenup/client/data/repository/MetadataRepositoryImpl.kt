@@ -2,11 +2,6 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.data.remote.MetadataApiContract
-import com.calypsan.listenup.client.data.remote.model.ApplyMatchRequest as DataApplyMatchRequest
-import com.calypsan.listenup.client.data.remote.model.CoverOption as DataCoverOption
-import com.calypsan.listenup.client.data.remote.model.MetadataBook as DataMetadataBook
-import com.calypsan.listenup.client.data.remote.model.MetadataSearchResult as DataMetadataSearchResult
-import com.calypsan.listenup.client.data.remote.ApplyContributorMetadataResult as ApiContributorMetadataResult
 import com.calypsan.listenup.client.domain.model.ContributorMetadataCandidate
 import com.calypsan.listenup.client.domain.model.ContributorMetadataResult
 import com.calypsan.listenup.client.domain.model.ContributorWithMetadata
@@ -22,6 +17,11 @@ import com.calypsan.listenup.client.domain.repository.MetadataSeriesEntry
 import com.calypsan.listenup.client.domain.repository.SeriesMatchEntry
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.withContext
+import com.calypsan.listenup.client.data.remote.ApplyContributorMetadataResult as ApiContributorMetadataResult
+import com.calypsan.listenup.client.data.remote.model.ApplyMatchRequest as DataApplyMatchRequest
+import com.calypsan.listenup.client.data.remote.model.CoverOption as DataCoverOption
+import com.calypsan.listenup.client.data.remote.model.MetadataBook as DataMetadataBook
+import com.calypsan.listenup.client.data.remote.model.MetadataSearchResult as DataMetadataSearchResult
 
 private val logger = KotlinLogging.logger {}
 
@@ -98,26 +98,28 @@ class MetadataRepositoryImpl(
         withContext(IODispatcher) {
             try {
                 when (
-                    val result = metadataApi.applyContributorMetadata(
-                        contributorId = contributorId,
-                        asin = asin,
-                        imageUrl = imageUrl,
-                        applyName = applyName,
-                        applyBiography = applyBiography,
-                        applyImage = applyImage,
-                    )
+                    val result =
+                        metadataApi.applyContributorMetadata(
+                            contributorId = contributorId,
+                            asin = asin,
+                            imageUrl = imageUrl,
+                            applyName = applyName,
+                            applyBiography = applyBiography,
+                            applyImage = applyImage,
+                        )
                 ) {
                     is ApiContributorMetadataResult.Success -> {
                         logger.info { "Applied Audible metadata to contributor $contributorId" }
                         val contributor = result.contributor
                         ContributorMetadataResult.Success(
-                            contributor = ContributorWithMetadata(
-                                id = contributor.id,
-                                name = contributor.name,
-                                biography = contributor.biography,
-                                imageUrl = contributor.imageUrl,
-                                imageBlurHash = contributor.imageBlurHash,
-                            ),
+                            contributor =
+                                ContributorWithMetadata(
+                                    id = contributor.id,
+                                    name = contributor.name,
+                                    biography = contributor.biography,
+                                    imageUrl = contributor.imageUrl,
+                                    imageBlurHash = contributor.imageBlurHash,
+                                ),
                         )
                     }
 
@@ -126,14 +128,15 @@ class MetadataRepositoryImpl(
                             "Contributor metadata needs disambiguation: ${result.candidates.size} candidates"
                         }
                         ContributorMetadataResult.NeedsDisambiguation(
-                            options = result.candidates.map { candidate ->
-                                ContributorMetadataCandidate(
-                                    asin = candidate.asin,
-                                    name = candidate.name,
-                                    imageUrl = candidate.imageUrl,
-                                    description = candidate.description,
-                                )
-                            },
+                            options =
+                                result.candidates.map { candidate ->
+                                    ContributorMetadataCandidate(
+                                        asin = candidate.asin,
+                                        name = candidate.name,
+                                        imageUrl = candidate.imageUrl,
+                                        description = candidate.description,
+                                    )
+                                },
                         )
                     }
 
@@ -242,24 +245,26 @@ private fun ApplyMatchRequest.toData(): DataApplyMatchRequest =
     DataApplyMatchRequest(
         asin = asin,
         region = region,
-        fields = com.calypsan.listenup.client.data.remote.model.MatchFields(
-            title = fields.title,
-            subtitle = fields.subtitle,
-            description = fields.description,
-            publisher = fields.publisher,
-            releaseDate = fields.releaseDate,
-            language = fields.language,
-            cover = fields.cover,
-        ),
+        fields =
+            com.calypsan.listenup.client.data.remote.model.MatchFields(
+                title = fields.title,
+                subtitle = fields.subtitle,
+                description = fields.description,
+                publisher = fields.publisher,
+                releaseDate = fields.releaseDate,
+                language = fields.language,
+                cover = fields.cover,
+            ),
         authors = authors,
         narrators = narrators,
-        series = series.map {
-            com.calypsan.listenup.client.data.remote.model.SeriesMatchEntry(
-                asin = it.asin,
-                applyName = it.applyName,
-                applySequence = it.applySequence,
-            )
-        },
+        series =
+            series.map {
+                com.calypsan.listenup.client.data.remote.model.SeriesMatchEntry(
+                    asin = it.asin,
+                    applyName = it.applyName,
+                    applySequence = it.applySequence,
+                )
+            },
         genres = genres,
         coverUrl = coverUrl,
     )

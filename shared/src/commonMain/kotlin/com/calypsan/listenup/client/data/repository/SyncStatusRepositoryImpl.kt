@@ -19,13 +19,9 @@ import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 class SyncStatusRepositoryImpl(
     private val syncDao: SyncDao,
 ) : SyncStatusRepository {
+    override suspend fun getLastSyncTime(): Timestamp? = syncDao.getLastSyncTime()
 
-    override suspend fun getLastSyncTime(): Timestamp? =
-        syncDao.getLastSyncTime()
+    override suspend fun setLastSyncTime(timestamp: Timestamp) = syncDao.setLastSyncTime(timestamp)
 
-    override suspend fun setLastSyncTime(timestamp: Timestamp) =
-        syncDao.setLastSyncTime(timestamp)
-
-    override suspend fun clearLastSyncTime() =
-        syncDao.clearLastSyncTime()
+    override suspend fun clearLastSyncTime() = syncDao.clearLastSyncTime()
 }

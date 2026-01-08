@@ -63,14 +63,15 @@ open class ApplyContributorMetadataUseCase(
         logger.info { "Applying Audible metadata to contributor ${request.contributorId}" }
 
         return when (
-            val apiResult = metadataRepository.applyContributorMetadata(
-                contributorId = request.contributorId,
-                asin = request.asin,
-                imageUrl = request.imageUrl,
-                applyName = request.selections.name,
-                applyBiography = request.selections.biography,
-                applyImage = request.selections.image,
-            )
+            val apiResult =
+                metadataRepository.applyContributorMetadata(
+                    contributorId = request.contributorId,
+                    asin = request.asin,
+                    imageUrl = request.imageUrl,
+                    applyName = request.selections.name,
+                    applyBiography = request.selections.biography,
+                    applyImage = request.selections.image,
+                )
         ) {
             is ContributorMetadataResult.Success -> {
                 handleSuccess(request.contributorId, apiResult)
@@ -102,11 +103,12 @@ open class ApplyContributorMetadataUseCase(
         contributorId: String,
         apiResult: ContributorMetadataResult.Success,
     ): Result<Contributor> {
-        val contributorData = apiResult.contributor
-            ?: return Failure(
-                exception = IllegalStateException("No contributor data in success result"),
-                message = "Metadata was applied but contributor data was not returned",
-            )
+        val contributorData =
+            apiResult.contributor
+                ?: return Failure(
+                    exception = IllegalStateException("No contributor data in success result"),
+                    message = "Metadata was applied but contributor data was not returned",
+                )
 
         var contributor = contributorData.toDomain()
 
@@ -157,7 +159,9 @@ open class ApplyContributorMetadataUseCase(
  */
 private fun ContributorWithMetadata.toDomain(): Contributor =
     Contributor(
-        id = id,
+        id =
+            com.calypsan.listenup.client.core
+                .ContributorId(id),
         name = name,
         description = biography,
         imagePath = null, // Image path is set after local download

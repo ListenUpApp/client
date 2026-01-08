@@ -1,8 +1,8 @@
 package com.calypsan.listenup.client.data.sync.push
 
 import com.calypsan.listenup.client.data.local.db.OperationType
-import com.calypsan.listenup.client.domain.repository.PreferenceChangeEvent
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.domain.repository.PreferenceChangeEvent
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch

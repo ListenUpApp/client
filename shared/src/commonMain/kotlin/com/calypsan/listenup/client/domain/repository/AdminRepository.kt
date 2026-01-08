@@ -147,7 +147,10 @@ interface AdminRepository {
      * @param bookId The inbox book ID
      * @param collectionId The collection to stage
      */
-    suspend fun stageCollection(bookId: String, collectionId: String)
+    suspend fun stageCollection(
+        bookId: String,
+        collectionId: String,
+    )
 
     /**
      * Remove a staged collection from an inbox book.
@@ -155,5 +158,8 @@ interface AdminRepository {
      * @param bookId The inbox book ID
      * @param collectionId The collection to unstage
      */
-    suspend fun unstageCollection(bookId: String, collectionId: String)
+    suspend fun unstageCollection(
+        bookId: String,
+        collectionId: String,
+    )
 }

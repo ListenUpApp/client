@@ -273,7 +273,6 @@ private fun formatDurationMinutes(durationMs: Long): String {
     val totalMinutes = totalSeconds / 60
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
-    val seconds = totalSeconds % 60
 
     return when {
         totalMinutes == 0 -> "$totalSeconds second${if (totalSeconds != 1) "s" else ""}"

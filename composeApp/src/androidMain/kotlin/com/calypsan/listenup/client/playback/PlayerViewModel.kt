@@ -157,7 +157,9 @@ class PlayerViewModel(
 
                 // Validate start position before passing to ExoPlayer
                 if (startPosition.mediaItemIndex < 0 || startPosition.mediaItemIndex >= mediaItems.size) {
-                    logger.error { "INVALID startPosition.mediaItemIndex: ${startPosition.mediaItemIndex}, mediaItems.size=${mediaItems.size}" }
+                    logger.error {
+                        "INVALID startPosition.mediaItemIndex: ${startPosition.mediaItemIndex}, mediaItems.size=${mediaItems.size}"
+                    }
                     state.value = state.value.copy(isLoading = false, error = "Invalid start position")
                     return@withController
                 }
@@ -316,7 +318,9 @@ class PlayerViewModel(
 
         // Validate ExoPlayer values before using them (silent validation, only log errors)
         if (mediaItemIndex < 0 || mediaItemIndex >= timeline.files.size || positionInFile < 0) {
-            logger.error { "INVALID position: mediaItem=$mediaItemIndex/${timeline.files.size}, posInFile=$positionInFile" }
+            logger.error {
+                "INVALID position: mediaItem=$mediaItemIndex/${timeline.files.size}, posInFile=$positionInFile"
+            }
             return
         }
 

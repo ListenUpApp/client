@@ -92,7 +92,10 @@ interface TagRepository {
      * @param tagSlugOrName The tag slug or name (will be normalized by server)
      * @return The added tag on success
      */
-    suspend fun addTagToBook(bookId: String, tagSlugOrName: String): Tag
+    suspend fun addTagToBook(
+        bookId: String,
+        tagSlugOrName: String,
+    ): Tag
 
     /**
      * Remove a tag from a book.
@@ -103,5 +106,9 @@ interface TagRepository {
      * @param tagSlug The tag slug to remove
      * @param tagId The tag ID (for local database update)
      */
-    suspend fun removeTagFromBook(bookId: String, tagSlug: String, tagId: String)
+    suspend fun removeTagFromBook(
+        bookId: String,
+        tagSlug: String,
+        tagId: String,
+    )
 }

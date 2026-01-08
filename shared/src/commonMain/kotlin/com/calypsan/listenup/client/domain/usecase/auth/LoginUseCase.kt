@@ -60,10 +60,11 @@ open class LoginUseCase(
 
         // Perform login
         return suspendRunCatching {
-            val result = authRepository.login(
-                email = trimmedEmail,
-                password = password,
-            )
+            val result =
+                authRepository.login(
+                    email = trimmedEmail,
+                    password = password,
+                )
 
             // Store tokens - this triggers AuthState.Authenticated
             authSession.saveAuthTokens(

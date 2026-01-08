@@ -57,7 +57,7 @@ class ProfileEditRepositoryImpl(
 
             // Apply optimistic update
             userDao.updateTagline(
-                userId = user.id,
+                userId = user.id.value,
                 tagline = tagline,
                 updatedAt = currentEpochMilliseconds(),
             )
@@ -67,7 +67,7 @@ class ProfileEditRepositoryImpl(
             pendingOperationRepository.queue(
                 type = OperationType.PROFILE_UPDATE,
                 entityType = EntityType.USER,
-                entityId = user.id,
+                entityId = user.id.value,
                 payload = payload,
                 handler = profileUpdateHandler,
             )
@@ -116,7 +116,7 @@ class ProfileEditRepositoryImpl(
             pendingOperationRepository.queue(
                 type = OperationType.PROFILE_AVATAR,
                 entityType = EntityType.USER,
-                entityId = user.id,
+                entityId = user.id.value,
                 payload = payload,
                 handler = profileAvatarHandler,
             )
@@ -141,7 +141,7 @@ class ProfileEditRepositoryImpl(
 
             // Apply optimistic update
             userDao.updateAvatar(
-                userId = user.id,
+                userId = user.id.value,
                 avatarType = "auto",
                 avatarValue = null,
                 avatarColor = user.avatarColor, // Keep existing color
@@ -153,7 +153,7 @@ class ProfileEditRepositoryImpl(
             pendingOperationRepository.queue(
                 type = OperationType.PROFILE_UPDATE,
                 entityType = EntityType.USER,
-                entityId = user.id,
+                entityId = user.id.value,
                 payload = payload,
                 handler = profileUpdateHandler,
             )
@@ -184,7 +184,7 @@ class ProfileEditRepositoryImpl(
             // Apply optimistic update - compute displayName locally
             val displayName = "$firstName $lastName".trim()
             userDao.updateName(
-                userId = user.id,
+                userId = user.id.value,
                 firstName = firstName,
                 lastName = lastName,
                 displayName = displayName,
@@ -200,7 +200,7 @@ class ProfileEditRepositoryImpl(
             pendingOperationRepository.queue(
                 type = OperationType.PROFILE_UPDATE,
                 entityType = EntityType.USER,
-                entityId = user.id,
+                entityId = user.id.value,
                 payload = payload,
                 handler = profileUpdateHandler,
             )

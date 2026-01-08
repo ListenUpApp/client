@@ -120,7 +120,7 @@ class LibraryActionsViewModel(
             .observeCurrentUser()
             .flatMapLatest { user ->
                 if (user != null) {
-                    lensRepository.observeMyLenses(user.id)
+                    lensRepository.observeMyLenses(user.id.value)
                 } else {
                     flowOf(emptyList())
                 }
@@ -195,6 +195,7 @@ class LibraryActionsViewModel(
                     _events.emit(LibraryActionEvent.BooksAddedToCollection(bookIds.size))
                     selectionManager.clearAfterAction()
                 }
+
                 is Failure -> {
                     logger.error { "Failed to add books to collection: ${result.message}" }
                     _events.emit(LibraryActionEvent.AddToCollectionFailed(result.message))
@@ -215,6 +216,7 @@ class LibraryActionsViewModel(
                 is Success -> {
                     logger.debug { "Collections refreshed from server" }
                 }
+
                 is Failure -> {
                     logger.warn { "Failed to refresh collections from server: ${result.message}" }
                     // Don't emit error - local data is still usable
@@ -247,6 +249,7 @@ class LibraryActionsViewModel(
                     _events.emit(LibraryActionEvent.BooksAddedToLens(bookIds.size))
                     selectionManager.clearAfterAction()
                 }
+
                 is Failure -> {
                     logger.error { "Failed to add books to lens: ${result.message}" }
                     _events.emit(LibraryActionEvent.AddToLensFailed(result.message))
@@ -282,16 +285,18 @@ class LibraryActionsViewModel(
                         is Success -> {
                             logger.info { "Added ${bookIds.size} books to new lens ${newLens.id}" }
                             _events.emit(
-                                LibraryActionEvent.LensCreatedAndBooksAdded(newLens.name, bookIds.size)
+                                LibraryActionEvent.LensCreatedAndBooksAdded(newLens.name, bookIds.size),
                             )
                             selectionManager.clearAfterAction()
                         }
+
                         is Failure -> {
                             logger.error { "Failed to add books to new lens: ${addResult.message}" }
                             _events.emit(LibraryActionEvent.AddToLensFailed(addResult.message))
                         }
                     }
                 }
+
                 is Failure -> {
                     logger.error { "Failed to create lens: ${createResult.message}" }
                     _events.emit(LibraryActionEvent.AddToLensFailed(createResult.message))

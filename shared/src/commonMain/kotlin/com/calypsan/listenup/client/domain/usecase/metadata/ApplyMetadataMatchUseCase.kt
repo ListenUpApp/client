@@ -64,27 +64,29 @@ open class ApplyMetadataMatchUseCase(
         selections: MetadataMatchSelections,
         previewBook: MetadataBook,
         coverUrl: String?,
-    ): Result<Unit> = suspendRunCatching {
-        logger.info { "Applying metadata match: book=$bookId, asin=$asin, region=$region" }
+    ): Result<Unit> =
+        suspendRunCatching {
+            logger.info { "Applying metadata match: book=$bookId, asin=$asin, region=$region" }
 
-        // Build and send the match request
-        val request = buildMatchRequest(
-            asin = asin,
-            region = region,
-            selections = selections,
-            previewBook = previewBook,
-            coverUrl = coverUrl,
-        )
-        metadataRepository.applyMatch(bookId, request)
-        logger.debug { "Metadata match applied successfully" }
+            // Build and send the match request
+            val request =
+                buildMatchRequest(
+                    asin = asin,
+                    region = region,
+                    selections = selections,
+                    previewBook = previewBook,
+                    coverUrl = coverUrl,
+                )
+            metadataRepository.applyMatch(bookId, request)
+            logger.debug { "Metadata match applied successfully" }
 
-        // Handle cover download if cover was selected
-        if (selections.cover) {
-            downloadNewCover(BookId(bookId))
+            // Handle cover download if cover was selected
+            if (selections.cover) {
+                downloadNewCover(BookId(bookId))
+            }
+
+            logger.info { "Metadata match complete for book $bookId" }
         }
-
-        logger.info { "Metadata match complete for book $bookId" }
-    }
 
     /**
      * Download the new cover from server.
@@ -106,6 +108,7 @@ open class ApplyMetadataMatchUseCase(
                     logger.info { "No cover available on server for book $bookId" }
                 }
             }
+
             is Failure -> {
                 logger.warn { "Failed to download cover for book $bookId: ${downloadResult.message}" }
                 // Don't fail the operation - metadata was still applied
@@ -122,34 +125,37 @@ open class ApplyMetadataMatchUseCase(
         selections: MetadataMatchSelections,
         previewBook: MetadataBook,
         coverUrl: String?,
-    ): ApplyMatchRequest = ApplyMatchRequest(
-        asin = asin,
-        region = region,
-        fields = MatchFields(
-            title = selections.title,
-            subtitle = selections.subtitle,
-            description = selections.description,
-            publisher = selections.publisher,
-            releaseDate = selections.releaseDate,
-            language = selections.language,
-            cover = selections.cover,
-        ),
-        authors = selections.selectedAuthors.toList(),
-        narrators = selections.selectedNarrators.toList(),
-        series = previewBook.series
-            .filter { it.asin in selections.selectedSeries }
-            .mapNotNull { series ->
-                series.asin?.let { seriesAsin ->
-                    SeriesMatchEntry(
-                        asin = seriesAsin,
-                        applyName = true,
-                        applySequence = true,
-                    )
-                }
-            },
-        genres = selections.selectedGenres.toList(),
-        coverUrl = coverUrl,
-    )
+    ): ApplyMatchRequest =
+        ApplyMatchRequest(
+            asin = asin,
+            region = region,
+            fields =
+                MatchFields(
+                    title = selections.title,
+                    subtitle = selections.subtitle,
+                    description = selections.description,
+                    publisher = selections.publisher,
+                    releaseDate = selections.releaseDate,
+                    language = selections.language,
+                    cover = selections.cover,
+                ),
+            authors = selections.selectedAuthors.toList(),
+            narrators = selections.selectedNarrators.toList(),
+            series =
+                previewBook.series
+                    .filter { it.asin in selections.selectedSeries }
+                    .mapNotNull { series ->
+                        series.asin?.let { seriesAsin ->
+                            SeriesMatchEntry(
+                                asin = seriesAsin,
+                                applyName = true,
+                                applySequence = true,
+                            )
+                        }
+                    },
+            genres = selections.selectedGenres.toList(),
+            coverUrl = coverUrl,
+        )
 }
 
 /**

@@ -29,7 +29,10 @@ interface ActivityRepository {
      * @param limit Maximum number to return
      * @return List of older activities
      */
-    suspend fun getOlderThan(beforeMs: Long, limit: Int): List<Activity>
+    suspend fun getOlderThan(
+        beforeMs: Long,
+        limit: Int,
+    ): List<Activity>
 
     /**
      * Get the newest activity timestamp.

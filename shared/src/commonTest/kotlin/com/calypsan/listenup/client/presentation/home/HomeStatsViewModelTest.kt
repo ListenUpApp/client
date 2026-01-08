@@ -163,11 +163,12 @@ class HomeStatsViewModelTest {
             advanceUntilIdle()
 
             // When - flow emits new data
-            val stats = createStats(
-                totalListenTimeMs = 7_200_000L,
-                currentStreakDays = 3,
-                longestStreakDays = 5,
-            )
+            val stats =
+                createStats(
+                    totalListenTimeMs = 7_200_000L,
+                    currentStreakDays = 3,
+                    longestStreakDays = 5,
+                )
             fixture.statsFlow.value = stats
             advanceUntilIdle()
 
@@ -205,9 +206,10 @@ class HomeStatsViewModelTest {
         runTest {
             // Given - repository flow that throws
             val fixture = TestFixture()
-            every { fixture.statsRepository.observeWeeklyStats() } returns flow {
-                throw RuntimeException("Database error")
-            }
+            every { fixture.statsRepository.observeWeeklyStats() } returns
+                flow {
+                    throw RuntimeException("Database error")
+                }
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -339,9 +341,10 @@ class HomeStatsViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            fixture.statsFlow.value = createStats(
-                dailyListening = listOf(createDailyListening()),
-            )
+            fixture.statsFlow.value =
+                createStats(
+                    dailyListening = listOf(createDailyListening()),
+                )
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -395,9 +398,10 @@ class HomeStatsViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            fixture.statsFlow.value = createStats(
-                genreBreakdown = listOf(createGenreListening()),
-            )
+            fixture.statsFlow.value =
+                createStats(
+                    genreBreakdown = listOf(createGenreListening()),
+                )
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -466,13 +470,15 @@ class HomeStatsViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            fixture.statsFlow.value = createStats(
-                dailyListening = listOf(
-                    createDailyListening(date = "2024-01-01", listenTimeMs = 1_800_000L),
-                    createDailyListening(date = "2024-01-02", listenTimeMs = 3_600_000L),
-                    createDailyListening(date = "2024-01-03", listenTimeMs = 2_400_000L),
-                ),
-            )
+            fixture.statsFlow.value =
+                createStats(
+                    dailyListening =
+                        listOf(
+                            createDailyListening(date = "2024-01-01", listenTimeMs = 1_800_000L),
+                            createDailyListening(date = "2024-01-02", listenTimeMs = 3_600_000L),
+                            createDailyListening(date = "2024-01-03", listenTimeMs = 2_400_000L),
+                        ),
+                )
             val viewModel = fixture.build()
             advanceUntilIdle()
 

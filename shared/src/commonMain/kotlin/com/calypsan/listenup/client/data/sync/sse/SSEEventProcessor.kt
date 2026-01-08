@@ -2,14 +2,15 @@
 
 package com.calypsan.listenup.client.data.sync.sse
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
 import com.calypsan.listenup.client.data.local.db.ActivityDao
 import com.calypsan.listenup.client.data.local.db.ActivityEntity
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.CollectionDao
@@ -21,7 +22,6 @@ import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
-import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserProfileDao
 import com.calypsan.listenup.client.data.local.db.UserProfileEntity
@@ -759,7 +759,7 @@ class SSEEventProcessor(
         logger.info { "SSE: Profile updated - ${event.displayName} (${event.userId})" }
 
         val currentUser = userDao.getCurrentUser()
-        val isCurrentUser = currentUser != null && event.userId == currentUser.id
+        val isCurrentUser = currentUser != null && event.userId == currentUser.id.value
 
         // IMPORTANT: Download/delete avatar FIRST, before updating userDao
         // This ensures the local file exists when the UI Flow emits after userDao update.

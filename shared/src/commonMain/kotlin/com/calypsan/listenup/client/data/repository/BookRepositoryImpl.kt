@@ -1,22 +1,22 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.ChapterId
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
-import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.BookWithContributors
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
-import com.calypsan.listenup.client.core.ChapterId
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Chapter
-import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.repository.DiscoveryBook
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -171,7 +171,7 @@ class BookRepositoryImpl(
                 .filter { it.role == "author" }
                 .mapNotNull { crossRef ->
                     contributorsById[crossRef.contributorId]?.let { entity ->
-                        BookContributor(entity.id, crossRef.creditedAs ?: entity.name)
+                        BookContributor(entity.id.value, crossRef.creditedAs ?: entity.name)
                     }
                 }.distinctBy { it.id }
 
@@ -182,7 +182,7 @@ class BookRepositoryImpl(
                 .filter { it.role == "narrator" }
                 .mapNotNull { crossRef ->
                     contributorsById[crossRef.contributorId]?.let { entity ->
-                        BookContributor(entity.id, crossRef.creditedAs ?: entity.name)
+                        BookContributor(entity.id.value, crossRef.creditedAs ?: entity.name)
                     }
                 }.distinctBy { it.id }
 
@@ -197,7 +197,7 @@ class BookRepositoryImpl(
                 .distinctBy { it.id }
                 .map { entity ->
                     BookContributor(
-                        id = entity.id,
+                        id = entity.id.value,
                         name = creditedAsByContributorId[entity.id] ?: entity.name,
                         roles = rolesByContributorId[entity.id] ?: emptyList(),
                     )
@@ -210,7 +210,7 @@ class BookRepositoryImpl(
                 .mapNotNull { crossRef ->
                     seriesById[crossRef.seriesId]?.let { seriesEntity ->
                         BookSeries(
-                            seriesId = seriesEntity.id,
+                            seriesId = seriesEntity.id.value,
                             seriesName = seriesEntity.name,
                             sequence = crossRef.sequence,
                         )

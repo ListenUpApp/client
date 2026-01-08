@@ -4,9 +4,9 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.AdminEvent
 import com.calypsan.listenup.client.domain.model.InboxBook
-import com.calypsan.listenup.client.domain.repository.EventStreamRepository
 import com.calypsan.listenup.client.domain.model.InboxReleaseResult
 import com.calypsan.listenup.client.domain.model.StagedCollection
+import com.calypsan.listenup.client.domain.repository.EventStreamRepository
 import com.calypsan.listenup.client.domain.usecase.admin.LoadInboxBooksUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.ReleaseBooksUseCase
 import com.calypsan.listenup.client.domain.usecase.admin.StageCollectionUseCase
@@ -65,13 +65,14 @@ class AdminInboxViewModelTest {
             every { eventStreamRepository.adminEvents } returns adminEvents
         }
 
-        fun build() = AdminInboxViewModel(
-            loadInboxBooksUseCase = loadInboxBooksUseCase,
-            releaseBooksUseCase = releaseBooksUseCase,
-            stageCollectionUseCase = stageCollectionUseCase,
-            unstageCollectionUseCase = unstageCollectionUseCase,
-            eventStreamRepository = eventStreamRepository,
-        )
+        fun build() =
+            AdminInboxViewModel(
+                loadInboxBooksUseCase = loadInboxBooksUseCase,
+                releaseBooksUseCase = releaseBooksUseCase,
+                stageCollectionUseCase = stageCollectionUseCase,
+                unstageCollectionUseCase = unstageCollectionUseCase,
+                eventStreamRepository = eventStreamRepository,
+            )
     }
 
     @BeforeTest
@@ -111,25 +112,35 @@ class AdminInboxViewModelTest {
 
             assertFalse(viewModel.state.value.isLoading)
             assertEquals(2, viewModel.state.value.books.size)
-            assertEquals("book-1", viewModel.state.value.books[0].id)
-            assertEquals("book-2", viewModel.state.value.books[1].id)
+            assertEquals(
+                "book-1",
+                viewModel.state.value.books[0]
+                    .id,
+            )
+            assertEquals(
+                "book-2",
+                viewModel.state.value.books[1]
+                    .id,
+            )
         }
 
     @Test
     fun `loadInboxBooks handles error`() =
         runTest {
             val fixture = TestFixture()
-            everySuspend { fixture.loadInboxBooksUseCase() } returns Failure(
-                RuntimeException("Network error"),
-                "Network error",
-            )
+            everySuspend { fixture.loadInboxBooksUseCase() } returns
+                Failure(
+                    RuntimeException("Network error"),
+                    "Network error",
+                )
 
             val viewModel = fixture.build()
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
             assertTrue(
-                viewModel.state.value.error?.contains("Network error") == true,
+                viewModel.state.value.error
+                    ?.contains("Network error") == true,
             )
         }
 
@@ -145,7 +156,10 @@ class AdminInboxViewModelTest {
 
             viewModel.toggleBookSelection("book-1")
 
-            assertTrue(viewModel.state.value.selectedBookIds.contains("book-1"))
+            assertTrue(
+                viewModel.state.value.selectedBookIds
+                    .contains("book-1"),
+            )
         }
 
     @Test
@@ -159,10 +173,16 @@ class AdminInboxViewModelTest {
             advanceUntilIdle()
 
             viewModel.toggleBookSelection("book-1")
-            assertTrue(viewModel.state.value.selectedBookIds.contains("book-1"))
+            assertTrue(
+                viewModel.state.value.selectedBookIds
+                    .contains("book-1"),
+            )
 
             viewModel.toggleBookSelection("book-1")
-            assertFalse(viewModel.state.value.selectedBookIds.contains("book-1"))
+            assertFalse(
+                viewModel.state.value.selectedBookIds
+                    .contains("book-1"),
+            )
         }
 
     @Test
@@ -200,7 +220,10 @@ class AdminInboxViewModelTest {
             assertEquals(2, viewModel.state.value.selectedBookIds.size)
 
             viewModel.clearSelection()
-            assertTrue(viewModel.state.value.selectedBookIds.isEmpty())
+            assertTrue(
+                viewModel.state.value.selectedBookIds
+                    .isEmpty(),
+            )
         }
 
     @Test
@@ -209,13 +232,14 @@ class AdminInboxViewModelTest {
             val books = listOf(createInboxBook("book-1"), createInboxBook("book-2"))
             val fixture = TestFixture()
             everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
-            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns Success(
-                InboxReleaseResult(
-                    released = 1,
-                    publicCount = 1,
-                    toCollections = 0,
-                ),
-            )
+            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns
+                Success(
+                    InboxReleaseResult(
+                        released = 1,
+                        publicCount = 1,
+                        toCollections = 0,
+                    ),
+                )
 
             val viewModel = fixture.build()
             advanceUntilIdle()
@@ -224,9 +248,17 @@ class AdminInboxViewModelTest {
             advanceUntilIdle()
 
             assertEquals(1, viewModel.state.value.books.size)
-            assertEquals("book-2", viewModel.state.value.books[0].id)
+            assertEquals(
+                "book-2",
+                viewModel.state.value.books[0]
+                    .id,
+            )
             assertFalse(viewModel.state.value.isReleasing)
-            assertEquals(1, viewModel.state.value.lastReleaseResult?.released)
+            assertEquals(
+                1,
+                viewModel.state.value.lastReleaseResult
+                    ?.released,
+            )
         }
 
     @Test
@@ -235,13 +267,14 @@ class AdminInboxViewModelTest {
             val books = listOf(createInboxBook("book-1"), createInboxBook("book-2"))
             val fixture = TestFixture()
             everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
-            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns Success(
-                InboxReleaseResult(
-                    released = 1,
-                    publicCount = 1,
-                    toCollections = 0,
-                ),
-            )
+            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns
+                Success(
+                    InboxReleaseResult(
+                        released = 1,
+                        publicCount = 1,
+                        toCollections = 0,
+                    ),
+                )
 
             val viewModel = fixture.build()
             advanceUntilIdle()
@@ -252,7 +285,10 @@ class AdminInboxViewModelTest {
             viewModel.releaseBooks(listOf("book-1"))
             advanceUntilIdle()
 
-            assertTrue(viewModel.state.value.selectedBookIds.isEmpty())
+            assertTrue(
+                viewModel.state.value.selectedBookIds
+                    .isEmpty(),
+            )
         }
 
     @Test
@@ -261,10 +297,11 @@ class AdminInboxViewModelTest {
             val books = listOf(createInboxBook("book-1"))
             val fixture = TestFixture()
             everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
-            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns Failure(
-                RuntimeException("Failed"),
-                "Failed",
-            )
+            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns
+                Failure(
+                    RuntimeException("Failed"),
+                    "Failed",
+                )
 
             val viewModel = fixture.build()
             advanceUntilIdle()
@@ -369,7 +406,11 @@ class AdminInboxViewModelTest {
             advanceUntilIdle()
 
             assertEquals(1, viewModel.state.value.books.size)
-            assertEquals("book-2", viewModel.state.value.books[0].id)
+            assertEquals(
+                "book-2",
+                viewModel.state.value.books[0]
+                    .id,
+            )
         }
 
     @Test
@@ -398,10 +439,11 @@ class AdminInboxViewModelTest {
     fun `clearError clears error state`() =
         runTest {
             val fixture = TestFixture()
-            everySuspend { fixture.loadInboxBooksUseCase() } returns Failure(
-                RuntimeException("Error"),
-                "Error",
-            )
+            everySuspend { fixture.loadInboxBooksUseCase() } returns
+                Failure(
+                    RuntimeException("Error"),
+                    "Error",
+                )
 
             val viewModel = fixture.build()
             advanceUntilIdle()
@@ -419,13 +461,14 @@ class AdminInboxViewModelTest {
             val books = listOf(createInboxBook("book-1"))
             val fixture = TestFixture()
             everySuspend { fixture.loadInboxBooksUseCase() } returns Success(books)
-            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns Success(
-                InboxReleaseResult(
-                    released = 1,
-                    publicCount = 1,
-                    toCollections = 0,
-                ),
-            )
+            everySuspend { fixture.releaseBooksUseCase(listOf("book-1")) } returns
+                Success(
+                    InboxReleaseResult(
+                        released = 1,
+                        publicCount = 1,
+                        toCollections = 0,
+                    ),
+                )
 
             val viewModel = fixture.build()
             advanceUntilIdle()

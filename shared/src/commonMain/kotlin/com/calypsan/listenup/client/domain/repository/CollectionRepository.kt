@@ -71,7 +71,10 @@ interface CollectionRepository {
      * @param collectionId The collection to add books to
      * @param bookIds The book IDs to add
      */
-    suspend fun addBooksToCollection(collectionId: String, bookIds: List<String>)
+    suspend fun addBooksToCollection(
+        collectionId: String,
+        bookIds: List<String>,
+    )
 
     /**
      * Refresh collections from the server.
@@ -104,7 +107,10 @@ interface CollectionRepository {
      * @param name The new name
      * @return The updated collection
      */
-    suspend fun updateCollectionName(collectionId: String, name: String): Collection
+    suspend fun updateCollectionName(
+        collectionId: String,
+        name: String,
+    ): Collection
 
     /**
      * Remove a book from a collection.
@@ -112,7 +118,10 @@ interface CollectionRepository {
      * @param collectionId The collection ID
      * @param bookId The book ID to remove
      */
-    suspend fun removeBookFromCollection(collectionId: String, bookId: String)
+    suspend fun removeBookFromCollection(
+        collectionId: String,
+        bookId: String,
+    )
 
     /**
      * Get shares for a collection.
@@ -129,7 +138,10 @@ interface CollectionRepository {
      * @param userId The user to share with
      * @return The created share summary
      */
-    suspend fun shareCollection(collectionId: String, userId: String): CollectionShareSummary
+    suspend fun shareCollection(
+        collectionId: String,
+        userId: String,
+    ): CollectionShareSummary
 
     /**
      * Remove a share (unshare).

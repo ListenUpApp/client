@@ -43,65 +43,71 @@ class DeleteContributorUseCaseTest {
     // ========== Success Tests ==========
 
     @Test
-    fun `delete contributor returns success`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
+    fun `delete contributor returns success`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
 
-        // When
-        val result = useCase(contributorId = "contributor-123")
+            // When
+            val result = useCase(contributorId = "contributor-123")
 
-        // Then
-        checkIs<Success<Unit>>(result)
-    }
+            // Then
+            checkIs<Success<Unit>>(result)
+        }
 
     @Test
-    fun `delete contributor calls repository with correct ID`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
+    fun `delete contributor calls repository with correct ID`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
 
-        // When
-        useCase(contributorId = "contributor-456")
+            // When
+            useCase(contributorId = "contributor-456")
 
-        // Then
-        verifySuspend { fixture.contributorRepository.deleteContributor("contributor-456") }
-    }
+            // Then
+            verifySuspend { fixture.contributorRepository.deleteContributor("contributor-456") }
+        }
 
     // ========== Error Handling Tests ==========
 
     @Test
-    fun `delete contributor returns failure when repository fails`() = runTest {
-        // Given
-        val fixture = createFixture()
-        everySuspend { fixture.contributorRepository.deleteContributor(any()) } returns Failure(
-            message = "Contributor not found",
-        )
-        val useCase = fixture.build()
+    fun `delete contributor returns failure when repository fails`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            everySuspend { fixture.contributorRepository.deleteContributor(any()) } returns
+                Failure(
+                    message = "Contributor not found",
+                )
+            val useCase = fixture.build()
 
-        // When
-        val result = useCase(contributorId = "contributor-123")
+            // When
+            val result = useCase(contributorId = "contributor-123")
 
-        // Then
-        val failure = assertIs<Failure>(result)
-        assertEquals("Contributor not found", failure.message)
-    }
+            // Then
+            val failure = assertIs<Failure>(result)
+            assertEquals("Contributor not found", failure.message)
+        }
 
     @Test
-    fun `delete contributor propagates repository exception`() = runTest {
-        // Given
-        val fixture = createFixture()
-        everySuspend { fixture.contributorRepository.deleteContributor(any()) } returns Failure(
-            exception = Exception("Network error"),
-            message = "Network error",
-        )
-        val useCase = fixture.build()
+    fun `delete contributor propagates repository exception`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            everySuspend { fixture.contributorRepository.deleteContributor(any()) } returns
+                Failure(
+                    exception = Exception("Network error"),
+                    message = "Network error",
+                )
+            val useCase = fixture.build()
 
-        // When
-        val result = useCase(contributorId = "contributor-123")
+            // When
+            val result = useCase(contributorId = "contributor-123")
 
-        // Then
-        val failure = assertIs<Failure>(result)
-        assertEquals("Network error", failure.message)
-    }
+            // Then
+            val failure = assertIs<Failure>(result)
+            assertEquals("Network error", failure.message)
+        }
 }

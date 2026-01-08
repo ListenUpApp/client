@@ -5,8 +5,8 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.ContributorSearchResponse
 import com.calypsan.listenup.client.domain.model.ContributorSearchResult
-import com.calypsan.listenup.client.domain.repository.ContributorRepository
 import com.calypsan.listenup.client.domain.repository.ContributorEditRepository
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
 import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.usecase.contributor.UpdateContributorUseCase
 import dev.mokkery.answering.returns
@@ -69,7 +69,9 @@ class ContributorEditViewModelTest {
         aliases: List<String> = emptyList(),
     ): Contributor =
         Contributor(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .ContributorId(id),
             name = name,
             description = null,
             imagePath = null,

@@ -6,8 +6,8 @@ import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import dev.mokkery.MockMode
 import dev.mokkery.answering.returns
@@ -60,7 +60,9 @@ class SeriesRepositoryImplTest {
         updatedAt: Long = 1000L,
     ): SeriesEntity =
         SeriesEntity(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .SeriesId(id),
             name = name,
             description = description,
             syncState = syncState,
@@ -113,10 +115,10 @@ class SeriesRepositoryImplTest {
 
             // Then
             assertEquals(2, result.size)
-            assertEquals("series-1", result[0].id)
+            assertEquals("series-1", result[0].id.value)
             assertEquals("The Stormlight Archive", result[0].name)
             assertEquals("Epic fantasy series", result[0].description)
-            assertEquals("series-2", result[1].id)
+            assertEquals("series-2", result[1].id.value)
             assertEquals("Mistborn", result[1].name)
             assertEquals("Fantasy trilogy", result[1].description)
         }
@@ -195,7 +197,7 @@ class SeriesRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("series-1", result.id)
+            assertEquals("series-1", result.id.value)
             assertEquals("The Wheel of Time", result.name)
             assertEquals("Epic fantasy series by Robert Jordan", result.description)
         }
@@ -219,7 +221,7 @@ class SeriesRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("series-42", result.id)
+            assertEquals("series-42", result.id.value)
             assertEquals("Test Series", result.name)
             assertEquals("Test description", result.description)
         }
@@ -275,7 +277,7 @@ class SeriesRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("series-1", result.id)
+            assertEquals("series-1", result.id.value)
             assertEquals("Harry Potter", result.name)
             assertEquals("Wizarding world", result.description)
         }
@@ -299,7 +301,7 @@ class SeriesRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("complete-series", result.id)
+            assertEquals("complete-series", result.id.value)
             assertEquals("Complete Series Name", result.name)
             assertEquals("Full description here", result.description)
         }
@@ -355,7 +357,7 @@ class SeriesRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("series-1", result.id)
+            assertEquals("series-1", result.id.value)
             assertEquals("The Cosmere", result.name)
             assertEquals("Shared universe", result.description)
         }
@@ -379,7 +381,7 @@ class SeriesRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("series-42", result.id)
+            assertEquals("series-42", result.id.value)
             assertEquals("Book Series", result.name)
             assertEquals("Description", result.description)
         }
@@ -521,7 +523,7 @@ class SeriesRepositoryImplTest {
 
             // Then - verify all fields are mapped
             assertNotNull(result)
-            assertEquals("conversion-test", result.id)
+            assertEquals("conversion-test", result.id.value)
             assertEquals("Full Name", result.name)
             assertEquals("Full description", result.description)
         }
@@ -545,7 +547,7 @@ class SeriesRepositoryImplTest {
 
             // Then
             assertNotNull(result)
-            assertEquals("minimal-series", result.id)
+            assertEquals("minimal-series", result.id.value)
             assertEquals("Minimal Series", result.name)
             assertNull(result.description)
         }
@@ -572,8 +574,8 @@ class SeriesRepositoryImplTest {
 
             // Then
             assertEquals(100, result.size)
-            assertEquals("series-1", result[0].id)
-            assertEquals("series-100", result[99].id)
+            assertEquals("series-1", result[0].id.value)
+            assertEquals("series-100", result[99].id.value)
         }
 
     @Test

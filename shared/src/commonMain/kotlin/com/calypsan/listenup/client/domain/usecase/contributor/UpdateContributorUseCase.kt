@@ -57,14 +57,16 @@ open class UpdateContributorUseCase(
                 if (tracked != null && tracked.id != request.contributorId) {
                     // This alias corresponds to an existing contributor - merge it
                     when (
-                        val result = contributorEditRepository.mergeContributor(
-                            targetId = request.contributorId,
-                            sourceId = tracked.id,
-                        )
+                        val result =
+                            contributorEditRepository.mergeContributor(
+                                targetId = request.contributorId,
+                                sourceId = tracked.id,
+                            )
                     ) {
                         is Success -> {
                             logger.info { "Merged contributor ${tracked.id} into ${request.contributorId}" }
                         }
+
                         is Failure -> {
                             logger.warn { "Merge failed for ${tracked.id}: ${result.message}" }
                             // Continue - alias will still be added via update
@@ -75,19 +77,21 @@ open class UpdateContributorUseCase(
 
             // 2. Update contributor metadata
             when (
-                val result = contributorEditRepository.updateContributor(
-                    contributorId = request.contributorId,
-                    name = request.name,
-                    biography = request.biography?.ifBlank { null },
-                    website = request.website?.ifBlank { null },
-                    birthDate = request.birthDate?.ifBlank { null },
-                    deathDate = request.deathDate?.ifBlank { null },
-                    aliases = request.aliases,
-                )
+                val result =
+                    contributorEditRepository.updateContributor(
+                        contributorId = request.contributorId,
+                        name = request.name,
+                        biography = request.biography?.ifBlank { null },
+                        website = request.website?.ifBlank { null },
+                        birthDate = request.birthDate?.ifBlank { null },
+                        deathDate = request.deathDate?.ifBlank { null },
+                        aliases = request.aliases,
+                    )
             ) {
                 is Success -> {
                     logger.info { "Contributor update queued: ${request.name}" }
                 }
+
                 is Failure -> {
                     throw result.exception ?: Exception(result.message)
                 }

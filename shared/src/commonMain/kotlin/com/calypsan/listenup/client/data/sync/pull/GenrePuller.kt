@@ -89,9 +89,5 @@ class GenrePuller(
      * Returns null for now - a second pass could update parent IDs if needed.
      */
     @Suppress("UnusedParameter")
-    private fun findParentIdFromPath(parentPath: String): String? {
-        // Parent IDs can be computed later if needed
-        // For now, we rely on path-based hierarchy traversal
-        return null
-    }
+    private fun findParentIdFromPath(parentPath: String): String? = null
 }

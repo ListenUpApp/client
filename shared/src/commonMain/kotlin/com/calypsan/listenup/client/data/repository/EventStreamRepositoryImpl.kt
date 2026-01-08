@@ -31,24 +31,34 @@ class EventStreamRepositoryImpl(
     override val adminEvents: Flow<AdminEvent> =
         sseManager.eventFlow.mapNotNull { event ->
             when (event) {
-                is SSEEventType.UserPending -> AdminEvent.UserPending(
-                    user = event.user.toDomain(),
-                )
+                is SSEEventType.UserPending -> {
+                    AdminEvent.UserPending(
+                        user = event.user.toDomain(),
+                    )
+                }
 
-                is SSEEventType.UserApproved -> AdminEvent.UserApproved(
-                    user = event.user.toDomain(),
-                )
+                is SSEEventType.UserApproved -> {
+                    AdminEvent.UserApproved(
+                        user = event.user.toDomain(),
+                    )
+                }
 
-                is SSEEventType.InboxBookAdded -> AdminEvent.InboxBookAdded(
-                    bookId = event.bookId,
-                    title = event.title,
-                )
+                is SSEEventType.InboxBookAdded -> {
+                    AdminEvent.InboxBookAdded(
+                        bookId = event.bookId,
+                        title = event.title,
+                    )
+                }
 
-                is SSEEventType.InboxBookReleased -> AdminEvent.InboxBookReleased(
-                    bookId = event.bookId,
-                )
+                is SSEEventType.InboxBookReleased -> {
+                    AdminEvent.InboxBookReleased(
+                        bookId = event.bookId,
+                    )
+                }
 
-                else -> null
+                else -> {
+                    null
+                }
             }
         }
 

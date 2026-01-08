@@ -41,6 +41,5 @@ open class CreateInviteUseCase(
         }
     }
 
-    private fun isValidEmail(email: String): Boolean =
-        email.contains("@") && email.contains(".")
+    private fun isValidEmail(email: String): Boolean = email.contains("@") && email.contains(".")
 }

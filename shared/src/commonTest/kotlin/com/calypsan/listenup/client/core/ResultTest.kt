@@ -237,9 +237,10 @@ class ResultTest {
     @Test
     fun `recover provides access to Failure details`() {
         val result: Result<Int> = Failure(message = "validation failed", errorCode = ErrorCode.VALIDATION_ERROR)
-        val recovered = result.recover { failure ->
-            if (failure.errorCode == ErrorCode.VALIDATION_ERROR) 0 else -1
-        }
+        val recovered =
+            result.recover { failure ->
+                if (failure.errorCode == ErrorCode.VALIDATION_ERROR) 0 else -1
+            }
         val success = assertIs<Success<Int>>(recovered)
         assertEquals(0, success.data)
     }

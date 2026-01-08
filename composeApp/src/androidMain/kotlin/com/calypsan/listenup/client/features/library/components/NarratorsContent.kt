@@ -27,10 +27,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
 import com.calypsan.listenup.client.design.components.AlphabetIndex
 import com.calypsan.listenup.client.design.components.AlphabetScrollbar
 import com.calypsan.listenup.client.design.components.SortSplitButton
+import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
 import com.calypsan.listenup.client.features.nowplaying.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
@@ -112,7 +112,7 @@ fun NarratorsContent(
                     // Reuse ContributorCard from AuthorsContent
                     ContributorCard(
                         contributorWithCount = narratorWithCount,
-                        onClick = { onNarratorClick(narratorWithCount.contributor.id) },
+                        onClick = { onNarratorClick(narratorWithCount.contributor.id.value) },
                     )
                 }
             }

@@ -205,7 +205,10 @@ class BookDetailViewModel(
      * @param slug The tag slug to add
      */
     fun addTag(slug: String) {
-        val bookId = state.value.book?.id?.value ?: return
+        val bookId =
+            state.value.book
+                ?.id
+                ?.value ?: return
         viewModelScope.launch {
             try {
                 tagRepository.addTagToBook(bookId, slug)
@@ -222,7 +225,10 @@ class BookDetailViewModel(
      * @param slug The tag slug to remove
      */
     fun removeTag(slug: String) {
-        val bookId = state.value.book?.id?.value ?: return
+        val bookId =
+            state.value.book
+                ?.id
+                ?.value ?: return
         val tag = state.value.tags.find { it.slug == slug } ?: return
         viewModelScope.launch {
             try {
@@ -243,7 +249,10 @@ class BookDetailViewModel(
      * @param rawInput The tag text to add (will be normalized)
      */
     fun addNewTag(rawInput: String) {
-        val bookId = state.value.book?.id?.value ?: return
+        val bookId =
+            state.value.book
+                ?.id
+                ?.value ?: return
         viewModelScope.launch {
             try {
                 tagRepository.addTagToBook(bookId, rawInput)

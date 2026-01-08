@@ -379,5 +379,4 @@ class HomeRepositoryTest {
                 "Expected ISO 8601 from updatedAt fallback, got: ${continueBook.lastPlayedAt}",
             )
         }
-
 }

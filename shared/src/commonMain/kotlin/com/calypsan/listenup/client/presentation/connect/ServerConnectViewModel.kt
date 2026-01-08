@@ -163,27 +163,29 @@ class ServerConnectViewModel(
                 is Failure -> {
                     val errorMessage = result.message.lowercase()
 
-                    val error = when {
-                        errorMessage.contains("connection refused") ||
-                            errorMessage.contains("failed to connect") -> {
-                            ServerConnectError.ServerNotReachable(
-                                debugInfo = "Server not reachable at $url",
-                            )
-                        }
+                    val error =
+                        when {
+                            errorMessage.contains("connection refused") ||
+                                errorMessage.contains("failed to connect") -> {
+                                ServerConnectError.ServerNotReachable(
+                                    debugInfo = "Server not reachable at $url",
+                                )
+                            }
 
-                        errorMessage.contains("serialization") ||
-                            errorMessage.contains("parse") -> {
-                            ServerConnectError.NotListenUpServer(
-                                debugInfo = "Failed to parse server response: ${result.message}",
-                            )
-                        }
+                            errorMessage.contains("serialization") ||
+                                errorMessage.contains("parse") -> {
+                                ServerConnectError.NotListenUpServer(
+                                    debugInfo = "Failed to parse server response: ${result.message}",
+                                )
+                            }
 
-                        else -> {
-                            val appError = result.exception?.let { ErrorMapper.map(it) }
-                                ?: UnknownError(message = result.message, debugInfo = null)
-                            ServerConnectError.VerificationFailed(appError)
+                            else -> {
+                                val appError =
+                                    result.exception?.let { ErrorMapper.map(it) }
+                                        ?: UnknownError(message = result.message, debugInfo = null)
+                                ServerConnectError.VerificationFailed(appError)
+                            }
                         }
-                    }
 
                     state.update { it.copy(isLoading = false, error = error) }
                 }

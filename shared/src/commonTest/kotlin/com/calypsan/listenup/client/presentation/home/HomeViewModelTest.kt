@@ -81,7 +81,9 @@ class HomeViewModelTest {
         isAdmin: Boolean = false,
     ): User =
         User(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .UserId(id),
             email = email,
             displayName = displayName,
             isAdmin = isAdmin,
@@ -143,13 +145,17 @@ class HomeViewModelTest {
             val fixture = createFixture()
             val viewModel = fixture.build()
             advanceUntilIdle()
-            assertTrue(viewModel.state.value.continueListening.isEmpty())
+            assertTrue(
+                viewModel.state.value.continueListening
+                    .isEmpty(),
+            )
 
             // When - flow emits new data
-            val books = listOf(
-                createContinueListeningBook(bookId = "book-1", title = "Book 1"),
-                createContinueListeningBook(bookId = "book-2", title = "Book 2"),
-            )
+            val books =
+                listOf(
+                    createContinueListeningBook(bookId = "book-1", title = "Book 1"),
+                    createContinueListeningBook(bookId = "book-2", title = "Book 2"),
+                )
             fixture.continueListeningFlow.value = books
             advanceUntilIdle()
 
@@ -166,23 +172,29 @@ class HomeViewModelTest {
         runTest {
             // Given - start with one book
             val fixture = createFixture()
-            fixture.continueListeningFlow.value = listOf(
-                createContinueListeningBook(bookId = "book-1", title = "Original Book"),
-            )
+            fixture.continueListeningFlow.value =
+                listOf(
+                    createContinueListeningBook(bookId = "book-1", title = "Original Book"),
+                )
             val viewModel = fixture.build()
             advanceUntilIdle()
             assertEquals(1, viewModel.state.value.continueListening.size)
 
             // When - new book is played (Flow emits updated list)
-            fixture.continueListeningFlow.value = listOf(
-                createContinueListeningBook(bookId = "book-new", title = "New Book"),
-                createContinueListeningBook(bookId = "book-1", title = "Original Book"),
-            )
+            fixture.continueListeningFlow.value =
+                listOf(
+                    createContinueListeningBook(bookId = "book-new", title = "New Book"),
+                    createContinueListeningBook(bookId = "book-1", title = "Original Book"),
+                )
             advanceUntilIdle()
 
             // Then - UI updates immediately without manual refresh
             assertEquals(2, viewModel.state.value.continueListening.size)
-            assertEquals("New Book", viewModel.state.value.continueListening[0].title)
+            assertEquals(
+                "New Book",
+                viewModel.state.value.continueListening[0]
+                    .title,
+            )
         }
 
     // ========== User Observation Tests ==========

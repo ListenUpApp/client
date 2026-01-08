@@ -328,16 +328,18 @@ class ContributorMetadataViewModel(
             }
 
             val selections = currentState.selections
-            val request = ApplyContributorMetadataRequest(
-                contributorId = currentState.contributorId,
-                asin = candidate.asin,
-                imageUrl = candidate.imageUrl,
-                selections = MetadataFieldSelections(
-                    name = selections.name,
-                    biography = selections.biography,
-                    image = selections.image,
-                ),
-            )
+            val request =
+                ApplyContributorMetadataRequest(
+                    contributorId = currentState.contributorId,
+                    asin = candidate.asin,
+                    imageUrl = candidate.imageUrl,
+                    selections =
+                        MetadataFieldSelections(
+                            name = selections.name,
+                            biography = selections.biography,
+                            image = selections.image,
+                        ),
+                )
 
             when (val result = applyContributorMetadataUseCase(request)) {
                 is Success -> {

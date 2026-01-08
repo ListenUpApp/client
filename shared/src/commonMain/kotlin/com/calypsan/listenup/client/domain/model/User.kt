@@ -1,5 +1,7 @@
 package com.calypsan.listenup.client.domain.model
 
+import com.calypsan.listenup.client.core.UserId
+
 /**
  * Domain model representing a user in the system.
  *
@@ -20,7 +22,7 @@ package com.calypsan.listenup.client.domain.model
  * @property updatedAtMs Last update timestamp in epoch milliseconds
  */
 data class User(
-    val id: String,
+    val id: UserId,
     val email: String,
     val displayName: String,
     val firstName: String? = null,
@@ -43,21 +45,23 @@ data class User(
      * Returns the user's initials for fallback avatar display.
      */
     val initials: String
-        get() = displayName
-            .split(" ")
-            .take(2)
-            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-            .joinToString("")
-            .ifEmpty { displayName.take(1).uppercase() }
+        get() =
+            displayName
+                .split(" ")
+                .take(2)
+                .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+                .joinToString("")
+                .ifEmpty { displayName.take(1).uppercase() }
 
     /**
      * Returns the full name if available, otherwise display name.
      */
     val fullName: String
-        get() = when {
-            firstName != null && lastName != null -> "$firstName $lastName"
-            firstName != null -> firstName
-            lastName != null -> lastName
-            else -> displayName
-        }
+        get() =
+            when {
+                firstName != null && lastName != null -> "$firstName $lastName"
+                firstName != null -> firstName
+                lastName != null -> lastName
+                else -> displayName
+            }
 }

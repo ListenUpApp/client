@@ -82,13 +82,14 @@ class GenreRepositoryImplTest {
     fun `observeAll transforms entities to domain models`() =
         runTest {
             // Given
-            val genreEntity = createTestGenreEntity(
-                id = "genre-1",
-                name = "Science Fiction",
-                slug = "science-fiction",
-                path = "/fiction/science-fiction",
-                bookCount = 100,
-            )
+            val genreEntity =
+                createTestGenreEntity(
+                    id = "genre-1",
+                    name = "Science Fiction",
+                    slug = "science-fiction",
+                    path = "/fiction/science-fiction",
+                    bookCount = 100,
+                )
             val dao = createMockDao()
             every { dao.observeAllGenres() } returns flowOf(listOf(genreEntity))
             val repository = createRepository(dao)
@@ -110,11 +111,12 @@ class GenreRepositoryImplTest {
     fun `observeAll returns multiple genres in order`() =
         runTest {
             // Given
-            val genres = listOf(
-                createTestGenreEntity(id = "g1", name = "Fiction", slug = "fiction", path = "/fiction"),
-                createTestGenreEntity(id = "g2", name = "Fantasy", slug = "fantasy", path = "/fiction/fantasy"),
-                createTestGenreEntity(id = "g3", name = "Epic Fantasy", slug = "epic-fantasy", path = "/fiction/fantasy/epic-fantasy"),
-            )
+            val genres =
+                listOf(
+                    createTestGenreEntity(id = "g1", name = "Fiction", slug = "fiction", path = "/fiction"),
+                    createTestGenreEntity(id = "g2", name = "Fantasy", slug = "fantasy", path = "/fiction/fantasy"),
+                    createTestGenreEntity(id = "g3", name = "Epic Fantasy", slug = "epic-fantasy", path = "/fiction/fantasy/epic-fantasy"),
+                )
             val dao = createMockDao()
             every { dao.observeAllGenres() } returns flowOf(genres)
             val repository = createRepository(dao)
@@ -165,13 +167,14 @@ class GenreRepositoryImplTest {
     fun `getAll transforms entities to domain models`() =
         runTest {
             // Given
-            val genreEntity = createTestGenreEntity(
-                id = "genre-2",
-                name = "Mystery",
-                slug = "mystery",
-                path = "/fiction/mystery",
-                bookCount = 50,
-            )
+            val genreEntity =
+                createTestGenreEntity(
+                    id = "genre-2",
+                    name = "Mystery",
+                    slug = "mystery",
+                    path = "/fiction/mystery",
+                    bookCount = 50,
+                )
             val dao = createMockDao()
             everySuspend { dao.getAllGenres() } returns listOf(genreEntity)
             val repository = createRepository(dao)
@@ -193,10 +196,11 @@ class GenreRepositoryImplTest {
     fun `getAll returns all genres`() =
         runTest {
             // Given
-            val genres = listOf(
-                createTestGenreEntity(id = "g1", name = "Non-Fiction", slug = "non-fiction", path = "/non-fiction"),
-                createTestGenreEntity(id = "g2", name = "Biography", slug = "biography", path = "/non-fiction/biography"),
-            )
+            val genres =
+                listOf(
+                    createTestGenreEntity(id = "g1", name = "Non-Fiction", slug = "non-fiction", path = "/non-fiction"),
+                    createTestGenreEntity(id = "g2", name = "Biography", slug = "biography", path = "/non-fiction/biography"),
+                )
             val dao = createMockDao()
             everySuspend { dao.getAllGenres() } returns genres
             val repository = createRepository(dao)
@@ -246,13 +250,14 @@ class GenreRepositoryImplTest {
     fun `getById returns domain model when genre found`() =
         runTest {
             // Given
-            val genreEntity = createTestGenreEntity(
-                id = "genre-3",
-                name = "Horror",
-                slug = "horror",
-                path = "/fiction/horror",
-                bookCount = 25,
-            )
+            val genreEntity =
+                createTestGenreEntity(
+                    id = "genre-3",
+                    name = "Horror",
+                    slug = "horror",
+                    path = "/fiction/horror",
+                    bookCount = 25,
+                )
             val dao = createMockDao()
             everySuspend { dao.getById("genre-3") } returns genreEntity
             val repository = createRepository(dao)
@@ -304,13 +309,14 @@ class GenreRepositoryImplTest {
     fun `getBySlug returns domain model when genre found`() =
         runTest {
             // Given
-            val genreEntity = createTestGenreEntity(
-                id = "genre-4",
-                name = "Thriller",
-                slug = "thriller",
-                path = "/fiction/thriller",
-                bookCount = 75,
-            )
+            val genreEntity =
+                createTestGenreEntity(
+                    id = "genre-4",
+                    name = "Thriller",
+                    slug = "thriller",
+                    path = "/fiction/thriller",
+                    bookCount = 75,
+                )
             val dao = createMockDao()
             everySuspend { dao.getBySlug("thriller") } returns genreEntity
             val repository = createRepository(dao)
@@ -362,13 +368,14 @@ class GenreRepositoryImplTest {
     fun `observeGenresForBook transforms entities to domain models`() =
         runTest {
             // Given
-            val genreEntity = createTestGenreEntity(
-                id = "genre-5",
-                name = "Romance",
-                slug = "romance",
-                path = "/fiction/romance",
-                bookCount = 200,
-            )
+            val genreEntity =
+                createTestGenreEntity(
+                    id = "genre-5",
+                    name = "Romance",
+                    slug = "romance",
+                    path = "/fiction/romance",
+                    bookCount = 200,
+                )
             val dao = createMockDao()
             every { dao.observeGenresForBook(BookId("book-1")) } returns flowOf(listOf(genreEntity))
             val repository = createRepository(dao)
@@ -390,10 +397,11 @@ class GenreRepositoryImplTest {
     fun `observeGenresForBook returns multiple genres for a book`() =
         runTest {
             // Given
-            val genres = listOf(
-                createTestGenreEntity(id = "g1", name = "Fiction", slug = "fiction", path = "/fiction"),
-                createTestGenreEntity(id = "g2", name = "Fantasy", slug = "fantasy", path = "/fiction/fantasy"),
-            )
+            val genres =
+                listOf(
+                    createTestGenreEntity(id = "g1", name = "Fiction", slug = "fiction", path = "/fiction"),
+                    createTestGenreEntity(id = "g2", name = "Fantasy", slug = "fantasy", path = "/fiction/fantasy"),
+                )
             val dao = createMockDao()
             every { dao.observeGenresForBook(BookId("book-1")) } returns flowOf(genres)
             val repository = createRepository(dao)
@@ -443,13 +451,14 @@ class GenreRepositoryImplTest {
     fun `getGenresForBook transforms entities to domain models`() =
         runTest {
             // Given
-            val genreEntity = createTestGenreEntity(
-                id = "genre-6",
-                name = "Historical Fiction",
-                slug = "historical-fiction",
-                path = "/fiction/historical-fiction",
-                bookCount = 60,
-            )
+            val genreEntity =
+                createTestGenreEntity(
+                    id = "genre-6",
+                    name = "Historical Fiction",
+                    slug = "historical-fiction",
+                    path = "/fiction/historical-fiction",
+                    bookCount = 60,
+                )
             val dao = createMockDao()
             everySuspend { dao.getGenresForBook(BookId("book-1")) } returns listOf(genreEntity)
             val repository = createRepository(dao)
@@ -471,11 +480,12 @@ class GenreRepositoryImplTest {
     fun `getGenresForBook returns multiple genres for a book`() =
         runTest {
             // Given
-            val genres = listOf(
-                createTestGenreEntity(id = "g1", name = "Non-Fiction", slug = "non-fiction", path = "/non-fiction"),
-                createTestGenreEntity(id = "g2", name = "Science", slug = "science", path = "/non-fiction/science"),
-                createTestGenreEntity(id = "g3", name = "Physics", slug = "physics", path = "/non-fiction/science/physics"),
-            )
+            val genres =
+                listOf(
+                    createTestGenreEntity(id = "g1", name = "Non-Fiction", slug = "non-fiction", path = "/non-fiction"),
+                    createTestGenreEntity(id = "g2", name = "Science", slug = "science", path = "/non-fiction/science"),
+                    createTestGenreEntity(id = "g3", name = "Physics", slug = "physics", path = "/non-fiction/science/physics"),
+                )
             val dao = createMockDao()
             everySuspend { dao.getGenresForBook(BookId("book-1")) } returns genres
             val repository = createRepository(dao)
@@ -526,11 +536,12 @@ class GenreRepositoryImplTest {
     fun `getBookIdsForGenre returns book ids as strings`() =
         runTest {
             // Given
-            val bookIds = listOf(
-                BookId("book-1"),
-                BookId("book-2"),
-                BookId("book-3"),
-            )
+            val bookIds =
+                listOf(
+                    BookId("book-1"),
+                    BookId("book-2"),
+                    BookId("book-3"),
+                )
             val dao = createMockDao()
             everySuspend { dao.getBookIdsForGenre("genre-1") } returns bookIds
             val repository = createRepository(dao)
@@ -583,13 +594,14 @@ class GenreRepositoryImplTest {
     fun `toDomain converts all entity fields correctly`() =
         runTest {
             // Given
-            val genreEntity = createTestGenreEntity(
-                id = "complete-genre",
-                name = "Urban Fantasy",
-                slug = "urban-fantasy",
-                path = "/fiction/fantasy/urban-fantasy",
-                bookCount = 150,
-            )
+            val genreEntity =
+                createTestGenreEntity(
+                    id = "complete-genre",
+                    name = "Urban Fantasy",
+                    slug = "urban-fantasy",
+                    path = "/fiction/fantasy/urban-fantasy",
+                    bookCount = 150,
+                )
             val dao = createMockDao()
             everySuspend { dao.getById("complete-genre") } returns genreEntity
             val repository = createRepository(dao)
@@ -609,13 +621,14 @@ class GenreRepositoryImplTest {
     fun `toDomain handles root level genre with simple path`() =
         runTest {
             // Given
-            val genreEntity = createTestGenreEntity(
-                id = "root-genre",
-                name = "Fiction",
-                slug = "fiction",
-                path = "/fiction",
-                bookCount = 1000,
-            )
+            val genreEntity =
+                createTestGenreEntity(
+                    id = "root-genre",
+                    name = "Fiction",
+                    slug = "fiction",
+                    path = "/fiction",
+                    bookCount = 1000,
+                )
             val dao = createMockDao()
             everySuspend { dao.getById("root-genre") } returns genreEntity
             val repository = createRepository(dao)
@@ -634,13 +647,14 @@ class GenreRepositoryImplTest {
     fun `toDomain handles deeply nested genre path`() =
         runTest {
             // Given
-            val genreEntity = createTestGenreEntity(
-                id = "nested-genre",
-                name = "Hard Science Fiction",
-                slug = "hard-science-fiction",
-                path = "/fiction/science-fiction/hard-science-fiction",
-                bookCount = 30,
-            )
+            val genreEntity =
+                createTestGenreEntity(
+                    id = "nested-genre",
+                    name = "Hard Science Fiction",
+                    slug = "hard-science-fiction",
+                    path = "/fiction/science-fiction/hard-science-fiction",
+                    bookCount = 30,
+                )
             val dao = createMockDao()
             everySuspend { dao.getById("nested-genre") } returns genreEntity
             val repository = createRepository(dao)
@@ -659,13 +673,14 @@ class GenreRepositoryImplTest {
     fun `toDomain handles zero book count`() =
         runTest {
             // Given
-            val genreEntity = createTestGenreEntity(
-                id = "empty-genre",
-                name = "New Genre",
-                slug = "new-genre",
-                path = "/new-genre",
-                bookCount = 0,
-            )
+            val genreEntity =
+                createTestGenreEntity(
+                    id = "empty-genre",
+                    name = "New Genre",
+                    slug = "new-genre",
+                    path = "/new-genre",
+                    bookCount = 0,
+                )
             val dao = createMockDao()
             everySuspend { dao.getById("empty-genre") } returns genreEntity
             val repository = createRepository(dao)
@@ -681,13 +696,14 @@ class GenreRepositoryImplTest {
     fun `toDomain preserves default values for entity optional fields`() =
         runTest {
             // Given - entity with default values for optional fields
-            val genreEntity = GenreEntity(
-                id = "minimal-genre",
-                name = "Minimal",
-                slug = "minimal",
-                path = "/minimal",
-                // Using defaults for bookCount, parentId, depth, sortOrder
-            )
+            val genreEntity =
+                GenreEntity(
+                    id = "minimal-genre",
+                    name = "Minimal",
+                    slug = "minimal",
+                    path = "/minimal",
+                    // Using defaults for bookCount, parentId, depth, sortOrder
+                )
             val dao = createMockDao()
             everySuspend { dao.getById("minimal-genre") } returns genreEntity
             val repository = createRepository(dao)

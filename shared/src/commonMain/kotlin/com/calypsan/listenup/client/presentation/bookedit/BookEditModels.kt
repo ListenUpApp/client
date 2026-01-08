@@ -22,18 +22,19 @@ typealias ContributorRole = DomainContributorRole
  * Presentation-layer concern for UI display.
  */
 val ContributorRole.displayName: String
-    get() = when (this) {
-        ContributorRole.AUTHOR -> "Author"
-        ContributorRole.NARRATOR -> "Narrator"
-        ContributorRole.EDITOR -> "Editor"
-        ContributorRole.TRANSLATOR -> "Translator"
-        ContributorRole.FOREWORD -> "Foreword"
-        ContributorRole.INTRODUCTION -> "Introduction"
-        ContributorRole.AFTERWORD -> "Afterword"
-        ContributorRole.PRODUCER -> "Producer"
-        ContributorRole.ADAPTER -> "Adapter"
-        ContributorRole.ILLUSTRATOR -> "Illustrator"
-    }
+    get() =
+        when (this) {
+            ContributorRole.AUTHOR -> "Author"
+            ContributorRole.NARRATOR -> "Narrator"
+            ContributorRole.EDITOR -> "Editor"
+            ContributorRole.TRANSLATOR -> "Translator"
+            ContributorRole.FOREWORD -> "Foreword"
+            ContributorRole.INTRODUCTION -> "Introduction"
+            ContributorRole.AFTERWORD -> "Afterword"
+            ContributorRole.PRODUCER -> "Producer"
+            ContributorRole.ADAPTER -> "Adapter"
+            ContributorRole.ILLUSTRATOR -> "Illustrator"
+        }
 
 /**
  * Extension property for EditableGenre parent path display.

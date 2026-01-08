@@ -3,9 +3,9 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActiveSessionWithDetails
-import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.model.ActiveSession
 import com.calypsan.listenup.client.domain.repository.ActiveSessionRepository
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -27,8 +27,7 @@ class ActiveSessionRepositoryImpl(
             sessions.map { it.toDomain(imageStorage) }
         }
 
-    override fun observeActiveCount(currentUserId: String): Flow<Int> =
-        dao.observeActiveCount(currentUserId)
+    override fun observeActiveCount(currentUserId: String): Flow<Int> = dao.observeActiveCount(currentUserId)
 }
 
 /**
@@ -36,29 +35,32 @@ class ActiveSessionRepositoryImpl(
  */
 private fun ActiveSessionWithDetails.toDomain(imageStorage: ImageStorage): ActiveSession {
     val bookIdValue = BookId(bookId)
-    val coverPath = if (imageStorage.exists(bookIdValue)) {
-        imageStorage.getCoverPath(bookIdValue)
-    } else {
-        null
-    }
+    val coverPath =
+        if (imageStorage.exists(bookIdValue)) {
+            imageStorage.getCoverPath(bookIdValue)
+        } else {
+            null
+        }
     return ActiveSession(
         sessionId = sessionId,
         userId = userId,
         bookId = bookId,
         startedAtMs = startedAt,
         updatedAtMs = updatedAt,
-        user = ActiveSession.SessionUser(
-            displayName = displayName,
-            avatarType = avatarType,
-            avatarValue = avatarValue,
-            avatarColor = avatarColor,
-        ),
-        book = ActiveSession.SessionBook(
-            id = bookId,
-            title = title,
-            coverPath = coverPath,
-            coverBlurHash = coverBlurHash,
-            authorName = authorName,
-        ),
+        user =
+            ActiveSession.SessionUser(
+                displayName = displayName,
+                avatarType = avatarType,
+                avatarValue = avatarValue,
+                avatarColor = avatarColor,
+            ),
+        book =
+            ActiveSession.SessionBook(
+                id = bookId,
+                title = title,
+                coverPath = coverPath,
+                coverBlurHash = coverBlurHash,
+                authorName = authorName,
+            ),
     )
 }

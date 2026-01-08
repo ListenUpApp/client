@@ -125,7 +125,7 @@ class FtsPopulator(
         for (contributor in contributors) {
             try {
                 searchDao.insertContributorFts(
-                    contributorId = contributor.id,
+                    contributorId = contributor.id.value,
                     name = contributor.name,
                     description = contributor.description,
                 )
@@ -158,7 +158,7 @@ class FtsPopulator(
         for (s in series) {
             try {
                 searchDao.insertSeriesFts(
-                    seriesId = s.id,
+                    seriesId = s.id.value,
                     name = s.name,
                     description = s.description,
                 )

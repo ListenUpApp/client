@@ -54,14 +54,10 @@ class DiscoverViewModel(
      */
     private val currentlyListeningFlow =
         authSession.authState.flatMapLatest { authState ->
-            when (authState) {
-                is AuthState.Authenticated -> {
-                    activeSessionRepository.observeActiveSessions(authState.userId)
-                }
-
-                else -> {
-                    flowOf(emptyList())
-                }
+            if (authState is AuthState.Authenticated) {
+                activeSessionRepository.observeActiveSessions(authState.userId)
+            } else {
+                flowOf(emptyList())
             }
         }
 
@@ -175,14 +171,10 @@ class DiscoverViewModel(
      */
     private val discoverLensesFlow =
         authSession.authState.flatMapLatest { authState ->
-            when (authState) {
-                is AuthState.Authenticated -> {
-                    lensRepository.observeDiscoverLenses(authState.userId)
-                }
-
-                else -> {
-                    flowOf(emptyList())
-                }
+            if (authState is AuthState.Authenticated) {
+                lensRepository.observeDiscoverLenses(authState.userId)
+            } else {
+                flowOf(emptyList())
             }
         }
 

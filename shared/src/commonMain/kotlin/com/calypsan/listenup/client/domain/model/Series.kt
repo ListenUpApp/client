@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.domain.model
 
+import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Timestamp
 
 /**
@@ -14,7 +15,7 @@ import com.calypsan.listenup.client.core.Timestamp
  * the book-series relationship with sequence numbers is managed separately.
  */
 data class Series(
-    val id: String,
+    val id: SeriesId,
     val name: String,
     val description: String? = null,
     val createdAt: Timestamp = Timestamp(0),

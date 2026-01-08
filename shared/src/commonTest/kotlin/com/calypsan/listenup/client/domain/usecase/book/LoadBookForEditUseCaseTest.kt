@@ -89,18 +89,19 @@ class LoadBookForEditUseCaseTest {
     fun `transforms book metadata correctly`() =
         runTest {
             // Given
-            val book = TestData.book(
-                id = "book-1",
-                title = "The Great Gatsby",
-                subtitle = "A Novel",
-                description = "Jazz Age story",
-                publishYear = 1925,
-                publisher = "Scribner",
-                language = "en",
-                isbn = "978-0743273565",
-                asin = "B000FC0PDA",
-                abridged = false,
-            )
+            val book =
+                TestData.book(
+                    id = "book-1",
+                    title = "The Great Gatsby",
+                    subtitle = "A Novel",
+                    description = "Jazz Age story",
+                    publishYear = 1925,
+                    publisher = "Scribner",
+                    language = "en",
+                    isbn = "978-0743273565",
+                    asin = "B000FC0PDA",
+                    abridged = false,
+                )
             val fixture = createFixture()
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             val useCase = fixture.build()
@@ -128,17 +129,18 @@ class LoadBookForEditUseCaseTest {
     fun `handles null optional fields with empty strings`() =
         runTest {
             // Given
-            val book = TestData.book(
-                id = "book-1",
-                title = "Minimal Book",
-                subtitle = null,
-                description = null,
-                publishYear = null,
-                publisher = null,
-                language = null,
-                isbn = null,
-                asin = null,
-            )
+            val book =
+                TestData.book(
+                    id = "book-1",
+                    title = "Minimal Book",
+                    subtitle = null,
+                    description = null,
+                    publishYear = null,
+                    publisher = null,
+                    language = null,
+                    isbn = null,
+                    asin = null,
+                )
             val fixture = createFixture()
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             val useCase = fixture.build()
@@ -167,10 +169,11 @@ class LoadBookForEditUseCaseTest {
             // Given
             val author = TestData.contributor(id = "c1", name = "Jane Austen", roles = listOf("Author"))
             val narrator = TestData.contributor(id = "c2", name = "Rosamund Pike", roles = listOf("Narrator"))
-            val book = TestData.book(
-                id = "book-1",
-                allContributors = listOf(author, narrator),
-            )
+            val book =
+                TestData.book(
+                    id = "book-1",
+                    allContributors = listOf(author, narrator),
+                )
             val fixture = createFixture()
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             val useCase = fixture.build()
@@ -199,15 +202,17 @@ class LoadBookForEditUseCaseTest {
     fun `handles contributors with multiple roles`() =
         runTest {
             // Given
-            val multiRoleContributor = TestData.contributor(
-                id = "c1",
-                name = "Neil Gaiman",
-                roles = listOf("Author", "Narrator"),
-            )
-            val book = TestData.book(
-                id = "book-1",
-                allContributors = listOf(multiRoleContributor),
-            )
+            val multiRoleContributor =
+                TestData.contributor(
+                    id = "c1",
+                    name = "Neil Gaiman",
+                    roles = listOf("Author", "Narrator"),
+                )
+            val book =
+                TestData.book(
+                    id = "book-1",
+                    allContributors = listOf(multiRoleContributor),
+                )
             val fixture = createFixture()
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             val useCase = fixture.build()
@@ -232,13 +237,14 @@ class LoadBookForEditUseCaseTest {
     fun `transforms series to editable format`() =
         runTest {
             // Given
-            val book = TestData.bookInSeries(
-                id = "book-1",
-                title = "The Fellowship of the Ring",
-                seriesId = "lotr-series",
-                seriesName = "The Lord of the Rings",
-                seriesSequence = "1",
-            )
+            val book =
+                TestData.bookInSeries(
+                    id = "book-1",
+                    title = "The Fellowship of the Ring",
+                    seriesId = "lotr-series",
+                    seriesName = "The Lord of the Rings",
+                    seriesSequence = "1",
+                )
             val fixture = createFixture()
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             val useCase = fixture.build()
@@ -282,11 +288,12 @@ class LoadBookForEditUseCaseTest {
     fun `loads all genres for picker`() =
         runTest {
             // Given
-            val allGenres = listOf(
-                TestData.genre(id = "g1", name = "Fiction", path = "/fiction"),
-                TestData.genre(id = "g2", name = "Mystery", path = "/mystery"),
-                TestData.genre(id = "g3", name = "Romance", path = "/romance"),
-            )
+            val allGenres =
+                listOf(
+                    TestData.genre(id = "g1", name = "Fiction", path = "/fiction"),
+                    TestData.genre(id = "g2", name = "Mystery", path = "/mystery"),
+                    TestData.genre(id = "g3", name = "Romance", path = "/romance"),
+                )
             val book = TestData.book(id = "book-1")
             val fixture = createFixture()
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
@@ -310,9 +317,10 @@ class LoadBookForEditUseCaseTest {
     fun `loads genres assigned to book`() =
         runTest {
             // Given
-            val bookGenres = listOf(
-                TestData.genre(id = "g1", name = "Fiction", path = "/fiction"),
-            )
+            val bookGenres =
+                listOf(
+                    TestData.genre(id = "g1", name = "Fiction", path = "/fiction"),
+                )
             val book = TestData.book(id = "book-1")
             val fixture = createFixture()
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
@@ -359,11 +367,12 @@ class LoadBookForEditUseCaseTest {
     fun `loads all tags for picker`() =
         runTest {
             // Given
-            val allTags = listOf(
-                TestData.tag(id = "t1", slug = "favorites"),
-                TestData.tag(id = "t2", slug = "to-read"),
-                TestData.tag(id = "t3", slug = "completed"),
-            )
+            val allTags =
+                listOf(
+                    TestData.tag(id = "t1", slug = "favorites"),
+                    TestData.tag(id = "t2", slug = "to-read"),
+                    TestData.tag(id = "t3", slug = "completed"),
+                )
             val book = TestData.book(id = "book-1")
             val fixture = createFixture()
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
@@ -387,9 +396,10 @@ class LoadBookForEditUseCaseTest {
     fun `loads tags assigned to book`() =
         runTest {
             // Given
-            val bookTags = listOf(
-                TestData.tag(id = "t1", slug = "favorites"),
-            )
+            val bookTags =
+                listOf(
+                    TestData.tag(id = "t1", slug = "favorites"),
+                )
             val book = TestData.book(id = "book-1")
             val fixture = createFixture()
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
@@ -436,10 +446,11 @@ class LoadBookForEditUseCaseTest {
     fun `includes cover path from book`() =
         runTest {
             // Given
-            val book = TestData.book(
-                id = "book-1",
-                coverPath = "/covers/great-gatsby.jpg",
-            )
+            val book =
+                TestData.book(
+                    id = "book-1",
+                    coverPath = "/covers/great-gatsby.jpg",
+                )
             val fixture = createFixture()
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             val useCase = fixture.build()
@@ -458,10 +469,11 @@ class LoadBookForEditUseCaseTest {
     fun `handles null cover path`() =
         runTest {
             // Given
-            val book = TestData.book(
-                id = "book-1",
-                coverPath = null,
-            )
+            val book =
+                TestData.book(
+                    id = "book-1",
+                    coverPath = null,
+                )
             val fixture = createFixture()
             everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             val useCase = fixture.build()
@@ -484,32 +496,35 @@ class LoadBookForEditUseCaseTest {
             // Given - a fully populated book with all data
             val author = TestData.contributor(id = "c1", name = "Brandon Sanderson", roles = listOf("Author"))
             val narrator = TestData.contributor(id = "c2", name = "Michael Kramer", roles = listOf("Narrator"))
-            val book = TestData.book(
-                id = "stormlight-1",
-                title = "The Way of Kings",
-                subtitle = "Book One of The Stormlight Archive",
-                description = "Epic fantasy at its finest",
-                publishYear = 2010,
-                publisher = "Tor Books",
-                language = "en",
-                isbn = "978-0765326355",
-                asin = "B003P2WO5E",
-                abridged = false,
-                seriesId = "stormlight",
-                seriesName = "The Stormlight Archive",
-                seriesSequence = "1",
-                allContributors = listOf(author, narrator),
-                coverPath = "/covers/way-of-kings.jpg",
-            )
-            val allGenres = listOf(
-                TestData.genre(id = "g1", name = "Fantasy", path = "/fantasy"),
-                TestData.genre(id = "g2", name = "Epic Fantasy", path = "/fantasy/epic"),
-            )
+            val book =
+                TestData.book(
+                    id = "stormlight-1",
+                    title = "The Way of Kings",
+                    subtitle = "Book One of The Stormlight Archive",
+                    description = "Epic fantasy at its finest",
+                    publishYear = 2010,
+                    publisher = "Tor Books",
+                    language = "en",
+                    isbn = "978-0765326355",
+                    asin = "B003P2WO5E",
+                    abridged = false,
+                    seriesId = "stormlight",
+                    seriesName = "The Stormlight Archive",
+                    seriesSequence = "1",
+                    allContributors = listOf(author, narrator),
+                    coverPath = "/covers/way-of-kings.jpg",
+                )
+            val allGenres =
+                listOf(
+                    TestData.genre(id = "g1", name = "Fantasy", path = "/fantasy"),
+                    TestData.genre(id = "g2", name = "Epic Fantasy", path = "/fantasy/epic"),
+                )
             val bookGenres = listOf(allGenres[1])
-            val allTags = listOf(
-                TestData.tag(id = "t1", slug = "favorites"),
-                TestData.tag(id = "t2", slug = "to-read"),
-            )
+            val allTags =
+                listOf(
+                    TestData.tag(id = "t1", slug = "favorites"),
+                    TestData.tag(id = "t2", slug = "to-read"),
+                )
             val bookTags = listOf(allTags[0])
 
             val fixture = createFixture()

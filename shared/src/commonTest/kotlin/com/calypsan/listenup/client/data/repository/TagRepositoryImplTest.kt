@@ -1,9 +1,9 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
-import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.remote.TagApiContract
 import com.calypsan.listenup.client.domain.model.Tag
 import dev.mokkery.answering.returns
@@ -32,10 +32,13 @@ class TagRepositoryImplTest {
     // ========== Test Fixtures ==========
 
     private fun createMockDao(): TagDao = mock<TagDao>()
+
     private fun createMockApi(): TagApiContract = mock<TagApiContract>()
 
-    private fun createRepository(dao: TagDao, tagApi: TagApiContract = createMockApi()): TagRepositoryImpl =
-        TagRepositoryImpl(dao, tagApi)
+    private fun createRepository(
+        dao: TagDao,
+        tagApi: TagApiContract = createMockApi(),
+    ): TagRepositoryImpl = TagRepositoryImpl(dao, tagApi)
 
     private fun createTestTagEntity(
         id: String = "tag-1",

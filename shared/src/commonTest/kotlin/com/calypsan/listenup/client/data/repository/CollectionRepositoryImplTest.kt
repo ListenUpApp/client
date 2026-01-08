@@ -34,8 +34,7 @@ class CollectionRepositoryImplTest {
         val collectionDao: CollectionDao = mock()
         val adminCollectionApi: AdminCollectionApiContract = mock()
 
-        fun build(): CollectionRepositoryImpl =
-            CollectionRepositoryImpl(dao = collectionDao, adminCollectionApi = adminCollectionApi)
+        fun build(): CollectionRepositoryImpl = CollectionRepositoryImpl(dao = collectionDao, adminCollectionApi = adminCollectionApi)
     }
 
     private fun createFixture(): TestFixture {
@@ -84,13 +83,14 @@ class CollectionRepositoryImplTest {
     fun `observeAll transforms single entity to domain model`() =
         runTest {
             // Given
-            val entity = createTestCollectionEntity(
-                id = "col-1",
-                name = "Sci-Fi Favorites",
-                bookCount = 10,
-                createdAt = 1704067200000L,
-                updatedAt = 1704153600000L,
-            )
+            val entity =
+                createTestCollectionEntity(
+                    id = "col-1",
+                    name = "Sci-Fi Favorites",
+                    bookCount = 10,
+                    createdAt = 1704067200000L,
+                    updatedAt = 1704153600000L,
+                )
             val fixture = createFixture()
             every { fixture.collectionDao.observeAll() } returns flowOf(listOf(entity))
             val repository = fixture.build()
@@ -112,11 +112,12 @@ class CollectionRepositoryImplTest {
     fun `observeAll transforms multiple entities to domain models`() =
         runTest {
             // Given
-            val entities = listOf(
-                createTestCollectionEntity(id = "col-1", name = "Fantasy", bookCount = 15),
-                createTestCollectionEntity(id = "col-2", name = "Mystery", bookCount = 8),
-                createTestCollectionEntity(id = "col-3", name = "Romance", bookCount = 20),
-            )
+            val entities =
+                listOf(
+                    createTestCollectionEntity(id = "col-1", name = "Fantasy", bookCount = 15),
+                    createTestCollectionEntity(id = "col-2", name = "Mystery", bookCount = 8),
+                    createTestCollectionEntity(id = "col-3", name = "Romance", bookCount = 20),
+                )
             val fixture = createFixture()
             every { fixture.collectionDao.observeAll() } returns flowOf(entities)
             val repository = fixture.build()
@@ -141,11 +142,12 @@ class CollectionRepositoryImplTest {
     fun `observeAll preserves order from DAO`() =
         runTest {
             // Given - DAO returns collections in alphabetical order by name
-            val entities = listOf(
-                createTestCollectionEntity(id = "col-a", name = "A Collection"),
-                createTestCollectionEntity(id = "col-b", name = "B Collection"),
-                createTestCollectionEntity(id = "col-c", name = "C Collection"),
-            )
+            val entities =
+                listOf(
+                    createTestCollectionEntity(id = "col-a", name = "A Collection"),
+                    createTestCollectionEntity(id = "col-b", name = "B Collection"),
+                    createTestCollectionEntity(id = "col-c", name = "C Collection"),
+                )
             val fixture = createFixture()
             every { fixture.collectionDao.observeAll() } returns flowOf(entities)
             val repository = fixture.build()
@@ -163,11 +165,12 @@ class CollectionRepositoryImplTest {
     fun `observeAll handles collection with zero books`() =
         runTest {
             // Given
-            val entity = createTestCollectionEntity(
-                id = "empty-col",
-                name = "Empty Collection",
-                bookCount = 0,
-            )
+            val entity =
+                createTestCollectionEntity(
+                    id = "empty-col",
+                    name = "Empty Collection",
+                    bookCount = 0,
+                )
             val fixture = createFixture()
             every { fixture.collectionDao.observeAll() } returns flowOf(listOf(entity))
             val repository = fixture.build()
@@ -186,10 +189,11 @@ class CollectionRepositoryImplTest {
             // Given - specific timestamps for verification
             val createdAtMs = 1609459200000L // Jan 1, 2021 00:00:00 UTC
             val updatedAtMs = 1640995200000L // Jan 1, 2022 00:00:00 UTC
-            val entity = createTestCollectionEntity(
-                createdAt = createdAtMs,
-                updatedAt = updatedAtMs,
-            )
+            val entity =
+                createTestCollectionEntity(
+                    createdAt = createdAtMs,
+                    updatedAt = updatedAtMs,
+                )
             val fixture = createFixture()
             every { fixture.collectionDao.observeAll() } returns flowOf(listOf(entity))
             val repository = fixture.build()
@@ -223,10 +227,11 @@ class CollectionRepositoryImplTest {
     fun `getAll transforms entities to domain models`() =
         runTest {
             // Given
-            val entities = listOf(
-                createTestCollectionEntity(id = "col-1", name = "Horror", bookCount = 7),
-                createTestCollectionEntity(id = "col-2", name = "Thriller", bookCount = 12),
-            )
+            val entities =
+                listOf(
+                    createTestCollectionEntity(id = "col-1", name = "Horror", bookCount = 7),
+                    createTestCollectionEntity(id = "col-2", name = "Thriller", bookCount = 12),
+                )
             val fixture = createFixture()
             everySuspend { fixture.collectionDao.getAll() } returns entities
             val repository = fixture.build()
@@ -248,13 +253,14 @@ class CollectionRepositoryImplTest {
     fun `getAll returns all collections synchronously`() =
         runTest {
             // Given
-            val entities = (1..10).map { i ->
-                createTestCollectionEntity(
-                    id = "col-$i",
-                    name = "Collection $i",
-                    bookCount = i * 5,
-                )
-            }
+            val entities =
+                (1..10).map { i ->
+                    createTestCollectionEntity(
+                        id = "col-$i",
+                        name = "Collection $i",
+                        bookCount = i * 5,
+                    )
+                }
             val fixture = createFixture()
             everySuspend { fixture.collectionDao.getAll() } returns entities
             val repository = fixture.build()
@@ -292,11 +298,12 @@ class CollectionRepositoryImplTest {
     fun `getById returns collection when found`() =
         runTest {
             // Given
-            val entity = createTestCollectionEntity(
-                id = "col-123",
-                name = "Classic Literature",
-                bookCount = 25,
-            )
+            val entity =
+                createTestCollectionEntity(
+                    id = "col-123",
+                    name = "Classic Literature",
+                    bookCount = 25,
+                )
             val fixture = createFixture()
             everySuspend { fixture.collectionDao.getById("col-123") } returns entity
             val repository = fixture.build()
@@ -316,13 +323,14 @@ class CollectionRepositoryImplTest {
             // Given
             val createdAtMs = 1672531200000L // Jan 1, 2023 00:00:00 UTC
             val updatedAtMs = 1704067200000L // Jan 1, 2024 00:00:00 UTC
-            val entity = createTestCollectionEntity(
-                id = "col-full",
-                name = "Complete Collection",
-                bookCount = 100,
-                createdAt = createdAtMs,
-                updatedAt = updatedAtMs,
-            )
+            val entity =
+                createTestCollectionEntity(
+                    id = "col-full",
+                    name = "Complete Collection",
+                    bookCount = 100,
+                    createdAt = createdAtMs,
+                    updatedAt = updatedAtMs,
+                )
             val fixture = createFixture()
             everySuspend { fixture.collectionDao.getById("col-full") } returns entity
             val repository = fixture.build()
@@ -481,10 +489,11 @@ class CollectionRepositoryImplTest {
         runTest {
             // Given - negative timestamp (before Unix epoch, e.g., 1960)
             val negativeTimestamp = -315619200000L // Jan 1, 1960
-            val entity = createTestCollectionEntity(
-                createdAt = negativeTimestamp,
-                updatedAt = negativeTimestamp,
-            )
+            val entity =
+                createTestCollectionEntity(
+                    createdAt = negativeTimestamp,
+                    updatedAt = negativeTimestamp,
+                )
             val fixture = createFixture()
             every { fixture.collectionDao.observeAll() } returns flowOf(listOf(entity))
             val repository = fixture.build()

@@ -86,16 +86,19 @@ class SetupViewModelTest {
             refreshToken = RefreshToken(refreshToken),
             sessionId = sessionId,
             userId = userId,
-            user = User(
-                id = userId,
-                email = email,
-                displayName = "Admin User",
-                firstName = "Admin",
-                lastName = "User",
-                isAdmin = true,
-                createdAtMs = 0L,
-                updatedAtMs = 0L,
-            ),
+            user =
+                User(
+                    id =
+                        com.calypsan.listenup.client.core
+                            .UserId(userId),
+                    email = email,
+                    displayName = "Admin User",
+                    firstName = "Admin",
+                    lastName = "User",
+                    isAdmin = true,
+                    createdAtMs = 0L,
+                    updatedAtMs = 0L,
+                ),
         )
 
     @BeforeTest

@@ -39,7 +39,7 @@ import java.util.Locale
 @Composable
 fun DailyListeningChart(
     dailyListening: List<DailyListening>,
-    maxListenTimeMs: Long,
+    @Suppress("UnusedParameter") maxListenTimeMs: Long,
     modifier: Modifier = Modifier,
 ) {
     // Generate the last 7 days (6 days ago through today)

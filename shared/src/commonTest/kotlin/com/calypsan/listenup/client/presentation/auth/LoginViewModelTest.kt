@@ -59,7 +59,9 @@ class LoginViewModelTest {
         email: String = "test@example.com",
     ): User =
         User(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .UserId(id),
             email = email,
             displayName = "Test User",
             firstName = "Test",
@@ -103,10 +105,11 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
-                exception = IllegalArgumentException("Invalid email format"),
-                message = "Please enter a valid email address",
-            )
+            everySuspend { fixture.loginUseCase(any(), any()) } returns
+                Failure(
+                    exception = IllegalArgumentException("Invalid email format"),
+                    message = "Please enter a valid email address",
+                )
             val viewModel = fixture.build()
 
             // When
@@ -124,10 +127,11 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
-                exception = IllegalArgumentException("Invalid email format"),
-                message = "Please enter a valid email address",
-            )
+            everySuspend { fixture.loginUseCase(any(), any()) } returns
+                Failure(
+                    exception = IllegalArgumentException("Invalid email format"),
+                    message = "Please enter a valid email address",
+                )
             val viewModel = fixture.build()
 
             // When
@@ -179,10 +183,11 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
-                exception = IllegalArgumentException("Password is required"),
-                message = "Password is required",
-            )
+            everySuspend { fixture.loginUseCase(any(), any()) } returns
+                Failure(
+                    exception = IllegalArgumentException("Password is required"),
+                    message = "Password is required",
+                )
             val viewModel = fixture.build()
 
             // When
@@ -236,10 +241,11 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
-                exception = Exception("invalid credentials"),
-                message = "invalid credentials",
-            )
+            everySuspend { fixture.loginUseCase(any(), any()) } returns
+                Failure(
+                    exception = Exception("invalid credentials"),
+                    message = "invalid credentials",
+                )
             val viewModel = fixture.build()
 
             // When
@@ -256,10 +262,11 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
-                exception = Exception("Connection refused"),
-                message = "Connection refused",
-            )
+            everySuspend { fixture.loginUseCase(any(), any()) } returns
+                Failure(
+                    exception = Exception("Connection refused"),
+                    message = "Connection refused",
+                )
             val viewModel = fixture.build()
 
             // When
@@ -277,10 +284,11 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
-                exception = Exception("Connection timed out"),
-                message = "Connection timed out",
-            )
+            everySuspend { fixture.loginUseCase(any(), any()) } returns
+                Failure(
+                    exception = Exception("Connection timed out"),
+                    message = "Connection timed out",
+                )
             val viewModel = fixture.build()
 
             // When
@@ -298,10 +306,11 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
-                exception = Exception("Unable to resolve host"),
-                message = "Unable to resolve host",
-            )
+            everySuspend { fixture.loginUseCase(any(), any()) } returns
+                Failure(
+                    exception = Exception("Unable to resolve host"),
+                    message = "Unable to resolve host",
+                )
             val viewModel = fixture.build()
 
             // When
@@ -319,10 +328,11 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
-                exception = Exception("HTTP 500 Internal Server Error"),
-                message = "HTTP 500 Internal Server Error",
-            )
+            everySuspend { fixture.loginUseCase(any(), any()) } returns
+                Failure(
+                    exception = Exception("HTTP 500 Internal Server Error"),
+                    message = "HTTP 500 Internal Server Error",
+                )
             val viewModel = fixture.build()
 
             // When
@@ -340,10 +350,11 @@ class LoginViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
-                exception = Exception("Something unexpected happened"),
-                message = "Something unexpected happened",
-            )
+            everySuspend { fixture.loginUseCase(any(), any()) } returns
+                Failure(
+                    exception = Exception("Something unexpected happened"),
+                    message = "Something unexpected happened",
+                )
             val viewModel = fixture.build()
 
             // When
@@ -363,10 +374,11 @@ class LoginViewModelTest {
         runTest {
             // Given - put viewModel in error state
             val fixture = createFixture()
-            everySuspend { fixture.loginUseCase(any(), any()) } returns Failure(
-                exception = Exception("error"),
-                message = "error",
-            )
+            everySuspend { fixture.loginUseCase(any(), any()) } returns
+                Failure(
+                    exception = Exception("error"),
+                    message = "error",
+                )
             val viewModel = fixture.build()
             viewModel.onLoginSubmit(email = "user@example.com", password = "password")
             advanceUntilIdle()

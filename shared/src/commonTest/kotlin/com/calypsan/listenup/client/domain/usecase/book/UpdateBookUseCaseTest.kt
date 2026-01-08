@@ -6,16 +6,16 @@ import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.model.BookEditData
-import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.model.BookMetadata
 import com.calypsan.listenup.client.domain.model.BookUpdateRequest
 import com.calypsan.listenup.client.domain.model.PendingCover
+import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.repository.BookContributorInput
 import com.calypsan.listenup.client.domain.repository.BookEditRepository
 import com.calypsan.listenup.client.domain.repository.BookSeriesInput
 import com.calypsan.listenup.client.domain.repository.GenreRepository
+import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import com.calypsan.listenup.client.presentation.bookedit.ContributorRole
 import com.calypsan.listenup.client.presentation.bookedit.EditableContributor
@@ -95,18 +95,19 @@ class UpdateBookUseCaseTest {
         asin: String = "",
         abridged: Boolean = false,
         addedAt: Long? = null,
-    ): BookMetadata = BookMetadata(
-        title = title,
-        subtitle = subtitle,
-        description = description,
-        publishYear = publishYear,
-        publisher = publisher,
-        language = language,
-        isbn = isbn,
-        asin = asin,
-        abridged = abridged,
-        addedAt = addedAt,
-    )
+    ): BookMetadata =
+        BookMetadata(
+            title = title,
+            subtitle = subtitle,
+            description = description,
+            publishYear = publishYear,
+            publisher = publisher,
+            language = language,
+            isbn = isbn,
+            asin = asin,
+            abridged = abridged,
+            addedAt = addedAt,
+        )
 
     private fun createOriginalState(
         bookId: String = "book-1",
@@ -118,17 +119,18 @@ class UpdateBookUseCaseTest {
         allGenres: List<EditableGenre> = emptyList(),
         allTags: List<EditableTag> = emptyList(),
         coverPath: String? = null,
-    ): BookEditData = BookEditData(
-        bookId = bookId,
-        metadata = metadata,
-        contributors = contributors,
-        series = series,
-        genres = genres,
-        tags = tags,
-        allGenres = allGenres,
-        allTags = allTags,
-        coverPath = coverPath,
-    )
+    ): BookEditData =
+        BookEditData(
+            bookId = bookId,
+            metadata = metadata,
+            contributors = contributors,
+            series = series,
+            genres = genres,
+            tags = tags,
+            allGenres = allGenres,
+            allTags = allTags,
+            coverPath = coverPath,
+        )
 
     private fun createUpdateRequest(
         bookId: String = "book-1",
@@ -138,53 +140,58 @@ class UpdateBookUseCaseTest {
         genres: List<EditableGenre> = emptyList(),
         tags: List<EditableTag> = emptyList(),
         pendingCover: PendingCover? = null,
-    ): BookUpdateRequest = BookUpdateRequest(
-        bookId = bookId,
-        metadata = metadata,
-        contributors = contributors,
-        series = series,
-        genres = genres,
-        tags = tags,
-        pendingCover = pendingCover,
-    )
+    ): BookUpdateRequest =
+        BookUpdateRequest(
+            bookId = bookId,
+            metadata = metadata,
+            contributors = contributors,
+            series = series,
+            genres = genres,
+            tags = tags,
+            pendingCover = pendingCover,
+        )
 
     private fun createEditableContributor(
         id: String = "c1",
         name: String = "Author Name",
         roles: Set<ContributorRole> = setOf(ContributorRole.AUTHOR),
-    ): EditableContributor = EditableContributor(
-        id = id,
-        name = name,
-        roles = roles,
-    )
+    ): EditableContributor =
+        EditableContributor(
+            id = id,
+            name = name,
+            roles = roles,
+        )
 
     private fun createEditableSeries(
         id: String = "s1",
         name: String = "Series Name",
         sequence: String? = "1",
-    ): EditableSeries = EditableSeries(
-        id = id,
-        name = name,
-        sequence = sequence,
-    )
+    ): EditableSeries =
+        EditableSeries(
+            id = id,
+            name = name,
+            sequence = sequence,
+        )
 
     private fun createEditableGenre(
         id: String = "g1",
         name: String = "Fiction",
         path: String = "/fiction",
-    ): EditableGenre = EditableGenre(
-        id = id,
-        name = name,
-        path = path,
-    )
+    ): EditableGenre =
+        EditableGenre(
+            id = id,
+            name = name,
+            path = path,
+        )
 
     private fun createEditableTag(
         id: String = "t1",
         slug: String = "favorites",
-    ): EditableTag = EditableTag(
-        id = id,
-        slug = slug,
-    )
+    ): EditableTag =
+        EditableTag(
+            id = id,
+            slug = slug,
+        )
 
     // ========== No Changes Tests ==========
 
@@ -239,16 +246,17 @@ class UpdateBookUseCaseTest {
         runTest {
             // Given
             val originalMetadata = createMetadata()
-            val currentMetadata = createMetadata(
-                subtitle = "New Subtitle",
-                description = "New Description",
-                publishYear = "2024",
-                publisher = "New Publisher",
-                language = "en",
-                isbn = "1234567890",
-                asin = "ASIN123",
-                abridged = true,
-            )
+            val currentMetadata =
+                createMetadata(
+                    subtitle = "New Subtitle",
+                    description = "New Description",
+                    publishYear = "2024",
+                    publisher = "New Publisher",
+                    language = "en",
+                    isbn = "1234567890",
+                    asin = "ASIN123",
+                    abridged = true,
+                )
             val original = createOriginalState(metadata = originalMetadata)
             val current = createUpdateRequest(metadata = currentMetadata)
 
@@ -282,13 +290,15 @@ class UpdateBookUseCaseTest {
     fun `updates contributors when list changes`() =
         runTest {
             // Given
-            val originalContributors = listOf(
-                createEditableContributor(id = "c1", name = "Author 1"),
-            )
-            val currentContributors = listOf(
-                createEditableContributor(id = "c1", name = "Author 1"),
-                createEditableContributor(id = "c2", name = "Author 2"),
-            )
+            val originalContributors =
+                listOf(
+                    createEditableContributor(id = "c1", name = "Author 1"),
+                )
+            val currentContributors =
+                listOf(
+                    createEditableContributor(id = "c1", name = "Author 1"),
+                    createEditableContributor(id = "c2", name = "Author 2"),
+                )
             val original = createOriginalState(contributors = originalContributors)
             val current = createUpdateRequest(contributors = currentContributors)
 
@@ -307,9 +317,10 @@ class UpdateBookUseCaseTest {
     fun `does not update contributors when list unchanged`() =
         runTest {
             // Given
-            val contributors = listOf(
-                createEditableContributor(id = "c1", name = "Author 1"),
-            )
+            val contributors =
+                listOf(
+                    createEditableContributor(id = "c1", name = "Author 1"),
+                )
             val original = createOriginalState(contributors = contributors)
             val current = createUpdateRequest(contributors = contributors)
 
@@ -330,9 +341,10 @@ class UpdateBookUseCaseTest {
         runTest {
             // Given
             val originalSeries = emptyList<EditableSeries>()
-            val currentSeries = listOf(
-                createEditableSeries(id = "s1", name = "New Series", sequence = "1"),
-            )
+            val currentSeries =
+                listOf(
+                    createEditableSeries(id = "s1", name = "New Series", sequence = "1"),
+                )
             val original = createOriginalState(series = originalSeries)
             val current = createUpdateRequest(series = currentSeries)
 
@@ -351,9 +363,10 @@ class UpdateBookUseCaseTest {
     fun `converts series sequence to float`() =
         runTest {
             // Given
-            val currentSeries = listOf(
-                createEditableSeries(id = "s1", name = "Series", sequence = "2.5"),
-            )
+            val currentSeries =
+                listOf(
+                    createEditableSeries(id = "s1", name = "Series", sequence = "2.5"),
+                )
             val original = createOriginalState()
             val current = createUpdateRequest(series = currentSeries)
 
@@ -379,10 +392,11 @@ class UpdateBookUseCaseTest {
         runTest {
             // Given
             val originalGenres = listOf(createEditableGenre(id = "g1", name = "Fiction"))
-            val currentGenres = listOf(
-                createEditableGenre(id = "g1", name = "Fiction"),
-                createEditableGenre(id = "g2", name = "Mystery"),
-            )
+            val currentGenres =
+                listOf(
+                    createEditableGenre(id = "g1", name = "Fiction"),
+                    createEditableGenre(id = "g2", name = "Mystery"),
+                )
             val original = createOriginalState(genres = originalGenres)
             val current = createUpdateRequest(genres = currentGenres)
 
@@ -422,10 +436,11 @@ class UpdateBookUseCaseTest {
         runTest {
             // Given
             val originalTags = listOf(createEditableTag(id = "t1", slug = "favorites"))
-            val currentTags = listOf(
-                createEditableTag(id = "t1", slug = "favorites"),
-                createEditableTag(id = "t2", slug = "to-read"),
-            )
+            val currentTags =
+                listOf(
+                    createEditableTag(id = "t1", slug = "favorites"),
+                    createEditableTag(id = "t2", slug = "to-read"),
+                )
             val original = createOriginalState(tags = originalTags)
             val current = createUpdateRequest(tags = currentTags)
 
@@ -444,10 +459,11 @@ class UpdateBookUseCaseTest {
     fun `removes deleted tags`() =
         runTest {
             // Given
-            val originalTags = listOf(
-                createEditableTag(id = "t1", slug = "favorites"),
-                createEditableTag(id = "t2", slug = "to-read"),
-            )
+            val originalTags =
+                listOf(
+                    createEditableTag(id = "t1", slug = "favorites"),
+                    createEditableTag(id = "t2", slug = "to-read"),
+                )
             val currentTags = listOf(createEditableTag(id = "t1", slug = "favorites"))
             val original = createOriginalState(tags = originalTags)
             val current = createUpdateRequest(tags = currentTags)
@@ -467,14 +483,16 @@ class UpdateBookUseCaseTest {
     fun `adds and removes tags in single operation`() =
         runTest {
             // Given
-            val originalTags = listOf(
-                createEditableTag(id = "t1", slug = "favorites"),
-                createEditableTag(id = "t2", slug = "to-read"),
-            )
-            val currentTags = listOf(
-                createEditableTag(id = "t1", slug = "favorites"),
-                createEditableTag(id = "t3", slug = "completed"),
-            )
+            val originalTags =
+                listOf(
+                    createEditableTag(id = "t1", slug = "favorites"),
+                    createEditableTag(id = "t2", slug = "to-read"),
+                )
+            val currentTags =
+                listOf(
+                    createEditableTag(id = "t1", slug = "favorites"),
+                    createEditableTag(id = "t3", slug = "completed"),
+                )
             val original = createOriginalState(tags = originalTags)
             val current = createUpdateRequest(tags = currentTags)
 
@@ -515,10 +533,11 @@ class UpdateBookUseCaseTest {
     fun `commits and uploads cover when pending`() =
         runTest {
             // Given
-            val pendingCover = PendingCover(
-                data = byteArrayOf(1, 2, 3),
-                filename = "cover.jpg",
-            )
+            val pendingCover =
+                PendingCover(
+                    data = byteArrayOf(1, 2, 3),
+                    filename = "cover.jpg",
+                )
             val original = createOriginalState()
             val current = createUpdateRequest(pendingCover = pendingCover)
 
@@ -556,10 +575,11 @@ class UpdateBookUseCaseTest {
     fun `continues save even if cover upload fails`() =
         runTest {
             // Given - cover upload will fail
-            val pendingCover = PendingCover(
-                data = byteArrayOf(1, 2, 3),
-                filename = "cover.jpg",
-            )
+            val pendingCover =
+                PendingCover(
+                    data = byteArrayOf(1, 2, 3),
+                    filename = "cover.jpg",
+                )
             val original = createOriginalState()
             val current = createUpdateRequest(pendingCover = pendingCover)
 
@@ -606,10 +626,11 @@ class UpdateBookUseCaseTest {
             val currentContributors = listOf(createEditableContributor())
 
             val original = createOriginalState(metadata = originalMetadata)
-            val current = createUpdateRequest(
-                metadata = currentMetadata,
-                contributors = currentContributors,
-            )
+            val current =
+                createUpdateRequest(
+                    metadata = currentMetadata,
+                    contributors = currentContributors,
+                )
 
             val fixture = createFixture()
             everySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns Failure(message = "Metadata failed")
@@ -685,21 +706,23 @@ class UpdateBookUseCaseTest {
 
             val pendingCover = PendingCover(data = byteArrayOf(1), filename = "cover.jpg")
 
-            val original = createOriginalState(
-                metadata = originalMetadata,
-                contributors = originalContributors,
-                series = originalSeries,
-                genres = originalGenres,
-                tags = originalTags,
-            )
-            val current = createUpdateRequest(
-                metadata = currentMetadata,
-                contributors = currentContributors,
-                series = currentSeries,
-                genres = currentGenres,
-                tags = currentTags,
-                pendingCover = pendingCover,
-            )
+            val original =
+                createOriginalState(
+                    metadata = originalMetadata,
+                    contributors = originalContributors,
+                    series = originalSeries,
+                    genres = originalGenres,
+                    tags = originalTags,
+                )
+            val current =
+                createUpdateRequest(
+                    metadata = currentMetadata,
+                    contributors = currentContributors,
+                    series = currentSeries,
+                    genres = currentGenres,
+                    tags = currentTags,
+                    pendingCover = pendingCover,
+                )
 
             val fixture = createFixture()
             val useCase = fixture.build()

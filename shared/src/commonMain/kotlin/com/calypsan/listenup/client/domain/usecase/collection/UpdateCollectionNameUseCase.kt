@@ -34,7 +34,10 @@ open class UpdateCollectionNameUseCase(
      * @param name The new name (required, will be trimmed)
      * @return Result containing the updated collection or a failure
      */
-    open suspend operator fun invoke(collectionId: String, name: String): Result<Collection> {
+    open suspend operator fun invoke(
+        collectionId: String,
+        name: String,
+    ): Result<Collection> {
         val trimmedName = name.trim()
         if (trimmedName.isBlank()) {
             return validationError("Collection name cannot be empty")

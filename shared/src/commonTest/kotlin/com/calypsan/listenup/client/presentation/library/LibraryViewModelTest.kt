@@ -4,22 +4,23 @@ import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.domain.repository.SyncRepository
-import com.calypsan.listenup.client.domain.model.Contributor
-import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
-import com.calypsan.listenup.client.domain.model.Series
-import com.calypsan.listenup.client.domain.model.SeriesWithBooks
-import com.calypsan.listenup.client.domain.repository.ContributorRepository
-import com.calypsan.listenup.client.domain.repository.SeriesRepository
-import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookSeries
+import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.ContributorRole
+import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
+import com.calypsan.listenup.client.domain.model.Series
+import com.calypsan.listenup.client.domain.model.SeriesWithBooks
+import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
 import com.calypsan.listenup.client.domain.repository.LibraryPreferences
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
+import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -100,7 +101,9 @@ class LibraryViewModelTest {
         createdAt: Timestamp = Timestamp(1000L),
     ): Series =
         Series(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .SeriesId(id),
             name = name,
             description = null,
             createdAt = createdAt,
@@ -114,7 +117,9 @@ class LibraryViewModelTest {
         ContributorWithBookCount(
             contributor =
                 Contributor(
-                    id = id,
+                    id =
+                        com.calypsan.listenup.client.core
+                            .ContributorId(id),
                     name = name,
                     description = null,
                     imagePath = null,
@@ -123,7 +128,12 @@ class LibraryViewModelTest {
         )
 
     private fun createDummyBook(id: String): Book {
-        val now = Timestamp(kotlin.time.Clock.System.now().toEpochMilliseconds())
+        val now =
+            Timestamp(
+                kotlin.time.Clock.System
+                    .now()
+                    .toEpochMilliseconds(),
+            )
         return Book(
             id = BookId(id),
             title = "Book $id",
@@ -171,8 +181,8 @@ class LibraryViewModelTest {
         // Default stubs for all dependencies
         every { fixture.bookRepository.observeBooks() } returns flowOf(emptyList())
         every { fixture.seriesRepository.observeAllWithBooks() } returns flowOf(emptyList())
-        every { fixture.contributorRepository.observeContributorsByRole("author") } returns flowOf(emptyList())
-        every { fixture.contributorRepository.observeContributorsByRole("narrator") } returns flowOf(emptyList())
+        every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue) } returns flowOf(emptyList())
+        every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.NARRATOR.apiValue) } returns flowOf(emptyList())
         every { fixture.syncRepository.syncState } returns fixture.syncStateFlow
         every { fixture.playbackPositionRepository.observeAll() } returns flowOf(emptyMap())
 
@@ -198,18 +208,14 @@ class LibraryViewModelTest {
     }
 
     /**
-     * Helper to collect a StateFlow in the background so WhileSubscribed flows emit.
-     * This is necessary because the ViewModel uses SharingStarted.WhileSubscribed,
-     * which only starts upstream collection when there's an active subscriber.
+     * Helper to collect a StateFlow in the background so the ViewModel's internal
+     * combine/launchIn flows emit. This is necessary because the ViewModel's init block
+     * sets up flow pipelines that need to be processed.
      */
-    private fun <T> TestScope.collectInBackground(viewModel: LibraryViewModel) {
-        // Start collecting all flows so they can emit
+    private fun TestScope.collectInBackground(viewModel: LibraryViewModel) {
+        // Start collecting uiState so flows can emit
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            launch { viewModel.books.collect {} }
-            launch { viewModel.series.collect {} }
-            launch { viewModel.authors.collect {} }
-            launch { viewModel.narrators.collect {} }
-            launch { viewModel.bookProgress.collect {} }
+            viewModel.uiState.collect {}
         }
     }
 
@@ -223,8 +229,8 @@ class LibraryViewModelTest {
             val viewModel = fixture.build()
 
             // Then
-            assertEquals(SortCategory.TITLE, viewModel.booksSortState.value.category)
-            assertEquals(SortDirection.ASCENDING, viewModel.booksSortState.value.direction)
+            assertEquals(SortCategory.TITLE, viewModel.uiState.value.booksSortState.category)
+            assertEquals(SortDirection.ASCENDING, viewModel.uiState.value.booksSortState.direction)
         }
 
     @Test
@@ -235,8 +241,8 @@ class LibraryViewModelTest {
             val viewModel = fixture.build()
 
             // Then
-            assertEquals(SortCategory.NAME, viewModel.seriesSortState.value.category)
-            assertEquals(SortDirection.ASCENDING, viewModel.seriesSortState.value.direction)
+            assertEquals(SortCategory.NAME, viewModel.uiState.value.seriesSortState.category)
+            assertEquals(SortDirection.ASCENDING, viewModel.uiState.value.seriesSortState.direction)
         }
 
     @Test
@@ -247,8 +253,8 @@ class LibraryViewModelTest {
             val viewModel = fixture.build()
 
             // Then
-            assertEquals(SortCategory.NAME, viewModel.authorsSortState.value.category)
-            assertEquals(SortDirection.ASCENDING, viewModel.authorsSortState.value.direction)
+            assertEquals(SortCategory.NAME, viewModel.uiState.value.authorsSortState.category)
+            assertEquals(SortDirection.ASCENDING, viewModel.uiState.value.authorsSortState.direction)
         }
 
     @Test
@@ -263,8 +269,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.DURATION, viewModel.booksSortState.value.category)
-            assertEquals(SortDirection.DESCENDING, viewModel.booksSortState.value.direction)
+            assertEquals(SortCategory.DURATION, viewModel.uiState.value.booksSortState.category)
+            assertEquals(SortDirection.DESCENDING, viewModel.uiState.value.booksSortState.direction)
         }
 
     @Test
@@ -279,8 +285,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.BOOK_COUNT, viewModel.seriesSortState.value.category)
-            assertEquals(SortDirection.DESCENDING, viewModel.seriesSortState.value.direction)
+            assertEquals(SortCategory.BOOK_COUNT, viewModel.uiState.value.seriesSortState.category)
+            assertEquals(SortDirection.DESCENDING, viewModel.uiState.value.seriesSortState.direction)
         }
 
     @Test
@@ -295,8 +301,8 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - falls back to default
-            assertEquals(SortCategory.TITLE, viewModel.booksSortState.value.category)
-            assertEquals(SortDirection.ASCENDING, viewModel.booksSortState.value.direction)
+            assertEquals(SortCategory.TITLE, viewModel.uiState.value.booksSortState.category)
+            assertEquals(SortDirection.ASCENDING, viewModel.uiState.value.booksSortState.direction)
         }
 
     // ========== Event Handling: Sort State Changes ==========
@@ -314,7 +320,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.AUTHOR, viewModel.booksSortState.value.category)
+            assertEquals(SortCategory.AUTHOR, viewModel.uiState.value.booksSortState.category)
         }
 
     @Test
@@ -331,7 +337,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortDirection.DESCENDING, viewModel.booksSortState.value.direction)
+            assertEquals(SortDirection.DESCENDING, viewModel.uiState.value.booksSortState.direction)
         }
 
     @Test
@@ -342,14 +348,14 @@ class LibraryViewModelTest {
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
             advanceUntilIdle()
-            assertEquals(SortDirection.ASCENDING, viewModel.booksSortState.value.direction)
+            assertEquals(SortDirection.ASCENDING, viewModel.uiState.value.booksSortState.direction)
 
             // When
             viewModel.onEvent(LibraryUiEvent.BooksDirectionToggled)
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortDirection.DESCENDING, viewModel.booksSortState.value.direction)
+            assertEquals(SortDirection.DESCENDING, viewModel.uiState.value.booksSortState.direction)
         }
 
     @Test
@@ -382,7 +388,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.BOOK_COUNT, viewModel.seriesSortState.value.category)
+            assertEquals(SortCategory.BOOK_COUNT, viewModel.uiState.value.seriesSortState.category)
         }
 
     @Test
@@ -398,7 +404,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            assertEquals(SortCategory.BOOK_COUNT, viewModel.authorsSortState.value.category)
+            assertEquals(SortCategory.BOOK_COUNT, viewModel.uiState.value.authorsSortState.category)
         }
 
     // ========== Toggle Ignore Title Articles ==========
@@ -411,14 +417,14 @@ class LibraryViewModelTest {
             everySuspend { fixture.libraryPreferences.setIgnoreTitleArticles(any()) } returns Unit
             val viewModel = fixture.build()
             advanceUntilIdle()
-            assertEquals(true, viewModel.ignoreTitleArticles.value)
+            assertEquals(true, viewModel.uiState.value.ignoreTitleArticles)
 
             // When
             viewModel.onEvent(LibraryUiEvent.ToggleIgnoreTitleArticles)
             advanceUntilIdle()
 
             // Then
-            assertEquals(false, viewModel.ignoreTitleArticles.value)
+            assertEquals(false, viewModel.uiState.value.ignoreTitleArticles)
             verifySuspend { fixture.libraryPreferences.setIgnoreTitleArticles(false) }
         }
 
@@ -439,11 +445,11 @@ class LibraryViewModelTest {
             val viewModel = fixture.build()
 
             // When - Subscribe to flows so WhileSubscribed starts collection
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // Then
-            val sortedBooks = viewModel.books.value
+            val sortedBooks = viewModel.uiState.value.books
             assertEquals(listOf("Apple", "Mango", "Zebra"), sortedBooks.map { it.title })
         }
 
@@ -461,7 +467,7 @@ class LibraryViewModelTest {
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // When
@@ -469,7 +475,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val sortedBooks = viewModel.books.value
+            val sortedBooks = viewModel.uiState.value.books
             assertEquals(listOf("Zebra", "Mango", "Apple"), sortedBooks.map { it.title })
         }
 
@@ -487,11 +493,11 @@ class LibraryViewModelTest {
             everySuspend { fixture.libraryPreferences.getIgnoreTitleArticles() } returns true
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // Then - Should sort as: Apple, A Mango (as "Mango"), The Zebra (as "Zebra")
-            val sortedBooks = viewModel.books.value
+            val sortedBooks = viewModel.uiState.value.books
             assertEquals(listOf("Apple", "A Mango", "The Zebra"), sortedBooks.map { it.title })
         }
 
@@ -521,7 +527,7 @@ class LibraryViewModelTest {
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // When
@@ -529,7 +535,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Alice's books first (then by title), then Bob's
-            val sortedBooks = viewModel.books.value
+            val sortedBooks = viewModel.uiState.value.books
             assertEquals(
                 listOf("Cherry Book", "Zebra Book", "Apple Book"),
                 sortedBooks.map { it.title },
@@ -550,7 +556,7 @@ class LibraryViewModelTest {
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // When - Change to duration, then toggle to ascending
@@ -560,7 +566,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val sortedBooks = viewModel.books.value
+            val sortedBooks = viewModel.uiState.value.books
             assertEquals(listOf("Short", "Medium", "Long"), sortedBooks.map { it.title })
         }
 
@@ -578,7 +584,7 @@ class LibraryViewModelTest {
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // When
@@ -586,7 +592,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Year DESC: newest first, null years go to end (treated as 0)
-            val sortedBooks = viewModel.books.value
+            val sortedBooks = viewModel.uiState.value.books
             assertEquals(listOf("New", "Old", "No Year"), sortedBooks.map { it.title })
         }
 
@@ -604,7 +610,7 @@ class LibraryViewModelTest {
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // When
@@ -612,7 +618,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Added DESC: most recent first
-            val sortedBooks = viewModel.books.value
+            val sortedBooks = viewModel.uiState.value.books
             assertEquals(listOf("Last", "Middle", "First"), sortedBooks.map { it.title })
         }
 
@@ -631,7 +637,7 @@ class LibraryViewModelTest {
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // When - SERIES defaults to ASCENDING
@@ -639,7 +645,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Series ASC: Alpha (seq 1, 2), Beta (seq 1), then null series at end
-            val sortedBooks = viewModel.books.value
+            val sortedBooks = viewModel.uiState.value.books
             assertEquals(listOf("Book B", "Book A", "Book C", "Standalone"), sortedBooks.map { it.title })
         }
 
@@ -657,7 +663,7 @@ class LibraryViewModelTest {
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             everySuspend { fixture.libraryPreferences.setBooksSortState(any()) } returns Unit
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // When - SERIES defaults to ASCENDING
@@ -665,7 +671,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Should handle 1 < 1.5 < 2
-            val sortedBooks = viewModel.books.value
+            val sortedBooks = viewModel.uiState.value.books
             assertEquals(listOf("Book 1", "Book 1.5", "Book 2"), sortedBooks.map { it.title })
         }
 
@@ -691,11 +697,11 @@ class LibraryViewModelTest {
             val fixture = createFixture()
             every { fixture.seriesRepository.observeAllWithBooks() } returns flowOf(seriesList)
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // Then
-            val sorted = viewModel.series.value
+            val sorted = viewModel.uiState.value.series
             assertEquals(listOf("Apple Series", "Zebra Series"), sorted.map { it.series.name })
         }
 
@@ -712,11 +718,12 @@ class LibraryViewModelTest {
                     ),
                     SeriesWithBooks(
                         series = createTestSeries(id = "2", name = "Big"),
-                        books = listOf(
-                            createDummyBook("b1"),
-                            createDummyBook("b2"),
-                            createDummyBook("b3"),
-                        ),
+                        books =
+                            listOf(
+                                createDummyBook("b1"),
+                                createDummyBook("b2"),
+                                createDummyBook("b3"),
+                            ),
                         bookSequences = emptyMap(),
                     ),
                 )
@@ -724,7 +731,7 @@ class LibraryViewModelTest {
             every { fixture.seriesRepository.observeAllWithBooks() } returns flowOf(seriesList)
             everySuspend { fixture.libraryPreferences.setSeriesSortState(any()) } returns Unit
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // When
@@ -732,7 +739,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then - Book count DESC: most books first
-            val sorted = viewModel.series.value
+            val sorted = viewModel.uiState.value.series
             assertEquals(listOf("Big", "Small"), sorted.map { it.series.name })
         }
 
@@ -748,13 +755,13 @@ class LibraryViewModelTest {
                     createTestContributor(id = "2", name = "Adam"),
                 )
             val fixture = createFixture()
-            every { fixture.contributorRepository.observeContributorsByRole("author") } returns flowOf(authors)
+            every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue) } returns flowOf(authors)
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // Then
-            val sorted = viewModel.authors.value
+            val sorted = viewModel.uiState.value.authors
             assertEquals(listOf("Adam", "Zelda"), sorted.map { it.contributor.name })
         }
 
@@ -768,10 +775,10 @@ class LibraryViewModelTest {
                     createTestContributor(id = "2", name = "Many Books", bookCount = 10),
                 )
             val fixture = createFixture()
-            every { fixture.contributorRepository.observeContributorsByRole("author") } returns flowOf(authors)
+            every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue) } returns flowOf(authors)
             everySuspend { fixture.libraryPreferences.setAuthorsSortState(any()) } returns Unit
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // When
@@ -779,7 +786,7 @@ class LibraryViewModelTest {
             advanceUntilIdle()
 
             // Then
-            val sorted = viewModel.authors.value
+            val sorted = viewModel.uiState.value.authors
             assertEquals(listOf("Many Books", "Few Books"), sorted.map { it.contributor.name })
         }
 
@@ -794,7 +801,7 @@ class LibraryViewModelTest {
             everySuspend { fixture.syncStatusRepository.getLastSyncTime() } returns null // Never synced
             everySuspend { fixture.bookRepository.refreshBooks() } returns Result.Success(Unit)
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // When
@@ -814,7 +821,7 @@ class LibraryViewModelTest {
             // Still called before if check
             everySuspend { fixture.syncStatusRepository.getLastSyncTime() } returns null
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // When
@@ -836,35 +843,38 @@ class LibraryViewModelTest {
                     createTestBook(id = "book-1", duration = 10_000L),
                     createTestBook(id = "book-2", duration = 20_000L),
                 )
-            val positions = mapOf(
-                "book-1" to PlaybackPosition(
-                    bookId = "book-1",
-                    positionMs = 5_000L, // 50% progress
-                    playbackSpeed = 1.0f,
-                    hasCustomSpeed = false,
-                    updatedAtMs = 0L,
-                    syncedAtMs = null,
-                    lastPlayedAtMs = null,
-                ),
-                "book-2" to PlaybackPosition(
-                    bookId = "book-2",
-                    positionMs = 10_000L, // 50% progress
-                    playbackSpeed = 1.0f,
-                    hasCustomSpeed = false,
-                    updatedAtMs = 0L,
-                    syncedAtMs = null,
-                    lastPlayedAtMs = null,
-                ),
-            )
+            val positions =
+                mapOf(
+                    "book-1" to
+                        PlaybackPosition(
+                            bookId = "book-1",
+                            positionMs = 5_000L, // 50% progress
+                            playbackSpeed = 1.0f,
+                            hasCustomSpeed = false,
+                            updatedAtMs = 0L,
+                            syncedAtMs = null,
+                            lastPlayedAtMs = null,
+                        ),
+                    "book-2" to
+                        PlaybackPosition(
+                            bookId = "book-2",
+                            positionMs = 10_000L, // 50% progress
+                            playbackSpeed = 1.0f,
+                            hasCustomSpeed = false,
+                            updatedAtMs = 0L,
+                            syncedAtMs = null,
+                            lastPlayedAtMs = null,
+                        ),
+                )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             every { fixture.playbackPositionRepository.observeAll() } returns flowOf(positions)
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // Then
-            val progress = viewModel.bookProgress.value
+            val progress = viewModel.uiState.value.bookProgress
             assertEquals(0.5f, progress["book-1"])
             assertEquals(0.5f, progress["book-2"])
         }
@@ -878,26 +888,28 @@ class LibraryViewModelTest {
                 listOf(
                     createTestBook(id = "book-1", duration = 10_000L),
                 )
-            val positions = mapOf(
-                "book-1" to PlaybackPosition(
-                    bookId = "book-1",
-                    positionMs = 9_950L, // 99.5% - should be included for completion badge
-                    playbackSpeed = 1.0f,
-                    hasCustomSpeed = false,
-                    updatedAtMs = 0L,
-                    syncedAtMs = null,
-                    lastPlayedAtMs = null,
-                ),
-            )
+            val positions =
+                mapOf(
+                    "book-1" to
+                        PlaybackPosition(
+                            bookId = "book-1",
+                            positionMs = 9_950L, // 99.5% - should be included for completion badge
+                            playbackSpeed = 1.0f,
+                            hasCustomSpeed = false,
+                            updatedAtMs = 0L,
+                            syncedAtMs = null,
+                            lastPlayedAtMs = null,
+                        ),
+                )
             val fixture = createFixture()
             every { fixture.bookRepository.observeBooks() } returns flowOf(books)
             every { fixture.playbackPositionRepository.observeAll() } returns flowOf(positions)
             val viewModel = fixture.build()
-            collectInBackground<Unit>(viewModel)
+            collectInBackground(viewModel)
             advanceUntilIdle()
 
             // Then - completed book is included with its progress (for completion badge)
-            val progress = viewModel.bookProgress.value
+            val progress = viewModel.uiState.value.bookProgress
             assertEquals(0.995f, progress["book-1"])
         }
 }

@@ -74,5 +74,8 @@ interface GenreRepository {
      * @param bookId The book ID
      * @param genreIds List of genre IDs to set
      */
-    suspend fun setGenresForBook(bookId: String, genreIds: List<String>)
+    suspend fun setGenresForBook(
+        bookId: String,
+        genreIds: List<String>,
+    )
 }

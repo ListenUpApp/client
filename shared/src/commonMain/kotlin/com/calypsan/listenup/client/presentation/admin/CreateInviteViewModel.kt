@@ -37,26 +37,32 @@ class CreateInviteViewModel(
                             status = CreateInviteStatus.Success(result.data),
                         )
                 }
+
                 is Failure -> {
-                    val errorType = when {
-                        result.message.contains("Name is required", ignoreCase = true) -> {
-                            CreateInviteErrorType.ValidationError(CreateInviteField.NAME)
+                    val errorType =
+                        when {
+                            result.message.contains("Name is required", ignoreCase = true) -> {
+                                CreateInviteErrorType.ValidationError(CreateInviteField.NAME)
+                            }
+
+                            result.message.contains("Invalid email", ignoreCase = true) -> {
+                                CreateInviteErrorType.ValidationError(CreateInviteField.EMAIL)
+                            }
+
+                            result.message.contains("already exists", ignoreCase = true) ||
+                                result.message.contains("conflict", ignoreCase = true) -> {
+                                CreateInviteErrorType.EmailInUse
+                            }
+
+                            result.message.contains("network", ignoreCase = true) ||
+                                result.message.contains("connection", ignoreCase = true) -> {
+                                CreateInviteErrorType.NetworkError(result.message)
+                            }
+
+                            else -> {
+                                CreateInviteErrorType.ServerError(result.message)
+                            }
                         }
-                        result.message.contains("Invalid email", ignoreCase = true) -> {
-                            CreateInviteErrorType.ValidationError(CreateInviteField.EMAIL)
-                        }
-                        result.message.contains("already exists", ignoreCase = true) ||
-                            result.message.contains("conflict", ignoreCase = true) -> {
-                            CreateInviteErrorType.EmailInUse
-                        }
-                        result.message.contains("network", ignoreCase = true) ||
-                            result.message.contains("connection", ignoreCase = true) -> {
-                            CreateInviteErrorType.NetworkError(result.message)
-                        }
-                        else -> {
-                            CreateInviteErrorType.ServerError(result.message)
-                        }
-                    }
                     state.value =
                         state.value.copy(
                             status = CreateInviteStatus.Error(errorType),

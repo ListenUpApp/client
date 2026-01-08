@@ -27,14 +27,11 @@ class GenreRepositoryImpl(
             entities.map { it.toDomain() }
         }
 
-    override suspend fun getAll(): List<Genre> =
-        dao.getAllGenres().map { it.toDomain() }
+    override suspend fun getAll(): List<Genre> = dao.getAllGenres().map { it.toDomain() }
 
-    override suspend fun getById(id: String): Genre? =
-        dao.getById(id)?.toDomain()
+    override suspend fun getById(id: String): Genre? = dao.getById(id)?.toDomain()
 
-    override suspend fun getBySlug(slug: String): Genre? =
-        dao.getBySlug(slug)?.toDomain()
+    override suspend fun getBySlug(slug: String): Genre? = dao.getBySlug(slug)?.toDomain()
 
     override fun observeGenresForBook(bookId: String): Flow<List<Genre>> =
         dao.observeGenresForBook(BookId(bookId)).map { entities ->
@@ -47,7 +44,10 @@ class GenreRepositoryImpl(
     override suspend fun getBookIdsForGenre(genreId: String): List<String> =
         dao.getBookIdsForGenre(genreId).map { it.value }
 
-    override suspend fun setGenresForBook(bookId: String, genreIds: List<String>) {
+    override suspend fun setGenresForBook(
+        bookId: String,
+        genreIds: List<String>,
+    ) {
         // Call API to update server
         genreApi.setBookGenres(bookId, genreIds)
 

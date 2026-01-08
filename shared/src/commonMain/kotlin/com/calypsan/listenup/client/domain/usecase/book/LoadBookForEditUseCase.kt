@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.domain.usecase.book
 
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.notFoundError
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.model.Book
@@ -66,17 +65,18 @@ open class LoadBookForEditUseCase(
             val bookTags = loadBookTags(bookId)
 
             // Transform to editable format
-            val editData = BookEditData(
-                bookId = bookId,
-                metadata = book.toMetadata(),
-                contributors = book.toEditableContributors(),
-                series = book.toEditableSeries(),
-                genres = bookGenres,
-                tags = bookTags,
-                allGenres = allGenres,
-                allTags = allTags,
-                coverPath = book.coverPath,
-            )
+            val editData =
+                BookEditData(
+                    bookId = bookId,
+                    metadata = book.toMetadata(),
+                    contributors = book.toEditableContributors(),
+                    series = book.toEditableSeries(),
+                    genres = bookGenres,
+                    tags = bookTags,
+                    allGenres = allGenres,
+                    allTags = allTags,
+                    coverPath = book.coverPath,
+                )
 
             logger.debug {
                 "Loaded book for edit: ${book.title}, " +
@@ -122,27 +122,29 @@ open class LoadBookForEditUseCase(
             emptyList()
         }
 
-    private fun Book.toMetadata(): BookMetadata = BookMetadata(
-        title = title,
-        subtitle = subtitle ?: "",
-        description = description ?: "",
-        publishYear = publishYear?.toString() ?: "",
-        publisher = publisher ?: "",
-        language = language,
-        isbn = isbn ?: "",
-        asin = asin ?: "",
-        abridged = abridged,
-        addedAt = addedAt.epochMillis,
-    )
+    private fun Book.toMetadata(): BookMetadata =
+        BookMetadata(
+            title = title,
+            subtitle = subtitle ?: "",
+            description = description ?: "",
+            publishYear = publishYear?.toString() ?: "",
+            publisher = publisher ?: "",
+            language = language,
+            isbn = isbn ?: "",
+            asin = asin ?: "",
+            abridged = abridged,
+            addedAt = addedAt.epochMillis,
+        )
 
     private fun Book.toEditableContributors(): List<EditableContributor> =
         allContributors.map { contributor ->
             EditableContributor(
                 id = contributor.id,
                 name = contributor.name,
-                roles = contributor.roles
-                    .mapNotNull { ContributorRole.fromApiValue(it) }
-                    .toSet(),
+                roles =
+                    contributor.roles
+                        .mapNotNull { ContributorRole.fromApiValue(it) }
+                        .toSet(),
             )
         }
 
@@ -155,14 +157,16 @@ open class LoadBookForEditUseCase(
             )
         }
 
-    private fun Genre.toEditable(): EditableGenre = EditableGenre(
-        id = id,
-        name = name,
-        path = path,
-    )
+    private fun Genre.toEditable(): EditableGenre =
+        EditableGenre(
+            id = id,
+            name = name,
+            path = path,
+        )
 
-    private fun Tag.toEditable(): EditableTag = EditableTag(
-        id = id,
-        slug = slug,
-    )
+    private fun Tag.toEditable(): EditableTag =
+        EditableTag(
+            id = id,
+            slug = slug,
+        )
 }

@@ -208,4 +208,3 @@ private fun Exception.toInviteErrorType(): InviteErrorType {
         }
     }
 }
-

@@ -73,12 +73,13 @@ class RegisterUseCaseTest {
             val useCase = fixture.build()
 
             // When
-            val result = useCase(
-                email = "invalid.email",
-                password = "password123",
-                firstName = "John",
-                lastName = "Doe",
-            )
+            val result =
+                useCase(
+                    email = "invalid.email",
+                    password = "password123",
+                    firstName = "John",
+                    lastName = "Doe",
+                )
 
             // Then
             val failure = assertIs<Failure>(result)
@@ -94,12 +95,13 @@ class RegisterUseCaseTest {
             val useCase = fixture.build()
 
             // When
-            val result = useCase(
-                email = "",
-                password = "password123",
-                firstName = "John",
-                lastName = "Doe",
-            )
+            val result =
+                useCase(
+                    email = "",
+                    password = "password123",
+                    firstName = "John",
+                    lastName = "Doe",
+                )
 
             // Then
             val failure = assertIs<Failure>(result)
@@ -116,12 +118,13 @@ class RegisterUseCaseTest {
             val useCase = fixture.build()
 
             // When
-            val result = useCase(
-                email = "user@example.com",
-                password = "1234567",
-                firstName = "John",
-                lastName = "Doe",
-            )
+            val result =
+                useCase(
+                    email = "user@example.com",
+                    password = "1234567",
+                    firstName = "John",
+                    lastName = "Doe",
+                )
 
             // Then
             val failure = assertIs<Failure>(result)
@@ -138,12 +141,13 @@ class RegisterUseCaseTest {
             val useCase = fixture.build()
 
             // When
-            val result = useCase(
-                email = "user@example.com",
-                password = "12345678",
-                firstName = "John",
-                lastName = "Doe",
-            )
+            val result =
+                useCase(
+                    email = "user@example.com",
+                    password = "12345678",
+                    firstName = "John",
+                    lastName = "Doe",
+                )
 
             // Then
             checkIs<Success<*>>(result)
@@ -159,12 +163,13 @@ class RegisterUseCaseTest {
             val useCase = fixture.build()
 
             // When
-            val result = useCase(
-                email = "user@example.com",
-                password = "password123",
-                firstName = "   ",
-                lastName = "Doe",
-            )
+            val result =
+                useCase(
+                    email = "user@example.com",
+                    password = "password123",
+                    firstName = "   ",
+                    lastName = "Doe",
+                )
 
             // Then
             val failure = assertIs<Failure>(result)
@@ -179,12 +184,13 @@ class RegisterUseCaseTest {
             val useCase = fixture.build()
 
             // When
-            val result = useCase(
-                email = "user@example.com",
-                password = "password123",
-                firstName = "John",
-                lastName = "",
-            )
+            val result =
+                useCase(
+                    email = "user@example.com",
+                    password = "password123",
+                    firstName = "John",
+                    lastName = "",
+                )
 
             // Then
             val failure = assertIs<Failure>(result)
@@ -198,9 +204,10 @@ class RegisterUseCaseTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authRepository.register(any(), any(), any(), any()) } returns createRegistrationResult(
-                userId = "user-42",
-            )
+            everySuspend { fixture.authRepository.register(any(), any(), any(), any()) } returns
+                createRegistrationResult(
+                    userId = "user-42",
+                )
             val useCase = fixture.build()
 
             // When
@@ -226,19 +233,21 @@ class RegisterUseCaseTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authRepository.register(any(), any(), any(), any()) } returns createRegistrationResult(
-                userId = "user-1",
-                message = "Success!",
-            )
+            everySuspend { fixture.authRepository.register(any(), any(), any(), any()) } returns
+                createRegistrationResult(
+                    userId = "user-1",
+                    message = "Success!",
+                )
             val useCase = fixture.build()
 
             // When
-            val result = useCase(
-                email = "user@example.com",
-                password = "password123",
-                firstName = "John",
-                lastName = "Doe",
-            )
+            val result =
+                useCase(
+                    email = "user@example.com",
+                    password = "password123",
+                    firstName = "John",
+                    lastName = "Doe",
+                )
 
             // Then
             val success = assertIs<Success<RegistrationResult>>(result)
@@ -284,12 +293,13 @@ class RegisterUseCaseTest {
             val useCase = fixture.build()
 
             // When
-            val result = useCase(
-                email = "user@example.com",
-                password = "password123",
-                firstName = "John",
-                lastName = "Doe",
-            )
+            val result =
+                useCase(
+                    email = "user@example.com",
+                    password = "password123",
+                    firstName = "John",
+                    lastName = "Doe",
+                )
 
             // Then
             val failure = assertIs<Failure>(result)

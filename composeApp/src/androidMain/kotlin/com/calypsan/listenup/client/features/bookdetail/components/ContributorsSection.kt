@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.domain.model.BookContributor
+import com.calypsan.listenup.client.domain.model.ContributorRole
 
 /**
  * Authors and Narrators displayed as centered, clickable text.
@@ -113,7 +114,7 @@ fun TalentSectionWithRoles(
     if (authors.isEmpty() && narrators.isEmpty() && allContributors.isEmpty()) return
 
     // Known primary roles to exclude from "additional roles"
-    val primaryRoles = setOf("author", "narrator", "writer")
+    val primaryRoles = setOf(ContributorRole.AUTHOR.apiValue, ContributorRole.NARRATOR.apiValue, "writer")
 
     // Group contributors by their non-primary roles
     val additionalRoleGroups =

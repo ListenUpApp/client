@@ -217,10 +217,11 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val list0 = emptyList<PlaybackPositionEntity>()
             val list1 = listOf(createPlaybackPositionEntity(bookId = "book-1"))
-            val list2 = listOf(
-                createPlaybackPositionEntity(bookId = "book-1"),
-                createPlaybackPositionEntity(bookId = "book-2"),
-            )
+            val list2 =
+                listOf(
+                    createPlaybackPositionEntity(bookId = "book-1"),
+                    createPlaybackPositionEntity(bookId = "book-2"),
+                )
             every { dao.observeAll() } returns flowOf(list0, list1, list2)
             val repository = PlaybackPositionRepositoryImpl(dao)
 

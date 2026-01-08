@@ -81,9 +81,18 @@ class RegistrationStatusStreamImpl(
             val event = json.decodeFromString<RegistrationStatusEvent>(eventJson)
 
             when (event.status) {
-                "approved" -> StreamedRegistrationStatus.Approved
-                "denied" -> StreamedRegistrationStatus.Denied(event.message)
-                "pending" -> StreamedRegistrationStatus.Pending
+                "approved" -> {
+                    StreamedRegistrationStatus.Approved
+                }
+
+                "denied" -> {
+                    StreamedRegistrationStatus.Denied(event.message)
+                }
+
+                "pending" -> {
+                    StreamedRegistrationStatus.Pending
+                }
+
                 else -> {
                     logger.warn { "Unknown registration status: ${event.status}" }
                     null

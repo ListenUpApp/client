@@ -37,7 +37,9 @@ sealed interface AuthState {
     data object NeedsSetup : AuthState
 
     /** Server is ready, user needs to log in. */
-    data class NeedsLogin(val openRegistration: Boolean = false) : AuthState
+    data class NeedsLogin(
+        val openRegistration: Boolean = false,
+    ) : AuthState
 
     /** User has registered but is waiting for admin approval. */
     data class PendingApproval(
@@ -47,7 +49,10 @@ sealed interface AuthState {
     ) : AuthState
 
     /** User is authenticated with valid session. */
-    data class Authenticated(val userId: String, val sessionId: String) : AuthState
+    data class Authenticated(
+        val userId: String,
+        val sessionId: String,
+    ) : AuthState
 }
 
 // region Segregated Interfaces (ISP)
@@ -220,6 +225,7 @@ interface PlaybackPreferences {
         /** Default playback speed for new books (1.0x = normal speed). */
         const val DEFAULT_PLAYBACK_SPEED = 1.0f
     }
+
     /** Flow of preference change events for sync layer. */
     val preferenceChanges: SharedFlow<PreferenceChangeEvent>
 

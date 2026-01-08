@@ -2,23 +2,24 @@
 
 package com.calypsan.listenup.client.playback
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.ChapterDao
-import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
-import com.calypsan.listenup.client.domain.model.AudioFile
-import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
-import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.data.sync.sse.PlaybackStateProvider
+import com.calypsan.listenup.client.domain.model.AudioFile
 import com.calypsan.listenup.client.domain.model.Chapter
+import com.calypsan.listenup.client.domain.model.ContributorRole
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
 import com.calypsan.listenup.client.domain.playback.StreamPrepareResult
+import com.calypsan.listenup.client.domain.repository.ImageStorage
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.download.DownloadService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -131,7 +132,7 @@ class PlaybackManager(
         val contributorsById = bookWithContributors.contributors.associateBy { it.id }
         val authorNames =
             bookWithContributors.contributorRoles
-                .filter { it.role == "author" }
+                .filter { it.role == ContributorRole.AUTHOR.apiValue }
                 .mapNotNull { crossRef ->
                     contributorsById[crossRef.contributorId]?.let { entity ->
                         crossRef.creditedAs ?: entity.name

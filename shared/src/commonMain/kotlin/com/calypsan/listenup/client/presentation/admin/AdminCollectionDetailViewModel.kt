@@ -105,6 +105,7 @@ class AdminCollectionDetailViewModel(
                         shares = result.data.map { it.toShareItem() },
                     )
             }
+
             is Failure -> {
                 logger.warn { "Failed to load shares for collection: $collectionId - ${result.message}" }
                 // Don't fail the whole screen - just show empty shares
@@ -135,6 +136,7 @@ class AdminCollectionDetailViewModel(
                         books = result.data.map { it.toBookItem() },
                     )
             }
+
             is Failure -> {
                 logger.warn { "Failed to load books for collection: $collectionId - ${result.message}" }
                 // Don't fail the whole screen - just show empty books
@@ -192,6 +194,7 @@ class AdminCollectionDetailViewModel(
                             collection = result.data,
                         )
                 }
+
                 is Failure -> {
                     logger.error { "Failed to update collection name: ${result.message}" }
                     state.value =
@@ -228,6 +231,7 @@ class AdminCollectionDetailViewModel(
                                 ),
                         )
                 }
+
                 is Failure -> {
                     logger.error { "Failed to remove book from collection: ${result.message}" }
                     state.value =
@@ -255,6 +259,7 @@ class AdminCollectionDetailViewModel(
                             availableUsers = result.data,
                         )
                 }
+
                 is Failure -> {
                     logger.error { "Failed to load users: ${result.message}" }
                     state.value =
@@ -280,14 +285,18 @@ class AdminCollectionDetailViewModel(
 
                     // Get user details from the available users list to enrich the share
                     val user = state.value.availableUsers.find { it.id == userId }
-                    val enrichedShare = result.data.copy(
-                        userName = user?.let {
-                            it.displayName?.takeIf { name -> name.isNotBlank() }
-                                ?: "${it.firstName ?: ""} ${it.lastName ?: ""}".trim().takeIf { name -> name.isNotBlank() }
-                                ?: it.email
-                        } ?: result.data.userName,
-                        userEmail = user?.email ?: result.data.userEmail,
-                    )
+                    val enrichedShare =
+                        result.data.copy(
+                            userName =
+                                user?.let {
+                                    it.displayName?.takeIf { name -> name.isNotBlank() }
+                                        ?: "${it.firstName ?: ""} ${it.lastName ?: ""}".trim().takeIf { name ->
+                                            name.isNotBlank()
+                                        }
+                                        ?: it.email
+                                } ?: result.data.userName,
+                            userEmail = user?.email ?: result.data.userEmail,
+                        )
 
                     // Add to shares list
                     state.value =
@@ -297,6 +306,7 @@ class AdminCollectionDetailViewModel(
                             showAddMemberSheet = false,
                         )
                 }
+
                 is Failure -> {
                     logger.error { "Failed to share collection: ${result.message}" }
                     state.value =
@@ -327,6 +337,7 @@ class AdminCollectionDetailViewModel(
                             shares = state.value.shares.filterNot { it.id == shareId },
                         )
                 }
+
                 is Failure -> {
                     logger.error { "Failed to remove share: ${result.message}" }
                     state.value =

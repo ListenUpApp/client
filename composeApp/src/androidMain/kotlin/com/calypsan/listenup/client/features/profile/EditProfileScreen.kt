@@ -71,7 +71,6 @@ import com.calypsan.listenup.client.presentation.profile.EditProfileViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import java.io.ByteArrayOutputStream
 import android.graphics.Color as AndroidColor
@@ -170,30 +169,26 @@ fun EditProfileScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            when {
-                state.isLoading -> {
-                    ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-
-                else -> {
-                    EditProfileContent(
-                        state = state,
-                        onTaglineChange = viewModel::onTaglineChange,
-                        onSaveTagline = viewModel::saveTagline,
-                        onUploadAvatar = {
-                            imagePicker.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                            )
-                        },
-                        onRevertAvatar = viewModel::revertToAutoAvatar,
-                        onFirstNameChange = viewModel::onFirstNameChange,
-                        onLastNameChange = viewModel::onLastNameChange,
-                        onSaveName = viewModel::saveName,
-                        onNewPasswordChange = viewModel::onNewPasswordChange,
-                        onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
-                        onChangePassword = viewModel::changePassword,
-                    )
-                }
+            if (state.isLoading) {
+                ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
+            } else {
+                EditProfileContent(
+                    state = state,
+                    onTaglineChange = viewModel::onTaglineChange,
+                    onSaveTagline = viewModel::saveTagline,
+                    onUploadAvatar = {
+                        imagePicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                        )
+                    },
+                    onRevertAvatar = viewModel::revertToAutoAvatar,
+                    onFirstNameChange = viewModel::onFirstNameChange,
+                    onLastNameChange = viewModel::onLastNameChange,
+                    onSaveName = viewModel::saveName,
+                    onNewPasswordChange = viewModel::onNewPasswordChange,
+                    onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+                    onChangePassword = viewModel::changePassword,
+                )
             }
 
             // Overlay loading indicator when saving

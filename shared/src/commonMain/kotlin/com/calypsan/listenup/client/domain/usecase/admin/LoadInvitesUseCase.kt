@@ -11,6 +11,5 @@ import com.calypsan.listenup.client.domain.repository.AdminRepository
 open class LoadInvitesUseCase(
     private val adminRepository: AdminRepository,
 ) {
-    open suspend operator fun invoke(): Result<List<InviteInfo>> =
-        suspendRunCatching { adminRepository.getInvites() }
+    open suspend operator fun invoke(): Result<List<InviteInfo>> = suspendRunCatching { adminRepository.getInvites() }
 }

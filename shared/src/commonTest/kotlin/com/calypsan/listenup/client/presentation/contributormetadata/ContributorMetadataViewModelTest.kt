@@ -70,7 +70,9 @@ class ContributorMetadataViewModelTest {
         name: String = "Stephen King",
     ): Contributor =
         Contributor(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .ContributorId(id),
             name = name,
             description = null,
             imagePath = null,

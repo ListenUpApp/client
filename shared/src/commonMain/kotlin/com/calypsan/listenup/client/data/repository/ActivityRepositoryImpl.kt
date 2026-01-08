@@ -32,14 +32,14 @@ class ActivityRepositoryImpl(
             entities.map { it.toDomain() }
         }
 
-    override suspend fun getOlderThan(beforeMs: Long, limit: Int): List<Activity> =
-        dao.getOlderThan(beforeMs, limit).map { it.toDomain() }
+    override suspend fun getOlderThan(
+        beforeMs: Long,
+        limit: Int,
+    ): List<Activity> = dao.getOlderThan(beforeMs, limit).map { it.toDomain() }
 
-    override suspend fun getNewestTimestamp(): Long? =
-        dao.getNewestTimestamp()
+    override suspend fun getNewestTimestamp(): Long? = dao.getNewestTimestamp()
 
-    override suspend fun count(): Int =
-        dao.count()
+    override suspend fun count(): Int = dao.count()
 
     override suspend fun upsertAll(activities: List<Activity>) {
         dao.upsertAll(activities.map { it.toEntity() })
@@ -64,22 +64,24 @@ private fun ActivityEntity.toDomain(): Activity =
         type = type,
         userId = userId,
         createdAtMs = createdAt,
-        user = Activity.ActivityUser(
-            displayName = userDisplayName,
-            avatarColor = userAvatarColor,
-            avatarType = userAvatarType,
-            avatarValue = userAvatarValue,
-        ),
-        book = if (bookId != null && bookTitle != null) {
-            Activity.ActivityBook(
-                id = bookId,
-                title = bookTitle,
-                authorName = bookAuthorName,
-                coverPath = bookCoverPath,
-            )
-        } else {
-            null
-        },
+        user =
+            Activity.ActivityUser(
+                displayName = userDisplayName,
+                avatarColor = userAvatarColor,
+                avatarType = userAvatarType,
+                avatarValue = userAvatarValue,
+            ),
+        book =
+            if (bookId != null && bookTitle != null) {
+                Activity.ActivityBook(
+                    id = bookId,
+                    title = bookTitle,
+                    authorName = bookAuthorName,
+                    coverPath = bookCoverPath,
+                )
+            } else {
+                null
+            },
         isReread = isReread,
         durationMs = durationMs,
         milestoneValue = milestoneValue,
@@ -117,33 +119,36 @@ private fun Activity.toEntity(): ActivityEntity =
  * Convert ActivityResponse API model to Activity domain model.
  */
 private fun ActivityResponse.toDomain(): Activity {
-    val createdAtMs = try {
-        Instant.parse(createdAt).toEpochMilliseconds()
-    } catch (e: Exception) {
-        currentEpochMilliseconds()
-    }
+    val createdAtMs =
+        try {
+            Instant.parse(createdAt).toEpochMilliseconds()
+        } catch (e: Exception) {
+            currentEpochMilliseconds()
+        }
 
     return Activity(
         id = id,
         type = type,
         userId = userId,
         createdAtMs = createdAtMs,
-        user = Activity.ActivityUser(
-            displayName = userDisplayName,
-            avatarColor = userAvatarColor,
-            avatarType = userAvatarType,
-            avatarValue = userAvatarValue,
-        ),
-        book = if (bookId != null && bookTitle != null) {
-            Activity.ActivityBook(
-                id = bookId,
-                title = bookTitle,
-                authorName = bookAuthorName,
-                coverPath = bookCoverPath,
-            )
-        } else {
-            null
-        },
+        user =
+            Activity.ActivityUser(
+                displayName = userDisplayName,
+                avatarColor = userAvatarColor,
+                avatarType = userAvatarType,
+                avatarValue = userAvatarValue,
+            ),
+        book =
+            if (bookId != null && bookTitle != null) {
+                Activity.ActivityBook(
+                    id = bookId,
+                    title = bookTitle,
+                    authorName = bookAuthorName,
+                    coverPath = bookCoverPath,
+                )
+            } else {
+                null
+            },
         isReread = isReread,
         durationMs = durationMs,
         milestoneValue = milestoneValue,

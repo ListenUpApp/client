@@ -54,9 +54,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.domain.model.LensBook
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.domain.model.LensBook
 import com.calypsan.listenup.client.presentation.lens.LensDetailUiState
 import com.calypsan.listenup.client.presentation.lens.LensDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel

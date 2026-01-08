@@ -3,11 +3,11 @@ package com.calypsan.listenup.client.presentation.seriesdetail
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.Book
-import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Series
 import com.calypsan.listenup.client.domain.model.SeriesWithBooks
+import com.calypsan.listenup.client.domain.repository.ImageRepository
 import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -79,7 +79,9 @@ class SeriesDetailViewModelTest {
         description: String? = "A great series",
     ): Series =
         Series(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .SeriesId(id),
             name = name,
             description = description,
             createdAt = Timestamp(1704067200000L),
@@ -172,11 +174,12 @@ class SeriesDetailViewModelTest {
 
             // When
             viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value = createSeriesWithBooks(
-                series = series,
-                books = listOf(book),
-                bookSequences = mapOf("book-1" to "1"),
-            )
+            fixture.seriesFlow.value =
+                createSeriesWithBooks(
+                    series = series,
+                    books = listOf(book),
+                    bookSequences = mapOf("book-1" to "1"),
+                )
             advanceUntilIdle()
 
             // Then
@@ -222,15 +225,17 @@ class SeriesDetailViewModelTest {
 
             // When - books come in unsorted order, sequence info in bookSequences
             viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value = createSeriesWithBooks(
-                series = series,
-                books = listOf(book2, book3, book1), // Out of order
-                bookSequences = mapOf(
-                    "book-1" to "1",
-                    "book-2" to "2",
-                    "book-3" to "1.5",
-                ),
-            )
+            fixture.seriesFlow.value =
+                createSeriesWithBooks(
+                    series = series,
+                    books = listOf(book2, book3, book1), // Out of order
+                    bookSequences =
+                        mapOf(
+                            "book-1" to "1",
+                            "book-2" to "2",
+                            "book-3" to "1.5",
+                        ),
+                )
             advanceUntilIdle()
 
             // Then - should be sorted by sequence: 1, 1.5, 2
@@ -255,14 +260,16 @@ class SeriesDetailViewModelTest {
 
             // When - sequence info in bookSequences (null for unnumbered)
             viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value = createSeriesWithBooks(
-                series = series,
-                books = listOf(book2, book1),
-                bookSequences = mapOf(
-                    "book-1" to "1",
-                    "book-2" to null,
-                ),
-            )
+            fixture.seriesFlow.value =
+                createSeriesWithBooks(
+                    series = series,
+                    books = listOf(book2, book1),
+                    bookSequences =
+                        mapOf(
+                            "book-1" to "1",
+                            "book-2" to null,
+                        ),
+                )
             advanceUntilIdle()
 
             // Then - numbered first, unnumbered at end

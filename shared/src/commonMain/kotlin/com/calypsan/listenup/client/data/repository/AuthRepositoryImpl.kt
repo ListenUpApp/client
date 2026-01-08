@@ -4,6 +4,7 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
+import com.calypsan.listenup.client.core.UserId
 import com.calypsan.listenup.client.data.remote.AuthApiContract
 import com.calypsan.listenup.client.data.remote.AuthUser
 import com.calypsan.listenup.client.domain.model.User
@@ -26,8 +27,10 @@ import kotlin.time.Instant
 class AuthRepositoryImpl(
     private val authApi: AuthApiContract,
 ) : AuthRepository {
-
-    override suspend fun login(email: String, password: String): LoginResult {
+    override suspend fun login(
+        email: String,
+        password: String,
+    ): LoginResult {
         val response = authApi.login(email, password)
 
         return LoginResult(
@@ -91,7 +94,7 @@ class AuthRepositoryImpl(
 @OptIn(ExperimentalTime::class)
 private fun AuthUser.toDomain(): User =
     User(
-        id = id,
+        id = UserId(id),
         email = email,
         displayName = displayName,
         firstName = firstName.ifEmpty { null },

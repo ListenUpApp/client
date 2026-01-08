@@ -371,7 +371,9 @@ class NowPlayingViewModel(
         logger.debug { "skipBack: currentPos=$currentBookPos, newPos=$newBookPos" }
 
         val position = timeline.resolve(newBookPos)
-        logger.debug { "skipBack: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}" }
+        logger.debug {
+            "skipBack: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}"
+        }
 
         if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "skipBack")) {
             // Update PlaybackManager so UI updates immediately (even when paused)
@@ -398,7 +400,9 @@ class NowPlayingViewModel(
         logger.debug { "skipForward: currentPos=$currentBookPos, newPos=$newBookPos, totalDuration=$totalDuration" }
 
         val position = timeline.resolve(newBookPos)
-        logger.debug { "skipForward: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}" }
+        logger.debug {
+            "skipForward: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}"
+        }
 
         if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "skipForward")) {
             // Update PlaybackManager so UI updates immediately (even when paused)
@@ -485,7 +489,9 @@ class NowPlayingViewModel(
 
         logger.debug { "seekToChapter: chapter='${chapter.title}', startTime=${chapter.startTime}" }
         val position = timeline.resolve(chapter.startTime)
-        logger.debug { "seekToChapter: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}" }
+        logger.debug {
+            "seekToChapter: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}"
+        }
 
         if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "seekToChapter")) {
             // Update PlaybackManager so UI updates immediately (even when paused)
@@ -517,7 +523,9 @@ class NowPlayingViewModel(
         logger.debug { "seekWithinChapter: chapter='${currentChapter.title}', targetPosition=$targetPosition" }
 
         val position = timeline.resolve(targetPosition)
-        logger.debug { "seekWithinChapter: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}" }
+        logger.debug {
+            "seekWithinChapter: resolved to mediaItemIndex=${position.mediaItemIndex}, positionInFile=${position.positionInFileMs}"
+        }
 
         if (safeSeekTo(controller, position.mediaItemIndex, position.positionInFileMs, "seekWithinChapter")) {
             // Update PlaybackManager so UI updates immediately (even when paused)

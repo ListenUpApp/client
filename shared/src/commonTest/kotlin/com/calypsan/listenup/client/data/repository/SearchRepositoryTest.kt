@@ -1,20 +1,20 @@
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookSearchResult
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SearchException
 import com.calypsan.listenup.client.data.remote.SearchFacetsResponse
 import com.calypsan.listenup.client.data.remote.SearchHitResponse
 import com.calypsan.listenup.client.data.remote.SearchResponse
 import com.calypsan.listenup.client.domain.model.SearchHitType
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import dev.mokkery.MockMode
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
@@ -433,7 +433,9 @@ class SearchRepositoryTest {
             everySuspend { searchDao.searchContributors(any(), any()) } returns
                 listOf(
                     ContributorEntity(
-                        id = "c1",
+                        id =
+                            com.calypsan.listenup.client.core
+                                .ContributorId("c1"),
                         name = "Author",
                         description = null,
                         imagePath = null,
@@ -447,7 +449,9 @@ class SearchRepositoryTest {
             everySuspend { searchDao.searchSeries(any(), any()) } returns
                 listOf(
                     SeriesEntity(
-                        id = "s1",
+                        id =
+                            com.calypsan.listenup.client.core
+                                .SeriesId("s1"),
                         name = "Series",
                         description = null,
                         syncState = SyncState.SYNCED,

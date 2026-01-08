@@ -30,14 +30,11 @@ class AdminRepositoryImpl(
     // USER MANAGEMENT
     // ═══════════════════════════════════════════════════════════════════════
 
-    override suspend fun getUsers(): List<AdminUserInfo> =
-        adminApi.getUsers().map { it.toDomain() }
+    override suspend fun getUsers(): List<AdminUserInfo> = adminApi.getUsers().map { it.toDomain() }
 
-    override suspend fun getPendingUsers(): List<AdminUserInfo> =
-        adminApi.getPendingUsers().map { it.toDomain() }
+    override suspend fun getPendingUsers(): List<AdminUserInfo> = adminApi.getPendingUsers().map { it.toDomain() }
 
-    override suspend fun approveUser(userId: String): AdminUserInfo =
-        adminApi.approveUser(userId).toDomain()
+    override suspend fun approveUser(userId: String): AdminUserInfo = adminApi.approveUser(userId).toDomain()
 
     override suspend fun denyUser(userId: String) {
         adminApi.denyUser(userId)
@@ -51,8 +48,7 @@ class AdminRepositoryImpl(
     // INVITE MANAGEMENT
     // ═══════════════════════════════════════════════════════════════════════
 
-    override suspend fun getInvites(): List<InviteInfo> =
-        adminApi.getInvites().map { it.toDomain() }
+    override suspend fun getInvites(): List<InviteInfo> = adminApi.getInvites().map { it.toDomain() }
 
     override suspend fun createInvite(
         name: String,
@@ -60,12 +56,13 @@ class AdminRepositoryImpl(
         role: String,
         expiresInDays: Int,
     ): InviteInfo {
-        val request = CreateInviteRequest(
-            name = name,
-            email = email,
-            role = role,
-            expiresInDays = expiresInDays,
-        )
+        val request =
+            CreateInviteRequest(
+                name = name,
+                email = email,
+                role = role,
+                expiresInDays = expiresInDays,
+            )
         return adminApi.createInvite(request).toDomain()
     }
 
@@ -81,8 +78,7 @@ class AdminRepositoryImpl(
         adminApi.setOpenRegistration(enabled)
     }
 
-    override suspend fun getServerSettings(): ServerSettings =
-        adminApi.getServerSettings().toDomain()
+    override suspend fun getServerSettings(): ServerSettings = adminApi.getServerSettings().toDomain()
 
     override suspend fun updateServerSettings(inboxEnabled: Boolean): ServerSettings =
         adminApi.updateServerSettings(ServerSettingsRequest(inboxEnabled = inboxEnabled)).toDomain()
@@ -91,8 +87,7 @@ class AdminRepositoryImpl(
     // INBOX MANAGEMENT
     // ═══════════════════════════════════════════════════════════════════════
 
-    override suspend fun getInboxBooks(): List<InboxBook> =
-        adminApi.listInboxBooks().books.map { it.toDomain() }
+    override suspend fun getInboxBooks(): List<InboxBook> = adminApi.listInboxBooks().books.map { it.toDomain() }
 
     override suspend fun releaseBooks(bookIds: List<String>): InboxReleaseResult {
         val response = adminApi.releaseBooks(bookIds)
@@ -103,11 +98,17 @@ class AdminRepositoryImpl(
         )
     }
 
-    override suspend fun stageCollection(bookId: String, collectionId: String) {
+    override suspend fun stageCollection(
+        bookId: String,
+        collectionId: String,
+    ) {
         adminApi.stageCollection(bookId, collectionId)
     }
 
-    override suspend fun unstageCollection(bookId: String, collectionId: String) {
+    override suspend fun unstageCollection(
+        bookId: String,
+        collectionId: String,
+    ) {
         adminApi.unstageCollection(bookId, collectionId)
     }
 }

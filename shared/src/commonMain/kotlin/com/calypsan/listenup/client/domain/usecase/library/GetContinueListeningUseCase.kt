@@ -90,12 +90,12 @@ open class GetContinueListeningUseCase(
      */
     open fun observe(limit: Int = DEFAULT_LIMIT): Flow<List<ContinueListeningBook>> {
         val effectiveLimit = limit.coerceIn(1, MAX_LIMIT)
-        return homeRepository.observeContinueListening(effectiveLimit)
+        return homeRepository
+            .observeContinueListening(effectiveLimit)
             .map { books ->
                 logger.debug { "Continue listening updated: ${books.size} books" }
                 books
-            }
-            .catch { e ->
+            }.catch { e ->
                 logger.error(e) { "Error observing continue listening" }
                 emit(emptyList())
             }
@@ -120,13 +120,17 @@ open class GetContinueListeningUseCase(
     private fun mapErrorMessage(failure: Failure): String {
         val exceptionMessage = failure.exception?.message
         return when {
-            exceptionMessage?.contains("database", ignoreCase = true) == true ->
+            exceptionMessage?.contains("database", ignoreCase = true) == true -> {
                 "Unable to load your listening history."
+            }
 
-            exceptionMessage?.contains("network", ignoreCase = true) == true ->
+            exceptionMessage?.contains("network", ignoreCase = true) == true -> {
                 "Unable to connect to server. Showing local data."
+            }
 
-            else -> failure.message
+            else -> {
+                failure.message
+            }
         }
     }
 

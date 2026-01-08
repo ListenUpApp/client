@@ -2,9 +2,6 @@ package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
 import com.calypsan.listenup.client.data.local.db.ActiveSessionEntity
 import com.calypsan.listenup.client.data.local.db.UserProfileDao
@@ -14,6 +11,9 @@ import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
@@ -105,20 +105,21 @@ class ActiveSessionsPuller(
                     logger.info { "Users with image avatars: ${usersWithImageAvatars.size}" }
                     if (usersWithImageAvatars.isNotEmpty()) {
                         coroutineScope {
-                            usersWithImageAvatars.map { session ->
-                                async {
-                                    try {
-                                        logger.debug { "Downloading avatar for user ${session.userId}..." }
-                                        imageDownloader.downloadUserAvatar(
-                                            session.userId,
-                                            forceRefresh = false,
-                                        )
-                                    } catch (e: Exception) {
-                                        logger.warn(e) { "Failed to download avatar for user ${session.userId}" }
-                                        null
+                            usersWithImageAvatars
+                                .map { session ->
+                                    async {
+                                        try {
+                                            logger.debug { "Downloading avatar for user ${session.userId}..." }
+                                            imageDownloader.downloadUserAvatar(
+                                                session.userId,
+                                                forceRefresh = false,
+                                            )
+                                        } catch (e: Exception) {
+                                            logger.warn(e) { "Failed to download avatar for user ${session.userId}" }
+                                            null
+                                        }
                                     }
-                                }
-                            }.awaitAll()
+                                }.awaitAll()
                         }
                         logger.info { "Completed downloading ${usersWithImageAvatars.size} avatars" }
                     }

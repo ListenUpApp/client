@@ -81,23 +81,26 @@ fun LibraryScreen(
     // ═══════════════════════════════════════════════════════════════════════
     // CONTENT STATE (from LibraryViewModel)
     // ═══════════════════════════════════════════════════════════════════════
-    val books by viewModel.books.collectAsStateWithLifecycle()
-    val hasLoadedBooks by viewModel.hasLoadedBooks.collectAsStateWithLifecycle()
-    val series by viewModel.series.collectAsStateWithLifecycle()
-    val authors by viewModel.authors.collectAsStateWithLifecycle()
-    val narrators by viewModel.narrators.collectAsStateWithLifecycle()
-    val syncState by viewModel.syncState.collectAsStateWithLifecycle()
-    val bookProgress by viewModel.bookProgress.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Destructure uiState for convenience
+    val books = uiState.books
+    val hasLoadedBooks = uiState.hasLoadedBooks
+    val series = uiState.series
+    val authors = uiState.authors
+    val narrators = uiState.narrators
+    val syncState = uiState.syncState
+    val bookProgress = uiState.bookProgress
 
     // Sort state for each tab
-    val booksSortState by viewModel.booksSortState.collectAsStateWithLifecycle()
-    val seriesSortState by viewModel.seriesSortState.collectAsStateWithLifecycle()
-    val authorsSortState by viewModel.authorsSortState.collectAsStateWithLifecycle()
-    val narratorsSortState by viewModel.narratorsSortState.collectAsStateWithLifecycle()
-    val ignoreTitleArticles by viewModel.ignoreTitleArticles.collectAsStateWithLifecycle()
+    val booksSortState = uiState.booksSortState
+    val seriesSortState = uiState.seriesSortState
+    val authorsSortState = uiState.authorsSortState
+    val narratorsSortState = uiState.narratorsSortState
+    val ignoreTitleArticles = uiState.ignoreTitleArticles
 
     // Selection mode (from LibraryViewModel, which delegates to shared manager)
-    val selectionMode by viewModel.selectionMode.collectAsStateWithLifecycle()
+    val selectionMode = uiState.selectionMode
 
     // ═══════════════════════════════════════════════════════════════════════
     // ACTION STATE (from LibraryActionsViewModel)

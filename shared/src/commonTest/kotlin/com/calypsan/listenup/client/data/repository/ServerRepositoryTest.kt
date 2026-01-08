@@ -386,10 +386,11 @@ class ServerRepositoryTest {
             val fixture = createFixture()
             val repository = fixture.build(this)
 
-            val result = repository.addManualServer(
-                name = "Manual Server",
-                url = "https://example.com",
-            )
+            val result =
+                repository.addManualServer(
+                    name = "Manual Server",
+                    url = "https://example.com",
+                )
 
             verifySuspend { fixture.serverDao.upsert(any()) }
             assertEquals("Manual Server", result.name)

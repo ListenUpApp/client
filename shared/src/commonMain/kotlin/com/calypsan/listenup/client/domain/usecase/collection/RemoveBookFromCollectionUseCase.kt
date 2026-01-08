@@ -32,7 +32,10 @@ open class RemoveBookFromCollectionUseCase(
      * @param bookId The book to remove
      * @return Result indicating success or failure
      */
-    open suspend operator fun invoke(collectionId: String, bookId: String): Result<Unit> {
+    open suspend operator fun invoke(
+        collectionId: String,
+        bookId: String,
+    ): Result<Unit> {
         logger.info { "Removing book $bookId from collection $collectionId" }
 
         return suspendRunCatching {

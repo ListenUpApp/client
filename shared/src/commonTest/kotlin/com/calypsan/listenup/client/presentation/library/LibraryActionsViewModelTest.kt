@@ -102,7 +102,9 @@ class LibraryActionsViewModelTest {
         isAdmin: Boolean = false,
     ): User =
         User(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .UserId(id),
             email = email,
             displayName = displayName,
             isAdmin = isAdmin,
@@ -258,10 +260,11 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.addBooksToCollectionUseCase(any(), any()) } returns Failure(
-                RuntimeException("Network error"),
-                "Network error"
-            )
+            everySuspend { fixture.addBooksToCollectionUseCase(any(), any()) } returns
+                Failure(
+                    RuntimeException("Network error"),
+                    "Network error",
+                )
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -351,10 +354,11 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Failure(
-                RuntimeException("Server error"),
-                "Server error"
-            )
+            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns
+                Failure(
+                    RuntimeException("Server error"),
+                    "Server error",
+                )
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -431,10 +435,11 @@ class LibraryActionsViewModelTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.createLensUseCase(any(), any()) } returns Failure(
-                RuntimeException("Failed to create lens"),
-                "Failed to create lens"
-            )
+            everySuspend { fixture.createLensUseCase(any(), any()) } returns
+                Failure(
+                    RuntimeException("Failed to create lens"),
+                    "Failed to create lens",
+                )
             val viewModel = fixture.build()
             advanceUntilIdle()
 
@@ -454,10 +459,11 @@ class LibraryActionsViewModelTest {
             fixture.selectionManager.enterSelectionMode("book-1")
             val newLens = createLens()
             everySuspend { fixture.createLensUseCase(any(), any()) } returns Success(newLens)
-            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Failure(
-                RuntimeException("Failed to add books"),
-                "Failed to add books"
-            )
+            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns
+                Failure(
+                    RuntimeException("Failed to add books"),
+                    "Failed to add books",
+                )
             val viewModel = fixture.build()
             advanceUntilIdle()
 

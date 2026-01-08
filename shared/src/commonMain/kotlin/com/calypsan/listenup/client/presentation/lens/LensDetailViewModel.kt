@@ -48,7 +48,12 @@ class LensDetailViewModel(
             state.update { it.copy(isLoading = true, error = null) }
 
             // Get current user ID for ownership check
-            val currentUserId = userRepository.observeCurrentUser().first()?.id
+            val currentUserId =
+                userRepository
+                    .observeCurrentUser()
+                    .first()
+                    ?.id
+                    ?.value
 
             // Load lens detail via use case (handles API call, cache update, and cover resolution)
             when (val result = loadLensDetailUseCase(lensId)) {
@@ -64,9 +69,11 @@ class LensDetailViewModel(
                     }
                     logger.debug { "Loaded lens detail: ${lensDetail.name}" }
                 }
+
                 else -> {
-                    val errorMessage = (result as? com.calypsan.listenup.client.core.Failure)?.message
-                        ?: "Failed to load lens"
+                    val errorMessage =
+                        (result as? com.calypsan.listenup.client.core.Failure)?.message
+                            ?: "Failed to load lens"
                     logger.error { "Failed to load lens: $lensId - $errorMessage" }
                     state.update {
                         it.copy(
@@ -93,9 +100,11 @@ class LensDetailViewModel(
                     loadLens(lensId)
                     logger.info { "Removed book $bookId from lens $lensId" }
                 }
+
                 else -> {
-                    val errorMessage = (result as? com.calypsan.listenup.client.core.Failure)?.message
-                        ?: "Failed to remove book"
+                    val errorMessage =
+                        (result as? com.calypsan.listenup.client.core.Failure)?.message
+                            ?: "Failed to remove book"
                     logger.error { "Failed to remove book from lens: $errorMessage" }
                     state.update {
                         it.copy(error = errorMessage)
@@ -110,11 +119,8 @@ class LensDetailViewModel(
      */
     fun formatDuration(seconds: Long): String {
         val hours = seconds / 3600
-        val minutes = (seconds % 3600) / 60
-        return when {
-            hours > 0 -> "${hours}h ${minutes}m"
-            else -> "${minutes}m"
-        }
+        val minutes = seconds % 3600 / 60
+        return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
     }
 }
 

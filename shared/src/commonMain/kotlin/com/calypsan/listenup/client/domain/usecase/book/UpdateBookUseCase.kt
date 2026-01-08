@@ -8,7 +8,6 @@ import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.domain.model.BookOriginalState
 import com.calypsan.listenup.client.domain.model.BookUpdateRequest
-import com.calypsan.listenup.client.domain.model.PendingCover
 import com.calypsan.listenup.client.domain.repository.BookContributorInput
 import com.calypsan.listenup.client.domain.repository.BookEditRepository
 import com.calypsan.listenup.client.domain.repository.BookSeriesInput
@@ -102,14 +101,15 @@ open class UpdateBookUseCase(
     private fun detectChanges(
         current: BookUpdateRequest,
         original: BookOriginalState,
-    ): BookChanges = BookChanges(
-        metadataChanged = current.metadata != original.metadata,
-        contributorsChanged = current.contributors != original.contributors,
-        seriesChanged = current.series != original.series,
-        genresChanged = current.genres != original.genres,
-        tagsChanged = current.tags != original.tags,
-        coverChanged = current.pendingCover != null,
-    )
+    ): BookChanges =
+        BookChanges(
+            metadataChanged = current.metadata != original.metadata,
+            contributorsChanged = current.contributors != original.contributors,
+            seriesChanged = current.series != original.series,
+            genresChanged = current.genres != original.genres,
+            tagsChanged = current.tags != original.tags,
+            coverChanged = current.pendingCover != null,
+        )
 
     private suspend fun updateMetadata(current: BookUpdateRequest): Result<Unit> {
         logger.debug { "Updating metadata for book ${current.bookId}" }
@@ -132,12 +132,13 @@ open class UpdateBookUseCase(
     private suspend fun updateContributors(current: BookUpdateRequest): Result<Unit> {
         logger.debug { "Updating contributors for book ${current.bookId}" }
 
-        val contributorInputs = current.contributors.map { editable ->
-            BookContributorInput(
-                name = editable.name,
-                roles = editable.roles.map { it.apiValue },
-            )
-        }
+        val contributorInputs =
+            current.contributors.map { editable ->
+                BookContributorInput(
+                    name = editable.name,
+                    roles = editable.roles.map { it.apiValue },
+                )
+            }
 
         return bookEditRepository.setBookContributors(current.bookId, contributorInputs)
     }
@@ -145,12 +146,13 @@ open class UpdateBookUseCase(
     private suspend fun updateSeries(current: BookUpdateRequest): Result<Unit> {
         logger.debug { "Updating series for book ${current.bookId}" }
 
-        val seriesInputs = current.series.map { editable ->
-            BookSeriesInput(
-                name = editable.name,
-                sequence = editable.sequence?.toFloatOrNull(),
-            )
-        }
+        val seriesInputs =
+            current.series.map { editable ->
+                BookSeriesInput(
+                    name = editable.name,
+                    sequence = editable.sequence?.toFloatOrNull(),
+                )
+            }
 
         return bookEditRepository.setBookSeries(current.bookId, seriesInputs)
     }
@@ -213,13 +215,17 @@ open class UpdateBookUseCase(
 
         // Upload to server (best-effort - local cover is already saved)
         when (
-            val uploadResult = imageRepository.uploadBookCover(
-                bookId = current.bookId,
-                imageData = pendingCover.data,
-                filename = pendingCover.filename,
-            )
+            val uploadResult =
+                imageRepository.uploadBookCover(
+                    bookId = current.bookId,
+                    imageData = pendingCover.data,
+                    filename = pendingCover.filename,
+                )
         ) {
-            is Success -> logger.info { "Cover uploaded to server" }
+            is Success -> {
+                logger.info { "Cover uploaded to server" }
+            }
+
             is Failure -> {
                 logger.warn { "Failed to upload cover to server: ${uploadResult.message}" }
                 // Don't fail the save - local cover is saved, server sync can happen later
@@ -239,16 +245,18 @@ open class UpdateBookUseCase(
         val coverChanged: Boolean,
     ) {
         val hasAnyChanges: Boolean
-            get() = metadataChanged || contributorsChanged || seriesChanged ||
-                genresChanged || tagsChanged || coverChanged
+            get() =
+                metadataChanged || contributorsChanged || seriesChanged ||
+                    genresChanged || tagsChanged || coverChanged
 
-        fun summary(): String = buildList {
-            if (metadataChanged) add("metadata")
-            if (contributorsChanged) add("contributors")
-            if (seriesChanged) add("series")
-            if (genresChanged) add("genres")
-            if (tagsChanged) add("tags")
-            if (coverChanged) add("cover")
-        }.joinToString(", ")
+        fun summary(): String =
+            buildList {
+                if (metadataChanged) add("metadata")
+                if (contributorsChanged) add("contributors")
+                if (seriesChanged) add("series")
+                if (genresChanged) add("genres")
+                if (tagsChanged) add("tags")
+                if (coverChanged) add("cover")
+            }.joinToString(", ")
     }
 }

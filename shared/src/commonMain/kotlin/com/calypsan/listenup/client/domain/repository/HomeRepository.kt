@@ -2,7 +2,6 @@ package com.calypsan.listenup.client.domain.repository
 
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
-import com.calypsan.listenup.client.domain.model.User
 import kotlinx.coroutines.flow.Flow
 
 /**

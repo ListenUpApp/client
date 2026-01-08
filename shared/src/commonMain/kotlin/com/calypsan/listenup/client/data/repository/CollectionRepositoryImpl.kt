@@ -33,11 +33,9 @@ class CollectionRepositoryImpl(
             entities.map { it.toDomain() }
         }
 
-    override suspend fun getAll(): List<Collection> =
-        dao.getAll().map { it.toDomain() }
+    override suspend fun getAll(): List<Collection> = dao.getAll().map { it.toDomain() }
 
-    override suspend fun getById(id: String): Collection? =
-        dao.getById(id)?.toDomain()
+    override suspend fun getById(id: String): Collection? = dao.getById(id)?.toDomain()
 
     override suspend fun upsert(collection: Collection) {
         dao.upsert(collection.toEntity())
@@ -50,13 +48,14 @@ class CollectionRepositoryImpl(
     override suspend fun create(name: String): Collection {
         logger.info { "Creating collection: $name" }
         val response = adminCollectionApi.createCollection(name)
-        val collection = Collection(
-            id = response.id,
-            name = response.name,
-            bookCount = response.bookCount,
-            createdAtMs = response.createdAt.toTimestamp().epochMillis,
-            updatedAtMs = response.updatedAt.toTimestamp().epochMillis,
-        )
+        val collection =
+            Collection(
+                id = response.id,
+                name = response.name,
+                bookCount = response.bookCount,
+                createdAtMs = response.createdAt.toTimestamp().epochMillis,
+                updatedAtMs = response.updatedAt.toTimestamp().epochMillis,
+            )
         // Persist locally for immediate UI feedback
         dao.upsert(collection.toEntity())
         logger.info { "Created collection: ${collection.name} (${collection.id})" }
@@ -71,7 +70,10 @@ class CollectionRepositoryImpl(
         logger.info { "Deleted collection: $id" }
     }
 
-    override suspend fun addBooksToCollection(collectionId: String, bookIds: List<String>) {
+    override suspend fun addBooksToCollection(
+        collectionId: String,
+        bookIds: List<String>,
+    ) {
         logger.info { "Adding ${bookIds.size} books to collection $collectionId" }
         adminCollectionApi.addBooks(collectionId, bookIds)
     }
@@ -83,13 +85,14 @@ class CollectionRepositoryImpl(
 
         // Update local database with server data
         serverCollections.forEach { response ->
-            val collection = Collection(
-                id = response.id,
-                name = response.name,
-                bookCount = response.bookCount,
-                createdAtMs = response.createdAt.toTimestamp().epochMillis,
-                updatedAtMs = response.updatedAt.toTimestamp().epochMillis,
-            )
+            val collection =
+                Collection(
+                    id = response.id,
+                    name = response.name,
+                    bookCount = response.bookCount,
+                    createdAtMs = response.createdAt.toTimestamp().epochMillis,
+                    updatedAtMs = response.updatedAt.toTimestamp().epochMillis,
+                )
             dao.upsert(collection.toEntity())
         }
 
@@ -126,7 +129,10 @@ class CollectionRepositoryImpl(
         }
     }
 
-    override suspend fun updateCollectionName(collectionId: String, name: String): Collection {
+    override suspend fun updateCollectionName(
+        collectionId: String,
+        name: String,
+    ): Collection {
         logger.info { "Updating collection name: $collectionId -> $name" }
         val response = adminCollectionApi.updateCollection(collectionId, name)
         return Collection(
@@ -138,7 +144,10 @@ class CollectionRepositoryImpl(
         )
     }
 
-    override suspend fun removeBookFromCollection(collectionId: String, bookId: String) {
+    override suspend fun removeBookFromCollection(
+        collectionId: String,
+        bookId: String,
+    ) {
         logger.info { "Removing book $bookId from collection $collectionId" }
         adminCollectionApi.removeBook(collectionId, bookId)
     }
@@ -156,7 +165,10 @@ class CollectionRepositoryImpl(
         }
     }
 
-    override suspend fun shareCollection(collectionId: String, userId: String): CollectionShareSummary {
+    override suspend fun shareCollection(
+        collectionId: String,
+        userId: String,
+    ): CollectionShareSummary {
         logger.info { "Sharing collection $collectionId with user $userId" }
         val share = adminCollectionApi.shareCollection(collectionId, userId)
         return CollectionShareSummary(

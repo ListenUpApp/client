@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.presentation.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.domain.model.Book
-import com.calypsan.listenup.client.domain.model.SyncState
+import com.calypsan.listenup.client.domain.model.ContributorRole
 import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
 import com.calypsan.listenup.client.domain.model.SeriesWithBooks
 import com.calypsan.listenup.client.domain.repository.AuthSession
@@ -17,11 +17,13 @@ import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 import com.calypsan.listenup.client.util.sortableTitle
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -52,177 +54,20 @@ class LibraryViewModel(
     private val selectionManager: LibrarySelectionManager,
 ) : ViewModel() {
     // ═══════════════════════════════════════════════════════════════════════
-    // SORT STATE
-    // ═══════════════════════════════════════════════════════════════════════
-
-    val booksSortState: StateFlow<SortState>
-        field = MutableStateFlow(SortState.booksDefault)
-
-    val seriesSortState: StateFlow<SortState>
-        field = MutableStateFlow(SortState.seriesDefault)
-
-    val authorsSortState: StateFlow<SortState>
-        field = MutableStateFlow(SortState.contributorDefault)
-
-    val narratorsSortState: StateFlow<SortState>
-        field = MutableStateFlow(SortState.contributorDefault)
-
-    /** Article handling for title sort (A, An, The). */
-    val ignoreTitleArticles: StateFlow<Boolean>
-        field = MutableStateFlow(true)
-
-    /** Series display preferences. */
-    val hideSingleBookSeries: StateFlow<Boolean>
-        field = MutableStateFlow(true)
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // LOADING STATE
+    // CONSOLIDATED UI STATE
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
-     * Tracks whether initial database load has completed.
-     * Used to distinguish "loading" from "truly empty" in UI.
+     * Single source of truth for all Library UI state.
+     * All state mutations go through `_uiState.update { it.copy(...) }`.
      */
-    val hasLoadedBooks: StateFlow<Boolean>
-        field = MutableStateFlow(false)
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // CONTENT LISTS
-    // ═══════════════════════════════════════════════════════════════════════
+    private val _uiState = MutableStateFlow(LibraryUiState())
 
     /**
-     * Observable list of books, sorted by current sort state.
-     *
-     * Uses SharingStarted.Eagerly so database loading begins immediately when
-     * the ViewModel is created (at AppShell level), not when Library screen
-     * is first displayed. This eliminates the "Loading library..." flash.
+     * Consolidated UI state for the Library screen.
+     * Prefer using this over individual StateFlow properties for new code.
      */
-    val books: StateFlow<List<Book>> =
-        combine(
-            bookRepository.observeBooks(),
-            booksSortState,
-            ignoreTitleArticles,
-        ) { books, sortState, ignoreArticles ->
-            sortBooks(books, sortState, ignoreArticles)
-        }.onEach {
-            // Mark as loaded after first database emission
-            if (!hasLoadedBooks.value) {
-                hasLoadedBooks.value = true
-            }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = emptyList(),
-        )
-
-    /**
-     * Observable list of series with their books, sorted and filtered by current state.
-     * Filters out single-book series when hideSingleBookSeries is enabled.
-     */
-    val series: StateFlow<List<SeriesWithBooks>> =
-        combine(
-            seriesRepository.observeAllWithBooks(),
-            seriesSortState,
-            hideSingleBookSeries,
-        ) { series, sortState, hideSingle ->
-            val filtered =
-                if (hideSingle) {
-                    series.filter { it.books.size > 1 }
-                } else {
-                    series
-                }
-            sortSeries(filtered, sortState)
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList(),
-        )
-
-    /**
-     * Observable list of authors with book counts, sorted by current sort state.
-     */
-    val authors: StateFlow<List<ContributorWithBookCount>> =
-        combine(
-            contributorRepository.observeContributorsByRole("author"),
-            authorsSortState,
-        ) { authors, sortState ->
-            sortContributors(authors, sortState)
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList(),
-        )
-
-    /**
-     * Observable list of narrators with book counts, sorted by current sort state.
-     */
-    val narrators: StateFlow<List<ContributorWithBookCount>> =
-        combine(
-            contributorRepository.observeContributorsByRole("narrator"),
-            narratorsSortState,
-        ) { narrators, sortState ->
-            sortContributors(narrators, sortState)
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList(),
-        )
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // SYNC STATE
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /** Observable sync status. */
-    val syncState: StateFlow<SyncState> = syncRepository.syncState
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // PROGRESS TRACKING
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /**
-     * Observable progress data for all books.
-     * Maps bookId -> progress (0.0 to 1.0).
-     * Used for showing progress indicators on book cards.
-     *
-     * Includes both in-progress books (< 99%) and completed books (>= 99%).
-     * BookCard uses this to show progress overlay for in-progress,
-     * and a completion badge for completed books.
-     */
-    val bookProgress: StateFlow<Map<String, Float>> =
-        combine(
-            playbackPositionRepository.observeAll(),
-            books,
-        ) { positions, booksList ->
-            // Create a map of book durations for O(1) lookup
-            val bookDurations = booksList.associate { it.id.value to it.duration }
-
-            // Build progress map with capacity hint to avoid resizing
-            buildMap(positions.size) {
-                for ((bookId, position) in positions) {
-                    val duration = bookDurations[bookId] ?: continue
-                    if (duration <= 0) continue
-
-                    val progress = (position.positionMs.toFloat() / duration).coerceIn(0f, 1f)
-                    // Include all books with any progress (both in-progress and completed)
-                    if (progress > 0f) {
-                        put(bookId, progress)
-                    }
-                }
-            }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyMap(),
-        )
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // SELECTION STATE (delegated to shared manager)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /**
-     * Current selection mode, observed from the shared [LibrarySelectionManager].
-     */
-    val selectionMode: StateFlow<SelectionMode> = selectionManager.selectionMode
+    val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
 
     // ═══════════════════════════════════════════════════════════════════════
     // INITIALIZATION
@@ -234,22 +79,112 @@ class LibraryViewModel(
         // Load persisted sort states and preferences
         viewModelScope.launch {
             libraryPreferences.getBooksSortState()?.let { key ->
-                SortState.fromPersistenceKey(key)?.let { booksSortState.value = it }
+                SortState.fromPersistenceKey(key)?.let { state ->
+                    _uiState.update { it.copy(booksSortState = state) }
+                }
             }
             libraryPreferences.getSeriesSortState()?.let { key ->
-                SortState.fromPersistenceKey(key)?.let { seriesSortState.value = it }
+                SortState.fromPersistenceKey(key)?.let { state ->
+                    _uiState.update { it.copy(seriesSortState = state) }
+                }
             }
             libraryPreferences.getAuthorsSortState()?.let { key ->
-                SortState.fromPersistenceKey(key)?.let { authorsSortState.value = it }
+                SortState.fromPersistenceKey(key)?.let { state ->
+                    _uiState.update { it.copy(authorsSortState = state) }
+                }
             }
             libraryPreferences.getNarratorsSortState()?.let { key ->
-                SortState.fromPersistenceKey(key)?.let { narratorsSortState.value = it }
+                SortState.fromPersistenceKey(key)?.let { state ->
+                    _uiState.update { it.copy(narratorsSortState = state) }
+                }
             }
             // Load article handling preference
-            ignoreTitleArticles.value = libraryPreferences.getIgnoreTitleArticles()
+            _uiState.update { it.copy(ignoreTitleArticles = libraryPreferences.getIgnoreTitleArticles()) }
             // Load series display preference
-            hideSingleBookSeries.value = libraryPreferences.getHideSingleBookSeries()
+            _uiState.update { it.copy(hideSingleBookSeries = libraryPreferences.getHideSingleBookSeries()) }
         }
+
+        // Set up flow collectors that update uiState
+
+        // Books: combine repository data with sort state
+        combine(
+            bookRepository.observeBooks(),
+            uiState.map { it.booksSortState },
+            uiState.map { it.ignoreTitleArticles },
+        ) { rawBooks, sortState, ignoreArticles ->
+            sortBooks(rawBooks, sortState, ignoreArticles)
+        }.onEach { sortedBooks ->
+            _uiState.update { current ->
+                current.copy(
+                    books = sortedBooks,
+                    hasLoadedBooks = true,
+                )
+            }
+        }.launchIn(viewModelScope)
+
+        // Series: combine repository data with sort state and filter preference
+        combine(
+            seriesRepository.observeAllWithBooks(),
+            uiState.map { it.seriesSortState },
+            uiState.map { it.hideSingleBookSeries },
+        ) { rawSeries, sortState, hideSingle ->
+            val filtered = if (hideSingle) rawSeries.filter { it.books.size > 1 } else rawSeries
+            sortSeries(filtered, sortState)
+        }.onEach { sortedSeries ->
+            _uiState.update { it.copy(series = sortedSeries) }
+        }.launchIn(viewModelScope)
+
+        // Authors: combine repository data with sort state
+        combine(
+            contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue),
+            uiState.map { it.authorsSortState },
+        ) { rawAuthors, sortState ->
+            sortContributors(rawAuthors, sortState)
+        }.onEach { sortedAuthors ->
+            _uiState.update { it.copy(authors = sortedAuthors) }
+        }.launchIn(viewModelScope)
+
+        // Narrators: combine repository data with sort state
+        combine(
+            contributorRepository.observeContributorsByRole(ContributorRole.NARRATOR.apiValue),
+            uiState.map { it.narratorsSortState },
+        ) { rawNarrators, sortState ->
+            sortContributors(rawNarrators, sortState)
+        }.onEach { sortedNarrators ->
+            _uiState.update { it.copy(narrators = sortedNarrators) }
+        }.launchIn(viewModelScope)
+
+        // Sync state: observe from repository
+        syncRepository.syncState
+            .onEach { newSyncState ->
+                _uiState.update { it.copy(syncState = newSyncState) }
+            }.launchIn(viewModelScope)
+
+        // Book progress: combine playback positions with book durations
+        combine(
+            playbackPositionRepository.observeAll(),
+            uiState.map { it.books },
+        ) { positions, booksList ->
+            val bookDurations = booksList.associate { it.id.value to it.duration }
+            buildMap(positions.size) {
+                for ((bookId, position) in positions) {
+                    val duration = bookDurations[bookId] ?: continue
+                    if (duration <= 0) continue
+                    val progress = (position.positionMs.toFloat() / duration).coerceIn(0f, 1f)
+                    if (progress > 0f) {
+                        put(bookId, progress)
+                    }
+                }
+            }
+        }.onEach { progressMap ->
+            _uiState.update { it.copy(bookProgress = progressMap) }
+        }.launchIn(viewModelScope)
+
+        // Selection mode: observe from shared manager
+        selectionManager.selectionMode
+            .onEach { mode ->
+                _uiState.update { it.copy(selectionMode = mode) }
+            }.launchIn(viewModelScope)
 
         logger.debug { "Initialized (auto-sync deferred until screen visible)" }
     }
@@ -265,8 +200,12 @@ class LibraryViewModel(
     fun onScreenVisible() {
         // Reload preferences in case user changed them in Settings
         viewModelScope.launch {
-            hideSingleBookSeries.value = libraryPreferences.getHideSingleBookSeries()
-            ignoreTitleArticles.value = libraryPreferences.getIgnoreTitleArticles()
+            _uiState.update {
+                it.copy(
+                    hideSingleBookSeries = libraryPreferences.getHideSingleBookSeries(),
+                    ignoreTitleArticles = libraryPreferences.getIgnoreTitleArticles(),
+                )
+            }
         }
 
         if (hasPerformedInitialSync) return
@@ -301,38 +240,38 @@ class LibraryViewModel(
 
             // Books tab sort events
             is LibraryUiEvent.BooksCategoryChanged -> {
-                updateBooksSortState(booksSortState.value.withCategory(event.category))
+                updateBooksSortState(_uiState.value.booksSortState.withCategory(event.category))
             }
 
             is LibraryUiEvent.BooksDirectionToggled -> {
-                updateBooksSortState(booksSortState.value.toggleDirection())
+                updateBooksSortState(_uiState.value.booksSortState.toggleDirection())
             }
 
             // Series tab sort events
             is LibraryUiEvent.SeriesCategoryChanged -> {
-                updateSeriesSortState(seriesSortState.value.withCategory(event.category))
+                updateSeriesSortState(_uiState.value.seriesSortState.withCategory(event.category))
             }
 
             is LibraryUiEvent.SeriesDirectionToggled -> {
-                updateSeriesSortState(seriesSortState.value.toggleDirection())
+                updateSeriesSortState(_uiState.value.seriesSortState.toggleDirection())
             }
 
             // Authors tab sort events
             is LibraryUiEvent.AuthorsCategoryChanged -> {
-                updateAuthorsSortState(authorsSortState.value.withCategory(event.category))
+                updateAuthorsSortState(_uiState.value.authorsSortState.withCategory(event.category))
             }
 
             is LibraryUiEvent.AuthorsDirectionToggled -> {
-                updateAuthorsSortState(authorsSortState.value.toggleDirection())
+                updateAuthorsSortState(_uiState.value.authorsSortState.toggleDirection())
             }
 
             // Narrators tab sort events
             is LibraryUiEvent.NarratorsCategoryChanged -> {
-                updateNarratorsSortState(narratorsSortState.value.withCategory(event.category))
+                updateNarratorsSortState(_uiState.value.narratorsSortState.withCategory(event.category))
             }
 
             is LibraryUiEvent.NarratorsDirectionToggled -> {
-                updateNarratorsSortState(narratorsSortState.value.toggleDirection())
+                updateNarratorsSortState(_uiState.value.narratorsSortState.toggleDirection())
             }
 
             // Title sort article handling
@@ -370,8 +309,8 @@ class LibraryViewModel(
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun toggleIgnoreTitleArticles() {
-        val newValue = !ignoreTitleArticles.value
-        ignoreTitleArticles.value = newValue
+        val newValue = !_uiState.value.ignoreTitleArticles
+        _uiState.update { it.copy(ignoreTitleArticles = newValue) }
         viewModelScope.launch {
             libraryPreferences.setIgnoreTitleArticles(newValue)
         }
@@ -384,28 +323,28 @@ class LibraryViewModel(
     }
 
     private fun updateBooksSortState(state: SortState) {
-        booksSortState.value = state
+        _uiState.update { it.copy(booksSortState = state) }
         viewModelScope.launch {
             libraryPreferences.setBooksSortState(state.persistenceKey)
         }
     }
 
     private fun updateSeriesSortState(state: SortState) {
-        seriesSortState.value = state
+        _uiState.update { it.copy(seriesSortState = state) }
         viewModelScope.launch {
             libraryPreferences.setSeriesSortState(state.persistenceKey)
         }
     }
 
     private fun updateAuthorsSortState(state: SortState) {
-        authorsSortState.value = state
+        _uiState.update { it.copy(authorsSortState = state) }
         viewModelScope.launch {
             libraryPreferences.setAuthorsSortState(state.persistenceKey)
         }
     }
 
     private fun updateNarratorsSortState(state: SortState) {
-        narratorsSortState.value = state
+        _uiState.update { it.copy(narratorsSortState = state) }
         viewModelScope.launch {
             libraryPreferences.setNarratorsSortState(state.persistenceKey)
         }

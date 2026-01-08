@@ -55,8 +55,8 @@ class EditProfileViewModel(
 
                     // Get local avatar path if it exists
                     val localAvatarPath =
-                        if (user.avatarType == "image" && imageRepository.userAvatarExists(user.id)) {
-                            imageRepository.getUserAvatarPath(user.id)
+                        if (user.avatarType == "image" && imageRepository.userAvatarExists(user.id.value)) {
+                            imageRepository.getUserAvatarPath(user.id.value)
                         } else {
                             null
                         }
@@ -130,26 +130,22 @@ class EditProfileViewModel(
         viewModelScope.launch {
             state.update { it.copy(isSaving = true, error = null) }
 
-            when (profileEditRepository.updateTagline(editedTagline.ifEmpty { null })) {
-                is Success -> {
-                    // Local state will update via observeUser() when DB is updated
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            saveSuccess = true,
-                        )
-                    }
-                    logger.info { "Tagline update queued for sync" }
+            if (profileEditRepository.updateTagline(editedTagline.ifEmpty { null }) is Success) {
+                // Local state will update via observeUser() when DB is updated
+                state.update {
+                    it.copy(
+                        isSaving = false,
+                        saveSuccess = true,
+                    )
                 }
-
-                else -> {
-                    logger.error { "Failed to save tagline" }
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            error = "Failed to save tagline",
-                        )
-                    }
+                logger.info { "Tagline update queued for sync" }
+            } else {
+                logger.error { "Failed to save tagline" }
+                state.update {
+                    it.copy(
+                        isSaving = false,
+                        error = "Failed to save tagline",
+                    )
                 }
             }
         }
@@ -165,30 +161,26 @@ class EditProfileViewModel(
         viewModelScope.launch {
             state.update { it.copy(isSaving = true, error = null) }
 
-            when (profileEditRepository.uploadAvatar(imageData, contentType)) {
-                is Success -> {
-                    // Don't update avatar state here - we don't have the server path yet.
-                    // The current avatar continues to display until:
-                    // 1. ProfileAvatarHandler successfully uploads the image
-                    // 2. Handler updates user data with the server's response
-                    // 3. observeUser() sees the change and updates UI
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            saveSuccess = true,
-                        )
-                    }
-                    logger.info { "Avatar upload queued for sync" }
+            if (profileEditRepository.uploadAvatar(imageData, contentType) is Success) {
+                // Don't update avatar state here - we don't have the server path yet.
+                // The current avatar continues to display until:
+                // 1. ProfileAvatarHandler successfully uploads the image
+                // 2. Handler updates user data with the server's response
+                // 3. observeUser() sees the change and updates UI
+                state.update {
+                    it.copy(
+                        isSaving = false,
+                        saveSuccess = true,
+                    )
                 }
-
-                else -> {
-                    logger.error { "Failed to upload avatar" }
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            error = "Failed to upload avatar",
-                        )
-                    }
+                logger.info { "Avatar upload queued for sync" }
+            } else {
+                logger.error { "Failed to upload avatar" }
+                state.update {
+                    it.copy(
+                        isSaving = false,
+                        error = "Failed to upload avatar",
+                    )
                 }
             }
         }
@@ -201,26 +193,22 @@ class EditProfileViewModel(
         viewModelScope.launch {
             state.update { it.copy(isSaving = true, error = null) }
 
-            when (profileEditRepository.revertToAutoAvatar()) {
-                is Success -> {
-                    // Local state will update via observeUser() when DB is updated
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            saveSuccess = true,
-                        )
-                    }
-                    logger.info { "Revert to auto avatar queued for sync" }
+            if (profileEditRepository.revertToAutoAvatar() is Success) {
+                // Local state will update via observeUser() when DB is updated
+                state.update {
+                    it.copy(
+                        isSaving = false,
+                        saveSuccess = true,
+                    )
                 }
-
-                else -> {
-                    logger.error { "Failed to revert avatar" }
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            error = "Failed to revert avatar",
-                        )
-                    }
+                logger.info { "Revert to auto avatar queued for sync" }
+            } else {
+                logger.error { "Failed to revert avatar" }
+                state.update {
+                    it.copy(
+                        isSaving = false,
+                        error = "Failed to revert avatar",
+                    )
                 }
             }
         }
@@ -267,26 +255,22 @@ class EditProfileViewModel(
         viewModelScope.launch {
             state.update { it.copy(isSaving = true, error = null) }
 
-            when (profileEditRepository.updateName(firstName, lastName)) {
-                is Success -> {
-                    // DB is updated optimistically, observeUser() will receive the update
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            saveSuccess = true,
-                        )
-                    }
-                    logger.info { "Name update saved" }
+            if (profileEditRepository.updateName(firstName, lastName) is Success) {
+                // DB is updated optimistically, observeUser() will receive the update
+                state.update {
+                    it.copy(
+                        isSaving = false,
+                        saveSuccess = true,
+                    )
                 }
-
-                else -> {
-                    logger.error { "Failed to save name" }
-                    state.update {
-                        it.copy(
-                            isSaving = false,
-                            error = "Failed to save name",
-                        )
-                    }
+                logger.info { "Name update saved" }
+            } else {
+                logger.error { "Failed to save name" }
+                state.update {
+                    it.copy(
+                        isSaving = false,
+                        error = "Failed to save name",
+                    )
                 }
             }
         }

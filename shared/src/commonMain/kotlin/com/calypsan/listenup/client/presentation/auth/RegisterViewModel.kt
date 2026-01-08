@@ -55,9 +55,10 @@ class RegisterViewModel(
 
                 is Failure -> {
                     logger.error(result.exception) { "Registration failed" }
-                    state.value = state.value.copy(
-                        status = RegisterStatus.Error(result.message),
-                    )
+                    state.value =
+                        state.value.copy(
+                            status = RegisterStatus.Error(result.message),
+                        )
                 }
             }
         }

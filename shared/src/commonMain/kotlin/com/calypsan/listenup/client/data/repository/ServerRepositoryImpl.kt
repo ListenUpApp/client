@@ -107,11 +107,9 @@ class ServerRepositoryImpl(
             merged + newServers
         }
 
-    override fun observeActiveServer(): Flow<Server?> =
-        serverDao.observeActive().map { it?.toDomain() }
+    override fun observeActiveServer(): Flow<Server?> = serverDao.observeActive().map { it?.toDomain() }
 
-    override suspend fun getActiveServer(): Server? =
-        serverDao.getActive()?.toDomain()
+    override suspend fun getActiveServer(): Server? = serverDao.getActive()?.toDomain()
 
     override suspend fun setActiveServer(serverId: String) {
         serverDao.setActive(serverId)
@@ -141,16 +139,17 @@ class ServerRepositoryImpl(
         url: String,
     ): Server {
         val id = "manual-${currentEpochMilliseconds()}"
-        val entity = ServerEntity(
-            id = id,
-            name = name,
-            apiVersion = "v1",
-            serverVersion = "unknown",
-            localUrl = null,
-            remoteUrl = url,
-            isActive = false,
-            lastSeenAt = 0,
-        )
+        val entity =
+            ServerEntity(
+                id = id,
+                name = name,
+                apiVersion = "v1",
+                serverVersion = "unknown",
+                localUrl = null,
+                remoteUrl = url,
+                isActive = false,
+                lastSeenAt = 0,
+            )
         serverDao.upsert(entity)
         return entity.toDomain()
     }

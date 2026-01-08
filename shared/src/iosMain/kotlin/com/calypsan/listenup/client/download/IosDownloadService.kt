@@ -3,8 +3,8 @@
 
 package com.calypsan.listenup.client.download
 
-import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState

@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.ContributorRole
 import com.calypsan.listenup.client.domain.repository.ContributorRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.usecase.contributor.DeleteContributorUseCase
@@ -195,10 +196,10 @@ class ContributorDetailViewModel(
          */
         fun roleToDisplayName(role: String): String =
             when (role.lowercase()) {
-                "author" -> "Written By"
-                "narrator" -> "Narrated By"
-                "translator" -> "Translated By"
-                "editor" -> "Edited By"
+                ContributorRole.AUTHOR.apiValue -> "Written By"
+                ContributorRole.NARRATOR.apiValue -> "Narrated By"
+                ContributorRole.TRANSLATOR.apiValue -> "Translated By"
+                ContributorRole.EDITOR.apiValue -> "Edited By"
                 else -> role.replaceFirstChar { it.uppercase() }
             }
     }

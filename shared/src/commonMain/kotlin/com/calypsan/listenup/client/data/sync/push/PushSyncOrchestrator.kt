@@ -1,8 +1,8 @@
 package com.calypsan.listenup.client.data.sync.push
 
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.data.sync.SyncMutex
+import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow

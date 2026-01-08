@@ -2,10 +2,12 @@
 
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.ContributorId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
@@ -13,7 +15,6 @@ import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.EntityType
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.sync.push.ContributorUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.ContributorUpdatePayload
 import com.calypsan.listenup.client.data.sync.push.MergeContributorHandler
@@ -126,7 +127,6 @@ class ContributorEditRepository(
     private val unmergeContributorHandler: UnmergeContributorHandler,
 ) : ContributorEditRepositoryContract,
     com.calypsan.listenup.client.domain.repository.ContributorEditRepository {
-
     // ========== Domain Interface Implementation ==========
 
     /**
@@ -140,17 +140,18 @@ class ContributorEditRepository(
         birthDate: String?,
         deathDate: String?,
         aliases: List<String>?,
-    ): Result<Unit> = updateContributor(
-        contributorId,
-        ContributorUpdateRequest(
-            name = name,
-            biography = biography,
-            website = website,
-            birthDate = birthDate,
-            deathDate = deathDate,
-            aliases = aliases,
-        ),
-    )
+    ): Result<Unit> =
+        updateContributor(
+            contributorId,
+            ContributorUpdateRequest(
+                name = name,
+                biography = biography,
+                website = website,
+                birthDate = birthDate,
+                deathDate = deathDate,
+                aliases = aliases,
+            ),
+        )
 
     // ========== Data Layer Contract Implementation ==========
 
@@ -250,7 +251,7 @@ class ContributorEditRepository(
                     val newRelation =
                         BookContributorCrossRef(
                             bookId = relation.bookId,
-                            contributorId = targetId,
+                            contributorId = ContributorId(targetId),
                             role = relation.role,
                             creditedAs = relation.creditedAs ?: source.name,
                         )
@@ -316,7 +317,7 @@ class ContributorEditRepository(
             }
 
             // 1. Create placeholder contributor with temporary ID
-            val tempId = NanoId.generate("temp")
+            val tempId = ContributorId(NanoId.generate("temp"))
             val newContributor =
                 ContributorEntity(
                     id = tempId,

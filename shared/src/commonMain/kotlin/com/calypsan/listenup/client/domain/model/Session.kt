@@ -70,12 +70,13 @@ data class ReaderInfo(
      * Returns the user's initials for avatar display.
      */
     val initials: String
-        get() = displayName
-            .split(" ")
-            .take(2)
-            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-            .joinToString("")
-            .ifEmpty { displayName.take(1).uppercase() }
+        get() =
+            displayName
+                .split(" ")
+                .take(2)
+                .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+                .joinToString("")
+                .ifEmpty { displayName.take(1).uppercase() }
 
     /**
      * Returns true if the user has an uploaded avatar image.

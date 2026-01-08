@@ -112,24 +112,26 @@ class CreateEditLensViewModel(
         viewModelScope.launch {
             state.update { it.copy(isSaving = true, error = null) }
 
-            val result = if (editingLensId != null) {
-                updateLensUseCase(
-                    lensId = editingLensId!!,
-                    name = currentState.name,
-                    description = currentState.description.takeIf { it.isNotEmpty() },
-                )
-            } else {
-                createLensUseCase(
-                    name = currentState.name,
-                    description = currentState.description.takeIf { it.isNotEmpty() },
-                )
-            }
+            val result =
+                if (editingLensId != null) {
+                    updateLensUseCase(
+                        lensId = editingLensId!!,
+                        name = currentState.name,
+                        description = currentState.description.takeIf { it.isNotEmpty() },
+                    )
+                } else {
+                    createLensUseCase(
+                        name = currentState.name,
+                        description = currentState.description.takeIf { it.isNotEmpty() },
+                    )
+                }
 
             when (result) {
                 is Success -> {
                     state.update { it.copy(isSaving = false) }
                     onSuccess()
                 }
+
                 is Failure -> {
                     state.update {
                         it.copy(
@@ -158,6 +160,7 @@ class CreateEditLensViewModel(
                     state.update { it.copy(isSaving = false) }
                     onSuccess()
                 }
+
                 is Failure -> {
                     state.update {
                         it.copy(

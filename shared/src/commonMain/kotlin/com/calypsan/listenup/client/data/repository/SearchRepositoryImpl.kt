@@ -2,14 +2,13 @@
 
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.data.local.db.BookSearchResult
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
 import com.calypsan.listenup.client.data.local.db.TagEntity
-import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SearchFacetsResponse
 import com.calypsan.listenup.client.data.remote.SearchHitResponse
@@ -20,6 +19,7 @@ import com.calypsan.listenup.client.domain.model.SearchFacets
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.domain.model.SearchResult
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
@@ -264,7 +264,7 @@ private fun BookSearchResult.toSearchHit(imageStorage: ImageStorage): SearchHit 
 
 private fun ContributorEntity.toSearchHit(): SearchHit =
     SearchHit(
-        id = id,
+        id = id.value,
         type = SearchHitType.CONTRIBUTOR,
         name = name,
         bookCount = null, // Would need count - acceptable for offline
@@ -273,7 +273,7 @@ private fun ContributorEntity.toSearchHit(): SearchHit =
 
 private fun SeriesEntity.toSearchHit(): SearchHit =
     SearchHit(
-        id = id,
+        id = id.value,
         type = SearchHitType.SERIES,
         name = name,
         bookCount = null,

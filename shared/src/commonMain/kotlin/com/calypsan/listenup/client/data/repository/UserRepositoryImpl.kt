@@ -1,6 +1,8 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.core.UserId
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.UserEntity
 import com.calypsan.listenup.client.data.remote.CurrentUserResponse
@@ -27,16 +29,14 @@ class UserRepositoryImpl(
     private val userDao: UserDao,
     private val sessionApi: SessionApiContract,
 ) : UserRepository {
-    override fun observeCurrentUser(): Flow<User?> =
-        userDao.observeCurrentUser().map { it?.toDomain() }
+    override fun observeCurrentUser(): Flow<User?> = userDao.observeCurrentUser().map { it?.toDomain() }
 
     override fun observeIsAdmin(): Flow<Boolean> =
         userDao.observeCurrentUser().map { user ->
             user?.isRoot == true
         }
 
-    override suspend fun getCurrentUser(): User? =
-        userDao.getCurrentUser()?.toDomain()
+    override suspend fun getCurrentUser(): User? = userDao.getCurrentUser()?.toDomain()
 
     override suspend fun saveUser(user: User) {
         userDao.upsert(user.toEntity())
@@ -55,6 +55,7 @@ class UserRepositoryImpl(
                 logger.info { "User data refreshed: ${user.email}" }
                 user
             }
+
             else -> {
                 logger.warn { "Failed to refresh current user from server" }
                 null
@@ -80,8 +81,8 @@ private fun UserEntity.toDomain(): User =
         avatarValue = avatarValue,
         avatarColor = avatarColor,
         tagline = tagline,
-        createdAtMs = createdAt,
-        updatedAtMs = updatedAt,
+        createdAtMs = createdAt.epochMillis,
+        updatedAtMs = updatedAt.epochMillis,
     )
 
 /**
@@ -89,7 +90,7 @@ private fun UserEntity.toDomain(): User =
  */
 private fun CurrentUserResponse.toDomain(): User =
     User(
-        id = id,
+        id = UserId(id),
         email = email,
         displayName = displayName,
         firstName = firstName,
@@ -120,6 +121,6 @@ private fun User.toEntity(): UserEntity =
         avatarValue = avatarValue,
         avatarColor = avatarColor,
         tagline = tagline,
-        createdAt = createdAtMs,
-        updatedAt = updatedAtMs,
+        createdAt = Timestamp(createdAtMs),
+        updatedAt = Timestamp(updatedAtMs),
     )

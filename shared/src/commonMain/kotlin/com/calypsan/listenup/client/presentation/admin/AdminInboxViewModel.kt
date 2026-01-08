@@ -93,6 +93,7 @@ class AdminInboxViewModel(
                             books = result.data,
                         )
                 }
+
                 is Failure -> {
                     logger.error { "Failed to load inbox books: ${result.message}" }
                     state.value =
@@ -125,7 +126,8 @@ class AdminInboxViewModel(
                 is Success -> {
                     val releaseResult = result.data
                     logger.info {
-                        "Released ${releaseResult.released} books (${releaseResult.publicCount} public, ${releaseResult.toCollections} to collections)"
+                        "Released ${releaseResult.released} books " +
+                            "(${releaseResult.publicCount} public, ${releaseResult.toCollections} to collections)"
                     }
 
                     // Remove released books from local state and clear selection
@@ -144,6 +146,7 @@ class AdminInboxViewModel(
                                 ),
                         )
                 }
+
                 is Failure -> {
                     logger.error { "Failed to release books: ${result.message}" }
                     state.value =
@@ -171,6 +174,7 @@ class AdminInboxViewModel(
                     // Reload to get updated staged collections
                     loadInboxBooks()
                 }
+
                 is Failure -> {
                     logger.error { "Failed to stage collection: ${result.message}" }
                     state.value =
@@ -197,6 +201,7 @@ class AdminInboxViewModel(
                     // Reload to get updated staged collections
                     loadInboxBooks()
                 }
+
                 is Failure -> {
                     logger.error { "Failed to unstage collection: ${result.message}" }
                     state.value =

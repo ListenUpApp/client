@@ -111,6 +111,48 @@ value class ChapterId(
 }
 
 /**
+ * Type-safe wrapper for Series IDs.
+ */
+@JvmInline
+value class SeriesId(
+    val value: String,
+) {
+    init {
+        require(value.isNotBlank()) { "Series ID cannot be blank" }
+    }
+
+    override fun toString(): String = value
+}
+
+/**
+ * Type-safe wrapper for Contributor IDs.
+ */
+@JvmInline
+value class ContributorId(
+    val value: String,
+) {
+    init {
+        require(value.isNotBlank()) { "Contributor ID cannot be blank" }
+    }
+
+    override fun toString(): String = value
+}
+
+/**
+ * Type-safe wrapper for User IDs.
+ */
+@JvmInline
+value class UserId(
+    val value: String,
+) {
+    init {
+        require(value.isNotBlank()) { "User ID cannot be blank" }
+    }
+
+    override fun toString(): String = value
+}
+
+/**
  * Type-safe wrapper for Unix epoch millisecond timestamps.
  *
  * Prevents accidentally comparing timestamps with durations or other numeric values.

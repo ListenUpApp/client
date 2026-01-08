@@ -16,7 +16,9 @@ sealed interface StreamedRegistrationStatus {
     data object Approved : StreamedRegistrationStatus
 
     /** Registration has been denied. */
-    data class Denied(val message: String?) : StreamedRegistrationStatus
+    data class Denied(
+        val message: String?,
+    ) : StreamedRegistrationStatus
 }
 
 /**

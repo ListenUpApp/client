@@ -29,7 +29,7 @@ data class LensDetail(
     val formattedDuration: String
         get() {
             val hours = totalDurationSeconds / 3600
-            val minutes = (totalDurationSeconds % 3600) / 60
+            val minutes = totalDurationSeconds % 3600 / 60
             return when {
                 hours > 0 && minutes > 0 -> "${hours}h ${minutes}m"
                 hours > 0 -> "${hours}h"
@@ -79,7 +79,7 @@ data class LensBook(
     val formattedDuration: String
         get() {
             val hours = durationSeconds / 3600
-            val minutes = (durationSeconds % 3600) / 60
+            val minutes = durationSeconds % 3600 / 60
             return when {
                 hours > 0 -> "${hours}h ${minutes}m"
                 minutes > 0 -> "${minutes}m"

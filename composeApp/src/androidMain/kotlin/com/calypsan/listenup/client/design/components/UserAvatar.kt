@@ -84,7 +84,7 @@ fun UserAvatar(
                 if (hasImageAvatar) {
                     Color.Transparent
                 } else {
-                    user?.let { avatarColorForUser(it.id) }
+                    user?.let { avatarColorForUser(it.id.value) }
                         ?: MaterialTheme.colorScheme.surfaceContainerHighest
                 },
             modifier = Modifier.size(40.dp),
@@ -92,8 +92,8 @@ fun UserAvatar(
             if (hasImageAvatar && user != null) {
                 // Offline-first: prefer local cached avatar
                 val localPath =
-                    if (imageStorage.userAvatarExists(user.id)) {
-                        imageStorage.getUserAvatarPath(user.id)
+                    if (imageStorage.userAvatarExists(user.id.value)) {
+                        imageStorage.getUserAvatarPath(user.id.value)
                     } else {
                         null
                     }

@@ -35,8 +35,7 @@ data class Lens(
      * - Owner sees: "To Read"
      * - Others see: "Simon's To Read"
      */
-    fun displayName(currentUserId: String): String =
-        if (ownerId == currentUserId) name else "$ownerDisplayName's $name"
+    fun displayName(currentUserId: String): String = if (ownerId == currentUserId) name else "$ownerDisplayName's $name"
 
     /**
      * Returns true if this lens belongs to the given user.
@@ -49,7 +48,7 @@ data class Lens(
     val formattedDuration: String
         get() {
             val hours = totalDurationSeconds / 3600
-            val minutes = (totalDurationSeconds % 3600) / 60
+            val minutes = totalDurationSeconds % 3600 / 60
             return when {
                 hours > 0 && minutes > 0 -> "${hours}h ${minutes}m"
                 hours > 0 -> "${hours}h"

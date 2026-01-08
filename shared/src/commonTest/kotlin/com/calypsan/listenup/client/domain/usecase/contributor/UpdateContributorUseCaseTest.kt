@@ -61,351 +61,375 @@ class UpdateContributorUseCaseTest {
         aliases: List<String> = emptyList(),
         newAliases: Set<String> = emptySet(),
         contributorsToMerge: Map<String, ContributorSearchResult> = emptyMap(),
-    ): ContributorUpdateRequest = ContributorUpdateRequest(
-        contributorId = contributorId,
-        name = name,
-        biography = biography,
-        website = website,
-        birthDate = birthDate,
-        deathDate = deathDate,
-        aliases = aliases,
-        newAliases = newAliases,
-        contributorsToMerge = contributorsToMerge,
-    )
+    ): ContributorUpdateRequest =
+        ContributorUpdateRequest(
+            contributorId = contributorId,
+            name = name,
+            biography = biography,
+            website = website,
+            birthDate = birthDate,
+            deathDate = deathDate,
+            aliases = aliases,
+            newAliases = newAliases,
+            contributorsToMerge = contributorsToMerge,
+        )
 
     private fun createSearchResult(
         id: String = "contributor-456",
         name: String = "Other Author",
         bookCount: Int = 5,
-    ): ContributorSearchResult = ContributorSearchResult(
-        id = id,
-        name = name,
-        bookCount = bookCount,
-    )
+    ): ContributorSearchResult =
+        ContributorSearchResult(
+            id = id,
+            name = name,
+            bookCount = bookCount,
+        )
 
     // ========== Success Tests ==========
 
     @Test
-    fun `updates contributor successfully`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
+    fun `updates contributor successfully`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
 
-        // When
-        val result = useCase(createRequest())
+            // When
+            val result = useCase(createRequest())
 
-        // Then
-        assertIs<Success<Unit>>(result)
-        verifySuspend {
-            fixture.contributorEditRepository.updateContributor(
-                "contributor-123",
-                "Test Author",
-                "Test biography",
-                "https://example.com",
-                "1970-01-01",
-                null,
-                emptyList(),
-            )
+            // Then
+            assertIs<Success<Unit>>(result)
+            verifySuspend {
+                fixture.contributorEditRepository.updateContributor(
+                    "contributor-123",
+                    "Test Author",
+                    "Test biography",
+                    "https://example.com",
+                    "1970-01-01",
+                    null,
+                    emptyList(),
+                )
+            }
         }
-    }
 
     @Test
-    fun `converts blank biography to null`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
+    fun `converts blank biography to null`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
 
-        // When
-        useCase(createRequest(biography = "  "))
+            // When
+            useCase(createRequest(biography = "  "))
 
-        // Then
-        verifySuspend {
-            fixture.contributorEditRepository.updateContributor(
-                any(),
-                any(),
-                null, // biography should be null
-                any(),
-                any(),
-                any(),
-                any(),
-            )
+            // Then
+            verifySuspend {
+                fixture.contributorEditRepository.updateContributor(
+                    any(),
+                    any(),
+                    null, // biography should be null
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                )
+            }
         }
-    }
 
     @Test
-    fun `converts blank website to null`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
+    fun `converts blank website to null`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
 
-        // When
-        useCase(createRequest(website = ""))
+            // When
+            useCase(createRequest(website = ""))
 
-        // Then
-        verifySuspend {
-            fixture.contributorEditRepository.updateContributor(
-                any(),
-                any(),
-                any(),
-                null, // website should be null
-                any(),
-                any(),
-                any(),
-            )
+            // Then
+            verifySuspend {
+                fixture.contributorEditRepository.updateContributor(
+                    any(),
+                    any(),
+                    any(),
+                    null, // website should be null
+                    any(),
+                    any(),
+                    any(),
+                )
+            }
         }
-    }
 
     // ========== Alias Merge Tests ==========
 
     @Test
-    fun `merges contributor when alias is selected from search`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
-        val searchResult = createSearchResult(id = "source-id", name = "Pen Name")
+    fun `merges contributor when alias is selected from search`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
+            val searchResult = createSearchResult(id = "source-id", name = "Pen Name")
 
-        val request = createRequest(
-            contributorId = "target-id",
-            aliases = listOf("Pen Name"),
-            newAliases = setOf("Pen Name"),
-            contributorsToMerge = mapOf("pen name" to searchResult),
-        )
+            val request =
+                createRequest(
+                    contributorId = "target-id",
+                    aliases = listOf("Pen Name"),
+                    newAliases = setOf("Pen Name"),
+                    contributorsToMerge = mapOf("pen name" to searchResult),
+                )
 
-        // When
-        val result = useCase(request)
+            // When
+            val result = useCase(request)
 
-        // Then
-        assertIs<Success<Unit>>(result)
-        verifySuspend {
-            fixture.contributorEditRepository.mergeContributor(
-                targetId = "target-id",
-                sourceId = "source-id",
-            )
+            // Then
+            assertIs<Success<Unit>>(result)
+            verifySuspend {
+                fixture.contributorEditRepository.mergeContributor(
+                    targetId = "target-id",
+                    sourceId = "source-id",
+                )
+            }
         }
-    }
 
     @Test
-    fun `does not merge when alias name matches current contributor`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
-        val searchResult = createSearchResult(id = "contributor-123", name = "Same Author")
+    fun `does not merge when alias name matches current contributor`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
+            val searchResult = createSearchResult(id = "contributor-123", name = "Same Author")
 
-        val request = createRequest(
-            contributorId = "contributor-123",
-            aliases = listOf("Same Author"),
-            newAliases = setOf("Same Author"),
-            contributorsToMerge = mapOf("same author" to searchResult),
-        )
+            val request =
+                createRequest(
+                    contributorId = "contributor-123",
+                    aliases = listOf("Same Author"),
+                    newAliases = setOf("Same Author"),
+                    contributorsToMerge = mapOf("same author" to searchResult),
+                )
 
-        // When
-        useCase(request)
+            // When
+            useCase(request)
 
-        // Then - should not merge with self
-        verifySuspend(VerifyMode.not) {
-            fixture.contributorEditRepository.mergeContributor(any(), any())
+            // Then - should not merge with self
+            verifySuspend(VerifyMode.not) {
+                fixture.contributorEditRepository.mergeContributor(any(), any())
+            }
         }
-    }
 
     @Test
-    fun `does not merge when alias not in contributorsToMerge map`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
+    fun `does not merge when alias not in contributorsToMerge map`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
 
-        val request = createRequest(
-            aliases = listOf("Manual Alias"),
-            newAliases = setOf("Manual Alias"),
-            contributorsToMerge = emptyMap(), // No tracked contributor
-        )
+            val request =
+                createRequest(
+                    aliases = listOf("Manual Alias"),
+                    newAliases = setOf("Manual Alias"),
+                    contributorsToMerge = emptyMap(), // No tracked contributor
+                )
 
-        // When
-        useCase(request)
+            // When
+            useCase(request)
 
-        // Then - should not attempt merge
-        verifySuspend(VerifyMode.not) {
-            fixture.contributorEditRepository.mergeContributor(any(), any())
+            // Then - should not attempt merge
+            verifySuspend(VerifyMode.not) {
+                fixture.contributorEditRepository.mergeContributor(any(), any())
+            }
         }
-    }
 
     @Test
-    fun `continues update even when merge fails`() = runTest {
-        // Given
-        val fixture = createFixture()
-        everySuspend {
-            fixture.contributorEditRepository.mergeContributor(any(), any())
-        } returns Failure(exception = Exception("Merge failed"), message = "Merge failed")
-        val useCase = fixture.build()
+    fun `continues update even when merge fails`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            everySuspend {
+                fixture.contributorEditRepository.mergeContributor(any(), any())
+            } returns Failure(exception = Exception("Merge failed"), message = "Merge failed")
+            val useCase = fixture.build()
 
-        val searchResult = createSearchResult(id = "source-id", name = "Pen Name")
-        val request = createRequest(
-            contributorId = "target-id",
-            aliases = listOf("Pen Name"),
-            newAliases = setOf("Pen Name"),
-            contributorsToMerge = mapOf("pen name" to searchResult),
-        )
+            val searchResult = createSearchResult(id = "source-id", name = "Pen Name")
+            val request =
+                createRequest(
+                    contributorId = "target-id",
+                    aliases = listOf("Pen Name"),
+                    newAliases = setOf("Pen Name"),
+                    contributorsToMerge = mapOf("pen name" to searchResult),
+                )
 
-        // When
-        val result = useCase(request)
+            // When
+            val result = useCase(request)
 
-        // Then - should still succeed (merge is non-critical)
-        assertIs<Success<Unit>>(result)
-        verifySuspend {
-            fixture.contributorEditRepository.updateContributor(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-            )
+            // Then - should still succeed (merge is non-critical)
+            assertIs<Success<Unit>>(result)
+            verifySuspend {
+                fixture.contributorEditRepository.updateContributor(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                )
+            }
         }
-    }
 
     @Test
-    fun `merges multiple contributors when multiple aliases selected`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
+    fun `merges multiple contributors when multiple aliases selected`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
 
-        val request = createRequest(
-            contributorId = "target-id",
-            aliases = listOf("Alias One", "Alias Two"),
-            newAliases = setOf("Alias One", "Alias Two"),
-            contributorsToMerge = mapOf(
-                "alias one" to createSearchResult(id = "source-1", name = "Alias One"),
-                "alias two" to createSearchResult(id = "source-2", name = "Alias Two"),
-            ),
-        )
+            val request =
+                createRequest(
+                    contributorId = "target-id",
+                    aliases = listOf("Alias One", "Alias Two"),
+                    newAliases = setOf("Alias One", "Alias Two"),
+                    contributorsToMerge =
+                        mapOf(
+                            "alias one" to createSearchResult(id = "source-1", name = "Alias One"),
+                            "alias two" to createSearchResult(id = "source-2", name = "Alias Two"),
+                        ),
+                )
 
-        // When
-        useCase(request)
+            // When
+            useCase(request)
 
-        // Then
-        verifySuspend { fixture.contributorEditRepository.mergeContributor("target-id", "source-1") }
-        verifySuspend { fixture.contributorEditRepository.mergeContributor("target-id", "source-2") }
-    }
+            // Then
+            verifySuspend { fixture.contributorEditRepository.mergeContributor("target-id", "source-1") }
+            verifySuspend { fixture.contributorEditRepository.mergeContributor("target-id", "source-2") }
+        }
 
     @Test
-    fun `only merges new aliases not existing ones`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
+    fun `only merges new aliases not existing ones`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
 
-        val request = createRequest(
-            contributorId = "target-id",
-            aliases = listOf("Existing Alias", "New Alias"),
-            newAliases = setOf("New Alias"), // Only "New Alias" is new
-            contributorsToMerge = mapOf(
-                "existing alias" to createSearchResult(id = "source-1", name = "Existing Alias"),
-                "new alias" to createSearchResult(id = "source-2", name = "New Alias"),
-            ),
-        )
+            val request =
+                createRequest(
+                    contributorId = "target-id",
+                    aliases = listOf("Existing Alias", "New Alias"),
+                    newAliases = setOf("New Alias"), // Only "New Alias" is new
+                    contributorsToMerge =
+                        mapOf(
+                            "existing alias" to createSearchResult(id = "source-1", name = "Existing Alias"),
+                            "new alias" to createSearchResult(id = "source-2", name = "New Alias"),
+                        ),
+                )
 
-        // When
-        useCase(request)
+            // When
+            useCase(request)
 
-        // Then - only merge the new alias
-        verifySuspend(VerifyMode.not) { fixture.contributorEditRepository.mergeContributor("target-id", "source-1") }
-        verifySuspend { fixture.contributorEditRepository.mergeContributor("target-id", "source-2") }
-    }
+            // Then - only merge the new alias
+            verifySuspend(VerifyMode.not) { fixture.contributorEditRepository.mergeContributor("target-id", "source-1") }
+            verifySuspend { fixture.contributorEditRepository.mergeContributor("target-id", "source-2") }
+        }
 
     // ========== Error Handling Tests ==========
 
     @Test
-    fun `returns failure when update fails`() = runTest {
-        // Given
-        val fixture = createFixture()
-        everySuspend {
-            fixture.contributorEditRepository.updateContributor(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-            )
-        } returns Failure(exception = Exception("Update failed"), message = "Update failed")
-        val useCase = fixture.build()
+    fun `returns failure when update fails`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            everySuspend {
+                fixture.contributorEditRepository.updateContributor(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                )
+            } returns Failure(exception = Exception("Update failed"), message = "Update failed")
+            val useCase = fixture.build()
 
-        // When
-        val result = useCase(createRequest())
+            // When
+            val result = useCase(createRequest())
 
-        // Then
-        assertIs<Failure>(result)
-    }
+            // Then
+            assertIs<Failure>(result)
+        }
 
     @Test
-    fun `returns failure when update throws exception`() = runTest {
-        // Given
-        val fixture = createFixture()
-        everySuspend {
-            fixture.contributorEditRepository.updateContributor(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-            )
-        } throws RuntimeException("Network error")
-        val useCase = fixture.build()
+    fun `returns failure when update throws exception`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            everySuspend {
+                fixture.contributorEditRepository.updateContributor(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                )
+            } throws RuntimeException("Network error")
+            val useCase = fixture.build()
 
-        // When
-        val result = useCase(createRequest())
+            // When
+            val result = useCase(createRequest())
 
-        // Then
-        assertIs<Failure>(result)
-    }
+            // Then
+            assertIs<Failure>(result)
+        }
 
     // ========== Empty/Null Field Tests ==========
 
     @Test
-    fun `handles null optional fields`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
+    fun `handles null optional fields`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
 
-        val request = createRequest(
-            biography = null,
-            website = null,
-            birthDate = null,
-            deathDate = null,
-        )
+            val request =
+                createRequest(
+                    biography = null,
+                    website = null,
+                    birthDate = null,
+                    deathDate = null,
+                )
 
-        // When
-        val result = useCase(request)
+            // When
+            val result = useCase(request)
 
-        // Then
-        assertIs<Success<Unit>>(result)
-    }
+            // Then
+            assertIs<Success<Unit>>(result)
+        }
 
     @Test
-    fun `handles empty aliases list`() = runTest {
-        // Given
-        val fixture = createFixture()
-        val useCase = fixture.build()
+    fun `handles empty aliases list`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val useCase = fixture.build()
 
-        val request = createRequest(aliases = emptyList())
+            val request = createRequest(aliases = emptyList())
 
-        // When
-        val result = useCase(request)
+            // When
+            val result = useCase(request)
 
-        // Then
-        assertIs<Success<Unit>>(result)
-        verifySuspend {
-            fixture.contributorEditRepository.updateContributor(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                emptyList(),
-            )
+            // Then
+            assertIs<Success<Unit>>(result)
+            verifySuspend {
+                fixture.contributorEditRepository.updateContributor(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    emptyList(),
+                )
+            }
         }
-    }
 }

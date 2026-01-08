@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:max-line-length")
+
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Failure
@@ -74,8 +76,7 @@ class ContributorRepositoryImpl(
             entity?.toDomain()
         }
 
-    override suspend fun getById(id: String): Contributor? =
-        contributorDao.getById(id)?.toDomain()
+    override suspend fun getById(id: String): Contributor? = contributorDao.getById(id)?.toDomain()
 
     override fun observeByBookId(bookId: String): Flow<List<Contributor>> =
         contributorDao.observeByBookId(bookId).map { entities ->
@@ -122,9 +123,11 @@ class ContributorRepositoryImpl(
         bookDao.observeByContributorAndRole(contributorId, role).map { booksWithContributors ->
             booksWithContributors.map { bwc ->
                 val book = bwc.toDomain(imageStorage, includeSeries = false)
-                val creditedAs = bwc.contributorRoles.find {
-                    it.contributorId == contributorId && it.role == role
-                }?.creditedAs
+                val creditedAs =
+                    bwc.contributorRoles
+                        .find {
+                            it.contributorId.value == contributorId && it.role == role
+                        }?.creditedAs
                 BookWithContributorRole(book = book, creditedAs = creditedAs)
             }
         }
@@ -171,7 +174,8 @@ class ContributorRepositoryImpl(
                 }
 
             logger.debug {
-                "Server contributor search: query='$query', results=${contributors.size}, took=${duration.inWholeMilliseconds}ms"
+                "Server contributor search: query='$query', " +
+                    "results=${contributors.size}, took=${duration.inWholeMilliseconds}ms"
             }
 
             ContributorSearchResponse(
@@ -200,7 +204,8 @@ class ContributorRepositoryImpl(
             val contributors = entities.map { it.toSearchResult() }
 
             logger.debug {
-                "Local contributor search: query='$query', results=${contributors.size}, took=${duration.inWholeMilliseconds}ms"
+                "Local contributor search: query='$query', " +
+                    "results=${contributors.size}, took=${duration.inWholeMilliseconds}ms"
             }
 
             ContributorSearchResponse(
@@ -256,7 +261,8 @@ class ContributorRepositoryImpl(
 
                     is ApplyContributorMetadataResult.NeedsDisambiguation -> {
                         logger.debug {
-                            "Contributor metadata needs disambiguation: ${result.candidates.size} candidates for '${result.searchedName}'"
+                            "Contributor metadata needs disambiguation: " +
+                                "${result.candidates.size} candidates for '${result.searchedName}'"
                         }
                         ContributorMetadataResult.NeedsDisambiguation(
                             options = result.candidates.map { it.toDomain() },
@@ -292,7 +298,7 @@ private fun ContributorEntity.toDomain(): Contributor =
 
 private fun ContributorEntity.toSearchResult(): ContributorSearchResult =
     ContributorSearchResult(
-        id = id,
+        id = id.value,
         name = name,
         bookCount = 0, // Not available in offline mode
     )
@@ -315,9 +321,11 @@ private fun com.calypsan.listenup.client.data.remote.model.ContributorMetadataSe
 // ========== Domain to Entity Mappers ==========
 
 private fun Contributor.toEntity(): ContributorEntity {
-    val now = com.calypsan.listenup.client.core.Timestamp(
-        com.calypsan.listenup.client.core.currentEpochMilliseconds(),
-    )
+    val now =
+        com.calypsan.listenup.client.core.Timestamp(
+            com.calypsan.listenup.client.core
+                .currentEpochMilliseconds(),
+        )
     return ContributorEntity(
         id = id,
         name = name,

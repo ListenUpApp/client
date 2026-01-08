@@ -90,6 +90,7 @@ class AdminCollectionsViewModel(
                             createSuccess = true,
                         )
                 }
+
                 is Failure -> {
                     state.value =
                         state.value.copy(
@@ -114,6 +115,7 @@ class AdminCollectionsViewModel(
                 is Success -> {
                     state.value = state.value.copy(deletingCollectionId = null)
                 }
+
                 is Failure -> {
                     state.value =
                         state.value.copy(

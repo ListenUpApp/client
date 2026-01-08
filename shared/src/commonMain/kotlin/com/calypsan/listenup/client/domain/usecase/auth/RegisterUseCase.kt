@@ -73,12 +73,13 @@ open class RegisterUseCase(
 
         // Perform registration
         return suspendRunCatching {
-            val result = authRepository.register(
-                email = trimmedEmail,
-                password = password,
-                firstName = trimmedFirstName,
-                lastName = trimmedLastName,
-            )
+            val result =
+                authRepository.register(
+                    email = trimmedEmail,
+                    password = password,
+                    firstName = trimmedFirstName,
+                    lastName = trimmedLastName,
+                )
 
             // Save pending registration state - this will:
             // 1. Persist credentials securely for auto-login after approval

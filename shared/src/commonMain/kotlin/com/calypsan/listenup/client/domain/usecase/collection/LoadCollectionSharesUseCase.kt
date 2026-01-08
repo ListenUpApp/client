@@ -43,19 +43,21 @@ open class LoadCollectionSharesUseCase(
             val shares = collectionRepository.getCollectionShares(collectionId)
 
             // Get users to enrich with names/emails
-            val users = try {
-                adminRepository.getUsers()
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to load users for share enrichment, using partial data" }
-                emptyList()
-            }
+            val users =
+                try {
+                    adminRepository.getUsers()
+                } catch (e: Exception) {
+                    logger.warn(e) { "Failed to load users for share enrichment, using partial data" }
+                    emptyList()
+                }
             val userMap = users.associateBy { it.id }
 
             // Enrich shares with user information
-            val enrichedShares = shares.map { share ->
-                val user = userMap[share.userId]
-                share.withUserInfo(user)
-            }
+            val enrichedShares =
+                shares.map { share ->
+                    val user = userMap[share.userId]
+                    share.withUserInfo(user)
+                }
 
             logger.debug { "Loaded ${enrichedShares.size} shares for collection $collectionId" }
             enrichedShares
@@ -68,11 +70,12 @@ open class LoadCollectionSharesUseCase(
      * Uses display name > first+last name > email > truncated ID as fallback chain.
      */
     private fun CollectionShareSummary.withUserInfo(user: AdminUserInfo?): CollectionShareSummary {
-        val userName = user?.let {
-            it.displayName?.takeIf { name -> name.isNotBlank() }
-                ?: "${it.firstName ?: ""} ${it.lastName ?: ""}".trim().takeIf { name -> name.isNotBlank() }
-                ?: it.email
-        } ?: "User ${userId.take(8)}..."
+        val userName =
+            user?.let {
+                it.displayName?.takeIf { name -> name.isNotBlank() }
+                    ?: "${it.firstName ?: ""} ${it.lastName ?: ""}".trim().takeIf { name -> name.isNotBlank() }
+                    ?: it.email
+            } ?: "User ${userId.take(8)}..."
 
         return copy(
             userName = userName,

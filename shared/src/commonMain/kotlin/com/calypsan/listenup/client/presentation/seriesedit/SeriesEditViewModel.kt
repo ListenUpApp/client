@@ -302,18 +302,19 @@ class SeriesEditViewModel(
 
             val metadataChanged = current.name != originalName || current.description != originalDescription
 
-            val result = updateSeriesUseCase(
-                SeriesUpdateRequest(
-                    seriesId = current.seriesId,
-                    name = current.name,
-                    description = current.description,
-                    metadataChanged = metadataChanged,
-                    nameChanged = current.name != originalName,
-                    descriptionChanged = current.description != originalDescription,
-                    pendingCoverData = current.pendingCoverData,
-                    pendingCoverFilename = current.pendingCoverFilename,
-                ),
-            )
+            val result =
+                updateSeriesUseCase(
+                    SeriesUpdateRequest(
+                        seriesId = current.seriesId,
+                        name = current.name,
+                        description = current.description,
+                        metadataChanged = metadataChanged,
+                        nameChanged = current.name != originalName,
+                        descriptionChanged = current.description != originalDescription,
+                        pendingCoverData = current.pendingCoverData,
+                        pendingCoverFilename = current.pendingCoverFilename,
+                    ),
+                )
 
             when (result) {
                 is Success -> {
@@ -328,6 +329,7 @@ class SeriesEditViewModel(
                     }
                     navActions.value = SeriesEditNavAction.NavigateBack
                 }
+
                 is Failure -> {
                     logger.error { "Failed to save series: ${result.message}" }
                     state.update { it.copy(isSaving = false, error = "Failed to save: ${result.message}") }

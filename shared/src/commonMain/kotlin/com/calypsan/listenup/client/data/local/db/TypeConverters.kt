@@ -2,7 +2,10 @@ package com.calypsan.listenup.client.data.local.db
 
 import androidx.room.TypeConverter
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.ContributorId
+import com.calypsan.listenup.client.core.SeriesId
 import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.core.UserId
 
 /**
  * Room type converters for value classes.
@@ -47,6 +50,42 @@ class ValueClassConverters {
      */
     @TypeConverter
     fun toNullableTimestamp(value: Long?): Timestamp? = value?.let { Timestamp(it) }
+
+    /**
+     * Convert SeriesId value class to String for database storage.
+     */
+    @TypeConverter
+    fun seriesIdToString(id: SeriesId?): String? = id?.value
+
+    /**
+     * Convert String from database to SeriesId value class.
+     */
+    @TypeConverter
+    fun stringToSeriesId(value: String?): SeriesId? = value?.let { SeriesId(it) }
+
+    /**
+     * Convert ContributorId value class to String for database storage.
+     */
+    @TypeConverter
+    fun contributorIdToString(id: ContributorId?): String? = id?.value
+
+    /**
+     * Convert String from database to ContributorId value class.
+     */
+    @TypeConverter
+    fun stringToContributorId(value: String?): ContributorId? = value?.let { ContributorId(it) }
+
+    /**
+     * Convert UserId value class to String for database storage.
+     */
+    @TypeConverter
+    fun userIdToString(id: UserId?): String? = id?.value
+
+    /**
+     * Convert String from database to UserId value class.
+     */
+    @TypeConverter
+    fun stringToUserId(value: String?): UserId? = value?.let { UserId(it) }
 }
 
 /**

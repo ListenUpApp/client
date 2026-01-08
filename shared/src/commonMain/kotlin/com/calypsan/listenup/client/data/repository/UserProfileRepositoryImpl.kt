@@ -11,8 +11,7 @@ import com.calypsan.listenup.client.domain.repository.UserProfileRepository
 class UserProfileRepositoryImpl(
     private val userProfileDao: UserProfileDao,
 ) : UserProfileRepository {
-    override suspend fun getById(userId: String): CachedUserProfile? =
-        userProfileDao.getById(userId)?.toDomain()
+    override suspend fun getById(userId: String): CachedUserProfile? = userProfileDao.getById(userId)?.toDomain()
 }
 
 /**

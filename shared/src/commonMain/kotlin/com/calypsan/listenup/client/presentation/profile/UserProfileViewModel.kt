@@ -60,7 +60,7 @@ class UserProfileViewModel(
 
             // Check if this is own profile
             val localUser = userRepository.getCurrentUser()
-            isOwnProfileFlag = localUser?.id == userId
+            isOwnProfileFlag = localUser?.id?.value == userId
 
             if (isOwnProfileFlag && localUser != null) {
                 // OWN PROFILE: Local cache ONLY - NO SERVER FETCH
@@ -84,8 +84,8 @@ class UserProfileViewModel(
 
         // Get local avatar path if it exists
         val localAvatarPath =
-            if (localUser.avatarType == "image" && imageRepository.userAvatarExists(localUser.id)) {
-                imageRepository.getUserAvatarPath(localUser.id)
+            if (localUser.avatarType == "image" && imageRepository.userAvatarExists(localUser.id.value)) {
+                imageRepository.getUserAvatarPath(localUser.id.value)
             } else {
                 null
             }
@@ -109,7 +109,8 @@ class UserProfileViewModel(
         }
 
         logger.info {
-            "Own profile loaded from cache: ${localUser.displayName}, avatar=${localUser.avatarType}/${localUser.avatarValue}, localPath=$localAvatarPath"
+            "Own profile loaded from cache: ${localUser.displayName}, " +
+                "avatar=${localUser.avatarType}/${localUser.avatarValue}, localPath=$localAvatarPath"
         }
     }
 
@@ -122,8 +123,8 @@ class UserProfileViewModel(
                 if (user != null && isOwnProfileFlag) {
                     // Update local avatar path if avatar type changed
                     val localAvatarPath =
-                        if (user.avatarType == "image" && imageRepository.userAvatarExists(user.id)) {
-                            imageRepository.getUserAvatarPath(user.id)
+                        if (user.avatarType == "image" && imageRepository.userAvatarExists(user.id.value)) {
+                            imageRepository.getUserAvatarPath(user.id.value)
                         } else {
                             null
                         }
@@ -246,7 +247,7 @@ class UserProfileViewModel(
      */
     fun formatListenTime(totalMs: Long): String {
         val hours = totalMs / (1000 * 60 * 60)
-        val minutes = (totalMs / (1000 * 60)) % 60
+        val minutes = totalMs / (1000 * 60) % 60
         return when {
             hours > 0 -> "${hours}h ${minutes}m"
             minutes > 0 -> "${minutes}m"
@@ -284,7 +285,7 @@ data class UserProfileUiState(
     val hasData: Boolean get() = if (isOwnProfile) localUser != null else serverDisplayName.isNotEmpty()
 
     // Profile data: from local cache for own, from server fields for others
-    val userId: String get() = if (isOwnProfile) localUser?.id ?: "" else serverUserId
+    val userId: String get() = if (isOwnProfile) localUser?.id?.value ?: "" else serverUserId
     val displayName: String get() = if (isOwnProfile) localUser?.displayName ?: "" else serverDisplayName
     val avatarType: String get() = if (isOwnProfile) localUser?.avatarType ?: "auto" else serverAvatarType
     val avatarValue: String? get() = if (isOwnProfile) localUser?.avatarValue else serverAvatarValue

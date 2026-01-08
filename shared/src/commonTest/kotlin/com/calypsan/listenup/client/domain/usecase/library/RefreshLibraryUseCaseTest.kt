@@ -8,8 +8,8 @@ import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import dev.mokkery.answering.returns
-import dev.mokkery.everySuspend
 import dev.mokkery.every
+import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import dev.mokkery.verifySuspend
@@ -93,10 +93,11 @@ class RefreshLibraryUseCaseTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.syncRepository.sync() } returns Failure(
-                exception = Exception("Connection refused"),
-                message = "Sync failed",
-            )
+            everySuspend { fixture.syncRepository.sync() } returns
+                Failure(
+                    exception = Exception("Connection refused"),
+                    message = "Sync failed",
+                )
             val useCase = fixture.build()
 
             // When
@@ -113,10 +114,11 @@ class RefreshLibraryUseCaseTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.syncRepository.sync() } returns Failure(
-                exception = Exception("network connection failed"),
-                message = "network connection failed",
-            )
+            everySuspend { fixture.syncRepository.sync() } returns
+                Failure(
+                    exception = Exception("network connection failed"),
+                    message = "network connection failed",
+                )
             val useCase = fixture.build()
 
             // When
@@ -135,10 +137,11 @@ class RefreshLibraryUseCaseTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.syncRepository.sync() } returns Failure(
-                exception = Exception("Request timeout"),
-                message = "Request timeout",
-            )
+            everySuspend { fixture.syncRepository.sync() } returns
+                Failure(
+                    exception = Exception("Request timeout"),
+                    message = "Request timeout",
+                )
             val useCase = fixture.build()
 
             // When
@@ -157,10 +160,11 @@ class RefreshLibraryUseCaseTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.syncRepository.sync() } returns Failure(
-                exception = Exception("401 Unauthorized"),
-                message = "401 Unauthorized",
-            )
+            everySuspend { fixture.syncRepository.sync() } returns
+                Failure(
+                    exception = Exception("401 Unauthorized"),
+                    message = "401 Unauthorized",
+                )
             val useCase = fixture.build()
 
             // When
@@ -214,10 +218,11 @@ class RefreshLibraryUseCaseTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.syncRepository.resetForNewLibrary(any()) } returns Failure(
-                exception = Exception("Reset failed"),
-                message = "Reset failed",
-            )
+            everySuspend { fixture.syncRepository.resetForNewLibrary(any()) } returns
+                Failure(
+                    exception = Exception("Reset failed"),
+                    message = "Reset failed",
+                )
             val useCase = fixture.build()
 
             // When

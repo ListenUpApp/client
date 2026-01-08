@@ -56,7 +56,10 @@ interface AuthRepository {
      * @return LoginResult containing tokens and user data
      * @throws Exception on network errors or invalid credentials
      */
-    suspend fun login(email: String, password: String): LoginResult
+    suspend fun login(
+        email: String,
+        password: String,
+    ): LoginResult
 
     /**
      * Register a new user account.

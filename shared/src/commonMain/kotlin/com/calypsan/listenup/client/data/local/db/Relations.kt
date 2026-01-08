@@ -7,6 +7,8 @@ import androidx.room.Index
 import androidx.room.Junction
 import androidx.room.Relation
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.ContributorId
+import com.calypsan.listenup.client.core.SeriesId
 
 /**
  * Cross-reference entity for the many-to-many relationship between Books and Contributors.
@@ -51,7 +53,7 @@ import com.calypsan.listenup.client.core.BookId
 )
 data class BookContributorCrossRef(
     val bookId: BookId,
-    val contributorId: String,
+    val contributorId: ContributorId,
     // "author", "narrator", etc.
     val role: String,
     // Original attribution name (e.g., "Richard Bachman" even when linked to Stephen King)
@@ -92,7 +94,7 @@ data class BookContributorCrossRef(
 )
 data class BookSeriesCrossRef(
     val bookId: BookId,
-    val seriesId: String,
+    val seriesId: SeriesId,
     val sequence: String? = null,
 )
 

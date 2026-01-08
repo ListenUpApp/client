@@ -1,8 +1,8 @@
 package com.calypsan.listenup.client.data.remote
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
 import com.calypsan.listenup.client.data.remote.model.ContributorResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse

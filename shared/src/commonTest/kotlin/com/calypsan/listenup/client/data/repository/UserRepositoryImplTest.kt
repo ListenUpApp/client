@@ -55,7 +55,9 @@ class UserRepositoryImplTest {
         updatedAt: Long = 1704153600000L, // 2024-01-02 00:00:00 UTC
     ): UserEntity =
         UserEntity(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .UserId(id),
             email = email,
             displayName = displayName,
             firstName = firstName,
@@ -65,8 +67,12 @@ class UserRepositoryImplTest {
             avatarValue = avatarValue,
             avatarColor = avatarColor,
             tagline = tagline,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
+            createdAt =
+                com.calypsan.listenup.client.core
+                    .Timestamp(createdAt),
+            updatedAt =
+                com.calypsan.listenup.client.core
+                    .Timestamp(updatedAt),
         )
 
     private fun createMockUserDao(): UserDao = mock<UserDao>()
@@ -90,7 +96,7 @@ class UserRepositoryImplTest {
 
             // Then
             assertNotNull(user)
-            assertEquals("user-001", user.id)
+            assertEquals("user-001", user.id.value)
             assertEquals("test@example.com", user.email)
             assertEquals("Test User", user.displayName)
         }
@@ -203,7 +209,7 @@ class UserRepositoryImplTest {
             // Then
             assertFalse(emissions[0]) // null user -> not admin
             assertFalse(emissions[1]) // regular user -> not admin
-            assertTrue(emissions[2])  // admin user -> admin
+            assertTrue(emissions[2]) // admin user -> admin
             assertFalse(emissions[3]) // demoted -> not admin
         }
 
@@ -250,7 +256,7 @@ class UserRepositoryImplTest {
 
             // Then
             assertNotNull(user)
-            assertEquals("user-001", user.id)
+            assertEquals("user-001", user.id.value)
             assertEquals("test@example.com", user.email)
         }
 
@@ -286,7 +292,7 @@ class UserRepositoryImplTest {
             val user = repository.getCurrentUser()
 
             // Then
-            assertEquals("unique-user-id-123", user?.id)
+            assertEquals("unique-user-id-123", user?.id?.value)
         }
 
     @Test
@@ -464,10 +470,11 @@ class UserRepositoryImplTest {
         runTest {
             // Given
             val userDao = createMockUserDao()
-            val entity = createTestUserEntity(
-                avatarType = "image",
-                avatarValue = "/avatars/user-001.jpg",
-            )
+            val entity =
+                createTestUserEntity(
+                    avatarType = "image",
+                    avatarValue = "/avatars/user-001.jpg",
+                )
             everySuspend { userDao.getCurrentUser() } returns entity
             val sessionApi = createMockSessionApi()
             val repository = UserRepositoryImpl(userDao, sessionApi)
@@ -588,20 +595,27 @@ class UserRepositoryImplTest {
         runTest {
             // Given - test all fields together to ensure complete conversion
             val userDao = createMockUserDao()
-            val entity = UserEntity(
-                id = "admin-user-42",
-                email = "admin@listenup.app",
-                displayName = "Admin Alice",
-                firstName = "Alice",
-                lastName = "Administrator",
-                isRoot = true,
-                avatarType = "image",
-                avatarValue = "/avatars/admin.png",
-                avatarColor = "#10B981",
-                tagline = "Keeping things running smoothly",
-                createdAt = 1700000000000L,
-                updatedAt = 1705000000000L,
-            )
+            val entity =
+                UserEntity(
+                    id =
+                        com.calypsan.listenup.client.core
+                            .UserId("admin-user-42"),
+                    email = "admin@listenup.app",
+                    displayName = "Admin Alice",
+                    firstName = "Alice",
+                    lastName = "Administrator",
+                    isRoot = true,
+                    avatarType = "image",
+                    avatarValue = "/avatars/admin.png",
+                    avatarColor = "#10B981",
+                    tagline = "Keeping things running smoothly",
+                    createdAt =
+                        com.calypsan.listenup.client.core
+                            .Timestamp(1700000000000L),
+                    updatedAt =
+                        com.calypsan.listenup.client.core
+                            .Timestamp(1705000000000L),
+                )
             everySuspend { userDao.getCurrentUser() } returns entity
             val sessionApi = createMockSessionApi()
             val repository = UserRepositoryImpl(userDao, sessionApi)
@@ -611,7 +625,7 @@ class UserRepositoryImplTest {
 
             // Then - verify every field is correctly mapped
             assertNotNull(user)
-            assertEquals("admin-user-42", user.id)
+            assertEquals("admin-user-42", user.id.value)
             assertEquals("admin@listenup.app", user.email)
             assertEquals("Admin Alice", user.displayName)
             assertEquals("Alice", user.firstName)
@@ -632,11 +646,12 @@ class UserRepositoryImplTest {
         runTest {
             // Given
             val userDao = createMockUserDao()
-            val entity = createTestUserEntity(
-                displayName = "",
-                email = "",
-                avatarColor = "",
-            )
+            val entity =
+                createTestUserEntity(
+                    displayName = "",
+                    email = "",
+                    avatarColor = "",
+                )
             everySuspend { userDao.getCurrentUser() } returns entity
             val sessionApi = createMockSessionApi()
             val repository = UserRepositoryImpl(userDao, sessionApi)
@@ -656,10 +671,11 @@ class UserRepositoryImplTest {
         runTest {
             // Given
             val userDao = createMockUserDao()
-            val entity = createTestUserEntity(
-                createdAt = 0L,
-                updatedAt = 0L,
-            )
+            val entity =
+                createTestUserEntity(
+                    createdAt = 0L,
+                    updatedAt = 0L,
+                )
             everySuspend { userDao.getCurrentUser() } returns entity
             val sessionApi = createMockSessionApi()
             val repository = UserRepositoryImpl(userDao, sessionApi)
@@ -679,10 +695,11 @@ class UserRepositoryImplTest {
             // Given
             val userDao = createMockUserDao()
             val maxTimestamp = Long.MAX_VALUE
-            val entity = createTestUserEntity(
-                createdAt = maxTimestamp,
-                updatedAt = maxTimestamp,
-            )
+            val entity =
+                createTestUserEntity(
+                    createdAt = maxTimestamp,
+                    updatedAt = maxTimestamp,
+                )
             everySuspend { userDao.getCurrentUser() } returns entity
             val sessionApi = createMockSessionApi()
             val repository = UserRepositoryImpl(userDao, sessionApi)
@@ -701,17 +718,19 @@ class UserRepositoryImplTest {
         runTest {
             // Given - multiple different users emitted
             val userDao = createMockUserDao()
-            val user1Entity = createTestUserEntity(
-                id = "user-1",
-                isRoot = false,
-                avatarType = "auto",
-            )
-            val user2Entity = createTestUserEntity(
-                id = "user-2",
-                isRoot = true,
-                avatarType = "image",
-                avatarValue = "/path/to/avatar.jpg",
-            )
+            val user1Entity =
+                createTestUserEntity(
+                    id = "user-1",
+                    isRoot = false,
+                    avatarType = "auto",
+                )
+            val user2Entity =
+                createTestUserEntity(
+                    id = "user-2",
+                    isRoot = true,
+                    avatarType = "image",
+                    avatarValue = "/path/to/avatar.jpg",
+                )
             every { userDao.observeCurrentUser() } returns flowOf(user1Entity, user2Entity)
             val sessionApi = createMockSessionApi()
             val repository = UserRepositoryImpl(userDao, sessionApi)
@@ -722,13 +741,13 @@ class UserRepositoryImplTest {
             // Then
             val user1 = emissions[0]
             assertNotNull(user1)
-            assertEquals("user-1", user1.id)
+            assertEquals("user-1", user1.id.value)
             assertFalse(user1.isAdmin)
             assertEquals("auto", user1.avatarType)
 
             val user2 = emissions[1]
             assertNotNull(user2)
-            assertEquals("user-2", user2.id)
+            assertEquals("user-2", user2.id.value)
             assertTrue(user2.isAdmin)
             assertEquals("image", user2.avatarType)
             assertEquals("/path/to/avatar.jpg", user2.avatarValue)
@@ -751,7 +770,7 @@ class UserRepositoryImplTest {
             userFlow.value = createTestUserEntity(id = "logged-in-user")
             val loggedIn = repository.observeCurrentUser().first()
             assertNotNull(loggedIn)
-            assertEquals("logged-in-user", loggedIn.id)
+            assertEquals("logged-in-user", loggedIn.id.value)
 
             // When/Then - user updates profile
             userFlow.value = createTestUserEntity(id = "logged-in-user", displayName = "New Name")

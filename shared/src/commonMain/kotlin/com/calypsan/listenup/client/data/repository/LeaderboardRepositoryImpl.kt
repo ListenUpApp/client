@@ -11,8 +11,6 @@ import com.calypsan.listenup.client.data.local.db.UserLeaderboardStats
 import com.calypsan.listenup.client.data.local.db.UserStatsDao
 import com.calypsan.listenup.client.data.local.db.UserStatsEntity
 import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
-import com.calypsan.listenup.client.data.remote.LeaderboardCategory as ApiLeaderboardCategory
-import com.calypsan.listenup.client.data.remote.StatsPeriod as ApiStatsPeriod
 import com.calypsan.listenup.client.domain.repository.CommunityStats
 import com.calypsan.listenup.client.domain.repository.LeaderboardCategory
 import com.calypsan.listenup.client.domain.repository.LeaderboardEntry
@@ -25,6 +23,8 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import com.calypsan.listenup.client.data.remote.LeaderboardCategory as ApiLeaderboardCategory
+import com.calypsan.listenup.client.data.remote.StatsPeriod as ApiStatsPeriod
 
 private val logger = KotlinLogging.logger {}
 
@@ -129,7 +129,7 @@ class LeaderboardRepositoryImpl(
             // Convert cached stats to the same format as activity-based stats
             val othersStats =
                 cachedStats
-                    .filter { it.userId != currentUser.id }
+                    .filter { it.userId != currentUser.id.value }
                     .map { it.toLeaderboardStats() }
 
             buildLeaderboard(
@@ -147,9 +147,10 @@ class LeaderboardRepositoryImpl(
      * Observe community aggregate stats for a given period.
      */
     override fun observeCommunityStats(period: LeaderboardPeriod): Flow<CommunityStats> =
-        when (period) {
-            LeaderboardPeriod.ALL -> observeCommunityStatsFromUserStats()
-            else -> observeCommunityStatsFromActivities(period)
+        if (period == LeaderboardPeriod.ALL) {
+            observeCommunityStatsFromUserStats()
+        } else {
+            observeCommunityStatsFromActivities(period)
         }
 
     /**
@@ -186,13 +187,13 @@ class LeaderboardRepositoryImpl(
             // Sum up all cached stats plus current user's authoritative stats
             val othersTimeMs =
                 cachedStats
-                    .filter { it.userId != currentUser.id }
+                    .filter { it.userId != currentUser.id.value }
                     .sumOf { it.totalTimeMs }
             val othersBooks =
                 cachedStats
-                    .filter { it.userId != currentUser.id }
+                    .filter { it.userId != currentUser.id.value }
                     .sumOf { it.totalBooks }
-            val otherUsersCount = cachedStats.count { it.userId != currentUser.id }
+            val otherUsersCount = cachedStats.count { it.userId != currentUser.id.value }
 
             CommunityStats(
                 totalTimeMs = othersTimeMs + myTimeMs,
@@ -217,7 +218,7 @@ class LeaderboardRepositoryImpl(
         val myEntry =
             LeaderboardEntry(
                 rank = 0, // Will be set after sorting
-                userId = currentUser.id,
+                userId = currentUser.id.value,
                 displayName = currentUser.displayName,
                 avatarColor = currentUser.avatarColor,
                 avatarType = currentUser.avatarType,
@@ -231,7 +232,7 @@ class LeaderboardRepositoryImpl(
         // Convert others' stats to entries (filter out current user if present in othersStats)
         val othersEntries =
             othersStats
-                .filter { it.userId != currentUser.id }
+                .filter { it.userId != currentUser.id.value }
                 .map { stats ->
                     LeaderboardEntry(
                         rank = 0,
