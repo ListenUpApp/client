@@ -46,11 +46,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.composeapp.R
-import com.calypsan.listenup.client.data.remote.InviteDetails
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.design.theme.LocalDarkTheme
+import com.calypsan.listenup.client.domain.model.InviteDetails
 import com.calypsan.listenup.client.presentation.invite.InviteErrorType
 import com.calypsan.listenup.client.presentation.invite.InviteField
 import com.calypsan.listenup.client.presentation.invite.InviteLoadingState

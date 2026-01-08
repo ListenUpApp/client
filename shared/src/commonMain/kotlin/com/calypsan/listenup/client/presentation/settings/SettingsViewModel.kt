@@ -3,16 +3,15 @@ package com.calypsan.listenup.client.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
-import com.calypsan.listenup.client.data.remote.UserPreferencesRequest
-import com.calypsan.listenup.client.data.repository.AuthSessionContract
-import com.calypsan.listenup.client.data.repository.ServerConfigContract
-import com.calypsan.listenup.client.data.repository.SettingsRepository
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.domain.model.ThemeMode
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.repository.LibraryPreferences
+import com.calypsan.listenup.client.domain.repository.LocalPreferences
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.domain.repository.ServerConfig
+import com.calypsan.listenup.client.domain.repository.UserPreferencesRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,6 +22,18 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * Intermediate data class for type-safe combine of local display settings.
+ * Used to avoid unsafe casts when combining more than 5 flows.
+ */
+private data class LocalDisplaySettings(
+    val themeMode: ThemeMode,
+    val dynamicColorsEnabled: Boolean,
+    val autoRewindEnabled: Boolean,
+    val wifiOnlyDownloads: Boolean,
+    val autoRemoveFinished: Boolean,
+)
 
 /**
  * UI state for the Settings screen.
@@ -37,7 +48,7 @@ data class SettingsUiState(
     val isSyncing: Boolean = false,
     val syncError: String? = null,
     // Synced settings (server storage)
-    val defaultPlaybackSpeed: Float = SettingsRepository.DEFAULT_PLAYBACK_SPEED,
+    val defaultPlaybackSpeed: Float = PlaybackPreferences.DEFAULT_PLAYBACK_SPEED,
     val defaultSkipForwardSec: Int = 30,
     val defaultSkipBackwardSec: Int = 10,
     val defaultSleepTimerMin: Int? = null,
@@ -69,11 +80,13 @@ data class SettingsUiState(
  * revert local state.
  */
 class SettingsViewModel(
-    private val settingsRepository: SettingsRepositoryContract,
-    private val userPreferencesApi: UserPreferencesApiContract,
+    private val libraryPreferences: LibraryPreferences,
+    private val playbackPreferences: PlaybackPreferences,
+    private val localPreferences: LocalPreferences,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val instanceRepository: InstanceRepository,
-    private val serverConfigContract: ServerConfigContract,
-    private val authSessionContract: AuthSessionContract,
+    private val serverConfig: ServerConfig,
+    private val authSession: AuthSession,
 ) : ViewModel() {
     // Internal mutable state for settings that aren't reactive StateFlows
     private val internalState = MutableStateFlow(SettingsUiState())
@@ -81,34 +94,31 @@ class SettingsViewModel(
     /**
      * Combined UI state that merges:
      * - Internal state (synced settings, loading states)
-     * - Reactive local preferences from SettingsRepository
+     * - Reactive local preferences from LocalPreferences
+     *
+     * Uses nested combine to stay within the 5-parameter type-safe overload.
      */
     val state: StateFlow<SettingsUiState> =
         combine(
             internalState,
-            settingsRepository.themeMode,
-            settingsRepository.dynamicColorsEnabled,
-            settingsRepository.autoRewindEnabled,
-            settingsRepository.wifiOnlyDownloads,
-            settingsRepository.autoRemoveFinished,
-            settingsRepository.hapticFeedbackEnabled,
-        ) { values ->
-            // Extract values from array (combine with 7+ flows returns Array<Any?>)
-            @Suppress("UNCHECKED_CAST")
-            val internal = values[0] as SettingsUiState
-            val theme = values[1] as ThemeMode
-            val dynamicColors = values[2] as Boolean
-            val autoRewind = values[3] as Boolean
-            val wifiOnly = values[4] as Boolean
-            val autoRemove = values[5] as Boolean
-            val haptics = values[6] as Boolean
-
+            // Combine first group of local settings (5-param overload)
+            combine(
+                localPreferences.themeMode,
+                localPreferences.dynamicColorsEnabled,
+                localPreferences.autoRewindEnabled,
+                localPreferences.wifiOnlyDownloads,
+                localPreferences.autoRemoveFinished,
+            ) { theme, dynamicColors, autoRewind, wifiOnly, autoRemove ->
+                LocalDisplaySettings(theme, dynamicColors, autoRewind, wifiOnly, autoRemove)
+            },
+            localPreferences.hapticFeedbackEnabled,
+        ) { internal, localDisplay, haptics ->
             internal.copy(
-                themeMode = theme,
-                dynamicColorsEnabled = dynamicColors,
-                autoRewindEnabled = autoRewind,
-                wifiOnlyDownloads = wifiOnly,
-                autoRemoveFinished = autoRemove,
+                themeMode = localDisplay.themeMode,
+                dynamicColorsEnabled = localDisplay.dynamicColorsEnabled,
+                autoRewindEnabled = localDisplay.autoRewindEnabled,
+                wifiOnlyDownloads = localDisplay.wifiOnlyDownloads,
+                autoRemoveFinished = localDisplay.autoRemoveFinished,
                 hapticFeedbackEnabled = haptics,
             )
         }.stateIn(
@@ -130,13 +140,13 @@ class SettingsViewModel(
     private fun loadSettings() {
         viewModelScope.launch {
             // Load local settings that aren't reactive StateFlows
-            val spatialPlayback = settingsRepository.getSpatialPlayback()
-            val ignoreTitleArticles = settingsRepository.getIgnoreTitleArticles()
-            val hideSingleBookSeries = settingsRepository.getHideSingleBookSeries()
-            val defaultPlaybackSpeed = settingsRepository.getDefaultPlaybackSpeed()
+            val spatialPlayback = playbackPreferences.getSpatialPlayback()
+            val ignoreTitleArticles = libraryPreferences.getIgnoreTitleArticles()
+            val hideSingleBookSeries = libraryPreferences.getHideSingleBookSeries()
+            val defaultPlaybackSpeed = playbackPreferences.getDefaultPlaybackSpeed()
 
             // Load server URL from local storage
-            val serverUrl = serverConfigContract.getServerUrl()?.value
+            val serverUrl = serverConfig.getServerUrl()?.value
 
             internalState.update {
                 it.copy(
@@ -166,7 +176,7 @@ class SettingsViewModel(
             }
 
             is Failure -> {
-                logger.warn { "Failed to fetch server info: ${result.exception.message}" }
+                logger.warn { "Failed to fetch server info: ${result.message}" }
             }
         }
     }
@@ -178,8 +188,8 @@ class SettingsViewModel(
     private suspend fun fetchSyncedSettings() {
         internalState.update { it.copy(isSyncing = true, syncError = null) }
 
-        when (val result = userPreferencesApi.getPreferences()) {
-            is Result.Success -> {
+        when (val result = userPreferencesRepository.getPreferences()) {
+            is Success -> {
                 val prefs = result.data
                 internalState.update {
                     it.copy(
@@ -194,11 +204,11 @@ class SettingsViewModel(
                 }
 
                 // Update local cache for offline access
-                settingsRepository.setDefaultPlaybackSpeed(prefs.defaultPlaybackSpeed)
+                playbackPreferences.setDefaultPlaybackSpeed(prefs.defaultPlaybackSpeed)
             }
 
             is Failure -> {
-                logger.warn { "Failed to fetch synced settings: ${result.exception.message}" }
+                logger.warn { "Failed to fetch synced settings: ${result.message}" }
                 internalState.update {
                     it.copy(
                         isLoading = false,
@@ -210,19 +220,6 @@ class SettingsViewModel(
         }
     }
 
-    /**
-     * Sync a single preference to server.
-     * Returns true if sync succeeded.
-     */
-    private suspend fun syncToServer(request: UserPreferencesRequest): Boolean {
-        val result = userPreferencesApi.updatePreferences(request)
-        if (result is Failure) {
-            logger.warn { "Failed to sync setting: ${result.exception.message}" }
-            return false
-        }
-        return true
-    }
-
     // region Synced Settings (server storage)
 
     /**
@@ -232,11 +229,11 @@ class SettingsViewModel(
     fun setDefaultPlaybackSpeed(speed: Float) {
         viewModelScope.launch {
             // Update local cache immediately (optimistic)
-            settingsRepository.setDefaultPlaybackSpeed(speed)
+            playbackPreferences.setDefaultPlaybackSpeed(speed)
             internalState.update { it.copy(defaultPlaybackSpeed = speed) }
 
             // Sync to server in background
-            syncToServer(UserPreferencesRequest(defaultPlaybackSpeed = speed))
+            userPreferencesRepository.setDefaultPlaybackSpeed(speed)
         }
     }
 
@@ -247,7 +244,7 @@ class SettingsViewModel(
     fun setDefaultSkipForwardSec(seconds: Int) {
         viewModelScope.launch {
             internalState.update { it.copy(defaultSkipForwardSec = seconds) }
-            syncToServer(UserPreferencesRequest(defaultSkipForwardSec = seconds))
+            userPreferencesRepository.setDefaultSkipForwardSec(seconds)
         }
     }
 
@@ -258,7 +255,7 @@ class SettingsViewModel(
     fun setDefaultSkipBackwardSec(seconds: Int) {
         viewModelScope.launch {
             internalState.update { it.copy(defaultSkipBackwardSec = seconds) }
-            syncToServer(UserPreferencesRequest(defaultSkipBackwardSec = seconds))
+            userPreferencesRepository.setDefaultSkipBackwardSec(seconds)
         }
     }
 
@@ -269,7 +266,7 @@ class SettingsViewModel(
     fun setDefaultSleepTimerMin(minutes: Int?) {
         viewModelScope.launch {
             internalState.update { it.copy(defaultSleepTimerMin = minutes) }
-            syncToServer(UserPreferencesRequest(defaultSleepTimerMin = minutes))
+            userPreferencesRepository.setDefaultSleepTimerMin(minutes)
         }
     }
 
@@ -279,7 +276,7 @@ class SettingsViewModel(
     fun setShakeToResetSleepTimer(enabled: Boolean) {
         viewModelScope.launch {
             internalState.update { it.copy(shakeToResetSleepTimer = enabled) }
-            syncToServer(UserPreferencesRequest(shakeToResetSleepTimer = enabled))
+            userPreferencesRepository.setShakeToResetSleepTimer(enabled)
         }
     }
 
@@ -293,7 +290,7 @@ class SettingsViewModel(
      */
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
-            settingsRepository.setThemeMode(mode)
+            localPreferences.setThemeMode(mode)
             // StateFlow update handled by combine
         }
     }
@@ -304,7 +301,7 @@ class SettingsViewModel(
      */
     fun setDynamicColorsEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setDynamicColorsEnabled(enabled)
+            localPreferences.setDynamicColorsEnabled(enabled)
         }
     }
 
@@ -314,7 +311,7 @@ class SettingsViewModel(
      */
     fun setAutoRewindEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setAutoRewindEnabled(enabled)
+            localPreferences.setAutoRewindEnabled(enabled)
         }
     }
 
@@ -324,7 +321,7 @@ class SettingsViewModel(
      */
     fun setWifiOnlyDownloads(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setWifiOnlyDownloads(enabled)
+            localPreferences.setWifiOnlyDownloads(enabled)
         }
     }
 
@@ -334,7 +331,7 @@ class SettingsViewModel(
      */
     fun setAutoRemoveFinished(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setAutoRemoveFinished(enabled)
+            localPreferences.setAutoRemoveFinished(enabled)
         }
     }
 
@@ -344,7 +341,7 @@ class SettingsViewModel(
      */
     fun setHapticFeedbackEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setHapticFeedbackEnabled(enabled)
+            localPreferences.setHapticFeedbackEnabled(enabled)
         }
     }
 
@@ -354,7 +351,7 @@ class SettingsViewModel(
      */
     fun setSpatialPlayback(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setSpatialPlayback(enabled)
+            playbackPreferences.setSpatialPlayback(enabled)
             internalState.update { it.copy(spatialPlayback = enabled) }
         }
     }
@@ -365,7 +362,7 @@ class SettingsViewModel(
      */
     fun setIgnoreTitleArticles(ignore: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setIgnoreTitleArticles(ignore)
+            libraryPreferences.setIgnoreTitleArticles(ignore)
             internalState.update { it.copy(ignoreTitleArticles = ignore) }
         }
     }
@@ -376,7 +373,7 @@ class SettingsViewModel(
      */
     fun setHideSingleBookSeries(hide: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setHideSingleBookSeries(hide)
+            libraryPreferences.setHideSingleBookSeries(hide)
             internalState.update { it.copy(hideSingleBookSeries = hide) }
         }
     }
@@ -391,7 +388,7 @@ class SettingsViewModel(
      */
     fun signOut() {
         viewModelScope.launch {
-            authSessionContract.clearAuthTokens()
+            authSession.clearAuthTokens()
         }
     }
 

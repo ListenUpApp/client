@@ -4,10 +4,12 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.repository.VerifiedServer
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -82,7 +84,7 @@ class InstanceRepositoryImpl(
         val serverUrl = getServerUrl()
         if (serverUrl == null) {
             logger.warn { "Cannot fetch instance: server URL not configured" }
-            return Result.Failure(IllegalStateException("Server URL not configured"))
+            return Failure(IllegalStateException("Server URL not configured"))
         }
 
         logger.debug { "Fetching instance from ${serverUrl.value}/api/v1/instance" }
@@ -96,7 +98,7 @@ class InstanceRepositoryImpl(
 
                 when (val result = response.toResult()) {
                     is Success -> result.data
-                    is Failure -> throw result.exception
+                    is Failure -> throw result.exceptionOrFromMessage()
                 }
             } finally {
                 client.close()
@@ -108,4 +110,80 @@ class InstanceRepositoryImpl(
             }
         }
     }
+
+    override suspend fun verifyServer(baseUrl: String): Result<VerifiedServer> {
+        val urlsToTry = normalizeUrl(baseUrl)
+
+        var lastException: Exception? = null
+
+        for ((index, currentUrl) in urlsToTry.withIndex()) {
+            try {
+                val client = createUnauthenticatedClient()
+                try {
+                    val instanceUrl = currentUrl.trimEnd('/') + "/api/v1/instance"
+                    logger.debug { "Verifying server at $instanceUrl" }
+
+                    val response: ApiResponse<Instance> = client.get(instanceUrl).body()
+
+                    when (val result = response.toResult()) {
+                        is Success -> {
+                            logger.info { "Server verified at $currentUrl" }
+                            return Success(VerifiedServer(result.data, currentUrl))
+                        }
+
+                        is Failure -> {
+                            throw result.exceptionOrFromMessage()
+                        }
+                    }
+                } finally {
+                    client.close()
+                }
+            } catch (e: Exception) {
+                val errorMessage = e.message?.lowercase() ?: ""
+                val isSslError =
+                    errorMessage.contains("ssl") ||
+                        errorMessage.contains("tls") ||
+                        errorMessage.contains("handshake")
+
+                if (isSslError && index < urlsToTry.size - 1) {
+                    logger.debug { "SSL error at $currentUrl, trying HTTP fallback" }
+                    lastException = e
+                    continue
+                }
+
+                lastException = e
+                break
+            }
+        }
+
+        return Failure(lastException ?: Exception("Server verification failed"))
+    }
+
+    /**
+     * Normalize URL by adding protocol if missing.
+     * Returns list of URLs to try (HTTPS first, then HTTP fallback).
+     */
+    private fun normalizeUrl(url: String): List<String> =
+        if (url.startsWith("https://") || url.startsWith("http://")) {
+            listOf(url)
+        } else {
+            listOf("https://$url", "http://$url")
+        }
+
+    /**
+     * Creates an unauthenticated HTTP client for server verification.
+     * Used before authentication when validating server URLs.
+     */
+    private fun createUnauthenticatedClient(): HttpClient =
+        HttpClient {
+            install(ContentNegotiation) {
+                json(this@InstanceRepositoryImpl.json)
+            }
+
+            install(HttpTimeout) {
+                requestTimeoutMillis = REQUEST_TIMEOUT_MS
+                connectTimeoutMillis = CONNECT_TIMEOUT_MS
+                socketTimeoutMillis = SOCKET_TIMEOUT_MS
+            }
+        }
 }

@@ -2,10 +2,15 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.remote.AdminApiContract
-import com.calypsan.listenup.client.data.remote.InboxBookResponse
-import com.calypsan.listenup.client.data.sync.SSEEventType
-import com.calypsan.listenup.client.data.sync.SSEManagerContract
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.model.AdminEvent
+import com.calypsan.listenup.client.domain.model.InboxBook
+import com.calypsan.listenup.client.domain.repository.EventStreamRepository
+import com.calypsan.listenup.client.domain.usecase.admin.LoadInboxBooksUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.ReleaseBooksUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.StageCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.UnstageCollectionUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,8 +28,11 @@ private val logger = KotlinLogging.logger {}
  * added to or released from the inbox.
  */
 class AdminInboxViewModel(
-    private val adminApi: AdminApiContract,
-    private val sseManager: SSEManagerContract,
+    private val loadInboxBooksUseCase: LoadInboxBooksUseCase,
+    private val releaseBooksUseCase: ReleaseBooksUseCase,
+    private val stageCollectionUseCase: StageCollectionUseCase,
+    private val unstageCollectionUseCase: UnstageCollectionUseCase,
+    private val eventStreamRepository: EventStreamRepository,
 ) : ViewModel() {
     val state: StateFlow<AdminInboxUiState>
         field = MutableStateFlow(AdminInboxUiState())
@@ -35,27 +43,27 @@ class AdminInboxViewModel(
     }
 
     /**
-     * Observe SSE events for real-time inbox updates.
+     * Observe admin events for real-time inbox updates.
      */
     private fun observeSSEEvents() {
         viewModelScope.launch {
-            sseManager.eventFlow.collect { event ->
+            eventStreamRepository.adminEvents.collect { event ->
                 when (event) {
-                    is SSEEventType.InboxBookAdded -> {
+                    is AdminEvent.InboxBookAdded -> {
                         handleInboxBookAdded(event)
                     }
 
-                    is SSEEventType.InboxBookReleased -> {
+                    is AdminEvent.InboxBookReleased -> {
                         handleInboxBookReleased(event.bookId)
                     }
 
-                    else -> { /* Other events handled elsewhere */ }
+                    else -> { /* Other admin events handled elsewhere */ }
                 }
             }
         }
     }
 
-    private fun handleInboxBookAdded(event: SSEEventType.InboxBookAdded) {
+    private fun handleInboxBookAdded(event: AdminEvent.InboxBookAdded) {
         logger.debug { "SSE: Inbox book added - ${event.bookId}" }
         // Reload to get full book details
         loadInboxBooks()
@@ -77,20 +85,23 @@ class AdminInboxViewModel(
         viewModelScope.launch {
             state.value = state.value.copy(isLoading = true, error = null)
 
-            try {
-                val response = adminApi.listInboxBooks()
-                state.value =
-                    state.value.copy(
-                        isLoading = false,
-                        books = response.books,
-                    )
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to load inbox books" }
-                state.value =
-                    state.value.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load inbox",
-                    )
+            when (val result = loadInboxBooksUseCase()) {
+                is Success -> {
+                    state.value =
+                        state.value.copy(
+                            isLoading = false,
+                            books = result.data,
+                        )
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to load inbox books: ${result.message}" }
+                    state.value =
+                        state.value.copy(
+                            isLoading = false,
+                            error = result.message,
+                        )
+                }
             }
         }
     }
@@ -111,35 +122,40 @@ class AdminInboxViewModel(
                     releasingBookIds = bookIds.toSet(),
                 )
 
-            try {
-                val result = adminApi.releaseBooks(bookIds)
-                logger.info {
-                    "Released ${result.released} books (${result.public} public, ${result.toCollections} to collections)"
+            when (val result = releaseBooksUseCase(bookIds)) {
+                is Success -> {
+                    val releaseResult = result.data
+                    logger.info {
+                        "Released ${releaseResult.released} books " +
+                            "(${releaseResult.publicCount} public, ${releaseResult.toCollections} to collections)"
+                    }
+
+                    // Remove released books from local state and clear selection
+                    val releasedSet = bookIds.toSet()
+                    state.value =
+                        state.value.copy(
+                            isReleasing = false,
+                            releasingBookIds = emptySet(),
+                            selectedBookIds = emptySet(), // Clear selection after successful release
+                            books = state.value.books.filter { it.id !in releasedSet },
+                            lastReleaseResult =
+                                ReleaseResult(
+                                    released = releaseResult.released,
+                                    publicCount = releaseResult.publicCount,
+                                    toCollections = releaseResult.toCollections,
+                                ),
+                        )
                 }
 
-                // Remove released books from local state and clear selection
-                val releasedSet = bookIds.toSet()
-                state.value =
-                    state.value.copy(
-                        isReleasing = false,
-                        releasingBookIds = emptySet(),
-                        selectedBookIds = emptySet(), // Clear selection after successful release
-                        books = state.value.books.filter { it.id !in releasedSet },
-                        lastReleaseResult =
-                            ReleaseResult(
-                                released = result.released,
-                                public = result.public,
-                                toCollections = result.toCollections,
-                            ),
-                    )
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to release books" }
-                state.value =
-                    state.value.copy(
-                        isReleasing = false,
-                        releasingBookIds = emptySet(),
-                        error = e.message ?: "Failed to release books",
-                    )
+                is Failure -> {
+                    logger.error { "Failed to release books: ${result.message}" }
+                    state.value =
+                        state.value.copy(
+                            isReleasing = false,
+                            releasingBookIds = emptySet(),
+                            error = result.message,
+                        )
+                }
             }
         }
     }
@@ -153,19 +169,21 @@ class AdminInboxViewModel(
     ) {
         viewModelScope.launch {
             state.value = state.value.copy(stagingBookId = bookId)
-            try {
-                adminApi.stageCollection(bookId, collectionId)
-                // Reload to get updated staged collections
-                loadInboxBooks()
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to stage collection" }
-                state.value =
-                    state.value.copy(
-                        error = e.message ?: "Failed to stage collection",
-                    )
-            } finally {
-                state.value = state.value.copy(stagingBookId = null)
+            when (val result = stageCollectionUseCase(bookId, collectionId)) {
+                is Success -> {
+                    // Reload to get updated staged collections
+                    loadInboxBooks()
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to stage collection: ${result.message}" }
+                    state.value =
+                        state.value.copy(
+                            error = result.message,
+                        )
+                }
             }
+            state.value = state.value.copy(stagingBookId = null)
         }
     }
 
@@ -178,19 +196,21 @@ class AdminInboxViewModel(
     ) {
         viewModelScope.launch {
             state.value = state.value.copy(stagingBookId = bookId)
-            try {
-                adminApi.unstageCollection(bookId, collectionId)
-                // Reload to get updated staged collections
-                loadInboxBooks()
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to unstage collection" }
-                state.value =
-                    state.value.copy(
-                        error = e.message ?: "Failed to unstage collection",
-                    )
-            } finally {
-                state.value = state.value.copy(stagingBookId = null)
+            when (val result = unstageCollectionUseCase(bookId, collectionId)) {
+                is Success -> {
+                    // Reload to get updated staged collections
+                    loadInboxBooks()
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to unstage collection: ${result.message}" }
+                    state.value =
+                        state.value.copy(
+                            error = result.message,
+                        )
+                }
             }
+            state.value = state.value.copy(stagingBookId = null)
         }
     }
 
@@ -253,7 +273,7 @@ class AdminInboxViewModel(
  */
 data class AdminInboxUiState(
     val isLoading: Boolean = true,
-    val books: List<InboxBookResponse> = emptyList(),
+    val books: List<InboxBook> = emptyList(),
     val selectedBookIds: Set<String> = emptySet(),
     val isReleasing: Boolean = false,
     val releasingBookIds: Set<String> = emptySet(),
@@ -275,6 +295,6 @@ data class AdminInboxUiState(
  */
 data class ReleaseResult(
     val released: Int,
-    val public: Int,
+    val publicCount: Int,
     val toCollections: Int,
 )

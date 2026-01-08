@@ -2,14 +2,15 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.CollectionDao
-import com.calypsan.listenup.client.data.local.db.CollectionEntity
-import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
-import com.calypsan.listenup.client.data.remote.model.toTimestamp
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.model.Collection
+import com.calypsan.listenup.client.domain.repository.CollectionRepository
+import com.calypsan.listenup.client.domain.usecase.collection.CreateCollectionUseCase
+import com.calypsan.listenup.client.domain.usecase.collection.DeleteCollectionUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -19,10 +20,15 @@ private val logger = KotlinLogging.logger {}
  *
  * Manages the list of collections, including create and delete operations.
  * Observes local Room database for real-time updates from SSE events.
+ *
+ * Delegates mutation operations to use cases:
+ * - [CreateCollectionUseCase]: Creates new collections with validation
+ * - [DeleteCollectionUseCase]: Deletes collections
  */
 class AdminCollectionsViewModel(
-    private val collectionDao: CollectionDao,
-    private val adminCollectionApi: AdminCollectionApiContract,
+    private val collectionRepository: CollectionRepository,
+    private val createCollectionUseCase: CreateCollectionUseCase,
+    private val deleteCollectionUseCase: DeleteCollectionUseCase,
 ) : ViewModel() {
     val state: StateFlow<AdminCollectionsUiState>
         field = MutableStateFlow(AdminCollectionsUiState())
@@ -40,7 +46,7 @@ class AdminCollectionsViewModel(
         viewModelScope.launch {
             state.value = state.value.copy(isLoading = true)
 
-            collectionDao.observeAll().collect { collections ->
+            collectionRepository.observeAll().collect { collections ->
                 logger.debug { "Collections updated: ${collections.size}" }
                 state.value =
                     state.value.copy(
@@ -58,29 +64,8 @@ class AdminCollectionsViewModel(
     fun refreshCollections() {
         viewModelScope.launch {
             try {
-                val serverCollections = adminCollectionApi.getCollections()
-                logger.debug { "Fetched ${serverCollections.size} collections from server" }
-
-                // Update local database with server data
-                serverCollections.forEach { response ->
-                    val entity =
-                        CollectionEntity(
-                            id = response.id,
-                            name = response.name,
-                            bookCount = response.bookCount,
-                            createdAt = response.createdAt.toTimestamp(),
-                            updatedAt = response.updatedAt.toTimestamp(),
-                        )
-                    collectionDao.upsert(entity)
-                }
-
-                // Delete local collections that no longer exist on server
-                val serverIds = serverCollections.map { it.id }.toSet()
-                val localCollections = collectionDao.getAll()
-                localCollections.filter { it.id !in serverIds }.forEach { orphan ->
-                    logger.debug { "Removing orphaned collection: ${orphan.name} (${orphan.id})" }
-                    collectionDao.deleteById(orphan.id)
-                }
+                collectionRepository.refreshFromServer()
+                logger.debug { "Refreshed collections from server" }
             } catch (e: Exception) {
                 logger.warn(e) { "Failed to refresh collections from server" }
                 // Don't update error state - local data is still usable
@@ -90,71 +75,54 @@ class AdminCollectionsViewModel(
 
     /**
      * Create a new collection with the given name.
+     *
+     * Delegates to [CreateCollectionUseCase] for validation and persistence.
      */
     fun createCollection(name: String) {
-        val trimmedName = name.trim()
-        if (trimmedName.isBlank()) {
-            state.value = state.value.copy(error = "Collection name cannot be empty")
-            return
-        }
-
         viewModelScope.launch {
             state.value = state.value.copy(isCreating = true)
 
-            try {
-                val response = adminCollectionApi.createCollection(trimmedName)
-                logger.info { "Created collection: ${response.name} (${response.id})" }
+            when (val result = createCollectionUseCase(name)) {
+                is Success -> {
+                    state.value =
+                        state.value.copy(
+                            isCreating = false,
+                            createSuccess = true,
+                        )
+                }
 
-                // Insert locally immediately for instant feedback
-                // (SSE may also upsert, which is fine - idempotent)
-                val entity =
-                    CollectionEntity(
-                        id = response.id,
-                        name = response.name,
-                        bookCount = response.bookCount,
-                        createdAt = response.createdAt.toTimestamp(),
-                        updatedAt = response.updatedAt.toTimestamp(),
-                    )
-                collectionDao.upsert(entity)
-
-                state.value =
-                    state.value.copy(
-                        isCreating = false,
-                        createSuccess = true,
-                    )
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to create collection" }
-                state.value =
-                    state.value.copy(
-                        isCreating = false,
-                        error = e.message ?: "Failed to create collection",
-                    )
+                is Failure -> {
+                    state.value =
+                        state.value.copy(
+                            isCreating = false,
+                            error = result.message,
+                        )
+                }
             }
         }
     }
 
     /**
      * Delete a collection by ID.
+     *
+     * Delegates to [DeleteCollectionUseCase].
      */
     fun deleteCollection(collectionId: String) {
         viewModelScope.launch {
             state.value = state.value.copy(deletingCollectionId = collectionId)
 
-            try {
-                adminCollectionApi.deleteCollection(collectionId)
-                logger.info { "Deleted collection: $collectionId" }
+            when (val result = deleteCollectionUseCase(collectionId)) {
+                is Success -> {
+                    state.value = state.value.copy(deletingCollectionId = null)
+                }
 
-                // Remove locally immediately for instant feedback
-                collectionDao.deleteById(collectionId)
-
-                state.value = state.value.copy(deletingCollectionId = null)
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to delete collection: $collectionId" }
-                state.value =
-                    state.value.copy(
-                        deletingCollectionId = null,
-                        error = e.message ?: "Failed to delete collection",
-                    )
+                is Failure -> {
+                    state.value =
+                        state.value.copy(
+                            deletingCollectionId = null,
+                            error = result.message,
+                        )
+                }
             }
         }
     }
@@ -179,7 +147,7 @@ class AdminCollectionsViewModel(
  */
 data class AdminCollectionsUiState(
     val isLoading: Boolean = true,
-    val collections: List<CollectionEntity> = emptyList(),
+    val collections: List<Collection> = emptyList(),
     val isCreating: Boolean = false,
     val createSuccess: Boolean = false,
     val deletingCollectionId: String? = null,

@@ -28,8 +28,8 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.ImageStorage
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import org.koin.compose.koinInject
 import java.io.File
 import android.graphics.Color as AndroidColor
@@ -85,10 +85,10 @@ fun ClickableUserAvatar(
     showBorder: Boolean = false,
 ) {
     val context = LocalContext.current
-    val settingsRepository: SettingsRepository = koinInject()
+    val serverConfig: ServerConfig = koinInject()
     val imageStorage: ImageStorage = koinInject()
     val serverUrl by produceState<String?>(null) {
-        value = settingsRepository.getServerUrl()?.value
+        value = serverConfig.getServerUrl()?.value
     }
 
     val backgroundColor =

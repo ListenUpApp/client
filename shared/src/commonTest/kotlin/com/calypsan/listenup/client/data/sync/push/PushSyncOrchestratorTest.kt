@@ -6,9 +6,8 @@ import com.calypsan.listenup.client.data.local.db.EntityType
 import com.calypsan.listenup.client.data.local.db.OperationStatus
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
-import com.calypsan.listenup.client.data.repository.NetworkMonitor
-import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
-import com.calypsan.listenup.client.data.sync.conflict.PushConflict
+import com.calypsan.listenup.client.data.sync.SyncMutex
+import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.sequentially
 import dev.mokkery.every
@@ -30,10 +29,9 @@ import kotlin.test.assertFalse
  * Tests for PushSyncOrchestrator.
  *
  * Verifies push sync orchestration logic:
- * - Flush processes pending operations
+ * - Flush processes pending operations (last-write-wins)
  * - Skips flush when offline
  * - Prevents concurrent flushes
- * - Handles conflicts (marks as failed)
  * - Marks successful operations as completed
  * - Marks failed operations with error messages
  * - Auto-flushes on network restore
@@ -70,8 +68,8 @@ class PushSyncOrchestratorTest {
 
         val repository: PendingOperationRepositoryContract = mock()
         val executor: OperationExecutorContract = mock()
-        val conflictDetector: ConflictDetectorContract = mock()
         val networkMonitor: NetworkMonitor = mock()
+        val syncMutex = SyncMutex()
 
         val isOnlineFlow = MutableStateFlow(true)
         val newOperationQueuedFlow = MutableSharedFlow<Unit>()
@@ -89,8 +87,8 @@ class PushSyncOrchestratorTest {
             PushSyncOrchestrator(
                 repository = repository,
                 executor = executor,
-                conflictDetector = conflictDetector,
                 networkMonitor = networkMonitor,
+                syncMutex = syncMutex,
                 scope = testScope,
             )
     }
@@ -110,7 +108,6 @@ class PushSyncOrchestratorTest {
             }
             everySuspend { fixture.repository.markInProgress(any()) } returns Unit
             everySuspend { fixture.repository.markCompleted(any()) } returns Unit
-            everySuspend { fixture.conflictDetector.checkPushConflict(any()) } returns null
             everySuspend { fixture.executor.execute(any()) } returns
                 mapOf(
                     "op-1" to Success(Unit),
@@ -146,34 +143,6 @@ class PushSyncOrchestratorTest {
             assertFalse(orchestrator.isFlushing.value)
         }
 
-    // ========== Conflict Handling Tests ==========
-
-    @Test
-    fun `flush marks conflicting operations as failed`() =
-        runTest {
-            // Given
-            val fixture = TestFixture()
-            val operation = createOperation("op-1")
-            val conflict = PushConflict("op-1", "Server version is newer")
-
-            everySuspend { fixture.repository.getNextBatch(any()) } sequentially {
-                returns(listOf(operation))
-                returns(emptyList())
-            }
-            everySuspend { fixture.repository.markInProgress(any()) } returns Unit
-            everySuspend { fixture.repository.markFailed(any(), any()) } returns Unit
-            everySuspend { fixture.conflictDetector.checkPushConflict(operation) } returns conflict
-
-            val orchestrator = fixture.build()
-            fixture.testScope.advanceUntilIdle()
-
-            // When
-            orchestrator.flush()
-
-            // Then - Should mark as failed with conflict reason
-            verifySuspend { fixture.repository.markFailed("op-1", "Conflict: Server version is newer") }
-        }
-
     // ========== Failure Handling Tests ==========
 
     @Test
@@ -190,7 +159,6 @@ class PushSyncOrchestratorTest {
             }
             everySuspend { fixture.repository.markInProgress(any()) } returns Unit
             everySuspend { fixture.repository.markFailed(any(), any()) } returns Unit
-            everySuspend { fixture.conflictDetector.checkPushConflict(any()) } returns null
             everySuspend { fixture.executor.execute(any()) } returns
                 mapOf(
                     "op-1" to Failure(error),
@@ -220,7 +188,6 @@ class PushSyncOrchestratorTest {
             }
             everySuspend { fixture.repository.markInProgress(any()) } returns Unit
             everySuspend { fixture.repository.markFailed(any(), any()) } returns Unit
-            everySuspend { fixture.conflictDetector.checkPushConflict(any()) } returns null
             everySuspend { fixture.executor.execute(any()) } returns
                 mapOf(
                     "op-1" to Failure(error),
@@ -321,7 +288,6 @@ class PushSyncOrchestratorTest {
             }
             everySuspend { fixture.repository.markInProgress(any()) } returns Unit
             everySuspend { fixture.repository.markCompleted(any()) } returns Unit
-            everySuspend { fixture.conflictDetector.checkPushConflict(any()) } returns null
             everySuspend { fixture.executor.execute(batch1) } returns mapOf("op-1" to Success(Unit))
             everySuspend { fixture.executor.execute(batch2) } returns mapOf("op-2" to Success(Unit))
 
@@ -333,34 +299,5 @@ class PushSyncOrchestratorTest {
 
             // Then - Should have called markCompleted twice
             verifySuspend { fixture.repository.markCompleted(any()) }
-        }
-
-    @Test
-    fun `flush handles all operations in batch conflicting`() =
-        runTest {
-            // Given
-            val fixture = TestFixture()
-            val op1 = createOperation("op-1")
-            val op2 = createOperation("op-2")
-            val operations = listOf(op1, op2)
-
-            everySuspend { fixture.repository.getNextBatch(any()) } sequentially {
-                returns(operations)
-                returns(emptyList())
-            }
-            everySuspend { fixture.repository.markInProgress(any()) } returns Unit
-            everySuspend { fixture.repository.markFailed(any(), any()) } returns Unit
-            everySuspend { fixture.conflictDetector.checkPushConflict(op1) } returns PushConflict("op-1", "Conflict")
-            everySuspend { fixture.conflictDetector.checkPushConflict(op2) } returns PushConflict("op-2", "Conflict")
-
-            val orchestrator = fixture.build()
-            fixture.testScope.advanceUntilIdle()
-
-            // When
-            orchestrator.flush()
-
-            // Then - All should be marked failed
-            verifySuspend { fixture.repository.markFailed("op-1", "Conflict: Conflict") }
-            verifySuspend { fixture.repository.markFailed("op-2", "Conflict: Conflict") }
         }
 }

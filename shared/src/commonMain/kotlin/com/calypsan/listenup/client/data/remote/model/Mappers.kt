@@ -1,9 +1,12 @@
 package com.calypsan.listenup.client.data.remote.model
 
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.ChapterId
+import com.calypsan.listenup.client.core.ContributorId
+import com.calypsan.listenup.client.core.SeriesId
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookEntity
-import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.ExperimentalTime
@@ -60,14 +63,10 @@ fun ChapterResponse.toEntity(
     bookId: BookId,
     index: Int,
 ): com.calypsan.listenup.client.data.local.db.ChapterEntity {
-    val now =
-        com.calypsan.listenup.client.data.local.db.Timestamp
-            .now()
+    val now = Timestamp.now()
     return com.calypsan.listenup.client.data.local.db.ChapterEntity(
         // ID is composite of bookId and index since server doesn't provide stable chapter IDs yet
-        id =
-            com.calypsan.listenup.client.data.local.db
-                .ChapterId("${bookId.value}_$index"),
+        id = ChapterId("${bookId.value}_$index"),
         bookId = bookId,
         title = title,
         duration = endTime - startTime,
@@ -84,7 +83,7 @@ fun BookContributorResponse.toEntity(
 ): com.calypsan.listenup.client.data.local.db.BookContributorCrossRef =
     com.calypsan.listenup.client.data.local.db.BookContributorCrossRef(
         bookId = bookId,
-        contributorId = contributorId,
+        contributorId = ContributorId(contributorId),
         role = role,
         creditedAs = creditedAs,
     )
@@ -92,7 +91,7 @@ fun BookContributorResponse.toEntity(
 fun BookSeriesInfoResponse.toEntity(bookId: BookId): com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef =
     com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef(
         bookId = bookId,
-        seriesId = seriesId,
+        seriesId = SeriesId(seriesId),
         sequence = sequence,
     )
 

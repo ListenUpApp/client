@@ -86,7 +86,7 @@ class GetInstanceUseCaseTest {
 
             // Then
             val failure = assertIs<Failure>(result)
-            assertEquals("Network error", failure.exception.message)
+            assertEquals("Network error", failure.message)
         }
 
     // ========== ForceRefresh Parameter Tests ==========

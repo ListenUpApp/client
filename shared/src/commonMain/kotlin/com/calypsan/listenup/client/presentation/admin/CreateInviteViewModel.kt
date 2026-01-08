@@ -2,9 +2,10 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.remote.AdminApiContract
-import com.calypsan.listenup.client.data.remote.AdminInvite
-import com.calypsan.listenup.client.data.remote.CreateInviteRequest
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.model.InviteInfo
+import com.calypsan.listenup.client.domain.usecase.admin.CreateInviteUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -15,7 +16,7 @@ import kotlinx.coroutines.launch
  * Handles form validation and invite creation.
  */
 class CreateInviteViewModel(
-    private val adminApi: AdminApiContract,
+    private val createInviteUseCase: CreateInviteUseCase,
 ) : ViewModel() {
     val state: StateFlow<CreateInviteUiState>
         field = MutableStateFlow(CreateInviteUiState())
@@ -26,64 +27,47 @@ class CreateInviteViewModel(
         role: String,
         expiresInDays: Int,
     ) {
-        // Validate
-        val trimmedName = name.trim()
-        val trimmedEmail = email.trim()
-
-        if (trimmedName.isBlank()) {
-            state.value =
-                state.value.copy(
-                    status = CreateInviteStatus.Error(CreateInviteErrorType.ValidationError(CreateInviteField.NAME)),
-                )
-            return
-        }
-
-        if (!isValidEmail(trimmedEmail)) {
-            state.value =
-                state.value.copy(
-                    status = CreateInviteStatus.Error(CreateInviteErrorType.ValidationError(CreateInviteField.EMAIL)),
-                )
-            return
-        }
-
         viewModelScope.launch {
             state.value = state.value.copy(status = CreateInviteStatus.Submitting)
 
-            try {
-                val invite =
-                    adminApi.createInvite(
-                        CreateInviteRequest(
-                            name = trimmedName,
-                            email = trimmedEmail,
-                            role = role,
-                            expiresInDays = expiresInDays,
-                        ),
-                    )
-                state.value =
-                    state.value.copy(
-                        status = CreateInviteStatus.Success(invite),
-                    )
-            } catch (e: Exception) {
-                val errorType =
-                    when {
-                        e.message?.contains("already exists", ignoreCase = true) == true ||
-                            e.message?.contains("conflict", ignoreCase = true) == true -> {
-                            CreateInviteErrorType.EmailInUse
-                        }
+            when (val result = createInviteUseCase(name, email, role, expiresInDays)) {
+                is Success -> {
+                    state.value =
+                        state.value.copy(
+                            status = CreateInviteStatus.Success(result.data),
+                        )
+                }
 
-                        e.message?.contains("network", ignoreCase = true) == true ||
-                            e.message?.contains("connection", ignoreCase = true) == true -> {
-                            CreateInviteErrorType.NetworkError(e.message)
-                        }
+                is Failure -> {
+                    val errorType =
+                        when {
+                            result.message.contains("Name is required", ignoreCase = true) -> {
+                                CreateInviteErrorType.ValidationError(CreateInviteField.NAME)
+                            }
 
-                        else -> {
-                            CreateInviteErrorType.ServerError(e.message)
+                            result.message.contains("Invalid email", ignoreCase = true) -> {
+                                CreateInviteErrorType.ValidationError(CreateInviteField.EMAIL)
+                            }
+
+                            result.message.contains("already exists", ignoreCase = true) ||
+                                result.message.contains("conflict", ignoreCase = true) -> {
+                                CreateInviteErrorType.EmailInUse
+                            }
+
+                            result.message.contains("network", ignoreCase = true) ||
+                                result.message.contains("connection", ignoreCase = true) -> {
+                                CreateInviteErrorType.NetworkError(result.message)
+                            }
+
+                            else -> {
+                                CreateInviteErrorType.ServerError(result.message)
+                            }
                         }
-                    }
-                state.value =
-                    state.value.copy(
-                        status = CreateInviteStatus.Error(errorType),
-                    )
+                    state.value =
+                        state.value.copy(
+                            status = CreateInviteStatus.Error(errorType),
+                        )
+                }
             }
         }
     }
@@ -97,8 +81,6 @@ class CreateInviteViewModel(
     fun reset() {
         state.value = CreateInviteUiState()
     }
-
-    private fun isValidEmail(email: String): Boolean = email.contains("@") && email.contains(".")
 }
 
 data class CreateInviteUiState(
@@ -111,7 +93,7 @@ sealed interface CreateInviteStatus {
     data object Submitting : CreateInviteStatus
 
     data class Success(
-        val invite: AdminInvite,
+        val invite: InviteInfo,
     ) : CreateInviteStatus
 
     data class Error(

@@ -32,7 +32,7 @@ class InstanceRepositoryImplTest {
 
             // Then
             val failure = assertIs<Failure>(result)
-            assertTrue(failure.exception.message?.contains("Server URL not configured") == true)
+            assertTrue(failure.message.contains("Server URL not configured"))
         }
 
     @Test
@@ -49,7 +49,7 @@ class InstanceRepositoryImplTest {
 
             // Then
             val failure = assertIs<Failure>(result)
-            assertTrue(failure.exception.message?.contains("Server URL not configured") == true)
+            assertTrue(failure.message.contains("Server URL not configured"))
         }
 
     @Test

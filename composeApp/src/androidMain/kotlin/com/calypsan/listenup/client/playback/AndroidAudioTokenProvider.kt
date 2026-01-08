@@ -6,7 +6,7 @@ package com.calypsan.listenup.client.playback
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.data.remote.AuthApiContract
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -37,7 +37,7 @@ private val logger = KotlinLogging.logger {}
  * for use by shared code (PlaybackManager).
  */
 class AndroidAudioTokenProvider(
-    private val settingsRepository: SettingsRepositoryContract,
+    private val authSession: AuthSession,
     private val authApi: AuthApiContract,
     private val scope: CoroutineScope,
 ) : AudioTokenProvider {
@@ -100,7 +100,7 @@ class AndroidAudioTokenProvider(
         refreshMutex.withLock {
             try {
                 // Try to use existing token first
-                val currentToken = settingsRepository.getAccessToken()
+                val currentToken = authSession.getAccessToken()
                 if (currentToken != null) {
                     cachedToken = currentToken.value
                     // Estimate expiry (PASETO tokens are typically 15 min - 1 hour)
@@ -111,7 +111,7 @@ class AndroidAudioTokenProvider(
                 }
 
                 // No token in storage - try refresh
-                val refreshToken = settingsRepository.getRefreshToken()
+                val refreshToken = authSession.getRefreshToken()
                 if (refreshToken == null) {
                     logger.warn { "No refresh token available" }
                     cachedToken = null
@@ -122,9 +122,9 @@ class AndroidAudioTokenProvider(
                     val response = authApi.refresh(refreshToken)
 
                     // Save new tokens
-                    val sessionId = settingsRepository.getSessionId() ?: ""
-                    val userId = settingsRepository.getUserId() ?: ""
-                    settingsRepository.saveAuthTokens(
+                    val sessionId = authSession.getSessionId() ?: ""
+                    val userId = authSession.getUserId() ?: ""
+                    authSession.saveAuthTokens(
                         access = AccessToken(response.accessToken),
                         refresh = RefreshToken(response.refreshToken),
                         sessionId = sessionId,

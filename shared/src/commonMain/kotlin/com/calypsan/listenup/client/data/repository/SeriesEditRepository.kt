@@ -4,11 +4,11 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.EntityType
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.sync.push.PendingOperationRepositoryContract
 import com.calypsan.listenup.client.data.sync.push.SeriesUpdateHandler
 import com.calypsan.listenup.client.data.sync.push.SeriesUpdatePayload
@@ -64,7 +64,8 @@ class SeriesEditRepository(
     private val seriesDao: SeriesDao,
     private val pendingOperationRepository: PendingOperationRepositoryContract,
     private val seriesUpdateHandler: SeriesUpdateHandler,
-) : SeriesEditRepositoryContract {
+) : SeriesEditRepositoryContract,
+    com.calypsan.listenup.client.domain.repository.SeriesEditRepository {
     /**
      * Update series metadata.
      *

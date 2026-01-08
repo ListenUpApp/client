@@ -36,7 +36,7 @@ sealed interface ServerConnectUiEvent {
      * - Local URL validation (format, localhost on device)
      * - If valid: Network verification (/api/v1/instance)
      * - Update state with loading/error/success
-     * - On success: Save to SettingsRepository and navigate
+     * - On success: Save to ServerConfig and navigate
      */
     data object ConnectClicked : ServerConnectUiEvent
 }

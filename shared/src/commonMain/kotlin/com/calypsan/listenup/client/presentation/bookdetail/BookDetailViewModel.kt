@@ -2,48 +2,101 @@ package com.calypsan.listenup.client.presentation.bookdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.local.db.TagDao
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.remote.GenreApiContract
-import com.calypsan.listenup.client.data.remote.TagApiContract
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
+import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.GenreRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.TagRepository
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
 /**
  * ViewModel for the Book Detail screen.
+ *
+ * Uses reactive flows with [flatMapLatest] to automatically switch observers
+ * when navigating between books, eliminating manual Job cancellation.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class BookDetailViewModel(
-    private val bookRepository: BookRepositoryContract,
-    private val genreApi: GenreApiContract,
-    private val tagApi: TagApiContract,
-    private val tagDao: TagDao,
-    private val playbackPositionDao: PlaybackPositionDao,
-    private val userDao: UserDao,
+    private val bookRepository: BookRepository,
+    private val genreRepository: GenreRepository,
+    private val tagRepository: TagRepository,
+    private val playbackPositionRepository: PlaybackPositionRepository,
+    private val userRepository: UserRepository,
 ) : ViewModel() {
     val state: StateFlow<BookDetailUiState>
         field = MutableStateFlow(BookDetailUiState())
 
-    private var tagObserverJob: Job? = null
+    /**
+     * The currently displayed book ID.
+     * Setting this triggers automatic observer switching via [flatMapLatest].
+     */
+    private val currentBookId = MutableStateFlow<String?>(null)
 
     init {
         // Observe admin status
         viewModelScope.launch {
-            userDao.observeCurrentUser().collect { user ->
-                state.update { it.copy(isAdmin = user?.isRoot == true) }
+            userRepository.observeIsAdmin().collect { isAdmin ->
+                state.update { it.copy(isAdmin = isAdmin) }
             }
+        }
+
+        // Reactive genre observer - automatically switches when book changes
+        viewModelScope.launch {
+            currentBookId
+                .flatMapLatest { bookId ->
+                    if (bookId != null) {
+                        genreRepository.observeGenresForBook(bookId)
+                    } else {
+                        flowOf(emptyList())
+                    }
+                }.collect { genres ->
+                    state.update {
+                        it.copy(
+                            genres = genres,
+                            genresList = genres.map { g -> g.name },
+                        )
+                    }
+                }
+        }
+
+        // Reactive book-specific tags observer - automatically switches when book changes
+        viewModelScope.launch {
+            currentBookId
+                .flatMapLatest { bookId ->
+                    if (bookId != null) {
+                        tagRepository.observeTagsForBook(bookId)
+                    } else {
+                        flowOf(emptyList())
+                    }
+                }.collect { tags ->
+                    state.update {
+                        it.copy(
+                            tags = tags,
+                            isLoadingTags = false,
+                        )
+                    }
+                }
+        }
+
+        // All tags observer (doesn't depend on current book - for tag picker)
+        viewModelScope.launch {
+            tagRepository
+                .observeAll()
+                .collect { allTags ->
+                    state.update { it.copy(allTags = allTags) }
+                }
         }
     }
 
@@ -74,7 +127,7 @@ class BookDetailViewModel(
                     }
 
                 // Load progress for this book
-                val position = playbackPositionDao.get(BookId(bookId))
+                val position = playbackPositionRepository.get(bookId)
                 val progress =
                     if (position != null && book.duration > 0) {
                         (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
@@ -94,8 +147,12 @@ class BookDetailViewModel(
                         null
                     }
 
-                state.value =
-                    BookDetailUiState(
+                // Trigger reactive observers for genres and tags via flatMapLatest
+                currentBookId.value = bookId
+
+                // Update state, preserving flow-managed values (isAdmin, allTags)
+                state.update { currentState ->
+                    currentState.copy(
                         isLoading = false,
                         book = book,
                         subtitle = displaySubtitle,
@@ -109,95 +166,21 @@ class BookDetailViewModel(
                         progress = if (progress != null && progress > 0f && !isComplete) progress else null,
                         timeRemainingFormatted = timeRemaining,
                         addedAt = book.addedAt.epochMillis,
+                        // Reset book-specific values (will be populated by flatMapLatest)
+                        genres = emptyList(),
+                        genresList = emptyList(),
+                        tags = emptyList(),
+                        isLoadingTags = true,
+                        error = null,
                     )
-
-                // Load genres and tags for this book (non-blocking, optional features)
-                loadGenres(bookId)
-                loadTags(bookId)
+                }
             } else {
-                state.value =
-                    BookDetailUiState(
+                state.update { currentState ->
+                    currentState.copy(
                         isLoading = false,
                         error = "Book not found",
                     )
-            }
-        }
-    }
-
-    /**
-     * Load genres for the current book.
-     * Genres are optional - failures don't affect the main screen.
-     */
-    private fun loadGenres(bookId: String) {
-        viewModelScope.launch {
-            try {
-                val bookGenres = genreApi.getBookGenres(bookId)
-                state.update {
-                    it.copy(
-                        genres = bookGenres,
-                        genresList = bookGenres.map { g -> g.name },
-                    )
                 }
-            } catch (e: Exception) {
-                // Genres are optional - don't fail the whole screen
-                logger.warn(e) { "Failed to load genres" }
-            }
-        }
-    }
-
-    /**
-     * Load tags for the current book.
-     * Tags are optional - failures don't affect the main screen.
-     *
-     * This method:
-     * 1. Fetches initial tags from the API
-     * 2. Starts observing local storage for real-time SSE updates
-     */
-    private fun loadTags(bookId: String) {
-        // Cancel any previous observer
-        tagObserverJob?.cancel()
-
-        // Start observing local database for real-time updates
-        tagObserverJob =
-            viewModelScope.launch {
-                tagDao.observeTagsForBook(BookId(bookId)).collect { localTags ->
-                    val domainTags =
-                        localTags.map { entity ->
-                            Tag(
-                                id = entity.id,
-                                slug = entity.slug,
-                                bookCount = entity.bookCount,
-                                createdAt = Instant.fromEpochMilliseconds(entity.createdAt.epochMillis),
-                            )
-                        }
-                    if (domainTags.isNotEmpty()) {
-                        state.update {
-                            it.copy(
-                                tags = domainTags,
-                                isLoadingTags = false,
-                            )
-                        }
-                    }
-                }
-            }
-
-        // Also fetch from API to get latest data and allTags
-        viewModelScope.launch {
-            state.update { it.copy(isLoadingTags = true) }
-            try {
-                val bookTags = tagApi.getBookTags(bookId)
-                val allTags = tagApi.listTags()
-                state.update {
-                    it.copy(
-                        tags = bookTags,
-                        allTags = allTags,
-                        isLoadingTags = false,
-                    )
-                }
-            } catch (e: Exception) {
-                // Tags are optional - don't fail the whole screen
-                logger.warn(e) { "Failed to load tags from API" }
-                state.update { it.copy(isLoadingTags = false) }
             }
         }
     }
@@ -228,8 +211,8 @@ class BookDetailViewModel(
                 ?.value ?: return
         viewModelScope.launch {
             try {
-                tagApi.addTagToBook(bookId, slug)
-                loadTags(bookId) // Refresh
+                tagRepository.addTagToBook(bookId, slug)
+                // Observer will update UI automatically
             } catch (e: Exception) {
                 logger.error(e) { "Failed to add tag '$slug' to book $bookId" }
             }
@@ -246,10 +229,11 @@ class BookDetailViewModel(
             state.value.book
                 ?.id
                 ?.value ?: return
+        val tag = state.value.tags.find { it.slug == slug } ?: return
         viewModelScope.launch {
             try {
-                tagApi.removeTagFromBook(bookId, slug)
-                loadTags(bookId) // Refresh
+                tagRepository.removeTagFromBook(bookId, slug, tag.id)
+                // Observer will update UI automatically
             } catch (e: Exception) {
                 logger.error(e) { "Failed to remove tag '$slug' from book $bookId" }
             }
@@ -271,8 +255,8 @@ class BookDetailViewModel(
                 ?.value ?: return
         viewModelScope.launch {
             try {
-                tagApi.addTagToBook(bookId, rawInput)
-                loadTags(bookId) // Refresh
+                tagRepository.addTagToBook(bookId, rawInput)
+                // Observer will update UI automatically
                 hideTagPicker()
             } catch (e: Exception) {
                 logger.error(e) { "Failed to add tag '$rawInput' to book $bookId" }

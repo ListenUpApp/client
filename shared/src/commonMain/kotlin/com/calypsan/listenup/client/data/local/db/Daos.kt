@@ -2,13 +2,15 @@ package com.calypsan.listenup.client.data.local.db
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.RewriteQueriesToDropUnusedColumns
 import androidx.room.Transaction
 import androidx.room.Upsert
+import com.calypsan.listenup.client.core.Timestamp
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SeriesDao {
-    @Query("SELECT * FROM series")
+    @Query("SELECT * FROM series ORDER BY name ASC")
     fun observeAll(): Flow<List<SeriesEntity>>
 
     /**
@@ -20,6 +22,53 @@ interface SeriesDao {
 
     @Query("SELECT * FROM series WHERE id = :id")
     suspend fun getById(id: String): SeriesEntity?
+
+    /**
+     * Observe a single series by ID.
+     *
+     * @param id The series ID
+     * @return Flow emitting the series or null if not found
+     */
+    @Query("SELECT * FROM series WHERE id = :id")
+    fun observeById(id: String): Flow<SeriesEntity?>
+
+    /**
+     * Observe the first series for a specific book.
+     *
+     * A book can belong to multiple series, but this returns only the first one.
+     * Uses book_series junction table to find the relationship.
+     *
+     * @param bookId The book ID
+     * @return Flow emitting the series or null if book has no series
+     */
+    @RewriteQueriesToDropUnusedColumns
+    @Query(
+        """
+        SELECT s.* FROM series s
+        INNER JOIN book_series bs ON s.id = bs.seriesId
+        WHERE bs.bookId = :bookId
+        LIMIT 1
+    """,
+    )
+    fun observeByBookId(bookId: String): Flow<SeriesEntity?>
+
+    /**
+     * Get all book IDs that belong to a specific series.
+     *
+     * @param seriesId The series ID
+     * @return List of book IDs in this series
+     */
+    @Query("SELECT bookId FROM book_series WHERE seriesId = :seriesId")
+    suspend fun getBookIdsForSeries(seriesId: String): List<String>
+
+    /**
+     * Observe all book IDs that belong to a specific series reactively.
+     *
+     * @param seriesId The series ID
+     * @return Flow emitting list of book IDs in this series
+     */
+    @Query("SELECT bookId FROM book_series WHERE seriesId = :seriesId")
+    fun observeBookIdsForSeries(seriesId: String): Flow<List<String>>
 
     @Upsert
     suspend fun upsert(series: SeriesEntity)
@@ -252,4 +301,67 @@ interface ContributorDao {
 
     @Query("DELETE FROM contributors")
     suspend fun deleteAll()
+
+    // =========================================================================
+    // Book-Contributor Relationship Queries
+    // =========================================================================
+
+    /**
+     * Observe all contributors for a specific book.
+     *
+     * Returns contributors for all roles (author, narrator, etc.).
+     * Use getContributorsForBookByRole on BookContributorDao for role-specific queries.
+     *
+     * @param bookId The book ID
+     * @return Flow emitting list of contributors for the book
+     */
+    @RewriteQueriesToDropUnusedColumns
+    @Transaction
+    @Query(
+        """
+        SELECT * FROM contributors
+        INNER JOIN book_contributors ON contributors.id = book_contributors.contributorId
+        WHERE book_contributors.bookId = :bookId
+        ORDER BY contributors.name ASC
+    """,
+    )
+    fun observeByBookId(bookId: String): Flow<List<ContributorEntity>>
+
+    /**
+     * Get all contributors for a specific book synchronously.
+     *
+     * Returns contributors for all roles (author, narrator, etc.).
+     *
+     * @param bookId The book ID
+     * @return List of contributors for the book
+     */
+    @RewriteQueriesToDropUnusedColumns
+    @Transaction
+    @Query(
+        """
+        SELECT * FROM contributors
+        INNER JOIN book_contributors ON contributors.id = book_contributors.contributorId
+        WHERE book_contributors.bookId = :bookId
+        ORDER BY contributors.name ASC
+    """,
+    )
+    suspend fun getByBookId(bookId: String): List<ContributorEntity>
+
+    /**
+     * Get all book IDs for a specific contributor.
+     *
+     * @param contributorId The contributor ID
+     * @return List of book IDs
+     */
+    @Query("SELECT DISTINCT bookId FROM book_contributors WHERE contributorId = :contributorId")
+    suspend fun getBookIdsForContributor(contributorId: String): List<String>
+
+    /**
+     * Observe all book IDs for a specific contributor reactively.
+     *
+     * @param contributorId The contributor ID
+     * @return Flow emitting list of book IDs
+     */
+    @Query("SELECT DISTINCT bookId FROM book_contributors WHERE contributorId = :contributorId")
+    fun observeBookIdsForContributor(contributorId: String): Flow<List<String>>
 }

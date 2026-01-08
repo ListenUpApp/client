@@ -2,8 +2,10 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.remote.AdminApiContract
-import com.calypsan.listenup.client.data.remote.ServerSettingsRequest
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.usecase.admin.LoadServerSettingsUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.UpdateServerSettingsUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +21,8 @@ private val logger = KotlinLogging.logger {}
  * released with their staged collections.
  */
 class AdminSettingsViewModel(
-    private val adminApi: AdminApiContract,
+    private val loadServerSettingsUseCase: LoadServerSettingsUseCase,
+    private val updateServerSettingsUseCase: UpdateServerSettingsUseCase,
 ) : ViewModel() {
     val state: StateFlow<AdminSettingsUiState>
         field = MutableStateFlow(AdminSettingsUiState())
@@ -32,21 +35,24 @@ class AdminSettingsViewModel(
         viewModelScope.launch {
             state.value = state.value.copy(isLoading = true, error = null)
 
-            try {
-                val settings = adminApi.getServerSettings()
-                state.value =
-                    state.value.copy(
-                        isLoading = false,
-                        inboxEnabled = settings.inboxEnabled,
-                        inboxCount = settings.inboxCount,
-                    )
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to load server settings" }
-                state.value =
-                    state.value.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load settings",
-                    )
+            when (val result = loadServerSettingsUseCase()) {
+                is Success -> {
+                    state.value =
+                        state.value.copy(
+                            isLoading = false,
+                            inboxEnabled = result.data.inboxEnabled,
+                            inboxCount = result.data.inboxCount,
+                        )
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to load server settings: ${result.message}" }
+                    state.value =
+                        state.value.copy(
+                            isLoading = false,
+                            error = result.message,
+                        )
+                }
             }
         }
     }
@@ -87,25 +93,25 @@ class AdminSettingsViewModel(
         viewModelScope.launch {
             state.value = state.value.copy(isSaving = true, error = null)
 
-            try {
-                val settings =
-                    adminApi.updateServerSettings(
-                        ServerSettingsRequest(inboxEnabled = enabled),
-                    )
-                state.value =
-                    state.value.copy(
-                        isSaving = false,
-                        inboxEnabled = settings.inboxEnabled,
-                        inboxCount = settings.inboxCount,
-                    )
-                logger.info { "Inbox workflow ${if (enabled) "enabled" else "disabled"}" }
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to update server settings" }
-                state.value =
-                    state.value.copy(
-                        isSaving = false,
-                        error = e.message ?: "Failed to update settings",
-                    )
+            when (val result = updateServerSettingsUseCase(enabled)) {
+                is Success -> {
+                    state.value =
+                        state.value.copy(
+                            isSaving = false,
+                            inboxEnabled = result.data.inboxEnabled,
+                            inboxCount = result.data.inboxCount,
+                        )
+                    logger.info { "Inbox workflow ${if (enabled) "enabled" else "disabled"}" }
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to update server settings: ${result.message}" }
+                    state.value =
+                        state.value.copy(
+                            isSaving = false,
+                            error = result.message,
+                        )
+                }
             }
         }
     }

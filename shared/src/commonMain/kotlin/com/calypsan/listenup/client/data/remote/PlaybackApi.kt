@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -68,7 +69,7 @@ class PlaybackApi(
 
             when (val result = response.toResult()) {
                 is com.calypsan.listenup.client.core.Success -> result.data.toDomain()
-                is com.calypsan.listenup.client.core.Failure -> throw result.exception
+                is com.calypsan.listenup.client.core.Failure -> throw result.exceptionOrFromMessage()
             }
         }
 }

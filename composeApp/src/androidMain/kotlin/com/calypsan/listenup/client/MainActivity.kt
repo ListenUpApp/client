@@ -32,14 +32,14 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
-import com.calypsan.listenup.client.data.repository.LocalPreferencesContract
-import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.deeplink.DeepLinkParser
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.model.ThemeMode
+import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.navigation.ListenUpNavigation
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,7 +66,8 @@ import org.koin.compose.viewmodel.koinViewModel
  */
 class MainActivity : ComponentActivity() {
     private val sseManager: SSEManager by inject()
-    private val settingsRepository: SettingsRepository by inject()
+    private val authSession: AuthSession by inject()
+    private val localPreferences: LocalPreferences by inject()
     private val deepLinkManager: DeepLinkManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,7 +79,7 @@ class MainActivity : ComponentActivity() {
 
         // Initialize local preferences (theme, dynamic colors, etc.) from storage
         lifecycleScope.launch {
-            settingsRepository.initializeLocalPreferences()
+            localPreferences.initializeLocalPreferences()
         }
 
         setContent {
@@ -107,7 +108,7 @@ class MainActivity : ComponentActivity() {
 
         // Connect SSE when app comes to foreground (if authenticated)
         lifecycleScope.launch {
-            val isAuthenticated = settingsRepository.getAccessToken() != null
+            val isAuthenticated = authSession.getAccessToken() != null
             if (isAuthenticated) {
                 println("MainActivity: App resumed and user authenticated, connecting SSE...")
                 sseManager.connect()
@@ -143,7 +144,7 @@ class MainActivity : ComponentActivity() {
  * authentication state from SettingsRepository.
  */
 @Composable
-fun ListenUpApp(localPreferences: LocalPreferencesContract = koinInject()) {
+fun ListenUpApp(localPreferences: LocalPreferences = koinInject()) {
     // Observe theme preferences
     val themeMode by localPreferences.themeMode.collectAsState()
     val dynamicColorsEnabled by localPreferences.dynamicColorsEnabled.collectAsState()

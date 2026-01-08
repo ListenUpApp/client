@@ -4,15 +4,10 @@ package com.calypsan.listenup.client.presentation.contributordetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.BookWithContributors
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.domain.model.Book
-import com.calypsan.listenup.client.domain.model.BookSeries
-import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.util.calculateProgressMap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -26,10 +21,8 @@ import kotlinx.coroutines.launch
  * Series appear first (alphabetically), followed by standalone books.
  */
 class ContributorBooksViewModel(
-    private val contributorDao: ContributorDao,
-    private val bookDao: BookDao,
-    private val imageStorage: ImageStorage,
-    private val playbackPositionDao: PlaybackPositionDao,
+    private val contributorRepository: ContributorRepository,
+    private val playbackPositionRepository: PlaybackPositionRepository,
 ) : ViewModel() {
     val state: StateFlow<ContributorBooksUiState>
         field = MutableStateFlow(ContributorBooksUiState())
@@ -48,30 +41,26 @@ class ContributorBooksViewModel(
 
         viewModelScope.launch {
             // Load contributor name for the title
-            contributorDao.observeById(contributorId).filterNotNull().collectLatest { contributor ->
+            contributorRepository.observeById(contributorId).filterNotNull().collectLatest { contributor ->
                 state.value = state.value.copy(contributorName = contributor.name)
             }
         }
 
         viewModelScope.launch {
-            bookDao.observeByContributorAndRole(contributorId, role).collectLatest { booksWithContributors ->
-                val books = booksWithContributors.map { it.toDomain() }
+            contributorRepository.observeBooksForContributorRole(contributorId, role).collectLatest { booksWithRole ->
+                val books = booksWithRole.map { it.book }
                 val contributorName = state.value.contributorName
 
                 // Load progress for all books
-                val bookProgress = loadProgressForBooks(books)
+                val bookProgress = playbackPositionRepository.calculateProgressMap(books)
 
                 // Extract creditedAs for books where the attribution differs
                 val bookCreditedAs =
-                    booksWithContributors
-                        .mapNotNull { bwc ->
-                            val crossRef =
-                                bwc.contributorRoles.find {
-                                    it.contributorId == contributorId && it.role == role
-                                }
-                            val creditedAs = crossRef?.creditedAs
+                    booksWithRole
+                        .mapNotNull { bwr ->
+                            val creditedAs = bwr.creditedAs
                             if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
-                                bwc.book.id.value to creditedAs
+                                bwr.book.id.value to creditedAs
                             } else {
                                 null
                             }
@@ -111,84 +100,6 @@ class ContributorBooksViewModel(
                     )
             }
         }
-    }
-
-    /**
-     * Load progress for a list of books.
-     * Returns a map of bookId -> progress (0.0-1.0).
-     */
-    private suspend fun loadProgressForBooks(books: List<Book>): Map<String, Float> =
-        books
-            .mapNotNull { book ->
-                val position = playbackPositionDao.get(BookId(book.id.value))
-                if (position != null && book.duration > 0) {
-                    val progress = (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
-                    if (progress > 0f && progress < 0.99f) {
-                        book.id.value to progress
-                    } else {
-                        null
-                    }
-                } else {
-                    null
-                }
-            }.toMap()
-
-    private fun BookWithContributors.toDomain(): Book {
-        // Create a lookup map for contributor entities
-        val contributorsById = contributors.associateBy { it.id }
-
-        // Get authors by filtering cross-refs with role "author"
-        // Use creditedAs for display name when available (preserves original attribution after merge)
-        val authors =
-            contributorRoles
-                .filter { it.role == "author" }
-                .mapNotNull { crossRef ->
-                    contributorsById[crossRef.contributorId]?.let { entity ->
-                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
-                    }
-                }.distinctBy { it.id }
-
-        // Get narrators by filtering cross-refs with role "narrator"
-        // Use creditedAs for display name when available (preserves original attribution after merge)
-        val narrators =
-            contributorRoles
-                .filter { it.role == "narrator" }
-                .mapNotNull { crossRef ->
-                    contributorsById[crossRef.contributorId]?.let { entity ->
-                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
-                    }
-                }.distinctBy { it.id }
-
-        // Build series list from junction table data
-        val seriesById = series.associateBy { it.id }
-        val bookSeriesList =
-            seriesSequences.mapNotNull { seq ->
-                seriesById[seq.seriesId]?.let { seriesEntity ->
-                    BookSeries(
-                        seriesId = seriesEntity.id,
-                        seriesName = seriesEntity.name,
-                        sequence = seq.sequence,
-                    )
-                }
-            }
-
-        return Book(
-            id = book.id,
-            title = book.title,
-            authors = authors,
-            narrators = narrators,
-            duration = book.totalDuration,
-            coverPath = if (imageStorage.exists(book.id)) imageStorage.getCoverPath(book.id) else null,
-            coverBlurHash = book.coverBlurHash,
-            addedAt = book.createdAt,
-            updatedAt = book.updatedAt,
-            description = book.description,
-            genres = emptyList(), // Loaded on-demand when editing
-            tags = emptyList(), // Loaded on-demand when editing
-            series = bookSeriesList,
-            publishYear = book.publishYear,
-            rating = null,
-        )
     }
 }
 

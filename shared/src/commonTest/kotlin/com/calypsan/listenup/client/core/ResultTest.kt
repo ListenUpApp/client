@@ -34,17 +34,26 @@ class ResultTest {
     @Test
     fun `Failure wraps exception correctly`() {
         val exception = IllegalStateException("test error")
-        val result: Result<String> = Failure(exception)
+        val result: Result<String> = Failure(exception = exception, message = "test error")
         val failure = assertIs<Failure>(result)
         assertEquals(exception, failure.exception)
         assertEquals("test error", failure.message)
     }
 
     @Test
-    fun `Failure uses default message when exception message is null`() {
-        val exception = RuntimeException()
-        val result = Failure(exception)
-        assertEquals("Unknown error", result.message)
+    fun `Failure can be created with just message`() {
+        val result = Failure(message = "Error without exception")
+        assertNull(result.exception)
+        assertEquals("Error without exception", result.message)
+        assertEquals(ErrorCode.UNKNOWN, result.errorCode)
+    }
+
+    @Test
+    fun `Failure captures error code correctly`() {
+        val result = validationError("Invalid email")
+        assertEquals("Invalid email", result.message)
+        assertEquals(ErrorCode.VALIDATION_ERROR, result.errorCode)
+        assertNull(result.exception)
     }
 
     // ========== isSuccess / isFailure ==========
@@ -58,7 +67,7 @@ class ResultTest {
 
     @Test
     fun `isFailure returns true for Failure`() {
-        val result: Result<Int> = Failure(Exception("error"))
+        val result: Result<Int> = Failure(message = "error")
         assertTrue(result.isFailure())
         assertFalse(result.isSuccess())
     }
@@ -73,7 +82,7 @@ class ResultTest {
 
     @Test
     fun `getOrNull returns null for Failure`() {
-        val result: Result<String> = Failure(Exception("error"))
+        val result: Result<String> = Failure(message = "error")
         assertNull(result.getOrNull())
     }
 
@@ -85,7 +94,7 @@ class ResultTest {
 
     @Test
     fun `getOrDefault returns default for Failure`() {
-        val result: Result<Int> = Failure(Exception("error"))
+        val result: Result<Int> = Failure(message = "error")
         assertEquals(0, result.getOrDefault { 0 })
     }
 
@@ -98,12 +107,22 @@ class ResultTest {
     @Test
     fun `getOrThrow throws exception for Failure`() {
         val exception = IllegalArgumentException("invalid")
-        val result: Result<String> = Failure(exception)
+        val result: Result<String> = Failure(exception = exception, message = "invalid")
         val thrown =
             assertFailsWith<IllegalArgumentException> {
                 result.getOrThrow()
             }
         assertEquals("invalid", thrown.message)
+    }
+
+    @Test
+    fun `getOrThrow throws IllegalStateException when no exception in Failure`() {
+        val result: Result<String> = Failure(message = "message-only failure")
+        val thrown =
+            assertFailsWith<IllegalStateException> {
+                result.getOrThrow()
+            }
+        assertEquals("message-only failure", thrown.message)
     }
 
     // ========== map / flatMap ==========
@@ -119,7 +138,7 @@ class ResultTest {
     @Test
     fun `map preserves Failure`() {
         val exception = Exception("error")
-        val result: Result<Int> = Failure(exception)
+        val result: Result<Int> = Failure(exception = exception, message = "error")
         val mapped = result.map { it * 2 }
         val failure = assertIs<Failure>(mapped)
         assertEquals(exception, failure.exception)
@@ -136,7 +155,7 @@ class ResultTest {
     @Test
     fun `flatMap short-circuits on initial Failure`() {
         val exception = Exception("first error")
-        val result: Result<Int> = Failure(exception)
+        val result: Result<Int> = Failure(exception = exception, message = "first error")
         var transformCalled = false
         val chained =
             result.flatMap {
@@ -152,7 +171,7 @@ class ResultTest {
     fun `flatMap propagates Failure from transform`() {
         val result: Result<Int> = Success(42)
         val secondException = Exception("second error")
-        val chained = result.flatMap { Failure(secondException) }
+        val chained = result.flatMap { Failure(exception = secondException, message = "second error") }
         val failure = assertIs<Failure>(chained)
         assertEquals(secondException, failure.exception)
     }
@@ -172,18 +191,19 @@ class ResultTest {
     @Test
     fun `onSuccess does not execute action for Failure`() {
         var called = false
-        val result: Result<Int> = Failure(Exception("error"))
+        val result: Result<Int> = Failure(message = "error")
         result.onSuccess { called = true }
         assertFalse(called)
     }
 
     @Test
     fun `onFailure executes action for Failure`() {
-        var capturedException: Exception? = null
+        var capturedFailure: Failure? = null
         val exception = Exception("error")
-        val result: Result<Int> = Failure(exception)
-        val returned = result.onFailure { capturedException = it }
-        assertEquals(exception, capturedException)
+        val result: Result<Int> = Failure(exception = exception, message = "error")
+        val returned = result.onFailure { capturedFailure = it }
+        assertEquals(exception, capturedFailure?.exception)
+        assertEquals("error", capturedFailure?.message)
         checkIs<Failure>(result)
         assertEquals(result, returned)
     }
@@ -208,10 +228,21 @@ class ResultTest {
 
     @Test
     fun `recover transforms Failure to Success`() {
-        val result: Result<Int> = Failure(Exception("error"))
+        val result: Result<Int> = Failure(message = "error")
         val recovered = result.recover { -1 }
         val success = assertIs<Success<Int>>(recovered)
         assertEquals(-1, success.data)
+    }
+
+    @Test
+    fun `recover provides access to Failure details`() {
+        val result: Result<Int> = Failure(message = "validation failed", errorCode = ErrorCode.VALIDATION_ERROR)
+        val recovered =
+            result.recover { failure ->
+                if (failure.errorCode == ErrorCode.VALIDATION_ERROR) 0 else -1
+            }
+        val success = assertIs<Success<Int>>(recovered)
+        assertEquals(0, success.data)
     }
 
     // ========== runCatching (non-suspending) ==========
@@ -232,7 +263,8 @@ class ResultTest {
                 throw IllegalStateException("error")
             }
         val failure = assertIs<Failure>(result)
-        checkIs<IllegalStateException>(failure.exception)
+        checkIs<IllegalStateException>(failure.exception!!)
+        assertEquals("error", failure.message)
     }
 
     // ========== suspendRunCatching (CRITICAL: CancellationException handling) ==========
@@ -253,7 +285,8 @@ class ResultTest {
                     throw IllegalArgumentException("async error")
                 }
             val failure = assertIs<Failure>(result)
-            checkIs<IllegalArgumentException>(failure.exception)
+            checkIs<IllegalArgumentException>(failure.exception!!)
+            assertEquals("async error", failure.message)
         }
 
     @Test
@@ -321,7 +354,7 @@ class ResultTest {
     fun `mapSuspend preserves Failure`() =
         runTest {
             val exception = Exception("error")
-            val result: Result<Int> = Failure(exception)
+            val result: Result<Int> = Failure(exception = exception, message = "error")
             var transformCalled = false
             val mapped =
                 result.mapSuspend {
@@ -331,4 +364,46 @@ class ResultTest {
             checkIs<Failure>(mapped)
             assertFalse(transformCalled)
         }
+
+    // ========== Helper Constructors ==========
+
+    @Test
+    fun `networkError creates failure with correct code and default message`() {
+        val result = networkError()
+        assertEquals("Network unavailable", result.message)
+        assertEquals(ErrorCode.NETWORK_UNAVAILABLE, result.errorCode)
+        assertNull(result.exception)
+    }
+
+    @Test
+    fun `networkError creates failure with custom message and exception`() {
+        val exception = RuntimeException("Connection refused")
+        val result = networkError(message = "No internet connection", exception = exception)
+        assertEquals("No internet connection", result.message)
+        assertEquals(ErrorCode.NETWORK_UNAVAILABLE, result.errorCode)
+        assertEquals(exception, result.exception)
+    }
+
+    @Test
+    fun `unauthorizedError creates failure with correct code`() {
+        val result = unauthorizedError()
+        assertEquals("Session expired", result.message)
+        assertEquals(ErrorCode.UNAUTHORIZED, result.errorCode)
+    }
+
+    @Test
+    fun `notFoundError creates failure with correct code`() {
+        val result = notFoundError()
+        assertEquals("Resource not found", result.message)
+        assertEquals(ErrorCode.NOT_FOUND, result.errorCode)
+    }
+
+    @Test
+    fun `serverError creates failure with correct code`() {
+        val exception = RuntimeException("500 Internal Server Error")
+        val result = serverError(message = "Server error", exception = exception)
+        assertEquals("Server error", result.message)
+        assertEquals(ErrorCode.SERVER_ERROR, result.errorCode)
+        assertEquals(exception, result.exception)
+    }
 }

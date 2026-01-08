@@ -38,14 +38,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calypsan.listenup.client.data.remote.LeaderboardCategory
-import com.calypsan.listenup.client.data.repository.LeaderboardEntry
+import com.calypsan.listenup.client.domain.repository.LeaderboardCategory
+import com.calypsan.listenup.client.domain.repository.LeaderboardEntry
 
 /** Number of entries to show when collapsed */
 private const val COLLAPSED_COUNT = 4
-
-/** Height per entry row (including spacing) */
-private val ENTRY_HEIGHT = 56.dp
 
 /**
  * Leaderboard list showing ranked users with animated position changes.
@@ -139,12 +136,12 @@ private fun LeaderboardEntryRow(
             transitionSpec = {
                 if (targetState < initialState) {
                     // Moving up - slide in from top
-                    (slideInVertically { -it } + fadeIn()) togetherWith
-                        (slideOutVertically { it } + fadeOut())
+                    slideInVertically { -it } + fadeIn() togetherWith
+                        slideOutVertically { it } + fadeOut()
                 } else {
                     // Moving down - slide in from bottom
-                    (slideInVertically { it } + fadeIn()) togetherWith
-                        (slideOutVertically { -it } + fadeOut())
+                    slideInVertically { it } + fadeIn() togetherWith
+                        slideOutVertically { -it } + fadeOut()
                 }
             },
             label = "rank",

@@ -85,7 +85,7 @@ fun DiscoverBooksSection(
             )
 
             IconButton(
-                onClick = { viewModel.refreshDiscoverBooks() },
+                onClick = { viewModel.refresh() },
                 modifier = Modifier.size(32.dp),
             ) {
                 Icon(

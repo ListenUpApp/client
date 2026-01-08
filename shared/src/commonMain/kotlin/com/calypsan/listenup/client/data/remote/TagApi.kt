@@ -1,5 +1,8 @@
 package com.calypsan.listenup.client.data.remote
 
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Tag
 import io.ktor.client.call.body
@@ -34,10 +37,7 @@ class TagApi(
     override suspend fun listTags(): List<Tag> {
         val client = clientFactory.getClient()
         val response: ApiResponse<ListTagsResponse> = client.get("/api/v1/tags").body()
-        if (!response.success || response.data == null) {
-            throw TagApiException(response.error ?: "Failed to list tags")
-        }
-        return response.data.tags.map { it.toDomain() }
+        return response.dataOrThrow { TagApiException(it) }.tags.map { it.toDomain() }
     }
 
     /**
@@ -73,10 +73,7 @@ class TagApi(
     override suspend fun getBookTags(bookId: String): List<Tag> {
         val client = clientFactory.getClient()
         val response: ApiResponse<GetBookTagsResponse> = client.get("/api/v1/books/$bookId/tags").body()
-        if (!response.success || response.data == null) {
-            throw TagApiException(response.error ?: "Failed to get book tags")
-        }
-        return response.data.tags.map { it.toDomain() }
+        return response.dataOrThrow { TagApiException(it) }.tags.map { it.toDomain() }
     }
 
     /**
@@ -99,10 +96,7 @@ class TagApi(
                     contentType(ContentType.Application.Json)
                     setBody(AddTagRequest(tag = rawInput))
                 }.body()
-        if (!response.success || response.data == null) {
-            throw TagApiException(response.error ?: "Failed to add tag to book")
-        }
-        return response.data.toDomain()
+        return response.dataOrThrow { TagApiException(it) }.toDomain()
     }
 
     /**
@@ -118,7 +112,15 @@ class TagApi(
         slug: String,
     ) {
         val client = clientFactory.getClient()
-        client.delete("/api/v1/books/$bookId/tags/$slug")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/books/$bookId/tags/$slug").body()
+
+        when (val result = response.toResult()) {
+            is Success -> { /* Tag removed successfully */ }
+
+            is Failure -> {
+                throw result.exceptionOrFromMessage()
+            }
+        }
     }
 }
 

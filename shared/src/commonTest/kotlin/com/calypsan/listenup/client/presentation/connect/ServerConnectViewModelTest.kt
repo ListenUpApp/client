@@ -2,7 +2,8 @@ package com.calypsan.listenup.client.presentation.connect
 
 import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.error.ServerConnectError
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import dev.mokkery.mock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,7 +35,7 @@ import kotlin.test.assertTrue
  * is created internally. Those paths would require integration testing
  * or dependency injection refactoring.
  *
- * Uses Mokkery for mocking SettingsRepositoryContract.
+ * Uses Mokkery for mocking SettingsRepository.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ServerConnectViewModelTest {
@@ -43,11 +44,13 @@ class ServerConnectViewModelTest {
     // ========== Test Fixtures ==========
 
     private class TestFixture {
-        val settingsRepository: SettingsRepositoryContract = mock()
+        val serverConfig: ServerConfig = mock()
+        val instanceRepository: InstanceRepository = mock()
 
         fun build(): ServerConnectViewModel =
             ServerConnectViewModel(
-                settingsRepository = settingsRepository,
+                serverConfig = serverConfig,
+                instanceRepository = instanceRepository,
             )
     }
 

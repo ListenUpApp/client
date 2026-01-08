@@ -1,8 +1,8 @@
 package com.calypsan.listenup.client.data.sync.pull
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
-import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -12,7 +12,7 @@ import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.sync.model.SyncPhase
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
@@ -114,6 +114,7 @@ class ListeningEventPuller(
      * and latest play time (max endedAt) to create a playback position.
      *
      * Only updates if the synced position is newer than the existing local position.
+     * Uses batch operations for efficiency.
      */
     private suspend fun updatePlaybackPositionsFromEvents(events: List<ListeningEventEntity>) {
         if (events.isEmpty()) return
@@ -132,35 +133,41 @@ class ListeningEventPuller(
                     )
                 }
 
+        // Batch fetch all existing positions
+        val bookIds = bookPositions.keys.map { BookId(it) }
+        val existingPositions = playbackPositionDao.getByBookIds(bookIds).associateBy { it.bookId.value }
+
+        val now = currentEpochMilliseconds()
+        val toSave = mutableListOf<PlaybackPositionEntity>()
         var created = 0
         var updated = 0
         var skipped = 0
 
         for ((bookId, info) in bookPositions) {
-            val existing = playbackPositionDao.get(BookId(bookId))
+            val existing = existingPositions[bookId]
 
             if (existing == null) {
                 // No local position - create from synced data
-                playbackPositionDao.save(
+                toSave.add(
                     PlaybackPositionEntity(
                         bookId = BookId(bookId),
                         positionMs = info.positionMs,
                         playbackSpeed = info.playbackSpeed,
                         hasCustomSpeed = false,
                         updatedAt = info.lastPlayedAt,
-                        syncedAt = currentEpochMilliseconds(),
+                        syncedAt = now,
                         lastPlayedAt = info.lastPlayedAt,
                     ),
                 )
                 created++
             } else if (info.lastPlayedAt > (existing.lastPlayedAt ?: existing.updatedAt)) {
                 // Synced position is newer - update local
-                playbackPositionDao.save(
+                toSave.add(
                     existing.copy(
                         positionMs = info.positionMs,
                         playbackSpeed = info.playbackSpeed,
                         updatedAt = info.lastPlayedAt,
-                        syncedAt = currentEpochMilliseconds(),
+                        syncedAt = now,
                         lastPlayedAt = info.lastPlayedAt,
                     ),
                 )
@@ -169,6 +176,11 @@ class ListeningEventPuller(
                 // Local position is newer or same - skip
                 skipped++
             }
+        }
+
+        // Batch save all changes
+        if (toSave.isNotEmpty()) {
+            playbackPositionDao.saveAll(toSave)
         }
 
         logger.info {

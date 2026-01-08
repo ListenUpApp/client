@@ -71,7 +71,6 @@ import com.calypsan.listenup.client.presentation.profile.EditProfileViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import java.io.ByteArrayOutputStream
 import android.graphics.Color as AndroidColor
@@ -109,10 +108,6 @@ fun EditProfileScreen(
                 scope.launch {
                     val compressedBytes = compressAvatar(context, selectedUri)
                     if (compressedBytes != null) {
-                        android.util.Log.d(
-                            "EditProfileScreen",
-                            "Avatar upload: compressed size=${compressedBytes.size}",
-                        )
                         viewModel.uploadAvatar(compressedBytes, "image/jpeg")
                     } else {
                         snackbarHostState.showSnackbar("Failed to process image")
@@ -174,30 +169,26 @@ fun EditProfileScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
-            when {
-                state.isLoading -> {
-                    ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-
-                else -> {
-                    EditProfileContent(
-                        state = state,
-                        onTaglineChange = viewModel::onTaglineChange,
-                        onSaveTagline = viewModel::saveTagline,
-                        onUploadAvatar = {
-                            imagePicker.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                            )
-                        },
-                        onRevertAvatar = viewModel::revertToAutoAvatar,
-                        onFirstNameChange = viewModel::onFirstNameChange,
-                        onLastNameChange = viewModel::onLastNameChange,
-                        onSaveName = viewModel::saveName,
-                        onNewPasswordChange = viewModel::onNewPasswordChange,
-                        onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
-                        onChangePassword = viewModel::changePassword,
-                    )
-                }
+            if (state.isLoading) {
+                ListenUpLoadingIndicator(modifier = Modifier.align(Alignment.Center))
+            } else {
+                EditProfileContent(
+                    state = state,
+                    onTaglineChange = viewModel::onTaglineChange,
+                    onSaveTagline = viewModel::saveTagline,
+                    onUploadAvatar = {
+                        imagePicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                        )
+                    },
+                    onRevertAvatar = viewModel::revertToAutoAvatar,
+                    onFirstNameChange = viewModel::onFirstNameChange,
+                    onLastNameChange = viewModel::onLastNameChange,
+                    onSaveName = viewModel::saveName,
+                    onNewPasswordChange = viewModel::onNewPasswordChange,
+                    onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+                    onChangePassword = viewModel::changePassword,
+                )
             }
 
             // Overlay loading indicator when saving
@@ -262,7 +253,7 @@ private fun EditProfileContent(
                 }
 
             val context = LocalContext.current
-            val cacheBuster = state.user?.updatedAt ?: 0
+            val cacheBuster = state.user?.updatedAtMs ?: 0
 
             if (state.hasImageAvatar && state.localAvatarPath != null) {
                 // Use local avatar path for offline-first with cache busting
@@ -597,8 +588,7 @@ private suspend fun compressAvatar(
             originalBitmap.recycle()
 
             outputStream.toByteArray()
-        } catch (e: Exception) {
-            android.util.Log.e("EditProfileScreen", "Failed to compress avatar", e)
+        } catch (_: Exception) {
             null
         }
     }

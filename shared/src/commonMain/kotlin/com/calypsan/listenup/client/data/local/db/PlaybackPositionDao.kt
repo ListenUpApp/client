@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.local.db
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
+import com.calypsan.listenup.client.core.BookId
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -38,6 +39,24 @@ interface PlaybackPositionDao {
      */
     @Upsert
     suspend fun save(position: PlaybackPositionEntity)
+
+    /**
+     * Save or update multiple positions in a single transaction.
+     *
+     * @param positions The positions to save
+     */
+    @Upsert
+    suspend fun saveAll(positions: List<PlaybackPositionEntity>)
+
+    /**
+     * Get positions for multiple books.
+     * Used for batch operations during sync.
+     *
+     * @param bookIds The book IDs to get positions for
+     * @return List of positions (may be fewer than requested if some don't exist)
+     */
+    @Query("SELECT * FROM playback_positions WHERE bookId IN (:bookIds)")
+    suspend fun getByBookIds(bookIds: List<BookId>): List<PlaybackPositionEntity>
 
     /**
      * Get all positions that haven't been synced to server.

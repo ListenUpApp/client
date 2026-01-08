@@ -51,12 +51,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.calypsan.listenup.client.data.remote.model.CoverOption
-import com.calypsan.listenup.client.data.remote.model.MetadataBook
-import com.calypsan.listenup.client.data.remote.model.MetadataContributor
-import com.calypsan.listenup.client.data.remote.model.MetadataSeriesEntry
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.repository.CoverOption
+import com.calypsan.listenup.client.domain.repository.MetadataBook
+import com.calypsan.listenup.client.domain.repository.MetadataContributor
+import com.calypsan.listenup.client.domain.repository.MetadataSeriesEntry
 import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
 import com.calypsan.listenup.client.presentation.metadata.MetadataField
 import com.calypsan.listenup.client.presentation.metadata.MetadataSelections

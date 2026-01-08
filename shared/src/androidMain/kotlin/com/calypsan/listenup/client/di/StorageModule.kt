@@ -7,10 +7,10 @@ import com.calypsan.listenup.client.data.local.images.AndroidCoverColorExtractor
 import com.calypsan.listenup.client.data.local.images.AndroidStoragePaths
 import com.calypsan.listenup.client.data.local.images.CommonImageStorage
 import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
-import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.local.images.StoragePaths
 import com.calypsan.listenup.client.data.repository.AndroidNetworkMonitor
-import com.calypsan.listenup.client.data.repository.NetworkMonitor
+import com.calypsan.listenup.client.domain.repository.ImageStorage
+import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import org.koin.core.module.Module
 import org.koin.dsl.module
 

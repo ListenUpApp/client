@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.local.db
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
+import com.calypsan.listenup.client.core.Timestamp
 
 /**
  * Room DAO for sync metadata operations.

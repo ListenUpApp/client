@@ -3,13 +3,13 @@
 
 package com.calypsan.listenup.client.download
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadEntity
 import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.playback.AudioTokenProvider
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -48,7 +48,7 @@ private val logger = KotlinLogging.logger {}
 class IosDownloadService(
     private val downloadDao: DownloadDao,
     private val bookDao: BookDao,
-    private val settingsRepository: SettingsRepository,
+    private val serverConfig: ServerConfig,
     private val tokenProvider: AudioTokenProvider,
     private val fileManager: DownloadFileManager,
     private val scope: CoroutineScope,
@@ -141,7 +141,7 @@ class IosDownloadService(
 
         // Get server URL and token
         val serverUrl =
-            settingsRepository.getServerUrl()?.value ?: run {
+            serverConfig.getServerUrl()?.value ?: run {
                 logger.error { "No server URL configured" }
                 return DownloadResult.Error("No server configured")
             }

@@ -20,8 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
-import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.domain.model.SeriesWithBooks
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import org.koin.compose.koinInject
 
 /**
@@ -46,8 +46,8 @@ fun SeriesCard(
     val books = seriesWithBooks.books
     val bookCount = books.size
 
-    // Build sequence lookup from book_series junction table
-    val sequenceByBookId = seriesWithBooks.bookSequences.associate { it.bookId to it.sequence }
+    // Domain model already has bookSequences as a Map<String, String?>
+    val sequenceByBookId = seriesWithBooks.bookSequences
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -59,10 +59,10 @@ fun SeriesCard(
     // Extract cover paths from books, sorted by series sequence
     val coverPaths =
         books
-            .sortedBy { sequenceByBookId[it.id]?.toFloatOrNull() ?: Float.MAX_VALUE }
-            .map { bookEntity ->
-                if (imageStorage.exists(bookEntity.id)) {
-                    imageStorage.getCoverPath(bookEntity.id)
+            .sortedBy { sequenceByBookId[it.id.value]?.toFloatOrNull() ?: Float.MAX_VALUE }
+            .map { book ->
+                if (imageStorage.exists(book.id)) {
+                    imageStorage.getCoverPath(book.id)
                 } else {
                     null
                 }

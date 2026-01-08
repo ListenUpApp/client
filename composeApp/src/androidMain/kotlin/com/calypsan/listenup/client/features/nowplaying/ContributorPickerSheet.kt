@@ -26,7 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.playback.ContributorPickerType
 
 /**
@@ -36,7 +36,7 @@ import com.calypsan.listenup.client.playback.ContributorPickerType
 @Composable
 fun ContributorPickerSheet(
     type: ContributorPickerType,
-    contributors: List<Contributor>,
+    contributors: List<BookContributor>,
     onContributorSelected: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {

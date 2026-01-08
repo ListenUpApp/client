@@ -5,14 +5,18 @@ package com.calypsan.listenup.client.data.remote.api
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
+import com.calypsan.listenup.client.data.remote.BookApiContract
 import com.calypsan.listenup.client.data.remote.BookEditResponse
 import com.calypsan.listenup.client.data.remote.BookUpdateRequest
+import com.calypsan.listenup.client.data.remote.ContributorApiContract
 import com.calypsan.listenup.client.data.remote.ContributorInput
 import com.calypsan.listenup.client.data.remote.ContributorSearchResult
-import com.calypsan.listenup.client.data.remote.ListenUpApiContract
+import com.calypsan.listenup.client.data.remote.InstanceApiContract
 import com.calypsan.listenup.client.data.remote.MergeContributorResponse
+import com.calypsan.listenup.client.data.remote.SeriesApiContract
 import com.calypsan.listenup.client.data.remote.SeriesEditResponse
 import com.calypsan.listenup.client.data.remote.SeriesInput
 import com.calypsan.listenup.client.data.remote.SeriesSearchResult
@@ -21,7 +25,6 @@ import com.calypsan.listenup.client.data.remote.UnmergeContributorResponse
 import com.calypsan.listenup.client.data.remote.UpdateContributorRequest
 import com.calypsan.listenup.client.data.remote.UpdateContributorResponse
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
-import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
 import com.calypsan.listenup.client.domain.model.Instance
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
@@ -65,7 +68,10 @@ private val logger = KotlinLogging.logger {}
 class ListenUpApi(
     private val baseUrl: String,
     private val apiClientFactory: ApiClientFactory? = null,
-) : ListenUpApiContract {
+) : InstanceApiContract,
+    BookApiContract,
+    ContributorApiContract,
+    SeriesApiContract {
     /**
      * Simple HTTP client for public endpoints (no authentication).
      * Used for endpoints like getInstance that don't require credentials.
@@ -136,7 +142,7 @@ class ListenUpApi(
             // Convert API response to Result and extract data
             when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -173,7 +179,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.contributors.map { it.toDomain() }
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -206,7 +212,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -242,7 +248,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -279,7 +285,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.series.map { it.toDomain() }
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -315,7 +321,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -353,7 +359,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -386,7 +392,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -427,7 +433,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 
@@ -444,9 +450,12 @@ class ListenUpApi(
             logger.debug { "Deleting contributor: $contributorId" }
 
             val client = getAuthenticatedClient()
-            client.delete("/api/v1/contributors/$contributorId")
+            val response: ApiResponse<Unit> = client.delete("/api/v1/contributors/$contributorId").body()
 
-            logger.debug { "Contributor deleted: $contributorId" }
+            when (val result = response.toResult()) {
+                is Success -> logger.debug { "Contributor deleted: $contributorId" }
+                is Failure -> throw result.exceptionOrFromMessage()
+            }
         }
 
     /**
@@ -478,7 +487,7 @@ class ListenUpApi(
 
             when (val result = response.toResult()) {
                 is Success -> result.data.toDomain()
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         }
 

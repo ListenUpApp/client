@@ -2,16 +2,16 @@ package com.calypsan.listenup.client.presentation.bookdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.remote.ReaderSummary
-import com.calypsan.listenup.client.data.remote.SessionApiContract
-import com.calypsan.listenup.client.data.remote.SessionSummary
-import com.calypsan.listenup.client.data.sync.SSEEventType
-import com.calypsan.listenup.client.data.sync.SSEManagerContract
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.model.BookEvent
+import com.calypsan.listenup.client.domain.model.ReaderInfo
+import com.calypsan.listenup.client.domain.model.SessionSummary
+import com.calypsan.listenup.client.domain.repository.EventStreamRepository
+import com.calypsan.listenup.client.domain.repository.SessionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -27,8 +27,8 @@ private val logger = KotlinLogging.logger {}
  * start or complete reading the same book.
  */
 class BookReadersViewModel(
-    private val sessionApi: SessionApiContract,
-    private val sseManager: SSEManagerContract,
+    private val sessionRepository: SessionRepository,
+    private val eventStreamRepository: EventStreamRepository,
 ) : ViewModel() {
     val state: StateFlow<BookReadersUiState>
         field = MutableStateFlow(BookReadersUiState())
@@ -54,8 +54,8 @@ class BookReadersViewModel(
         viewModelScope.launch {
             state.update { it.copy(isLoading = true, error = null) }
 
-            when (val result = sessionApi.getBookReaders(bookId)) {
-                is Result.Success -> {
+            when (val result = sessionRepository.getBookReadersResult(bookId)) {
+                is Success -> {
                     state.update {
                         it.copy(
                             isLoading = false,
@@ -71,7 +71,7 @@ class BookReadersViewModel(
                     }
                 }
 
-                is Result.Failure -> {
+                is Failure -> {
                     state.update {
                         it.copy(
                             isLoading = false,
@@ -85,22 +85,24 @@ class BookReadersViewModel(
     }
 
     /**
-     * Observe SSE events for reading session updates.
+     * Observe book events for reading session updates.
      *
      * When another user starts or completes reading the same book,
      * automatically refresh the readers list.
      */
     private fun observeSSEEvents(bookId: String) {
         viewModelScope.launch {
-            sseManager.eventFlow
-                .filterIsInstance<SSEEventType.ReadingSessionUpdated>()
-                .collect { event ->
-                    // Only refresh if the event is for the current book
-                    if (event.bookId == bookId) {
-                        logger.debug { "SSE: Reading session updated for book $bookId, refreshing readers" }
-                        refreshQuietly(bookId)
+            eventStreamRepository.bookEvents.collect { event ->
+                when (event) {
+                    is BookEvent.ReadingSessionUpdated -> {
+                        // Only refresh if the event is for the current book
+                        if (event.bookId == bookId) {
+                            logger.debug { "SSE: Reading session updated for book $bookId, refreshing readers" }
+                            refreshQuietly(bookId)
+                        }
                     }
                 }
+            }
         }
     }
 
@@ -110,8 +112,8 @@ class BookReadersViewModel(
      */
     private fun refreshQuietly(bookId: String) {
         viewModelScope.launch {
-            when (val result = sessionApi.getBookReaders(bookId)) {
-                is Result.Success -> {
+            when (val result = sessionRepository.getBookReadersResult(bookId)) {
+                is Success -> {
                     state.update {
                         it.copy(
                             yourSessions = result.data.yourSessions,
@@ -123,7 +125,7 @@ class BookReadersViewModel(
                     logger.debug { "SSE refresh: Updated readers list" }
                 }
 
-                is Result.Failure -> {
+                is Failure -> {
                     // Silently ignore refresh failures - user still has existing data
                     logger.warn { "SSE refresh failed: ${result.message}" }
                 }
@@ -147,7 +149,7 @@ class BookReadersViewModel(
 data class BookReadersUiState(
     val isLoading: Boolean = true,
     val yourSessions: List<SessionSummary> = emptyList(),
-    val otherReaders: List<ReaderSummary> = emptyList(),
+    val otherReaders: List<ReaderInfo> = emptyList(),
     val totalReaders: Int = 0,
     val totalCompletions: Int = 0,
     val error: String? = null,

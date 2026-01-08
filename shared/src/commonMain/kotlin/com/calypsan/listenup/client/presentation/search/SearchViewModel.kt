@@ -2,22 +2,25 @@ package com.calypsan.listenup.client.presentation.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.repository.SearchRepositoryContract
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.domain.model.SearchResult
+import com.calypsan.listenup.client.domain.repository.SearchRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
@@ -128,9 +131,9 @@ sealed interface SearchNavAction {
  *
  * @property searchRepository Repository for search operations
  */
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SearchViewModel(
-    private val searchRepository: SearchRepositoryContract,
+    private val searchRepository: SearchRepository,
 ) : ViewModel() {
     val state: StateFlow<SearchUiState>
         field = MutableStateFlow(SearchUiState())
@@ -138,24 +141,74 @@ class SearchViewModel(
     val navActions: StateFlow<SearchNavAction?>
         field = MutableStateFlow<SearchNavAction?>(null)
 
-    private var searchJob: Job? = null
-
-    // Internal query flow for debouncing
+    // Internal query flow for debouncing - flatMapLatest handles cancellation automatically
     private val queryFlow = MutableStateFlow("")
 
+    // Version counter to force re-search when filters change (without changing query)
+    private val searchVersion = MutableStateFlow(0)
+
     init {
-        // Set up debounced search
+        // Reactive search with automatic cancellation via flatMapLatest
+        // Combines query changes (debounced) with filter changes (immediate via version bump)
         queryFlow
             .debounce(SEARCH_DEBOUNCE_MS)
             .distinctUntilChanged()
             .filter { it.length >= MIN_QUERY_LENGTH || it.isEmpty() }
-            .onEach { query ->
+            .combine(searchVersion) { query, _ -> query }
+            .flatMapLatest { query ->
                 if (query.isBlank()) {
-                    state.update { it.copy(results = null, isSearching = false, error = null) }
+                    flowOf<SearchFlowResult>(SearchFlowResult.Empty)
                 } else {
-                    performSearch(query)
+                    flow<SearchFlowResult> {
+                        emit(SearchFlowResult.Loading)
+                        emit(performSearch(query))
+                    }
+                }
+            }.onEach { result ->
+                when (result) {
+                    is SearchFlowResult.Empty -> {
+                        state.update { it.copy(results = null, isSearching = false, error = null) }
+                    }
+
+                    is SearchFlowResult.Loading -> {
+                        state.update { it.copy(isSearching = true, error = null) }
+                    }
+
+                    is SearchFlowResult.Success -> {
+                        state.update { it.copy(results = result.data, isSearching = false) }
+                        logger.info {
+                            "Search completed: ${result.data.total} results for '${result.query}' " +
+                                "(offline=${result.data.isOfflineResult})"
+                        }
+                    }
+
+                    is SearchFlowResult.Error -> {
+                        logger.error(result.exception) { "Search failed for '${result.query}'" }
+                        state.update {
+                            it.copy(error = "Search unavailable. Please try again.", isSearching = false)
+                        }
+                    }
                 }
             }.launchIn(viewModelScope)
+    }
+
+    /**
+     * Internal result type for the reactive search flow.
+     */
+    private sealed interface SearchFlowResult {
+        data object Empty : SearchFlowResult
+
+        data object Loading : SearchFlowResult
+
+        data class Success(
+            val query: String,
+            val data: SearchResult,
+        ) : SearchFlowResult
+
+        data class Error(
+            val query: String,
+            val exception: Exception,
+        ) : SearchFlowResult
     }
 
     companion object {
@@ -210,9 +263,9 @@ class SearchViewModel(
                         }
                     current.copy(selectedTypes = newTypes)
                 }
-                // Re-search with new filters
+                // Bump version to trigger re-search with new filters via flatMapLatest
                 if (state.value.query.isNotBlank()) {
-                    performSearch(state.value.query)
+                    searchVersion.value++
                 }
             }
 
@@ -229,48 +282,26 @@ class SearchViewModel(
         navActions.value = null
     }
 
-    private fun performSearch(query: String) {
-        searchJob?.cancel()
-        searchJob =
-            viewModelScope.launch {
-                state.update { it.copy(isSearching = true, error = null) }
-
-                try {
-                    val types =
-                        state.value.selectedTypes
-                            .takeIf { it.isNotEmpty() }
-                            ?.toList()
-                    val result =
-                        searchRepository.search(
-                            query = query,
-                            types = types,
-                            limit = DEFAULT_RESULT_LIMIT,
-                        )
-
-                    state.update {
-                        it.copy(
-                            results = result,
-                            isSearching = false,
-                        )
-                    }
-                    logger.info {
-                        "Search completed: ${result.total} results for '$query' (offline=${result.isOfflineResult})"
-                    }
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    // Job was cancelled (e.g., new search started) - don't show error
-                    logger.debug { "Search cancelled for '$query'" }
-                    throw e
-                } catch (e: Exception) {
-                    logger.error(e) { "Search failed for '$query'" }
-                    state.update {
-                        it.copy(
-                            error = "Search unavailable. Please try again.",
-                            isSearching = false,
-                        )
-                    }
-                }
-            }
-    }
+    /**
+     * Perform a search and return the result.
+     * Called from flatMapLatest flow - cancellation is handled automatically.
+     */
+    private suspend fun performSearch(query: String): SearchFlowResult =
+        try {
+            val types =
+                state.value.selectedTypes
+                    .takeIf { it.isNotEmpty() }
+                    ?.toList()
+            val result =
+                searchRepository.search(
+                    query = query,
+                    types = types,
+                    limit = DEFAULT_RESULT_LIMIT,
+                )
+            SearchFlowResult.Success(query, result)
+        } catch (e: Exception) {
+            SearchFlowResult.Error(query, e)
+        }
 
     private fun handleResultClick(hit: SearchHit) {
         val action =

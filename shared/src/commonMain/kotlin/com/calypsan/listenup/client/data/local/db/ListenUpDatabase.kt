@@ -56,12 +56,14 @@ import androidx.room.TypeConverters
         LensEntity::class,
         TagEntity::class,
         BookTagCrossRef::class,
+        GenreEntity::class,
+        BookGenreCrossRef::class,
         ListeningEventEntity::class,
         ActiveSessionEntity::class,
         ActivityEntity::class,
         UserStatsEntity::class,
     ],
-    version = 28,
+    version = 29,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)
@@ -100,6 +102,8 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun lensDao(): LensDao
 
     abstract fun tagDao(): TagDao
+
+    abstract fun genreDao(): GenreDao
 
     abstract fun listeningEventDao(): ListeningEventDao
 

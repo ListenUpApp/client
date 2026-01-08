@@ -1,8 +1,8 @@
 package com.calypsan.listenup.client.data.sync.push
 
 import com.calypsan.listenup.client.data.local.db.OperationType
-import com.calypsan.listenup.client.data.repository.PreferenceChangeEvent
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.domain.repository.PreferenceChangeEvent
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -19,7 +19,7 @@ private val logger = KotlinLogging.logger {}
  * The observer is started once at app initialization and runs for the app's lifetime.
  */
 class PreferencesSyncObserver(
-    private val settingsRepository: SettingsRepositoryContract,
+    private val playbackPreferences: PlaybackPreferences,
     private val pendingOperationRepository: PendingOperationRepositoryContract,
     private val userPreferencesHandler: UserPreferencesHandler,
 ) {
@@ -29,7 +29,7 @@ class PreferencesSyncObserver(
      */
     fun start(scope: CoroutineScope) {
         scope.launch {
-            settingsRepository.preferenceChanges.collect { event ->
+            playbackPreferences.preferenceChanges.collect { event ->
                 handlePreferenceChange(event)
             }
         }

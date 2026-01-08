@@ -1,8 +1,8 @@
 package com.calypsan.listenup.client.data.sync.push
 
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.repository.NetworkMonitor
-import com.calypsan.listenup.client.data.sync.conflict.ConflictDetectorContract
+import com.calypsan.listenup.client.data.sync.SyncMutex
+import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,18 +26,16 @@ interface PushSyncOrchestratorContract {
 /**
  * Orchestrates pushing pending local operations to the server.
  *
- * Per offline-first-operations-design.md:
- * - Flush pending operations after pull sync completes
- * - Handle conflicts (server newer than local edit)
- * - Retry failed operations with exponential backoff
+ * Uses last-write-wins strategy: all operations are pushed regardless of
+ * server state. The server timestamp updates to reflect the latest write.
  *
  * Auto-triggers flush when network connectivity is restored.
  */
 class PushSyncOrchestrator(
     private val repository: PendingOperationRepositoryContract,
     private val executor: OperationExecutorContract,
-    private val conflictDetector: ConflictDetectorContract,
     private val networkMonitor: NetworkMonitor,
+    private val syncMutex: SyncMutex,
     private val scope: CoroutineScope,
 ) : PushSyncOrchestratorContract {
     // Override properties can't use explicit backing fields - must use traditional pattern
@@ -46,21 +44,27 @@ class PushSyncOrchestrator(
 
     init {
         // Auto-flush when connectivity restored
+        // Mutex ensures SSE events don't interleave with push operations
         scope.launch {
             networkMonitor.isOnlineFlow
                 .filter { it } // Only trigger on online=true
                 .collect {
                     logger.debug { "Network restored - triggering push sync flush" }
-                    flush()
+                    syncMutex.withLock {
+                        flush()
+                    }
                 }
         }
 
         // Auto-flush when new operation is queued (if online)
+        // Mutex ensures SSE events don't interleave with push operations
         scope.launch {
             repository.newOperationQueued.collect {
                 if (networkMonitor.isOnline()) {
                     logger.debug { "New operation queued - triggering push sync flush" }
-                    flush()
+                    syncMutex.withLock {
+                        flush()
+                    }
                 } else {
                     logger.debug { "New operation queued but offline - will sync when connected" }
                 }
@@ -76,7 +80,7 @@ class PushSyncOrchestrator(
     /**
      * Flush all pending operations to the server.
      *
-     * Processes operations in order, checking for conflicts before each.
+     * Uses last-write-wins: all operations are pushed without conflict checking.
      * Failed operations are marked for user review after MAX_RETRIES.
      */
     override suspend fun flush() {
@@ -109,25 +113,8 @@ class PushSyncOrchestrator(
                 logger.info { "🔄 PUSH SYNC: Processing operations: ${batch.map { "${it.operationType}:${it.id}" }}" }
                 repository.markInProgress(ids)
 
-                // Check for conflicts (only for entity operations)
-                val (valid, conflicted) =
-                    batch.partition { op ->
-                        val conflict = conflictDetector.checkPushConflict(op)
-                        if (conflict != null) {
-                            repository.markFailed(op.id, "Conflict: ${conflict.reason}")
-                            false
-                        } else {
-                            true
-                        }
-                    }
-
-                if (valid.isEmpty()) {
-                    logger.debug { "All ${batch.size} operations conflicted" }
-                    continue
-                }
-
-                // Execute valid operations
-                val results = executor.execute(valid)
+                // Execute all operations (last-write-wins)
+                val results = executor.execute(batch)
 
                 // Process results
                 val succeeded =

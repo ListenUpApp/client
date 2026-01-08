@@ -37,4 +37,16 @@ actual object PlatformUtils {
      * - "sdk_gphone64_arm64" (emulator)
      */
     actual fun getDeviceModel(): String = Build.MODEL
+
+    /**
+     * Returns the platform name for Android.
+     */
+    actual fun getPlatformName(): String = "Android"
+
+    /**
+     * Returns the Android SDK version as a string.
+     *
+     * Uses Build.VERSION.SDK_INT which returns the API level (e.g., 33, 34).
+     */
+    actual fun getPlatformVersion(): String = Build.VERSION.SDK_INT.toString()
 }

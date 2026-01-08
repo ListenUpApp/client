@@ -61,12 +61,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.calypsan.listenup.client.data.remote.model.LensSummaryResponse
-import com.calypsan.listenup.client.data.remote.model.RecentBookResponse
-import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.getInitials
+import com.calypsan.listenup.client.domain.model.ProfileLensSummary
+import com.calypsan.listenup.client.domain.model.ProfileRecentBook
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.presentation.profile.UserProfileUiState
 import com.calypsan.listenup.client.presentation.profile.UserProfileViewModel
 import org.koin.compose.koinInject
@@ -258,6 +258,7 @@ private fun ProfileContent(
     }
 }
 
+@Suppress("UnusedParameter")
 @Composable
 private fun ProfileHeader(
     displayName: String,
@@ -271,9 +272,9 @@ private fun ProfileHeader(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val settingsRepository: SettingsRepository = koinInject()
+    val serverConfig: ServerConfig = koinInject()
     val serverUrl by produceState<String?>(null) {
-        value = settingsRepository.getServerUrl()?.value
+        value = serverConfig.getServerUrl()?.value
     }
 
     Column(
@@ -506,7 +507,7 @@ private fun LensesSectionHeader(
 
 @Composable
 private fun RecentBooksRow(
-    books: List<RecentBookResponse>,
+    books: List<ProfileRecentBook>,
     onBookClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -526,7 +527,7 @@ private fun RecentBooksRow(
 
 @Composable
 private fun RecentBookCard(
-    book: RecentBookResponse,
+    book: ProfileRecentBook,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -584,7 +585,7 @@ private fun RecentBookCard(
 
 @Composable
 private fun LensItem(
-    lens: LensSummaryResponse,
+    lens: ProfileLensSummary,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

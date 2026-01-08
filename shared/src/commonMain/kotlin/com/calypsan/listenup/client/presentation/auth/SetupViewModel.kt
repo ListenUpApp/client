@@ -1,22 +1,15 @@
-@file:OptIn(ExperimentalTime::class)
 @file:Suppress("MagicNumber")
 
 package com.calypsan.listenup.client.presentation.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.AccessToken
-import com.calypsan.listenup.client.core.RefreshToken
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.remote.AuthApiContract
-import com.calypsan.listenup.client.data.remote.AuthUser
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.repository.AuthRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 /**
  * ViewModel for the root user setup screen.
@@ -26,9 +19,9 @@ import kotlin.time.Instant
  * causing automatic navigation to the Library screen.
  */
 class SetupViewModel(
-    private val authApi: AuthApiContract,
-    private val settingsRepository: SettingsRepositoryContract,
-    private val userDao: UserDao,
+    private val authRepository: AuthRepository,
+    private val authSession: AuthSession,
+    private val userRepository: UserRepository,
 ) : ViewModel() {
     val state: StateFlow<SetupUiState>
         field = MutableStateFlow(SetupUiState())
@@ -111,8 +104,8 @@ class SetupViewModel(
             state.value = SetupUiState(status = SetupStatus.Loading)
 
             try {
-                val response =
-                    authApi.setup(
+                val result =
+                    authRepository.setup(
                         email = trimmedEmail,
                         password = password,
                         firstName = trimmedFirstName,
@@ -120,15 +113,15 @@ class SetupViewModel(
                     )
 
                 // Store tokens - this triggers AuthState.Authenticated
-                settingsRepository.saveAuthTokens(
-                    access = AccessToken(response.accessToken),
-                    refresh = RefreshToken(response.refreshToken),
-                    sessionId = response.sessionId,
-                    userId = response.userId,
+                authSession.saveAuthTokens(
+                    access = result.accessToken,
+                    refresh = result.refreshToken,
+                    sessionId = result.sessionId,
+                    userId = result.userId,
                 )
 
                 // Save user data to local database for avatar display
-                userDao.upsert(response.user.toEntity())
+                userRepository.saveUser(result.user)
 
                 state.value = SetupUiState(status = SetupStatus.Success)
             } catch (e: Exception) {
@@ -173,22 +166,3 @@ private fun Exception.toSetupErrorType(): SetupErrorType =
             SetupErrorType.ServerError
         }
     }
-
-/**
- * Convert AuthUser from API response to UserEntity for local storage.
- */
-@OptIn(ExperimentalTime::class)
-private fun AuthUser.toEntity(): UserEntity =
-    UserEntity(
-        id = id,
-        email = email,
-        displayName = displayName,
-        firstName = firstName.ifEmpty { null },
-        lastName = lastName.ifEmpty { null },
-        isRoot = isRoot,
-        createdAt = Instant.parse(createdAt).toEpochMilliseconds(),
-        updatedAt = Instant.parse(updatedAt).toEpochMilliseconds(),
-        avatarType = avatarType,
-        avatarValue = avatarValue,
-        avatarColor = avatarColor,
-    )

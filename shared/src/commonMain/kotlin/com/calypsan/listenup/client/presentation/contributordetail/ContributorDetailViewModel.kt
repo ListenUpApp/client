@@ -6,15 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.ContributorEntity
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.ContributorRole
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.usecase.contributor.DeleteContributorUseCase
+import com.calypsan.listenup.client.util.calculateProgressMap
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,13 +29,13 @@ private val logger = KotlinLogging.logger {}
  * Loads contributor information and their books grouped by role.
  * Each role (author, narrator, etc.) becomes a section with a horizontal
  * preview of books and an optional "View All" action.
+ *
+ * Delegates delete operations to [DeleteContributorUseCase].
  */
 class ContributorDetailViewModel(
-    private val contributorDao: ContributorDao,
-    private val bookDao: BookDao,
-    private val imageStorage: ImageStorage,
-    private val playbackPositionDao: PlaybackPositionDao,
-    private val contributorRepository: ContributorRepositoryContract,
+    private val contributorRepository: ContributorRepository,
+    private val playbackPositionRepository: PlaybackPositionRepository,
+    private val deleteContributorUseCase: DeleteContributorUseCase,
 ) : ViewModel() {
     val state: StateFlow<ContributorDetailUiState>
         field = MutableStateFlow(ContributorDetailUiState())
@@ -56,8 +54,8 @@ class ContributorDetailViewModel(
         viewModelScope.launch {
             // Observe contributor and their roles together
             combine(
-                contributorDao.observeById(contributorId).filterNotNull(),
-                contributorDao.observeRolesWithCountForContributor(contributorId),
+                contributorRepository.observeById(contributorId).filterNotNull(),
+                contributorRepository.observeRolesWithCountForContributor(contributorId),
             ) { contributor, rolesWithCount ->
                 Pair(contributor, rolesWithCount)
             }.collect { (contributor, rolesWithCount) ->
@@ -79,7 +77,7 @@ class ContributorDetailViewModel(
 
                 // Load progress for all preview books across all sections
                 val allPreviewBooks = roleSections.flatMap { it.previewBooks }
-                val bookProgress = loadProgressForBooks(allPreviewBooks)
+                val bookProgress = playbackPositionRepository.calculateProgressMap(allPreviewBooks)
 
                 state.value =
                     ContributorDetailUiState(
@@ -109,97 +107,27 @@ class ContributorDetailViewModel(
         role: String,
     ): BooksForRoleResult {
         // Get the books once (not as a flow) for the preview
-        val booksWithContributors =
-            bookDao
-                .observeByContributorAndRole(contributorId, role)
+        val booksWithRole =
+            contributorRepository
+                .observeBooksForContributorRole(contributorId, role)
                 .first()
 
-        val books = booksWithContributors.map { bwc -> bwc.toDomain() }
+        val books = booksWithRole.map { it.book }
 
         // Extract creditedAs for books where the attribution differs from contributor name
         val creditedAsMap =
-            booksWithContributors
-                .mapNotNull { bwc ->
-                    val crossRef =
-                        bwc.contributorRoles.find {
-                            it.contributorId == contributorId && it.role == role
-                        }
-                    val creditedAs = crossRef?.creditedAs
+            booksWithRole
+                .mapNotNull { bwr ->
+                    val creditedAs = bwr.creditedAs
                     // Only include if creditedAs is set and differs from the contributor's actual name
                     if (creditedAs != null && !creditedAs.equals(contributorName, ignoreCase = true)) {
-                        bwc.book.id.value to creditedAs
+                        bwr.book.id.value to creditedAs
                     } else {
                         null
                     }
                 }.toMap()
 
         return BooksForRoleResult(books, creditedAsMap)
-    }
-
-    /**
-     * Load progress for a list of books.
-     * Returns a map of bookId -> progress (0.0-1.0).
-     */
-    private suspend fun loadProgressForBooks(books: List<Book>): Map<String, Float> =
-        books
-            .mapNotNull { book ->
-                val position = playbackPositionDao.get(BookId(book.id.value))
-                if (position != null && book.duration > 0) {
-                    val progress = (position.positionMs.toFloat() / book.duration).coerceIn(0f, 1f)
-                    if (progress > 0f && progress < 0.99f) {
-                        book.id.value to progress
-                    } else {
-                        null
-                    }
-                } else {
-                    null
-                }
-            }.toMap()
-
-    private fun com.calypsan.listenup.client.data.local.db.BookWithContributors.toDomain(): Book {
-        // Create a lookup map for contributor entities
-        val contributorsById = contributors.associateBy { it.id }
-
-        // Get authors by filtering cross-refs with role "author"
-        // Use creditedAs for display name when available (preserves original attribution after merge)
-        val authors =
-            contributorRoles
-                .filter { it.role == "author" }
-                .mapNotNull { crossRef ->
-                    contributorsById[crossRef.contributorId]?.let { entity ->
-                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
-                    }
-                }.distinctBy { it.id }
-
-        // Get narrators by filtering cross-refs with role "narrator"
-        // Use creditedAs for display name when available (preserves original attribution after merge)
-        val narrators =
-            contributorRoles
-                .filter { it.role == "narrator" }
-                .mapNotNull { crossRef ->
-                    contributorsById[crossRef.contributorId]?.let { entity ->
-                        Contributor(entity.id, crossRef.creditedAs ?: entity.name)
-                    }
-                }.distinctBy { it.id }
-
-        return Book(
-            id = book.id,
-            title = book.title,
-            authors = authors,
-            narrators = narrators,
-            duration = book.totalDuration,
-            coverPath = if (imageStorage.exists(book.id)) imageStorage.getCoverPath(book.id) else null,
-            coverBlurHash = book.coverBlurHash,
-            addedAt = book.createdAt,
-            updatedAt = book.updatedAt,
-            description = book.description,
-            genres = emptyList(), // Loaded on-demand when editing
-            tags = emptyList(), // Loaded on-demand when editing
-            // Series loaded via junction table - not available in this simple mapper
-            series = emptyList(),
-            publishYear = book.publishYear,
-            rating = null,
-        )
     }
 
     // === Delete Operations ===
@@ -214,7 +142,7 @@ class ContributorDetailViewModel(
     /**
      * Confirm deletion of the contributor.
      *
-     * @return true if deletion was initiated (caller should navigate away)
+     * Delegates to [DeleteContributorUseCase].
      */
     fun onConfirmDelete(onDeleted: () -> Unit) {
         val contributorId = currentContributorId ?: return
@@ -225,15 +153,13 @@ class ContributorDetailViewModel(
             )
 
         viewModelScope.launch {
-            when (val result = contributorRepository.deleteContributor(contributorId)) {
+            when (val result = deleteContributorUseCase(contributorId)) {
                 is Success -> {
-                    logger.info { "Contributor deleted successfully" }
                     state.value = state.value.copy(isDeleting = false)
                     onDeleted()
                 }
 
                 is Failure -> {
-                    logger.warn { "Failed to delete contributor: ${result.message}" }
                     state.value =
                         state.value.copy(
                             isDeleting = false,
@@ -270,10 +196,10 @@ class ContributorDetailViewModel(
          */
         fun roleToDisplayName(role: String): String =
             when (role.lowercase()) {
-                "author" -> "Written By"
-                "narrator" -> "Narrated By"
-                "translator" -> "Translated By"
-                "editor" -> "Edited By"
+                ContributorRole.AUTHOR.apiValue -> "Written By"
+                ContributorRole.NARRATOR.apiValue -> "Narrated By"
+                ContributorRole.TRANSLATOR.apiValue -> "Translated By"
+                ContributorRole.EDITOR.apiValue -> "Edited By"
                 else -> role.replaceFirstChar { it.uppercase() }
             }
     }
@@ -285,7 +211,7 @@ class ContributorDetailViewModel(
 data class ContributorDetailUiState(
     /** Start with loading=true to avoid briefly showing empty content before data loads */
     val isLoading: Boolean = true,
-    val contributor: ContributorEntity? = null,
+    val contributor: Contributor? = null,
     val roleSections: List<RoleSection> = emptyList(),
     val bookProgress: Map<String, Float> = emptyMap(),
     /** Maps bookId to creditedAs name when different from contributor's name */

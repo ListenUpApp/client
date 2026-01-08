@@ -1,23 +1,29 @@
 package com.calypsan.listenup.client.presentation.admin
 
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.remote.AdminApiContract
-import com.calypsan.listenup.client.data.remote.AdminInvite
-import com.calypsan.listenup.client.data.remote.AdminUser
-import com.calypsan.listenup.client.data.remote.InstanceApiContract
-import com.calypsan.listenup.client.data.sync.SSEEventType
-import com.calypsan.listenup.client.data.sync.SSEManagerContract
+import com.calypsan.listenup.client.domain.model.AdminEvent
+import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.model.InstanceId
+import com.calypsan.listenup.client.domain.model.InviteInfo
+import com.calypsan.listenup.client.domain.repository.EventStreamRepository
+import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.usecase.admin.ApproveUserUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.DeleteUserUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.DenyUserUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.LoadInvitesUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.LoadPendingUsersUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.LoadUsersUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.RevokeInviteUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.SetOpenRegistrationUseCase
 import dev.mokkery.answering.returns
-import dev.mokkery.answering.throws
 import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.mock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -50,29 +56,23 @@ class AdminViewModelTest {
             updatedAt = Instant.DISTANT_PAST,
         )
 
-    private fun createMockInstanceApi(openRegistration: Boolean = false): InstanceApiContract {
-        val instanceApi: InstanceApiContract = mock()
-        everySuspend { instanceApi.getInstance() } returns Success(createMockInstance(openRegistration))
-        return instanceApi
+    private fun createMockInstanceRepository(openRegistration: Boolean = false): InstanceRepository {
+        val instanceRepo: InstanceRepository = mock()
+        everySuspend { instanceRepo.getInstance() } returns Success(createMockInstance(openRegistration))
+        return instanceRepo
     }
 
-    private fun createMockAdminApi(): AdminApiContract {
-        val adminApi: AdminApiContract = mock()
-        everySuspend { adminApi.getPendingUsers() } returns emptyList()
-        return adminApi
-    }
-
-    private fun createMockSSEManager(): SSEManagerContract {
-        val sseManager: SSEManagerContract = mock()
-        val eventFlow = MutableSharedFlow<SSEEventType>()
-        every { sseManager.eventFlow } returns eventFlow
-        return sseManager
+    private fun createMockEventStreamRepository(): EventStreamRepository {
+        val eventStreamRepo: EventStreamRepository = mock()
+        val adminEvents = MutableSharedFlow<AdminEvent>()
+        every { eventStreamRepo.adminEvents } returns adminEvents
+        return eventStreamRepo
     }
 
     private fun createUser(
         id: String = "user-1",
         email: String = "test@example.com",
-    ) = AdminUser(
+    ) = AdminUserInfo(
         id = id,
         email = email,
         displayName = "Test User",
@@ -80,27 +80,23 @@ class AdminViewModelTest {
         lastName = "User",
         isRoot = false,
         role = "user",
-        invitedBy = null,
+        status = "active",
         createdAt = "2024-01-01T00:00:00Z",
-        lastLoginAt = null,
     )
 
     private fun createInvite(
         id: String = "invite-1",
         claimedAt: String? = null,
-    ) = AdminInvite(
+    ) = InviteInfo(
         id = id,
         code = "ABC123",
         name = "Invited User",
         email = "invited@example.com",
         role = "user",
-        createdBy = "admin-1",
         expiresAt = "2024-02-01T00:00:00Z",
         claimedAt = claimedAt,
-        claimedBy = null,
         url = "https://example.com/invite/ABC123",
         createdAt = "2024-01-01T00:00:00Z",
-        updatedAt = "2024-01-01T00:00:00Z",
     )
 
     @BeforeTest
@@ -116,12 +112,33 @@ class AdminViewModelTest {
     @Test
     fun `initial state is loading`() =
         runTest {
-            val adminApi = createMockAdminApi()
-            val instanceApi = createMockInstanceApi()
-            everySuspend { adminApi.getUsers() } returns emptyList()
-            everySuspend { adminApi.getInvites() } returns emptyList()
+            val instanceRepo = createMockInstanceRepository()
+            val loadUsersUseCase: LoadUsersUseCase = mock()
+            val loadPendingUsersUseCase: LoadPendingUsersUseCase = mock()
+            val loadInvitesUseCase: LoadInvitesUseCase = mock()
+            val deleteUserUseCase: DeleteUserUseCase = mock()
+            val revokeInviteUseCase: RevokeInviteUseCase = mock()
+            val approveUserUseCase: ApproveUserUseCase = mock()
+            val denyUserUseCase: DenyUserUseCase = mock()
+            val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
 
-            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
+            everySuspend { loadUsersUseCase() } returns Success(emptyList())
+            everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
+            everySuspend { loadInvitesUseCase() } returns Success(emptyList())
+
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
 
             assertTrue(viewModel.state.value.isLoading)
         }
@@ -129,14 +146,35 @@ class AdminViewModelTest {
     @Test
     fun `loadData fetches users and invites`() =
         runTest {
-            val adminApi = createMockAdminApi()
-            val instanceApi = createMockInstanceApi()
+            val instanceRepo = createMockInstanceRepository()
+            val loadUsersUseCase: LoadUsersUseCase = mock()
+            val loadPendingUsersUseCase: LoadPendingUsersUseCase = mock()
+            val loadInvitesUseCase: LoadInvitesUseCase = mock()
+            val deleteUserUseCase: DeleteUserUseCase = mock()
+            val revokeInviteUseCase: RevokeInviteUseCase = mock()
+            val approveUserUseCase: ApproveUserUseCase = mock()
+            val denyUserUseCase: DenyUserUseCase = mock()
+            val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
+
             val users = listOf(createUser("user-1"), createUser("user-2"))
             val invites = listOf(createInvite("invite-1"))
-            everySuspend { adminApi.getUsers() } returns users
-            everySuspend { adminApi.getInvites() } returns invites
+            everySuspend { loadUsersUseCase() } returns Success(users)
+            everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
+            everySuspend { loadInvitesUseCase() } returns Success(invites)
 
-            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
@@ -147,17 +185,38 @@ class AdminViewModelTest {
     @Test
     fun `loadData filters out claimed invites`() =
         runTest {
-            val adminApi = createMockAdminApi()
-            val instanceApi = createMockInstanceApi()
+            val instanceRepo = createMockInstanceRepository()
+            val loadUsersUseCase: LoadUsersUseCase = mock()
+            val loadPendingUsersUseCase: LoadPendingUsersUseCase = mock()
+            val loadInvitesUseCase: LoadInvitesUseCase = mock()
+            val deleteUserUseCase: DeleteUserUseCase = mock()
+            val revokeInviteUseCase: RevokeInviteUseCase = mock()
+            val approveUserUseCase: ApproveUserUseCase = mock()
+            val denyUserUseCase: DenyUserUseCase = mock()
+            val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
+
             val invites =
                 listOf(
                     createInvite("pending", claimedAt = null),
                     createInvite("claimed", claimedAt = "2024-01-15T00:00:00Z"),
                 )
-            everySuspend { adminApi.getUsers() } returns emptyList()
-            everySuspend { adminApi.getInvites() } returns invites
+            everySuspend { loadUsersUseCase() } returns Success(emptyList())
+            everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
+            everySuspend { loadInvitesUseCase() } returns Success(invites)
 
-            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
 
             assertEquals(1, viewModel.state.value.pendingInvites.size)
@@ -171,12 +230,33 @@ class AdminViewModelTest {
     @Test
     fun `loadData handles user fetch error`() =
         runTest {
-            val adminApi = createMockAdminApi()
-            val instanceApi = createMockInstanceApi()
-            everySuspend { adminApi.getUsers() } throws RuntimeException("Network error")
-            everySuspend { adminApi.getInvites() } returns emptyList()
+            val instanceRepo = createMockInstanceRepository()
+            val loadUsersUseCase: LoadUsersUseCase = mock()
+            val loadPendingUsersUseCase: LoadPendingUsersUseCase = mock()
+            val loadInvitesUseCase: LoadInvitesUseCase = mock()
+            val deleteUserUseCase: DeleteUserUseCase = mock()
+            val revokeInviteUseCase: RevokeInviteUseCase = mock()
+            val approveUserUseCase: ApproveUserUseCase = mock()
+            val denyUserUseCase: DenyUserUseCase = mock()
+            val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
 
-            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
+            everySuspend { loadUsersUseCase() } returns Failure(RuntimeException("Network error"), "Failed to load users: Network error")
+            everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
+            everySuspend { loadInvitesUseCase() } returns Success(emptyList())
+
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
@@ -189,14 +269,35 @@ class AdminViewModelTest {
     @Test
     fun `deleteUser removes user from list`() =
         runTest {
-            val adminApi = createMockAdminApi()
-            val instanceApi = createMockInstanceApi()
-            val users = listOf(createUser("user-1"), createUser("user-2"))
-            everySuspend { adminApi.getUsers() } returns users
-            everySuspend { adminApi.getInvites() } returns emptyList()
-            everySuspend { adminApi.deleteUser("user-1") } returns Unit
+            val instanceRepo = createMockInstanceRepository()
+            val loadUsersUseCase: LoadUsersUseCase = mock()
+            val loadPendingUsersUseCase: LoadPendingUsersUseCase = mock()
+            val loadInvitesUseCase: LoadInvitesUseCase = mock()
+            val deleteUserUseCase: DeleteUserUseCase = mock()
+            val revokeInviteUseCase: RevokeInviteUseCase = mock()
+            val approveUserUseCase: ApproveUserUseCase = mock()
+            val denyUserUseCase: DenyUserUseCase = mock()
+            val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
 
-            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
+            val users = listOf(createUser("user-1"), createUser("user-2"))
+            everySuspend { loadUsersUseCase() } returns Success(users)
+            everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
+            everySuspend { loadInvitesUseCase() } returns Success(emptyList())
+            everySuspend { deleteUserUseCase("user-1") } returns Success(Unit)
+
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
             assertEquals(2, viewModel.state.value.users.size)
 
@@ -214,14 +315,35 @@ class AdminViewModelTest {
     @Test
     fun `revokeInvite removes invite from list`() =
         runTest {
-            val adminApi = createMockAdminApi()
-            val instanceApi = createMockInstanceApi()
-            val invites = listOf(createInvite("invite-1"), createInvite("invite-2"))
-            everySuspend { adminApi.getUsers() } returns emptyList()
-            everySuspend { adminApi.getInvites() } returns invites
-            everySuspend { adminApi.deleteInvite("invite-1") } returns Unit
+            val instanceRepo = createMockInstanceRepository()
+            val loadUsersUseCase: LoadUsersUseCase = mock()
+            val loadPendingUsersUseCase: LoadPendingUsersUseCase = mock()
+            val loadInvitesUseCase: LoadInvitesUseCase = mock()
+            val deleteUserUseCase: DeleteUserUseCase = mock()
+            val revokeInviteUseCase: RevokeInviteUseCase = mock()
+            val approveUserUseCase: ApproveUserUseCase = mock()
+            val denyUserUseCase: DenyUserUseCase = mock()
+            val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
 
-            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
+            val invites = listOf(createInvite("invite-1"), createInvite("invite-2"))
+            everySuspend { loadUsersUseCase() } returns Success(emptyList())
+            everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
+            everySuspend { loadInvitesUseCase() } returns Success(invites)
+            everySuspend { revokeInviteUseCase("invite-1") } returns Success(Unit)
+
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
 
             viewModel.revokeInvite("invite-1")
@@ -238,12 +360,33 @@ class AdminViewModelTest {
     @Test
     fun `clearError clears error state`() =
         runTest {
-            val adminApi = createMockAdminApi()
-            val instanceApi = createMockInstanceApi()
-            everySuspend { adminApi.getUsers() } throws RuntimeException("Error")
-            everySuspend { adminApi.getInvites() } returns emptyList()
+            val instanceRepo = createMockInstanceRepository()
+            val loadUsersUseCase: LoadUsersUseCase = mock()
+            val loadPendingUsersUseCase: LoadPendingUsersUseCase = mock()
+            val loadInvitesUseCase: LoadInvitesUseCase = mock()
+            val deleteUserUseCase: DeleteUserUseCase = mock()
+            val revokeInviteUseCase: RevokeInviteUseCase = mock()
+            val approveUserUseCase: ApproveUserUseCase = mock()
+            val denyUserUseCase: DenyUserUseCase = mock()
+            val setOpenRegistrationUseCase: SetOpenRegistrationUseCase = mock()
 
-            val viewModel = AdminViewModel(adminApi, instanceApi, createMockSSEManager())
+            everySuspend { loadUsersUseCase() } returns Failure(RuntimeException("Error"), "Error")
+            everySuspend { loadPendingUsersUseCase() } returns Success(emptyList())
+            everySuspend { loadInvitesUseCase() } returns Success(emptyList())
+
+            val viewModel =
+                AdminViewModel(
+                    instanceRepository = instanceRepo,
+                    loadUsersUseCase = loadUsersUseCase,
+                    loadPendingUsersUseCase = loadPendingUsersUseCase,
+                    loadInvitesUseCase = loadInvitesUseCase,
+                    deleteUserUseCase = deleteUserUseCase,
+                    revokeInviteUseCase = revokeInviteUseCase,
+                    approveUserUseCase = approveUserUseCase,
+                    denyUserUseCase = denyUserUseCase,
+                    setOpenRegistrationUseCase = setOpenRegistrationUseCase,
+                    eventStreamRepository = createMockEventStreamRepository(),
+                )
             advanceUntilIdle()
             assertTrue(viewModel.state.value.error != null)
 

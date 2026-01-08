@@ -49,15 +49,25 @@ final class Dependencies {
         return instance
     }
 
-    // MARK: - Repositories
+    // MARK: - Settings (Segregated Interfaces)
 
-    private var _settingsRepository: SettingsRepository?
-    var settingsRepository: SettingsRepository {
-        if let cached = _settingsRepository {
+    private var _authSession: AuthSession?
+    var authSession: AuthSession {
+        if let cached = _authSession {
             return cached
         }
-        let instance = KoinHelper.shared.getSettingsRepository()
-        _settingsRepository = instance
+        let instance = KoinHelper.shared.getAuthSession()
+        _authSession = instance
+        return instance
+    }
+
+    private var _serverConfig: ServerConfig?
+    var serverConfig: ServerConfig {
+        if let cached = _serverConfig {
+            return cached
+        }
+        let instance = KoinHelper.shared.getServerConfig()
+        _serverConfig = instance
         return instance
     }
 }
@@ -89,7 +99,8 @@ extension Dependencies {
     static func mock(
         getInstanceUC: GetInstanceUseCase? = nil,
         serverConnectVM: ServerConnectViewModel? = nil,
-        settingsRepo: SettingsRepository? = nil
+        authSession: AuthSession? = nil,
+        serverConfig: ServerConfig? = nil
     ) -> Dependencies {
         let mock = Dependencies()
 
@@ -100,8 +111,11 @@ extension Dependencies {
         if let vm = serverConnectVM {
             mock._serverConnectViewModel = vm
         }
-        if let repo = settingsRepo {
-            mock._settingsRepository = repo
+        if let auth = authSession {
+            mock._authSession = auth
+        }
+        if let config = serverConfig {
+            mock._serverConfig = config
         }
 
         return mock

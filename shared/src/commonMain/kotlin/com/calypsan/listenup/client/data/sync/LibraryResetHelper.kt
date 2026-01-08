@@ -11,7 +11,7 @@ import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.UserDao
 import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
-import com.calypsan.listenup.client.data.repository.LibrarySyncContract
+import com.calypsan.listenup.client.domain.repository.LibrarySync
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
@@ -73,7 +73,7 @@ class LibraryResetHelper(
     private val pendingOperationDao: PendingOperationDao,
     private val userDao: UserDao,
     private val syncDao: SyncDao,
-    private val librarySyncContract: LibrarySyncContract,
+    private val librarySyncContract: LibrarySync,
 ) : LibraryResetHelperContract {
     override suspend fun clearLibraryData(discardPendingOperations: Boolean) {
         logger.info { "Clearing library data (discardPendingOperations=$discardPendingOperations)" }

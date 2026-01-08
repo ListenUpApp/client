@@ -2,45 +2,34 @@ package com.calypsan.listenup.client.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.CollectionDao
-import com.calypsan.listenup.client.data.local.db.CollectionEntity
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
-import com.calypsan.listenup.client.data.local.db.LensDao
-import com.calypsan.listenup.client.data.local.db.LensEntity
-import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.local.db.SeriesDao
-import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
-import com.calypsan.listenup.client.data.local.db.SyncDao
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.getLastSyncTime
-import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
-import com.calypsan.listenup.client.data.remote.LensApiContract
-import com.calypsan.listenup.client.data.remote.model.toTimestamp
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
-import com.calypsan.listenup.client.data.sync.SyncManagerContract
-import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.ContributorRole
+import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
+import com.calypsan.listenup.client.domain.model.SeriesWithBooks
+import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.LibraryPreferences
+import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
+import com.calypsan.listenup.client.domain.repository.SyncRepository
+import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 import com.calypsan.listenup.client.util.sortableTitle
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * ViewModel for the Library screen.
+ * ViewModel for the Library screen content.
  *
  * Manages book list data, sort state, and sync state for UI consumption.
  * Implements intelligent auto-sync: triggers initial sync automatically
@@ -49,255 +38,160 @@ private val logger = KotlinLogging.logger {}
  * Sort state is separated into category + direction, allowing users to:
  * - Toggle direction with a single tap
  * - Change category via dropdown menu
+ *
+ * Selection state is managed by [LibrarySelectionManager] which is shared
+ * with [LibraryActionsViewModel] for coordinated batch operations.
  */
 class LibraryViewModel(
-    private val bookRepository: BookRepositoryContract,
-    private val seriesDao: SeriesDao,
-    private val contributorDao: ContributorDao,
-    private val syncManager: SyncManagerContract,
-    private val settingsRepository: SettingsRepositoryContract,
-    private val syncDao: SyncDao,
-    private val playbackPositionDao: PlaybackPositionDao,
-    private val userDao: UserDao,
-    private val collectionDao: CollectionDao,
-    private val adminCollectionApi: AdminCollectionApiContract,
-    private val lensDao: LensDao,
-    private val lensApi: LensApiContract,
+    private val bookRepository: BookRepository,
+    private val seriesRepository: SeriesRepository,
+    private val contributorRepository: ContributorRepository,
+    private val playbackPositionRepository: PlaybackPositionRepository,
+    private val syncRepository: SyncRepository,
+    private val authSession: AuthSession,
+    private val libraryPreferences: LibraryPreferences,
+    private val syncStatusRepository: SyncStatusRepository,
+    private val selectionManager: LibrarySelectionManager,
 ) : ViewModel() {
-    // Sort state for each tab (category + direction)
-    val booksSortState: StateFlow<SortState>
-        field = MutableStateFlow(SortState.booksDefault)
-
-    val seriesSortState: StateFlow<SortState>
-        field = MutableStateFlow(SortState.seriesDefault)
-
-    val authorsSortState: StateFlow<SortState>
-        field = MutableStateFlow(SortState.contributorDefault)
-
-    val narratorsSortState: StateFlow<SortState>
-        field = MutableStateFlow(SortState.contributorDefault)
-
-    // Article handling for title sort (A, An, The)
-    val ignoreTitleArticles: StateFlow<Boolean>
-        field = MutableStateFlow(true)
-
-    // Series display preferences
-    val hideSingleBookSeries: StateFlow<Boolean>
-        field = MutableStateFlow(true)
-
-    // Tracks whether initial database load has completed
-    // Used to distinguish "loading" from "truly empty" in UI
-    val hasLoadedBooks: StateFlow<Boolean>
-        field = MutableStateFlow(false)
+    // ═══════════════════════════════════════════════════════════════════════
+    // CONSOLIDATED UI STATE
+    // ═══════════════════════════════════════════════════════════════════════
 
     /**
-     * Observable list of books, sorted by current sort state.
-     *
-     * Uses SharingStarted.Eagerly so database loading begins immediately when
-     * the ViewModel is created (at AppShell level), not when Library screen
-     * is first displayed. This eliminates the "Loading library..." flash.
+     * Single source of truth for all Library UI state.
+     * All state mutations go through `_uiState.update { it.copy(...) }`.
      */
-    val books: StateFlow<List<Book>> =
-        combine(
-            bookRepository.observeBooks(),
-            booksSortState,
-            ignoreTitleArticles,
-        ) { books, sortState, ignoreArticles ->
-            sortBooks(books, sortState, ignoreArticles)
-        }.onEach {
-            // Mark as loaded after first database emission
-            if (!hasLoadedBooks.value) {
-                hasLoadedBooks.value = true
-            }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = emptyList(),
-        )
+    private val _uiState = MutableStateFlow(LibraryUiState())
 
     /**
-     * Observable list of series with their books, sorted and filtered by current state.
-     * Filters out single-book series when hideSingleBookSeries is enabled.
+     * Consolidated UI state for the Library screen.
+     * Prefer using this over individual StateFlow properties for new code.
      */
-    val series: StateFlow<List<SeriesWithBooks>> =
-        combine(
-            seriesDao.observeAllWithBooks(),
-            seriesSortState,
-            hideSingleBookSeries,
-        ) { series, sortState, hideSingle ->
-            val filtered =
-                if (hideSingle) {
-                    series.filter { it.books.size > 1 }
-                } else {
-                    series
-                }
-            sortSeries(filtered, sortState)
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList(),
-        )
+    val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
 
-    /**
-     * Observable list of authors with book counts, sorted by current sort state.
-     */
-    val authors: StateFlow<List<ContributorWithBookCount>> =
-        combine(
-            contributorDao.observeByRoleWithCount("author"),
-            authorsSortState,
-        ) { authors, sortState ->
-            sortContributors(authors, sortState)
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList(),
-        )
-
-    /**
-     * Observable list of narrators with book counts, sorted by current sort state.
-     */
-    val narrators: StateFlow<List<ContributorWithBookCount>> =
-        combine(
-            contributorDao.observeByRoleWithCount("narrator"),
-            narratorsSortState,
-        ) { narrators, sortState ->
-            sortContributors(narrators, sortState)
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList(),
-        )
-
-    /**
-     * Observable sync status.
-     */
-    val syncState: StateFlow<SyncStatus> = syncManager.syncState
-
-    /**
-     * Observable progress data for all books.
-     * Maps bookId -> progress (0.0 to 1.0).
-     * Used for showing progress indicators on book cards.
-     *
-     * Includes both in-progress books (< 99%) and completed books (>= 99%).
-     * BookCard uses this to show progress overlay for in-progress,
-     * and a completion badge for completed books.
-     */
-    val bookProgress: StateFlow<Map<String, Float>> =
-        combine(
-            playbackPositionDao.observeAll(),
-            books,
-        ) { positions, booksList ->
-            // Create a map of book durations for O(1) lookup
-            val bookDurations = booksList.associate { it.id.value to it.duration }
-
-            // Build progress map with capacity hint to avoid resizing
-            buildMap(positions.size) {
-                for (position in positions) {
-                    val bookId = position.bookId.value
-                    val duration = bookDurations[bookId] ?: continue
-                    if (duration <= 0) continue
-
-                    val progress = (position.positionMs.toFloat() / duration).coerceIn(0f, 1f)
-                    // Include all books with any progress (both in-progress and completed)
-                    if (progress > 0f) {
-                        put(bookId, progress)
-                    }
-                }
-            }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyMap(),
-        )
-
-    // Selection mode for multi-select (admin only)
-    private val _selectionMode = MutableStateFlow<SelectionMode>(SelectionMode.None)
-    val selectionMode: StateFlow<SelectionMode> = _selectionMode
-
-    /**
-     * Whether the current user is an admin (isRoot).
-     * Only admins can use multi-select to add books to collections.
-     */
-    val isAdmin: StateFlow<Boolean> =
-        userDao
-            .observeCurrentUser()
-            .map { user -> user?.isRoot == true }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = false,
-            )
-
-    /**
-     * Observable list of collections for the collection picker.
-     * Only relevant for admins.
-     */
-    val collections: StateFlow<List<CollectionEntity>> =
-        collectionDao
-            .observeAll()
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = emptyList(),
-            )
-
-    // State for collection add operation
-    private val _isAddingToCollection = MutableStateFlow(false)
-    val isAddingToCollection: StateFlow<Boolean> = _isAddingToCollection
-
-    /**
-     * Observable list of the current user's lenses for the lens picker.
-     * Available to all users (not just admins).
-     */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val myLenses: StateFlow<List<LensEntity>> =
-        userDao
-            .observeCurrentUser()
-            .flatMapLatest { user ->
-                if (user != null) {
-                    lensDao.observeMyLenses(user.id)
-                } else {
-                    flowOf(emptyList())
-                }
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = emptyList(),
-            )
-
-    // State for lens add operation
-    private val _isAddingToLens = MutableStateFlow(false)
-    val isAddingToLens: StateFlow<Boolean> = _isAddingToLens
-
-    // Events for UI feedback
-    private val _events = MutableSharedFlow<LibraryEvent>()
-    val events = _events.asSharedFlow()
+    // ═══════════════════════════════════════════════════════════════════════
+    // INITIALIZATION
+    // ═══════════════════════════════════════════════════════════════════════
 
     private var hasPerformedInitialSync = false
 
     init {
         // Load persisted sort states and preferences
         viewModelScope.launch {
-            settingsRepository.getBooksSortState()?.let { key ->
-                SortState.fromPersistenceKey(key)?.let { booksSortState.value = it }
+            libraryPreferences.getBooksSortState()?.let { key ->
+                SortState.fromPersistenceKey(key)?.let { state ->
+                    _uiState.update { it.copy(booksSortState = state) }
+                }
             }
-            settingsRepository.getSeriesSortState()?.let { key ->
-                SortState.fromPersistenceKey(key)?.let { seriesSortState.value = it }
+            libraryPreferences.getSeriesSortState()?.let { key ->
+                SortState.fromPersistenceKey(key)?.let { state ->
+                    _uiState.update { it.copy(seriesSortState = state) }
+                }
             }
-            settingsRepository.getAuthorsSortState()?.let { key ->
-                SortState.fromPersistenceKey(key)?.let { authorsSortState.value = it }
+            libraryPreferences.getAuthorsSortState()?.let { key ->
+                SortState.fromPersistenceKey(key)?.let { state ->
+                    _uiState.update { it.copy(authorsSortState = state) }
+                }
             }
-            settingsRepository.getNarratorsSortState()?.let { key ->
-                SortState.fromPersistenceKey(key)?.let { narratorsSortState.value = it }
+            libraryPreferences.getNarratorsSortState()?.let { key ->
+                SortState.fromPersistenceKey(key)?.let { state ->
+                    _uiState.update { it.copy(narratorsSortState = state) }
+                }
             }
             // Load article handling preference
-            ignoreTitleArticles.value = settingsRepository.getIgnoreTitleArticles()
+            _uiState.update { it.copy(ignoreTitleArticles = libraryPreferences.getIgnoreTitleArticles()) }
             // Load series display preference
-            hideSingleBookSeries.value = settingsRepository.getHideSingleBookSeries()
+            _uiState.update { it.copy(hideSingleBookSeries = libraryPreferences.getHideSingleBookSeries()) }
         }
+
+        // Set up flow collectors that update uiState
+
+        // Books: combine repository data with sort state
+        combine(
+            bookRepository.observeBooks(),
+            uiState.map { it.booksSortState },
+            uiState.map { it.ignoreTitleArticles },
+        ) { rawBooks, sortState, ignoreArticles ->
+            sortBooks(rawBooks, sortState, ignoreArticles)
+        }.onEach { sortedBooks ->
+            _uiState.update { current ->
+                current.copy(
+                    books = sortedBooks,
+                    hasLoadedBooks = true,
+                )
+            }
+        }.launchIn(viewModelScope)
+
+        // Series: combine repository data with sort state and filter preference
+        combine(
+            seriesRepository.observeAllWithBooks(),
+            uiState.map { it.seriesSortState },
+            uiState.map { it.hideSingleBookSeries },
+        ) { rawSeries, sortState, hideSingle ->
+            val filtered = if (hideSingle) rawSeries.filter { it.books.size > 1 } else rawSeries
+            sortSeries(filtered, sortState)
+        }.onEach { sortedSeries ->
+            _uiState.update { it.copy(series = sortedSeries) }
+        }.launchIn(viewModelScope)
+
+        // Authors: combine repository data with sort state
+        combine(
+            contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue),
+            uiState.map { it.authorsSortState },
+        ) { rawAuthors, sortState ->
+            sortContributors(rawAuthors, sortState)
+        }.onEach { sortedAuthors ->
+            _uiState.update { it.copy(authors = sortedAuthors) }
+        }.launchIn(viewModelScope)
+
+        // Narrators: combine repository data with sort state
+        combine(
+            contributorRepository.observeContributorsByRole(ContributorRole.NARRATOR.apiValue),
+            uiState.map { it.narratorsSortState },
+        ) { rawNarrators, sortState ->
+            sortContributors(rawNarrators, sortState)
+        }.onEach { sortedNarrators ->
+            _uiState.update { it.copy(narrators = sortedNarrators) }
+        }.launchIn(viewModelScope)
+
+        // Sync state: observe from repository
+        syncRepository.syncState
+            .onEach { newSyncState ->
+                _uiState.update { it.copy(syncState = newSyncState) }
+            }.launchIn(viewModelScope)
+
+        // Book progress: combine playback positions with book durations
+        combine(
+            playbackPositionRepository.observeAll(),
+            uiState.map { it.books },
+        ) { positions, booksList ->
+            val bookDurations = booksList.associate { it.id.value to it.duration }
+            buildMap(positions.size) {
+                for ((bookId, position) in positions) {
+                    val duration = bookDurations[bookId] ?: continue
+                    if (duration <= 0) continue
+                    val progress = (position.positionMs.toFloat() / duration).coerceIn(0f, 1f)
+                    if (progress > 0f) {
+                        put(bookId, progress)
+                    }
+                }
+            }
+        }.onEach { progressMap ->
+            _uiState.update { it.copy(bookProgress = progressMap) }
+        }.launchIn(viewModelScope)
+
+        // Selection mode: observe from shared manager
+        selectionManager.selectionMode
+            .onEach { mode ->
+                _uiState.update { it.copy(selectionMode = mode) }
+            }.launchIn(viewModelScope)
 
         logger.debug { "Initialized (auto-sync deferred until screen visible)" }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // LIFECYCLE
+    // ═══════════════════════════════════════════════════════════════════════
 
     /**
      * Called when the Library screen becomes visible.
@@ -306,8 +200,12 @@ class LibraryViewModel(
     fun onScreenVisible() {
         // Reload preferences in case user changed them in Settings
         viewModelScope.launch {
-            hideSingleBookSeries.value = settingsRepository.getHideSingleBookSeries()
-            ignoreTitleArticles.value = settingsRepository.getIgnoreTitleArticles()
+            _uiState.update {
+                it.copy(
+                    hideSingleBookSeries = libraryPreferences.getHideSingleBookSeries(),
+                    ignoreTitleArticles = libraryPreferences.getIgnoreTitleArticles(),
+                )
+            }
         }
 
         if (hasPerformedInitialSync) return
@@ -315,8 +213,8 @@ class LibraryViewModel(
 
         logger.debug { "Screen became visible, checking if initial sync needed..." }
         viewModelScope.launch {
-            val isAuthenticated = settingsRepository.getAccessToken() != null
-            val lastSyncTime = syncDao.getLastSyncTime()
+            val isAuthenticated = authSession.getAccessToken() != null
+            val lastSyncTime = syncStatusRepository.getLastSyncTime()
 
             if (isAuthenticated && lastSyncTime == null) {
                 logger.info { "User authenticated but never synced, triggering initial sync..." }
@@ -324,6 +222,10 @@ class LibraryViewModel(
             }
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // UI EVENTS
+    // ═══════════════════════════════════════════════════════════════════════
 
     /**
      * Handle UI events from the Library screen.
@@ -338,54 +240,38 @@ class LibraryViewModel(
 
             // Books tab sort events
             is LibraryUiEvent.BooksCategoryChanged -> {
-                updateBooksSortState(
-                    booksSortState.value.withCategory(event.category),
-                )
+                updateBooksSortState(_uiState.value.booksSortState.withCategory(event.category))
             }
 
             is LibraryUiEvent.BooksDirectionToggled -> {
-                updateBooksSortState(
-                    booksSortState.value.toggleDirection(),
-                )
+                updateBooksSortState(_uiState.value.booksSortState.toggleDirection())
             }
 
             // Series tab sort events
             is LibraryUiEvent.SeriesCategoryChanged -> {
-                updateSeriesSortState(
-                    seriesSortState.value.withCategory(event.category),
-                )
+                updateSeriesSortState(_uiState.value.seriesSortState.withCategory(event.category))
             }
 
             is LibraryUiEvent.SeriesDirectionToggled -> {
-                updateSeriesSortState(
-                    seriesSortState.value.toggleDirection(),
-                )
+                updateSeriesSortState(_uiState.value.seriesSortState.toggleDirection())
             }
 
             // Authors tab sort events
             is LibraryUiEvent.AuthorsCategoryChanged -> {
-                updateAuthorsSortState(
-                    authorsSortState.value.withCategory(event.category),
-                )
+                updateAuthorsSortState(_uiState.value.authorsSortState.withCategory(event.category))
             }
 
             is LibraryUiEvent.AuthorsDirectionToggled -> {
-                updateAuthorsSortState(
-                    authorsSortState.value.toggleDirection(),
-                )
+                updateAuthorsSortState(_uiState.value.authorsSortState.toggleDirection())
             }
 
             // Narrators tab sort events
             is LibraryUiEvent.NarratorsCategoryChanged -> {
-                updateNarratorsSortState(
-                    narratorsSortState.value.withCategory(event.category),
-                )
+                updateNarratorsSortState(_uiState.value.narratorsSortState.withCategory(event.category))
             }
 
             is LibraryUiEvent.NarratorsDirectionToggled -> {
-                updateNarratorsSortState(
-                    narratorsSortState.value.toggleDirection(),
-                )
+                updateNarratorsSortState(_uiState.value.narratorsSortState.toggleDirection())
             }
 
             // Title sort article handling
@@ -395,11 +281,38 @@ class LibraryViewModel(
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // SELECTION ACTIONS (delegated to shared manager)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Enter selection mode with the given book as the initial selection.
+     *
+     * @param bookId The ID of the book that was long-pressed
+     */
+    fun enterSelectionMode(bookId: String) = selectionManager.enterSelectionMode(bookId)
+
+    /**
+     * Toggle the selection state of a book.
+     *
+     * @param bookId The ID of the book to toggle
+     */
+    fun toggleBookSelection(bookId: String) = selectionManager.toggleSelection(bookId)
+
+    /**
+     * Exit selection mode and clear all selections.
+     */
+    fun exitSelectionMode() = selectionManager.exitSelectionMode()
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // PRIVATE HELPERS
+    // ═══════════════════════════════════════════════════════════════════════
+
     private fun toggleIgnoreTitleArticles() {
-        val newValue = !ignoreTitleArticles.value
-        ignoreTitleArticles.value = newValue
+        val newValue = !_uiState.value.ignoreTitleArticles
+        _uiState.update { it.copy(ignoreTitleArticles = newValue) }
         viewModelScope.launch {
-            settingsRepository.setIgnoreTitleArticles(newValue)
+            libraryPreferences.setIgnoreTitleArticles(newValue)
         }
     }
 
@@ -409,212 +322,37 @@ class LibraryViewModel(
         }
     }
 
-    // Selection mode actions
-
-    /**
-     * Enter selection mode with the given book as the initial selection.
-     * Available to all users for lens actions; collection actions require admin.
-     * Refreshes collections (for admins) to ensure picker has up-to-date data.
-     *
-     * @param initialBookId The ID of the book that was long-pressed
-     */
-    fun enterSelectionMode(initialBookId: String) {
-        _selectionMode.value = SelectionMode.Active(selectedIds = setOf(initialBookId))
-        logger.debug { "Entered selection mode with book: $initialBookId" }
-        if (isAdmin.value) {
-            refreshCollections()
-        }
-    }
-
-    /**
-     * Refresh collections from the server API.
-     * This syncs the local database with the latest server state including book counts.
-     */
-    private fun refreshCollections() {
-        viewModelScope.launch {
-            try {
-                val serverCollections = adminCollectionApi.getCollections()
-                logger.debug { "Fetched ${serverCollections.size} collections from server" }
-
-                // Update local database with server data
-                serverCollections.forEach { response ->
-                    val entity =
-                        CollectionEntity(
-                            id = response.id,
-                            name = response.name,
-                            bookCount = response.bookCount,
-                            createdAt = response.createdAt.toTimestamp(),
-                            updatedAt = response.updatedAt.toTimestamp(),
-                        )
-                    collectionDao.upsert(entity)
-                }
-
-                // Delete local collections that no longer exist on server
-                val serverIds = serverCollections.map { it.id }.toSet()
-                val localCollections = collectionDao.getAll()
-                localCollections.filter { it.id !in serverIds }.forEach { orphan ->
-                    logger.debug { "Removing orphaned collection: ${orphan.name} (${orphan.id})" }
-                    collectionDao.deleteById(orphan.id)
-                }
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to refresh collections from server" }
-                // Don't emit error - local data is still usable
-            }
-        }
-    }
-
-    /**
-     * Toggle the selection state of a book.
-     * If in selection mode, adds/removes the book from selection.
-     *
-     * @param bookId The ID of the book to toggle
-     */
-    fun toggleBookSelection(bookId: String) {
-        val current = _selectionMode.value
-        if (current !is SelectionMode.Active) return
-
-        val newSelectedIds =
-            if (bookId in current.selectedIds) {
-                current.selectedIds - bookId
-            } else {
-                current.selectedIds + bookId
-            }
-
-        // If no books remain selected, exit selection mode
-        if (newSelectedIds.isEmpty()) {
-            exitSelectionMode()
-        } else {
-            _selectionMode.value = SelectionMode.Active(selectedIds = newSelectedIds)
-        }
-    }
-
-    /**
-     * Exit selection mode and clear all selections.
-     */
-    fun exitSelectionMode() {
-        _selectionMode.value = SelectionMode.None
-        logger.debug { "Exited selection mode" }
-    }
-
-    /**
-     * Add all selected books to the specified collection.
-     * Calls the AdminCollectionApi and emits success/error events.
-     *
-     * @param collectionId The ID of the collection to add books to
-     */
-    fun addSelectedToCollection(collectionId: String) {
-        val current = _selectionMode.value
-        if (current !is SelectionMode.Active) return
-        if (current.selectedIds.isEmpty()) return
-
-        viewModelScope.launch {
-            _isAddingToCollection.value = true
-            try {
-                val bookIds = current.selectedIds.toList()
-                adminCollectionApi.addBooks(collectionId, bookIds)
-                logger.info { "Added ${bookIds.size} books to collection $collectionId" }
-                _events.emit(LibraryEvent.BooksAddedToCollection(bookIds.size))
-                exitSelectionMode()
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to add books to collection" }
-                _events.emit(LibraryEvent.AddToCollectionFailed(e.message ?: "Unknown error"))
-            } finally {
-                _isAddingToCollection.value = false
-            }
-        }
-    }
-
-    /**
-     * Add all selected books to the specified lens.
-     * Calls the LensApi and emits success/error events.
-     *
-     * @param lensId The ID of the lens to add books to
-     */
-    fun addSelectedToLens(lensId: String) {
-        val current = _selectionMode.value
-        if (current !is SelectionMode.Active) return
-        if (current.selectedIds.isEmpty()) return
-
-        viewModelScope.launch {
-            _isAddingToLens.value = true
-            try {
-                val bookIds = current.selectedIds.toList()
-                lensApi.addBooks(lensId, bookIds)
-                logger.info { "Added ${bookIds.size} books to lens $lensId" }
-                _events.emit(LibraryEvent.BooksAddedToLens(bookIds.size))
-                exitSelectionMode()
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to add books to lens" }
-                _events.emit(LibraryEvent.AddToLensFailed(e.message ?: "Unknown error"))
-            } finally {
-                _isAddingToLens.value = false
-            }
-        }
-    }
-
-    /**
-     * Create a new lens and add all selected books to it.
-     * First creates the lens via API, then adds the books.
-     *
-     * @param name The name for the new lens
-     */
-    fun createLensAndAddBooks(name: String) {
-        val current = _selectionMode.value
-        if (current !is SelectionMode.Active) return
-        if (current.selectedIds.isEmpty()) return
-
-        viewModelScope.launch {
-            _isAddingToLens.value = true
-            try {
-                val bookIds = current.selectedIds.toList()
-                // Create the lens
-                val newLens = lensApi.createLens(name, null)
-                logger.info { "Created lens '${newLens.name}' with id ${newLens.id}" }
-                // Add books to the new lens
-                lensApi.addBooks(newLens.id, bookIds)
-                logger.info { "Added ${bookIds.size} books to new lens ${newLens.id}" }
-                _events.emit(LibraryEvent.LensCreatedAndBooksAdded(newLens.name, bookIds.size))
-                exitSelectionMode()
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to create lens and add books" }
-                _events.emit(LibraryEvent.AddToLensFailed(e.message ?: "Unknown error"))
-            } finally {
-                _isAddingToLens.value = false
-            }
-        }
-    }
-
-    // Sort state update methods (persist and update state)
-
     private fun updateBooksSortState(state: SortState) {
-        booksSortState.value = state
+        _uiState.update { it.copy(booksSortState = state) }
         viewModelScope.launch {
-            settingsRepository.setBooksSortState(state.persistenceKey)
+            libraryPreferences.setBooksSortState(state.persistenceKey)
         }
     }
 
     private fun updateSeriesSortState(state: SortState) {
-        seriesSortState.value = state
+        _uiState.update { it.copy(seriesSortState = state) }
         viewModelScope.launch {
-            settingsRepository.setSeriesSortState(state.persistenceKey)
+            libraryPreferences.setSeriesSortState(state.persistenceKey)
         }
     }
 
     private fun updateAuthorsSortState(state: SortState) {
-        authorsSortState.value = state
+        _uiState.update { it.copy(authorsSortState = state) }
         viewModelScope.launch {
-            settingsRepository.setAuthorsSortState(state.persistenceKey)
+            libraryPreferences.setAuthorsSortState(state.persistenceKey)
         }
     }
 
     private fun updateNarratorsSortState(state: SortState) {
-        narratorsSortState.value = state
+        _uiState.update { it.copy(narratorsSortState = state) }
         viewModelScope.launch {
-            settingsRepository.setNarratorsSortState(state.persistenceKey)
+            libraryPreferences.setNarratorsSortState(state.persistenceKey)
         }
     }
 
-    // Sorting helper functions
+    // ═══════════════════════════════════════════════════════════════════════
+    // SORTING HELPERS
+    // ═══════════════════════════════════════════════════════════════════════
 
     @Suppress("CyclomaticComplexMethod")
     private fun sortBooks(
@@ -767,11 +505,6 @@ class LibraryViewModel(
             }
         }
     }
-
-    companion object {
-        /** Progress threshold above which a book is considered complete (99%). */
-        private const val PROGRESS_COMPLETE_THRESHOLD = 0.99f
-    }
 }
 
 /**
@@ -816,59 +549,14 @@ sealed interface LibraryUiEvent {
 }
 
 /**
- * Selection mode state for multi-select functionality (admin only).
+ * Selection mode state for multi-select functionality.
  */
 sealed interface SelectionMode {
-    /**
-     * No selection active - normal library behavior.
-     */
+    /** No selection active - normal library behavior. */
     data object None : SelectionMode
 
-    /**
-     * Multi-select mode is active with the given selected book IDs.
-     */
+    /** Multi-select mode is active with the given selected book IDs. */
     data class Active(
         val selectedIds: Set<String>,
     ) : SelectionMode
-}
-
-/**
- * One-time events emitted by the Library ViewModel for UI feedback.
- */
-sealed interface LibraryEvent {
-    /**
-     * Books were successfully added to a collection.
-     */
-    data class BooksAddedToCollection(
-        val count: Int,
-    ) : LibraryEvent
-
-    /**
-     * Failed to add books to a collection.
-     */
-    data class AddToCollectionFailed(
-        val message: String,
-    ) : LibraryEvent
-
-    /**
-     * Books were successfully added to a lens.
-     */
-    data class BooksAddedToLens(
-        val count: Int,
-    ) : LibraryEvent
-
-    /**
-     * A new lens was created and books were added to it.
-     */
-    data class LensCreatedAndBooksAdded(
-        val lensName: String,
-        val bookCount: Int,
-    ) : LibraryEvent
-
-    /**
-     * Failed to add books to a lens.
-     */
-    data class AddToLensFailed(
-        val message: String,
-    ) : LibraryEvent
 }

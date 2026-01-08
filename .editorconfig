@@ -14,6 +14,8 @@ trim_trailing_whitespace = true
 ktlint_function_naming_ignore_when_annotated_with = Composable
 # Allow wildcard imports for iOS platform interop (convention in KMP)
 ij_kotlin_packages_to_use_import_on_demand = platform.**,kotlinx.cinterop.**
+# Disable import ordering when comments are present (Koin.kt has section comments)
+ktlint_standard_import-ordering = disabled
 
 [*.md]
 trim_trailing_whitespace = false

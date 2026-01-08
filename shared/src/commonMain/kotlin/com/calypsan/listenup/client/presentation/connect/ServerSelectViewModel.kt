@@ -3,10 +3,10 @@ package com.calypsan.listenup.client.presentation.connect
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.ServerUrl
-import com.calypsan.listenup.client.data.discovery.DiscoveredServer
-import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
-import com.calypsan.listenup.client.data.repository.ServerWithStatus
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.model.DiscoveredServer
+import com.calypsan.listenup.client.domain.model.ServerWithStatus
+import com.calypsan.listenup.client.domain.repository.ServerConfig
+import com.calypsan.listenup.client.domain.repository.ServerRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -63,8 +63,8 @@ sealed interface ServerSelectUiEvent {
  * merged with any previously connected servers (which may be offline).
  */
 class ServerSelectViewModel(
-    private val serverRepository: ServerRepositoryContract,
-    private val settingsRepository: SettingsRepositoryContract,
+    private val serverRepository: ServerRepository,
+    private val serverConfig: ServerConfig,
 ) : ViewModel() {
     val state: StateFlow<ServerSelectUiState>
         field = MutableStateFlow(ServerSelectUiState())
@@ -151,8 +151,8 @@ class ServerSelectViewModel(
         viewModelScope.launch {
             try {
                 serverRepository.setActiveServer(server.id)
-                // Also update SettingsRepository to trigger AuthState change
-                settingsRepository.setServerUrl(ServerUrl(serverUrl))
+                // Also update ServerConfig to trigger AuthState change
+                serverConfig.setServerUrl(ServerUrl(serverUrl))
                 logger.info { "Server activated: ${server.id} at $serverUrl" }
                 state.update { it.copy(isConnecting = false) }
                 navigationEvents.value = NavigationEvent.ServerActivated
@@ -185,8 +185,8 @@ class ServerSelectViewModel(
         viewModelScope.launch {
             try {
                 serverRepository.setActiveServer(discovered)
-                // Also update SettingsRepository to trigger AuthState change
-                settingsRepository.setServerUrl(ServerUrl(serverUrl))
+                // Also update ServerConfig to trigger AuthState change
+                serverConfig.setServerUrl(ServerUrl(serverUrl))
                 logger.info { "Server activated from discovery: ${discovered.id} at $serverUrl" }
                 state.update { it.copy(isConnecting = false) }
                 navigationEvents.value = NavigationEvent.ServerActivated

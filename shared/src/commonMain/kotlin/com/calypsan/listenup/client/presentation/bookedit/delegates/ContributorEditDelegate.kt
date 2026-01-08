@@ -2,8 +2,8 @@
 
 package com.calypsan.listenup.client.presentation.bookedit.delegates
 
-import com.calypsan.listenup.client.data.remote.ContributorSearchResult
-import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
+import com.calypsan.listenup.client.domain.model.ContributorSearchResult
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
 import com.calypsan.listenup.client.presentation.bookedit.BookEditUiState
 import com.calypsan.listenup.client.presentation.bookedit.ContributorRole
 import com.calypsan.listenup.client.presentation.bookedit.EditableContributor
@@ -41,7 +41,7 @@ private const val SEARCH_LIMIT = 10
  */
 class ContributorEditDelegate(
     private val state: MutableStateFlow<BookEditUiState>,
-    private val contributorRepository: ContributorRepositoryContract,
+    private val contributorRepository: ContributorRepository,
     private val scope: CoroutineScope,
     private val onChangesMade: () -> Unit,
 ) {

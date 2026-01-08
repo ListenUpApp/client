@@ -1,11 +1,11 @@
 package com.calypsan.listenup.client
 
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookSeries
 import com.calypsan.listenup.client.domain.model.Chapter
-import com.calypsan.listenup.client.domain.model.Contributor
 import com.calypsan.listenup.client.domain.model.Genre
 import com.calypsan.listenup.client.domain.model.Tag
 
@@ -31,7 +31,7 @@ object TestData {
         subtitle: String? = null,
         authorName: String = "F. Scott Fitzgerald",
         narratorName: String = "Jake Gyllenhaal",
-        allContributors: List<Contributor>? = null, // If null, derived from author/narrator
+        allContributors: List<BookContributor>? = null, // If null, derived from author/narrator
         duration: Long = 5_400_000L, // 1.5 hours
         coverPath: String? = "/covers/gatsby.jpg",
         description: String? = "A story of decadence and excess in the Jazz Age.",
@@ -82,14 +82,14 @@ object TestData {
     }
 
     /**
-     * Creates a sample Contributor.
+     * Creates a sample BookContributor.
      */
     fun contributor(
         id: String = "contributor-1",
         name: String = "John Author",
         roles: List<String> = listOf("Author"),
-    ): Contributor =
-        Contributor(
+    ): BookContributor =
+        BookContributor(
             id = id,
             name = name,
             roles = roles,

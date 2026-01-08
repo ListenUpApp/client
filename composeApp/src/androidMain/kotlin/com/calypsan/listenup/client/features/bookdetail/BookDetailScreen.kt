@@ -32,15 +32,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.model.BookDownloadState
-import com.calypsan.listenup.client.data.model.BookDownloadStatus
-import com.calypsan.listenup.client.data.repository.LocalPreferencesContract
-import com.calypsan.listenup.client.data.repository.NetworkMonitor
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.design.components.rememberCoverColors
+import com.calypsan.listenup.client.domain.model.BookDownloadState
+import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import com.calypsan.listenup.client.domain.repository.LocalPreferences
+import com.calypsan.listenup.client.domain.repository.NetworkMonitor
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.features.bookdetail.components.BookReadersSection
@@ -89,8 +89,8 @@ fun BookDetailScreen(
     playerViewModel: PlayerViewModel = koinViewModel(),
 ) {
     val downloadManager: DownloadManager = koinInject()
-    val userDao: UserDao = koinInject()
-    val localPreferences: LocalPreferencesContract = koinInject()
+    val userRepository: UserRepository = koinInject()
+    val localPreferences: LocalPreferences = koinInject()
     val networkMonitor: NetworkMonitor = koinInject()
     val scope = rememberCoroutineScope()
     val snackbarHostState = LocalSnackbarHostState.current
@@ -100,12 +100,10 @@ fun BookDetailScreen(
     }
 
     val state by viewModel.state.collectAsState()
-    val currentUser by userDao.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
+    val isAdmin by userRepository.observeIsAdmin().collectAsStateWithLifecycle(initialValue = false)
     val downloadStatus by downloadManager
         .observeBookStatus(BookId(bookId))
         .collectAsState(initial = BookDownloadStatus.notDownloaded(bookId))
-
-    val isAdmin = currentUser?.isRoot == true
 
     // WiFi-only download state detection
     val wifiOnlyDownloads by localPreferences.wifiOnlyDownloads.collectAsState()

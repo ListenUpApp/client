@@ -25,8 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.calypsan.listenup.client.data.local.db.UserProfileDao
-import com.calypsan.listenup.client.data.local.images.ImageStorage
+import com.calypsan.listenup.client.domain.repository.ImageStorage
+import com.calypsan.listenup.client.domain.repository.UserProfileRepository
 import org.koin.compose.koinInject
 import java.io.File
 import android.graphics.Color as AndroidColor
@@ -70,12 +70,12 @@ fun ProfileAvatar(
     fontSize: TextUnit = 14.sp,
 ) {
     val context = LocalContext.current
-    val userProfileDao: UserProfileDao = koinInject()
+    val userProfileRepository: UserProfileRepository = koinInject()
     val imageStorage: ImageStorage = koinInject()
 
     // Use provided data if available, otherwise look up from cache
     val cachedProfile by produceState(initialValue = null as CachedProfileData?) {
-        // Skip DAO lookup if avatar data was provided directly
+        // Skip repository lookup if avatar data was provided directly
         if (avatarType != null) {
             value =
                 CachedProfileData(
@@ -84,7 +84,7 @@ fun ProfileAvatar(
                     avatarColor = avatarColor,
                 )
         } else {
-            val profile = userProfileDao.getById(userId)
+            val profile = userProfileRepository.getById(userId)
             value =
                 profile?.let {
                     CachedProfileData(
@@ -114,12 +114,6 @@ fun ProfileAvatar(
     // and the Currently Listening section has only a handful of items.
     val hasLocalAvatar = imageStorage.userAvatarExists(userId)
     val localAvatarPath = if (hasLocalAvatar) imageStorage.getUserAvatarPath(userId) else null
-
-    // Debug logging to trace avatar loading issues
-    android.util.Log.d(
-        "ProfileAvatar",
-        "userId=$userId, avatarType=$avatarType, hasLocalAvatar=$hasLocalAvatar, path=$localAvatarPath",
-    )
 
     Box(
         modifier =

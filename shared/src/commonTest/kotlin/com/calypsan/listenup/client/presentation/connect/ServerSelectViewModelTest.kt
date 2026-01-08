@@ -2,10 +2,10 @@ package com.calypsan.listenup.client.presentation.connect
 
 import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.ServerUrl
-import com.calypsan.listenup.client.data.local.db.ServerEntity
-import com.calypsan.listenup.client.data.repository.ServerRepositoryContract
-import com.calypsan.listenup.client.data.repository.ServerWithStatus
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.model.Server
+import com.calypsan.listenup.client.domain.model.ServerWithStatus
+import com.calypsan.listenup.client.domain.repository.ServerConfig
+import com.calypsan.listenup.client.domain.repository.ServerRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.every
@@ -35,11 +35,11 @@ import kotlin.test.assertTrue
 class ServerSelectViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
-    private fun createServerEntity(
+    private fun createServer(
         id: String = "server-1",
         name: String = "Test Server",
         localUrl: String = "http://192.168.1.100:8080",
-    ) = ServerEntity(
+    ) = Server(
         id = id,
         name = name,
         apiVersion = "v1",
@@ -47,10 +47,11 @@ class ServerSelectViewModelTest {
         localUrl = localUrl,
         remoteUrl = null,
         isActive = false,
+        lastSeenAt = 0,
     )
 
     private fun createServerWithStatus(
-        server: ServerEntity = createServerEntity(),
+        server: Server = createServer(),
         isOnline: Boolean = true,
     ) = ServerWithStatus(
         server = server,
@@ -70,12 +71,12 @@ class ServerSelectViewModelTest {
     @Test
     fun `initial state has isDiscovering true`() =
         runTest {
-            val serverRepository: ServerRepositoryContract = mock()
-            val settingsRepository: SettingsRepositoryContract = mock()
+            val serverRepository: ServerRepository = mock()
+            val serverConfig: ServerConfig = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
 
             assertTrue(viewModel.state.value.isDiscovering)
         }
@@ -83,12 +84,12 @@ class ServerSelectViewModelTest {
     @Test
     fun `init starts server discovery`() =
         runTest {
-            val serverRepository: ServerRepositoryContract = mock()
-            val settingsRepository: SettingsRepositoryContract = mock()
+            val serverRepository: ServerRepository = mock()
+            val serverConfig: ServerConfig = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
 
-            ServerSelectViewModel(serverRepository, settingsRepository)
+            ServerSelectViewModel(serverRepository, serverConfig)
 
             verify { serverRepository.startDiscovery() }
         }
@@ -96,13 +97,13 @@ class ServerSelectViewModelTest {
     @Test
     fun `observeServers updates state with discovered servers`() =
         runTest {
-            val serverRepository: ServerRepositoryContract = mock()
-            val settingsRepository: SettingsRepositoryContract = mock()
+            val serverRepository: ServerRepository = mock()
+            val serverConfig: ServerConfig = mock()
             val serversFlow = MutableStateFlow<List<ServerWithStatus>>(emptyList())
             every { serverRepository.observeServers() } returns serversFlow
             every { serverRepository.startDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
             advanceUntilIdle()
 
             val servers = listOf(createServerWithStatus())
@@ -116,12 +117,12 @@ class ServerSelectViewModelTest {
     @Test
     fun `ManualEntryClicked emits GoToManualEntry navigation event`() =
         runTest {
-            val serverRepository: ServerRepositoryContract = mock()
-            val settingsRepository: SettingsRepositoryContract = mock()
+            val serverRepository: ServerRepository = mock()
+            val serverConfig: ServerConfig = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
             advanceUntilIdle()
 
             viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
@@ -133,13 +134,13 @@ class ServerSelectViewModelTest {
     @Test
     fun `RefreshClicked restarts discovery`() =
         runTest {
-            val serverRepository: ServerRepositoryContract = mock()
-            val settingsRepository: SettingsRepositoryContract = mock()
+            val serverRepository: ServerRepository = mock()
+            val serverConfig: ServerConfig = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
             every { serverRepository.stopDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
             advanceUntilIdle()
 
             viewModel.onEvent(ServerSelectUiEvent.RefreshClicked)
@@ -152,36 +153,36 @@ class ServerSelectViewModelTest {
     @Test
     fun `ServerSelected activates server and navigates`() =
         runTest {
-            val serverRepository: ServerRepositoryContract = mock()
-            val settingsRepository: SettingsRepositoryContract = mock()
-            val server = createServerEntity()
+            val serverRepository: ServerRepository = mock()
+            val serverConfig: ServerConfig = mock()
+            val server = createServer()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
             everySuspend { serverRepository.setActiveServer(server.id) } returns Unit
-            everySuspend { settingsRepository.setServerUrl(any()) } returns Unit
+            everySuspend { serverConfig.setServerUrl(any()) } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
             advanceUntilIdle()
 
             viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
             advanceUntilIdle()
 
             verifySuspend { serverRepository.setActiveServer(server.id) }
-            verifySuspend { settingsRepository.setServerUrl(ServerUrl(server.localUrl!!)) }
+            verifySuspend { serverConfig.setServerUrl(ServerUrl(server.localUrl!!)) }
             checkIs<ServerSelectViewModel.NavigationEvent.ServerActivated>(viewModel.navigationEvents.value)
         }
 
     @Test
     fun `ServerSelected handles error`() =
         runTest {
-            val serverRepository: ServerRepositoryContract = mock()
-            val settingsRepository: SettingsRepositoryContract = mock()
-            val server = createServerEntity()
+            val serverRepository: ServerRepository = mock()
+            val serverConfig: ServerConfig = mock()
+            val server = createServer()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
             everySuspend { serverRepository.setActiveServer(any<String>()) } throws RuntimeException("Failed")
 
-            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
             advanceUntilIdle()
 
             viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
@@ -194,14 +195,14 @@ class ServerSelectViewModelTest {
     @Test
     fun `ErrorDismissed clears error`() =
         runTest {
-            val serverRepository: ServerRepositoryContract = mock()
-            val settingsRepository: SettingsRepositoryContract = mock()
-            val server = createServerEntity()
+            val serverRepository: ServerRepository = mock()
+            val serverConfig: ServerConfig = mock()
+            val server = createServer()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
             everySuspend { serverRepository.setActiveServer(any<String>()) } throws RuntimeException("Failed")
 
-            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
             advanceUntilIdle()
             viewModel.onEvent(ServerSelectUiEvent.ServerSelected(createServerWithStatus(server)))
             advanceUntilIdle()
@@ -215,12 +216,12 @@ class ServerSelectViewModelTest {
     @Test
     fun `onNavigationHandled clears navigation event`() =
         runTest {
-            val serverRepository: ServerRepositoryContract = mock()
-            val settingsRepository: SettingsRepositoryContract = mock()
+            val serverRepository: ServerRepository = mock()
+            val serverConfig: ServerConfig = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
             advanceUntilIdle()
             viewModel.onEvent(ServerSelectUiEvent.ManualEntryClicked)
             advanceUntilIdle()
@@ -234,13 +235,13 @@ class ServerSelectViewModelTest {
     @Test
     fun `onCleared stops discovery`() =
         runTest {
-            val serverRepository: ServerRepositoryContract = mock()
-            val settingsRepository: SettingsRepositoryContract = mock()
+            val serverRepository: ServerRepository = mock()
+            val serverConfig: ServerConfig = mock()
             every { serverRepository.observeServers() } returns MutableStateFlow(emptyList())
             every { serverRepository.startDiscovery() } returns Unit
             every { serverRepository.stopDiscovery() } returns Unit
 
-            val viewModel = ServerSelectViewModel(serverRepository, settingsRepository)
+            val viewModel = ServerSelectViewModel(serverRepository, serverConfig)
             advanceUntilIdle()
 
             // Simulate onCleared by calling the method directly (it's protected but we test behavior)

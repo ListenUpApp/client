@@ -384,15 +384,15 @@ private class SquigglyShape(
         // Create an organic blob using sine wave perturbations
         val points = 72 // Smoothness of curve
         for (i in 0..points) {
-            val angle = (i.toFloat() / points) * 2 * PI
+            val angle = i.toFloat() / points * 2 * PI
             // Add multiple sine waves for organic feel
             val wobble =
                 1f + wobbleAmount * sin(waves * angle).toFloat() +
-                    (wobbleAmount / 2) * cos((waves * 2 + 1) * angle).toFloat()
+                    wobbleAmount / 2 * cos((waves * 2 + 1) * angle).toFloat()
             val radius = baseRadius * wobble
 
-            val x = centerX + (radius * cos(angle)).toFloat()
-            val y = centerY + (radius * sin(angle)).toFloat()
+            val x = centerX + radius * cos(angle).toFloat()
+            val y = centerY + radius * sin(angle).toFloat()
 
             if (i == 0) {
                 path.moveTo(x, y)

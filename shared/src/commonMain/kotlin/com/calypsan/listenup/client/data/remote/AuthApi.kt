@@ -1,9 +1,11 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.PlatformUtils
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -88,7 +90,7 @@ class AuthApi(
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         } finally {
             client.close()
@@ -126,7 +128,7 @@ class AuthApi(
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         } finally {
             client.close()
@@ -134,24 +136,19 @@ class AuthApi(
     }
 
     /**
-     * Get the current platform name.
-     * Expected to be implemented via expect/actual pattern.
+     * Get the current platform name via expect/actual pattern.
      */
-    private fun getPlatform(): String = "Android" // TODO: Use expect/actual
+    private fun getPlatform(): String = PlatformUtils.getPlatformName()
 
     /**
-     * Get the current platform version.
-     * Expected to be implemented via expect/actual pattern.
+     * Get the current platform version via expect/actual pattern.
      */
-    private fun getPlatformVersion(): String = "Unknown" // TODO: Use expect/actual
+    private fun getPlatformVersion(): String = PlatformUtils.getPlatformVersion()
 
     /**
-     * Get the device model.
-     * Uses platform-specific implementation via expect/actual pattern.
+     * Get the device model via expect/actual pattern.
      */
-    private fun getDeviceModel(): String =
-        com.calypsan.listenup.client.core.PlatformUtils
-            .getDeviceModel()
+    private fun getDeviceModel(): String = PlatformUtils.getDeviceModel()
 
     /**
      * Refresh access token using refresh token.
@@ -173,7 +170,7 @@ class AuthApi(
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         } finally {
             client.close()
@@ -226,7 +223,7 @@ class AuthApi(
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         } finally {
             client.close()
@@ -252,7 +249,7 @@ class AuthApi(
 
             return when (val result = response.toResult()) {
                 is Success -> result.data
-                is Failure -> throw result.exception
+                is Failure -> throw result.exceptionOrFromMessage()
             }
         } finally {
             client.close()

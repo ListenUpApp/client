@@ -5,7 +5,7 @@ package com.calypsan.listenup.client.playback
 import androidx.media3.common.PlaybackException
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
 

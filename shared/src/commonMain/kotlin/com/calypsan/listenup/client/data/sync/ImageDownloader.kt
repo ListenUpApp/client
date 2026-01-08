@@ -1,10 +1,11 @@
 package com.calypsan.listenup.client.data.sync
 
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
-import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.ImageApiContract
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
@@ -63,7 +64,7 @@ class ImageDownloader(
         val downloadResult = imageApi.downloadCover(bookId)
         if (downloadResult is Result.Failure) {
             // 404 is expected for books without covers - don't log as error
-            logger.info { "Cover not available for book ${bookId.value}: ${downloadResult.exception.message}" }
+            logger.info { "Cover not available for book ${bookId.value}: ${downloadResult.message}" }
             return Result.Success(false)
         }
 
@@ -74,10 +75,8 @@ class ImageDownloader(
         val saveResult = imageStorage.saveCover(bookId, imageBytes)
 
         if (saveResult is Result.Failure) {
-            logger.error(saveResult.exception) {
-                "Failed to save cover for book ${bookId.value}"
-            }
-            return Result.Failure(saveResult.exception)
+            saveResult.exception?.let { logger.error(it) { "Failed to save cover for book ${bookId.value}" } }
+            return saveResult
         }
 
         logger.info { "Successfully downloaded and saved cover for book ${bookId.value}" }
@@ -126,8 +125,8 @@ class ImageDownloader(
                                         logger.debug { "Extracted colors for book $bookId" }
                                     }
                                 } else if (saveResult is Result.Failure) {
-                                    logger.warn(saveResult.exception) {
-                                        "Failed to save cover for book $bookId"
+                                    saveResult.exception?.let { e ->
+                                        logger.warn(e) { "Failed to save cover for book $bookId" }
                                     }
                                 }
                             }
@@ -135,7 +134,7 @@ class ImageDownloader(
                         }
 
                         is Result.Failure -> {
-                            logger.warn { "Batch download failed: ${result.exception.message}" }
+                            logger.warn { "Batch download failed: ${result.message}" }
                         }
                     }
                 }
@@ -167,7 +166,7 @@ class ImageDownloader(
         val downloadResult = imageApi.downloadContributorImage(contributorId)
         if (downloadResult is Result.Failure) {
             // 404 is expected for contributors without images - don't log as error
-            logger.info { "Image not available for contributor $contributorId: ${downloadResult.exception.message}" }
+            logger.info { "Image not available for contributor $contributorId: ${downloadResult.message}" }
             return Result.Success(false)
         }
 
@@ -178,10 +177,8 @@ class ImageDownloader(
         val saveResult = imageStorage.saveContributorImage(contributorId, imageBytes)
 
         if (saveResult is Result.Failure) {
-            logger.error(saveResult.exception) {
-                "Failed to save image for contributor $contributorId"
-            }
-            return Result.Failure(saveResult.exception)
+            saveResult.exception?.let { logger.error(it) { "Failed to save image for contributor $contributorId" } }
+            return saveResult
         }
 
         logger.info { "Successfully downloaded and saved image for contributor $contributorId" }
@@ -222,8 +219,8 @@ class ImageDownloader(
                                 if (saveResult is Result.Success) {
                                     add(contributorId)
                                 } else if (saveResult is Result.Failure) {
-                                    logger.warn(saveResult.exception) {
-                                        "Failed to save image for contributor $contributorId"
+                                    saveResult.exception?.let { e ->
+                                        logger.warn(e) { "Failed to save image for contributor $contributorId" }
                                     }
                                 }
                             }
@@ -231,7 +228,7 @@ class ImageDownloader(
                         }
 
                         is Result.Failure -> {
-                            logger.warn { "Batch download failed: ${result.exception.message}" }
+                            logger.warn { "Batch download failed: ${result.message}" }
                         }
                     }
                 }
@@ -276,7 +273,7 @@ class ImageDownloader(
         val downloadResult = imageApi.downloadSeriesCover(seriesId)
         if (downloadResult is Result.Failure) {
             // 404 is expected for series without covers - don't log as error
-            logger.info { "Cover not available for series $seriesId: ${downloadResult.exception.message}" }
+            logger.info { "Cover not available for series $seriesId: ${downloadResult.message}" }
             return Result.Success(false)
         }
 
@@ -287,10 +284,8 @@ class ImageDownloader(
         val saveResult = imageStorage.saveSeriesCover(seriesId, imageBytes)
 
         if (saveResult is Result.Failure) {
-            logger.error(saveResult.exception) {
-                "Failed to save cover for series $seriesId"
-            }
-            return Result.Failure(saveResult.exception)
+            saveResult.exception?.let { logger.error(it) { "Failed to save cover for series $seriesId" } }
+            return saveResult
         }
 
         logger.info { "Successfully downloaded and saved cover for series $seriesId" }
@@ -360,7 +355,7 @@ class ImageDownloader(
         val downloadResult = imageApi.downloadUserAvatar(userId)
         if (downloadResult is Result.Failure) {
             // 404 is expected for users without custom avatars - don't log as error
-            logger.info { "Avatar not available for user $userId: ${downloadResult.exception.message}" }
+            logger.info { "Avatar not available for user $userId: ${downloadResult.message}" }
             return Result.Success(false)
         }
 
@@ -371,10 +366,8 @@ class ImageDownloader(
         val saveResult = imageStorage.saveUserAvatar(userId, imageBytes)
 
         if (saveResult is Result.Failure) {
-            logger.error(saveResult.exception) {
-                "Failed to save avatar for user $userId"
-            }
-            return Result.Failure(saveResult.exception)
+            saveResult.exception?.let { logger.error(it) { "Failed to save avatar for user $userId" } }
+            return saveResult
         }
 
         logger.info { "Successfully downloaded and saved avatar for user $userId" }

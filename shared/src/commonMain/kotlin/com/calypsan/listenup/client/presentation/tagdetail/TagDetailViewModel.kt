@@ -2,9 +2,9 @@ package com.calypsan.listenup.client.presentation.tagdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.TagDao
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.TagRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -17,12 +17,12 @@ import kotlinx.coroutines.launch
  * Loads and manages tag information with its books for display.
  * Uses reactive queries so UI updates when tag data changes via SSE.
  *
- * @property tagDao DAO for tag data
+ * @property tagRepository Repository for tag data
  * @property bookRepository Repository for book data with cover path resolution
  */
 class TagDetailViewModel(
-    private val tagDao: TagDao,
-    private val bookRepository: BookRepositoryContract,
+    private val tagRepository: TagRepository,
+    private val bookRepository: BookRepository,
 ) : ViewModel() {
     val state: StateFlow<TagDetailUiState>
         field = MutableStateFlow(TagDetailUiState())
@@ -41,24 +41,24 @@ class TagDetailViewModel(
         viewModelScope.launch {
             // Combine tag info and book IDs flows for reactive updates
             combine(
-                tagDao.observeById(tagId),
-                tagDao.observeBookIdsForTag(tagId),
-            ) { tagEntity, bookIds ->
-                Pair(tagEntity, bookIds)
-            }.collectLatest { (tagEntity, bookIds) ->
-                if (tagEntity != null) {
+                tagRepository.observeById(tagId),
+                tagRepository.observeBookIdsForTag(tagId),
+            ) { tag, bookIds ->
+                Pair(tag, bookIds)
+            }.collectLatest { (tag, bookIds) ->
+                if (tag != null) {
                     // Fetch book domain models from repository
                     val books =
                         bookIds
                             .mapNotNull { bookId ->
-                                bookRepository.getBook(bookId.value)
+                                bookRepository.getBook(bookId)
                             }.sortedBy { it.title }
 
                     state.value =
                         TagDetailUiState(
                             isLoading = false,
                             tagId = tagId,
-                            tagName = tagEntity.displayName(),
+                            tagName = tag.displayName(),
                             bookCount = books.size,
                             books = books,
                             error = null,

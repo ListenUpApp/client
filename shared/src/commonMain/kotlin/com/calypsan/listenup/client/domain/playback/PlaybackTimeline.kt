@@ -2,8 +2,8 @@
 
 package com.calypsan.listenup.client.domain.playback
 
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.domain.model.AudioFile
 
 /**
  * Runtime construct for translating between book-relative positions and ExoPlayer coordinates.
@@ -126,7 +126,7 @@ data class PlaybackTimeline(
          */
         fun build(
             bookId: BookId,
-            audioFiles: List<AudioFileResponse>,
+            audioFiles: List<AudioFile>,
             baseUrl: String,
         ): PlaybackTimeline {
             var cumulativeOffset = 0L
@@ -166,7 +166,7 @@ data class PlaybackTimeline(
          */
         suspend fun buildWithLocalPaths(
             bookId: BookId,
-            audioFiles: List<AudioFileResponse>,
+            audioFiles: List<AudioFile>,
             baseUrl: String,
             resolveLocalPath: suspend (String) -> String?,
         ): PlaybackTimeline {
@@ -212,7 +212,7 @@ data class PlaybackTimeline(
          */
         suspend fun buildWithTranscodeSupport(
             bookId: BookId,
-            audioFiles: List<AudioFileResponse>,
+            audioFiles: List<AudioFile>,
             baseUrl: String,
             resolveLocalPath: suspend (String) -> String?,
             prepareStream: suspend (audioFileId: String, codec: String) -> StreamPrepareResult,

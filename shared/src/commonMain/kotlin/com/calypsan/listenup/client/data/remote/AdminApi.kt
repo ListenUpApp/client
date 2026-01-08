@@ -4,6 +4,7 @@ package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -89,7 +90,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.users
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -100,7 +101,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -117,26 +118,21 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
     override suspend fun deleteUser(userId: String) {
         val client = clientFactory.getClient()
-        val response = client.delete("/api/v1/admin/users/$userId")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/admin/users/$userId").body()
 
-        if (!response.status.isSuccess()) {
-            // Try to parse error response
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* User deleted successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exceptionOrFromMessage()
             }
         }
-        // 204 No Content - success
     }
 
     // Pending User Management
@@ -148,7 +144,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.users
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -159,7 +155,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -173,7 +169,7 @@ class AdminApi(
                 is Success -> { /* Shouldn't happen */ }
 
                 is Failure -> {
-                    throw result.exception
+                    throw result.exceptionOrFromMessage()
                 }
             }
         }
@@ -188,7 +184,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.invites
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -202,26 +198,21 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
     override suspend fun deleteInvite(inviteId: String) {
         val client = clientFactory.getClient()
-        val response = client.delete("/api/v1/admin/invites/$inviteId")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/admin/invites/$inviteId").body()
 
-        if (!response.status.isSuccess()) {
-            // Try to parse error response
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* Invite deleted successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exceptionOrFromMessage()
             }
         }
-        // 204 No Content - success
     }
 
     // Settings
@@ -239,7 +230,7 @@ class AdminApi(
                 is Success -> { /* Shouldn't happen */ }
 
                 is Failure -> {
-                    throw result.exception
+                    throw result.exceptionOrFromMessage()
                 }
             }
         }
@@ -254,7 +245,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.toDomain()
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -268,7 +259,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.toDomain()
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -281,7 +272,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.toDomain()
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -295,7 +286,7 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.toDomain()
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -315,7 +306,7 @@ class AdminApi(
                 is Success -> { /* Shouldn't happen */ }
 
                 is Failure -> {
-                    throw result.exception
+                    throw result.exceptionOrFromMessage()
                 }
             }
         }
@@ -326,17 +317,14 @@ class AdminApi(
         collectionId: String,
     ) {
         val client = clientFactory.getClient()
-        val response =
-            client.delete("/api/v1/admin/inbox/$bookId/stage/$collectionId")
+        val response: ApiResponse<Unit> =
+            client.delete("/api/v1/admin/inbox/$bookId/stage/$collectionId").body()
 
-        if (!response.status.isSuccess()) {
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* Collection unstaged successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exceptionOrFromMessage()
             }
         }
     }

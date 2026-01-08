@@ -1,21 +1,16 @@
 package com.calypsan.listenup.client.presentation.seriesdetail
 
-import com.calypsan.listenup.client.data.local.db.BookEntity
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
-import com.calypsan.listenup.client.data.local.db.SeriesDao
-import com.calypsan.listenup.client.data.local.db.SeriesEntity
-import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
-import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.model.BookSeries
-import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.Series
+import com.calypsan.listenup.client.domain.model.SeriesWithBooks
+import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
-import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import kotlinx.coroutines.Dispatchers
@@ -44,7 +39,7 @@ import kotlin.test.assertTrue
  * - Books sorted by sequence number
  * - Series description handling
  *
- * Uses Mokkery for mocking SeriesDao and BookRepositoryContract.
+ * Uses Mokkery for mocking SeriesRepository.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SeriesDetailViewModelTest {
@@ -53,79 +48,43 @@ class SeriesDetailViewModelTest {
     // ========== Test Fixtures ==========
 
     private class TestFixture {
-        val seriesDao: SeriesDao = mock()
-        val bookRepository: BookRepositoryContract = mock()
-        val imageStorage: ImageStorage = mock()
+        val seriesRepository: SeriesRepository = mock()
+        val imageRepository: ImageRepository = mock()
         val seriesFlow = MutableStateFlow<SeriesWithBooks?>(null)
 
         fun build(): SeriesDetailViewModel =
             SeriesDetailViewModel(
-                seriesDao = seriesDao,
-                bookRepository = bookRepository,
-                imageStorage = imageStorage,
+                seriesRepository = seriesRepository,
+                imageRepository = imageRepository,
             )
     }
 
     private fun createFixture(): TestFixture {
         val fixture = TestFixture()
 
-        // Default stub for observeByIdWithBooks
-        every { fixture.seriesDao.observeByIdWithBooks(any()) } returns fixture.seriesFlow
+        // Default stub for observeSeriesWithBooks
+        every { fixture.seriesRepository.observeSeriesWithBooks(any()) } returns fixture.seriesFlow
 
-        // Default stub for imageStorage - no series cover exists
-        every { fixture.imageStorage.seriesCoverExists(any()) } returns false
+        // Default stub for imageRepository - no series cover exists
+        every { fixture.imageRepository.seriesCoverExists(any()) } returns false
 
         return fixture
     }
 
     // ========== Test Data Factories ==========
 
-    private fun createSeriesEntity(
+    private fun createSeries(
         id: String = "series-1",
         name: String = "Test Series",
         description: String? = "A great series",
-    ): SeriesEntity =
-        SeriesEntity(
-            id = id,
+    ): Series =
+        Series(
+            id =
+                com.calypsan.listenup.client.core
+                    .SeriesId(id),
             name = name,
             description = description,
-            syncState = SyncState.SYNCED,
-            lastModified = Timestamp(1704067200000L),
-            serverVersion = Timestamp(1704067200000L),
             createdAt = Timestamp(1704067200000L),
-            updatedAt = Timestamp(1704067200000L),
-        )
-
-    private fun createBookEntity(
-        id: String = "book-1",
-        title: String = "Test Book",
-    ): BookEntity =
-        BookEntity(
-            id = BookId(id),
-            title = title,
-            subtitle = null,
-            coverUrl = null,
-            totalDuration = 3_600_000L,
-            description = null,
-            genres = null,
-            publishYear = 2024,
-            audioFilesJson = null,
-            syncState = SyncState.SYNCED,
-            lastModified = Timestamp(1704067200000L),
-            serverVersion = Timestamp(1704067200000L),
-            createdAt = Timestamp(1704067200000L),
-            updatedAt = Timestamp(1704067200000L),
-        )
-
-    private fun createBookSeriesCrossRef(
-        bookId: String,
-        seriesId: String,
-        sequence: String? = null,
-    ): BookSeriesCrossRef =
-        BookSeriesCrossRef(
-            bookId = BookId(bookId),
-            seriesId = seriesId,
-            sequence = sequence,
         )
 
     private fun createBook(
@@ -139,13 +98,24 @@ class SeriesDetailViewModelTest {
             id = BookId(id),
             title = title,
             subtitle = null,
-            authors = listOf(Contributor(id = "author-1", name = "Author", roles = listOf("Author"))),
+            authors = listOf(BookContributor(id = "author-1", name = "Author", roles = listOf("Author"))),
             narrators = emptyList(),
             duration = 3_600_000L,
             coverPath = null,
             addedAt = Timestamp(1704067200000L),
             updatedAt = Timestamp(1704067200000L),
             series = listOf(BookSeries(seriesId = seriesId, seriesName = seriesName, sequence = seriesSequence)),
+        )
+
+    private fun createSeriesWithBooks(
+        series: Series,
+        books: List<Book>,
+        bookSequences: Map<String, String?> = emptyMap(),
+    ): SeriesWithBooks =
+        SeriesWithBooks(
+            series = series,
+            books = books,
+            bookSequences = bookSequences,
         )
 
     @BeforeTest
@@ -197,16 +167,19 @@ class SeriesDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val series = createSeriesEntity(name = "Epic Fantasy Series", description = "An epic adventure")
-            val bookEntity = createBookEntity(id = "book-1", title = "Book One")
+            val series = createSeries(name = "Epic Fantasy Series", description = "An epic adventure")
             val book = createBook(id = "book-1", title = "Book One")
 
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
             val viewModel = fixture.build()
 
             // When
             viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value = SeriesWithBooks(series = series, books = listOf(bookEntity), bookSequences = listOf(createBookSeriesCrossRef("book-1", "series-1", "1")))
+            fixture.seriesFlow.value =
+                createSeriesWithBooks(
+                    series = series,
+                    books = listOf(book),
+                    bookSequences = mapOf("book-1" to "1"),
+                )
             advanceUntilIdle()
 
             // Then
@@ -242,31 +215,25 @@ class SeriesDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val series = createSeriesEntity()
-            val book1Entity = createBookEntity(id = "book-1", title = "Book One")
-            val book2Entity = createBookEntity(id = "book-2", title = "Book Two")
-            val book3Entity = createBookEntity(id = "book-3", title = "Book Three")
+            val series = createSeries()
 
             val book1 = createBook(id = "book-1", title = "Book One", seriesSequence = "1")
             val book2 = createBook(id = "book-2", title = "Book Two", seriesSequence = "2")
             val book3 = createBook(id = "book-3", title = "Book Three", seriesSequence = "1.5")
 
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book1
-            everySuspend { fixture.bookRepository.getBook("book-2") } returns book2
-            everySuspend { fixture.bookRepository.getBook("book-3") } returns book3
             val viewModel = fixture.build()
 
             // When - books come in unsorted order, sequence info in bookSequences
             viewModel.loadSeries("series-1")
             fixture.seriesFlow.value =
-                SeriesWithBooks(
+                createSeriesWithBooks(
                     series = series,
-                    books = listOf(book2Entity, book3Entity, book1Entity), // Out of order
+                    books = listOf(book2, book3, book1), // Out of order
                     bookSequences =
-                        listOf(
-                            createBookSeriesCrossRef("book-1", "series-1", "1"),
-                            createBookSeriesCrossRef("book-2", "series-1", "2"),
-                            createBookSeriesCrossRef("book-3", "series-1", "1.5"),
+                        mapOf(
+                            "book-1" to "1",
+                            "book-2" to "2",
+                            "book-3" to "1.5",
                         ),
                 )
             advanceUntilIdle()
@@ -284,27 +251,23 @@ class SeriesDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val series = createSeriesEntity()
-            val book1Entity = createBookEntity(id = "book-1", title = "Numbered Book")
-            val book2Entity = createBookEntity(id = "book-2", title = "Unnumbered Book")
+            val series = createSeries()
 
             val book1 = createBook(id = "book-1", title = "Numbered Book", seriesSequence = "1")
             val book2 = createBook(id = "book-2", title = "Unnumbered Book", seriesSequence = null)
 
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book1
-            everySuspend { fixture.bookRepository.getBook("book-2") } returns book2
             val viewModel = fixture.build()
 
             // When - sequence info in bookSequences (null for unnumbered)
             viewModel.loadSeries("series-1")
             fixture.seriesFlow.value =
-                SeriesWithBooks(
+                createSeriesWithBooks(
                     series = series,
-                    books = listOf(book2Entity, book1Entity),
+                    books = listOf(book2, book1),
                     bookSequences =
-                        listOf(
-                            createBookSeriesCrossRef("book-1", "series-1", "1"),
-                            createBookSeriesCrossRef("book-2", "series-1", null),
+                        mapOf(
+                            "book-1" to "1",
+                            "book-2" to null,
                         ),
                 )
             advanceUntilIdle()
@@ -321,12 +284,12 @@ class SeriesDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val series = createSeriesEntity(description = null)
+            val series = createSeries(description = null)
             val viewModel = fixture.build()
 
             // When
             viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value = SeriesWithBooks(series = series, books = emptyList(), bookSequences = emptyList())
+            fixture.seriesFlow.value = createSeriesWithBooks(series = series, books = emptyList())
             advanceUntilIdle()
 
             // Then
@@ -334,47 +297,16 @@ class SeriesDetailViewModelTest {
         }
 
     @Test
-    fun `loadSeries filters out books not found in repository`() =
-        runTest {
-            // Given
-            val fixture = createFixture()
-            val series = createSeriesEntity()
-            val book1Entity = createBookEntity(id = "book-1", title = "Found Book")
-            val book2Entity = createBookEntity(id = "book-2", title = "Missing Book")
-
-            val book1 = createBook(id = "book-1", title = "Found Book")
-
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book1
-            everySuspend { fixture.bookRepository.getBook("book-2") } returns null // Not found
-            val viewModel = fixture.build()
-
-            // When
-            viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value =
-                SeriesWithBooks(
-                    series = series,
-                    books = listOf(book1Entity, book2Entity),
-                    bookSequences = emptyList(),
-                )
-            advanceUntilIdle()
-
-            // Then - only found book included
-            val state = viewModel.state.value
-            assertEquals(1, state.books.size)
-            assertEquals("Found Book", state.books[0].title)
-        }
-
-    @Test
     fun `loadSeries handles empty books list`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val series = createSeriesEntity(name = "Empty Series")
+            val series = createSeries(name = "Empty Series")
             val viewModel = fixture.build()
 
             // When
             viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value = SeriesWithBooks(series = series, books = emptyList(), bookSequences = emptyList())
+            fixture.seriesFlow.value = createSeriesWithBooks(series = series, books = emptyList())
             advanceUntilIdle()
 
             // Then
@@ -389,18 +321,18 @@ class SeriesDetailViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val series1 = createSeriesEntity(name = "Original Name")
-            val series2 = createSeriesEntity(name = "Updated Name")
+            val series1 = createSeries(name = "Original Name")
+            val series2 = createSeries(name = "Updated Name")
             val viewModel = fixture.build()
 
             // When - first emission
             viewModel.loadSeries("series-1")
-            fixture.seriesFlow.value = SeriesWithBooks(series = series1, books = emptyList(), bookSequences = emptyList())
+            fixture.seriesFlow.value = createSeriesWithBooks(series = series1, books = emptyList())
             advanceUntilIdle()
             assertEquals("Original Name", viewModel.state.value.seriesName)
 
             // When - second emission (simulating sync update)
-            fixture.seriesFlow.value = SeriesWithBooks(series = series2, books = emptyList(), bookSequences = emptyList())
+            fixture.seriesFlow.value = createSeriesWithBooks(series = series2, books = emptyList())
             advanceUntilIdle()
 
             // Then

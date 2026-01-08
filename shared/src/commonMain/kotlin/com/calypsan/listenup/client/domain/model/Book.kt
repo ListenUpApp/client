@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.domain.model
 
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Timestamp
 
 /**
  * Series membership with position within that series.
@@ -22,9 +22,9 @@ data class Book(
     val id: BookId,
     val title: String,
     val subtitle: String? = null,
-    val authors: List<Contributor>,
-    val narrators: List<Contributor>,
-    val allContributors: List<Contributor> = emptyList(), // All contributors with all their roles
+    val authors: List<BookContributor>,
+    val narrators: List<BookContributor>,
+    val allContributors: List<BookContributor> = emptyList(), // All contributors with all their roles
     val duration: Long, // Milliseconds
     val coverPath: String?, // Local file path or null if no cover
     val coverBlurHash: String? = null, // BlurHash for cover placeholder
@@ -47,7 +47,7 @@ data class Book(
     val abridged: Boolean = false, // Whether this is an abridged version
     val rating: Double? = null,
 ) {
-    // Convenience properties for backward compatibility with single-series UI code
+    // Convenience properties for accessing primary series (first in list)
     val seriesId: String? get() = series.firstOrNull()?.seriesId
     val seriesName: String? get() = series.firstOrNull()?.seriesName
     val seriesSequence: String? get() = series.firstOrNull()?.sequence
@@ -100,7 +100,13 @@ data class Book(
         get() = narrators.joinToString(", ") { it.name }
 }
 
-data class Contributor(
+/**
+ * Lightweight representation of a contributor in the context of a specific book.
+ *
+ * Contains only the contributor's identity and their roles for the book (e.g., author, narrator).
+ * For full contributor details (biography, image, etc.), see the [Contributor] domain model.
+ */
+data class BookContributor(
     val id: String,
     val name: String,
     val roles: List<String> = emptyList(),

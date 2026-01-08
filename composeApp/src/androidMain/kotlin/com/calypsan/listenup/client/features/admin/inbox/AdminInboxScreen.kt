@@ -5,7 +5,6 @@ package com.calypsan.listenup.client.features.admin.inbox
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,14 +13,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckBox
-import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Publish
 import androidx.compose.material.icons.outlined.SelectAll
@@ -54,9 +50,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.calypsan.listenup.client.data.remote.InboxBookResponse
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
+import com.calypsan.listenup.client.domain.model.InboxBook
 import com.calypsan.listenup.client.presentation.admin.AdminInboxUiState
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
 
@@ -93,8 +89,8 @@ fun AdminInboxScreen(
             val message =
                 buildString {
                     append("Released ${result.released} book${if (result.released != 1) "s" else ""}")
-                    if (result.public > 0) {
-                        append(" (${result.public} public)")
+                    if (result.publicCount > 0) {
+                        append(" (${result.publicCount} public)")
                     }
                 }
             snackbarHostState.showSnackbar(message)
@@ -275,7 +271,7 @@ private fun InboxContent(
 
 @Composable
 private fun InboxBookRow(
-    book: InboxBookResponse,
+    book: InboxBook,
     isSelected: Boolean,
     isReleasing: Boolean,
     onClick: () -> Unit,

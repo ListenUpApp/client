@@ -1,22 +1,25 @@
-@file:OptIn(FlowPreview::class)
+@file:OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 
 package com.calypsan.listenup.client.presentation.bookedit.delegates
 
 import com.calypsan.listenup.client.presentation.bookedit.BookEditUiState
 import com.calypsan.listenup.client.presentation.bookedit.EditableGenre
 import com.calypsan.listenup.client.presentation.bookedit.EditableTag
+import com.calypsan.listenup.client.presentation.bookedit.displayName
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
@@ -45,10 +48,22 @@ class GenreTagEditDelegate(
     private val onChangesMade: () -> Unit,
 ) {
     private val tagQueryFlow = MutableStateFlow("")
-    private var tagSearchJob: Job? = null
 
     init {
         setupTagSearch()
+    }
+
+    /**
+     * Internal result type for the reactive tag search flow.
+     */
+    private sealed interface TagSearchFlowResult {
+        data object Empty : TagSearchFlowResult
+
+        data object Loading : TagSearchFlowResult
+
+        data class Success(
+            val results: List<EditableTag>,
+        ) : TagSearchFlowResult
     }
 
     // ========== Genre Methods ==========
@@ -232,46 +247,55 @@ class GenreTagEditDelegate(
             .debounce(SEARCH_DEBOUNCE_MS)
             .distinctUntilChanged()
             .filter { it.length >= MIN_QUERY_LENGTH || it.isEmpty() }
-            .onEach { query ->
+            .flatMapLatest { query ->
                 if (query.isBlank()) {
-                    state.update {
-                        it.copy(
-                            tagSearchResults = emptyList(),
-                            tagSearchLoading = false,
-                        )
-                    }
+                    flowOf<TagSearchFlowResult>(TagSearchFlowResult.Empty)
                 } else {
-                    performTagSearch(query)
+                    flow<TagSearchFlowResult> {
+                        emit(TagSearchFlowResult.Loading)
+                        emit(performTagSearch(query))
+                    }
+                }
+            }.onEach { result ->
+                when (result) {
+                    is TagSearchFlowResult.Empty -> {
+                        state.update {
+                            it.copy(tagSearchResults = emptyList(), tagSearchLoading = false)
+                        }
+                    }
+
+                    is TagSearchFlowResult.Loading -> {
+                        state.update { it.copy(tagSearchLoading = true) }
+                    }
+
+                    is TagSearchFlowResult.Success -> {
+                        state.update {
+                            it.copy(tagSearchResults = result.results, tagSearchLoading = false)
+                        }
+                    }
                 }
             }.launchIn(scope)
     }
 
-    private fun performTagSearch(query: String) {
-        tagSearchJob?.cancel()
-        tagSearchJob =
-            scope.launch {
-                state.update { it.copy(tagSearchLoading = true) }
+    /**
+     * Perform tag search and return the result.
+     * Called from flatMapLatest flow - cancellation is handled automatically.
+     */
+    private fun performTagSearch(query: String): TagSearchFlowResult {
+        // Filter from allTags (already loaded) by displayName
+        val lowerQuery = query.lowercase()
+        val currentSlugs =
+            state.value.tags
+                .map { it.slug }
+                .toSet()
 
-                // Filter from allTags (already loaded) by displayName
-                val lowerQuery = query.lowercase()
-                val currentSlugs =
-                    state.value.tags
-                        .map { it.slug }
-                        .toSet()
+        val filtered =
+            state.value.allTags
+                .filter { tag ->
+                    tag.slug !in currentSlugs &&
+                        tag.displayName().lowercase().contains(lowerQuery)
+                }.take(SEARCH_LIMIT)
 
-                val filtered =
-                    state.value.allTags
-                        .filter { tag ->
-                            tag.slug !in currentSlugs &&
-                                tag.displayName().lowercase().contains(lowerQuery)
-                        }.take(SEARCH_LIMIT)
-
-                state.update {
-                    it.copy(
-                        tagSearchResults = filtered,
-                        tagSearchLoading = false,
-                    )
-                }
-            }
+        return TagSearchFlowResult.Success(filtered)
     }
 }

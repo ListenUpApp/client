@@ -1,10 +1,10 @@
 package com.calypsan.listenup.client.presentation.search
 
 import com.calypsan.listenup.client.checkIs
-import com.calypsan.listenup.client.data.repository.SearchRepositoryContract
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.domain.model.SearchResult
+import com.calypsan.listenup.client.domain.repository.SearchRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
@@ -53,7 +53,7 @@ class SearchViewModelTest {
     private class TestFixture(
         private val scope: TestScope,
     ) {
-        val searchRepository: SearchRepositoryContract = mock()
+        val searchRepository: SearchRepository = mock()
 
         fun build(): SearchViewModel =
             SearchViewModel(

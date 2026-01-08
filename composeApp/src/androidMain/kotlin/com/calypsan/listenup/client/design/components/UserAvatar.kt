@@ -32,9 +32,9 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.model.User
+import com.calypsan.listenup.client.domain.repository.ImageStorage
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import org.koin.compose.koinInject
 import java.io.File
 
@@ -57,7 +57,7 @@ import java.io.File
  */
 @Composable
 fun UserAvatar(
-    user: UserEntity?,
+    user: User?,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onMyProfileClick: () -> Unit,
@@ -67,10 +67,10 @@ fun UserAvatar(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val settingsRepository: SettingsRepository = koinInject()
+    val serverConfig: ServerConfig = koinInject()
     val imageStorage: ImageStorage = koinInject()
     val serverUrl by produceState<String?>(null) {
-        value = settingsRepository.getServerUrl()?.value
+        value = serverConfig.getServerUrl()?.value
     }
 
     val hasImageAvatar = user?.avatarType == "image" && !user.avatarValue.isNullOrEmpty()
@@ -84,7 +84,7 @@ fun UserAvatar(
                 if (hasImageAvatar) {
                     Color.Transparent
                 } else {
-                    user?.let { avatarColorForUser(it.id) }
+                    user?.let { avatarColorForUser(it.id.value) }
                         ?: MaterialTheme.colorScheme.surfaceContainerHighest
                 },
             modifier = Modifier.size(40.dp),
@@ -92,8 +92,8 @@ fun UserAvatar(
             if (hasImageAvatar && user != null) {
                 // Offline-first: prefer local cached avatar
                 val localPath =
-                    if (imageStorage.userAvatarExists(user.id)) {
-                        imageStorage.getUserAvatarPath(user.id)
+                    if (imageStorage.userAvatarExists(user.id.value)) {
+                        imageStorage.getUserAvatarPath(user.id.value)
                     } else {
                         null
                     }
@@ -198,7 +198,7 @@ fun UserAvatar(
             )
 
             // Administration menu item - only shown for admin users
-            if (user?.isRoot == true && onAdminClick != null) {
+            if (user?.isAdmin == true && onAdminClick != null) {
                 DropdownMenuItem(
                     text = { Text("Administration") },
                     leadingIcon = { Icon(Icons.Outlined.AdminPanelSettings, contentDescription = null) },

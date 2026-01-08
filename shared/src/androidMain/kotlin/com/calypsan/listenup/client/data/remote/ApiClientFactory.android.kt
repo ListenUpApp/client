@@ -3,7 +3,7 @@ package com.calypsan.listenup.client.data.remote
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.ServerUrl
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -32,7 +32,7 @@ private val logger = KotlinLogging.logger {}
  */
 internal actual suspend fun createStreamingHttpClient(
     serverUrl: ServerUrl,
-    settingsRepository: SettingsRepository,
+    authSession: AuthSession,
     authApi: AuthApiContract,
 ): HttpClient =
     HttpClient(OkHttp) {
@@ -61,8 +61,8 @@ internal actual suspend fun createStreamingHttpClient(
         install(Auth) {
             bearer {
                 loadTokens {
-                    val access = settingsRepository.getAccessToken()?.value
-                    val refresh = settingsRepository.getRefreshToken()?.value
+                    val access = authSession.getAccessToken()?.value
+                    val refresh = authSession.getRefreshToken()?.value
 
                     if (access != null && refresh != null) {
                         BearerTokens(
@@ -76,13 +76,13 @@ internal actual suspend fun createStreamingHttpClient(
 
                 refreshTokens {
                     val currentRefreshToken =
-                        settingsRepository.getRefreshToken()
+                        authSession.getRefreshToken()
                             ?: error("No refresh token available")
 
                     try {
                         val response = authApi.refresh(currentRefreshToken)
 
-                        settingsRepository.saveAuthTokens(
+                        authSession.saveAuthTokens(
                             access = AccessToken(response.accessToken),
                             refresh = RefreshToken(response.refreshToken),
                             sessionId = response.sessionId,
@@ -95,7 +95,7 @@ internal actual suspend fun createStreamingHttpClient(
                         )
                     } catch (e: Exception) {
                         logger.warn(e) { "Token refresh failed, clearing auth state" }
-                        settingsRepository.clearAuthTokens()
+                        authSession.clearAuthTokens()
                         null
                     }
                 }

@@ -3,9 +3,9 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.data.remote.model.ApiActiveSessionResponse
 import com.calypsan.listenup.client.data.remote.model.ApiActiveSessions
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
@@ -126,7 +126,7 @@ class SyncApi(
                             }
 
                             is Result.Failure -> {
-                                throw result.exception
+                                throw result.exceptionOrFromMessage()
                             }
                         }
                     } while (cursor != null)
@@ -175,7 +175,7 @@ class SyncApi(
                         }
 
                         is Result.Failure -> {
-                            throw result.exception
+                            throw result.exceptionOrFromMessage()
                         }
                     }
                 } while (cursor != null)
@@ -218,7 +218,7 @@ class SyncApi(
                         }
 
                         is Result.Failure -> {
-                            throw result.exception
+                            throw result.exceptionOrFromMessage()
                         }
                     }
                 } while (cursor != null)
@@ -379,7 +379,6 @@ class SyncApi(
                 contentType(ContentType.Application.Json)
                 setBody(EndPlaybackSessionRequest(bookId = bookId, durationMs = durationMs))
             }
-            Unit
         }
 
     /**

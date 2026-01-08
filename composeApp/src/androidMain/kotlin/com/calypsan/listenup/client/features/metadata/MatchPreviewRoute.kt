@@ -25,8 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
 import com.calypsan.listenup.client.presentation.metadata.MetadataViewModel
 import org.koin.compose.koinInject
@@ -46,7 +46,7 @@ fun MatchPreviewRoute(
     onApplySuccess: () -> Unit,
     metadataViewModel: MetadataViewModel = koinViewModel(),
 ) {
-    val bookRepository: BookRepositoryContract = koinInject()
+    val bookRepository: BookRepository = koinInject()
     val metadataState by metadataViewModel.state.collectAsState()
 
     // Load book and metadata if not already loaded
@@ -56,7 +56,7 @@ fun MatchPreviewRoute(
             metadataViewModel.initForBook(bookId, "", "")
             // Create a temporary search result to trigger preview loading
             val tempResult =
-                com.calypsan.listenup.client.data.remote.model.MetadataSearchResult(
+                com.calypsan.listenup.client.domain.repository.MetadataSearchResult(
                     asin = asin,
                     title = "",
                 )

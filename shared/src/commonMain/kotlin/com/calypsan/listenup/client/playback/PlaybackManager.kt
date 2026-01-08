@@ -2,21 +2,24 @@
 
 package com.calypsan.listenup.client.playback
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.ChapterDao
-import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.remote.PlaybackApi
 import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.data.remote.model.AudioFileResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
-import com.calypsan.listenup.client.data.repository.SettingsRepository
 import com.calypsan.listenup.client.data.sync.sse.PlaybackStateProvider
+import com.calypsan.listenup.client.domain.model.AudioFile
 import com.calypsan.listenup.client.domain.model.Chapter
+import com.calypsan.listenup.client.domain.model.ContributorRole
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
 import com.calypsan.listenup.client.domain.playback.StreamPrepareResult
+import com.calypsan.listenup.client.domain.repository.ImageStorage
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.download.DownloadService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +43,8 @@ private val logger = KotlinLogging.logger {}
  * - Negotiate audio format with server for transcoding support
  */
 class PlaybackManager(
-    private val settingsRepository: SettingsRepository,
+    private val serverConfig: ServerConfig,
+    private val playbackPreferences: PlaybackPreferences,
     private val bookDao: BookDao,
     private val chapterDao: ChapterDao,
     private val imageStorage: ImageStorage,
@@ -110,7 +114,7 @@ class PlaybackManager(
         tokenProvider.prepareForPlayback()
 
         // 2. Get server URL
-        val serverUrl = settingsRepository.getServerUrl()?.value
+        val serverUrl = serverConfig.getServerUrl()?.value
         if (serverUrl == null) {
             logger.error { "No server URL configured" }
             return null
@@ -128,7 +132,7 @@ class PlaybackManager(
         val contributorsById = bookWithContributors.contributors.associateBy { it.id }
         val authorNames =
             bookWithContributors.contributorRoles
-                .filter { it.role == "author" }
+                .filter { it.role == ContributorRole.AUTHOR.apiValue }
                 .mapNotNull { crossRef ->
                     contributorsById[crossRef.contributorId]?.let { entity ->
                         crossRef.creditedAs ?: entity.name
@@ -200,6 +204,7 @@ class PlaybackManager(
         }
 
         // 5. Build PlaybackTimeline with codec negotiation (if available) or local path resolution
+        val domainAudioFiles = audioFiles.map { it.toDomain() }
         val timeline =
             if (playbackApi != null && capabilityDetector != null) {
                 // Use transcode-aware timeline building
@@ -208,7 +213,7 @@ class PlaybackManager(
 
                 PlaybackTimeline.buildWithTranscodeSupport(
                     bookId = bookId,
-                    audioFiles = audioFiles,
+                    audioFiles = domainAudioFiles,
                     baseUrl = serverUrl,
                     resolveLocalPath = { audioFileId -> downloadService.getLocalPath(audioFileId) },
                     prepareStream = { audioFileId, codec ->
@@ -219,7 +224,7 @@ class PlaybackManager(
                 // Fallback to basic local path resolution
                 PlaybackTimeline.buildWithLocalPaths(
                     bookId = bookId,
-                    audioFiles = audioFiles,
+                    audioFiles = domainAudioFiles,
                     baseUrl = serverUrl,
                     resolveLocalPath = { audioFileId -> downloadService.getLocalPath(audioFileId) },
                 )
@@ -244,7 +249,7 @@ class PlaybackManager(
                 savedPosition.playbackSpeed
             } else {
                 // Use universal default speed (synced across devices)
-                settingsRepository.getDefaultPlaybackSpeed()
+                playbackPreferences.getDefaultPlaybackSpeed()
             }
 
         logger.debug {
@@ -410,7 +415,7 @@ class PlaybackManager(
         val retryDelayMs = 5000L
 
         // Get spatial audio setting from repository
-        val spatial = settingsRepository.getSpatialPlayback()
+        val spatial = playbackPreferences.getSpatialPlayback()
 
         repeat(maxRetries) { attempt ->
             when (val result = api.preparePlayback(bookId, audioFileId, capabilities, spatial)) {
@@ -631,3 +636,18 @@ class PlaybackManager(
             normalized.matches(Regex("""^\d+$"""))
     }
 }
+
+// ========== Type Conversions ==========
+
+/**
+ * Convert data layer AudioFileResponse to domain AudioFile.
+ */
+private fun AudioFileResponse.toDomain(): AudioFile =
+    AudioFile(
+        id = id,
+        filename = filename,
+        format = format,
+        codec = codec,
+        duration = duration,
+        size = size,
+    )

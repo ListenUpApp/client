@@ -3,12 +3,11 @@ package com.calypsan.listenup.client.presentation.auth
 import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.remote.AuthApiContract
-import com.calypsan.listenup.client.data.remote.AuthResponse
-import com.calypsan.listenup.client.data.remote.AuthUser
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.model.User
+import com.calypsan.listenup.client.domain.repository.AuthRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.LoginResult
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.everySuspend
@@ -51,15 +50,15 @@ class SetupViewModelTest {
     // ========== Test Fixtures ==========
 
     private class TestFixture {
-        val authApi: AuthApiContract = mock()
-        val settingsRepository: SettingsRepositoryContract = mock()
-        val userDao: UserDao = mock()
+        val authRepository: AuthRepository = mock()
+        val authSession: AuthSession = mock()
+        val userRepository: UserRepository = mock()
 
         fun build(): SetupViewModel =
             SetupViewModel(
-                authApi = authApi,
-                settingsRepository = settingsRepository,
-                userDao = userDao,
+                authRepository = authRepository,
+                authSession = authSession,
+                userRepository = userRepository,
             )
     }
 
@@ -67,38 +66,38 @@ class SetupViewModelTest {
         val fixture = TestFixture()
 
         // Default stubs for successful operations
-        everySuspend { fixture.settingsRepository.saveAuthTokens(any(), any(), any(), any()) } returns Unit
-        everySuspend { fixture.userDao.upsert(any<UserEntity>()) } returns Unit
+        everySuspend { fixture.authSession.saveAuthTokens(any(), any(), any(), any()) } returns Unit
+        everySuspend { fixture.userRepository.saveUser(any()) } returns Unit
 
         return fixture
     }
 
     // ========== Test Data Factories ==========
 
-    private fun createAuthResponse(
+    private fun createLoginResult(
         accessToken: String = "access-token-123",
         refreshToken: String = "refresh-token-456",
         sessionId: String = "session-789",
         userId: String = "user-1",
         email: String = "admin@example.com",
-    ): AuthResponse =
-        AuthResponse(
-            accessToken = accessToken,
-            refreshToken = refreshToken,
+    ): LoginResult =
+        LoginResult(
+            accessToken = AccessToken(accessToken),
+            refreshToken = RefreshToken(refreshToken),
             sessionId = sessionId,
-            tokenType = "Bearer",
-            expiresIn = 3600,
+            userId = userId,
             user =
-                AuthUser(
-                    id = userId,
+                User(
+                    id =
+                        com.calypsan.listenup.client.core
+                            .UserId(userId),
                     email = email,
                     displayName = "Admin User",
                     firstName = "Admin",
                     lastName = "User",
-                    isRoot = true,
-                    createdAt = "2024-01-01T00:00:00Z",
-                    updatedAt = "2024-01-01T00:00:00Z",
-                    lastLoginAt = "2024-01-01T00:00:00Z",
+                    isAdmin = true,
+                    createdAtMs = 0L,
+                    updatedAtMs = 0L,
                 ),
         )
 
@@ -322,7 +321,7 @@ class SetupViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.setup(any(), any(), any(), any()) } returns createAuthResponse()
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } returns createLoginResult()
             val viewModel = fixture.build()
 
             // When
@@ -392,7 +391,7 @@ class SetupViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.setup(any(), any(), any(), any()) } returns createAuthResponse()
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } returns createLoginResult()
             val viewModel = fixture.build()
 
             // When
@@ -416,14 +415,14 @@ class SetupViewModelTest {
         runTest {
             // Given
             val response =
-                createAuthResponse(
+                createLoginResult(
                     accessToken = "my-access-token",
                     refreshToken = "my-refresh-token",
                     sessionId = "my-session",
                     userId = "admin-42",
                 )
             val fixture = createFixture()
-            everySuspend { fixture.authApi.setup(any(), any(), any(), any()) } returns response
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } returns response
             val viewModel = fixture.build()
 
             // When
@@ -438,7 +437,7 @@ class SetupViewModelTest {
 
             // Then
             verifySuspend {
-                fixture.settingsRepository.saveAuthTokens(
+                fixture.authSession.saveAuthTokens(
                     access = AccessToken("my-access-token"),
                     refresh = RefreshToken("my-refresh-token"),
                     sessionId = "my-session",
@@ -452,7 +451,7 @@ class SetupViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.setup(any(), any(), any(), any()) } returns createAuthResponse()
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } returns createLoginResult()
             val viewModel = fixture.build()
 
             // When
@@ -466,7 +465,7 @@ class SetupViewModelTest {
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.userDao.upsert(any<UserEntity>()) }
+            verifySuspend { fixture.userRepository.saveUser(any<User>()) }
         }
 
     @Test
@@ -474,7 +473,7 @@ class SetupViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.setup(any(), any(), any(), any()) } returns createAuthResponse()
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } returns createLoginResult()
             val viewModel = fixture.build()
 
             // When
@@ -496,7 +495,7 @@ class SetupViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.setup(any(), any(), any(), any()) } returns createAuthResponse()
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } returns createLoginResult()
             val viewModel = fixture.build()
 
             // When - names and email have leading/trailing spaces
@@ -512,7 +511,7 @@ class SetupViewModelTest {
             // Then - should succeed with trimmed values
             checkIs<SetupStatus.Success>(viewModel.state.value.status)
             verifySuspend {
-                fixture.authApi.setup(
+                fixture.authRepository.setup(
                     email = "admin@example.com",
                     password = "password123",
                     firstName = "Admin",
@@ -528,7 +527,7 @@ class SetupViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.setup(any(), any(), any(), any()) } throws Exception("Server already configured")
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } throws Exception("Server already configured")
             val viewModel = fixture.build()
 
             // When
@@ -551,7 +550,7 @@ class SetupViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.setup(any(), any(), any(), any()) } throws Exception("Connection refused")
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } throws Exception("Connection refused")
             val viewModel = fixture.build()
 
             // When
@@ -574,7 +573,7 @@ class SetupViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.setup(any(), any(), any(), any()) } throws Exception("Network unavailable")
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } throws Exception("Network unavailable")
             val viewModel = fixture.build()
 
             // When
@@ -597,7 +596,7 @@ class SetupViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.authApi.setup(any(), any(), any(), any()) } throws Exception("Something unexpected")
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } throws Exception("Something unexpected")
             val viewModel = fixture.build()
 
             // When
@@ -660,7 +659,7 @@ class SetupViewModelTest {
         runTest {
             // Given - viewModel in Success state
             val fixture = createFixture()
-            everySuspend { fixture.authApi.setup(any(), any(), any(), any()) } returns createAuthResponse()
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } returns createLoginResult()
             val viewModel = fixture.build()
             viewModel.onSetupSubmit(
                 firstName = "Admin",

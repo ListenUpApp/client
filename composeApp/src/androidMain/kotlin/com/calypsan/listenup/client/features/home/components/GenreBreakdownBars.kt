@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.remote.GenreListeningResponse
+import com.calypsan.listenup.client.domain.repository.GenreListening
 
 /**
  * Genre breakdown showing top genres with progress bars.
@@ -31,7 +31,7 @@ import com.calypsan.listenup.client.data.remote.GenreListeningResponse
  */
 @Composable
 fun GenreBreakdownBars(
-    genres: List<GenreListeningResponse>,
+    genres: List<GenreListening>,
     modifier: Modifier = Modifier,
 ) {
     val maxPercentage = genres.maxOfOrNull { it.percentage } ?: 100.0

@@ -1,8 +1,8 @@
 package com.calypsan.listenup.client.data.remote
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
 import com.calypsan.listenup.client.data.remote.model.ContributorResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
@@ -672,25 +672,6 @@ interface SeriesApiContract {
         request: SeriesUpdateRequest,
     ): Result<SeriesEditResponse>
 }
-
-// =============================================================================
-// Aggregate Interface (for backward compatibility)
-// =============================================================================
-
-/**
- * Aggregate contract interface for ListenUp API operations.
- *
- * Extends all domain-specific API contracts for backward compatibility.
- * New code should prefer using the specific contracts (BookApiContract,
- * ContributorApiContract, etc.) following ISP.
- *
- * Production implementation is [ListenUpApi].
- */
-interface ListenUpApiContract :
-    InstanceApiContract,
-    BookApiContract,
-    ContributorApiContract,
-    SeriesApiContract
 
 /**
  * Contributor search result for autocomplete.

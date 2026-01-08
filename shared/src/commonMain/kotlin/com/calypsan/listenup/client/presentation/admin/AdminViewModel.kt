@@ -2,14 +2,21 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.remote.AdminApiContract
-import com.calypsan.listenup.client.data.remote.AdminInvite
-import com.calypsan.listenup.client.data.remote.AdminUser
-import com.calypsan.listenup.client.data.remote.InstanceApiContract
-import com.calypsan.listenup.client.data.remote.model.SSEUserData
-import com.calypsan.listenup.client.data.sync.SSEEventType
-import com.calypsan.listenup.client.data.sync.SSEManagerContract
+import com.calypsan.listenup.client.domain.model.AdminEvent
+import com.calypsan.listenup.client.domain.model.AdminUserInfo
+import com.calypsan.listenup.client.domain.model.InviteInfo
+import com.calypsan.listenup.client.domain.repository.EventStreamRepository
+import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.usecase.admin.ApproveUserUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.DeleteUserUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.DenyUserUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.LoadInvitesUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.LoadPendingUsersUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.LoadUsersUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.RevokeInviteUseCase
+import com.calypsan.listenup.client.domain.usecase.admin.SetOpenRegistrationUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,9 +31,16 @@ private val logger = KotlinLogging.logger {}
  * Subscribes to SSE events for real-time updates of pending users.
  */
 class AdminViewModel(
-    private val adminApi: AdminApiContract,
-    private val instanceApi: InstanceApiContract,
-    private val sseManager: SSEManagerContract,
+    private val instanceRepository: InstanceRepository,
+    private val loadUsersUseCase: LoadUsersUseCase,
+    private val loadPendingUsersUseCase: LoadPendingUsersUseCase,
+    private val loadInvitesUseCase: LoadInvitesUseCase,
+    private val deleteUserUseCase: DeleteUserUseCase,
+    private val revokeInviteUseCase: RevokeInviteUseCase,
+    private val approveUserUseCase: ApproveUserUseCase,
+    private val denyUserUseCase: DenyUserUseCase,
+    private val setOpenRegistrationUseCase: SetOpenRegistrationUseCase,
+    private val eventStreamRepository: EventStreamRepository,
 ) : ViewModel() {
     val state: StateFlow<AdminUiState>
         field = MutableStateFlow(AdminUiState())
@@ -37,48 +51,46 @@ class AdminViewModel(
     }
 
     /**
-     * Observe SSE events for real-time pending user updates.
+     * Observe admin events for real-time pending user updates.
      */
     private fun observeSSEEvents() {
         viewModelScope.launch {
-            sseManager.eventFlow.collect { event ->
+            eventStreamRepository.adminEvents.collect { event ->
                 when (event) {
-                    is SSEEventType.UserPending -> {
+                    is AdminEvent.UserPending -> {
                         handleUserPending(event.user)
                     }
 
-                    is SSEEventType.UserApproved -> {
+                    is AdminEvent.UserApproved -> {
                         handleUserApproved(event.user)
                     }
 
-                    else -> { /* Other events handled elsewhere */ }
+                    else -> { /* Other admin events handled elsewhere */ }
                 }
             }
         }
     }
 
-    private fun handleUserPending(userData: SSEUserData) {
-        logger.debug { "SSE: User pending - ${userData.email}" }
-        val newPendingUser = userData.toAdminUser()
+    private fun handleUserPending(user: AdminUserInfo) {
+        logger.debug { "SSE: User pending - ${user.email}" }
         val currentPending = state.value.pendingUsers
         // Only add if not already in list
-        if (currentPending.none { it.id == newPendingUser.id }) {
+        if (currentPending.none { it.id == user.id }) {
             state.value =
                 state.value.copy(
-                    pendingUsers = currentPending + newPendingUser,
+                    pendingUsers = currentPending + user,
                 )
         }
     }
 
-    private fun handleUserApproved(userData: SSEUserData) {
-        logger.debug { "SSE: User approved - ${userData.email}" }
-        val approvedUser = userData.toAdminUser()
+    private fun handleUserApproved(user: AdminUserInfo) {
+        logger.debug { "SSE: User approved - ${user.email}" }
         // Remove from pending
-        val updatedPending = state.value.pendingUsers.filter { it.id != userData.id }
+        val updatedPending = state.value.pendingUsers.filter { it.id != user.id }
         // Only add to users if not already present (avoid duplicates from button + SSE)
         val updatedUsers =
-            if (state.value.users.none { it.id == userData.id }) {
-                state.value.users + approvedUser
+            if (state.value.users.none { it.id == user.id }) {
+                state.value.users + user
             } else {
                 state.value.users
             }
@@ -95,49 +107,48 @@ class AdminViewModel(
 
             // Load instance info first for open registration status
             val openRegistration =
-                try {
-                    when (val result = instanceApi.getInstance()) {
-                        is Success -> result.data.openRegistration
-                        else -> false
-                    }
-                } catch (e: Exception) {
-                    false
+                when (val result = instanceRepository.getInstance()) {
+                    is Success -> result.data.openRegistration
+                    is Failure -> false
                 }
 
             // Load users and invites independently so one failure doesn't block the other
             val users =
-                try {
-                    adminApi.getUsers()
-                } catch (e: Exception) {
-                    state.value = state.value.copy(error = "Failed to load users: ${e.message}")
-                    emptyList()
+                when (val result = loadUsersUseCase()) {
+                    is Success -> {
+                        result.data
+                    }
+
+                    is Failure -> {
+                        state.value = state.value.copy(error = "Failed to load users: ${result.message}")
+                        emptyList()
+                    }
                 }
 
             val pendingUsers =
-                try {
-                    adminApi.getPendingUsers()
-                } catch (e: Exception) {
-                    // Don't overwrite other errors
-                    emptyList()
+                when (val result = loadPendingUsersUseCase()) {
+                    is Success -> result.data
+                    is Failure -> emptyList() // Don't overwrite other errors
                 }
 
             val pendingInvites =
-                try {
-                    val invites = adminApi.getInvites()
-                    // Only show pending (unclaimed) invites
-                    invites.filter { it.claimedAt == null }
-                } catch (e: Exception) {
-                    // Don't overwrite user error if already set
-                    if (state.value.error == null) {
-                        state.value = state.value.copy(error = "Failed to load invites: ${e.message}")
+                when (val result = loadInvitesUseCase()) {
+                    is Success -> {
+                        result.data.filter { it.claimedAt == null }
                     }
-                    emptyList()
+
+                    is Failure -> {
+                        if (state.value.error == null) {
+                            state.value = state.value.copy(error = "Failed to load invites: ${result.message}")
+                        }
+                        emptyList()
+                    }
                 }
 
             // Sort users: root user first, then by creation date (oldest first)
             val sortedUsers =
                 users.sortedWith(
-                    compareByDescending<AdminUser> { it.isRoot }
+                    compareByDescending<AdminUserInfo> { it.isRoot }
                         .thenBy { it.createdAt },
                 )
 
@@ -156,20 +167,23 @@ class AdminViewModel(
         viewModelScope.launch {
             state.value = state.value.copy(deletingUserId = userId)
 
-            try {
-                adminApi.deleteUser(userId)
-                val updatedUsers = state.value.users.filter { it.id != userId }
-                state.value =
-                    state.value.copy(
-                        deletingUserId = null,
-                        users = updatedUsers,
-                    )
-            } catch (e: Exception) {
-                state.value =
-                    state.value.copy(
-                        deletingUserId = null,
-                        error = e.message ?: "Failed to delete user",
-                    )
+            when (val result = deleteUserUseCase(userId)) {
+                is Success -> {
+                    val updatedUsers = state.value.users.filter { it.id != userId }
+                    state.value =
+                        state.value.copy(
+                            deletingUserId = null,
+                            users = updatedUsers,
+                        )
+                }
+
+                is Failure -> {
+                    state.value =
+                        state.value.copy(
+                            deletingUserId = null,
+                            error = result.message,
+                        )
+                }
             }
         }
     }
@@ -178,20 +192,23 @@ class AdminViewModel(
         viewModelScope.launch {
             state.value = state.value.copy(revokingInviteId = inviteId)
 
-            try {
-                adminApi.deleteInvite(inviteId)
-                val updatedInvites = state.value.pendingInvites.filter { it.id != inviteId }
-                state.value =
-                    state.value.copy(
-                        revokingInviteId = null,
-                        pendingInvites = updatedInvites,
-                    )
-            } catch (e: Exception) {
-                state.value =
-                    state.value.copy(
-                        revokingInviteId = null,
-                        error = e.message ?: "Failed to revoke invite",
-                    )
+            when (val result = revokeInviteUseCase(inviteId)) {
+                is Success -> {
+                    val updatedInvites = state.value.pendingInvites.filter { it.id != inviteId }
+                    state.value =
+                        state.value.copy(
+                            revokingInviteId = null,
+                            pendingInvites = updatedInvites,
+                        )
+                }
+
+                is Failure -> {
+                    state.value =
+                        state.value.copy(
+                            revokingInviteId = null,
+                            error = result.message,
+                        )
+                }
             }
         }
     }
@@ -204,29 +221,33 @@ class AdminViewModel(
         viewModelScope.launch {
             state.value = state.value.copy(approvingUserId = userId)
 
-            try {
-                val approvedUser = adminApi.approveUser(userId)
-                // Move from pending to active users
-                val updatedPending = state.value.pendingUsers.filter { it.id != userId }
-                // Only add to users if not already present (avoid duplicates from button + SSE)
-                val updatedUsers =
-                    if (state.value.users.none { it.id == userId }) {
-                        state.value.users + approvedUser
-                    } else {
-                        state.value.users
-                    }
-                state.value =
-                    state.value.copy(
-                        approvingUserId = null,
-                        pendingUsers = updatedPending,
-                        users = updatedUsers,
-                    )
-            } catch (e: Exception) {
-                state.value =
-                    state.value.copy(
-                        approvingUserId = null,
-                        error = e.message ?: "Failed to approve user",
-                    )
+            when (val result = approveUserUseCase(userId)) {
+                is Success -> {
+                    val approvedUser = result.data
+                    // Move from pending to active users
+                    val updatedPending = state.value.pendingUsers.filter { it.id != userId }
+                    // Only add to users if not already present (avoid duplicates from button + SSE)
+                    val updatedUsers =
+                        if (state.value.users.none { it.id == userId }) {
+                            state.value.users + approvedUser
+                        } else {
+                            state.value.users
+                        }
+                    state.value =
+                        state.value.copy(
+                            approvingUserId = null,
+                            pendingUsers = updatedPending,
+                            users = updatedUsers,
+                        )
+                }
+
+                is Failure -> {
+                    state.value =
+                        state.value.copy(
+                            approvingUserId = null,
+                            error = result.message,
+                        )
+                }
             }
         }
     }
@@ -235,20 +256,23 @@ class AdminViewModel(
         viewModelScope.launch {
             state.value = state.value.copy(denyingUserId = userId)
 
-            try {
-                adminApi.denyUser(userId)
-                val updatedPending = state.value.pendingUsers.filter { it.id != userId }
-                state.value =
-                    state.value.copy(
-                        denyingUserId = null,
-                        pendingUsers = updatedPending,
-                    )
-            } catch (e: Exception) {
-                state.value =
-                    state.value.copy(
-                        denyingUserId = null,
-                        error = e.message ?: "Failed to deny user",
-                    )
+            when (val result = denyUserUseCase(userId)) {
+                is Success -> {
+                    val updatedPending = state.value.pendingUsers.filter { it.id != userId }
+                    state.value =
+                        state.value.copy(
+                            denyingUserId = null,
+                            pendingUsers = updatedPending,
+                        )
+                }
+
+                is Failure -> {
+                    state.value =
+                        state.value.copy(
+                            denyingUserId = null,
+                            error = result.message,
+                        )
+                }
             }
         }
     }
@@ -257,19 +281,22 @@ class AdminViewModel(
         viewModelScope.launch {
             state.value = state.value.copy(isTogglingOpenRegistration = true)
 
-            try {
-                adminApi.setOpenRegistration(enabled)
-                state.value =
-                    state.value.copy(
-                        isTogglingOpenRegistration = false,
-                        openRegistration = enabled,
-                    )
-            } catch (e: Exception) {
-                state.value =
-                    state.value.copy(
-                        isTogglingOpenRegistration = false,
-                        error = e.message ?: "Failed to update registration setting",
-                    )
+            when (val result = setOpenRegistrationUseCase(enabled)) {
+                is Success -> {
+                    state.value =
+                        state.value.copy(
+                            isTogglingOpenRegistration = false,
+                            openRegistration = enabled,
+                        )
+                }
+
+                is Failure -> {
+                    state.value =
+                        state.value.copy(
+                            isTogglingOpenRegistration = false,
+                            error = result.message,
+                        )
+                }
             }
         }
     }
@@ -278,9 +305,9 @@ class AdminViewModel(
 data class AdminUiState(
     val isLoading: Boolean = true,
     val openRegistration: Boolean = false,
-    val users: List<AdminUser> = emptyList(),
-    val pendingUsers: List<AdminUser> = emptyList(),
-    val pendingInvites: List<AdminInvite> = emptyList(),
+    val users: List<AdminUserInfo> = emptyList(),
+    val pendingUsers: List<AdminUserInfo> = emptyList(),
+    val pendingInvites: List<InviteInfo> = emptyList(),
     val deletingUserId: String? = null,
     val revokingInviteId: String? = null,
     val approvingUserId: String? = null,
@@ -288,20 +315,3 @@ data class AdminUiState(
     val isTogglingOpenRegistration: Boolean = false,
     val error: String? = null,
 )
-
-/**
- * Convert SSE user data to AdminUser model.
- */
-private fun SSEUserData.toAdminUser(): AdminUser =
-    AdminUser(
-        id = id,
-        email = email,
-        displayName = displayName,
-        firstName = firstName,
-        lastName = lastName,
-        isRoot = isRoot,
-        role = role,
-        status = status,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
-    )

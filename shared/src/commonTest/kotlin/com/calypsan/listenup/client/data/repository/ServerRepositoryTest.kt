@@ -1,9 +1,9 @@
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.data.discovery.DiscoveredServer
 import com.calypsan.listenup.client.data.discovery.ServerDiscoveryService
 import com.calypsan.listenup.client.data.local.db.ServerDao
 import com.calypsan.listenup.client.data.local.db.ServerEntity
+import com.calypsan.listenup.client.domain.model.DiscoveredServer
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -28,9 +28,10 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
+import com.calypsan.listenup.client.data.discovery.DiscoveredServer as DataDiscoveredServer
 
 /**
- * Unit tests for [ServerRepository].
+ * Unit tests for [ServerRepositoryImpl].
  *
  * Tests the bridging of mDNS discovery with database persistence,
  * server selection, and authentication token management.
@@ -54,7 +55,7 @@ class ServerRepositoryTest {
     ) {
         val serverDao: ServerDao = mock()
         val discoveryService: ServerDiscoveryService = mock()
-        val discoveredServersFlow = MutableStateFlow<List<DiscoveredServer>>(emptyList())
+        val discoveredServersFlow = MutableStateFlow<List<DataDiscoveredServer>>(emptyList())
 
         init {
             // Default stubs
@@ -73,8 +74,8 @@ class ServerRepositoryTest {
             everySuspend { serverDao.deleteById(any()) } returns Unit
         }
 
-        fun build(scope: CoroutineScope): ServerRepository =
-            ServerRepository(
+        fun build(scope: CoroutineScope): ServerRepositoryImpl =
+            ServerRepositoryImpl(
                 serverDao = serverDao,
                 discoveryService = discoveryService,
                 scope = scope,
@@ -115,7 +116,10 @@ class ServerRepositoryTest {
         lastConnectedAt = null,
     )
 
-    private fun createDiscoveredServer(
+    /**
+     * Creates a data layer discovered server for mocking the discovery service.
+     */
+    private fun createDataDiscoveredServer(
         id: String = "server-1",
         name: String = "Discovered Server",
         host: String = "192.168.1.100",
@@ -123,11 +127,30 @@ class ServerRepositoryTest {
         apiVersion: String = "v1",
         serverVersion: String = "1.0.0",
         remoteUrl: String? = null,
-    ) = DiscoveredServer(
+    ) = DataDiscoveredServer(
         id = id,
         name = name,
         host = host,
         port = port,
+        apiVersion = apiVersion,
+        serverVersion = serverVersion,
+        remoteUrl = remoteUrl,
+    )
+
+    /**
+     * Creates a domain discovered server for setActiveServer tests.
+     */
+    private fun createDiscoveredServer(
+        id: String = "server-1",
+        name: String = "Discovered Server",
+        localUrl: String = "http://192.168.1.100:8080",
+        apiVersion: String = "v1",
+        serverVersion: String = "1.0.0",
+        remoteUrl: String? = null,
+    ) = DiscoveredServer(
+        id = id,
+        name = name,
+        localUrl = localUrl,
         apiVersion = apiVersion,
         serverVersion = serverVersion,
         remoteUrl = remoteUrl,
@@ -169,7 +192,7 @@ class ServerRepositoryTest {
         testScope.runTest {
             val fixture = createFixture()
             val serverEntity = createServerEntity(id = "server-1")
-            val discoveredServer = createDiscoveredServer(id = "server-1")
+            val discoveredServer = createDataDiscoveredServer(id = "server-1")
 
             // Use MutableStateFlow so combine triggers when discovery updates
             val persistedFlow = MutableStateFlow(listOf(serverEntity))
@@ -363,26 +386,28 @@ class ServerRepositoryTest {
             val fixture = createFixture()
             val repository = fixture.build(this)
 
-            repository.addManualServer(
-                id = "manual-server",
-                name = "Manual Server",
-                remoteUrl = "https://example.com",
-            )
+            val result =
+                repository.addManualServer(
+                    name = "Manual Server",
+                    url = "https://example.com",
+                )
 
             verifySuspend { fixture.serverDao.upsert(any()) }
+            assertEquals("Manual Server", result.name)
+            assertEquals("https://example.com", result.remoteUrl)
         }
 
     // ============================================================
-    // deleteServer Tests
+    // removeServer Tests
     // ============================================================
 
     @Test
-    fun `deleteServer calls dao deleteById`() =
+    fun `removeServer calls dao deleteById`() =
         testScope.runTest {
             val fixture = createFixture()
             val repository = fixture.build(this)
 
-            repository.deleteServer("server-to-delete")
+            repository.removeServer("server-to-delete")
 
             verifySuspend { fixture.serverDao.deleteById("server-to-delete") }
         }

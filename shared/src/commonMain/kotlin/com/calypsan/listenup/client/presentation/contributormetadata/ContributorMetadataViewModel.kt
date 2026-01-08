@@ -2,15 +2,16 @@ package com.calypsan.listenup.client.presentation.contributormetadata
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.local.db.ContributorDao
-import com.calypsan.listenup.client.data.local.db.ContributorEntity
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.remote.ApplyContributorMetadataResult
-import com.calypsan.listenup.client.data.remote.ImageApiContract
-import com.calypsan.listenup.client.data.remote.MetadataApiContract
-import com.calypsan.listenup.client.data.remote.model.ContributorMetadataProfile
-import com.calypsan.listenup.client.data.remote.model.ContributorMetadataSearchResult
-import com.calypsan.listenup.client.data.remote.model.toEntity
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.ContributorMetadataCandidate
+import com.calypsan.listenup.client.domain.repository.ContributorMetadataProfile
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.MetadataRepository
+import com.calypsan.listenup.client.domain.usecase.contributor.ApplyContributorMetadataRequest
+import com.calypsan.listenup.client.domain.usecase.contributor.ApplyContributorMetadataUseCase
+import com.calypsan.listenup.client.domain.usecase.contributor.MetadataFieldSelections
 import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
@@ -19,7 +20,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.calypsan.listenup.client.core.Result as CoreResult
 
 private val logger = KotlinLogging.logger {}
 
@@ -47,16 +47,16 @@ enum class ContributorMetadataField {
 data class ContributorMetadataUiState(
     // Contributor context
     val contributorId: String = "",
-    val currentContributor: ContributorEntity? = null,
+    val currentContributor: Contributor? = null,
     // Region selection
     val selectedRegion: AudibleRegion = AudibleRegion.US,
     // Search state
     val searchQuery: String = "",
-    val searchResults: List<ContributorMetadataSearchResult> = emptyList(),
+    val searchResults: List<ContributorMetadataCandidate> = emptyList(),
     val isSearching: Boolean = false,
     val searchError: String? = null,
     // Preview state
-    val selectedCandidate: ContributorMetadataSearchResult? = null,
+    val selectedCandidate: ContributorMetadataCandidate? = null,
     val previewProfile: ContributorMetadataProfile? = null,
     val isLoadingPreview: Boolean = false,
     val previewError: String? = null,
@@ -77,10 +77,9 @@ data class ContributorMetadataUiState(
  * 3. Apply the match to update the contributor via server API
  */
 class ContributorMetadataViewModel(
-    private val contributorDao: ContributorDao,
-    private val metadataApi: MetadataApiContract,
-    private val imageApi: ImageApiContract,
-    private val imageStorage: ImageStorage,
+    private val contributorRepository: ContributorRepository,
+    private val metadataRepository: MetadataRepository,
+    private val applyContributorMetadataUseCase: ApplyContributorMetadataUseCase,
 ) : ViewModel() {
     val state: StateFlow<ContributorMetadataUiState>
         field = MutableStateFlow(ContributorMetadataUiState())
@@ -98,7 +97,7 @@ class ContributorMetadataViewModel(
 
         viewModelScope.launch {
             // Load current contributor
-            val contributor = contributorDao.observeById(contributorId).first()
+            val contributor = contributorRepository.observeById(contributorId).first()
 
             state.update {
                 it.copy(
@@ -150,7 +149,7 @@ class ContributorMetadataViewModel(
 
             try {
                 val region = state.value.selectedRegion.code
-                val results = metadataApi.searchContributors(query, region)
+                val results = metadataRepository.searchContributors(query, region)
                 logger.debug { "Contributor search for '$query' in $region returned ${results.size} results" }
 
                 state.update {
@@ -176,7 +175,7 @@ class ContributorMetadataViewModel(
     /**
      * Select a candidate from search results and load its full profile.
      */
-    fun selectCandidate(result: ContributorMetadataSearchResult) {
+    fun selectCandidate(result: ContributorMetadataCandidate) {
         state.update {
             it.copy(
                 selectedCandidate = result,
@@ -188,7 +187,7 @@ class ContributorMetadataViewModel(
 
         viewModelScope.launch {
             try {
-                val profile = metadataApi.getContributorProfile(result.asin)
+                val profile = metadataRepository.getContributorProfile(result.asin)
                 logger.debug { "Loaded contributor profile for ${result.asin}: ${profile.name}" }
 
                 // Initialize selections based on available data
@@ -222,7 +221,7 @@ class ContributorMetadataViewModel(
         state.update {
             it.copy(
                 selectedCandidate =
-                    ContributorMetadataSearchResult(
+                    ContributorMetadataCandidate(
                         asin = asin,
                         name = "",
                         imageUrl = null,
@@ -236,7 +235,7 @@ class ContributorMetadataViewModel(
 
         viewModelScope.launch {
             try {
-                val profile = metadataApi.getContributorProfile(asin)
+                val profile = metadataRepository.getContributorProfile(asin)
                 logger.debug { "Loaded contributor profile by ASIN $asin: ${profile.name}" }
 
                 val selections = initializeSelections(profile)
@@ -244,7 +243,7 @@ class ContributorMetadataViewModel(
                 state.update {
                     it.copy(
                         selectedCandidate =
-                            ContributorMetadataSearchResult(
+                            ContributorMetadataCandidate(
                                 asin = asin,
                                 name = profile.name,
                                 imageUrl = profile.imageUrl,
@@ -309,14 +308,14 @@ class ContributorMetadataViewModel(
     /**
      * Apply the selected metadata to the contributor via server API.
      *
-     * The server handles downloading the image and updating the contributor.
-     * Changes will sync back to the client automatically.
+     * Delegates to the use case which handles:
+     * - API call to apply metadata
+     * - Image download and local storage
+     * - Database update
      */
     fun apply() {
         val currentState = state.value
-        val contributorId = currentState.contributorId
         val candidate = currentState.selectedCandidate ?: return
-        val contributor = currentState.currentContributor
 
         if (!hasSelectedFields()) return
 
@@ -328,90 +327,38 @@ class ContributorMetadataViewModel(
                 )
             }
 
-            try {
-                // Call server API to apply selected metadata fields
-                // Pass imageUrl from search results since Audible API no longer returns images in profiles
-                val selections = currentState.selections
-                val result =
-                    metadataApi.applyContributorMetadata(
-                        contributorId = contributorId,
-                        asin = candidate.asin,
-                        imageUrl = candidate.imageUrl,
-                        applyName = selections.name,
-                        applyBiography = selections.biography,
-                        applyImage = selections.image,
-                    )
+            val selections = currentState.selections
+            val request =
+                ApplyContributorMetadataRequest(
+                    contributorId = currentState.contributorId,
+                    asin = candidate.asin,
+                    imageUrl = candidate.imageUrl,
+                    selections =
+                        MetadataFieldSelections(
+                            name = selections.name,
+                            biography = selections.biography,
+                            image = selections.image,
+                        ),
+                )
 
-                when (result) {
-                    is ApplyContributorMetadataResult.Success -> {
-                        // Update local database with the server's response
-                        var updatedEntity = result.contributor.toEntity()
-
-                        // Download contributor image from server and save locally
-                        // Note: toEntity() sets imagePath=null since server returns a URL, not local path
-                        if (result.contributor.imageUrl != null) {
-                            val downloadResult = imageApi.downloadContributorImage(contributorId)
-                            if (downloadResult is CoreResult.Success) {
-                                val saveResult = imageStorage.saveContributorImage(contributorId, downloadResult.data)
-                                if (saveResult is CoreResult.Success) {
-                                    updatedEntity =
-                                        updatedEntity.copy(
-                                            imagePath = imageStorage.getContributorImagePath(contributorId),
-                                        )
-                                    logger.debug { "Downloaded and saved contributor image locally" }
-                                } else {
-                                    logger.warn {
-                                        "Failed to save contributor image: ${(saveResult as CoreResult.Failure).message}"
-                                    }
-                                }
-                            } else {
-                                logger.warn {
-                                    "Failed to download contributor image: ${(downloadResult as CoreResult.Failure).message}"
-                                }
-                            }
-                        }
-
-                        contributorDao.upsert(updatedEntity)
-                        logger.info { "Applied Audible metadata to contributor $contributorId" }
-                        state.update {
-                            it.copy(
-                                isApplying = false,
-                                applySuccess = true,
-                                currentContributor = updatedEntity,
-                            )
-                        }
-                    }
-
-                    is ApplyContributorMetadataResult.NeedsDisambiguation -> {
-                        // Shouldn't happen since we're providing an ASIN
-                        logger.warn { "Unexpected disambiguation when ASIN was provided" }
-                        state.update {
-                            it.copy(
-                                isApplying = false,
-                                applyError = "Unexpected disambiguation request",
-                            )
-                        }
-                    }
-
-                    is ApplyContributorMetadataResult.Error -> {
-                        logger.warn { "Failed to apply metadata: ${result.message}" }
-                        state.update {
-                            it.copy(
-                                isApplying = false,
-                                applyError = result.message,
-                            )
-                        }
+            when (val result = applyContributorMetadataUseCase(request)) {
+                is Success -> {
+                    state.update {
+                        it.copy(
+                            isApplying = false,
+                            applySuccess = true,
+                            currentContributor = result.data,
+                        )
                     }
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to apply contributor metadata" }
-                state.update {
-                    it.copy(
-                        isApplying = false,
-                        applyError = e.message ?: "Failed to apply metadata",
-                    )
+
+                is Failure -> {
+                    state.update {
+                        it.copy(
+                            isApplying = false,
+                            applyError = result.message,
+                        )
+                    }
                 }
             }
         }

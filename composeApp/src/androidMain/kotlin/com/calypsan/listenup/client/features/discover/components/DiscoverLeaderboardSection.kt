@@ -17,7 +17,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.data.remote.LeaderboardCategory
+import com.calypsan.listenup.client.domain.repository.LeaderboardCategory
 import com.calypsan.listenup.client.presentation.discover.LeaderboardViewModel
 import org.koin.compose.viewmodel.koinViewModel
 

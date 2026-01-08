@@ -3,10 +3,11 @@
 
 package com.calypsan.listenup.client.util
 
-import kotlinx.datetime.Instant
+import com.calypsan.listenup.client.core.Timestamp
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * Convert an ISO 8601 timestamp to a human-readable relative time or "Month Year" format.
@@ -103,3 +104,19 @@ fun String.toRelativeOrMonthYear(): String {
         }
     }
 }
+
+/**
+ * Parse an ISO 8601 timestamp string to [Timestamp], falling back to current time on failure.
+ *
+ * Use this for server responses where parsing failure should not crash the app,
+ * but instead gracefully degrade to current time.
+ *
+ * @receiver ISO 8601 timestamp string (e.g., "2023-11-22T14:30:45.123Z")
+ * @return Parsed [Timestamp] or [Timestamp.now] if parsing fails
+ */
+fun String.parseToTimestampOrNow(): Timestamp =
+    try {
+        Timestamp.fromEpochMillis(Instant.parse(this).toEpochMilliseconds())
+    } catch (_: Exception) {
+        Timestamp.now()
+    }

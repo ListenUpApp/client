@@ -1,19 +1,13 @@
 package com.calypsan.listenup.client.presentation.seriesedit
 
 import com.calypsan.listenup.client.checkIs
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
-import com.calypsan.listenup.client.data.local.db.BookEntity
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
-import com.calypsan.listenup.client.data.local.db.SeriesDao
-import com.calypsan.listenup.client.data.local.db.SeriesEntity
-import com.calypsan.listenup.client.data.local.db.SeriesWithBooks
-import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.remote.ImageApiContract
-import com.calypsan.listenup.client.data.remote.SeriesEditResponse
-import com.calypsan.listenup.client.data.repository.SeriesEditRepositoryContract
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.domain.model.Series
+import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
+import com.calypsan.listenup.client.domain.usecase.series.UpdateSeriesUseCase
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
@@ -31,7 +25,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -39,50 +32,36 @@ import kotlin.test.assertTrue
 class SeriesEditViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
-    private fun createSeriesEntity(
+    // ========== Test Fixture ==========
+
+    private class TestFixture {
+        val seriesRepository: SeriesRepository = mock()
+        val updateSeriesUseCase: UpdateSeriesUseCase = mock()
+        val imageRepository: ImageRepository = mock()
+
+        fun build(): SeriesEditViewModel =
+            SeriesEditViewModel(
+                seriesRepository = seriesRepository,
+                updateSeriesUseCase = updateSeriesUseCase,
+                imageRepository = imageRepository,
+            )
+    }
+
+    private fun createFixture(): TestFixture = TestFixture()
+
+    // ========== Test Data Factories ==========
+
+    private fun createSeries(
         id: String = "series-1",
         name: String = "Test Series",
         description: String? = "A test series",
-    ) = SeriesEntity(
-        id = id,
+    ) = Series(
+        id =
+            com.calypsan.listenup.client.core
+                .SeriesId(id),
         name = name,
         description = description,
-        syncState = SyncState.SYNCED,
-        lastModified = Timestamp(1000L),
-        serverVersion = Timestamp(1000L),
-        createdAt = Timestamp(1000L),
-        updatedAt = Timestamp(1000L),
     )
-
-    private fun createBookEntity(id: String = "book-1") =
-        BookEntity(
-            id = BookId(id),
-            title = "Test Book",
-            coverUrl = null,
-            totalDuration = 3_600_000L,
-            syncState = SyncState.SYNCED,
-            lastModified = Timestamp(1000L),
-            serverVersion = Timestamp(1000L),
-            createdAt = Timestamp(1000L),
-            updatedAt = Timestamp(1000L),
-        )
-
-    private fun createSeriesWithBooks(
-        series: SeriesEntity = createSeriesEntity(),
-        books: List<BookEntity> = listOf(createBookEntity()),
-    ) = SeriesWithBooks(
-        series = series,
-        books = books,
-        bookSequences = books.map { BookSeriesCrossRef(bookId = it.id, seriesId = series.id, sequence = "1") },
-    )
-
-    private fun createSeriesEditResponse() =
-        SeriesEditResponse(
-            id = "series-1",
-            name = "Updated Name",
-            description = "A test series",
-            updatedAt = "2024-01-01T00:00:00Z",
-        )
 
     @BeforeTest
     fun setup() {
@@ -94,15 +73,13 @@ class SeriesEditViewModelTest {
         Dispatchers.resetMain()
     }
 
+    // ========== Loading Tests ==========
+
     @Test
     fun `initial state is loading`() =
         runTest {
-            val seriesDao: SeriesDao = mock()
-            val seriesEditRepository: SeriesEditRepositoryContract = mock()
-            val imageStorage: ImageStorage = mock()
-            val imageApi: ImageApiContract = mock()
-
-            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            val fixture = createFixture()
+            val viewModel = fixture.build()
 
             assertTrue(viewModel.state.value.isLoading)
         }
@@ -110,15 +87,13 @@ class SeriesEditViewModelTest {
     @Test
     fun `loadSeries populates state with series data`() =
         runTest {
-            val seriesDao: SeriesDao = mock()
-            val seriesEditRepository: SeriesEditRepositoryContract = mock()
-            val imageStorage: ImageStorage = mock()
-            val imageApi: ImageApiContract = mock()
-            val seriesWithBooks = createSeriesWithBooks()
-            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns seriesWithBooks
-            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
+            val fixture = createFixture()
+            val series = createSeries()
+            everySuspend { fixture.seriesRepository.getById("series-1") } returns series
+            everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
+            everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
 
-            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            val viewModel = fixture.build()
             viewModel.loadSeries("series-1")
             advanceUntilIdle()
 
@@ -131,13 +106,10 @@ class SeriesEditViewModelTest {
     @Test
     fun `loadSeries shows error for missing series`() =
         runTest {
-            val seriesDao: SeriesDao = mock()
-            val seriesEditRepository: SeriesEditRepositoryContract = mock()
-            val imageStorage: ImageStorage = mock()
-            val imageApi: ImageApiContract = mock()
-            everySuspend { seriesDao.getByIdWithBooks("missing") } returns null
+            val fixture = createFixture()
+            everySuspend { fixture.seriesRepository.getById("missing") } returns null
 
-            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            val viewModel = fixture.build()
             viewModel.loadSeries("missing")
             advanceUntilIdle()
 
@@ -145,17 +117,17 @@ class SeriesEditViewModelTest {
             assertEquals("Series not found", viewModel.state.value.error)
         }
 
+    // ========== Change Tracking Tests ==========
+
     @Test
     fun `NameChanged updates state and tracks changes`() =
         runTest {
-            val seriesDao: SeriesDao = mock()
-            val seriesEditRepository: SeriesEditRepositoryContract = mock()
-            val imageStorage: ImageStorage = mock()
-            val imageApi: ImageApiContract = mock()
-            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
+            val fixture = createFixture()
+            everySuspend { fixture.seriesRepository.getById("series-1") } returns createSeries()
+            everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
+            everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
 
-            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            val viewModel = fixture.build()
             viewModel.loadSeries("series-1")
             advanceUntilIdle()
             assertFalse(viewModel.state.value.hasChanges)
@@ -169,14 +141,12 @@ class SeriesEditViewModelTest {
     @Test
     fun `DescriptionChanged updates state and tracks changes`() =
         runTest {
-            val seriesDao: SeriesDao = mock()
-            val seriesEditRepository: SeriesEditRepositoryContract = mock()
-            val imageStorage: ImageStorage = mock()
-            val imageApi: ImageApiContract = mock()
-            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
+            val fixture = createFixture()
+            everySuspend { fixture.seriesRepository.getById("series-1") } returns createSeries()
+            everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
+            everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
 
-            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            val viewModel = fixture.build()
             viewModel.loadSeries("series-1")
             advanceUntilIdle()
 
@@ -186,17 +156,17 @@ class SeriesEditViewModelTest {
             assertTrue(viewModel.state.value.hasChanges)
         }
 
+    // ========== Save Tests ==========
+
     @Test
     fun `SaveClicked with no changes navigates back immediately`() =
         runTest {
-            val seriesDao: SeriesDao = mock()
-            val seriesEditRepository: SeriesEditRepositoryContract = mock()
-            val imageStorage: ImageStorage = mock()
-            val imageApi: ImageApiContract = mock()
-            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
+            val fixture = createFixture()
+            everySuspend { fixture.seriesRepository.getById("series-1") } returns createSeries()
+            everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
+            everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
 
-            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            val viewModel = fixture.build()
             viewModel.loadSeries("series-1")
             advanceUntilIdle()
 
@@ -207,17 +177,15 @@ class SeriesEditViewModelTest {
         }
 
     @Test
-    fun `SaveClicked with changes calls repository`() =
+    fun `SaveClicked with changes calls use case`() =
         runTest {
-            val seriesDao: SeriesDao = mock()
-            val seriesEditRepository: SeriesEditRepositoryContract = mock()
-            val imageStorage: ImageStorage = mock()
-            val imageApi: ImageApiContract = mock()
-            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
-            everySuspend { seriesEditRepository.updateSeries(any(), any(), any()) } returns Result.Success(Unit)
+            val fixture = createFixture()
+            everySuspend { fixture.seriesRepository.getById("series-1") } returns createSeries()
+            everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
+            everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
+            everySuspend { fixture.updateSeriesUseCase.invoke(any()) } returns Success(Unit)
 
-            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            val viewModel = fixture.build()
             viewModel.loadSeries("series-1")
             advanceUntilIdle()
             viewModel.onEvent(SeriesEditUiEvent.NameChanged("Updated Name"))
@@ -225,22 +193,44 @@ class SeriesEditViewModelTest {
             viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
             advanceUntilIdle()
 
-            verifySuspend { seriesEditRepository.updateSeries("series-1", "Updated Name", any()) }
+            verifySuspend { fixture.updateSeriesUseCase.invoke(any()) }
             checkIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
         }
 
     @Test
+    fun `SaveClicked shows error when use case fails`() =
+        runTest {
+            val fixture = createFixture()
+            everySuspend { fixture.seriesRepository.getById("series-1") } returns createSeries()
+            everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
+            everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
+            everySuspend { fixture.updateSeriesUseCase.invoke(any()) } returns
+                Failure(exception = Exception("Save failed"), message = "Save failed")
+
+            val viewModel = fixture.build()
+            viewModel.loadSeries("series-1")
+            advanceUntilIdle()
+            viewModel.onEvent(SeriesEditUiEvent.NameChanged("Updated Name"))
+
+            viewModel.onEvent(SeriesEditUiEvent.SaveClicked)
+            advanceUntilIdle()
+
+            assertEquals("Failed to save: Save failed", viewModel.state.value.error)
+            assertNull(viewModel.navActions.value)
+        }
+
+    // ========== Cancel Tests ==========
+
+    @Test
     fun `CancelClicked navigates back`() =
         runTest {
-            val seriesDao: SeriesDao = mock()
-            val seriesEditRepository: SeriesEditRepositoryContract = mock()
-            val imageStorage: ImageStorage = mock()
-            val imageApi: ImageApiContract = mock()
-            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
-            everySuspend { imageStorage.deleteSeriesCoverStaging(any()) } returns Result.Success(Unit)
+            val fixture = createFixture()
+            everySuspend { fixture.seriesRepository.getById("series-1") } returns createSeries()
+            everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
+            everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
+            everySuspend { fixture.imageRepository.deleteSeriesCoverStaging(any()) } returns Result.Success(Unit)
 
-            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            val viewModel = fixture.build()
             viewModel.loadSeries("series-1")
             advanceUntilIdle()
 
@@ -250,16 +240,15 @@ class SeriesEditViewModelTest {
             checkIs<SeriesEditNavAction.NavigateBack>(viewModel.navActions.value)
         }
 
+    // ========== Error Handling Tests ==========
+
     @Test
     fun `ErrorDismissed clears error`() =
         runTest {
-            val seriesDao: SeriesDao = mock()
-            val seriesEditRepository: SeriesEditRepositoryContract = mock()
-            val imageStorage: ImageStorage = mock()
-            val imageApi: ImageApiContract = mock()
-            everySuspend { seriesDao.getByIdWithBooks("missing") } returns null
+            val fixture = createFixture()
+            everySuspend { fixture.seriesRepository.getById("missing") } returns null
 
-            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            val viewModel = fixture.build()
             viewModel.loadSeries("missing")
             advanceUntilIdle()
             assertTrue(viewModel.state.value.error != null)
@@ -269,17 +258,17 @@ class SeriesEditViewModelTest {
             assertNull(viewModel.state.value.error)
         }
 
+    // ========== Navigation Tests ==========
+
     @Test
     fun `consumeNavAction clears navigation action`() =
         runTest {
-            val seriesDao: SeriesDao = mock()
-            val seriesEditRepository: SeriesEditRepositoryContract = mock()
-            val imageStorage: ImageStorage = mock()
-            val imageApi: ImageApiContract = mock()
-            everySuspend { seriesDao.getByIdWithBooks("series-1") } returns createSeriesWithBooks()
-            everySuspend { imageStorage.seriesCoverExists("series-1") } returns false
+            val fixture = createFixture()
+            everySuspend { fixture.seriesRepository.getById("series-1") } returns createSeries()
+            everySuspend { fixture.seriesRepository.getBookIdsForSeries("series-1") } returns listOf("book-1")
+            everySuspend { fixture.imageRepository.seriesCoverExists("series-1") } returns false
 
-            val viewModel = SeriesEditViewModel(seriesDao, seriesEditRepository, imageStorage, imageApi)
+            val viewModel = fixture.build()
             viewModel.loadSeries("series-1")
             advanceUntilIdle()
             viewModel.onEvent(SeriesEditUiEvent.SaveClicked)

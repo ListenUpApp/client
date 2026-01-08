@@ -33,10 +33,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.UserAvatar
+import com.calypsan.listenup.client.domain.model.SyncState
+import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.features.shell.ShellDestination
 
 /**
@@ -64,8 +64,8 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
 @Composable
 fun AppTopBar(
     currentDestination: ShellDestination?,
-    syncState: SyncStatus,
-    user: UserEntity?,
+    syncState: SyncState,
+    user: User?,
     isSearchExpanded: Boolean,
     searchQuery: String,
     onSearchExpandedChange: (Boolean) -> Unit,
@@ -206,13 +206,13 @@ private fun SearchField(
  */
 @Composable
 private fun SyncIndicator(
-    syncState: SyncStatus,
+    syncState: SyncState,
     onClick: () -> Unit,
 ) {
     when (syncState) {
-        is SyncStatus.Syncing,
-        is SyncStatus.Progress,
-        is SyncStatus.Retrying,
+        is SyncState.Syncing,
+        is SyncState.Progress,
+        is SyncState.Retrying,
         -> {
             ListenUpLoadingIndicatorSmall(
                 modifier =
@@ -222,7 +222,7 @@ private fun SyncIndicator(
             )
         }
 
-        is SyncStatus.Error -> {
+        is SyncState.Error -> {
             Icon(
                 imageVector = Icons.Default.CloudOff,
                 contentDescription = "Sync error",

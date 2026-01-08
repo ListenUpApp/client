@@ -1,10 +1,10 @@
 package com.calypsan.listenup.client.data.sync.push
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
-import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -83,7 +83,7 @@ class BookUpdateHandler(
             )
         return when (val result = api.updateBook(operation.entityId!!, request)) {
             is Success -> Success(Unit)
-            is Failure -> Failure(result.exception)
+            is Failure -> result
         }
     }
 }
@@ -133,7 +133,7 @@ class ContributorUpdateHandler(
             )
         return when (val result = api.updateContributor(operation.entityId!!, request)) {
             is Success -> Success(Unit)
-            is Failure -> Failure(result.exception)
+            is Failure -> result
         }
     }
 }
@@ -174,7 +174,7 @@ class SeriesUpdateHandler(
             )
         return when (val result = api.updateSeries(operation.entityId!!, request)) {
             is Success -> Success(Unit)
-            is Failure -> Failure(result.exception)
+            is Failure -> result
         }
     }
 }
@@ -214,7 +214,7 @@ class SetBookContributorsHandler(
             }
         return when (val result = api.setBookContributors(operation.entityId!!, contributors)) {
             is Success -> Success(Unit)
-            is Failure -> Failure(result.exception)
+            is Failure -> result
         }
     }
 }
@@ -254,7 +254,7 @@ class SetBookSeriesHandler(
             }
         return when (val result = api.setBookSeries(operation.entityId!!, series)) {
             is Success -> Success(Unit)
-            is Failure -> Failure(result.exception)
+            is Failure -> result
         }
     }
 }
@@ -284,7 +284,7 @@ class MergeContributorHandler(
     ): Result<Unit> =
         when (val result = api.mergeContributor(payload.targetId, payload.sourceId)) {
             is Success -> Success(Unit)
-            is Failure -> Failure(result.exception)
+            is Failure -> result
         }
 }
 
@@ -313,7 +313,7 @@ class UnmergeContributorHandler(
     ): Result<Unit> =
         when (val result = api.unmergeContributor(payload.contributorId, payload.aliasName)) {
             is Success -> Success(Unit)
-            is Failure -> Failure(result.exception)
+            is Failure -> result
         }
 }
 
@@ -362,7 +362,7 @@ class ListeningEventHandler(
             }
 
             is Failure -> {
-                Failure(result.exception)
+                result
             }
         }
     }
@@ -393,8 +393,8 @@ class ListeningEventHandler(
             }
 
             is Failure -> {
-                logger.error(result.exception) { "📤 LISTENING EVENTS: Submission failed" }
-                operations.associate { (op, _) -> op.id to Failure(result.exception) }
+                result.exception?.let { logger.error(it) { "📤 LISTENING EVENTS: Submission failed" } }
+                operations.associate { (op, _) -> op.id to result }
             }
         }
     }
@@ -466,7 +466,7 @@ class PlaybackPositionHandler(
             )
         return when (val result = api.submitListeningEvents(listOf(event))) {
             is Success -> Success(Unit)
-            is Failure -> Failure(result.exception)
+            is Failure -> result
         }
     }
 }
@@ -504,7 +504,7 @@ class UserPreferencesHandler(
             )
         return when (val result = api.updatePreferences(request)) {
             is Success -> Success(Unit)
-            is Failure -> Failure(result.exception)
+            is Failure -> result
         }
     }
 }
@@ -589,7 +589,7 @@ class ProfileUpdateHandler(
             }
 
             is Failure -> {
-                Failure(result.exception)
+                result
             }
         }
 }
@@ -653,7 +653,7 @@ class ProfileAvatarHandler(
             }
 
             is Failure -> {
-                Failure(result.exception)
+                result
             }
         }
     }

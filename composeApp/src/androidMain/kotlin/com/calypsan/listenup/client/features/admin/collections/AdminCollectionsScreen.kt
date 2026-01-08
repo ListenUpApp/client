@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
@@ -51,10 +50,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.data.local.db.CollectionEntity
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpTextField
+import com.calypsan.listenup.client.domain.model.Collection
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionsUiState
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel
 
@@ -76,7 +75,7 @@ fun AdminCollectionsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showCreateDialog by remember { mutableStateOf(false) }
-    var collectionToDelete by remember { mutableStateOf<CollectionEntity?>(null) }
+    var collectionToDelete by remember { mutableStateOf<Collection?>(null) }
 
     // Handle errors
     LaunchedEffect(state.error) {
@@ -146,9 +145,11 @@ fun AdminCollectionsScreen(
     collectionToDelete?.let { collection ->
         val warningText =
             if (collection.bookCount > 0) {
-                "Are you sure you want to delete \"${collection.name}\"?\n\n" +
-                    "The ${collection.bookCount} book${if (collection.bookCount != 1) "s" else ""} " +
-                    "in this collection will become visible to all users."
+                """
+                    |Are you sure you want to delete "${collection.name}"?
+                    |
+                    |The ${collection.bookCount} book${if (collection.bookCount != 1) "s" else ""} in this collection will become visible to all users.
+                """.trimMargin()
             } else {
                 "Are you sure you want to delete \"${collection.name}\"?"
             }
@@ -171,7 +172,7 @@ fun AdminCollectionsScreen(
 private fun CollectionsContent(
     state: AdminCollectionsUiState,
     onCollectionClick: (String) -> Unit,
-    onDeleteClick: (CollectionEntity) -> Unit,
+    onDeleteClick: (Collection) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.collections.isEmpty()) {
@@ -229,7 +230,7 @@ private fun CollectionsContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CollectionRow(
-    collection: CollectionEntity,
+    collection: Collection,
     isDeleting: Boolean,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -237,6 +238,7 @@ private fun CollectionRow(
 ) {
     val dismissState =
         rememberSwipeToDismissBoxState(
+            initialValue = SwipeToDismissBoxValue.Settled,
             confirmValueChange = { dismissValue ->
                 if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
                     onDeleteClick()
@@ -251,9 +253,10 @@ private fun CollectionRow(
         state = dismissState,
         backgroundContent = {
             val color by animateColorAsState(
-                when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
-                    else -> Color.Transparent
+                if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                    MaterialTheme.colorScheme.errorContainer
+                } else {
+                    Color.Transparent
                 },
                 label = "SwipeBackground",
             )

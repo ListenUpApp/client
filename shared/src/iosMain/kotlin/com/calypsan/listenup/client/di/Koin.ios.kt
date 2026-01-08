@@ -33,9 +33,7 @@ actual fun getBaseUrl(): String = "http://127.0.0.1:8080"
 
 /**
  * iOS-specific discovery module.
- * Provides Bonjour-based mDNS discovery.
- *
- * TODO: IosDiscoveryService is a placeholder - implement NSNetServiceBrowser
+ * Provides Bonjour-based mDNS discovery using NSNetServiceBrowser.
  */
 actual val platformDiscoveryModule: Module =
     module {
@@ -57,8 +55,13 @@ object KoinHelper : KoinComponent {
         return viewModel
     }
 
-    fun getSettingsRepository(): com.calypsan.listenup.client.data.repository.SettingsRepository {
-        val repository: com.calypsan.listenup.client.data.repository.SettingsRepository by inject()
-        return repository
+    fun getAuthSession(): com.calypsan.listenup.client.domain.repository.AuthSession {
+        val authSession: com.calypsan.listenup.client.domain.repository.AuthSession by inject()
+        return authSession
+    }
+
+    fun getServerConfig(): com.calypsan.listenup.client.domain.repository.ServerConfig {
+        val serverConfig: com.calypsan.listenup.client.domain.repository.ServerConfig by inject()
+        return serverConfig
     }
 }

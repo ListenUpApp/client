@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
+import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.presentation.metadata.MetadataViewModel
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -21,7 +21,7 @@ fun MetadataSearchRoute(
     onBack: () -> Unit,
     viewModel: MetadataViewModel = koinViewModel(),
 ) {
-    val bookRepository: BookRepositoryContract = koinInject()
+    val bookRepository: BookRepository = koinInject()
     val state by viewModel.state.collectAsState()
 
     // Load book and initialize search

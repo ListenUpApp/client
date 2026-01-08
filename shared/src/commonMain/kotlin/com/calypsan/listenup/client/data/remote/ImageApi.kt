@@ -2,13 +2,14 @@
 
 package com.calypsan.listenup.client.data.remote
 
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.suspendRunCatching
-import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.forms.formData
@@ -35,7 +36,7 @@ import kotlinx.serialization.Serializable
  */
 class ImageApi(
     private val clientFactory: ApiClientFactory,
-    private val settingsRepository: SettingsRepositoryContract,
+    private val serverConfig: ServerConfig,
 ) : ImageApiContract {
     /**
      * Constructs a full URL from a relative path returned by the server.
@@ -43,7 +44,7 @@ class ImageApi(
      * needs absolute URLs like "http://server:port/api/v1/contributors/xxx/image".
      */
     private suspend fun buildFullUrl(relativePath: String): String {
-        val serverUrl = settingsRepository.getServerUrl()?.value ?: ""
+        val serverUrl = serverConfig.getServerUrl()?.value ?: ""
         val path = relativePath.trimStart('/')
         return "$serverUrl/$path"
     }
@@ -135,7 +136,7 @@ class ImageApi(
                 }
 
                 is Failure -> {
-                    throw result.exception
+                    throw result.exceptionOrFromMessage()
                 }
             }
         }
@@ -189,7 +190,7 @@ class ImageApi(
                 }
 
                 is Failure -> {
-                    throw result.exception
+                    throw result.exceptionOrFromMessage()
                 }
             }
         }
@@ -262,7 +263,7 @@ class ImageApi(
                 }
 
                 is Failure -> {
-                    throw result.exception
+                    throw result.exceptionOrFromMessage()
                 }
             }
         }
@@ -282,7 +283,15 @@ class ImageApi(
     override suspend fun deleteSeriesCover(seriesId: String): Result<Unit> =
         suspendRunCatching {
             val client = clientFactory.getClient()
-            client.delete("/api/v1/series/$seriesId/cover")
+            val response: ApiResponse<Unit> = client.delete("/api/v1/series/$seriesId/cover").body()
+
+            when (val result = response.toResult()) {
+                is Success -> { /* Cover deleted successfully */ }
+
+                is Failure -> {
+                    throw result.exceptionOrFromMessage()
+                }
+            }
         }
 
     /**

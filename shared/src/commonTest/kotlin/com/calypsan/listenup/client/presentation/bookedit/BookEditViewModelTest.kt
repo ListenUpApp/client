@@ -1,21 +1,19 @@
 package com.calypsan.listenup.client.presentation.bookedit
 
 import com.calypsan.listenup.client.TestData
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.remote.BookEditResponse
-import com.calypsan.listenup.client.data.remote.ContributorSearchResult
-import com.calypsan.listenup.client.data.remote.GenreApiContract
-import com.calypsan.listenup.client.data.remote.ImageApiContract
-import com.calypsan.listenup.client.data.remote.SeriesSearchResult
-import com.calypsan.listenup.client.data.remote.TagApiContract
-import com.calypsan.listenup.client.data.repository.BookEditRepositoryContract
-import com.calypsan.listenup.client.data.repository.BookRepositoryContract
-import com.calypsan.listenup.client.data.repository.ContributorRepositoryContract
-import com.calypsan.listenup.client.data.repository.ContributorSearchResponse
-import com.calypsan.listenup.client.data.repository.SeriesRepositoryContract
-import com.calypsan.listenup.client.data.repository.SeriesSearchResponse
-import com.calypsan.listenup.client.domain.model.Contributor
+import com.calypsan.listenup.client.domain.model.BookEditData
+import com.calypsan.listenup.client.domain.model.BookMetadata
+import com.calypsan.listenup.client.domain.model.ContributorSearchResponse
+import com.calypsan.listenup.client.domain.model.ContributorSearchResult
+import com.calypsan.listenup.client.domain.model.SeriesSearchResponse
+import com.calypsan.listenup.client.domain.model.SeriesSearchResult
+import com.calypsan.listenup.client.domain.repository.ContributorRepository
+import com.calypsan.listenup.client.domain.repository.ImageRepository
+import com.calypsan.listenup.client.domain.repository.SeriesRepository
+import com.calypsan.listenup.client.domain.usecase.book.LoadBookForEditUseCase
+import com.calypsan.listenup.client.domain.usecase.book.UpdateBookUseCase
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
@@ -41,14 +39,14 @@ import kotlin.test.assertTrue
  *
  * Tests cover:
  * - Initial state (loading)
- * - Load book success/not found
+ * - Load book success/not found (via use case)
  * - Metadata change tracking (hasChanges)
  * - Contributor management (add, select, remove)
  * - Series management
  * - Genre/Tag management
- * - Save functionality
+ * - Save functionality (via use case)
  *
- * Uses Mokkery for mocking repository and API contracts.
+ * Uses Mokkery for mocking use cases and repository contracts.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class BookEditViewModelTest {
@@ -57,36 +55,26 @@ class BookEditViewModelTest {
     // ========== Test Fixtures ==========
 
     private class TestFixture {
-        val bookRepository: BookRepositoryContract = mock()
-        val bookEditRepository: BookEditRepositoryContract = mock()
-        val contributorRepository: ContributorRepositoryContract = mock()
-        val seriesRepository: SeriesRepositoryContract = mock()
-        val genreApi: GenreApiContract = mock()
-        val tagApi: TagApiContract = mock()
-        val imageApi: ImageApiContract = mock()
-        val imageStorage: ImageStorage = mock()
+        val loadBookForEditUseCase: LoadBookForEditUseCase = mock()
+        val updateBookUseCase: UpdateBookUseCase = mock()
+        val contributorRepository: ContributorRepository = mock()
+        val seriesRepository: SeriesRepository = mock()
+        val imageRepository: ImageRepository = mock()
 
         fun build(): BookEditViewModel =
             BookEditViewModel(
-                bookRepository = bookRepository,
-                bookEditRepository = bookEditRepository,
+                loadBookForEditUseCase = loadBookForEditUseCase,
+                updateBookUseCase = updateBookUseCase,
                 contributorRepository = contributorRepository,
                 seriesRepository = seriesRepository,
-                genreApi = genreApi,
-                tagApi = tagApi,
-                imageApi = imageApi,
-                imageStorage = imageStorage,
+                imageRepository = imageRepository,
             )
     }
 
     private fun createFixture(): TestFixture {
         val fixture = TestFixture()
 
-        // Default stubs for API operations
-        everySuspend { fixture.genreApi.listGenres() } returns emptyList()
-        everySuspend { fixture.genreApi.getBookGenres(any()) } returns emptyList()
-        everySuspend { fixture.tagApi.listTags() } returns emptyList()
-        everySuspend { fixture.tagApi.getBookTags(any()) } returns emptyList()
+        // Default stubs for delegate operations
         everySuspend { fixture.contributorRepository.searchContributors(any(), any()) } returns
             ContributorSearchResponse(emptyList(), false, 0L)
         everySuspend { fixture.seriesRepository.searchSeries(any(), any()) } returns
@@ -94,6 +82,50 @@ class BookEditViewModelTest {
 
         return fixture
     }
+
+    private fun createBookEditData(
+        bookId: String = "book-1",
+        title: String = "Test Book",
+        subtitle: String = "",
+        description: String = "",
+        publishYear: String = "",
+        publisher: String = "",
+        language: String? = null,
+        isbn: String = "",
+        asin: String = "",
+        abridged: Boolean = false,
+        addedAt: Long? = null,
+        contributors: List<EditableContributor> = emptyList(),
+        series: List<EditableSeries> = emptyList(),
+        genres: List<EditableGenre> = emptyList(),
+        tags: List<EditableTag> = emptyList(),
+        allGenres: List<EditableGenre> = emptyList(),
+        allTags: List<EditableTag> = emptyList(),
+        coverPath: String? = null,
+    ): BookEditData =
+        BookEditData(
+            bookId = bookId,
+            metadata =
+                BookMetadata(
+                    title = title,
+                    subtitle = subtitle,
+                    description = description,
+                    publishYear = publishYear,
+                    publisher = publisher,
+                    language = language,
+                    isbn = isbn,
+                    asin = asin,
+                    abridged = abridged,
+                    addedAt = addedAt,
+                ),
+            contributors = contributors,
+            series = series,
+            genres = genres,
+            tags = tags,
+            allGenres = allGenres,
+            allTags = allTags,
+            coverPath = coverPath,
+        )
 
     @BeforeTest
     fun setup() {
@@ -127,20 +159,20 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val author = TestData.contributor(id = "author-1", name = "Brandon Sanderson", roles = listOf("Author"))
-            val narrator = TestData.contributor(id = "narrator-1", name = "Michael Kramer", roles = listOf("Narrator"))
-            val book =
-                TestData.book(
-                    id = "book-1",
+            val author = EditableContributor(id = "author-1", name = "Brandon Sanderson", roles = setOf(ContributorRole.AUTHOR))
+            val narrator = EditableContributor(id = "narrator-1", name = "Michael Kramer", roles = setOf(ContributorRole.NARRATOR))
+            val editData =
+                createBookEditData(
+                    bookId = "book-1",
                     title = "The Way of Kings",
                     subtitle = "Book One of the Stormlight Archive",
                     description = "An epic fantasy adventure",
-                    allContributors = listOf(author, narrator),
-                    publishYear = 2010,
+                    publishYear = "2010",
                     publisher = "Tor Books",
                     language = "en",
+                    contributors = listOf(author, narrator),
                 )
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
 
             // When
@@ -165,7 +197,7 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("nonexistent") } returns null
+            everySuspend { fixture.loadBookForEditUseCase("nonexistent") } returns Failure(message = "Book not found")
             val viewModel = fixture.build()
 
             // When
@@ -184,18 +216,18 @@ class BookEditViewModelTest {
             // Given
             val fixture = createFixture()
             val contributor =
-                Contributor(
+                EditableContributor(
                     id = "person-1",
                     name = "Patrick Rothfuss",
-                    roles = listOf("Author", "Narrator"),
+                    roles = setOf(ContributorRole.AUTHOR, ContributorRole.NARRATOR),
                 )
-            val book =
-                TestData.book(
-                    id = "book-1",
+            val editData =
+                createBookEditData(
+                    bookId = "book-1",
                     title = "The Name of the Wind",
-                    allContributors = listOf(contributor),
+                    contributors = listOf(contributor),
                 )
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
 
             // When
@@ -218,8 +250,8 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1", title = "Original Title")
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val editData = createBookEditData(bookId = "book-1", title = "Original Title")
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -238,8 +270,8 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1", title = "Original Title")
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val editData = createBookEditData(bookId = "book-1", title = "Original Title")
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -258,8 +290,8 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val editData = createBookEditData(bookId = "book-1")
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -278,8 +310,8 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val editData = createBookEditData(bookId = "book-1")
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -296,8 +328,8 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1", allContributors = emptyList())
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val editData = createBookEditData(bookId = "book-1", contributors = emptyList())
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -319,9 +351,9 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1", allContributors = emptyList())
+            val editData = createBookEditData(bookId = "book-1", contributors = emptyList())
             val searchResult = ContributorSearchResult(id = "existing-1", name = "Existing Author", bookCount = 10)
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -342,9 +374,9 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val author = TestData.contributor(id = "author-1", name = "Author Name", roles = listOf("Author"))
-            val book = TestData.book(id = "book-1", allContributors = listOf(author))
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val author = EditableContributor(id = "author-1", name = "Author Name", roles = setOf(ContributorRole.AUTHOR))
+            val editData = createBookEditData(bookId = "book-1", contributors = listOf(author))
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -368,9 +400,9 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
+            val editData = createBookEditData(bookId = "book-1")
             val searchResult = SeriesSearchResult(id = "series-1", name = "The Stormlight Archive", bookCount = 4)
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -394,8 +426,8 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val editData = createBookEditData(bookId = "book-1")
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -423,23 +455,18 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book =
-                TestData.book(
-                    id = "book-1",
-                    seriesId = "series-1",
-                    seriesName = "Mistborn",
-                    seriesSequence = null,
-                )
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val series = EditableSeries(id = "series-1", name = "Mistborn", sequence = null)
+            val editData = createBookEditData(bookId = "book-1", series = listOf(series))
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
 
             // When
-            val series =
+            val loadedSeries =
                 viewModel.state.value.series
                     .first()
-            viewModel.onEvent(BookEditUiEvent.SeriesSequenceChanged(series, "1"))
+            viewModel.onEvent(BookEditUiEvent.SeriesSequenceChanged(loadedSeries, "1"))
 
             // Then
             assertEquals(
@@ -458,9 +485,9 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
+            val editData = createBookEditData(bookId = "book-1")
             val genre = EditableGenre(id = "genre-1", name = "Fantasy", path = "/fiction/fantasy")
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -484,10 +511,9 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val domainGenre = TestData.genre(id = "genre-1", name = "Fantasy", path = "/fiction/fantasy")
-            val book = TestData.book(id = "book-1", genres = listOf(domainGenre))
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
-            everySuspend { fixture.genreApi.getBookGenres("book-1") } returns listOf(domainGenre)
+            val genre = EditableGenre(id = "genre-1", name = "Fantasy", path = "/fiction/fantasy")
+            val editData = createBookEditData(bookId = "book-1", genres = listOf(genre))
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -511,9 +537,9 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
+            val editData = createBookEditData(bookId = "book-1")
             val tag = EditableTag(id = "tag-1", slug = "favorites")
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -537,10 +563,9 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val domainTag = TestData.tag(id = "tag-1", slug = "favorites")
-            val book = TestData.book(id = "book-1", tags = listOf(domainTag))
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
-            everySuspend { fixture.tagApi.getBookTags("book-1") } returns listOf(domainTag)
+            val tag = EditableTag(id = "tag-1", slug = "favorites")
+            val editData = createBookEditData(bookId = "book-1", tags = listOf(tag))
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -560,12 +585,12 @@ class BookEditViewModelTest {
     // ========== Save Tests ==========
 
     @Test
-    fun `save with no changes navigates back without API call`() =
+    fun `save with no changes navigates back without calling use case`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1", title = "Unchanged")
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val editData = createBookEditData(bookId = "book-1", title = "Unchanged")
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -580,14 +605,13 @@ class BookEditViewModelTest {
         }
 
     @Test
-    fun `save with changes calls repository and navigates back`() =
+    fun `save with changes calls use case and navigates back`() =
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1", title = "Original")
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
-            everySuspend { fixture.bookEditRepository.updateBook(any(), any()) } returns
-                Success(Unit)
+            val editData = createBookEditData(bookId = "book-1", title = "Original")
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
+            everySuspend { fixture.updateBookUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -598,8 +622,30 @@ class BookEditViewModelTest {
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.bookEditRepository.updateBook("book-1", any()) }
+            verifySuspend { fixture.updateBookUseCase(any(), any()) }
             assertEquals(BookEditNavAction.NavigateBack, viewModel.navActions.value)
+        }
+
+    @Test
+    fun `save failure shows error`() =
+        runTest {
+            // Given
+            val fixture = createFixture()
+            val editData = createBookEditData(bookId = "book-1", title = "Original")
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
+            everySuspend { fixture.updateBookUseCase(any(), any()) } returns Failure(message = "Save failed")
+            val viewModel = fixture.build()
+            viewModel.loadBook("book-1")
+            advanceUntilIdle()
+
+            // When
+            viewModel.onEvent(BookEditUiEvent.TitleChanged("Updated"))
+            viewModel.onEvent(BookEditUiEvent.Save)
+            advanceUntilIdle()
+
+            // Then
+            assertEquals("Save failed", viewModel.state.value.error)
+            assertNull(viewModel.navActions.value) // Should not navigate
         }
 
     @Test
@@ -607,8 +653,8 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            val book = TestData.book(id = "book-1")
-            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val editData = createBookEditData(bookId = "book-1")
+            everySuspend { fixture.loadBookForEditUseCase("book-1") } returns Success(editData)
             val viewModel = fixture.build()
             viewModel.loadBook("book-1")
             advanceUntilIdle()
@@ -625,7 +671,7 @@ class BookEditViewModelTest {
         runTest {
             // Given
             val fixture = createFixture()
-            everySuspend { fixture.bookRepository.getBook("nonexistent") } returns null
+            everySuspend { fixture.loadBookForEditUseCase("nonexistent") } returns Failure(message = "Book not found")
             val viewModel = fixture.build()
             viewModel.loadBook("nonexistent")
             advanceUntilIdle()

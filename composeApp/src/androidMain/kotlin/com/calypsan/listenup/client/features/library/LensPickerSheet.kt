@@ -38,8 +38,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.design.components.ListenUpTextField
+import com.calypsan.listenup.client.domain.model.Lens
 
 /**
  * Bottom sheet for selecting a lens to add books to.
@@ -57,7 +57,7 @@ import com.calypsan.listenup.client.design.components.ListenUpTextField
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LensPickerSheet(
-    lenses: List<LensEntity>,
+    lenses: List<Lens>,
     selectedBookCount: Int,
     onLensSelected: (String) -> Unit,
     onCreateAndAddToLens: (name: String) -> Unit,
@@ -245,7 +245,7 @@ private fun CreateNewLensRow(
  */
 @Composable
 private fun LensRow(
-    lens: LensEntity,
+    lens: Lens,
     onClick: () -> Unit,
     enabled: Boolean = true,
 ) {

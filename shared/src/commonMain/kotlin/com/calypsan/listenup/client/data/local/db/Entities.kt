@@ -3,6 +3,12 @@ package com.calypsan.listenup.client.data.local.db
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.ChapterId
+import com.calypsan.listenup.client.core.ContributorId
+import com.calypsan.listenup.client.core.SeriesId
+import com.calypsan.listenup.client.core.Timestamp
+import com.calypsan.listenup.client.core.UserId
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 
 /**
@@ -14,7 +20,7 @@ import com.calypsan.listenup.client.core.currentEpochMilliseconds
 @Entity(tableName = "users")
 data class UserEntity(
     @PrimaryKey
-    val id: String,
+    val id: UserId,
     val email: String,
     val displayName: String,
     /**
@@ -30,12 +36,12 @@ data class UserEntity(
      * Creation timestamp in Unix epoch milliseconds.
      * Use kotlin.time.Instant for domain model conversion.
      */
-    val createdAt: Long,
+    val createdAt: Timestamp,
     /**
      * Last update timestamp in Unix epoch milliseconds.
      * Use kotlin.time.Instant for domain model conversion.
      */
-    val updatedAt: Long,
+    val updatedAt: Timestamp,
     /**
      * Avatar type: "auto" for generated avatar, "image" for uploaded image.
      */
@@ -164,7 +170,7 @@ data class ChapterEntity(
     indices = [Index(value = ["syncState"])],
 )
 data class SeriesEntity(
-    @PrimaryKey val id: String,
+    @PrimaryKey val id: SeriesId,
     val name: String,
     val description: String?,
     // Sync fields
@@ -195,7 +201,7 @@ data class SeriesEntity(
     ],
 )
 data class ContributorEntity(
-    @PrimaryKey val id: String,
+    @PrimaryKey val id: ContributorId,
     val name: String,
     val description: String?,
     val imagePath: String?,
@@ -373,6 +379,50 @@ data class TagEntity(
             .joinToString(" ") { word ->
                 word.replaceFirstChar { it.titlecase() }
             }
+}
+
+/**
+ * Genre entity for offline-first genre display.
+ *
+ * Genres are system-defined hierarchical categories (e.g., Fiction > Fantasy > Epic).
+ * Synced during initial sync via GenrePuller.
+ * Book-genre relationships stored in book_genres junction table.
+ */
+@Entity(
+    tableName = "genres",
+    indices = [
+        Index(value = ["slug"], unique = true),
+        Index(value = ["path"]),
+    ],
+)
+data class GenreEntity(
+    @PrimaryKey val id: String,
+    /** Display name: "Epic Fantasy" */
+    val name: String,
+    /** URL-safe key: "epic-fantasy" */
+    val slug: String,
+    /** Materialized path: "/fiction/fantasy/epic-fantasy" */
+    val path: String,
+    /** Number of books with this genre (denormalized for sorting) */
+    val bookCount: Int = 0,
+    /** Parent genre ID for hierarchy traversal */
+    val parentId: String? = null,
+    /** Depth in hierarchy (0 = root) */
+    val depth: Int = 0,
+    /** Sort order within parent */
+    val sortOrder: Int = 0,
+) {
+    /**
+     * Returns the parent path for display context.
+     * "/fiction/fantasy/epic-fantasy" -> "Fiction > Fantasy"
+     */
+    fun parentPath(): String? {
+        val segments = path.trim('/').split('/')
+        if (segments.size <= 1) return null
+        return segments
+            .dropLast(1)
+            .joinToString(" > ") { it.replaceFirstChar { c -> c.uppercase() } }
+    }
 }
 
 /**

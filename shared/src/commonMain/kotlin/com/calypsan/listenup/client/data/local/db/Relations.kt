@@ -6,6 +6,9 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.Junction
 import androidx.room.Relation
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.ContributorId
+import com.calypsan.listenup.client.core.SeriesId
 
 /**
  * Cross-reference entity for the many-to-many relationship between Books and Contributors.
@@ -50,7 +53,7 @@ import androidx.room.Relation
 )
 data class BookContributorCrossRef(
     val bookId: BookId,
-    val contributorId: String,
+    val contributorId: ContributorId,
     // "author", "narrator", etc.
     val role: String,
     // Original attribution name (e.g., "Richard Bachman" even when linked to Stephen King)
@@ -91,7 +94,7 @@ data class BookContributorCrossRef(
 )
 data class BookSeriesCrossRef(
     val bookId: BookId,
-    val seriesId: String,
+    val seriesId: SeriesId,
     val sequence: String? = null,
 )
 
@@ -264,6 +267,39 @@ data class RoleWithBookCount(
 data class BookTagCrossRef(
     val bookId: BookId,
     val tagId: String,
+)
+
+/**
+ * Junction table for book-genre many-to-many relationship.
+ *
+ * Genres are synced during book sync (via BookPuller) and when
+ * manually setting genres on a book (via GenreApi).
+ */
+@Entity(
+    tableName = "book_genres",
+    primaryKeys = ["bookId", "genreId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = BookEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["bookId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = GenreEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["genreId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [
+        Index(value = ["bookId"]),
+        Index(value = ["genreId"]),
+    ],
+)
+data class BookGenreCrossRef(
+    val bookId: BookId,
+    val genreId: String,
 )
 
 /**

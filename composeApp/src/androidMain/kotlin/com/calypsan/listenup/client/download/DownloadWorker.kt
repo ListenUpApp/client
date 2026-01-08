@@ -10,7 +10,8 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.DownloadDao
 import com.calypsan.listenup.client.data.local.db.DownloadState
 import com.calypsan.listenup.client.data.remote.PlaybackApi
-import com.calypsan.listenup.client.data.repository.SettingsRepository
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.playback.AudioCapabilityDetector
 import com.calypsan.listenup.client.playback.AudioTokenProvider
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -44,7 +45,8 @@ class DownloadWorker(
     private val downloadDao: DownloadDao,
     private val fileManager: DownloadFileManager,
     private val tokenProvider: AudioTokenProvider,
-    private val settingsRepository: SettingsRepository,
+    private val serverConfig: ServerConfig,
+    private val playbackPreferences: PlaybackPreferences,
     private val playbackApi: PlaybackApi,
     private val capabilityDetector: AudioCapabilityDetector,
 ) : CoroutineWorker(context, params) {
@@ -131,7 +133,7 @@ class DownloadWorker(
                 ?: error("No auth token available")
 
         val serverUrl =
-            settingsRepository.getServerUrl()?.value
+            serverConfig.getServerUrl()?.value
                 ?: error("No server URL configured")
 
         // Get the correct download URL via the prepare endpoint
@@ -254,8 +256,8 @@ class DownloadWorker(
     ): String {
         val capabilities = capabilityDetector.getSupportedCodecs()
 
-        // Get spatial audio setting from repository
-        val spatial = settingsRepository.getSpatialPlayback()
+        // Get spatial audio setting from preferences
+        val spatial = playbackPreferences.getSpatialPlayback()
 
         // Call prepare endpoint
         val result = playbackApi.preparePlayback(bookId, audioFileId, capabilities, spatial)

@@ -2,20 +2,14 @@ package com.calypsan.listenup.client.presentation.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.currentEpochMilliseconds
-import com.calypsan.listenup.client.data.local.db.ActiveSessionDao
-import com.calypsan.listenup.client.data.local.db.ActiveSessionWithDetails
-import com.calypsan.listenup.client.data.local.db.BookDao
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.DiscoveryBookWithAuthor
-import com.calypsan.listenup.client.data.local.db.LensDao
-import com.calypsan.listenup.client.data.local.db.LensEntity
-import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.local.images.ImageStorage
-import com.calypsan.listenup.client.data.remote.LensApiContract
-import com.calypsan.listenup.client.data.remote.LensResponse
-import com.calypsan.listenup.client.data.repository.AuthSessionContract
-import com.calypsan.listenup.client.data.repository.AuthState
+import com.calypsan.listenup.client.domain.model.ActiveSession
+import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.repository.ActiveSessionRepository
+import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.AuthState
+import com.calypsan.listenup.client.domain.repository.BookRepository
+import com.calypsan.listenup.client.domain.repository.DiscoveryBook
+import com.calypsan.listenup.client.domain.repository.LensRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,7 +19,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
@@ -43,12 +36,10 @@ private val logger = KotlinLogging.logger {}
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiscoverViewModel(
-    private val bookDao: BookDao,
-    private val activeSessionDao: ActiveSessionDao,
-    private val authSession: AuthSessionContract,
-    private val lensDao: LensDao,
-    private val lensApi: LensApiContract,
-    private val imageStorage: ImageStorage,
+    private val bookRepository: BookRepository,
+    private val activeSessionRepository: ActiveSessionRepository,
+    private val authSession: AuthSession,
+    private val lensRepository: LensRepository,
 ) : ViewModel() {
     init {
         // Fetch initial discover lenses if Room is empty
@@ -63,14 +54,10 @@ class DiscoverViewModel(
      */
     private val currentlyListeningFlow =
         authSession.authState.flatMapLatest { authState ->
-            when (authState) {
-                is AuthState.Authenticated -> {
-                    activeSessionDao.observeActiveSessions(authState.userId)
-                }
-
-                else -> {
-                    flowOf(emptyList())
-                }
+            if (authState is AuthState.Authenticated) {
+                activeSessionRepository.observeActiveSessions(authState.userId)
+            } else {
+                flowOf(emptyList())
             }
         }
 
@@ -89,31 +76,23 @@ class DiscoverViewModel(
             )
 
     /**
-     * Convert ActiveSessionWithDetails to UI model with local cover path.
+     * Convert ActiveSession domain model to UI model.
      */
-    private fun ActiveSessionWithDetails.toUiModel(): CurrentlyListeningUiSession {
-        val bookId = BookId(this.bookId)
-        val localCoverPath =
-            if (imageStorage.exists(bookId)) {
-                imageStorage.getCoverPath(bookId)
-            } else {
-                null
-            }
-        return CurrentlyListeningUiSession(
+    private fun ActiveSession.toUiModel(): CurrentlyListeningUiSession =
+        CurrentlyListeningUiSession(
             sessionId = sessionId,
             userId = userId,
-            bookId = this.bookId,
-            bookTitle = title,
-            authorName = authorName,
-            coverPath = localCoverPath,
-            coverBlurHash = coverBlurHash,
-            displayName = displayName,
-            avatarType = avatarType,
-            avatarValue = avatarValue,
-            avatarColor = avatarColor,
-            startedAt = startedAt,
+            bookId = bookId,
+            bookTitle = book.title,
+            authorName = book.authorName,
+            coverPath = book.coverPath,
+            coverBlurHash = book.coverBlurHash,
+            displayName = user.displayName,
+            avatarType = user.avatarType,
+            avatarValue = user.avatarValue,
+            avatarColor = user.avatarColor,
+            startedAt = startedAtMs,
         )
-    }
 
     // === Discover Books State (Random Unstarted from Room) ===
 
@@ -122,8 +101,8 @@ class DiscoverViewModel(
      * Uses RANDOM() in SQL so results change when table changes.
      */
     val discoverBooksState: StateFlow<DiscoverBooksUiState> =
-        bookDao
-            .observeRandomUnstartedBooksWithAuthor(limit = 10)
+        bookRepository
+            .observeRandomUnstartedBooks(limit = 10)
             .map { books ->
                 DiscoverBooksUiState(
                     isLoading = false,
@@ -137,24 +116,17 @@ class DiscoverViewModel(
             )
 
     /**
-     * Convert DiscoveryBookWithAuthor to DiscoverUiBook with local cover path.
+     * Convert DiscoveryBook domain model to DiscoverUiBook.
      */
-    private fun DiscoveryBookWithAuthor.toDiscoverUiBook(): DiscoverUiBook {
-        val localCoverPath =
-            if (imageStorage.exists(id)) {
-                imageStorage.getCoverPath(id)
-            } else {
-                null
-            }
-        return DiscoverUiBook(
-            id = id.value,
+    private fun DiscoveryBook.toDiscoverUiBook(): DiscoverUiBook =
+        DiscoverUiBook(
+            id = id,
             title = title,
             authorName = authorName,
-            coverPath = localCoverPath,
+            coverPath = coverPath,
             coverBlurHash = coverBlurHash,
             seriesName = null, // Series comes from book_series relation
         )
-    }
 
     // === Recently Added State (from Room) ===
 
@@ -163,8 +135,8 @@ class DiscoverViewModel(
      * Sorted by createdAt timestamp descending.
      */
     val recentlyAddedState: StateFlow<RecentlyAddedUiState> =
-        bookDao
-            .observeRecentlyAddedWithAuthor(limit = 10)
+        bookRepository
+            .observeRecentlyAddedBooks(limit = 10)
             .map { books ->
                 RecentlyAddedUiState(
                     isLoading = false,
@@ -178,24 +150,17 @@ class DiscoverViewModel(
             )
 
     /**
-     * Convert DiscoveryBookWithAuthor to RecentlyAddedUiBook with local cover path.
+     * Convert DiscoveryBook domain model to RecentlyAddedUiBook.
      */
-    private fun DiscoveryBookWithAuthor.toRecentlyAddedUiBook(): RecentlyAddedUiBook {
-        val localCoverPath =
-            if (imageStorage.exists(id)) {
-                imageStorage.getCoverPath(id)
-            } else {
-                null
-            }
-        return RecentlyAddedUiBook(
-            id = id.value,
+    private fun DiscoveryBook.toRecentlyAddedUiBook(): RecentlyAddedUiBook =
+        RecentlyAddedUiBook(
+            id = id,
             title = title,
             authorName = authorName,
-            coverPath = localCoverPath,
+            coverPath = coverPath,
             coverBlurHash = coverBlurHash,
-            createdAt = createdAt.epochMillis,
+            createdAt = createdAt,
         )
-    }
 
     // === Discover Lenses State (from Room) ===
 
@@ -206,14 +171,10 @@ class DiscoverViewModel(
      */
     private val discoverLensesFlow =
         authSession.authState.flatMapLatest { authState ->
-            when (authState) {
-                is AuthState.Authenticated -> {
-                    lensDao.observeDiscoverLenses(authState.userId)
-                }
-
-                else -> {
-                    flowOf(emptyList())
-                }
+            if (authState is AuthState.Authenticated) {
+                lensRepository.observeDiscoverLenses(authState.userId)
+            } else {
+                flowOf(emptyList())
             }
         }
 
@@ -246,9 +207,9 @@ class DiscoverViewModel(
             )
 
     /**
-     * Convert LensEntity to UI model.
+     * Convert Lens domain model to UI model.
      */
-    private fun LensEntity.toUiModel(): DiscoverLensUi =
+    private fun Lens.toUiModel(): DiscoverLensUi =
         DiscoverLensUi(
             id = id,
             name = name,
@@ -269,7 +230,7 @@ class DiscoverViewModel(
                 return@launch
             }
 
-            val existingCount = lensDao.countDiscoverLenses(authState.userId)
+            val existingCount = lensRepository.countDiscoverLenses(authState.userId)
             if (existingCount > 0) {
                 logger.debug { "Room has $existingCount discover lenses, skipping initial fetch" }
                 return@launch
@@ -277,15 +238,8 @@ class DiscoverViewModel(
 
             logger.debug { "Room is empty, fetching discover lenses from API" }
             try {
-                val userLenses = lensApi.discoverLenses()
-                val entities =
-                    userLenses.flatMap { userLensesResponse ->
-                        userLensesResponse.lenses.map { lens ->
-                            lens.toEntity()
-                        }
-                    }
-                lensDao.upsertAll(entities)
-                logger.info { "Fetched and stored ${entities.size} discover lenses" }
+                val count = lensRepository.fetchAndCacheDiscoverLenses()
+                logger.info { "Fetched and stored $count discover lenses" }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to fetch discover lenses" }
                 // Not fatal - Room Flow will show empty state, SSE will populate over time
@@ -299,15 +253,8 @@ class DiscoverViewModel(
     private fun refreshDiscoverLenses() {
         viewModelScope.launch {
             try {
-                val userLenses = lensApi.discoverLenses()
-                val entities =
-                    userLenses.flatMap { userLensesResponse ->
-                        userLensesResponse.lenses.map { lens ->
-                            lens.toEntity()
-                        }
-                    }
-                lensDao.upsertAll(entities)
-                logger.debug { "Refreshed ${entities.size} discover lenses from API" }
+                val count = lensRepository.fetchAndCacheDiscoverLenses()
+                logger.debug { "Refreshed $count discover lenses from API" }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to refresh discover lenses" }
             }
@@ -315,58 +262,14 @@ class DiscoverViewModel(
     }
 
     /**
-     * Refresh discover books with a new random selection.
-     * Forces Room to re-query with new RANDOM() seed.
-     */
-    fun refreshDiscoverBooks() {
-        viewModelScope.launch {
-            // Touch a random book to trigger the Flow to re-emit
-            // This causes Room's RANDOM() to produce new results
-            bookDao.getRandomUnstartedBooks(limit = 10)
-            logger.debug { "Refreshed discover books selection" }
-        }
-    }
-
-    /**
      * Refresh all discovery content.
      * - Lenses: fetched from API and stored in Room
      * - Sessions: automatically updated via Room flows (synced via SSE)
+     * - Books: automatically updated via Room flows (re-queries with new RANDOM seed)
      */
     fun refresh() {
-        refreshDiscoverBooks()
         refreshDiscoverLenses()
     }
-}
-
-/**
- * Convert API response to Room entity.
- */
-private fun LensResponse.toEntity(): LensEntity {
-    val createdAtMs =
-        try {
-            Instant.parse(createdAt).toEpochMilliseconds()
-        } catch (e: Exception) {
-            currentEpochMilliseconds()
-        }
-    val updatedAtMs =
-        try {
-            Instant.parse(updatedAt).toEpochMilliseconds()
-        } catch (e: Exception) {
-            currentEpochMilliseconds()
-        }
-
-    return LensEntity(
-        id = id,
-        name = name,
-        description = description.ifEmpty { null },
-        ownerId = owner.id,
-        ownerDisplayName = owner.displayName,
-        ownerAvatarColor = owner.avatarColor,
-        bookCount = bookCount,
-        totalDurationSeconds = totalDuration,
-        createdAt = Timestamp(createdAtMs),
-        updatedAt = Timestamp(updatedAtMs),
-    )
 }
 
 /**

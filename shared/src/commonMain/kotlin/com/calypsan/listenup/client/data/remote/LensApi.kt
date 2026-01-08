@@ -4,6 +4,7 @@ package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -90,7 +91,7 @@ class LensApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.lenses
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -101,7 +102,7 @@ class LensApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.users
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -118,7 +119,7 @@ class LensApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -129,7 +130,7 @@ class LensApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
@@ -147,22 +148,19 @@ class LensApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data
-            is Failure -> throw result.exception
+            is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
     override suspend fun deleteLens(lensId: String) {
         val client = clientFactory.getClient()
-        val response = client.delete("/api/v1/lenses/$lensId")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/lenses/$lensId").body()
 
-        if (!response.status.isSuccess()) {
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* Lens deleted successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exceptionOrFromMessage()
             }
         }
     }
@@ -183,7 +181,7 @@ class LensApi(
                 is Success -> { /* Shouldn't happen */ }
 
                 is Failure -> {
-                    throw result.exception
+                    throw result.exceptionOrFromMessage()
                 }
             }
         }
@@ -194,16 +192,13 @@ class LensApi(
         bookId: String,
     ) {
         val client = clientFactory.getClient()
-        val response = client.delete("/api/v1/lenses/$lensId/books/$bookId")
+        val response: ApiResponse<Unit> = client.delete("/api/v1/lenses/$lensId/books/$bookId").body()
 
-        if (!response.status.isSuccess()) {
-            val errorResponse: ApiResponse<Unit> = response.body()
-            when (val result = errorResponse.toResult()) {
-                is Success -> { /* Shouldn't happen */ }
+        when (val result = response.toResult()) {
+            is Success -> { /* Book removed from lens successfully */ }
 
-                is Failure -> {
-                    throw result.exception
-                }
+            is Failure -> {
+                throw result.exceptionOrFromMessage()
             }
         }
     }

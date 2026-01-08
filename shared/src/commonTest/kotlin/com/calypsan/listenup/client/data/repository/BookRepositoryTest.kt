@@ -1,19 +1,19 @@
 package com.calypsan.listenup.client.data.repository
 
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.ChapterId
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
-import com.calypsan.listenup.client.data.local.db.BookId
 import com.calypsan.listenup.client.data.local.db.BookWithContributors
 import com.calypsan.listenup.client.data.local.db.ChapterDao
 import com.calypsan.listenup.client.data.local.db.ChapterEntity
-import com.calypsan.listenup.client.data.local.db.ChapterId
 import com.calypsan.listenup.client.data.local.db.ContributorEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
-import com.calypsan.listenup.client.data.local.db.Timestamp
-import com.calypsan.listenup.client.data.local.images.ImageStorage
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
+import com.calypsan.listenup.client.domain.repository.ImageStorage
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -38,8 +38,8 @@ class BookRepositoryTest {
         val syncManager: SyncManagerContract = mock()
         val imageStorage: ImageStorage = mock()
 
-        fun build(): BookRepository =
-            BookRepository(
+        fun build(): BookRepositoryImpl =
+            BookRepositoryImpl(
                 bookDao = bookDao,
                 chapterDao = chapterDao,
                 syncManager = syncManager,
@@ -88,7 +88,9 @@ class BookRepositoryTest {
         name: String = "Test Author",
     ): ContributorEntity =
         ContributorEntity(
-            id = id,
+            id =
+                com.calypsan.listenup.client.core
+                    .ContributorId(id),
             name = name,
             description = null,
             imagePath = null,
@@ -227,7 +229,9 @@ class BookRepositoryTest {
             val crossRef =
                 BookContributorCrossRef(
                     bookId = BookId("book-1"),
-                    contributorId = "author-1",
+                    contributorId =
+                        com.calypsan.listenup.client.core
+                            .ContributorId("author-1"),
                     role = "author",
                 )
             val bookWithContributors =
@@ -266,7 +270,9 @@ class BookRepositoryTest {
             val crossRef =
                 BookContributorCrossRef(
                     bookId = BookId("book-1"),
-                    contributorId = "narrator-1",
+                    contributorId =
+                        com.calypsan.listenup.client.core
+                            .ContributorId("narrator-1"),
                     role = "narrator",
                 )
             val bookWithContributors =
@@ -305,13 +311,17 @@ class BookRepositoryTest {
             val authorRole =
                 BookContributorCrossRef(
                     bookId = BookId("book-1"),
-                    contributorId = "person-1",
+                    contributorId =
+                        com.calypsan.listenup.client.core
+                            .ContributorId("person-1"),
                     role = "author",
                 )
             val narratorRole =
                 BookContributorCrossRef(
                     bookId = BookId("book-1"),
-                    contributorId = "person-1",
+                    contributorId =
+                        com.calypsan.listenup.client.core
+                            .ContributorId("person-1"),
                     role = "narrator",
                 )
             val bookWithContributors =
@@ -353,9 +363,27 @@ class BookRepositoryTest {
             val author1 = createTestContributor(id = "author-1", name = "Author One")
             val author2 = createTestContributor(id = "author-2", name = "Author Two")
             val narrator = createTestContributor(id = "narrator-1", name = "Narrator One")
-            val authorRole1 = BookContributorCrossRef(BookId("book-1"), "author-1", "author")
-            val authorRole2 = BookContributorCrossRef(BookId("book-1"), "author-2", "author")
-            val narratorRole = BookContributorCrossRef(BookId("book-1"), "narrator-1", "narrator")
+            val authorRole1 =
+                BookContributorCrossRef(
+                    BookId("book-1"),
+                    com.calypsan.listenup.client.core
+                        .ContributorId("author-1"),
+                    "author",
+                )
+            val authorRole2 =
+                BookContributorCrossRef(
+                    BookId("book-1"),
+                    com.calypsan.listenup.client.core
+                        .ContributorId("author-2"),
+                    "author",
+                )
+            val narratorRole =
+                BookContributorCrossRef(
+                    BookId("book-1"),
+                    com.calypsan.listenup.client.core
+                        .ContributorId("narrator-1"),
+                    "narrator",
+                )
             val bookWithContributors =
                 BookWithContributors(
                     book = bookEntity,
@@ -417,7 +445,7 @@ class BookRepositoryTest {
             // Given
             val fixture = createFixture()
             val exception = Exception("Network error")
-            everySuspend { fixture.syncManager.sync() } returns Result.Failure(exception)
+            everySuspend { fixture.syncManager.sync() } returns Result.Failure(exception = exception, message = "Network error")
             val repository = fixture.build()
 
             // When

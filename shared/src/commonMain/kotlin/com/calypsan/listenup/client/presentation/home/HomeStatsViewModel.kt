@@ -2,9 +2,9 @@ package com.calypsan.listenup.client.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.data.remote.DailyListeningResponse
-import com.calypsan.listenup.client.data.remote.GenreListeningResponse
-import com.calypsan.listenup.client.data.repository.StatsRepositoryContract
+import com.calypsan.listenup.client.domain.repository.DailyListening
+import com.calypsan.listenup.client.domain.repository.GenreListening
+import com.calypsan.listenup.client.domain.repository.StatsRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,10 +28,10 @@ private val logger = KotlinLogging.logger {}
  * @property statsRepository Repository for computing local stats
  */
 class HomeStatsViewModel(
-    private val statsRepository: StatsRepositoryContract,
+    private val statsRepository: StatsRepository,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(HomeStatsUiState())
-    val state: StateFlow<HomeStatsUiState> = _state
+    val state: StateFlow<HomeStatsUiState>
+        field = MutableStateFlow(HomeStatsUiState())
 
     init {
         observeStats()
@@ -49,7 +49,7 @@ class HomeStatsViewModel(
                 .observeWeeklyStats()
                 .catch { e ->
                     logger.error(e) { "Error observing stats" }
-                    _state.update {
+                    state.update {
                         it.copy(
                             isLoading = false,
                             error = "Failed to load stats: ${e.message}",
@@ -59,7 +59,7 @@ class HomeStatsViewModel(
                     logger.debug {
                         "Stats updated: ${stats.totalListenTimeMs}ms total, streak=${stats.currentStreakDays}"
                     }
-                    _state.update {
+                    state.update {
                         it.copy(
                             isLoading = false,
                             error = null,
@@ -102,8 +102,8 @@ data class HomeStatsUiState(
     val currentStreakDays: Int = 0,
     val longestStreakDays: Int = 0,
     // Chart data
-    val dailyListening: List<DailyListeningResponse> = emptyList(),
-    val genreBreakdown: List<GenreListeningResponse> = emptyList(),
+    val dailyListening: List<DailyListening> = emptyList(),
+    val genreBreakdown: List<GenreListening> = emptyList(),
 ) {
     /**
      * Total listening time formatted as human-readable string.

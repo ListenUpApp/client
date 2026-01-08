@@ -35,12 +35,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.data.local.db.ContributorWithBookCount
 import com.calypsan.listenup.client.design.components.AlphabetIndex
 import com.calypsan.listenup.client.design.components.AlphabetScrollbar
 import com.calypsan.listenup.client.design.components.SortSplitButton
 import com.calypsan.listenup.client.design.components.avatarColorForUser
 import com.calypsan.listenup.client.design.components.getInitials
+import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
 import com.calypsan.listenup.client.features.nowplaying.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
@@ -121,7 +121,7 @@ fun AuthorsContent(
                 ) { authorWithCount ->
                     ContributorCard(
                         contributorWithCount = authorWithCount,
-                        onClick = { onAuthorClick(authorWithCount.contributor.id) },
+                        onClick = { onAuthorClick(authorWithCount.contributor.id.value) },
                     )
                 }
             }
@@ -185,7 +185,7 @@ internal fun ContributorCard(
             // Avatar with image or initials
             Surface(
                 shape = CircleShape,
-                color = avatarColorForUser(contributor.id),
+                color = avatarColorForUser(contributor.id.value),
                 modifier = Modifier.size(48.dp),
             ) {
                 val imagePath = contributor.imagePath

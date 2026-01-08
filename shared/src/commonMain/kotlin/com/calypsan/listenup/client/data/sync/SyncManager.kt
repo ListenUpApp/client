@@ -1,20 +1,23 @@
 package com.calypsan.listenup.client.data.sync
 
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.core.getOrNull
 import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.Syncable
-import com.calypsan.listenup.client.data.local.db.Timestamp
 import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
-import com.calypsan.listenup.client.data.repository.SettingsRepositoryContract
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
+import com.calypsan.listenup.client.domain.repository.LibrarySync
+import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -29,7 +32,10 @@ private val logger = KotlinLogging.logger {}
  * Contract for sync operations.
  *
  * Defines the public API for syncing data and observing sync status.
- * Used by ViewModels and enables testing via fake implementations.
+ * Used by data layer components and enables testing via fake implementations.
+ *
+ * Note: ViewModels should use [com.calypsan.listenup.client.domain.repository.SyncRepository]
+ * which maps to domain-level [com.calypsan.listenup.client.domain.model.SyncState].
  */
 interface SyncManagerContract {
     /**
@@ -78,12 +84,15 @@ class SyncManager(
     private val coordinator: SyncCoordinator,
     private val sseManager: SSEManagerContract,
     private val userPreferencesApi: UserPreferencesApiContract,
-    private val settingsRepository: SettingsRepositoryContract,
+    private val authSession: AuthSession,
+    private val playbackPreferences: PlaybackPreferences,
+    private val librarySync: LibrarySync,
     private val instanceRepository: InstanceRepository,
     private val pendingOperationDao: PendingOperationDao,
     private val libraryResetHelper: LibraryResetHelperContract,
     private val syncDao: SyncDao,
     private val ftsPopulator: FtsPopulatorContract,
+    private val syncMutex: SyncMutex,
     private val scope: CoroutineScope,
 ) : SyncManagerContract {
     // Override properties can't use explicit backing fields - must use traditional pattern
@@ -92,9 +101,17 @@ class SyncManager(
 
     init {
         // Route SSE events to processor
+        // Mutex ensures SSE writes don't race with push sync conflict detection
         scope.launch {
             sseManager.eventFlow.collect { event ->
-                sseEventProcessor.process(event)
+                // Handle reconnection event - trigger delta sync to catch missed events
+                if (event is SSEEventType.Reconnected) {
+                    handleReconnection()
+                } else {
+                    syncMutex.withLock {
+                        sseEventProcessor.process(event)
+                    }
+                }
             }
         }
 
@@ -105,7 +122,49 @@ class SyncManager(
                 // Disconnect SSE first to stop any further events
                 sseManager.disconnect()
                 // Clear auth tokens - this will trigger AuthState.NeedsLogin
-                settingsRepository.clearAuthTokens()
+                authSession.clearAuthTokens()
+            }
+        }
+    }
+
+    /**
+     * Handle SSE reconnection by triggering a delta sync.
+     *
+     * When SSE disconnects and reconnects, events during the gap are lost.
+     * We catch up by:
+     * 1. Flushing pending local operations first (so local changes aren't lost)
+     * 2. Pulling changes since the last sync checkpoint
+     */
+    private fun handleReconnection() {
+        logger.info { "SSE reconnected - triggering delta sync to catch missed events" }
+
+        // Launch delta sync in background (non-blocking)
+        // Mutex ensures delta sync writes don't race with SSE event processing
+        scope.launch {
+            try {
+                // Only sync if we're not already syncing
+                if (_syncState.value is SyncStatus.Syncing) {
+                    logger.debug { "Skipping reconnection sync - already syncing" }
+                    return@launch
+                }
+
+                syncMutex.withLock {
+                    // Flush pending operations first - ensures local changes reach server
+                    // before we pull potentially conflicting server changes
+                    pushOrchestrator.flush()
+
+                    // Pull changes since last sync (uses syncDao.getLastSyncTime() internally)
+                    pullOrchestrator.pull { /* suppress progress updates for background sync */ }
+
+                    // Update sync timestamp
+                    val now = Timestamp.now()
+                    syncDao.setLastSyncTime(now)
+                }
+
+                logger.info { "Reconnection delta sync completed" }
+            } catch (e: Exception) {
+                logger.warn(e) { "Reconnection delta sync failed, will retry on next reconnect" }
+                // Don't update sync state - this is a background operation
             }
         }
     }
@@ -125,7 +184,7 @@ class SyncManager(
                     "Library mismatch detected: expected=${mismatch.expectedLibraryId}, actual=${mismatch.actualLibraryId}"
                 }
                 _syncState.value = mismatch
-                return Result.Failure(
+                return Failure(
                     exception = LibraryMismatchException(mismatch.expectedLibraryId, mismatch.actualLibraryId),
                     message = "Server library has changed. Local data needs to be reset.",
                 )
@@ -138,7 +197,10 @@ class SyncManager(
             pullUserPreferences()
 
             // Phase 3: Push local changes
-            pushOrchestrator.flush()
+            // Mutex ensures conflict detection reads consistent data (not mid-SSE-write)
+            syncMutex.withLock {
+                pushOrchestrator.flush()
+            }
 
             // Phase 4: Update last sync time
             val now = Timestamp.now()
@@ -169,7 +231,7 @@ class SyncManager(
                 logger.warn { "Server unreachable - continuing with local data" }
             }
 
-            Result.Failure(exception = e, message = "Sync failed: ${e.message}")
+            Failure(exception = e, message = "Sync failed: ${e.message}")
         }
     }
 
@@ -203,7 +265,7 @@ class SyncManager(
         } catch (e: Exception) {
             logger.error(e) { "Failed to reset for new library" }
             _syncState.value = SyncStatus.Error(exception = e)
-            return Result.Failure(exception = e, message = "Failed to reset library: ${e.message}")
+            return Failure(exception = e, message = "Failed to reset library: ${e.message}")
         }
     }
 
@@ -224,12 +286,12 @@ class SyncManager(
             when (val result = userPreferencesApi.getPreferences()) {
                 is Result.Success -> {
                     val prefs = result.data
-                    settingsRepository.setDefaultPlaybackSpeed(prefs.defaultPlaybackSpeed)
+                    playbackPreferences.setDefaultPlaybackSpeed(prefs.defaultPlaybackSpeed)
                     logger.info { "User preferences synced: defaultPlaybackSpeed=${prefs.defaultPlaybackSpeed}" }
                 }
 
                 is Result.Failure -> {
-                    logger.warn { "Failed to fetch user preferences: ${result.exception.message}" }
+                    logger.warn { "Failed to fetch user preferences: ${result.message}" }
                 }
             }
         } catch (e: Exception) {
@@ -251,14 +313,14 @@ class SyncManager(
      * @return LibraryMismatch status if IDs don't match, null if verification passes
      */
     private suspend fun verifyLibraryIdentity(): SyncStatus.LibraryMismatch? {
-        val storedLibraryId = settingsRepository.getConnectedLibraryId()
+        val storedLibraryId = librarySync.getConnectedLibraryId()
 
         // First sync? Fetch and store the library ID, then continue
         if (storedLibraryId == null) {
             logger.info { "First sync - fetching library ID from server" }
             val instance = instanceRepository.getInstance(forceRefresh = true).getOrNull()
             if (instance != null) {
-                settingsRepository.setConnectedLibraryId(instance.id.value)
+                librarySync.setConnectedLibraryId(instance.id.value)
                 logger.info { "Stored library ID: ${instance.id.value}" }
             }
             return null

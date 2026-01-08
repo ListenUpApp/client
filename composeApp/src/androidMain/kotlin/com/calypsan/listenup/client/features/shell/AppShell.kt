@@ -21,16 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
-import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.data.local.db.SyncDao
-import com.calypsan.listenup.client.data.local.db.UserDao
-import com.calypsan.listenup.client.data.local.db.UserEntity
-import com.calypsan.listenup.client.data.local.db.getLastSyncTime
-import com.calypsan.listenup.client.data.remote.SessionApiContract
-import com.calypsan.listenup.client.data.repository.SettingsRepository
-import com.calypsan.listenup.client.data.sync.SyncManager
-import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
+import com.calypsan.listenup.client.domain.model.SyncState
+import com.calypsan.listenup.client.domain.repository.SyncRepository
+import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
@@ -88,11 +83,10 @@ fun AppShell(
     onUserProfileClick: (userId: String) -> Unit,
 ) {
     // Inject dependencies
-    val syncManager: SyncManager = koinInject()
-    val userDao: UserDao = koinInject()
-    val settingsRepository: SettingsRepository = koinInject()
-    val syncDao: SyncDao = koinInject()
-    val sessionApi: SessionApiContract = koinInject()
+    val syncRepository: SyncRepository = koinInject()
+    val userRepository: UserRepository = koinInject()
+    val syncStatusRepository: SyncStatusRepository = koinInject()
+    val authSession: com.calypsan.listenup.client.domain.repository.AuthSession = koinInject()
     val searchViewModel: SearchViewModel = koinViewModel()
     val syncIndicatorViewModel: SyncIndicatorViewModel = koinViewModel()
 
@@ -104,52 +98,28 @@ fun AppShell(
 
     // Trigger sync on shell entry (not just when Library is visible)
     LaunchedEffect(Unit) {
-        val isAuthenticated = settingsRepository.getAccessToken() != null
-        val lastSyncTime = syncDao.getLastSyncTime()
+        val isAuthenticated = authSession.getAccessToken() != null
+        val lastSyncTime = syncStatusRepository.getLastSyncTime()
         if (isAuthenticated && lastSyncTime == null) {
-            syncManager.sync()
+            syncRepository.sync()
         }
     }
 
     // Fetch user data if missing from database but authenticated
     // This handles the case where database was cleared but tokens remain
     LaunchedEffect(Unit) {
-        val hasTokens = settingsRepository.getAccessToken() != null
-        val existingUser = userDao.getCurrentUser()
+        val hasTokens = authSession.getAccessToken() != null
+        val existingUser = userRepository.getCurrentUser()
 
         if (hasTokens && existingUser == null) {
             logger.info { "User data missing but authenticated, fetching from server..." }
-            when (val result = sessionApi.getCurrentUser()) {
-                is Success -> {
-                    val userData = result.data
-                    val userEntity =
-                        UserEntity(
-                            id = userData.id,
-                            email = userData.email,
-                            displayName = userData.displayName,
-                            firstName = userData.firstName,
-                            lastName = userData.lastName,
-                            isRoot = userData.isRoot,
-                            createdAt = userData.createdAt,
-                            updatedAt = userData.updatedAt,
-                            avatarType = userData.avatarType,
-                            avatarValue = userData.avatarValue,
-                            avatarColor = userData.avatarColor,
-                        )
-                    userDao.upsert(userEntity)
-                    logger.info { "User data restored: ${userData.email}" }
-                }
-
-                else -> {
-                    logger.warn { "Failed to fetch user data, user may see loading state" }
-                }
-            }
+            userRepository.refreshCurrentUser()
         }
     }
 
     // Collect reactive state
-    val syncState by syncManager.syncState.collectAsStateWithLifecycle()
-    val user by userDao.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
+    val syncState by syncRepository.syncState.collectAsStateWithLifecycle()
+    val user by userRepository.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
     val searchState by searchViewModel.state.collectAsStateWithLifecycle()
     val searchNavAction by searchViewModel.navActions.collectAsStateWithLifecycle()
     val syncIndicatorState by syncIndicatorViewModel.state.collectAsStateWithLifecycle()
@@ -189,12 +159,12 @@ fun AppShell(
     var isAvatarMenuExpanded by remember { mutableStateOf(false) }
 
     // Library mismatch dialog state
-    var libraryMismatchToShow by remember { mutableStateOf<SyncStatus.LibraryMismatch?>(null) }
+    var libraryMismatchToShow by remember { mutableStateOf<SyncState.LibraryMismatch?>(null) }
 
     // Detect library mismatch from sync state
     LaunchedEffect(syncState) {
-        if (syncState is SyncStatus.LibraryMismatch) {
-            libraryMismatchToShow = syncState as SyncStatus.LibraryMismatch
+        if (syncState is SyncState.LibraryMismatch) {
+            libraryMismatchToShow = syncState as SyncState.LibraryMismatch
         }
     }
 
@@ -214,7 +184,7 @@ fun AppShell(
             onConfirm = {
                 libraryMismatchToShow = null
                 scope.launch {
-                    syncManager.resetForNewLibrary(mismatch.actualLibraryId)
+                    syncRepository.resetForNewLibrary(mismatch.actualLibraryId)
                 }
             },
             dismissText = "Cancel",
@@ -274,7 +244,7 @@ fun AppShell(
             onAdminClick = onAdminClick,
             onSettingsClick = onSettingsClick,
             onSignOutClick = onSignOut,
-            onMyProfileClick = { user?.id?.let(onUserProfileClick) },
+            onMyProfileClick = { user?.id?.value?.let(onUserProfileClick) },
             onSyncIndicatorClick = { syncIndicatorViewModel.toggleExpanded() },
             scrollBehavior = scrollBehavior,
             showAvatar = showAvatarInTopBar,
@@ -387,7 +357,7 @@ fun AppShell(
                     onAdminClick = onAdminClick,
                     onSettingsClick = onSettingsClick,
                     onSignOutClick = onSignOut,
-                    onMyProfileClick = { user?.id?.let(onUserProfileClick) },
+                    onMyProfileClick = { user?.id?.value?.let(onUserProfileClick) },
                 )
                 Scaffold(
                     modifier =
@@ -411,7 +381,7 @@ fun AppShell(
                 onAdminClick = onAdminClick,
                 onSettingsClick = onSettingsClick,
                 onSignOutClick = onSignOut,
-                onMyProfileClick = { user?.id?.let(onUserProfileClick) },
+                onMyProfileClick = { user?.id?.value?.let(onUserProfileClick) },
             ) {
                 Scaffold(
                     modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),

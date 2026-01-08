@@ -1,7 +1,7 @@
 package com.calypsan.listenup.client.domain.model
 
-import com.calypsan.listenup.client.data.local.db.BookId
-import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Timestamp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -21,8 +21,8 @@ class BookTest {
     private fun createTestBook(
         duration: Long = 3600000L, // 1 hour
         coverPath: String? = null,
-        authors: List<Contributor> = emptyList(),
-        narrators: List<Contributor> = emptyList(),
+        authors: List<BookContributor> = emptyList(),
+        narrators: List<BookContributor> = emptyList(),
         series: List<BookSeries> = emptyList(),
     ): Book =
         Book(
@@ -131,8 +131,8 @@ class BookTest {
             createTestBook(
                 authors =
                     listOf(
-                        Contributor("1", "Brandon Sanderson"),
-                        Contributor("2", "Robert Jordan"),
+                        BookContributor("1", "Brandon Sanderson"),
+                        BookContributor("2", "Robert Jordan"),
                     ),
             )
         assertEquals("Brandon Sanderson, Robert Jordan", book.authorNames)
@@ -142,7 +142,7 @@ class BookTest {
     fun `authorNames returns single author name`() {
         val book =
             createTestBook(
-                authors = listOf(Contributor("1", "Brandon Sanderson")),
+                authors = listOf(BookContributor("1", "Brandon Sanderson")),
             )
         assertEquals("Brandon Sanderson", book.authorNames)
     }
@@ -159,8 +159,8 @@ class BookTest {
             createTestBook(
                 narrators =
                     listOf(
-                        Contributor("1", "Michael Kramer"),
-                        Contributor("2", "Kate Reading"),
+                        BookContributor("1", "Michael Kramer"),
+                        BookContributor("2", "Kate Reading"),
                     ),
             )
         assertEquals("Michael Kramer, Kate Reading", book.narratorNames)
@@ -170,7 +170,7 @@ class BookTest {
     fun `narratorNames returns single narrator name`() {
         val book =
             createTestBook(
-                narrators = listOf(Contributor("1", "Michael Kramer")),
+                narrators = listOf(BookContributor("1", "Michael Kramer")),
             )
         assertEquals("Michael Kramer", book.narratorNames)
     }

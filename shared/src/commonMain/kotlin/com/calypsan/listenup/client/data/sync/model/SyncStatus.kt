@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.data.sync.model
 
-import com.calypsan.listenup.client.data.local.db.Timestamp
+import com.calypsan.listenup.client.core.Timestamp
 
 /**
  * Phases of the sync operation for progress reporting.
@@ -11,6 +11,7 @@ enum class SyncPhase {
     SYNCING_SERIES,
     SYNCING_CONTRIBUTORS,
     SYNCING_TAGS,
+    SYNCING_GENRES,
     SYNCING_LISTENING_EVENTS,
     FINALIZING,
 }

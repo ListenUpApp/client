@@ -22,7 +22,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
-import com.calypsan.listenup.client.data.local.db.BookId
+import com.calypsan.listenup.client.core.BookId
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -232,15 +232,6 @@ class PlaybackService : MediaSessionService() {
 
         val timeRemaining = formatDuration(chapterInfo.remainingMs)
         val subtitle = "$chapterText • $timeRemaining left"
-
-        // Update current media item metadata with chapter info as subtitle
-        val currentMetadata = player.mediaMetadata
-        val updatedMetadata =
-            MediaMetadata
-                .Builder()
-                .populate(currentMetadata)
-                .setSubtitle(subtitle)
-                .build()
 
         // Notify session of metadata change to trigger notification update
         session.setSessionExtras(Bundle().apply { putString("chapter_subtitle", subtitle) })
@@ -494,7 +485,13 @@ class PlaybackService : MediaSessionService() {
          *
          * Called when user taps "Resume ListenUp" from Android Auto, Wear OS,
          * or system notifications after device reboot.
+         *
+         * Note: This callback is deprecated in Media3 1.4+ in favor of MediaLibraryService.
+         * However, for MediaSessionService without media browsing features, this remains
+         * the primary way to support playback resumption. Migration to MediaLibraryService
+         * would be a larger refactor.
          */
+        @Suppress("DEPRECATION")
         override fun onPlaybackResumption(
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,
