@@ -1076,3 +1076,20 @@ data class ApiActiveSessionResponse(
     @SerialName("avatar_color")
     val avatarColor: String,
 )
+
+// =============================================================================
+// Library Access Mode SSE Event (Admin-only)
+// =============================================================================
+
+/**
+ * SSE library access mode changed event (admin-only).
+ * Sent when an admin changes the library access mode.
+ * Clients should refresh their book lists as visibility may have changed.
+ */
+@Serializable
+data class SSELibraryAccessModeChangedEvent(
+    @SerialName("library_id")
+    val libraryId: String,
+    @SerialName("access_mode")
+    val accessMode: String,
+)

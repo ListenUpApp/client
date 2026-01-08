@@ -6,14 +6,21 @@ import com.calypsan.listenup.client.data.remote.AdminUser
 import com.calypsan.listenup.client.data.remote.CollectionRef
 import com.calypsan.listenup.client.data.remote.CreateInviteRequest
 import com.calypsan.listenup.client.data.remote.InboxBookResponse
+import com.calypsan.listenup.client.data.remote.LibraryResponse
 import com.calypsan.listenup.client.data.remote.ServerSettingsRequest
 import com.calypsan.listenup.client.data.remote.ServerSettingsResponse
+import com.calypsan.listenup.client.data.remote.UpdateLibraryRequest
+import com.calypsan.listenup.client.data.remote.UpdatePermissionsRequest
+import com.calypsan.listenup.client.data.remote.UpdateUserRequest
+import com.calypsan.listenup.client.domain.model.AccessMode
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.domain.model.InboxBook
 import com.calypsan.listenup.client.domain.model.InboxReleaseResult
 import com.calypsan.listenup.client.domain.model.InviteInfo
+import com.calypsan.listenup.client.domain.model.Library
 import com.calypsan.listenup.client.domain.model.ServerSettings
 import com.calypsan.listenup.client.domain.model.StagedCollection
+import com.calypsan.listenup.client.domain.model.UserPermissions
 import com.calypsan.listenup.client.domain.repository.AdminRepository
 
 /**
@@ -42,6 +49,37 @@ class AdminRepositoryImpl(
 
     override suspend fun deleteUser(userId: String) {
         adminApi.deleteUser(userId)
+    }
+
+    override suspend fun getUser(userId: String): AdminUserInfo = adminApi.getUser(userId).toDomain()
+
+    override suspend fun updateUser(
+        userId: String,
+        firstName: String?,
+        lastName: String?,
+        role: String?,
+        canDownload: Boolean?,
+        canShare: Boolean?,
+    ): AdminUserInfo {
+        val permissionsUpdate =
+            if (canDownload != null || canShare != null) {
+                UpdatePermissionsRequest(
+                    canDownload = canDownload,
+                    canShare = canShare,
+                )
+            } else {
+                null
+            }
+
+        val request =
+            UpdateUserRequest(
+                firstName = firstName,
+                lastName = lastName,
+                role = role,
+                permissions = permissionsUpdate,
+            )
+
+        return adminApi.updateUser(userId, request).toDomain()
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -111,6 +149,29 @@ class AdminRepositoryImpl(
     ) {
         adminApi.unstageCollection(bookId, collectionId)
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // LIBRARY MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════
+
+    override suspend fun getLibraries(): List<Library> = adminApi.getLibraries().map { it.toDomain() }
+
+    override suspend fun getLibrary(libraryId: String): Library = adminApi.getLibrary(libraryId).toDomain()
+
+    override suspend fun updateLibrary(
+        libraryId: String,
+        name: String?,
+        skipInbox: Boolean?,
+        accessMode: AccessMode?,
+    ): Library {
+        val request =
+            UpdateLibraryRequest(
+                name = name,
+                skipInbox = skipInbox,
+                accessMode = accessMode?.toApiString(),
+            )
+        return adminApi.updateLibrary(libraryId, request).toDomain()
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -130,6 +191,11 @@ private fun AdminUser.toDomain(): AdminUserInfo =
         isRoot = isRoot,
         role = role,
         status = status,
+        permissions =
+            UserPermissions(
+                canDownload = permissions.canDownload,
+                canShare = permissions.canShare,
+            ),
         createdAt = createdAt,
     )
 
@@ -180,4 +246,19 @@ private fun CollectionRef.toDomain(): StagedCollection =
     StagedCollection(
         id = id,
         name = name,
+    )
+
+/**
+ * Convert LibraryResponse API model to Library domain model.
+ */
+private fun LibraryResponse.toDomain(): Library =
+    Library(
+        id = id,
+        name = name,
+        ownerId = ownerId,
+        scanPaths = scanPaths,
+        skipInbox = skipInbox,
+        accessMode = AccessMode.fromString(accessMode),
+        createdAt = createdAt,
+        updatedAt = updatedAt,
     )

@@ -120,6 +120,20 @@ val adminPresentationModule =
                 getUsersForSharingUseCase = get(),
             )
         }
+        // UserDetailViewModel - takes userId as parameter
+        factory { params ->
+            com.calypsan.listenup.client.presentation.admin.UserDetailViewModel(
+                userId = params.get<String>(0),
+                adminRepository = get(),
+            )
+        }
+        // LibrarySettingsViewModel - takes libraryId as parameter
+        factory { params ->
+            com.calypsan.listenup.client.presentation.admin.LibrarySettingsViewModel(
+                libraryId = params.get<String>(0),
+                adminRepository = get(),
+            )
+        }
     }
 
 /**

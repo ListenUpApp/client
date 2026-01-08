@@ -275,6 +275,30 @@ data class AdminCollectionDetail(
 data object AdminInbox : Route
 
 /**
+ * Admin user detail screen - view and edit a user's details and permissions.
+ *
+ * Shows user information and allows toggling canDownload and canShare permissions.
+ *
+ * @property userId The unique ID of the user to display.
+ */
+@Serializable
+data class AdminUserDetail(
+    val userId: String,
+) : Route
+
+/**
+ * Admin library settings screen - view and edit library settings.
+ *
+ * Shows library information and allows changing access mode and inbox settings.
+ *
+ * @property libraryId The unique ID of the library to configure.
+ */
+@Serializable
+data class AdminLibrarySettings(
+    val libraryId: String,
+) : Route
+
+/**
  * Settings screen - app preferences and configuration.
  */
 @Serializable

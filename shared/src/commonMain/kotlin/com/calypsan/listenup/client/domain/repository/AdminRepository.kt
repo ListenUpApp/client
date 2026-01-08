@@ -1,9 +1,11 @@
 package com.calypsan.listenup.client.domain.repository
 
+import com.calypsan.listenup.client.domain.model.AccessMode
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.domain.model.InboxBook
 import com.calypsan.listenup.client.domain.model.InboxReleaseResult
 import com.calypsan.listenup.client.domain.model.InviteInfo
+import com.calypsan.listenup.client.domain.model.Library
 import com.calypsan.listenup.client.domain.model.ServerSettings
 
 /**
@@ -54,6 +56,34 @@ interface AdminRepository {
      * @param userId The user ID to delete
      */
     suspend fun deleteUser(userId: String)
+
+    /**
+     * Get a single user by ID.
+     *
+     * @param userId The user ID to fetch
+     * @return The user info
+     */
+    suspend fun getUser(userId: String): AdminUserInfo
+
+    /**
+     * Update a user's details and permissions.
+     *
+     * @param userId The user ID to update
+     * @param firstName New first name (null to keep unchanged)
+     * @param lastName New last name (null to keep unchanged)
+     * @param role New role (null to keep unchanged)
+     * @param canDownload New download permission (null to keep unchanged)
+     * @param canShare New share permission (null to keep unchanged)
+     * @return The updated user info
+     */
+    suspend fun updateUser(
+        userId: String,
+        firstName: String? = null,
+        lastName: String? = null,
+        role: String? = null,
+        canDownload: Boolean? = null,
+        canShare: Boolean? = null,
+    ): AdminUserInfo
 
     // ═══════════════════════════════════════════════════════════════════════
     // INVITE MANAGEMENT
@@ -162,4 +192,39 @@ interface AdminRepository {
         bookId: String,
         collectionId: String,
     )
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // LIBRARY MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get all libraries.
+     *
+     * @return List of all libraries
+     */
+    suspend fun getLibraries(): List<Library>
+
+    /**
+     * Get a specific library.
+     *
+     * @param libraryId The library ID
+     * @return The library
+     */
+    suspend fun getLibrary(libraryId: String): Library
+
+    /**
+     * Update library settings.
+     *
+     * @param libraryId The library ID to update
+     * @param name New library name (null to keep unchanged)
+     * @param skipInbox New inbox skip setting (null to keep unchanged)
+     * @param accessMode New access mode (null to keep unchanged)
+     * @return The updated library
+     */
+    suspend fun updateLibrary(
+        libraryId: String,
+        name: String? = null,
+        skipInbox: Boolean? = null,
+        accessMode: AccessMode? = null,
+    ): Library
 }

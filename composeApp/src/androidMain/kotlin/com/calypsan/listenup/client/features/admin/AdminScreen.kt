@@ -6,6 +6,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,10 +25,12 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -78,6 +81,7 @@ fun AdminScreen(
     onInviteClick: () -> Unit,
     onCollectionsClick: () -> Unit = {},
     onInboxClick: () -> Unit = {},
+    onUserClick: (String) -> Unit = {},
     inboxEnabled: Boolean = false,
     inboxCount: Int = 0,
     isTogglingInbox: Boolean = false,
@@ -123,6 +127,7 @@ fun AdminScreen(
                 onApproveUserClick = { viewModel.approveUser(it.id) },
                 onDenyUserClick = { userToDeny = it },
                 onDeleteUserClick = { userToDelete = it },
+                onUserClick = onUserClick,
                 onCopyInviteClick = { invite ->
                     copyToClipboard(context, invite.url)
                     scope.launch {
@@ -208,6 +213,7 @@ private fun AdminContent(
     onApproveUserClick: (AdminUserInfo) -> Unit,
     onDenyUserClick: (AdminUserInfo) -> Unit,
     onDeleteUserClick: (AdminUserInfo) -> Unit,
+    onUserClick: (String) -> Unit,
     onCopyInviteClick: (InviteInfo) -> Unit,
     onRevokeInviteClick: (InviteInfo) -> Unit,
     onInviteClick: () -> Unit,
@@ -344,6 +350,7 @@ private fun AdminContent(
                             UserTableRow(
                                 user = user,
                                 isDeleting = state.deletingUserId == user.id,
+                                onClick = { onUserClick(user.id) },
                                 onDeleteClick = { onDeleteUserClick(user) },
                             )
                             if (index < state.users.lastIndex) {
@@ -625,7 +632,13 @@ private fun UserTableHeader(modifier: Modifier = Modifier) {
             text = "Role",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.5f),
+            modifier = Modifier.weight(0.4f),
+        )
+        Text(
+            text = "Permissions",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.4f),
         )
         // Space for delete button
         Spacer(modifier = Modifier.size(48.dp))
@@ -636,6 +649,7 @@ private fun UserTableHeader(modifier: Modifier = Modifier) {
 private fun UserTableRow(
     user: AdminUserInfo,
     isDeleting: Boolean,
+    onClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -643,6 +657,7 @@ private fun UserTableRow(
         modifier =
             modifier
                 .fillMaxWidth()
+                .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -684,8 +699,37 @@ private fun UserTableRow(
             text = if (user.isRoot) "Root" else user.role.replaceFirstChar { it.uppercase() }.ifEmpty { "Member" },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(0.5f),
+            modifier = Modifier.weight(0.4f),
         )
+
+        // Permissions indicators
+        Row(
+            modifier = Modifier.weight(0.4f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.CloudDownload,
+                contentDescription = if (user.permissions.canDownload) "Can download" else "Cannot download",
+                tint =
+                    if (user.permissions.canDownload) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant
+                    },
+                modifier = Modifier.size(16.dp),
+            )
+            Icon(
+                imageVector = Icons.Outlined.Share,
+                contentDescription = if (user.permissions.canShare) "Can share" else "Cannot share",
+                tint =
+                    if (user.permissions.canShare) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant
+                    },
+                modifier = Modifier.size(16.dp),
+            )
+        }
 
         // Delete button
         if (!user.isProtected) {

@@ -99,6 +99,17 @@ class SSEEventProcessor(
      */
     val userDeletedEvent: SharedFlow<UserDeletedInfo> = _userDeletedEvent.asSharedFlow()
 
+    private val _libraryAccessModeChangedEvent =
+        MutableSharedFlow<LibraryAccessModeChangedInfo>(extraBufferCapacity = 1)
+
+    /**
+     * Flow of library access mode change events.
+     * Emitted when an admin changes the library access mode.
+     * Clients should refresh their book lists as visibility may have changed.
+     */
+    val libraryAccessModeChangedEvent: SharedFlow<LibraryAccessModeChangedInfo> =
+        _libraryAccessModeChangedEvent.asSharedFlow()
+
     /**
      * Process an incoming SSE event.
      */
@@ -137,6 +148,10 @@ class SSEEventProcessor(
                 is SSEEventType.InboxBookReleased,
                 -> {
                     // Admin-only events, handled by AdminViewModel/AdminInboxViewModel
+                }
+
+                is SSEEventType.LibraryAccessModeChanged -> {
+                    handleLibraryAccessModeChanged(event)
                 }
 
                 is SSEEventType.UserDeleted -> {
@@ -294,6 +309,20 @@ class SSEEventProcessor(
                 "Updated: ${event.booksUpdated}, " +
                 "Removed: ${event.booksRemoved}"
         }
+    }
+
+    private suspend fun handleLibraryAccessModeChanged(event: SSEEventType.LibraryAccessModeChanged) {
+        logger.info {
+            "SSE: Library access mode changed to ${event.accessMode} for library ${event.libraryId}"
+        }
+
+        // Emit event for app to handle (trigger delta sync to refresh book lists)
+        _libraryAccessModeChangedEvent.emit(
+            LibraryAccessModeChangedInfo(
+                libraryId = event.libraryId,
+                accessMode = event.accessMode,
+            ),
+        )
     }
 
     /**
@@ -871,6 +900,15 @@ data class AccessRevokedEvent(
 data class UserDeletedInfo(
     val userId: String,
     val reason: String?,
+)
+
+/**
+ * Event emitted when the library access mode changes.
+ * Clients should refresh their book lists as visibility may have changed.
+ */
+data class LibraryAccessModeChangedInfo(
+    val libraryId: String,
+    val accessMode: String,
 )
 
 /**

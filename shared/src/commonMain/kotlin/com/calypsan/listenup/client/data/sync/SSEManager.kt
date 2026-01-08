@@ -14,6 +14,7 @@ import com.calypsan.listenup.client.data.remote.model.SSECollectionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEEvent
 import com.calypsan.listenup.client.data.remote.model.SSEInboxBookAddedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEInboxBookReleasedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELibraryAccessModeChangedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensBookAddedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensBookRemovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensCreatedEvent
@@ -340,6 +341,18 @@ class SSEManager(
                             booksAdded = scanEvent.booksAdded,
                             booksUpdated = scanEvent.booksUpdated,
                             booksRemoved = scanEvent.booksRemoved,
+                        )
+                    }
+
+                    "library.access_mode_changed" -> {
+                        val event =
+                            json.decodeFromJsonElement(
+                                SSELibraryAccessModeChangedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.LibraryAccessModeChanged(
+                            libraryId = event.libraryId,
+                            accessMode = event.accessMode,
                         )
                     }
 
@@ -700,6 +713,15 @@ sealed interface SSEEventType {
         val booksAdded: Int,
         val booksUpdated: Int,
         val booksRemoved: Int,
+    ) : SSEEventType
+
+    /**
+     * Admin-only: Library access mode was changed.
+     * Clients should refresh their book lists as visibility may have changed.
+     */
+    data class LibraryAccessModeChanged(
+        val libraryId: String,
+        val accessMode: String,
     ) : SSEEventType
 
     data object Heartbeat : SSEEventType

@@ -652,6 +652,9 @@ private fun AuthenticatedNavigation(
                                 onInboxClick = {
                                     backStack.add(AdminInbox)
                                 },
+                                onUserClick = { userId ->
+                                    backStack.add(AdminUserDetail(userId))
+                                },
                                 inboxEnabled = settingsState.inboxEnabled,
                                 inboxCount = settingsState.inboxCount,
                                 isTogglingInbox = settingsState.isSaving,
@@ -719,6 +722,34 @@ private fun AuthenticatedNavigation(
                                         .parametersOf(args.collectionId)
                                 }
                             com.calypsan.listenup.client.features.admin.collections.AdminCollectionDetailScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<AdminUserDetail> { args ->
+                            val viewModel:
+                                com.calypsan.listenup.client.presentation.admin.UserDetailViewModel =
+                                koinInject {
+                                    org.koin.core.parameter
+                                        .parametersOf(args.userId)
+                                }
+                            com.calypsan.listenup.client.features.admin.UserDetailScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<AdminLibrarySettings> { args ->
+                            val viewModel:
+                                com.calypsan.listenup.client.presentation.admin.LibrarySettingsViewModel =
+                                koinInject {
+                                    org.koin.core.parameter
+                                        .parametersOf(args.libraryId)
+                                }
+                            com.calypsan.listenup.client.features.admin.LibrarySettingsScreen(
                                 viewModel = viewModel,
                                 onBackClick = {
                                     backStack.removeAt(backStack.lastIndex)
