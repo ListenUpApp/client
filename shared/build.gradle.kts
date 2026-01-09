@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.androidx.room)
     alias(libs.plugins.mokkery)
+    alias(libs.plugins.skie)
 }
 
 kotlin {
@@ -139,4 +140,19 @@ dependencies {
     // iOS targets
     add("kspIosArm64", libs.androidx.room.compiler)
     add("kspIosSimulatorArm64", libs.androidx.room.compiler)
+}
+
+// SKIE configuration for enhanced Swift interop
+skie {
+    // Enable Flow support - converts Kotlin Flow to Swift AsyncSequence
+    features {
+        // Enables StateFlow/SharedFlow → Swift async/await
+        group {
+            coroutinesInterop.set(true)
+        }
+        // Generates Swift-friendly sealed class handling
+        group {
+            enableSwiftUIObservingPreview.set(true)
+        }
+    }
 }

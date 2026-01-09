@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import com.calypsan.listenup.client.core.AccessToken
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.Result
@@ -13,8 +14,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.time.TimeSource
 import com.calypsan.listenup.client.domain.repository.AuthState as DomainAuthState
 import com.calypsan.listenup.client.domain.repository.PreferenceChangeEvent as DomainPreferenceChangeEvent
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Repository for managing application settings and authentication state.
@@ -117,16 +121,25 @@ class SettingsRepositoryImpl(
      * if setup (root user creation) is needed.
      */
     override suspend fun setServerUrl(url: ServerUrl) {
+        logger.info { "setServerUrl: Saving URL ${url.value}" }
+        val startMark = TimeSource.Monotonic.markNow()
         secureStorage.save(KEY_SERVER_URL, url.value)
+        logger.info { "setServerUrl: URL saved (${startMark.elapsedNow()})" }
+
         // Check if we already have tokens (returning user)
         val hasToken = getAccessToken() != null
+        logger.info { "setServerUrl: hasToken=$hasToken (${startMark.elapsedNow()})" }
+
         if (hasToken) {
             // Trust local tokens - derive state from stored data
             _authState.value = deriveAuthState()
+            logger.info { "setServerUrl: Derived auth state (${startMark.elapsedNow()})" }
         } else {
             // No tokens - need to check server to determine if setup is required
             // This is the first time connecting, so check if server has users
+            logger.info { "setServerUrl: Calling checkServerStatus (${startMark.elapsedNow()})" }
             checkServerStatus()
+            logger.info { "setServerUrl: checkServerStatus completed (${startMark.elapsedNow()})" }
         }
     }
 
@@ -327,10 +340,14 @@ class SettingsRepositoryImpl(
      * automatically. Users must explicitly change servers via settings.
      */
     override suspend fun checkServerStatus(): DomainAuthState {
+        logger.info { "checkServerStatus: Starting" }
+        val startMark = TimeSource.Monotonic.markNow()
         _authState.value = DomainAuthState.CheckingServer
 
+        logger.info { "checkServerStatus: Calling getInstance" }
         return when (val result = instanceRepository.getInstance(forceRefresh = true)) {
             is Result.Success -> {
+                logger.info { "checkServerStatus: getInstance succeeded (${startMark.elapsedNow()})" }
                 // Cache open registration status for use when deriving auth state
                 secureStorage.save(KEY_OPEN_REGISTRATION, result.data.openRegistration.toString())
 
@@ -345,6 +362,7 @@ class SettingsRepositoryImpl(
             }
 
             is Result.Failure -> {
+                logger.info { "checkServerStatus: getInstance failed (${startMark.elapsedNow()}): ${result.message}" }
                 // Server unreachable - stay in NeedsLogin with cached open registration value
                 // User can retry or check their connection
                 val cachedOpenRegistration = getCachedOpenRegistration()

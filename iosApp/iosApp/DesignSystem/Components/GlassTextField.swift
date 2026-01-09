@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Text input field with clean modern aesthetic.
+/// Text input field with Liquid Glass aesthetic.
 ///
 /// Features:
-/// - Native secondary background
+/// - Ultra-thin material background for glass effect
+/// - Subtle border for definition
 /// - Label and error state support
 /// - Keyboard configuration
 /// - Accessible by default
@@ -51,16 +52,23 @@ struct GlassTextField: View {
         VStack(alignment: .leading, spacing: 8) {
             // Label
             Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
 
-            // Text field with clean background
+            // Text field with glass background
             TextField(placeholder, text: $text)
                 .padding(16)
                 .foregroundStyle(.primary)
                 .background {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.secondarySystemBackground))
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(
+                                    error != nil ? Color.red.opacity(0.5) : Color.primary.opacity(0.1),
+                                    lineWidth: 1
+                                )
+                        }
                 }
                 .keyboardType(keyboardType)
                 .textContentType(textContentType)
@@ -91,7 +99,7 @@ struct GlassTextField: View {
 
 // MARK: - Secure Field Variant
 
-/// Secure text input field for passwords with glass aesthetic.
+/// Secure text input field for passwords with Liquid Glass aesthetic.
 struct GlassSecureField: View {
     let label: String
     let placeholder: String
@@ -119,10 +127,10 @@ struct GlassSecureField: View {
         VStack(alignment: .leading, spacing: 8) {
             // Label
             Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
 
-            // Secure field with clean background and toggle
+            // Secure field with glass background and toggle
             HStack {
                 Group {
                     if isSecure {
@@ -146,8 +154,15 @@ struct GlassSecureField: View {
             }
             .padding(16)
             .background {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.secondarySystemBackground))
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(
+                                error != nil ? Color.red.opacity(0.5) : Color.primary.opacity(0.1),
+                                lineWidth: 1
+                            )
+                    }
             }
             .onSubmit(onSubmit)
 

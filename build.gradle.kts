@@ -51,6 +51,13 @@ dependencies {
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${libs.versions.detekt.get()}")
 }
 
+// Suppress SLF4J "no binding" warnings during SKIE processing
+buildscript {
+    dependencies {
+        classpath("org.slf4j:slf4j-simple:2.0.9")
+    }
+}
+
 // =============================================================================
 // SPOTLESS - Code Formatting
 // =============================================================================

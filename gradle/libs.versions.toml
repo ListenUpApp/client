@@ -33,6 +33,9 @@ markdown-renderer = "0.39.0"
 blurhash = "0.3.0"
 vico = "2.4.1"
 
+# Swift Interop
+skie = "0.10.9"
+
 # Quality Tools
 detekt = "1.23.8"
 spotless = "8.1.0"
@@ -143,6 +146,9 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 mokkery = { id = "dev.mokkery", version.ref = "mokkery" }
+
+# Swift Interop
+skie = { id = "co.touchlab.skie", version.ref = "skie" }
 
 # Quality Tools
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

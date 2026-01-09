@@ -49,6 +49,36 @@ final class Dependencies {
         return instance
     }
 
+    private var _loginViewModel: LoginViewModel?
+    var loginViewModel: LoginViewModel {
+        if let cached = _loginViewModel {
+            return cached
+        }
+        let instance = KoinHelper.shared.getLoginViewModel()
+        _loginViewModel = instance
+        return instance
+    }
+
+    private var _registerViewModel: RegisterViewModel?
+    var registerViewModel: RegisterViewModel {
+        if let cached = _registerViewModel {
+            return cached
+        }
+        let instance = KoinHelper.shared.getRegisterViewModel()
+        _registerViewModel = instance
+        return instance
+    }
+
+    private var _serverSelectViewModel: ServerSelectViewModel?
+    var serverSelectViewModel: ServerSelectViewModel {
+        if let cached = _serverSelectViewModel {
+            return cached
+        }
+        let instance = KoinHelper.shared.getServerSelectViewModel()
+        _serverSelectViewModel = instance
+        return instance
+    }
+
     // MARK: - Settings (Segregated Interfaces)
 
     private var _authSession: AuthSession?
@@ -99,6 +129,9 @@ extension Dependencies {
     static func mock(
         getInstanceUC: GetInstanceUseCase? = nil,
         serverConnectVM: ServerConnectViewModel? = nil,
+        loginVM: LoginViewModel? = nil,
+        registerVM: RegisterViewModel? = nil,
+        serverSelectVM: ServerSelectViewModel? = nil,
         authSession: AuthSession? = nil,
         serverConfig: ServerConfig? = nil
     ) -> Dependencies {
@@ -110,6 +143,15 @@ extension Dependencies {
         }
         if let vm = serverConnectVM {
             mock._serverConnectViewModel = vm
+        }
+        if let vm = loginVM {
+            mock._loginViewModel = vm
+        }
+        if let vm = registerVM {
+            mock._registerViewModel = vm
+        }
+        if let vm = serverSelectVM {
+            mock._serverSelectViewModel = vm
         }
         if let auth = authSession {
             mock._authSession = auth
