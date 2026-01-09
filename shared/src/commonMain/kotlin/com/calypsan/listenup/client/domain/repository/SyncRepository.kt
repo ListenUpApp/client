@@ -30,6 +30,15 @@ interface SyncRepository {
     val syncState: StateFlow<SyncState>
 
     /**
+     * Whether the server is currently scanning the library.
+     *
+     * True from when a ScanStarted SSE event is received until ScanCompleted.
+     * UI can use this to show "Scanning your library..." instead of empty state
+     * during initial library setup.
+     */
+    val isServerScanning: StateFlow<Boolean>
+
+    /**
      * Trigger a full library sync with the server.
      *
      * Performs:

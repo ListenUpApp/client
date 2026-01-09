@@ -62,6 +62,12 @@ val authPresentationModule =
                 inviteCode = params.get<String>(1),
             )
         }
+        // LibrarySetupViewModel for initial library configuration
+        factory {
+            com.calypsan.listenup.client.presentation.setup.LibrarySetupViewModel(
+                setupApi = get(),
+            )
+        }
     }
 
 /**

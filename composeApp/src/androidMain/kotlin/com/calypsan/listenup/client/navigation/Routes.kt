@@ -345,6 +345,17 @@ data class LensEdit(
     val lensId: String,
 ) : Route
 
+// Library Setup Route
+
+/**
+ * Library setup screen - configure library scan paths.
+ *
+ * Shown to admin users after login when the server needs a library configured.
+ * Admin browses the server filesystem to select audiobook folders.
+ */
+@Serializable
+data object LibrarySetup : Route
+
 // Profile Routes
 
 /**

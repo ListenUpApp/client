@@ -44,8 +44,8 @@ class PullSyncOrchestrator(
             val lastSyncTime = syncDao.getLastSyncTime()
             val updatedAfter = lastSyncTime?.toIsoString()
 
-            val syncType = if (updatedAfter != null) "Delta (since $updatedAfter)" else "Full"
-            logger.info { "Sync strategy: $syncType" }
+            val syncType = if (updatedAfter != null) "delta" else "full"
+            logger.debug { "Pull sync strategy: $syncType" }
 
             onProgress(
                 SyncStatus.Progress(

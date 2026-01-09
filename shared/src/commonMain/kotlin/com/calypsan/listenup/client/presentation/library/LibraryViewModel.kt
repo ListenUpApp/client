@@ -160,6 +160,12 @@ class LibraryViewModel(
                 _uiState.update { it.copy(syncState = newSyncState) }
             }.launchIn(viewModelScope)
 
+        // Server scanning state: observe from repository
+        syncRepository.isServerScanning
+            .onEach { isScanning ->
+                _uiState.update { it.copy(isServerScanning = isScanning) }
+            }.launchIn(viewModelScope)
+
         // Book progress: combine playback positions with book durations
         combine(
             playbackPositionRepository.observeAll(),

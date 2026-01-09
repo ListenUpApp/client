@@ -4,15 +4,18 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.core.getOrNull
+import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.PendingOperationDao
 import com.calypsan.listenup.client.data.local.db.SyncDao
 import com.calypsan.listenup.client.data.local.db.Syncable
 import com.calypsan.listenup.client.data.local.db.clearLastSyncTime
 import com.calypsan.listenup.client.data.local.db.setLastSyncTime
+import com.calypsan.listenup.client.data.remote.SetupApiContract
 import com.calypsan.listenup.client.data.remote.UserPreferencesApiContract
 import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
+import com.calypsan.listenup.client.data.sync.sse.ScanCompletedInfo
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
@@ -42,6 +45,13 @@ interface SyncManagerContract {
      * Current synchronization status.
      */
     val syncState: StateFlow<SyncStatus>
+
+    /**
+     * Whether the server is currently scanning the library.
+     * True from ScanStarted until ScanCompleted SSE events.
+     * UI can use this to show "Scanning your library..." instead of empty state.
+     */
+    val isServerScanning: StateFlow<Boolean>
 
     /**
      * Perform full synchronization with server.
@@ -83,6 +93,7 @@ class SyncManager(
     private val sseEventProcessor: SSEEventProcessor,
     private val coordinator: SyncCoordinator,
     private val sseManager: SSEManagerContract,
+    private val setupApi: SetupApiContract,
     private val userPreferencesApi: UserPreferencesApiContract,
     private val authSession: AuthSession,
     private val playbackPreferences: PlaybackPreferences,
@@ -91,6 +102,7 @@ class SyncManager(
     private val pendingOperationDao: PendingOperationDao,
     private val libraryResetHelper: LibraryResetHelperContract,
     private val syncDao: SyncDao,
+    private val bookDao: BookDao,
     private val ftsPopulator: FtsPopulatorContract,
     private val syncMutex: SyncMutex,
     private val scope: CoroutineScope,
@@ -98,6 +110,9 @@ class SyncManager(
     // Override properties can't use explicit backing fields - must use traditional pattern
     private val _syncState = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
     override val syncState: StateFlow<SyncStatus> = _syncState.asStateFlow()
+
+    // Delegate to SSEEventProcessor which tracks ScanStarted/ScanCompleted events
+    override val isServerScanning: StateFlow<Boolean> = sseEventProcessor.isServerScanning
 
     init {
         // Route SSE events to processor
@@ -123,6 +138,13 @@ class SyncManager(
                 sseManager.disconnect()
                 // Clear auth tokens - this will trigger AuthState.NeedsLogin
                 authSession.clearAuthTokens()
+            }
+        }
+
+        // Handle scan completed events - trigger delta sync to fetch newly scanned books
+        scope.launch {
+            sseEventProcessor.scanCompletedEvent.collect { scanInfo ->
+                handleScanCompleted(scanInfo)
             }
         }
     }
@@ -170,10 +192,67 @@ class SyncManager(
     }
 
     /**
+     * Handle library scan completion by triggering a delta sync.
+     *
+     * When a library scan completes (initial setup or rescan), the server has new/updated books
+     * that weren't pushed via individual SSE events. We fetch them via delta sync.
+     */
+    private fun handleScanCompleted(scanInfo: ScanCompletedInfo) {
+        // Launch sync check in background (non-blocking)
+        // We ALWAYS check for mismatch after scan completes, regardless of reported counts.
+        // The SSE event counts may be inaccurate, and we may have missed the initial sync.
+        scope.launch {
+            try {
+                // Only sync if we're not already syncing
+                if (_syncState.value is SyncStatus.Syncing) {
+                    return@launch
+                }
+
+                // Check if server has books we don't have locally
+                val status = setupApi.getLibraryStatus()
+                val localBookCount = bookDao.count()
+
+                // If server has books but we don't, we need to sync
+                if (status.bookCount > 0 && localBookCount == 0) {
+                    logger.info { "Post-scan mismatch: server=${status.bookCount}, local=0. Forcing full sync." }
+
+                    syncMutex.withLock {
+                        // Clear lastSyncTime to force a FULL sync, not delta.
+                        // Delta sync would return 0 books because all books were created
+                        // before the previous sync set lastSyncTime.
+                        syncDao.clearLastSyncTime()
+
+                        pullOrchestrator.pull { /* suppress progress updates for background sync */ }
+
+                        try {
+                            ftsPopulator.rebuildAll()
+                        } catch (e: Exception) {
+                            logger.warn(e) { "FTS rebuild failed after scan completion sync" }
+                        }
+
+                        syncDao.setLastSyncTime(Timestamp.now())
+                    }
+
+                    val newLocalCount = bookDao.count()
+                    logger.info { "Post-scan sync complete: $newLocalCount books" }
+                } else if (scanInfo.booksAdded > 0 || scanInfo.booksUpdated > 0 || scanInfo.booksRemoved > 0) {
+                    // SSE reported changes - do a delta sync
+                    syncMutex.withLock {
+                        pushOrchestrator.flush()
+                        pullOrchestrator.pull { /* suppress progress updates */ }
+                        syncDao.setLastSyncTime(Timestamp.now())
+                    }
+                }
+            } catch (e: Exception) {
+                logger.warn(e) { "Scan completion sync failed" }
+            }
+        }
+    }
+
+    /**
      * Perform full synchronization with server.
      */
     override suspend fun sync(): Result<Unit> {
-        logger.debug { "Starting sync operation" }
         _syncState.value = SyncStatus.Syncing
 
         return try {
@@ -215,6 +294,11 @@ class SyncManager(
 
             // Phase 6: Connect to SSE stream for real-time updates
             sseManager.connect()
+
+            // Phase 7: Initialize scan state from library status API
+            // This handles the case where a scan started before SSE connected
+            // (e.g., right after library setup)
+            initializeScanState()
 
             logger.info { "Sync completed successfully" }
             _syncState.value = SyncStatus.Success(timestamp = now)
@@ -296,6 +380,68 @@ class SyncManager(
             }
         } catch (e: Exception) {
             logger.warn(e) { "User preferences sync failed, using cached values" }
+        }
+    }
+
+    /**
+     * Initialize scan state and handle missed scan completions.
+     *
+     * This handles the critical timing issue where:
+     * 1. Library is created and scan starts
+     * 2. Scan completes before client connects SSE
+     * 3. Client misses all scan events
+     * 4. Client has 0 books but server has books
+     *
+     * Solution: After initial sync, check library status:
+     * - If scanning: set UI indicator (SSE events will handle completion)
+     * - If not scanning but server has books we don't: fetch them now
+     *
+     * The server now sets isScanning synchronously (not via async event processing),
+     * so API calls reliably reflect the current scan state.
+     *
+     * @return true if a resync was triggered, false otherwise
+     */
+    private suspend fun initializeScanState(): Boolean {
+        try {
+            val status = setupApi.getLibraryStatus()
+            val localBookCount = bookDao.count()
+
+            // Set UI indicator based on current scan state
+            sseEventProcessor.initializeScanningState(status.isScanning)
+
+            if (status.isScanning) {
+                // Scan in progress - SSE events will notify when complete
+                // and trigger delta sync via handleScanCompleted()
+                return false
+            }
+
+            // Server is NOT scanning - check for sync mismatch
+            if (status.bookCount > 0 && localBookCount == 0) {
+                // Server has books but we don't - scan completed before we could sync
+                logger.info { "Sync mismatch: server=${status.bookCount}, local=0. Forcing full sync." }
+
+                // Clear lastSyncTime to force a FULL sync, not delta.
+                // Delta sync would return 0 books because all books were created
+                // before the previous sync set lastSyncTime.
+                syncDao.clearLastSyncTime()
+
+                pullOrchestrator.pull { updateSyncState(it) }
+
+                try {
+                    ftsPopulator.rebuildAll()
+                } catch (e: Exception) {
+                    logger.warn(e) { "FTS rebuild failed after resync" }
+                }
+
+                val newLocalCount = bookDao.count()
+                logger.info { "Resync complete: $newLocalCount books" }
+                return true
+            }
+
+            return false
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to check library scan status" }
+            return false
         }
     }
 

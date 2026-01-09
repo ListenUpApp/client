@@ -59,6 +59,8 @@ data class LibraryUiState(
     val bookProgress: Map<String, Float> = emptyMap(),
     // Sync state
     val syncState: SyncState = SyncState.Idle,
+    // Server scanning state (true during library scan on server)
+    val isServerScanning: Boolean = false,
     // Selection mode
     val selectionMode: SelectionMode = SelectionMode.None,
 ) {

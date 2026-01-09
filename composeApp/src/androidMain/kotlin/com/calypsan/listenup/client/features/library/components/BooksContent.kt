@@ -184,6 +184,7 @@ private fun ArticleToggleChip(
  * @param books List of books to display
  * @param hasLoadedBooks Whether initial database load has completed (distinguishes loading vs empty)
  * @param syncState Current sync status for loading/error states
+ * @param isServerScanning Whether the server is currently scanning the library
  * @param sortState Current sort state (category + direction)
  * @param ignoreTitleArticles Whether to ignore articles (A, An, The) when sorting by title
  * @param bookProgress Map of bookId to progress (0.0-1.0) for in-progress books
@@ -203,6 +204,7 @@ fun BooksContent(
     books: List<Book>,
     hasLoadedBooks: Boolean,
     syncState: SyncState,
+    isServerScanning: Boolean,
     sortState: SortState,
     ignoreTitleArticles: Boolean,
     bookProgress: Map<String, Float>,
@@ -234,6 +236,11 @@ fun BooksContent(
                     error = syncState.exception ?: Exception(syncState.message),
                     onRetry = onRetry,
                 )
+            }
+
+            // Loaded but empty AND server is scanning - show scanning state
+            books.isEmpty() && isServerScanning -> {
+                BooksScanningState()
             }
 
             // Loaded AND truly empty - show empty state
@@ -455,6 +462,36 @@ private fun BooksLoadingState() {
                 text = "Loading your library...",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BooksScanningState() {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(32.dp),
+        ) {
+            ListenUpLoadingIndicator()
+            Text(
+                text = "Scanning your library...",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "Your audiobooks will appear here once the scan is complete",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
         }
     }
