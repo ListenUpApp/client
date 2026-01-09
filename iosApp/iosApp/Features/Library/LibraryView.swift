@@ -1,4 +1,5 @@
 import SwiftUI
+import Shared
 
 /// Library screen placeholder.
 ///
@@ -10,54 +11,98 @@ import SwiftUI
 /// - Filter/sort controls
 /// - Mini player at bottom
 struct LibraryView: View {
+    @Environment(CurrentUserObserver.self) private var userObserver
+    @State private var searchText = ""
+
+    private var user: User? { userObserver.user }
+
     var body: some View {
-        VStack(spacing: 24) {
-            // Header
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Hello, User!")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // Header
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Hello, \(user?.displayName ?? "User")!")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
 
-                Text("What you want to read?")
-                    .font(.largeTitle.bold())
+                    Text("What you want to read?")
+                        .font(.largeTitle.bold())
+                }
+
+                // Search bar
+                searchBar
+
+                // Placeholder content
+                contentPlaceholder
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal)
-
-            Spacer()
-
-            // Placeholder
-            VStack(spacing: 16) {
-                Image(systemName: "books.vertical")
-                    .font(.system(size: 64))
-                    .foregroundStyle(.secondary)
-
-                Text("Library Screen")
-                    .font(.title2.bold())
-
-                Text("To be implemented")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
+            .padding()
         }
-        .padding(.top)
         .background(Color(.systemBackground))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: UserProfileDestination()) {
+                    UserAvatarView(user: user, size: 32)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Search Bar
+
+    private var searchBar: some View {
+        HStack(spacing: 12) {
+            TextField("Search book", text: $searchText)
+                .textFieldStyle(.plain)
+
+            Button(action: {}) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.white)
+                    .padding(10)
+                    .background(Color.listenUpOrange, in: Circle())
+            }
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 4)
+        .padding(.vertical, 4)
+        .background(Color(.secondarySystemBackground), in: Capsule())
+    }
+
+    // MARK: - Content Placeholder
+
+    private var contentPlaceholder: some View {
+        VStack(spacing: 16) {
+            Spacer()
+                .frame(height: 60)
+
+            Image(systemName: "books.vertical")
+                .font(.system(size: 64))
+                .foregroundStyle(.secondary)
+
+            Text("Library Screen")
+                .font(.title2.bold())
+
+            Text("To be implemented")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 40)
     }
 }
 
 #Preview {
     NavigationStack {
         LibraryView()
-            .navigationTitle("Library")
     }
+    .environment(CurrentUserObserver())
 }
 
 #Preview("Dark Mode") {
     NavigationStack {
         LibraryView()
-            .navigationTitle("Library")
     }
+    .environment(CurrentUserObserver())
     .preferredColorScheme(.dark)
 }

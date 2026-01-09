@@ -53,6 +53,9 @@ final class AuthStateObserver {
         observationTask = Task { [weak self] in
             guard let self else { return }
 
+            // Initialize auth state machine (required to start transitions)
+            try? await self.authSession.initializeAuthState()
+
             for await authState in self.authSession.authState {
                 guard !Task.isCancelled else { break }
                 self.mapState(authState)

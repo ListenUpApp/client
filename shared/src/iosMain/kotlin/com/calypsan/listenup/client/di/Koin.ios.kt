@@ -84,4 +84,9 @@ object KoinHelper : KoinComponent {
         val serverConfig: com.calypsan.listenup.client.domain.repository.ServerConfig by inject()
         return serverConfig
     }
+
+    fun getUserRepository(): com.calypsan.listenup.client.domain.repository.UserRepository {
+        val userRepository: com.calypsan.listenup.client.domain.repository.UserRepository by inject()
+        return userRepository
+    }
 }

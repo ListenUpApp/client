@@ -4,10 +4,6 @@ import Shared
 @main
 struct ListenUpApp: App {
 
-    /// Single source of truth for authentication state.
-    /// Everything flows from here.
-    @State private var auth = AuthStateObserver()
-
     init() {
         // Initialize Koin before any UI renders
         Koin_iosKt.initializeKoin(additionalModules: [])
@@ -16,17 +12,28 @@ struct ListenUpApp: App {
 
     var body: some Scene {
         WindowGroup {
-            rootView
-                .animation(.smooth(duration: 0.3), value: auth.state)
+            RootView()
         }
     }
+}
 
-    // MARK: - Root View
+// MARK: - Root View
 
-    /// The root view is determined entirely by auth state.
-    /// No manual navigation. No callbacks. Just state.
+/// The actual root view that creates observers after Koin is initialized.
+/// We use a separate struct because App.init() runs before @State property initializers
+/// would access Koin, but View.init() runs after the App is fully constructed.
+private struct RootView: View {
+    @State private var auth = AuthStateObserver()
+    @State private var currentUser = CurrentUserObserver()
+
+    var body: some View {
+        content
+            .environment(currentUser)
+            .animation(.smooth(duration: 0.3), value: auth.state)
+    }
+
     @ViewBuilder
-    private var rootView: some View {
+    private var content: some View {
         switch auth.state {
         case .initializing, .checkingServer:
             LaunchScreen()
@@ -35,14 +42,12 @@ struct ListenUpApp: App {
             ServerFlowCoordinator()
 
         case .needsSetup:
-            // TODO: Setup flow for creating root user
             ServerFlowCoordinator()
 
         case .needsLogin:
             AuthFlowCoordinator(openRegistration: auth.openRegistration)
 
         case .pendingApproval:
-            // TODO: Pending approval screen
             PendingApprovalView()
 
         case .authenticated:
@@ -89,10 +94,10 @@ private struct PendingApprovalView: View {
     }
 }
 
-// MARK: - Main App (Placeholder)
+// MARK: - Main App
 
 private struct MainAppView: View {
     var body: some View {
-        LibraryView()
+        MainTabView()
     }
 }
