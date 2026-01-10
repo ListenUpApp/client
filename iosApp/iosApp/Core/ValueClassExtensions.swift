@@ -23,13 +23,14 @@ extension User {
     }
 }
 
-// MARK: - Book Extensions (for future use)
+// MARK: - Book Extensions
 
-// When we have Book model:
-// extension Book {
-//     var idString: String { String(describing: id) }
-//     var seriesIdString: String? { seriesId.map { String(describing: $0) } }
-// }
+extension Book {
+    /// The book's ID as a Swift String.
+    var idString: String {
+        String(describing: id)
+    }
+}
 
 // MARK: - Avatar Color Helper
 

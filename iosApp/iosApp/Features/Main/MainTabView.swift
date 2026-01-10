@@ -22,6 +22,7 @@ struct MainTabView: View {
                 tab(.home, icon: "house.fill") { HomeView() }
                 tab(.library, icon: "books.vertical.fill") { LibraryView() }
                 tab(.discover, icon: "sparkles") { DiscoverView() }
+                tab(.search, icon: "magnifyingglass") { SearchView() }
             }
             .tabViewStyle(.sidebarAdaptable)
 
@@ -67,12 +68,14 @@ extension MainTabView {
     enum Tab: Hashable {
         case home
         case library
+        case search
         case discover
 
         var title: String {
             switch self {
             case .home: "Home"
             case .library: "Library"
+            case .search: "Search"
             case .discover: "Discover"
             }
         }

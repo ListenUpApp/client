@@ -100,6 +100,18 @@ final class Dependencies {
         _serverConfig = instance
         return instance
     }
+
+    // MARK: - Library
+
+    private var _libraryViewModel: LibraryViewModel?
+    var libraryViewModel: LibraryViewModel {
+        if let cached = _libraryViewModel {
+            return cached
+        }
+        let instance = KoinHelper.shared.getLibraryViewModel()
+        _libraryViewModel = instance
+        return instance
+    }
 }
 
 // MARK: - SwiftUI Environment
@@ -133,7 +145,8 @@ extension Dependencies {
         registerVM: RegisterViewModel? = nil,
         serverSelectVM: ServerSelectViewModel? = nil,
         authSession: AuthSession? = nil,
-        serverConfig: ServerConfig? = nil
+        serverConfig: ServerConfig? = nil,
+        libraryVM: LibraryViewModel? = nil
     ) -> Dependencies {
         let mock = Dependencies()
 
@@ -158,6 +171,9 @@ extension Dependencies {
         }
         if let config = serverConfig {
             mock._serverConfig = config
+        }
+        if let vm = libraryVM {
+            mock._libraryViewModel = vm
         }
 
         return mock

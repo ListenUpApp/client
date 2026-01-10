@@ -89,4 +89,9 @@ object KoinHelper : KoinComponent {
         val userRepository: com.calypsan.listenup.client.domain.repository.UserRepository by inject()
         return userRepository
     }
+
+    fun getLibraryViewModel(): com.calypsan.listenup.client.presentation.library.LibraryViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.library.LibraryViewModel by inject()
+        return viewModel
+    }
 }

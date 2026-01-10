@@ -6,6 +6,7 @@ import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.download.IosDownloadService
+import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
 import com.calypsan.listenup.client.playback.AudioTokenProvider
 import com.calypsan.listenup.client.playback.IosAudioTokenProvider
 import com.calypsan.listenup.client.playback.PlaybackManager
@@ -79,7 +80,7 @@ val iosPlaybackModule: Module =
                 listeningEventDao = get(),
                 syncApi = get(),
                 pendingOperationRepository = get(),
-                listeningEventHandler = get(),
+                listeningEventHandler = get<ListeningEventHandler>(),
                 pushSyncOrchestrator = get(),
                 deviceId = get(qualifier = named("deviceId")),
                 scope = get(qualifier = named("playbackScope")),
