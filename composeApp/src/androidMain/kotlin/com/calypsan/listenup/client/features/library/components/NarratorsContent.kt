@@ -107,7 +107,7 @@ fun NarratorsContent(
             ) {
                 items(
                     items = narrators,
-                    key = { it.contributor.id },
+                    key = { it.contributor.id.value },
                 ) { narratorWithCount ->
                     // Reuse ContributorCard from AuthorsContent
                     ContributorCard(

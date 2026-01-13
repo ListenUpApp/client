@@ -64,4 +64,17 @@ interface SyncRepository {
      * @return Result.Success on completion, Result.Failure on error
      */
     suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit>
+
+    /**
+     * Refresh all listening events and playback positions from server.
+     *
+     * Used after importing data (e.g., from Audiobookshelf) to fetch historical
+     * events that wouldn't be included in a normal delta sync.
+     *
+     * This fetches ALL events from the server (ignoring the delta sync cursor)
+     * and rebuilds playback positions from them.
+     *
+     * @return Result.Success on completion, Result.Failure on error
+     */
+    suspend fun refreshListeningHistory(): Result<Unit>
 }

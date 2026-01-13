@@ -17,7 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -165,7 +165,7 @@ fun LensPickerSheet(
                         Box(
                             contentAlignment = Alignment.Center,
                         ) {
-                            CircularProgressIndicator()
+                            ListenUpLoadingIndicator()
                         }
                     }
                 }

@@ -140,6 +140,27 @@ val adminPresentationModule =
                 adminRepository = get(),
             )
         }
+        // AdminBackupViewModel for backup management
+        factory {
+            com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel(
+                backupApi = get(),
+            )
+        }
+        // RestoreBackupViewModel - takes backupId as parameter
+        factory { params ->
+            com.calypsan.listenup.client.presentation.admin.RestoreBackupViewModel(
+                backupId = params.get<String>(0),
+                backupApi = get(),
+            )
+        }
+        // ABSImportViewModel for Audiobookshelf import
+        factory {
+            com.calypsan.listenup.client.presentation.admin.ABSImportViewModel(
+                backupApi = get(),
+                searchApi = get(),
+                syncRepository = get(),
+            )
+        }
     }
 
 /**

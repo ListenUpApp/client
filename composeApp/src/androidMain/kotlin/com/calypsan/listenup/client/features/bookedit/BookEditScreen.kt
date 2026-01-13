@@ -17,7 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +39,7 @@ import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.design.components.CoverColors
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.ListenUpTextArea
 import com.calypsan.listenup.client.design.components.rememberCoverColors
 import com.calypsan.listenup.client.domain.imagepicker.ImagePickerResult
@@ -128,16 +128,7 @@ fun BookEditScreen(
                     onClick = { if (isEnabled) viewModel.onEvent(BookEditUiEvent.Save) },
                     icon = {
                         if (state.isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
-                                color =
-                                    if (isEnabled) {
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    },
-                            )
+                            ListenUpLoadingIndicatorSmall()
                         } else {
                             Icon(
                                 Icons.Default.Save,

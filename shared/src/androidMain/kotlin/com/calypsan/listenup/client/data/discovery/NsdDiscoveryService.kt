@@ -47,27 +47,27 @@ class NsdDiscoveryService(
             return
         }
 
-        logger.info { "Starting mDNS discovery for $SERVICE_TYPE" }
+        logger.info { "Starting mDNS discovery for service type: '$SERVICE_TYPE'" }
 
         discoveryListener =
             object : NsdManager.DiscoveryListener {
                 override fun onDiscoveryStarted(serviceType: String) {
-                    logger.info { "Discovery started for $serviceType" }
+                    logger.info { "mDNS discovery started successfully for: '$serviceType'" }
                     isDiscovering = true
                 }
 
                 override fun onDiscoveryStopped(serviceType: String) {
-                    logger.info { "Discovery stopped for $serviceType" }
+                    logger.info { "mDNS discovery stopped for: '$serviceType'" }
                     isDiscovering = false
                 }
 
                 override fun onServiceFound(serviceInfo: NsdServiceInfo) {
-                    logger.debug { "Service found: ${serviceInfo.serviceName}" }
+                    logger.info { "mDNS service found: name='${serviceInfo.serviceName}', type='${serviceInfo.serviceType}'" }
                     resolveService(serviceInfo)
                 }
 
                 override fun onServiceLost(serviceInfo: NsdServiceInfo) {
-                    logger.debug { "Service lost: ${serviceInfo.serviceName}" }
+                    logger.info { "mDNS service lost: name='${serviceInfo.serviceName}'" }
                     // Remove by service name since we don't have the ID yet
                     serversState.update { current ->
                         val removedId =
@@ -82,7 +82,8 @@ class NsdDiscoveryService(
                     serviceType: String,
                     errorCode: Int,
                 ) {
-                    logger.error { "Discovery start failed: $errorCode" }
+                    val errorName = nsdErrorCodeToString(errorCode)
+                    logger.error { "mDNS discovery start FAILED: errorCode=$errorCode ($errorName), serviceType='$serviceType'" }
                     isDiscovering = false
                 }
 
@@ -90,7 +91,8 @@ class NsdDiscoveryService(
                     serviceType: String,
                     errorCode: Int,
                 ) {
-                    logger.error { "Discovery stop failed: $errorCode" }
+                    val errorName = nsdErrorCodeToString(errorCode)
+                    logger.error { "mDNS discovery stop FAILED: errorCode=$errorCode ($errorName)" }
                 }
             }
 
@@ -252,4 +254,15 @@ class NsdDiscoveryService(
 
         return result
     }
+
+    /**
+     * Convert NSD error codes to human-readable strings for debugging.
+     */
+    private fun nsdErrorCodeToString(errorCode: Int): String =
+        when (errorCode) {
+            NsdManager.FAILURE_INTERNAL_ERROR -> "FAILURE_INTERNAL_ERROR"
+            NsdManager.FAILURE_ALREADY_ACTIVE -> "FAILURE_ALREADY_ACTIVE"
+            NsdManager.FAILURE_MAX_LIMIT -> "FAILURE_MAX_LIMIT"
+            else -> "UNKNOWN_ERROR"
+        }
 }

@@ -37,7 +37,7 @@ class PullSyncOrchestratorTest {
         val contributorPuller: Puller = mock()
         val tagPuller: Puller = mock()
         val genrePuller: Puller = mock()
-        val listeningEventPuller: Puller = mock()
+        val listeningEventPuller: ListeningEventPullerContract = mock()
         val activeSessionsPuller: Puller = mock()
         val syncDao: SyncDao = mock()
 

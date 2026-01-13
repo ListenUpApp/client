@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.calypsan.listenup.client.data.sync.SyncManager
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -25,6 +26,7 @@ class SyncWorker(
 ) : CoroutineWorker(context, params),
     KoinComponent {
     private val syncManager: SyncManager by inject()
+    private val serverConfig: ServerConfig by inject()
 
     /**
      * Perform background sync operation.
@@ -34,6 +36,12 @@ class SyncWorker(
      */
     override suspend fun doWork(): Result {
         logger.debug { "Starting background sync (attempt ${runAttemptCount + 1})" }
+
+        // Skip sync if no server is configured (fresh install)
+        if (!serverConfig.hasServerConfigured()) {
+            logger.debug { "No server configured, skipping background sync" }
+            return Result.success()
+        }
 
         return when (val result = syncManager.sync()) {
             is CoreResult.Success -> {

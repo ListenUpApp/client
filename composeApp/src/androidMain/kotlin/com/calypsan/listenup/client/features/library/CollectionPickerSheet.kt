@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -155,7 +155,7 @@ fun CollectionPickerSheet(
                         Box(
                             contentAlignment = Alignment.Center,
                         ) {
-                            CircularProgressIndicator()
+                            ListenUpLoadingIndicator()
                         }
                     }
                 }

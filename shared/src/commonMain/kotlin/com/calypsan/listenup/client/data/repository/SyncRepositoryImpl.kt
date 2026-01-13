@@ -42,6 +42,9 @@ class SyncRepositoryImpl(
 
     override suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit> =
         syncManager.resetForNewLibrary(newLibraryId)
+
+    override suspend fun refreshListeningHistory(): Result<Unit> =
+        syncManager.refreshListeningHistory()
 }
 
 /**

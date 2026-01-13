@@ -20,7 +20,7 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -331,10 +331,7 @@ private fun PermissionsCard(
                     )
                 }
                 if (isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                    )
+                    ListenUpLoadingIndicatorSmall()
                 } else {
                     Switch(
                         checked = canDownload,
@@ -375,10 +372,7 @@ private fun PermissionsCard(
                     )
                 }
                 if (isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                    )
+                    ListenUpLoadingIndicatorSmall()
                 } else {
                     Switch(
                         checked = canShare,

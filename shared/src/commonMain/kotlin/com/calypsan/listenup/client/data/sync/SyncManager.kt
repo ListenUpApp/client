@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.core.getOrNull
 import com.calypsan.listenup.client.data.local.db.BookDao
@@ -67,6 +68,14 @@ interface SyncManagerContract {
      * @param newLibraryId The new library ID to sync with
      */
     suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit>
+
+    /**
+     * Refresh all listening events and playback positions from server.
+     *
+     * Fetches ALL events (ignoring delta sync cursor) and rebuilds
+     * playback positions. Used after importing historical data.
+     */
+    suspend fun refreshListeningHistory(): Result<Unit>
 }
 
 /**
@@ -350,6 +359,19 @@ class SyncManager(
             logger.error(e) { "Failed to reset for new library" }
             _syncState.value = SyncStatus.Error(exception = e)
             return Failure(exception = e, message = "Failed to reset library: ${e.message}")
+        }
+    }
+
+    override suspend fun refreshListeningHistory(): Result<Unit> {
+        logger.info { "Refreshing all listening history from server..." }
+
+        return try {
+            pullOrchestrator.refreshListeningHistory()
+            logger.info { "Listening history refresh complete" }
+            Success(Unit)
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to refresh listening history" }
+            Failure(exception = e, message = "Failed to refresh listening history: ${e.message}")
         }
     }
 

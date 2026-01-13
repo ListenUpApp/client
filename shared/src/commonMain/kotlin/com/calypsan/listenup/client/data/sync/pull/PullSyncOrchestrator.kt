@@ -22,7 +22,7 @@ class PullSyncOrchestrator(
     private val contributorPuller: Puller,
     private val tagPuller: Puller,
     private val genrePuller: Puller,
-    private val listeningEventPuller: Puller,
+    private val listeningEventPuller: ListeningEventPullerContract,
     private val activeSessionsPuller: Puller,
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
@@ -99,4 +99,17 @@ class PullSyncOrchestrator(
                 ),
             )
         }
+
+    /**
+     * Refresh all listening events and playback positions.
+     *
+     * Fetches ALL events from the server (ignoring delta sync cursor)
+     * and rebuilds playback positions from them.
+     *
+     * Used after importing historical data (e.g., from Audiobookshelf).
+     */
+    suspend fun refreshListeningHistory() {
+        logger.info { "Refreshing all listening history..." }
+        listeningEventPuller.pullAll()
+    }
 }

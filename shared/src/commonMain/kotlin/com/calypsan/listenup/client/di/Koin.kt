@@ -12,6 +12,8 @@ import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.AdminCollectionApi
 import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
+import com.calypsan.listenup.client.data.remote.BackupApi
+import com.calypsan.listenup.client.data.remote.BackupApiContract
 import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.AuthApiContract
 import com.calypsan.listenup.client.data.remote.BookApiContract
@@ -95,6 +97,7 @@ import com.calypsan.listenup.client.data.sync.pull.BookPuller
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.GenrePuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPuller
+import com.calypsan.listenup.client.data.sync.pull.ListeningEventPullerContract
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
@@ -746,6 +749,11 @@ val syncModule =
             AdminApi(clientFactory = get())
         } bind AdminApiContract::class
 
+        // BackupApi for admin backup/restore operations
+        single {
+            BackupApi(clientFactory = get())
+        } bind BackupApiContract::class
+
         // MetadataApi for Audible metadata search and matching
         single {
             MetadataApi(clientFactory = get())
@@ -930,11 +938,9 @@ val syncModule =
             )
         }
 
-        single<Puller>(
-            qualifier =
-                org.koin.core.qualifier
-                    .named("listeningEventPuller"),
-        ) {
+        // ListeningEventPuller - registered as ListeningEventPullerContract because
+        // PullSyncOrchestrator needs to call pullAll() for refreshListeningHistory()
+        single<ListeningEventPullerContract> {
             ListeningEventPuller(
                 syncApi = get(),
                 listeningEventDao = get(),
@@ -990,12 +996,7 @@ val syncModule =
                             org.koin.core.qualifier
                                 .named("genrePuller"),
                     ),
-                listeningEventPuller =
-                    get(
-                        qualifier =
-                            org.koin.core.qualifier
-                                .named("listeningEventPuller"),
-                    ),
+                listeningEventPuller = get(),
                 activeSessionsPuller =
                     get(
                         qualifier =

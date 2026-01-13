@@ -528,6 +528,7 @@ class SetupViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } throws Exception("Server already configured")
+            everySuspend { fixture.authSession.checkServerStatus() } returns com.calypsan.listenup.client.domain.repository.AuthState.NeedsLogin()
             val viewModel = fixture.build()
 
             // When
@@ -543,6 +544,33 @@ class SetupViewModelTest {
             // Then
             val error = assertIs<SetupStatus.Error>(viewModel.state.value.status)
             checkIs<SetupErrorType.AlreadyConfigured>(error.type)
+        }
+
+    @Test
+    fun `setup triggers auth state refresh on already configured error`() =
+        runTest {
+            // Given - server returns "already configured" error (409 scenario)
+            // This happens when user's setup request timed out but server completed it,
+            // leaving user stranded on setup screen unable to proceed.
+            val fixture = createFixture()
+            everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } throws Exception("Server already configured")
+            everySuspend { fixture.authSession.checkServerStatus() } returns com.calypsan.listenup.client.domain.repository.AuthState.NeedsLogin()
+            val viewModel = fixture.build()
+
+            // When
+            viewModel.onSetupSubmit(
+                firstName = "Admin",
+                lastName = "User",
+                email = "admin@example.com",
+                password = "password123",
+                passwordConfirm = "password123",
+            )
+            advanceUntilIdle()
+
+            // Then - checkServerStatus should be called to refresh auth state
+            // This allows navigation to automatically transition to login screen
+            // following the "never stranded" principle
+            verifySuspend { fixture.authSession.checkServerStatus() }
         }
 
     @Test

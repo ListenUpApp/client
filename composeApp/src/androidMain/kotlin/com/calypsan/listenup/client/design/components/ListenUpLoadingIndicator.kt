@@ -1,8 +1,13 @@
 package com.calypsan.listenup.client.design.components
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LoadingIndicatorDefaults
@@ -66,13 +71,31 @@ fun ListenUpLoadingIndicatorSmall(
  * that fills all available space. Use this for loading states in screens.
  *
  * @param modifier Optional modifier for the outer Box
+ * @param message Optional message to display below the indicator
  */
 @Composable
-fun FullScreenLoadingIndicator(modifier: Modifier = Modifier) {
+fun FullScreenLoadingIndicator(
+    modifier: Modifier = Modifier,
+    message: String? = null,
+) {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
-        ListenUpLoadingIndicator()
+        if (message != null) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                ListenUpLoadingIndicator()
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            }
+        } else {
+            ListenUpLoadingIndicator()
+        }
     }
 }

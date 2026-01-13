@@ -1,11 +1,14 @@
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * API client for search endpoints.
@@ -47,22 +50,28 @@ class SearchApi(
     ): SearchResponse {
         val client = clientFactory.getClient()
         // Search endpoint is wrapped in ApiResponse like all other endpoints
-        val response: ApiResponse<SearchResponse> =
-            client
-                .get("/api/v1/search") {
-                    parameter("q", query)
-                    types?.let { parameter("types", it) }
-                    genres?.let { parameter("genres", it) }
-                    genrePath?.let { parameter("genre_path", it) }
-                    minDuration?.let { parameter("min_duration", it) }
-                    maxDuration?.let { parameter("max_duration", it) }
-                    parameter("limit", limit)
-                    parameter("offset", offset)
-                    parameter("facets", "true")
-                }.body()
+        val response: ApiResponse<SearchResponse> = client.get("/api/v1/search") {
+            parameter("q", query)
+            types?.let { parameter("types", it) }
+            genres?.let { parameter("genres", it) }
+            genrePath?.let { parameter("genre_path", it) }
+            minDuration?.let { parameter("min_duration", it) }
+            maxDuration?.let { parameter("max_duration", it) }
+            parameter("limit", limit)
+            parameter("offset", offset)
+            parameter("facets", "true")
+        }.body()
 
-        if (!response.success || response.data == null) {
-            throw SearchException(response.error ?: "Search failed")
+        logger.info { "Search API response: v=${response.version}, success=${response.success}, data=${response.data != null}, error=${response.error}" }
+        if (response.data != null) {
+            logger.info { "Search data: query=${response.data.query}, total=${response.data.total}, hits=${response.data.hits.size}" }
+        }
+
+        if (!response.success) {
+            throw SearchException(response.error ?: "Search failed: success=false")
+        }
+        if (response.data == null) {
+            throw SearchException("Search failed: data is null")
         }
         return response.data
     }

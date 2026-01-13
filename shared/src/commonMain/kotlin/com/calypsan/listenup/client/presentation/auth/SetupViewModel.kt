@@ -125,10 +125,16 @@ class SetupViewModel(
 
                 state.value = SetupUiState(status = SetupStatus.Success)
             } catch (e: Exception) {
-                state.value =
-                    SetupUiState(
-                        status = SetupStatus.Error(e.toSetupErrorType()),
-                    )
+                val errorType = e.toSetupErrorType()
+
+                // If server is already configured, refresh auth state to navigate to login.
+                // This handles the case where setup request timed out but server completed it.
+                // Implements the "never stranded" principle - user can proceed to login.
+                if (errorType == SetupErrorType.AlreadyConfigured) {
+                    authSession.checkServerStatus()
+                }
+
+                state.value = SetupUiState(status = SetupStatus.Error(errorType))
             }
         }
     }

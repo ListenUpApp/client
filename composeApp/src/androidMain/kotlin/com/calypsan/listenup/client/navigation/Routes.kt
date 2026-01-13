@@ -298,6 +298,45 @@ data class AdminLibrarySettings(
     val libraryId: String,
 ) : Route
 
+// Admin Backup Routes
+
+/**
+ * Admin backups screen - manage server backups.
+ *
+ * Shows list of backups with create/delete/restore functionality.
+ * Only accessible to admin users (root or role=admin).
+ */
+@Serializable
+data object AdminBackups : Route
+
+/**
+ * Create backup screen - create a new server backup.
+ *
+ * Form for backup options (include images, include events).
+ */
+@Serializable
+data object CreateBackup : Route
+
+/**
+ * Restore backup screen - restore from a specific backup.
+ *
+ * Multi-step flow for choosing mode, strategy, and confirmation.
+ *
+ * @property backupId The ID of the backup to restore from.
+ */
+@Serializable
+data class RestoreBackup(
+    val backupId: String,
+) : Route
+
+/**
+ * ABS import screen - import from Audiobookshelf backup.
+ *
+ * Multi-step flow for analyze, map users/books, and import.
+ */
+@Serializable
+data object ABSImport : Route
+
 /**
  * Settings screen - app preferences and configuration.
  */

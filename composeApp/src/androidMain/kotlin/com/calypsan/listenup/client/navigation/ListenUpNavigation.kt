@@ -5,9 +5,19 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -37,6 +47,10 @@ import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.AuthState
 import com.calypsan.listenup.client.features.admin.AdminScreen
 import com.calypsan.listenup.client.features.admin.CreateInviteScreen
+import com.calypsan.listenup.client.features.admin.backup.AdminBackupScreen
+import com.calypsan.listenup.client.features.admin.backup.ABSImportScreen
+import com.calypsan.listenup.client.features.admin.backup.CreateBackupScreen
+import com.calypsan.listenup.client.features.admin.backup.RestoreBackupScreen
 import com.calypsan.listenup.client.features.connect.ServerSelectScreen
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
 import com.calypsan.listenup.client.features.invite.InviteRegistrationScreen
@@ -720,6 +734,9 @@ private fun AuthenticatedNavigation(
                                 onInboxClick = {
                                     backStack.add(AdminInbox)
                                 },
+                                onBackupClick = {
+                                    backStack.add(AdminBackups)
+                                },
                                 onUserClick = { userId ->
                                     backStack.add(AdminUserDetail(userId))
                                 },
@@ -824,6 +841,53 @@ private fun AuthenticatedNavigation(
                                 },
                             )
                         }
+                        entry<AdminBackups> {
+                            val viewModel: com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel =
+                                koinInject()
+                            AdminBackupScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onCreateClick = {
+                                    backStack.add(CreateBackup)
+                                },
+                                onRestoreClick = { backupId ->
+                                    backStack.add(RestoreBackup(backupId))
+                                },
+                                onABSImportClick = {
+                                    backStack.add(ABSImport)
+                                },
+                            )
+                        }
+                        entry<CreateBackup> {
+                            CreateBackupScreen(
+                                onBackClick = { backStack.removeAt(backStack.lastIndex) },
+                                onSuccess = {
+                                    // Navigate back to backup list after successful creation
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<RestoreBackup> { args ->
+                            RestoreBackupScreen(
+                                backupId = args.backupId,
+                                onBackClick = { backStack.removeAt(backStack.lastIndex) },
+                                onComplete = {
+                                    // Navigate back to backup list after restore
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<ABSImport> {
+                            ABSImportScreen(
+                                onBackClick = { backStack.removeAt(backStack.lastIndex) },
+                                onComplete = {
+                                    // Navigate back to backup list after import
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
                         entry<Settings> {
                             SettingsScreen(
                                 onNavigateBack = {
@@ -899,6 +963,60 @@ private fun AuthenticatedNavigation(
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 16.dp),
             )
+        }
+    }
+}
+
+/**
+ * Placeholder screen for features that are coming soon.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ComingSoonScreen(
+    title: String,
+    onBack: () -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                        )
+                    }
+                },
+            )
+        },
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(
+                    Icons.Filled.Info,
+                    contentDescription = null,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "Coming Soon",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    "This feature is under development",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

@@ -24,7 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -243,11 +243,7 @@ private fun SaveFab(
         onClick = { if (isEnabled) onSave() },
         icon = {
             if (isSaving) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color = contentColor,
-                )
+                ListenUpLoadingIndicatorSmall(color = contentColor)
             } else {
                 Icon(
                     Icons.Default.Save,
@@ -469,11 +465,7 @@ private fun SeriesIdentityHeader(
                                     .background(Color.Black.copy(alpha = 0.5f)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White,
-                            )
+                            ListenUpLoadingIndicatorSmall(color = Color.White)
                         }
                     } else {
                         // Edit indicator

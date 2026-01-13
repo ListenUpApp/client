@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -86,11 +87,7 @@ fun DownloadButton(
                             )
                         } else {
                             // Normal queued state - show spinner
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
-                                color = contentColor,
-                            )
+                            ListenUpLoadingIndicatorSmall()
                         }
                     }
                 }
@@ -191,10 +188,7 @@ fun DownloadButtonExpanded(
                     Text("Waiting for WiFi")
                 } else {
                     // Normal queued state
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                    )
+                    ListenUpLoadingIndicatorSmall()
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Queued...")
                 }
