@@ -11,15 +11,24 @@ import UIKit
 /// - Alphabet scrubber when sorted by name
 /// - Empty state when no series
 struct SeriesContent: View {
-    let seriesList: [SeriesWithBooks]
+    let seriesList: [SeriesWithBooks_]
     let sortState: SortState?
     let onCategorySelected: (SortCategory) -> Void
     let onDirectionToggle: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     @State private var isScrolling = false
     @State private var scrollTarget: String?
 
-    private let columns = [GridItem(.adaptive(minimum: 160), spacing: 16)]
+    /// Single column on iPhone (compact), adaptive grid on iPad (regular)
+    private var columns: [GridItem] {
+        if sizeClass == .compact {
+            [GridItem(.flexible())]
+        } else {
+            [GridItem(.adaptive(minimum: 200), spacing: 16)]
+        }
+    }
 
     /// Available sort categories for series
     private let sortCategories: [SortCategory] = [.name, .bookCount, .added]

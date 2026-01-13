@@ -23,10 +23,8 @@ enum ContributorRole {
 /// - Navigation to contributor detail
 /// - Press scale animation
 struct ContributorRow: View {
-    let contributor: ContributorWithBookCount
+    let contributor: ContributorWithBookCount_
     let role: ContributorRole
-
-    @State private var isPressed = false
 
     private var contributorId: String {
         String(describing: contributor.contributor.id)
@@ -49,13 +47,7 @@ struct ContributorRow: View {
         NavigationLink(value: ContributorDestination(id: contributorId)) {
             rowContent
         }
-        .buttonStyle(.plain)
-        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
-        )
+        .buttonStyle(ContributorRowButtonStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(contributorName), \(role.label)")
         .accessibilityValue(bookCountLabel)
@@ -86,7 +78,6 @@ struct ContributorRow: View {
         }
         .padding(16)
         .background(rowBackground)
-        .scaleEffect(isPressed ? 0.98 : 1.0)
     }
 
     private var avatarView: some View {
@@ -141,6 +132,15 @@ struct ContributorRow: View {
                         lineWidth: 0.5
                     )
             }
+    }
+}
+
+/// Button style with scale animation that doesn't interfere with scroll gestures.
+private struct ContributorRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 

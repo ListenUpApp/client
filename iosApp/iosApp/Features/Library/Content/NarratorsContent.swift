@@ -10,7 +10,7 @@ import UIKit
 /// - Alphabet scrubber when sorted by name
 /// - Empty state when no narrators
 struct NarratorsContent: View {
-    let narrators: [ContributorWithBookCount]
+    let narrators: [ContributorWithBookCount_]
     let sortState: SortState?
     let onCategorySelected: (SortCategory) -> Void
     let onDirectionToggle: () -> Void

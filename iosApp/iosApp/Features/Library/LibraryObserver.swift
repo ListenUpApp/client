@@ -17,7 +17,10 @@ final class LibraryObserver {
     // MARK: - Books
 
     /// List of books from uiState
-    var books: [Book] { uiState?.books as? [Book] ?? [] }
+    var books: [Book] {
+        guard let list = uiState?.books else { return [] }
+        return Array(list)
+    }
 
     /// Progress map (bookId -> 0.0-1.0)
     var bookProgress: [String: Float] {
@@ -30,24 +33,33 @@ final class LibraryObserver {
 
     // MARK: - Series
 
-    /// List of series with their books
-    var series: [SeriesWithBooks] { uiState?.series as? [SeriesWithBooks] ?? [] }
+    /// List of series with their books (KMP uses SeriesWithBooks_ internally)
+    var series: [SeriesWithBooks_] {
+        guard let list = uiState?.series else { return [] }
+        return Array(list)
+    }
 
     /// Sort state for series tab
     var seriesSortState: SortState? { uiState?.seriesSortState }
 
     // MARK: - Authors
 
-    /// List of authors with book counts
-    var authors: [ContributorWithBookCount] { uiState?.authors as? [ContributorWithBookCount] ?? [] }
+    /// List of authors with book counts (KMP uses ContributorWithBookCount_ internally)
+    var authors: [ContributorWithBookCount_] {
+        guard let list = uiState?.authors else { return [] }
+        return Array(list)
+    }
 
     /// Sort state for authors tab
     var authorsSortState: SortState? { uiState?.authorsSortState }
 
     // MARK: - Narrators
 
-    /// List of narrators with book counts
-    var narrators: [ContributorWithBookCount] { uiState?.narrators as? [ContributorWithBookCount] ?? [] }
+    /// List of narrators with book counts (KMP uses ContributorWithBookCount_ internally)
+    var narrators: [ContributorWithBookCount_] {
+        guard let list = uiState?.narrators else { return [] }
+        return Array(list)
+    }
 
     /// Sort state for narrators tab
     var narratorsSortState: SortState? { uiState?.narratorsSortState }

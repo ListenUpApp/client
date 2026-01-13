@@ -1,21 +1,21 @@
 import SwiftUI
 import Shared
 
-/// Card displaying a series with animated cover stack and metadata.
+/// Floating series card with editorial design.
 ///
 /// Features:
-/// - Animated cover stack cycling through all books in the series
+/// - Animated cover stack as the hero (no container boxing)
 /// - Series name and book count below
 /// - Press scale animation for tactile feedback
 /// - Navigation to series detail view
+///
+/// Design: Matches Android's floating card approach where covers have their own shadows.
 struct SeriesCard: View {
-    let series: SeriesWithBooks
-
-    @State private var isPressed = false
+    let series: SeriesWithBooks_
 
     /// Books from the series (uses order from data source)
     private var seriesBooks: [Book] {
-        series.books as? [Book] ?? []
+        Array(series.books)
     }
 
     /// Series ID as string for navigation
@@ -25,41 +25,48 @@ struct SeriesCard: View {
 
     var body: some View {
         NavigationLink(value: SeriesDestination(id: seriesId)) {
-            VStack(alignment: .leading, spacing: 8) {
-                // Animated cover stack
-                AnimatedCoverStack(books: seriesBooks)
-                    .aspectRatio(1, contentMode: .fit)
-
-                // Metadata
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(series.series.name)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-
-                    Text(bookCountLabel)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .scaleEffect(isPressed ? 0.96 : 1.0)
+            cardContent
         }
-        .buttonStyle(.plain)
-        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
-        )
+        .buttonStyle(SeriesCardButtonStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(series.series.name)
         .accessibilityValue(bookCountLabel)
         .accessibilityHint("Double tap to view series details")
     }
 
+    private var cardContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Animated cover stack - the hero element
+            AnimatedCoverStack(books: seriesBooks)
+                .frame(height: 140)
+
+            // Metadata
+            VStack(alignment: .leading, spacing: 2) {
+                Text(series.series.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+
+                Text(bookCountLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
     private var bookCountLabel: String {
         let count = Int(series.books.count)
         return "\(count) \(count == 1 ? "book" : "books")"
+    }
+}
+
+/// Button style with scale animation that doesn't interfere with scroll gestures.
+private struct SeriesCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 
@@ -91,12 +98,32 @@ private struct SeriesCardPreview: View {
     @State private var isPressed = false
 
     var body: some View {
+        cardContent
+            .scaleEffect(isPressed ? 0.96 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
+            .onTapGesture {}
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in isPressed = true }
+                    .onEnded { _ in isPressed = false }
+            )
+    }
+
+    private let coverAspectRatio: CGFloat = 1.0
+
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Mock cover stack
             GeometryReader { geo in
-                let coverWidth = geo.size.width * 0.7
+                let visibleCount = CGFloat(min(bookCount, 5))
+                let containerWidth = geo.size.width
                 let coverHeight = geo.size.height
-                let stackOffset: CGFloat = 15
+                let coverWidth = coverHeight * coverAspectRatio
+
+                // Calculate offset to always fill full width
+                let stackOffset: CGFloat = visibleCount > 1
+                    ? (containerWidth - coverWidth) / (visibleCount - 1)
+                    : 0
 
                 ZStack {
                     ForEach((0 ..< min(bookCount, 5)).reversed(), id: \.self) { index in
@@ -113,9 +140,9 @@ private struct SeriesCardPreview: View {
                             )
                             .frame(width: coverWidth, height: coverHeight)
                             .shadow(
-                                color: .black.opacity(0.15 - Double(index) * 0.02),
-                                radius: 8 - CGFloat(index),
-                                x: 0,
+                                color: .black.opacity(0.2 - Double(index) * 0.03),
+                                radius: 10 - CGFloat(index) * 1.5,
+                                x: 2,
                                 y: 4 - CGFloat(index)
                             )
                             .offset(x: CGFloat(index) * stackOffset)
@@ -123,7 +150,7 @@ private struct SeriesCardPreview: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
-            .aspectRatio(1, contentMode: .fit)
+            .frame(height: 140)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
@@ -135,14 +162,7 @@ private struct SeriesCardPreview: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .padding(.horizontal, 4)
         }
-        .scaleEffect(isPressed ? 0.96 : 1.0)
-        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
-        .onTapGesture {}
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
-        )
     }
 }
