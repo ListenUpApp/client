@@ -1,13 +1,46 @@
 package com.calypsan.listenup.client.core
 
-import kotlinx.cinterop.*
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlin.time.TimeSource
+import kotlinx.cinterop.BetaInteropApi
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
+import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.value
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
+import platform.CoreFoundation.CFDictionaryCreateMutable
 import platform.CoreFoundation.CFDictionaryRef
+import platform.CoreFoundation.CFDictionarySetValue
+import platform.CoreFoundation.CFTypeRef
 import platform.CoreFoundation.CFTypeRefVar
 import platform.CoreFoundation.kCFBooleanTrue
-import platform.Foundation.*
-import platform.Security.*
+import platform.CoreFoundation.kCFTypeDictionaryKeyCallBacks
+import platform.CoreFoundation.kCFTypeDictionaryValueCallBacks
+import platform.Foundation.CFBridgingRetain
+import platform.Foundation.NSData
+import platform.Foundation.NSString
+import platform.Foundation.NSUTF8StringEncoding
+import platform.Foundation.create
+import platform.Foundation.dataUsingEncoding
+import platform.Security.SecItemAdd
+import platform.Security.SecItemCopyMatching
+import platform.Security.SecItemDelete
+import platform.Security.errSecItemNotFound
+import platform.Security.errSecSuccess
+import platform.Security.kSecAttrAccessible
+import platform.Security.kSecAttrAccessibleAfterFirstUnlock
+import platform.Security.kSecAttrAccount
+import platform.Security.kSecAttrService
+import platform.Security.kSecClass
+import platform.Security.kSecClassGenericPassword
+import platform.Security.kSecMatchLimit
+import platform.Security.kSecMatchLimitOne
+import platform.Security.kSecReturnData
+import platform.Security.kSecValueData
 
 /**
  * iOS implementation of SecureStorage using Keychain Services.
@@ -15,62 +48,77 @@ import platform.Security.*
  * Features:
  * - Hardware-backed encryption via Secure Enclave (when available)
  * - Items accessible after first device unlock (kSecAttrAccessibleAfterFirstUnlock)
- * - Thread-safe operations via Dispatchers.Default
+ * - Thread-safe operations via Dispatchers.IO
  * - Proper memory management with memScoped
- *
- * Ready for biometric protection upgrade (change to kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly).
  */
+private val logger = KotlinLogging.logger {}
+
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
-@Suppress("CAST_NEVER_SUCCEEDS")
 internal class IosSecureStorage : SecureStorage {
+    private val serviceName = "com.calypsan.listenup"
+
     override suspend fun save(
         key: String,
         value: String,
-    ) = withContext(Dispatchers.Default) {
+    ) = withContext(Dispatchers.IO) {
+        logger.debug { "Keychain save started: $key" }
+        val startMark = TimeSource.Monotonic.markNow()
+
         val data =
             (value as NSString).dataUsingEncoding(NSUTF8StringEncoding)
                 ?: throw IllegalArgumentException("Failed to encode value to UTF-8")
 
-        val query =
-            mapOf(
-                kSecClass to kSecClassGenericPassword,
-                kSecAttrAccount to key,
-                kSecAttrAccessible to kSecAttrAccessibleAfterFirstUnlock,
-                kSecValueData to data,
-            ) as Map<Any?, *>
+        // Delete existing item first
+        val deleteQuery = CFDictionaryCreateMutable(null, 4, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)!!
+        CFDictionarySetValue(deleteQuery, kSecClass, kSecClassGenericPassword)
+        CFDictionarySetValue(deleteQuery, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
+        CFDictionarySetValue(deleteQuery, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
 
-        // Delete existing item (if any)
-        SecItemDelete(query as CFDictionaryRef)
+        SecItemDelete(deleteQuery)
 
         // Add new item
-        val status = SecItemAdd(query as CFDictionaryRef, null)
+        val addQuery = CFDictionaryCreateMutable(null, 6, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)!!
+        CFDictionarySetValue(addQuery, kSecClass, kSecClassGenericPassword)
+        CFDictionarySetValue(addQuery, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
+        CFDictionarySetValue(addQuery, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
+        CFDictionarySetValue(addQuery, kSecAttrAccessible, kSecAttrAccessibleAfterFirstUnlock)
+        CFDictionarySetValue(addQuery, kSecValueData, CFBridgingRetain(data) as CFTypeRef?)
+
+        val status = SecItemAdd(addQuery, null)
+        val elapsed = startMark.elapsedNow()
+        logger.debug { "Keychain save completed: $key ($elapsed, status=$status)" }
+
         if (status != errSecSuccess) {
             throw SecurityException("Failed to save to keychain: $status")
         }
     }
 
     override suspend fun read(key: String): String? =
-        withContext(Dispatchers.Default) {
-            val query =
-                mapOf(
-                    kSecClass to kSecClassGenericPassword,
-                    kSecAttrAccount to key,
-                    kSecReturnData to kCFBooleanTrue,
-                    kSecMatchLimit to kSecMatchLimitOne,
-                ) as Map<Any?, *>
+        withContext(Dispatchers.IO) {
+            val query = CFDictionaryCreateMutable(null, 5, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)!!
+            CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword)
+            CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
+            CFDictionarySetValue(query, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
+            CFDictionarySetValue(query, kSecReturnData, kCFBooleanTrue)
+            CFDictionarySetValue(query, kSecMatchLimit, kSecMatchLimitOne)
 
             memScoped {
                 val result = alloc<CFTypeRefVar>()
                 val status = SecItemCopyMatching(query as CFDictionaryRef, result.ptr)
 
                 if (status == errSecSuccess) {
-                    val data = CFBridgingRelease(result.value) as? NSData
-                    return@withContext data?.let {
-                        NSString.create(it, NSUTF8StringEncoding) as? String
+                    // Bridge the CFTypeRef to NSData using toll-free bridging
+                    // result.value is CFTypeRef? which bridges to NSObject?
+                    result.value?.let { cfData ->
+                        val nativePtr = cfData.rawValue
+                        val data = kotlinx.cinterop.interpretObjCPointerOrNull<NSData>(nativePtr)
+                        return@withContext data?.let {
+                            NSString.create(it, NSUTF8StringEncoding) as? String
+                        }
                     }
+                    return@withContext null
                 }
 
-                // errSecItemNotFound is expected for non-existent keys
                 if (status == errSecItemNotFound) {
                     return@withContext null
                 }
@@ -80,29 +128,25 @@ internal class IosSecureStorage : SecureStorage {
         }
 
     override suspend fun delete(key: String) =
-        withContext(Dispatchers.Default) {
-            val query =
-                mapOf(
-                    kSecClass to kSecClassGenericPassword,
-                    kSecAttrAccount to key,
-                ) as Map<Any?, *>
+        withContext(Dispatchers.IO) {
+            val query = CFDictionaryCreateMutable(null, 3, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)!!
+            CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword)
+            CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
+            CFDictionarySetValue(query, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
 
-            val status = SecItemDelete(query as CFDictionaryRef)
-            // errSecItemNotFound is acceptable - key already doesn't exist
+            val status = SecItemDelete(query)
             if (status != errSecSuccess && status != errSecItemNotFound) {
                 throw SecurityException("Failed to delete from keychain: $status")
             }
         }
 
     override suspend fun clear() =
-        withContext(Dispatchers.Default) {
-            val query =
-                mapOf(
-                    kSecClass to kSecClassGenericPassword,
-                ) as Map<Any?, *>
+        withContext(Dispatchers.IO) {
+            val query = CFDictionaryCreateMutable(null, 2, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)!!
+            CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword)
+            CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
 
-            val status = SecItemDelete(query as CFDictionaryRef)
-            // errSecItemNotFound is acceptable - nothing to delete
+            val status = SecItemDelete(query)
             if (status != errSecSuccess && status != errSecItemNotFound) {
                 throw SecurityException("Failed to clear keychain: $status")
             }

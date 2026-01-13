@@ -1,0 +1,109 @@
+import SwiftUI
+import Shared
+
+/// Dedicated search screen for finding books, authors, and series.
+///
+/// Features:
+/// - Always-visible search bar
+/// - Recent searches
+/// - Search results with sections (Books, Authors, Series)
+struct SearchView: View {
+    @Environment(\.dependencies) private var deps
+    @State private var searchText = ""
+    @FocusState private var isSearchFocused: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Search bar - always visible at top
+            searchBar
+                .padding()
+
+            if searchText.isEmpty {
+                emptyState
+            } else {
+                // TODO: Implement search results
+                searchResults
+            }
+        }
+        .background(Color(.systemBackground))
+        .navigationTitle("Search")
+        .navigationBarTitleDisplayMode(.large)
+    }
+
+    // MARK: - Search Bar
+
+    private var searchBar: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+
+            TextField("Search books, authors, series...", text: $searchText)
+                .textFieldStyle(.plain)
+                .focused($isSearchFocused)
+                .submitLabel(.search)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Empty State
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Spacer()
+
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 64))
+                .foregroundStyle(.secondary)
+
+            Text("Search Your Library")
+                .font(.title2.bold())
+
+            Text("Find books by title, author, narrator, or series")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Search Results (Placeholder)
+
+    private var searchResults: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 16) {
+                Text("Results for \"\(searchText)\"")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+
+                // TODO: Implement actual search with SearchViewModel
+                Text("Search functionality coming soon")
+                    .foregroundStyle(.secondary)
+                    .padding()
+            }
+            .padding(.top)
+        }
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    NavigationStack {
+        SearchView()
+    }
+}

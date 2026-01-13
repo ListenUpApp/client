@@ -99,16 +99,22 @@ class IosDiscoveryService : ServerDiscoveryService {
     }
 
     private fun onServiceResolved(service: NSNetService) {
-        val hostName = service.hostName
+        val rawHostName = service.hostName
         val port = service.port.toInt()
         val serviceName = service.name
 
-        logger.debug { "Resolved: $serviceName at $hostName:$port" }
+        logger.debug { "Resolved: $serviceName at $rawHostName:$port" }
 
-        if (hostName == null) {
+        if (rawHostName == null) {
             logger.warn { "Resolved service has no host: $serviceName" }
             return
         }
+
+        // Normalize hostname for mDNS resolution
+        // NSNetService returns hostname with trailing dot (e.g., "omarchy.local.")
+        // If hostname doesn't include ".local", iOS can't resolve it via mDNS
+        val hostName = normalizeHostname(rawHostName)
+        logger.debug { "Normalized hostname: $rawHostName -> $hostName" }
 
         val txtData = service.TXTRecordData()
         val txtRecords = parseTxtRecords(txtData)
@@ -123,7 +129,7 @@ class IosDiscoveryService : ServerDiscoveryService {
             DiscoveredServer(
                 id = serverId,
                 name = txtRecords["name"] ?: serviceName,
-                host = hostName.trimEnd('.'),
+                host = hostName,
                 port = port,
                 apiVersion = txtRecords["api"] ?: "v1",
                 serverVersion = txtRecords["version"] ?: "unknown",
@@ -154,6 +160,34 @@ class IosDiscoveryService : ServerDiscoveryService {
             logger.error(e) { "Failed to parse TXT records" }
         }
         return result
+    }
+
+    /**
+     * Normalizes a hostname from NSNetService for proper mDNS resolution.
+     *
+     * NSNetService.hostName returns the hostname with a trailing dot (FQDN format).
+     * For local mDNS services, iOS requires the ".local" suffix to resolve properly.
+     *
+     * Cases handled:
+     * - "omarchy.local." → "omarchy.local" (already has .local, just trim dot)
+     * - "omarchy." → "omarchy.local" (simple hostname, append .local)
+     * - "192.168.1.100." → "192.168.1.100" (IP address, just trim dot)
+     */
+    private fun normalizeHostname(rawHostName: String): String {
+        val trimmed = rawHostName.trimEnd('.')
+
+        // If it's an IP address, return as-is
+        if (trimmed.all { it.isDigit() || it == '.' }) {
+            return trimmed
+        }
+
+        // If it already ends with .local, return as-is
+        if (trimmed.endsWith(".local", ignoreCase = true)) {
+            return trimmed
+        }
+
+        // Simple hostname without domain - append .local for mDNS resolution
+        return "$trimmed.local"
     }
 
     /**

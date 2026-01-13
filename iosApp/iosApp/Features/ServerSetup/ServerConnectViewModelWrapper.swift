@@ -4,9 +4,10 @@ import Shared
 /// Memory-safe Swift wrapper for Kotlin's ServerConnectViewModel.
 ///
 /// This wrapper bridges Kotlin's StateFlow to SwiftUI's @Observable pattern
-/// while ensuring proper memory management and thread safety.
+/// using SKIE's native flow collection for reactive updates.
 ///
-/// **Critical Memory Safety:**
+/// **Key Features:**
+/// - Uses SKIE's `for await` for efficient flow observation
 /// - Uses `[weak self]` to prevent retain cycles
 /// - Cancels observation task on deinit
 /// - All state updates happen on Main thread
@@ -41,19 +42,16 @@ final class ServerConnectViewModelWrapper {
     }
 
     private func observeState() {
-        // ✅ Memory-safe observation with reasonable polling interval
-        // NOTE: This uses polling because Kotlin extension functions need framework rebuild
-        // TODO: Switch to reactive .collect() once framework is rebuilt (see StateFlowExtensions.kt)
+        // Use SKIE's native flow collection
         observationTask = Task { [weak self] in
             guard let self = self else { return }
 
-            while !Task.isCancelled {
-                guard let state = self.kotlinVM.state.value as? ServerConnectUiState else {
-                    try? await Task.sleep(for: .milliseconds(100))
-                    continue
-                }
+            for await state in self.kotlinVM.state {
+                guard !Task.isCancelled else { break }
 
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+
                     self.serverUrl = state.serverUrl
                     self.isLoading = state.isLoading
                     self.isConnectEnabled = state.isConnectEnabled
@@ -66,9 +64,6 @@ final class ServerConnectViewModelWrapper {
                         self.error = nil
                     }
                 }
-
-                // Poll interval: 100ms is responsive without excessive CPU usage
-                try? await Task.sleep(for: .milliseconds(100))
             }
         }
     }

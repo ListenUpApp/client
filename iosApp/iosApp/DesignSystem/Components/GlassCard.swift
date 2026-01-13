@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// Clean surface card with solid background and strong shadow.
+/// Liquid Glass card with translucent material background.
 ///
-/// This is the foundational component of the modern clean design system.
-/// It provides a solid background that adapts to light/dark mode
-/// and creates depth through shadows.
+/// This is the foundational component of the Liquid Glass design system.
+/// Uses SwiftUI's `.regularMaterial` for authentic glass translucency
+/// with subtle depth through shadows and highlight stroke.
 ///
 /// Usage:
 /// ```swift
@@ -17,7 +17,7 @@ import SwiftUI
 ///
 /// Customization:
 /// ```swift
-/// GlassCard(padding: 32, cornerRadius: 20) {
+/// GlassCard(padding: 32, cornerRadius: 20, material: .thickMaterial) {
 ///     // content
 /// }
 /// ```
@@ -25,14 +25,17 @@ struct GlassCard<Content: View>: View {
     let content: Content
     var padding: CGFloat
     var cornerRadius: CGFloat
+    var material: Material
 
     init(
         padding: CGFloat = 24,
-        cornerRadius: CGFloat = 28,
+        cornerRadius: CGFloat = 20,
+        material: Material = .regularMaterial,
         @ViewBuilder content: () -> Content
     ) {
         self.padding = padding
         self.cornerRadius = cornerRadius
+        self.material = material
         self.content = content()
     }
 
@@ -40,13 +43,20 @@ struct GlassCard<Content: View>: View {
         content
             .padding(padding)
             .background {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(Color(.systemBackground))
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(material)
                     .overlay {
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 0.5
+                            )
                     }
-                    .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
+                    .shadow(color: .black.opacity(0.12), radius: 16, x: 0, y: 8)
             }
     }
 }
@@ -91,16 +101,9 @@ struct GlassCard<Content: View>: View {
 
 #Preview("Glass Card - Dark") {
     ZStack {
-        // Gradient background to show translucency
-        LinearGradient(
-            colors: [
-                Color(hex: "8B3A3A"),
-                Color(hex: "E8704A")
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        // Brand gradient background to show translucency
+        Color.brandGradient
+            .ignoresSafeArea()
 
         GlassCard {
             VStack(alignment: .leading, spacing: 12) {

@@ -1,5 +1,6 @@
 package com.calypsan.listenup.client.di
 
+import com.calypsan.listenup.client.core.configureLogging
 import com.calypsan.listenup.client.data.discovery.IosDiscoveryService
 import com.calypsan.listenup.client.data.discovery.ServerDiscoveryService
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
@@ -14,11 +15,15 @@ import org.koin.dsl.module
  * iOS-specific Koin initialization.
  *
  * Starts Koin with shared modules plus any iOS-specific modules.
+ * Also configures kotlin-logging to use OSLog for unified logging.
  * Should be called from the iOS app's initialization code (typically in App struct).
  *
  * @param additionalModules iOS-specific modules to include
  */
 actual fun initializeKoin(additionalModules: List<Module>) {
+    // Configure logging before anything else
+    configureLogging()
+
     startKoin {
         // Include shared modules, iOS playback module, and any app-specific modules
         modules(sharedModules + iosPlaybackModule + additionalModules)
@@ -55,6 +60,21 @@ object KoinHelper : KoinComponent {
         return viewModel
     }
 
+    fun getLoginViewModel(): com.calypsan.listenup.client.presentation.auth.LoginViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.auth.LoginViewModel by inject()
+        return viewModel
+    }
+
+    fun getRegisterViewModel(): com.calypsan.listenup.client.presentation.auth.RegisterViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.auth.RegisterViewModel by inject()
+        return viewModel
+    }
+
+    fun getServerSelectViewModel(): com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel by inject()
+        return viewModel
+    }
+
     fun getAuthSession(): com.calypsan.listenup.client.domain.repository.AuthSession {
         val authSession: com.calypsan.listenup.client.domain.repository.AuthSession by inject()
         return authSession
@@ -63,5 +83,30 @@ object KoinHelper : KoinComponent {
     fun getServerConfig(): com.calypsan.listenup.client.domain.repository.ServerConfig {
         val serverConfig: com.calypsan.listenup.client.domain.repository.ServerConfig by inject()
         return serverConfig
+    }
+
+    fun getUserRepository(): com.calypsan.listenup.client.domain.repository.UserRepository {
+        val userRepository: com.calypsan.listenup.client.domain.repository.UserRepository by inject()
+        return userRepository
+    }
+
+    fun getLibraryViewModel(): com.calypsan.listenup.client.presentation.library.LibraryViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.library.LibraryViewModel by inject()
+        return viewModel
+    }
+
+    fun getBookDetailViewModel(): com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel by inject()
+        return viewModel
+    }
+
+    fun getSeriesDetailViewModel(): com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel by inject()
+        return viewModel
+    }
+
+    fun getContributorDetailViewModel(): com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel by inject()
+        return viewModel
     }
 }

@@ -1,63 +1,176 @@
 import SwiftUI
+import Shared
+import UIKit
 
-/// Library screen placeholder.
+/// Library screen displaying the user's audiobook collection with four tabs.
 ///
-/// TODO: Implement once Android LibraryScreen is complete.
-/// Will feature:
-/// - Search bar
-/// - Tab navigation (Home, Library, Series, Saved)
-/// - Book grid with covers
-/// - Filter/sort controls
-/// - Mini player at bottom
+/// Features:
+/// - Four swipeable tabs: Books, Series, Authors, Narrators
+/// - Glass-styled chip row for tab selection
+/// - Each tab has its own sort controls and alphabet scrubber
+/// - Pull-to-refresh syncs all content
+/// - Chip selection and swipe gestures are synced via TabView
 struct LibraryView: View {
+    @Environment(CurrentUserObserver.self) private var userObserver
+    @Environment(\.dependencies) private var deps
+
+    @State private var observer: LibraryObserver?
+    @State private var selectedTab: LibraryTab = .books
+
+    private var user: User? { userObserver.user }
+
     var body: some View {
-        VStack(spacing: 24) {
-            // Header
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Hello, User!")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-
-                Text("What you want to read?")
-                    .font(.largeTitle.bold())
+        Group {
+            if let observer {
+                libraryContent(observer: observer)
+            } else {
+                loadingState
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal)
-
-            Spacer()
-
-            // Placeholder
-            VStack(spacing: 16) {
-                Image(systemName: "books.vertical")
-                    .font(.system(size: 64))
-                    .foregroundStyle(.secondary)
-
-                Text("Library Screen")
-                    .font(.title2.bold())
-
-                Text("To be implemented")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
         }
-        .padding(.top)
-        .background(Color(.systemBackground))
+        .navigationTitle("Library")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: UserProfileDestination()) {
+                    UserAvatarView(user: user, size: 32)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .onAppear {
+            if observer == nil {
+                observer = LibraryObserver(viewModel: deps.libraryViewModel)
+            }
+            observer?.onScreenVisible()
+        }
+    }
+
+    // MARK: - Main Content
+
+    @ViewBuilder
+    private func libraryContent(observer: LibraryObserver) -> some View {
+        // Swipeable content - extends edge to edge
+        TabView(selection: $selectedTab) {
+            // Books Tab
+            BooksContent(
+                books: observer.books,
+                bookProgress: observer.bookProgress,
+                sortState: observer.booksSortState,
+                isLoading: observer.isLoading,
+                isEmpty: observer.isEmpty,
+                errorMessage: observer.errorMessage,
+                onCategorySelected: { category in
+                    observer.setBooksSortCategory(category)
+                },
+                onDirectionToggle: {
+                    observer.toggleBooksSortDirection()
+                },
+                onRefresh: {
+                    observer.refresh()
+                }
+            )
+            .tag(LibraryTab.books)
+
+            // Series Tab
+            SeriesContent(
+                seriesList: observer.series,
+                sortState: observer.seriesSortState,
+                onCategorySelected: { category in
+                    observer.setSeriesSortCategory(category)
+                },
+                onDirectionToggle: {
+                    observer.toggleSeriesSortDirection()
+                }
+            )
+            .tag(LibraryTab.series)
+
+            // Authors Tab
+            AuthorsContent(
+                authors: observer.authors,
+                sortState: observer.authorsSortState,
+                onCategorySelected: { category in
+                    observer.setAuthorsSortCategory(category)
+                },
+                onDirectionToggle: {
+                    observer.toggleAuthorsSortDirection()
+                }
+            )
+            .tag(LibraryTab.authors)
+
+            // Narrators Tab
+            NarratorsContent(
+                narrators: observer.narrators,
+                sortState: observer.narratorsSortState,
+                onCategorySelected: { category in
+                    observer.setNarratorsSortCategory(category)
+                },
+                onDirectionToggle: {
+                    observer.toggleNarratorsSortDirection()
+                }
+            )
+            .tag(LibraryTab.narrators)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .scrollContentBackground(.hidden)
+        .background(.clear)
+        .ignoresSafeArea(edges: .bottom)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedTab)
+        // Glass chip row overlaid at top
+        .safeAreaInset(edge: .top) {
+            LibraryChipRow(selectedTab: $selectedTab)
+        }
+        // Haptic feedback on tab change
+        .sensoryFeedback(.selection, trigger: selectedTab)
+    }
+
+    // MARK: - Loading State
+
+    private var loadingState: some View {
+        ScrollView {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 150), spacing: 16)],
+                spacing: 20
+            ) {
+                ForEach(0 ..< 8, id: \.self) { _ in
+                    BookCoverShimmer()
+                }
+            }
+            .padding()
+            .padding(.bottom, 100)
+        }
+        .scrollContentBackground(.hidden)
+        .ignoresSafeArea(edges: .bottom)
+        .safeAreaInset(edge: .top) {
+            LibraryChipRow(selectedTab: .constant(.books))
+        }
     }
 }
 
-#Preview {
+// MARK: - Preview
+
+#Preview("Library View") {
     NavigationStack {
         LibraryView()
-            .navigationTitle("Library")
     }
+    .environment(CurrentUserObserver())
 }
 
-#Preview("Dark Mode") {
+#Preview("Loading State") {
     NavigationStack {
-        LibraryView()
-            .navigationTitle("Library")
+        ScrollView {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 150), spacing: 16)],
+                spacing: 20
+            ) {
+                ForEach(0 ..< 8, id: \.self) { _ in
+                    BookCoverShimmer()
+                }
+            }
+            .padding()
+        }
+        .safeAreaInset(edge: .top) {
+            LibraryChipRow(selectedTab: .constant(.books))
+        }
+        .navigationTitle("Library")
     }
-    .preferredColorScheme(.dark)
 }

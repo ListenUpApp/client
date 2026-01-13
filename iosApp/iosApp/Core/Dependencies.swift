@@ -49,6 +49,36 @@ final class Dependencies {
         return instance
     }
 
+    private var _loginViewModel: LoginViewModel?
+    var loginViewModel: LoginViewModel {
+        if let cached = _loginViewModel {
+            return cached
+        }
+        let instance = KoinHelper.shared.getLoginViewModel()
+        _loginViewModel = instance
+        return instance
+    }
+
+    private var _registerViewModel: RegisterViewModel?
+    var registerViewModel: RegisterViewModel {
+        if let cached = _registerViewModel {
+            return cached
+        }
+        let instance = KoinHelper.shared.getRegisterViewModel()
+        _registerViewModel = instance
+        return instance
+    }
+
+    private var _serverSelectViewModel: ServerSelectViewModel?
+    var serverSelectViewModel: ServerSelectViewModel {
+        if let cached = _serverSelectViewModel {
+            return cached
+        }
+        let instance = KoinHelper.shared.getServerSelectViewModel()
+        _serverSelectViewModel = instance
+        return instance
+    }
+
     // MARK: - Settings (Segregated Interfaces)
 
     private var _authSession: AuthSession?
@@ -69,6 +99,35 @@ final class Dependencies {
         let instance = KoinHelper.shared.getServerConfig()
         _serverConfig = instance
         return instance
+    }
+
+    // MARK: - Library
+
+    private var _libraryViewModel: LibraryViewModel?
+    var libraryViewModel: LibraryViewModel {
+        if let cached = _libraryViewModel {
+            return cached
+        }
+        let instance = KoinHelper.shared.getLibraryViewModel()
+        _libraryViewModel = instance
+        return instance
+    }
+
+    // MARK: - Detail ViewModels (factory - new instance each time)
+
+    /// Creates a new BookDetailViewModel instance (not cached - each screen gets its own)
+    func createBookDetailViewModel() -> BookDetailViewModel {
+        KoinHelper.shared.getBookDetailViewModel()
+    }
+
+    /// Creates a new SeriesDetailViewModel instance (not cached - each screen gets its own)
+    func createSeriesDetailViewModel() -> SeriesDetailViewModel {
+        KoinHelper.shared.getSeriesDetailViewModel()
+    }
+
+    /// Creates a new ContributorDetailViewModel instance (not cached - each screen gets its own)
+    func createContributorDetailViewModel() -> ContributorDetailViewModel {
+        KoinHelper.shared.getContributorDetailViewModel()
     }
 }
 
@@ -99,8 +158,12 @@ extension Dependencies {
     static func mock(
         getInstanceUC: GetInstanceUseCase? = nil,
         serverConnectVM: ServerConnectViewModel? = nil,
+        loginVM: LoginViewModel? = nil,
+        registerVM: RegisterViewModel? = nil,
+        serverSelectVM: ServerSelectViewModel? = nil,
         authSession: AuthSession? = nil,
-        serverConfig: ServerConfig? = nil
+        serverConfig: ServerConfig? = nil,
+        libraryVM: LibraryViewModel? = nil
     ) -> Dependencies {
         let mock = Dependencies()
 
@@ -111,11 +174,23 @@ extension Dependencies {
         if let vm = serverConnectVM {
             mock._serverConnectViewModel = vm
         }
+        if let vm = loginVM {
+            mock._loginViewModel = vm
+        }
+        if let vm = registerVM {
+            mock._registerViewModel = vm
+        }
+        if let vm = serverSelectVM {
+            mock._serverSelectViewModel = vm
+        }
         if let auth = authSession {
             mock._authSession = auth
         }
         if let config = serverConfig {
             mock._serverConfig = config
+        }
+        if let vm = libraryVM {
+            mock._libraryViewModel = vm
         }
 
         return mock
