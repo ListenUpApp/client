@@ -32,6 +32,24 @@ extension Book {
     }
 }
 
+// MARK: - Series Extensions
+
+extension Series {
+    /// The series ID as a Swift String.
+    var idString: String {
+        String(describing: id)
+    }
+}
+
+// MARK: - Contributor Extensions
+
+extension Contributor {
+    /// The contributor's ID as a Swift String.
+    var idString: String {
+        String(describing: id)
+    }
+}
+
 // MARK: - Avatar Color Helper
 
 /// Generate a consistent avatar color based on user ID.
