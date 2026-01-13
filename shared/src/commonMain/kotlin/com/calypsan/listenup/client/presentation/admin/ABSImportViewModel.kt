@@ -2,12 +2,16 @@ package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.FileSource
+import com.calypsan.listenup.client.core.Success
+import com.calypsan.listenup.client.data.remote.ABSImportApiContract
 import com.calypsan.listenup.client.data.remote.BackupApiContract
 import com.calypsan.listenup.client.data.remote.BrowseFilesystemResponse
 import com.calypsan.listenup.client.data.remote.DirectoryEntryResponse
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SearchHitResponse
+import com.calypsan.listenup.client.data.remote.UserSearchResult
 import com.calypsan.listenup.client.data.remote.model.ABSBookMatch
 import com.calypsan.listenup.client.data.remote.model.ABSUserMatch
 import com.calypsan.listenup.client.data.remote.model.AnalyzeABSRequest
@@ -56,6 +60,16 @@ enum class ABSImportStep {
 }
 
 /**
+ * Tab selection for user mapping step.
+ */
+enum class UserMappingTab {
+    /** Users that need manual mapping */
+    NEEDS_REVIEW,
+    /** Auto-matched users for verification */
+    AUTO_MATCHED,
+}
+
+/**
  * Tab selection for book mapping step.
  */
 enum class BookMappingTab {
@@ -64,6 +78,15 @@ enum class BookMappingTab {
     /** Auto-matched books for verification */
     AUTO_MATCHED,
 }
+
+/**
+ * Display information for a selected user mapping.
+ */
+data class SelectedUserDisplay(
+    val userId: String,
+    val email: String,
+    val displayName: String? = null,
+)
 
 /**
  * Display information for a selected book mapping.
@@ -120,6 +143,17 @@ data class ABSImportState(
     // User/book mappings - ABS ID -> ListenUp ID
     val userMappings: Map<String, String> = emptyMap(),
     val bookMappings: Map<String, String> = emptyMap(),
+
+    // User mapping UI state
+    val userMappingTab: UserMappingTab = UserMappingTab.NEEDS_REVIEW,
+    // Display info for selected users (absUserId -> display info)
+    val selectedUserDisplays: Map<String, SelectedUserDisplay> = emptyMap(),
+
+    // Inline user search state (for the currently active search field)
+    val activeSearchAbsUserId: String? = null,
+    val userSearchQuery: String = "",
+    val userSearchResults: List<UserSearchResult> = emptyList(),
+    val isSearchingUsers: Boolean = false,
 
     // Book mapping UI state
     val bookMappingTab: BookMappingTab = BookMappingTab.NEEDS_REVIEW,
@@ -181,6 +215,7 @@ data class ABSImportResults(
 class ABSImportViewModel(
     private val backupApi: BackupApiContract,
     private val searchApi: SearchApiContract,
+    private val absImportApi: ABSImportApiContract,
     private val syncRepository: SyncRepository,
 ) : ViewModel() {
 
@@ -455,6 +490,139 @@ class ABSImportViewModel(
                 newMappings.remove(absItemId)
             }
             current.copy(bookMappings = newMappings)
+        }
+    }
+
+    // === User Mapping Tab ===
+
+    /**
+     * Set the active tab in the user mapping step.
+     */
+    fun setUserMappingTab(tab: UserMappingTab) {
+        state.update { it.copy(userMappingTab = tab) }
+    }
+
+    // === Inline User Search ===
+
+    /**
+     * Called when a user search field gains focus.
+     * Activates search for that specific user and clears previous search state.
+     */
+    fun activateUserSearch(absUserId: String) {
+        state.update {
+            it.copy(
+                activeSearchAbsUserId = absUserId,
+                userSearchQuery = "",
+                userSearchResults = emptyList(),
+                isSearchingUsers = false,
+            )
+        }
+    }
+
+    /**
+     * Called when a user search field loses focus.
+     * Clears the active search state.
+     */
+    fun deactivateUserSearch() {
+        state.update {
+            it.copy(
+                activeSearchAbsUserId = null,
+                userSearchQuery = "",
+                userSearchResults = emptyList(),
+                isSearchingUsers = false,
+            )
+        }
+    }
+
+    /**
+     * Update search query for the active user search field.
+     */
+    fun updateUserSearchQuery(query: String) {
+        state.update { it.copy(userSearchQuery = query) }
+
+        if (query.length < 2) {
+            state.update { it.copy(userSearchResults = emptyList(), isSearchingUsers = false) }
+            return
+        }
+
+        viewModelScope.launch {
+            state.update { it.copy(isSearchingUsers = true) }
+            try {
+                when (val result = absImportApi.searchUsers(query, limit = 10)) {
+                    is Success -> {
+                        state.update {
+                            it.copy(
+                                userSearchResults = result.data,
+                                isSearchingUsers = false,
+                            )
+                        }
+                    }
+                    is Failure -> {
+                        logger.error { "User search failed: ${result.exception}" }
+                        state.update {
+                            it.copy(
+                                userSearchResults = emptyList(),
+                                isSearchingUsers = false,
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                logger.error(e) { "User search failed: ${e.message}" }
+                state.update {
+                    it.copy(
+                        userSearchResults = emptyList(),
+                        isSearchingUsers = false,
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Select a user from search results or suggestions and apply the mapping.
+     */
+    fun selectUser(absUserId: String, userId: String, email: String, displayName: String?) {
+        // Store display info for the selected user
+        val displayInfo = SelectedUserDisplay(
+            userId = userId,
+            email = email,
+            displayName = displayName,
+        )
+
+        state.update { s ->
+            val newDisplays = s.selectedUserDisplays.toMutableMap()
+            newDisplays[absUserId] = displayInfo
+
+            val newMappings = s.userMappings.toMutableMap()
+            newMappings[absUserId] = userId
+
+            s.copy(
+                selectedUserDisplays = newDisplays,
+                userMappings = newMappings,
+                // Clear search state
+                activeSearchAbsUserId = null,
+                userSearchQuery = "",
+                userSearchResults = emptyList(),
+            )
+        }
+    }
+
+    /**
+     * Clear the user mapping for an ABS user (allows re-searching).
+     */
+    fun clearUserMapping(absUserId: String) {
+        state.update { s ->
+            val newDisplays = s.selectedUserDisplays.toMutableMap()
+            newDisplays.remove(absUserId)
+
+            val newMappings = s.userMappings.toMutableMap()
+            newMappings.remove(absUserId)
+
+            s.copy(
+                selectedUserDisplays = newDisplays,
+                userMappings = newMappings,
+            )
         }
     }
 

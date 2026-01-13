@@ -7,6 +7,8 @@ import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.ActivityFeedApi
 import com.calypsan.listenup.client.data.remote.ActivityFeedApiContract
+import com.calypsan.listenup.client.data.remote.ABSImportApi
+import com.calypsan.listenup.client.data.remote.ABSImportApiContract
 import com.calypsan.listenup.client.data.remote.AdminApi
 import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.AdminCollectionApi
@@ -753,6 +755,11 @@ val syncModule =
         single {
             BackupApi(clientFactory = get())
         } bind BackupApiContract::class
+
+        // ABSImportApi for persistent ABS import operations
+        single {
+            ABSImportApi(clientFactory = get())
+        } bind ABSImportApiContract::class
 
         // MetadataApi for Audible metadata search and matching
         single {

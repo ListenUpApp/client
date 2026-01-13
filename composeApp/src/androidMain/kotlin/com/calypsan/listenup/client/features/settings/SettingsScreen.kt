@@ -105,6 +105,7 @@ fun SettingsScreen(
     if (showSignOutDialog) {
         AlertDialog(
             onDismissRequest = { showSignOutDialog = false },
+            shape = MaterialTheme.shapes.large,
             title = { Text("Sign Out") },
             text = { Text("Are you sure you want to sign out? You'll need to sign in again to access your library.") },
             confirmButton = {

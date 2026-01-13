@@ -331,7 +331,7 @@ private fun CreateLensDialog(
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         title = { Text("Create New Lens") },
         text = {
             ListenUpTextField(

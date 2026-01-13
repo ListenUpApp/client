@@ -75,7 +75,7 @@ fun LibrarySection(
                     Text("Cancel")
                 }
             },
-            shape = RoundedCornerShape(28.dp),
+            shape = MaterialTheme.shapes.large,
         ) {
             DatePicker(state = datePickerState)
         }

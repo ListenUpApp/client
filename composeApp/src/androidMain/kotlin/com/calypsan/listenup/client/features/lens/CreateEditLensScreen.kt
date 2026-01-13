@@ -174,6 +174,7 @@ fun CreateEditLensScreen(
                 if (showDeleteDialog) {
                     AlertDialog(
                         onDismissRequest = { showDeleteDialog = false },
+                        shape = MaterialTheme.shapes.large,
                         title = { Text("Delete Lens?") },
                         text = {
                             Text("This will permanently delete this lens. Books in the lens will not be affected.")

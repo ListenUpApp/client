@@ -73,9 +73,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.remote.DirectoryEntryResponse
 import com.calypsan.listenup.client.data.remote.SearchHitResponse
+import com.calypsan.listenup.client.data.remote.UserSearchResult
 import com.calypsan.listenup.client.data.remote.model.ABSBookMatch
 import com.calypsan.listenup.client.data.remote.model.ABSBookSuggestion
 import com.calypsan.listenup.client.data.remote.model.ABSUserMatch
+import com.calypsan.listenup.client.data.remote.model.ABSUserSuggestion
 import com.calypsan.listenup.client.design.components.AutocompleteResultItem
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
@@ -87,6 +89,8 @@ import com.calypsan.listenup.client.presentation.admin.ABSImportViewModel
 import com.calypsan.listenup.client.presentation.admin.ABSSourceType
 import com.calypsan.listenup.client.presentation.admin.BookMappingTab
 import com.calypsan.listenup.client.presentation.admin.SelectedBookDisplay
+import com.calypsan.listenup.client.presentation.admin.SelectedUserDisplay
+import com.calypsan.listenup.client.presentation.admin.UserMappingTab
 import com.calypsan.listenup.client.util.DocumentPickerResult
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
 import org.koin.compose.koinInject
@@ -165,7 +169,11 @@ fun ABSImportScreen(
             )
             ABSImportStep.USER_MAPPING -> UserMappingContent(
                 state = state,
-                onUserMappingChange = viewModel::setUserMapping,
+                onTabChange = viewModel::setUserMappingTab,
+                onActivateSearch = viewModel::activateUserSearch,
+                onSearchQueryChange = viewModel::updateUserSearchQuery,
+                onSelectUser = viewModel::selectUser,
+                onClearMapping = viewModel::clearUserMapping,
                 onNext = viewModel::nextStep,
                 modifier = Modifier.padding(paddingValues),
             )
@@ -669,10 +677,18 @@ private fun AnalyzingContent(
 @Composable
 private fun UserMappingContent(
     state: ABSImportState,
-    onUserMappingChange: (String, String?) -> Unit,
+    onTabChange: (UserMappingTab) -> Unit,
+    onActivateSearch: (String) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onSelectUser: (String, String, String, String?) -> Unit,
+    onClearMapping: (String) -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Users are "auto-matched" if the server found a listenupId match
+    val autoMatchedUsers = state.userMatches.filter { it.listenupId != null }
+    val needsReviewUsers = state.userMatches.filter { it.listenupId == null }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -684,102 +700,204 @@ private fun UserMappingContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Summary card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+        // M3 Expressive: SegmentedButton for tabs
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            SegmentedButton(
+                selected = state.userMappingTab == UserMappingTab.NEEDS_REVIEW,
+                onClick = { onTabChange(UserMappingTab.NEEDS_REVIEW) },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "${state.usersMatched}",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = "Matched",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "${state.usersPending}",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = if (state.usersPending > 0) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                    )
-                    Text(
-                        text = "Pending",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
+                Text("Needs Review (${needsReviewUsers.size})")
+            }
+            SegmentedButton(
+                selected = state.userMappingTab == UserMappingTab.AUTO_MATCHED,
+                onClick = { onTabChange(UserMappingTab.AUTO_MATCHED) },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+            ) {
+                Text("Matched (${autoMatchedUsers.size})")
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // User list
-        LazyColumn(
+        // Tab content with animation
+        AnimatedContent(
+            targetState = state.userMappingTab,
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(state.userMatches) { userMatch ->
-                UserMappingCard(
-                    userMatch = userMatch,
-                    currentMapping = state.userMappings[userMatch.absUserId],
-                    onMappingChange = { onUserMappingChange(userMatch.absUserId, it) },
+            label = "user_mapping_tab",
+        ) { tab ->
+            when (tab) {
+                UserMappingTab.NEEDS_REVIEW -> UserNeedsReviewTabContent(
+                    users = needsReviewUsers,
+                    selectedUserDisplays = state.selectedUserDisplays,
+                    activeSearchAbsUserId = state.activeSearchAbsUserId,
+                    searchQuery = state.userSearchQuery,
+                    searchResults = state.userSearchResults,
+                    isSearching = state.isSearchingUsers,
+                    onActivateSearch = onActivateSearch,
+                    onSearchQueryChange = onSearchQueryChange,
+                    onSelectUser = onSelectUser,
+                    onClearMapping = onClearMapping,
+                )
+                UserMappingTab.AUTO_MATCHED -> UserAutoMatchedTabContent(
+                    users = autoMatchedUsers,
+                    selectedUserDisplays = state.selectedUserDisplays,
+                    activeSearchAbsUserId = state.activeSearchAbsUserId,
+                    searchQuery = state.userSearchQuery,
+                    searchResults = state.userSearchResults,
+                    isSearching = state.isSearchingUsers,
+                    onActivateSearch = onActivateSearch,
+                    onSearchQueryChange = onSearchQueryChange,
+                    onSelectUser = onSelectUser,
+                    onClearMapping = onClearMapping,
                 )
             }
         }
 
         state.error?.let { error ->
+            Spacer(modifier = Modifier.height(8.dp))
             ErrorCard(text = error)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Progress indicator
+        val mappedCount = state.userMappings.size
+        val totalCount = state.userMatches.size
         ListenUpButton(
             onClick = onNext,
-            text = "Continue",
+            text = "Continue ($mappedCount/$totalCount mapped)",
             modifier = Modifier.fillMaxWidth(),
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UserNeedsReviewTabContent(
+    users: List<ABSUserMatch>,
+    selectedUserDisplays: Map<String, SelectedUserDisplay>,
+    activeSearchAbsUserId: String?,
+    searchQuery: String,
+    searchResults: List<UserSearchResult>,
+    isSearching: Boolean,
+    onActivateSearch: (String) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onSelectUser: (String, String, String, String?) -> Unit,
+    onClearMapping: (String) -> Unit,
+) {
+    if (users.isEmpty()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = "All users matched automatically!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(users, key = { it.absUserId }) { userMatch ->
+                UserMappingCard(
+                    userMatch = userMatch,
+                    selectedDisplay = selectedUserDisplays[userMatch.absUserId],
+                    isSearchActive = activeSearchAbsUserId == userMatch.absUserId,
+                    searchQuery = if (activeSearchAbsUserId == userMatch.absUserId) searchQuery else "",
+                    searchResults = if (activeSearchAbsUserId == userMatch.absUserId) searchResults else emptyList(),
+                    isSearching = activeSearchAbsUserId == userMatch.absUserId && isSearching,
+                    onActivateSearch = { onActivateSearch(userMatch.absUserId) },
+                    onSearchQueryChange = onSearchQueryChange,
+                    onSelectUser = { id, email, displayName ->
+                        onSelectUser(userMatch.absUserId, id, email, displayName)
+                    },
+                    onClearMapping = { onClearMapping(userMatch.absUserId) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserAutoMatchedTabContent(
+    users: List<ABSUserMatch>,
+    selectedUserDisplays: Map<String, SelectedUserDisplay>,
+    activeSearchAbsUserId: String?,
+    searchQuery: String,
+    searchResults: List<UserSearchResult>,
+    isSearching: Boolean,
+    onActivateSearch: (String) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onSelectUser: (String, String, String, String?) -> Unit,
+    onClearMapping: (String) -> Unit,
+) {
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(users, key = { it.absUserId }) { userMatch ->
+            UserMappingCard(
+                userMatch = userMatch,
+                selectedDisplay = selectedUserDisplays[userMatch.absUserId],
+                isSearchActive = activeSearchAbsUserId == userMatch.absUserId,
+                searchQuery = if (activeSearchAbsUserId == userMatch.absUserId) searchQuery else "",
+                searchResults = if (activeSearchAbsUserId == userMatch.absUserId) searchResults else emptyList(),
+                isSearching = activeSearchAbsUserId == userMatch.absUserId && isSearching,
+                onActivateSearch = { onActivateSearch(userMatch.absUserId) },
+                onSearchQueryChange = onSearchQueryChange,
+                onSelectUser = { id, email, displayName ->
+                    onSelectUser(userMatch.absUserId, id, email, displayName)
+                },
+                onClearMapping = { onClearMapping(userMatch.absUserId) },
+            )
+        }
+    }
+}
+
 @Composable
 private fun UserMappingCard(
     userMatch: ABSUserMatch,
-    currentMapping: String?,
-    onMappingChange: (String?) -> Unit,
+    selectedDisplay: SelectedUserDisplay?,
+    isSearchActive: Boolean,
+    searchQuery: String,
+    searchResults: List<UserSearchResult>,
+    isSearching: Boolean,
+    onActivateSearch: () -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onSelectUser: (String, String, String?) -> Unit,
+    onClearMapping: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    val hasSelection = selectedDisplay != null
 
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = when {
-                currentMapping != null || userMatch.listenupId != null -> {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                }
-                else -> MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = if (hasSelection) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
             },
         ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // ABS user info header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -803,66 +921,224 @@ private fun UserMappingCard(
                         )
                     }
                 }
-                ConfidenceBadge(confidence = userMatch.confidence)
+                // Status indicator
+                if (hasSelection) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = "Matched",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                } else {
+                    ConfidenceBadge(confidence = userMatch.confidence)
+                }
             }
 
-            if (userMatch.suggestions.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = it },
-                ) {
-                    OutlinedTextField(
-                        value = userMatch.suggestions.find {
-                            it.userId == (currentMapping ?: userMatch.listenupId)
-                        }?.displayName ?: "Select user...",
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                        },
-                        modifier = Modifier
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth(),
+            // Selection area with animation
+            AnimatedContent(
+                targetState = hasSelection,
+                label = "user_selection_state",
+            ) { showSelected ->
+                if (showSelected && selectedDisplay != null) {
+                    // Show selected user with clear option
+                    SelectedUserChip(
+                        display = selectedDisplay,
+                        onClear = onClearMapping,
                     )
-
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("None (skip this user)") },
-                            onClick = {
-                                onMappingChange(null)
-                                expanded = false
-                            },
-                        )
-                        userMatch.suggestions.forEach { suggestion ->
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(suggestion.displayName ?: suggestion.userId)
-                                        suggestion.email?.let {
-                                            Text(
-                                                text = it,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    }
-                                },
-                                onClick = {
-                                    onMappingChange(suggestion.userId)
-                                    expanded = false
-                                },
-                            )
-                        }
-                    }
+                } else {
+                    // Show search field
+                    UserSearchField(
+                        suggestions = userMatch.suggestions,
+                        searchQuery = searchQuery,
+                        searchResults = searchResults,
+                        isSearching = isSearching,
+                        isActive = isSearchActive,
+                        onActivate = onActivateSearch,
+                        onQueryChange = onSearchQueryChange,
+                        onSelectUser = onSelectUser,
+                    )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun SelectedUserChip(
+    display: SelectedUserDisplay,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                Icons.Outlined.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(24.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = display.displayName ?: display.email,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (display.displayName != null) {
+                    Text(
+                        text = display.email,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            IconButton(
+                onClick = onClear,
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Change selection",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserSearchField(
+    suggestions: List<ABSUserSuggestion>,
+    searchQuery: String,
+    searchResults: List<UserSearchResult>,
+    isSearching: Boolean,
+    isActive: Boolean,
+    onActivate: () -> Unit,
+    onQueryChange: (String) -> Unit,
+    onSelectUser: (String, String, String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Combine suggestions with search results
+    // Show suggestions when query is empty, search results when typing
+    val displayResults: List<UserSearchItem> = if (searchQuery.isEmpty() && suggestions.isNotEmpty()) {
+        suggestions.map { suggestion ->
+            UserSearchItem(
+                id = suggestion.userId,
+                email = suggestion.email ?: "",
+                displayName = suggestion.displayName,
+                isSuggestion = true,
+            )
+        }
+    } else {
+        searchResults.map { result ->
+            UserSearchItem(
+                id = result.id,
+                email = result.email,
+                displayName = result.displayName.takeIf { it.isNotBlank() },
+                isSuggestion = false,
+            )
+        }
+    }
+
+    Column(modifier = modifier) {
+        ListenUpAutocompleteField(
+            value = searchQuery,
+            onValueChange = { query ->
+                if (!isActive) onActivate()
+                onQueryChange(query)
+            },
+            results = displayResults,
+            onResultSelected = { item ->
+                onSelectUser(item.id, item.email, item.displayName)
+            },
+            onSubmit = { query ->
+                // Select top result if available
+                displayResults.firstOrNull()?.let { item ->
+                    onSelectUser(item.id, item.email, item.displayName)
+                }
+            },
+            resultContent = { item ->
+                UserSearchResultItem(
+                    item = item,
+                    onClick = { onSelectUser(item.id, item.email, item.displayName) },
+                )
+            },
+            placeholder = if (suggestions.isNotEmpty()) {
+                "Tap to see suggestions or search..."
+            } else {
+                "Search users by name or email..."
+            },
+            isLoading = isSearching,
+        )
+
+        // Show hint when field is empty but has suggestions
+        AnimatedVisibility(
+            visible = searchQuery.isEmpty() && suggestions.isNotEmpty() && !isActive,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+        ) {
+            Text(
+                text = "${suggestions.size} suggestion${if (suggestions.size != 1) "s" else ""} available",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 4.dp, start = 4.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Unified data class for user search results and suggestions.
+ */
+private data class UserSearchItem(
+    val id: String,
+    val email: String,
+    val displayName: String?,
+    val isSuggestion: Boolean,
+)
+
+@Composable
+private fun UserSearchResultItem(
+    item: UserSearchItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AutocompleteResultItem(
+        name = item.displayName ?: item.email,
+        subtitle = if (item.displayName != null) item.email else null,
+        onClick = onClick,
+        modifier = modifier,
+        leadingIcon = {
+            Icon(
+                Icons.Outlined.Person,
+                contentDescription = null,
+                tint = if (item.isSuggestion) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.size(24.dp),
+            )
+        },
+    )
 }
 
 // === Book Mapping ===

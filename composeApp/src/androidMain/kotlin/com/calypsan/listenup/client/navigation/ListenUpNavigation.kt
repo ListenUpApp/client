@@ -48,6 +48,7 @@ import com.calypsan.listenup.client.domain.repository.AuthState
 import com.calypsan.listenup.client.features.admin.AdminScreen
 import com.calypsan.listenup.client.features.admin.CreateInviteScreen
 import com.calypsan.listenup.client.features.admin.backup.AdminBackupScreen
+import com.calypsan.listenup.client.features.admin.backup.ABSImportHubDetailScreen
 import com.calypsan.listenup.client.features.admin.backup.ABSImportScreen
 import com.calypsan.listenup.client.features.admin.backup.CreateBackupScreen
 import com.calypsan.listenup.client.features.admin.backup.RestoreBackupScreen
@@ -842,10 +843,7 @@ private fun AuthenticatedNavigation(
                             )
                         }
                         entry<AdminBackups> {
-                            val viewModel: com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel =
-                                koinInject()
                             AdminBackupScreen(
-                                viewModel = viewModel,
                                 onBackClick = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
@@ -855,8 +853,8 @@ private fun AuthenticatedNavigation(
                                 onRestoreClick = { backupId ->
                                     backStack.add(RestoreBackup(backupId))
                                 },
-                                onABSImportClick = {
-                                    backStack.add(ABSImport)
+                                onABSImportHubClick = { importId ->
+                                    backStack.add(ABSImportDetail(importId))
                                 },
                             )
                         }
@@ -877,6 +875,13 @@ private fun AuthenticatedNavigation(
                                     // Navigate back to backup list after restore
                                     backStack.removeAt(backStack.lastIndex)
                                 },
+                            )
+                        }
+                        // ABSImportList removed - imports are now shown inline in AdminBackupScreen
+                        entry<ABSImportDetail> { args ->
+                            ABSImportHubDetailScreen(
+                                importId = args.importId,
+                                onBackClick = { backStack.removeAt(backStack.lastIndex) },
                             )
                         }
                         entry<ABSImport> {

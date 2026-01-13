@@ -330,7 +330,23 @@ data class RestoreBackup(
 ) : Route
 
 /**
- * ABS import screen - import from Audiobookshelf backup.
+ * ABS import list screen - shows all ABS imports with their status.
+ *
+ * Entry point for managing Audiobookshelf imports.
+ */
+@Serializable
+data object ABSImportList : Route
+
+/**
+ * ABS import detail screen - shows a single import with mapping UI.
+ *
+ * @param importId The ID of the import to display.
+ */
+@Serializable
+data class ABSImportDetail(val importId: String) : Route
+
+/**
+ * ABS import screen (legacy) - wizard-style import from Audiobookshelf backup.
  *
  * Multi-step flow for analyze, map users/books, and import.
  */
