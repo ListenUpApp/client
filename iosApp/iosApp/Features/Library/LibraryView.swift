@@ -27,7 +27,6 @@ struct LibraryView: View {
                 loadingState
             }
         }
-        .background(Color(.systemBackground))
         .navigationTitle("Library")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -50,73 +49,75 @@ struct LibraryView: View {
 
     @ViewBuilder
     private func libraryContent(observer: LibraryObserver) -> some View {
-        VStack(spacing: 0) {
-            // Glass chip row for tab selection
+        // Swipeable content - extends edge to edge
+        TabView(selection: $selectedTab) {
+            // Books Tab
+            BooksContent(
+                books: observer.books,
+                bookProgress: observer.bookProgress,
+                sortState: observer.booksSortState,
+                isLoading: observer.isLoading,
+                isEmpty: observer.isEmpty,
+                errorMessage: observer.errorMessage,
+                onCategorySelected: { category in
+                    observer.setBooksSortCategory(category)
+                },
+                onDirectionToggle: {
+                    observer.toggleBooksSortDirection()
+                },
+                onRefresh: {
+                    observer.refresh()
+                }
+            )
+            .tag(LibraryTab.books)
+
+            // Series Tab
+            SeriesContent(
+                seriesList: observer.series,
+                sortState: observer.seriesSortState,
+                onCategorySelected: { category in
+                    observer.setSeriesSortCategory(category)
+                },
+                onDirectionToggle: {
+                    observer.toggleSeriesSortDirection()
+                }
+            )
+            .tag(LibraryTab.series)
+
+            // Authors Tab
+            AuthorsContent(
+                authors: observer.authors,
+                sortState: observer.authorsSortState,
+                onCategorySelected: { category in
+                    observer.setAuthorsSortCategory(category)
+                },
+                onDirectionToggle: {
+                    observer.toggleAuthorsSortDirection()
+                }
+            )
+            .tag(LibraryTab.authors)
+
+            // Narrators Tab
+            NarratorsContent(
+                narrators: observer.narrators,
+                sortState: observer.narratorsSortState,
+                onCategorySelected: { category in
+                    observer.setNarratorsSortCategory(category)
+                },
+                onDirectionToggle: {
+                    observer.toggleNarratorsSortDirection()
+                }
+            )
+            .tag(LibraryTab.narrators)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .scrollContentBackground(.hidden)
+        .background(.clear)
+        .ignoresSafeArea(edges: .bottom)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedTab)
+        // Glass chip row overlaid at top
+        .safeAreaInset(edge: .top) {
             LibraryChipRow(selectedTab: $selectedTab)
-
-            // Swipeable content
-            TabView(selection: $selectedTab) {
-                // Books Tab
-                BooksContent(
-                    books: observer.books,
-                    bookProgress: observer.bookProgress,
-                    sortState: observer.booksSortState,
-                    isLoading: observer.isLoading,
-                    isEmpty: observer.isEmpty,
-                    errorMessage: observer.errorMessage,
-                    onCategorySelected: { category in
-                        observer.setBooksSortCategory(category)
-                    },
-                    onDirectionToggle: {
-                        observer.toggleBooksSortDirection()
-                    },
-                    onRefresh: {
-                        observer.refresh()
-                    }
-                )
-                .tag(LibraryTab.books)
-
-                // Series Tab
-                SeriesContent(
-                    seriesList: observer.series,
-                    sortState: observer.seriesSortState,
-                    onCategorySelected: { category in
-                        observer.setSeriesSortCategory(category)
-                    },
-                    onDirectionToggle: {
-                        observer.toggleSeriesSortDirection()
-                    }
-                )
-                .tag(LibraryTab.series)
-
-                // Authors Tab
-                AuthorsContent(
-                    authors: observer.authors,
-                    sortState: observer.authorsSortState,
-                    onCategorySelected: { category in
-                        observer.setAuthorsSortCategory(category)
-                    },
-                    onDirectionToggle: {
-                        observer.toggleAuthorsSortDirection()
-                    }
-                )
-                .tag(LibraryTab.authors)
-
-                // Narrators Tab
-                NarratorsContent(
-                    narrators: observer.narrators,
-                    sortState: observer.narratorsSortState,
-                    onCategorySelected: { category in
-                        observer.setNarratorsSortCategory(category)
-                    },
-                    onDirectionToggle: {
-                        observer.toggleNarratorsSortDirection()
-                    }
-                )
-                .tag(LibraryTab.narrators)
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedTab)
         }
         // Haptic feedback on tab change
         .sensoryFeedback(.selection, trigger: selectedTab)
@@ -125,20 +126,22 @@ struct LibraryView: View {
     // MARK: - Loading State
 
     private var loadingState: some View {
-        VStack(spacing: 0) {
-            LibraryChipRow(selectedTab: .constant(.books))
-
-            ScrollView {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 150), spacing: 16)],
-                    spacing: 20
-                ) {
-                    ForEach(0 ..< 8, id: \.self) { _ in
-                        BookCoverShimmer()
-                    }
+        ScrollView {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 150), spacing: 16)],
+                spacing: 20
+            ) {
+                ForEach(0 ..< 8, id: \.self) { _ in
+                    BookCoverShimmer()
                 }
-                .padding()
             }
+            .padding()
+            .padding(.bottom, 100)
+        }
+        .scrollContentBackground(.hidden)
+        .ignoresSafeArea(edges: .bottom)
+        .safeAreaInset(edge: .top) {
+            LibraryChipRow(selectedTab: .constant(.books))
         }
     }
 }
@@ -154,22 +157,20 @@ struct LibraryView: View {
 
 #Preview("Loading State") {
     NavigationStack {
-        VStack(spacing: 0) {
-            LibraryChipRow(selectedTab: .constant(.books))
-
-            ScrollView {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 150), spacing: 16)],
-                    spacing: 20
-                ) {
-                    ForEach(0 ..< 8, id: \.self) { _ in
-                        BookCoverShimmer()
-                    }
+        ScrollView {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 150), spacing: 16)],
+                spacing: 20
+            ) {
+                ForEach(0 ..< 8, id: \.self) { _ in
+                    BookCoverShimmer()
                 }
-                .padding()
             }
+            .padding()
         }
-        .background(Color(.systemBackground))
+        .safeAreaInset(edge: .top) {
+            LibraryChipRow(selectedTab: .constant(.books))
+        }
         .navigationTitle("Library")
     }
 }

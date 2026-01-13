@@ -94,4 +94,19 @@ object KoinHelper : KoinComponent {
         val viewModel: com.calypsan.listenup.client.presentation.library.LibraryViewModel by inject()
         return viewModel
     }
+
+    fun getBookDetailViewModel(): com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel by inject()
+        return viewModel
+    }
+
+    fun getSeriesDetailViewModel(): com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel by inject()
+        return viewModel
+    }
+
+    fun getContributorDetailViewModel(): com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel {
+        val viewModel: com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel by inject()
+        return viewModel
+    }
 }

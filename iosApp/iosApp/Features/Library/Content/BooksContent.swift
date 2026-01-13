@@ -78,7 +78,10 @@ struct BooksContent: View {
                     }
                 }
                 .padding(.horizontal)
+                // Extra padding at bottom so content scrolls above tab bar
+                .padding(.bottom, 100)
             }
+            .scrollContentBackground(.hidden)
             .refreshable {
                 onRefresh()
                 try? await Task.sleep(for: .seconds(1))

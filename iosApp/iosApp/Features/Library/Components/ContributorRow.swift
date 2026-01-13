@@ -47,7 +47,7 @@ struct ContributorRow: View {
         NavigationLink(value: ContributorDestination(id: contributorId)) {
             rowContent
         }
-        .buttonStyle(ContributorRowButtonStyle())
+        .buttonStyle(.pressScaleRow)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(contributorName), \(role.label)")
         .accessibilityValue(bookCountLabel)
@@ -81,41 +81,13 @@ struct ContributorRow: View {
     }
 
     private var avatarView: some View {
-        ZStack {
-            Circle()
-                .fill(avatarColor)
-
-            if let path = contributorImagePath,
-               let uiImage = UIImage(contentsOfFile: path) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .clipShape(Circle())
-            } else {
-                Text(initials)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
-            }
-        }
-        .clipShape(Circle())
-    }
-
-    private var initials: String {
-        let components = contributorName.split(separator: " ")
-        if components.count >= 2 {
-            let first = components[0].prefix(1)
-            let last = components[components.count - 1].prefix(1)
-            return "\(first)\(last)".uppercased()
-        } else if let first = components.first {
-            return String(first.prefix(2)).uppercased()
-        }
-        return "?"
-    }
-
-    private var avatarColor: Color {
-        let hash = contributorId.hashValue
-        let hue = Double(abs(hash) % 360) / 360.0
-        return Color(hue: hue, saturation: 0.5, brightness: 0.7)
+        ContributorAvatar(
+            name: contributorName,
+            imagePath: contributorImagePath,
+            blurHash: nil,
+            id: contributorId,
+            fontSize: 16
+        )
     }
 
     private var rowBackground: some View {
@@ -132,15 +104,6 @@ struct ContributorRow: View {
                         lineWidth: 0.5
                     )
             }
-    }
-}
-
-/// Button style with scale animation that doesn't interfere with scroll gestures.
-private struct ContributorRowButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 

@@ -1,110 +1,260 @@
 import SwiftUI
+import Shared
+import UIKit
 
 /// Contributor (Author/Narrator) detail screen.
 ///
-/// Will show:
-/// - Contributor photo
-/// - Name and role
-/// - Biography
-/// - List of their audiobooks
+/// Features:
+/// - Hero header with circular avatar
+/// - Name and aliases
+/// - Biography (expandable)
+/// - Books organized by role (Written By, Narrated By, etc.)
+/// - Horizontal book carousels per role
+/// - Progress indicators on books
 struct ContributorDetailView: View {
     let contributorId: String
 
+    @Environment(\.dependencies) private var deps
+    @Environment(\.dismiss) private var dismiss
+    @State private var observer: ContributorDetailObserver?
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Contributor header
-                headerSection
-
-                // Bio section
-                bioSection
-
-                // Books section
-                booksSection
+        Group {
+            if let observer, !observer.isLoading {
+                content(observer: observer)
+            } else {
+                loadingView
             }
-            .padding()
         }
         .background(Color(.systemBackground))
-        .navigationTitle("Author")
+        .navigationTitle(observer?.name ?? "")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if let observer {
+                    Menu {
+                        Button(action: {}) {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        Button(role: .destructive, action: {
+                            observer.onDeleteContributor()
+                        }) {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
+        }
+        .confirmationDialog(
+            "Delete Contributor",
+            isPresented: Binding(
+                get: { observer?.showDeleteConfirmation ?? false },
+                set: { _ in observer?.onDismissDelete() }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                observer?.onConfirmDelete {
+                    dismiss()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will remove this contributor from your library. Books will not be deleted.")
+        }
+        .onAppear {
+            if observer == nil {
+                let vm = deps.createContributorDetailViewModel()
+                observer = ContributorDetailObserver(viewModel: vm)
+                observer?.loadContributor(contributorId: contributorId)
+            }
+        }
+        .onDisappear {
+            observer?.stopObserving()
+        }
     }
 
-    // MARK: - Header
+    // MARK: - Content
 
-    private var headerSection: some View {
-        VStack(spacing: 16) {
-            // Photo placeholder
-            Circle()
-                .fill(Color.gray.opacity(0.2))
-                .frame(width: 120, height: 120)
-                .overlay {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.secondary)
+    private func content(observer: ContributorDetailObserver) -> some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Header section
+                headerSection(observer: observer)
+
+                // Biography
+                if let bio = observer.bio, !bio.isEmpty {
+                    bioSection(bio: bio)
+                        .padding(.horizontal)
                 }
 
-            VStack(spacing: 4) {
-                Text("Contributor Name")
+                // Role sections (Written By, Narrated By, etc.)
+                ForEach(observer.roleSections, id: \.role) { section in
+                    roleSectionView(section: section, observer: observer)
+                }
+            }
+            .padding(.bottom, 32)
+        }
+    }
+
+    // MARK: - Header Section
+
+    private func headerSection(observer: ContributorDetailObserver) -> some View {
+        VStack(spacing: 16) {
+            // Avatar
+            avatarView(observer: observer)
+                .frame(width: 120, height: 120)
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 8)
+
+            // Name and info
+            VStack(spacing: 6) {
+                Text(observer.name)
                     .font(.title2.bold())
 
-                Text("Author")
+                // Aliases
+                if !observer.aliases.isEmpty {
+                    Text("aka \(observer.aliases.joined(separator: ", "))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .italic()
+                }
+
+                // Book count
+                Text("\(observer.totalBookCount) \(observer.totalBookCount == 1 ? "audiobook" : "audiobooks")")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                Text("12 Audiobooks")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                // Dates (if available)
+                if let dateString = formatDateRange(birth: observer.birthDate, death: observer.deathDate) {
+                    Text(dateString)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+
+                // Website
+                if let website = observer.website, let url = URL(string: website) {
+                    Link(destination: url) {
+                        Label("Website", systemImage: "globe")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(Color.listenUpOrange)
+                }
+            }
+        }
+        .padding(.top, 16)
+    }
+
+    private func avatarView(observer: ContributorDetailObserver) -> some View {
+        ContributorAvatar(
+            name: observer.name,
+            imagePath: observer.imagePath,
+            blurHash: observer.imageBlurHash,
+            id: contributorId,
+            fontSize: 40
+        )
+    }
+
+    private func formatDateRange(birth: String?, death: String?) -> String? {
+        guard let birth else { return nil }
+
+        // Extract just the year from ISO date
+        let birthYear = String(birth.prefix(4))
+
+        if let death {
+            let deathYear = String(death.prefix(4))
+            return "\(birthYear) - \(deathYear)"
+        } else {
+            return "Born \(birthYear)"
+        }
+    }
+
+    // MARK: - Biography Section
+
+    private func bioSection(bio: String) -> some View {
+        ExpandableText(title: "About", text: bio, lineLimit: 4, minimumLengthForToggle: 200)
+    }
+
+    // MARK: - Role Section
+
+    private func roleSectionView(section: RoleSection, observer: ContributorDetailObserver) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack {
+                Text(section.displayName)
+                    .font(.headline)
+
+                Text("\(section.bookCount)")
+                    .font(.caption.weight(.medium))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.listenUpOrange.opacity(0.2), in: Capsule())
+                    .foregroundStyle(Color.listenUpOrange)
+
+                Spacer()
+
+                if section.showViewAll {
+                    Button("View All") {
+                        // TODO: Navigate to full list
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.listenUpOrange)
+                }
+            }
+            .padding(.horizontal)
+
+            // Horizontal book carousel
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    ForEach(Array(section.previewBooks), id: \.idString) { book in
+                        bookCard(book: book, progress: observer.bookProgress[book.idString])
+                    }
+                }
+                .padding(.horizontal)
             }
         }
     }
 
-    // MARK: - Bio Section
+    private func bookCard(book: Book, progress: Float?) -> some View {
+        NavigationLink(value: BookDestination(id: book.idString)) {
+            VStack(alignment: .leading, spacing: 8) {
+                // Cover with progress overlay
+                ZStack(alignment: .bottom) {
+                    BookCoverImage(book: book)
+                        .frame(width: 100, height: 100)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-    private var bioSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("About")
-                .font(.headline)
+                    // Progress bar overlay
+                    if let progress, progress > 0 {
+                        ProgressBar(progress: progress, style: .overlay)
+                            .frame(height: 4)
+                    }
+                }
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
 
-            Text("Biography placeholder. This will show information about the author or narrator, their background, and notable works.")
+                // Title
+                Text(book.title)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .frame(width: 100, alignment: .leading)
+            }
+        }
+        .buttonStyle(.pressScaleChip)
+    }
+
+    // MARK: - Loading View
+
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+            Text("Loading...")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: - Books Section
-
-    private var booksSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Audiobooks")
-                .font(.headline)
-
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 16) {
-                ForEach(1...4, id: \.self) { _ in
-                    bookCard
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var bookCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.2))
-                .aspectRatio(0.7, contentMode: .fit)
-                .overlay {
-                    Image(systemName: "book.closed.fill")
-                        .foregroundStyle(.secondary)
-                }
-
-            Text("Book Title")
-                .font(.caption.weight(.medium))
-                .lineLimit(2)
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

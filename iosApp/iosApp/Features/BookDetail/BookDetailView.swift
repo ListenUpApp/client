@@ -1,90 +1,182 @@
 import SwiftUI
+import Shared
+import UIKit
 
 /// Book detail screen showing audiobook information.
 ///
-/// Based on mockup showing:
-/// - Book cover
-/// - Title and series info
-/// - Rating, duration, year
-/// - Stream Now button
-/// - Metadata (Author, Series, Narrators, Genres)
-/// - Description (expandable)
+/// Features:
+/// - Hero cover with gradient background
+/// - Title, subtitle, and series info
+/// - Rating, duration, year metadata
+/// - Progress indicator for in-progress books
+/// - Authors and narrators (clickable to navigate)
+/// - Genres as tags
+/// - Expandable description
 /// - Chapter list
 struct BookDetailView: View {
     let bookId: String
 
+    @Environment(\.dependencies) private var deps
+    @State private var observer: BookDetailObserver?
+    @State private var showAllChapters = false
+
+    private let maxChaptersPreview = 5
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Book cover
-                bookCover
-
-                // Title and info
-                titleSection
-
-                // Action buttons
-                actionButtons
-
-                // Metadata grid
-                metadataSection
-
-                // Description
-                descriptionSection
-
-                // Chapters
-                chaptersSection
+        Group {
+            if let observer, !observer.isLoading {
+                content(observer: observer)
+            } else {
+                loadingView
             }
-            .padding()
         }
         .background(Color(.systemBackground))
         .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(action: {}) {
-                    Image(systemName: "ellipsis")
+                Menu {
+                    Button(action: {}) {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    Button(action: {}) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
         }
-    }
-
-    // MARK: - Book Cover
-
-    private var bookCover: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(Color.gray.opacity(0.2))
-            .aspectRatio(0.7, contentMode: .fit)
-            .frame(maxWidth: 200)
-            .overlay {
-                Image(systemName: "book.closed.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.secondary)
+        .onAppear {
+            if observer == nil {
+                let vm = deps.createBookDetailViewModel()
+                observer = BookDetailObserver(viewModel: vm)
+                observer?.loadBook(bookId: bookId)
             }
+        }
+        .onDisappear {
+            observer?.stopObserving()
+        }
     }
 
-    // MARK: - Title Section
+    // MARK: - Content
 
-    private var titleSection: some View {
-        VStack(spacing: 8) {
-            Text("Book Title")
-                .font(.title2.bold())
+    private func content(observer: BookDetailObserver) -> some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Hero section with cover
+                heroSection(observer: observer)
 
-            Text("Series Name, Book 1")
-                .font(.subheadline)
+                // Metadata and actions
+                VStack(spacing: 20) {
+                    // Action buttons
+                    actionButtons
+
+                    // Contributors (Authors & Narrators)
+                    contributorsSection(observer: observer)
+
+                    // Genres
+                    if !observer.genres.isEmpty {
+                        genresSection(observer: observer)
+                    }
+
+                    // Description
+                    if !observer.bookDescription.isEmpty {
+                        descriptionSection(observer: observer)
+                    }
+
+                    // Chapters
+                    if !observer.chapters.isEmpty {
+                        chaptersSection(observer: observer)
+                    }
+                }
+                .padding(.horizontal)
+            }
+            .padding(.bottom, 32)
+        }
+    }
+
+    // MARK: - Hero Section
+
+    private func heroSection(observer: BookDetailObserver) -> some View {
+        VStack(spacing: 16) {
+            // Cover image
+            coverImage(observer: observer)
+                .frame(width: 200, height: 200)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+
+            // Title and subtitle
+            VStack(spacing: 6) {
+                Text(observer.title)
+                    .font(.title2.bold())
+                    .multilineTextAlignment(.center)
+
+                if let subtitle = observer.subtitle {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                if let series = observer.series {
+                    NavigationLink(value: SeriesDestination(id: observer.book?.seriesId ?? "")) {
+                        Text(series)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.listenUpOrange)
+                    }
+                }
+            }
+            .padding(.horizontal)
+
+            // Metadata row
+            metadataRow(observer: observer)
+
+            // Progress indicator
+            if let progress = observer.progress {
+                progressIndicator(progress: progress, timeRemaining: observer.timeRemaining)
+            } else if observer.isComplete {
+                completedBadge
+            }
+        }
+        .padding(.top, 16)
+    }
+
+    private func coverImage(observer: BookDetailObserver) -> some View {
+        BookCoverImage(coverPath: observer.coverPath, blurHash: observer.coverBlurHash)
+    }
+
+    private func metadataRow(observer: BookDetailObserver) -> some View {
+        HStack(spacing: 16) {
+            if let rating = observer.rating {
+                Label(String(format: "%.1f", rating), systemImage: "star.fill")
+                    .foregroundStyle(Color.listenUpOrange)
+            }
+
+            Label(observer.duration, systemImage: "clock")
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 16) {
-                Label("5.0", systemImage: "star.fill")
-                    .foregroundStyle(Color.listenUpOrange)
-
-                Label("33hr 46 min", systemImage: "clock")
-                    .foregroundStyle(.secondary)
-
-                Text("2023")
+            if let year = observer.year {
+                Text(String(year))
                     .foregroundStyle(.secondary)
             }
-            .font(.caption)
         }
+        .font(.caption)
+    }
+
+    private func progressIndicator(progress: Float, timeRemaining: String?) -> some View {
+        ProgressBar(progress: progress, label: timeRemaining)
+            .frame(height: 6)
+            .padding(.horizontal, 40)
+    }
+
+    private var completedBadge: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "checkmark.circle.fill")
+            Text("Completed")
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.green)
     }
 
     // MARK: - Action Buttons
@@ -109,97 +201,145 @@ struct BookDetailView: View {
         }
     }
 
-    // MARK: - Metadata Section
+    // MARK: - Contributors Section
 
-    private var metadataSection: some View {
-        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
-            GridRow {
-                Text("Author")
-                    .foregroundStyle(.secondary)
-                Text("Author Name")
-                    .foregroundStyle(Color.listenUpOrange)
+    private func contributorsSection(observer: BookDetailObserver) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if !observer.authors.isEmpty {
+                contributorRow(
+                    label: "Written by",
+                    value: observer.authors,
+                    contributors: observer.book?.authors ?? []
+                )
             }
-            GridRow {
-                Text("Series")
-                    .foregroundStyle(.secondary)
-                Text("Series Name")
-                    .foregroundStyle(Color.listenUpOrange)
-            }
-            GridRow {
-                Text("Narrators")
-                    .foregroundStyle(.secondary)
-                Text("Narrator Name")
-                    .foregroundStyle(Color.listenUpOrange)
-            }
-            GridRow {
-                Text("Genres")
-                    .foregroundStyle(.secondary)
-                Text("Science Fiction & Fantasy")
+
+            if !observer.narrators.isEmpty {
+                contributorRow(
+                    label: "Narrated by",
+                    value: observer.narrators,
+                    contributors: observer.book?.narrators ?? []
+                )
             }
         }
-        .font(.subheadline)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 0.5
+                        )
+                }
+        }
+    }
+
+    private func contributorRow(label: String, value: String, contributors: [BookContributor]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            // Make contributors tappable
+            HStack(spacing: 0) {
+                ForEach(Array(contributors.enumerated()), id: \.element.id) { index, contributor in
+                    if index > 0 {
+                        Text(", ")
+                            .foregroundStyle(Color.listenUpOrange)
+                    }
+                    NavigationLink(value: ContributorDestination(id: contributor.id)) {
+                        Text(contributor.name)
+                            .foregroundStyle(Color.listenUpOrange)
+                    }
+                }
+            }
+            .font(.subheadline.weight(.medium))
+        }
+    }
+
+    // MARK: - Genres Section
+
+    private func genresSection(observer: BookDetailObserver) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Genres")
+                .font(.headline)
+
+            FlowLayout(spacing: 8) {
+                ForEach(observer.genres, id: \.self) { genre in
+                    Text(genre)
+                        .font(.caption)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.listenUpOrange.opacity(0.15), in: Capsule())
+                        .foregroundStyle(Color.listenUpOrange)
+                }
+            }
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Description Section
 
-    private var descriptionSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Book description placeholder. This will show the book's synopsis and details about the story.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(3)
-
-            Button("Read more") {}
-                .font(.subheadline)
-                .foregroundStyle(Color.listenUpOrange)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    private func descriptionSection(observer: BookDetailObserver) -> some View {
+        ExpandableText(title: "Synopsis", text: observer.bookDescription, lineLimit: 4)
     }
 
     // MARK: - Chapters Section
 
-    private var chaptersSection: some View {
+    private func chaptersSection(observer: BookDetailObserver) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Chapters")
                     .font(.headline)
 
-                Text("23")
-                    .font(.caption)
+                Text("\(observer.chapters.count)")
+                    .font(.caption.weight(.medium))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Color.listenUpOrange.opacity(0.2), in: Capsule())
                     .foregroundStyle(Color.listenUpOrange)
             }
 
-            ForEach(1...3, id: \.self) { chapter in
-                chapterRow(number: chapter, title: "Chapter \(chapter) - Title", duration: "25:04:00")
+            let chaptersToShow = showAllChapters ? observer.chapters : Array(observer.chapters.prefix(maxChaptersPreview))
+
+            ForEach(Array(chaptersToShow.enumerated()), id: \.element.id) { index, chapter in
+                chapterRow(index: index + 1, chapter: chapter)
             }
 
-            Button("See More") {}
-                .font(.subheadline)
+            if observer.chapters.count > maxChaptersPreview {
+                Button(showAllChapters ? "Show Less" : "See All \(observer.chapters.count) Chapters") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showAllChapters.toggle()
+                    }
+                }
+                .font(.subheadline.weight(.medium))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func chapterRow(number: Int, title: String, duration: String) -> some View {
-        HStack {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.gray.opacity(0.2))
-                .frame(width: 44, height: 44)
-                .overlay {
-                    Image(systemName: "book.closed.fill")
-                        .foregroundStyle(.secondary)
-                }
+    private func chapterRow(index: Int, chapter: ChapterUiModel) -> some View {
+        HStack(spacing: 12) {
+            Text("\(index)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
+                Text(chapter.title)
                     .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
 
-                Text(duration)
+                Text(chapter.duration)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -211,6 +351,68 @@ struct BookDetailView: View {
                     .font(.title2)
                     .foregroundStyle(.secondary)
             }
+        }
+        .padding(.vertical, 4)
+    }
+
+    // MARK: - Loading View
+
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+            Text("Loading...")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Flow Layout (for genres)
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        var height: CGFloat = 0
+        var x: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+
+            if x + size.width > width {
+                x = 0
+                height += rowHeight + spacing
+                rowHeight = 0
+            }
+
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+        }
+
+        height += rowHeight
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+
+            if x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+
+            subview.place(at: CGPoint(x: x, y: y), proposal: .unspecified)
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
         }
     }
 }

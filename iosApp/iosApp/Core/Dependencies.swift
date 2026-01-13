@@ -112,6 +112,23 @@ final class Dependencies {
         _libraryViewModel = instance
         return instance
     }
+
+    // MARK: - Detail ViewModels (factory - new instance each time)
+
+    /// Creates a new BookDetailViewModel instance (not cached - each screen gets its own)
+    func createBookDetailViewModel() -> BookDetailViewModel {
+        KoinHelper.shared.getBookDetailViewModel()
+    }
+
+    /// Creates a new SeriesDetailViewModel instance (not cached - each screen gets its own)
+    func createSeriesDetailViewModel() -> SeriesDetailViewModel {
+        KoinHelper.shared.getSeriesDetailViewModel()
+    }
+
+    /// Creates a new ContributorDetailViewModel instance (not cached - each screen gets its own)
+    func createContributorDetailViewModel() -> ContributorDetailViewModel {
+        KoinHelper.shared.getContributorDetailViewModel()
+    }
 }
 
 // MARK: - SwiftUI Environment

@@ -1,5 +1,6 @@
 import SwiftUI
 import Shared
+import UIKit
 
 /// Root tab view for the main authenticated app experience.
 ///
@@ -15,6 +16,16 @@ struct MainTabView: View {
 
     // TODO: Replace with actual NowPlayingViewModel observation
     @State private var isPlaying = false
+
+    init() {
+        // Configure tab bar appearance for glass effect with good contrast
+        let appearance = UITabBarAppearance()
+        appearance.configureWithDefaultBackground()
+        appearance.backgroundEffect = UIBlurEffect(style: .systemThinMaterial)
+        appearance.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.7)
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {

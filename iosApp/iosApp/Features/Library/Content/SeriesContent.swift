@@ -61,8 +61,10 @@ struct SeriesContent: View {
                     }
                 }
                 .padding(.horizontal)
-                .padding(.bottom, 16)
+                // Extra padding at bottom so content scrolls above tab bar
+                .padding(.bottom, 100)
             }
+            .scrollContentBackground(.hidden)
             .onScrollPhaseChange { _, newPhase in
                 withAnimation(.easeOut(duration: 0.2)) {
                     isScrolling = newPhase != .idle

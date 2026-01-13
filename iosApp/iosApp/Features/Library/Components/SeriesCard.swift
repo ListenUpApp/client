@@ -27,7 +27,7 @@ struct SeriesCard: View {
         NavigationLink(value: SeriesDestination(id: seriesId)) {
             cardContent
         }
-        .buttonStyle(SeriesCardButtonStyle())
+        .buttonStyle(.pressScaleCard)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(series.series.name)
         .accessibilityValue(bookCountLabel)
@@ -58,15 +58,6 @@ struct SeriesCard: View {
     private var bookCountLabel: String {
         let count = Int(series.books.count)
         return "\(count) \(count == 1 ? "book" : "books")"
-    }
-}
-
-/// Button style with scale animation that doesn't interfere with scroll gestures.
-private struct SeriesCardButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 
