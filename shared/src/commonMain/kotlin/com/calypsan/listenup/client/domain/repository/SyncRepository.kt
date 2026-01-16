@@ -77,4 +77,18 @@ interface SyncRepository {
      * @return Result.Success on completion, Result.Failure on error
      */
     suspend fun refreshListeningHistory(): Result<Unit>
+
+    /**
+     * Force a complete resync by clearing all local data and syncing fresh.
+     *
+     * Used after backup restore operations where the server data has been
+     * completely replaced. This ensures the client state matches the new
+     * server state.
+     *
+     * WARNING: This is destructive - all local data will be cleared, including
+     * any unsynced changes and downloaded content references.
+     *
+     * @return Result.Success on completion, Result.Failure on error
+     */
+    suspend fun forceFullResync(): Result<Unit>
 }

@@ -33,6 +33,8 @@ import androidx.room.TypeConverters
  * - v26: Added activities table for offline activity feed
  * - v27: Added user_stats table for offline leaderboard caching
  * - v28: Added firstName, lastName columns to users table
+ * - v29: Added genres and book_genres tables for offline genre support
+ * - v30: Added isFinished column to playback_positions for authoritative finished status
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -63,7 +65,7 @@ import androidx.room.TypeConverters
         ActivityEntity::class,
         UserStatsEntity::class,
     ],
-    version = 29,
+    version = 30,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)

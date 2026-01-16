@@ -6,6 +6,7 @@ import com.calypsan.listenup.client.data.remote.BackupApiContract
 import com.calypsan.listenup.client.data.remote.model.RestoreError
 import com.calypsan.listenup.client.data.remote.model.RestoreRequest
 import com.calypsan.listenup.client.domain.model.BackupValidation
+import com.calypsan.listenup.client.domain.repository.SyncRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,19 +17,21 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * Restore mode - fresh wipe or merge with existing data.
+ * API values must match server's backup.RestoreMode constants.
  */
 enum class RestoreMode(val apiValue: String, val displayName: String, val description: String) {
-    FRESH("fresh", "Fresh Restore", "Wipe all existing data and restore from backup"),
+    FRESH("full", "Fresh Restore", "Wipe all existing data and restore from backup"),
     MERGE("merge", "Merge", "Keep existing data and merge with backup"),
 }
 
 /**
  * Merge strategy when using merge mode.
+ * API values must match server's backup.MergeStrategy constants.
  */
 enum class MergeStrategy(val apiValue: String, val displayName: String, val description: String) {
-    SKIP("skip_existing", "Skip Existing", "Only import items that don't exist"),
-    OVERWRITE("overwrite", "Overwrite", "Replace existing items with backup data"),
-    NEWER_WINS("newer_wins", "Newer Wins", "Keep the most recently modified version"),
+    KEEP_LOCAL("keep_local", "Keep Local", "Keep existing local data on conflicts"),
+    KEEP_BACKUP("keep_backup", "Keep Backup", "Replace with backup data on conflicts"),
+    NEWEST("newest", "Newest Wins", "Keep the most recently modified version"),
 }
 
 /**
@@ -85,6 +88,7 @@ data class RestoreResults(
 class RestoreBackupViewModel(
     private val backupId: String,
     private val backupApi: BackupApiContract,
+    private val syncRepository: SyncRepository,
 ) : ViewModel() {
 
     val state: StateFlow<RestoreBackupState>
@@ -227,6 +231,19 @@ class RestoreBackupViewModel(
                         confirmFullWipe = current.mode == RestoreMode.FRESH,
                     ),
                 )
+
+                // After server restore completes, sync client state
+                // FRESH: Server data was completely replaced, need to clear and resync
+                // MERGE: Server data was merged, need to refresh listening history
+                logger.info { "Restore complete, syncing client state for mode ${current.mode}" }
+                if (current.mode == RestoreMode.FRESH) {
+                    // Clear local database and do full resync
+                    syncRepository.forceFullResync()
+                } else {
+                    // Merge mode - just refresh listening history like ABS import
+                    syncRepository.refreshListeningHistory()
+                }
+
                 state.update {
                     it.copy(
                         isRestoring = false,

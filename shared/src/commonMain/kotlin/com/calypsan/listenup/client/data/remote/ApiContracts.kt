@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.remote
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.remote.model.AllProgressResponse
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
 import com.calypsan.listenup.client.data.remote.model.ContributorResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
@@ -148,6 +149,19 @@ interface SyncApiContract {
      * @return Result containing list of ContinueListeningItemResponse
      */
     suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningItemResponse>>
+
+    /**
+     * Get all playback progress for the current user (for sync).
+     *
+     * Returns all progress records including isFinished status.
+     * Used for bulk sync to ensure client has accurate finished state.
+     *
+     * Endpoint: GET /api/v1/listening/progress
+     * Auth: Required
+     *
+     * @return Result containing AllProgressResponse with all progress items
+     */
+    suspend fun getAllProgress(): Result<AllProgressResponse>
 
     /**
      * Get a single book by ID.

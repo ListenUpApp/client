@@ -151,6 +151,7 @@ val adminPresentationModule =
             com.calypsan.listenup.client.presentation.admin.RestoreBackupViewModel(
                 backupId = params.get<String>(0),
                 backupApi = get(),
+                syncRepository = get(),
             )
         }
         // ABSImportViewModel for Audiobookshelf import (legacy wizard)

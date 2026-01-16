@@ -23,6 +23,7 @@ class PullSyncOrchestrator(
     private val tagPuller: Puller,
     private val genrePuller: Puller,
     private val listeningEventPuller: ListeningEventPullerContract,
+    private val progressPuller: Puller,
     private val activeSessionsPuller: Puller,
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
@@ -85,6 +86,10 @@ class PullSyncOrchestrator(
 
                 // Pull listening events (from other devices) for offline stats
                 listeningEventPuller.pull(updatedAfter, onProgress)
+
+                // Pull progress (includes isFinished for accurate Continue Listening filtering)
+                // Must run after listening events because progress has authoritative isFinished
+                progressPuller.pull(updatedAfter, onProgress)
 
                 // Pull active sessions for "What Others Are Listening To" discovery section
                 activeSessionsPuller.pull(updatedAfter, onProgress)

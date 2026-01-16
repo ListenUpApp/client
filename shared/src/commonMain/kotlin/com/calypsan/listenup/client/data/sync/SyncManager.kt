@@ -76,6 +76,15 @@ interface SyncManagerContract {
      * playback positions. Used after importing historical data.
      */
     suspend fun refreshListeningHistory(): Result<Unit>
+
+    /**
+     * Force a complete resync by clearing all local data and syncing fresh.
+     *
+     * Used after backup restore operations where the server data has been
+     * completely replaced. Disconnects SSE, clears local database,
+     * then performs a full sync.
+     */
+    suspend fun forceFullResync(): Result<Unit>
 }
 
 /**
@@ -372,6 +381,28 @@ class SyncManager(
         } catch (e: Exception) {
             logger.error(e) { "Failed to refresh listening history" }
             Failure(exception = e, message = "Failed to refresh listening history: ${e.message}")
+        }
+    }
+
+    override suspend fun forceFullResync(): Result<Unit> {
+        logger.info { "Force full resync - clearing local data and syncing fresh" }
+        _syncState.value = SyncStatus.Syncing
+
+        return try {
+            // Disconnect SSE to stop receiving events during reset
+            sseManager.disconnect()
+
+            // Clear all local library data
+            // This removes books, series, contributors, chapters, playback positions,
+            // pending operations, users, and sync timestamps
+            libraryResetHelper.clearLibraryData(discardPendingOperations = true)
+
+            // Perform fresh sync (will reconnect SSE at the end)
+            sync()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to force full resync" }
+            _syncState.value = SyncStatus.Error(exception = e)
+            Failure(exception = e, message = "Failed to resync: ${e.message}")
         }
     }
 

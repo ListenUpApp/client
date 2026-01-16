@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import com.calypsan.listenup.client.presentation.admin.MergeStrategy
 import com.calypsan.listenup.client.presentation.admin.RestoreBackupState
 import com.calypsan.listenup.client.presentation.admin.RestoreBackupViewModel
@@ -494,11 +495,21 @@ private fun ValidationContent(
                         }
                     }
                 }
-            } ?: OutlinedButton(
-                onClick = onPerformDryRun,
-                modifier = Modifier.fillMaxWidth(),
+            } ?: Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("Run Preview")
+                OutlinedButton(
+                    onClick = onPerformDryRun,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Run Preview")
+                }
+                TextButton(
+                    onClick = onNext,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Skip Preview")
+                }
             }
         }
 
@@ -508,12 +519,13 @@ private fun ValidationContent(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        ListenUpButton(
-            onClick = onNext,
-            text = "Continue to Confirmation",
-            enabled = state.dryRunResults != null,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        if (state.dryRunResults != null) {
+            ListenUpButton(
+                onClick = onNext,
+                text = "Continue to Confirmation",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 

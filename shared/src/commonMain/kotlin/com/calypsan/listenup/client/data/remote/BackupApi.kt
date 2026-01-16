@@ -104,6 +104,11 @@ class BackupApi(
         val client = clientFactory.getClient()
         val response: ApiResponse<RestoreResponse> = client.post("/api/v1/admin/restore") {
             setBody(request)
+            // Full restore can take significant time to wipe and reimport all data
+            timeout {
+                requestTimeoutMillis = 5 * 60 * 1000
+                socketTimeoutMillis = 5 * 60 * 1000
+            }
         }.body()
 
         return when (val result = response.toResult()) {

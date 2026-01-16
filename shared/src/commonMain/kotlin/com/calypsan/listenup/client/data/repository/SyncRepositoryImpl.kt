@@ -45,6 +45,9 @@ class SyncRepositoryImpl(
 
     override suspend fun refreshListeningHistory(): Result<Unit> =
         syncManager.refreshListeningHistory()
+
+    override suspend fun forceFullResync(): Result<Unit> =
+        syncManager.forceFullResync()
 }
 
 /**

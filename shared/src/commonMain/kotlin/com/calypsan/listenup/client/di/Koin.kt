@@ -100,6 +100,7 @@ import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.GenrePuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPullerContract
+import com.calypsan.listenup.client.data.sync.pull.ProgressPuller
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
@@ -970,6 +971,19 @@ val syncModule =
             )
         }
 
+        // ProgressPuller - syncs all playback progress including isFinished status
+        // Essential for cross-device sync, fresh installs, and ABS import
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("progressPuller"),
+        ) {
+            ProgressPuller(
+                syncApi = get(),
+                playbackPositionDao = get(),
+            )
+        }
+
         // PullSyncOrchestrator - coordinates parallel entity pulls
         single {
             PullSyncOrchestrator(
@@ -1004,6 +1018,12 @@ val syncModule =
                                 .named("genrePuller"),
                     ),
                 listeningEventPuller = get(),
+                progressPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("progressPuller"),
+                    ),
                 activeSessionsPuller =
                     get(
                         qualifier =

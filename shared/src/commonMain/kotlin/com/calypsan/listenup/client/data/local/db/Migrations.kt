@@ -1170,3 +1170,26 @@ val MIGRATION_28_29 =
             )
         }
     }
+
+/**
+ * Migration from version 29 to 30.
+ *
+ * Changes:
+ * - Add isFinished column to playback_positions table
+ *
+ * isFinished is the authoritative "finished" flag from the server.
+ * Unlike deriving finished status from position (>= 99%), this flag
+ * honors books marked complete in ABS even if position < 99%.
+ * This fixes Continue Listening showing finished books from ABS import.
+ */
+val MIGRATION_29_30 =
+    object : Migration(29, 30) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add isFinished column (defaults to false for existing rows)
+            connection.execSQL(
+                """
+                ALTER TABLE playback_positions ADD COLUMN isFinished INTEGER NOT NULL DEFAULT 0
+                """.trimIndent(),
+            )
+        }
+    }

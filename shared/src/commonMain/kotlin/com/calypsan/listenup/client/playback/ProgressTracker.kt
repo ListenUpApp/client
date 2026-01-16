@@ -247,7 +247,7 @@ class ProgressTracker(
         speed: Float,
     ) {
         try {
-            // Preserve existing hasCustomSpeed value
+            // Preserve existing hasCustomSpeed and isFinished values
             val existing = positionDao.get(bookId)
             val now = Clock.System.now().toEpochMilliseconds()
             positionDao.save(
@@ -259,6 +259,7 @@ class ProgressTracker(
                     updatedAt = now,
                     syncedAt = null,
                     lastPlayedAt = now, // Track actual play time
+                    isFinished = existing?.isFinished ?: false,
                 ),
             )
             logger.info { "Position saved: book=${bookId.value}, position=$positionMs, lastPlayedAt=$now" }
@@ -277,6 +278,7 @@ class ProgressTracker(
         newSpeed: Float,
     ) {
         scope.launch {
+            val existing = positionDao.get(bookId)
             val now = Clock.System.now().toEpochMilliseconds()
             positionDao.save(
                 PlaybackPositionEntity(
@@ -287,6 +289,7 @@ class ProgressTracker(
                     updatedAt = now,
                     syncedAt = null,
                     lastPlayedAt = now, // Track actual play time
+                    isFinished = existing?.isFinished ?: false,
                 ),
             )
             logger.debug { "Speed changed: book=${bookId.value}, speed=$newSpeed, hasCustomSpeed=true" }
@@ -303,6 +306,7 @@ class ProgressTracker(
         defaultSpeed: Float,
     ) {
         scope.launch {
+            val existing = positionDao.get(bookId)
             val now = Clock.System.now().toEpochMilliseconds()
             positionDao.save(
                 PlaybackPositionEntity(
@@ -313,6 +317,7 @@ class ProgressTracker(
                     updatedAt = now,
                     syncedAt = null,
                     lastPlayedAt = now, // Track actual play time
+                    isFinished = existing?.isFinished ?: false,
                 ),
             )
             logger.debug { "Speed reset to default: book=${bookId.value}, speed=$defaultSpeed, hasCustomSpeed=false" }

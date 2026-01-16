@@ -50,6 +50,7 @@ class PlaybackPositionRepositoryImpl(
                 updatedAt = now,
                 syncedAt = existing?.syncedAt,
                 lastPlayedAt = now,
+                isFinished = existing?.isFinished ?: false,
             )
         dao.save(entity)
     }

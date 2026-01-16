@@ -6,6 +6,7 @@ import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.core.getOrThrow
 import com.calypsan.listenup.client.core.suspendRunCatching
+import com.calypsan.listenup.client.data.remote.model.AllProgressResponse
 import com.calypsan.listenup.client.data.remote.model.ApiActiveSessions
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
@@ -296,6 +297,14 @@ class SyncApi(
                         parameter("limit", limit)
                     }.body()
             response.toResult().getOrThrow().items
+        }
+
+    override suspend fun getAllProgress(): Result<AllProgressResponse> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            val response: ApiResponse<AllProgressResponse> =
+                client.get("/api/v1/listening/progress").body()
+            response.toResult().getOrThrow()
         }
 
     /**

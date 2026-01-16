@@ -272,6 +272,10 @@ data class PlaybackPositionEntity(
     // Used for "Continue Listening" ordering and social features ("last read")
     // Falls back to updatedAt if null (legacy data before migration)
     val lastPlayedAt: Long? = null,
+    // Whether the book is finished (authoritative from server, not derived from position)
+    // Used to filter Continue Listening - a book marked finished in ABS should stay finished
+    // even if position < 99%
+    val isFinished: Boolean = false,
 )
 
 /**

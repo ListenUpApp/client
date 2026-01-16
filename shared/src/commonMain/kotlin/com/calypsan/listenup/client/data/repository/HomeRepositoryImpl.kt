@@ -128,10 +128,10 @@ class HomeRepositoryImpl(
                         0f
                     }
 
-                // Skip finished books
-                if (progress >= 0.99f) {
+                // Skip finished books (use server's authoritative isFinished flag)
+                if (position.isFinished) {
                     booksFiltered++
-                    logger.debug { "Local fallback: skipping finished book - id=$bookIdStr, progress=$progress" }
+                    logger.debug { "Local fallback: skipping finished book - id=$bookIdStr, isFinished=${position.isFinished}" }
                     return@mapNotNull null
                 }
 
@@ -173,10 +173,16 @@ class HomeRepositoryImpl(
         playbackPositionDao
             .observeAll()
             .mapLatest { positions ->
-                val sortedPositions =
-                    positions
-                        .sortedByDescending { it.lastPlayedAt ?: it.updatedAt }
-                        .take(limit)
+                logger.info { "observeContinueListening: total positions=${positions.size}" }
+
+                // Filter out finished books and unstarted books BEFORE applying limit
+                val inProgress = positions.filter { !it.isFinished && it.positionMs > 0 }
+                logger.info { "observeContinueListening: in-progress (not finished, positionMs>0)=${inProgress.size}" }
+
+                val sortedPositions = inProgress
+                    .sortedByDescending { it.lastPlayedAt ?: it.updatedAt }
+                    .take(limit)
+                logger.info { "observeContinueListening: after sort/take=${ sortedPositions.size}" }
 
                 val result = mutableListOf<ContinueListeningBook>()
                 for (position in sortedPositions) {
@@ -189,9 +195,6 @@ class HomeRepositoryImpl(
                         } else {
                             0f
                         }
-
-                    // Skip finished books
-                    if (progress >= 0.99f) continue
 
                     val lastPlayedAtMs = position.lastPlayedAt ?: position.updatedAt
                     val lastPlayedAtIso = Instant.fromEpochMilliseconds(lastPlayedAtMs).toString()
@@ -210,6 +213,7 @@ class HomeRepositoryImpl(
                         ),
                     )
                 }
+                logger.info { "observeContinueListening: returning ${result.size} books" }
                 result
             }
 }

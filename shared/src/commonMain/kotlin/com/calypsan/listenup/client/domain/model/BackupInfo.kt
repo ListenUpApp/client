@@ -31,40 +31,6 @@ data class BackupInfo(
 }
 
 /**
- * Restore mode for backup restoration.
- */
-enum class RestoreMode(val value: String) {
-    /** Replace all data with backup contents */
-    FULL("full"),
-    /** Merge backup data with existing data */
-    MERGE("merge"),
-    /** Only import listening events */
-    EVENTS_ONLY("events_only"),
-}
-
-/**
- * Conflict resolution strategy for merge mode.
- */
-enum class MergeStrategy(val value: String) {
-    /** Keep existing local data */
-    KEEP_LOCAL("keep_local"),
-    /** Overwrite with backup data */
-    KEEP_BACKUP("keep_backup"),
-    /** Keep whichever is newest */
-    NEWEST("newest"),
-}
-
-/**
- * Result of a restore operation.
- */
-data class RestoreResult(
-    val imported: Map<String, Int>,
-    val skipped: Map<String, Int>,
-    val errors: List<String>,
-    val duration: String,
-)
-
-/**
  * Validation result for a backup.
  */
 data class BackupValidation(

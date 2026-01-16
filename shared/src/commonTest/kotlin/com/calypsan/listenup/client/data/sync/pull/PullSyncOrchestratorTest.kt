@@ -38,6 +38,7 @@ class PullSyncOrchestratorTest {
         val tagPuller: Puller = mock()
         val genrePuller: Puller = mock()
         val listeningEventPuller: ListeningEventPullerContract = mock()
+        val progressPuller: Puller = mock()
         val activeSessionsPuller: Puller = mock()
         val syncDao: SyncDao = mock()
 
@@ -52,6 +53,7 @@ class PullSyncOrchestratorTest {
             everySuspend { tagPuller.pull(any(), any()) } returns Unit
             everySuspend { genrePuller.pull(any(), any()) } returns Unit
             everySuspend { listeningEventPuller.pull(any(), any()) } returns Unit
+            everySuspend { progressPuller.pull(any(), any()) } returns Unit
             everySuspend { activeSessionsPuller.pull(any(), any()) } returns Unit
             everySuspend { syncDao.getValue(SyncDao.KEY_LAST_SYNC_BOOKS) } returns null
         }
@@ -64,6 +66,7 @@ class PullSyncOrchestratorTest {
                 tagPuller = tagPuller,
                 genrePuller = genrePuller,
                 listeningEventPuller = listeningEventPuller,
+                progressPuller = progressPuller,
                 activeSessionsPuller = activeSessionsPuller,
                 coordinator = coordinator,
                 syncDao = syncDao,
