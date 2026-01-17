@@ -14,6 +14,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onEach
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -172,12 +173,22 @@ class HomeRepositoryImpl(
     override fun observeContinueListening(limit: Int): Flow<List<ContinueListeningBook>> =
         playbackPositionDao
             .observeAll()
+            .onEach { positions ->
+                val finishedCount = positions.count { it.isFinished }
+                logger.info {
+                    "Room EMITTED: ${positions.size} positions (finished=$finishedCount)"
+                }
+            }
             .mapLatest { positions ->
-                logger.info { "observeContinueListening: total positions=${positions.size}" }
+                val finishedFromRoom = positions.count { it.isFinished }
+                logger.info {
+                    "observeContinueListening: Room emitted ${positions.size} positions " +
+                        "(finished=$finishedFromRoom, unfinished=${positions.size - finishedFromRoom})"
+                }
 
                 // Filter out finished books and unstarted books BEFORE applying limit
                 val inProgress = positions.filter { !it.isFinished && it.positionMs > 0 }
-                logger.info { "observeContinueListening: in-progress (not finished, positionMs>0)=${inProgress.size}" }
+                logger.info { "observeContinueListening: after filter=${inProgress.size}" }
 
                 val sortedPositions = inProgress
                     .sortedByDescending { it.lastPlayedAt ?: it.updatedAt }

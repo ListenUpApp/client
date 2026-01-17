@@ -84,12 +84,14 @@ class PullSyncOrchestrator(
                 // Pull genres after books (genres are book categorization)
                 genrePuller.pull(updatedAfter, onProgress)
 
-                // Pull listening events (from other devices) for offline stats
-                listeningEventPuller.pull(updatedAfter, onProgress)
-
-                // Pull progress (includes isFinished for accurate Continue Listening filtering)
-                // Must run after listening events because progress has authoritative isFinished
+                // Pull progress FIRST - creates positions with correct isFinished
+                // This must run before listening events so positions exist with
+                // authoritative isFinished values before events update them
                 progressPuller.pull(updatedAfter, onProgress)
+
+                // Pull listening events (from other devices) for offline stats
+                // Uses .copy() on existing positions, preserving isFinished from progress
+                listeningEventPuller.pull(updatedAfter, onProgress)
 
                 // Pull active sessions for "What Others Are Listening To" discovery section
                 activeSessionsPuller.pull(updatedAfter, onProgress)
@@ -115,6 +117,11 @@ class PullSyncOrchestrator(
      */
     suspend fun refreshListeningHistory() {
         logger.info { "Refreshing all listening history..." }
+
+        // Pull progress FIRST to get authoritative isFinished values
+        progressPuller.pull(null) {}
+
+        // Then pull listening events (preserves isFinished via .copy())
         listeningEventPuller.pullAll()
     }
 }
