@@ -159,6 +159,7 @@ class ListeningEventPuller(
 
             if (existing == null) {
                 // No local position - create from synced data
+                // Use lastPlayedAt as startedAt since this is the first event we know about
                 toSave.add(
                     PlaybackPositionEntity(
                         bookId = BookId(bookId),
@@ -168,11 +169,15 @@ class ListeningEventPuller(
                         updatedAt = info.lastPlayedAt,
                         syncedAt = now,
                         lastPlayedAt = info.lastPlayedAt,
+                        isFinished = false,
+                        finishedAt = null,
+                        startedAt = info.lastPlayedAt, // First event = when started
                     ),
                 )
                 created++
             } else if (info.lastPlayedAt > (existing.lastPlayedAt ?: existing.updatedAt)) {
                 // Synced position is newer - update local
+                // Preserve isFinished, finishedAt, startedAt from existing
                 toSave.add(
                     existing.copy(
                         positionMs = info.positionMs,

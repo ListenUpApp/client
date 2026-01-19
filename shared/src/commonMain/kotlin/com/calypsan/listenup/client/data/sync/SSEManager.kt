@@ -24,6 +24,7 @@ import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEve
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEListeningEventCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEProfileUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEProgressDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEProgressUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEReadingSessionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSESessionEndedEvent
@@ -550,6 +551,17 @@ class SSEManager(
                         )
                     }
 
+                    "listening.progress_deleted" -> {
+                        val progressEvent =
+                            json.decodeFromJsonElement(
+                                SSEProgressDeletedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ProgressDeleted(
+                            bookId = progressEvent.bookId,
+                        )
+                    }
+
                     "reading_session.updated" -> {
                         val sessionEvent =
                             json.decodeFromJsonElement(
@@ -922,6 +934,14 @@ sealed interface SSEEventType {
         val totalListenTimeMs: Long,
         val isFinished: Boolean,
         val lastPlayedAt: String,
+    ) : SSEEventType
+
+    /**
+     * User's playback progress was deleted (discarded).
+     * Used to sync progress deletion across devices.
+     */
+    data class ProgressDeleted(
+        val bookId: String,
     ) : SSEEventType
 
     /**

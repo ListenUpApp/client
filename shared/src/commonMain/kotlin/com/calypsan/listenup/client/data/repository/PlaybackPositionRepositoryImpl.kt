@@ -1,13 +1,20 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
+import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Implementation of PlaybackPositionRepository using Room.
@@ -15,10 +22,17 @@ import kotlinx.coroutines.flow.map
  * Wraps PlaybackPositionDao and converts entities to domain models.
  * Position operations are instant and local-first.
  *
+ * The mark/discard/restart operations use optimistic updates:
+ * 1. Update local database immediately for instant UI response
+ * 2. Sync to server in background
+ * 3. Rollback local changes if server sync fails
+ *
  * @property dao Room DAO for position operations
+ * @property syncApi API for syncing progress changes to server
  */
 class PlaybackPositionRepositoryImpl(
     private val dao: PlaybackPositionDao,
+    private val syncApi: SyncApiContract,
 ) : PlaybackPositionRepository {
     override suspend fun get(bookId: String): PlaybackPosition? = dao.get(BookId(bookId))?.toDomain()
 
@@ -51,12 +65,134 @@ class PlaybackPositionRepositoryImpl(
                 syncedAt = existing?.syncedAt,
                 lastPlayedAt = now,
                 isFinished = existing?.isFinished ?: false,
+                finishedAt = existing?.finishedAt,
+                startedAt = existing?.startedAt ?: now, // Set on first save
             )
         dao.save(entity)
     }
 
     override suspend fun delete(bookId: String) {
         dao.delete(BookId(bookId))
+    }
+
+    override suspend fun markComplete(bookId: String): Result<Unit> {
+        logger.debug { "markComplete: $bookId" }
+        val existing = dao.get(BookId(bookId))
+        val now = currentEpochMilliseconds()
+
+        // Optimistic local update
+        val updated =
+            existing?.copy(
+                isFinished = true,
+                finishedAt = now,
+                updatedAt = now,
+            ) ?: PlaybackPositionEntity(
+                bookId = BookId(bookId),
+                positionMs = 0,
+                playbackSpeed = 1.0f,
+                hasCustomSpeed = false,
+                updatedAt = now,
+                lastPlayedAt = now,
+                isFinished = true,
+                finishedAt = now,
+                startedAt = now,
+            )
+        dao.save(updated)
+
+        // Sync to server
+        return when (val result = syncApi.markComplete(bookId)) {
+            is Success -> {
+                logger.info { "markComplete: synced $bookId to server" }
+                Success(Unit)
+            }
+            is Failure -> {
+                logger.warn { "markComplete: server sync failed for $bookId, rolling back" }
+                // Rollback on failure
+                if (existing != null) {
+                    dao.save(existing)
+                } else {
+                    dao.delete(BookId(bookId))
+                }
+                result
+            }
+        }
+    }
+
+    override suspend fun discardProgress(bookId: String): Result<Unit> {
+        logger.debug { "discardProgress: $bookId" }
+        val existing = dao.get(BookId(bookId))
+
+        // Optimistic local delete
+        dao.delete(BookId(bookId))
+
+        // Sync to server
+        return when (val result = syncApi.discardProgress(bookId, keepHistory = true)) {
+            is Success -> {
+                logger.info { "discardProgress: synced $bookId to server" }
+                Success(Unit)
+            }
+            is Failure -> {
+                logger.warn { "discardProgress: server sync failed for $bookId, rolling back" }
+                // Rollback on failure - restore previous state
+                if (existing != null) {
+                    dao.save(existing)
+                }
+                result
+            }
+        }
+    }
+
+    override suspend fun restartBook(bookId: String): Result<Unit> {
+        logger.debug { "restartBook: $bookId" }
+        val existing = dao.get(BookId(bookId))
+        val now = currentEpochMilliseconds()
+
+        // Optimistic local update
+        if (existing != null) {
+            val restarted =
+                existing.copy(
+                    positionMs = 0,
+                    isFinished = false,
+                    finishedAt = null,
+                    updatedAt = now,
+                    lastPlayedAt = now,
+                    startedAt = now, // New reading session starts now
+                )
+            dao.save(restarted)
+        } else {
+            // Create new position if none exists
+            val newPosition =
+                PlaybackPositionEntity(
+                    bookId = BookId(bookId),
+                    positionMs = 0,
+                    playbackSpeed = 1.0f,
+                    hasCustomSpeed = false,
+                    updatedAt = now,
+                    lastPlayedAt = now,
+                    isFinished = false,
+                    finishedAt = null,
+                    startedAt = now,
+                )
+            dao.save(newPosition)
+        }
+
+        // Sync to server
+        return when (val result = syncApi.restartBook(bookId)) {
+            is Success -> {
+                logger.info { "restartBook: synced $bookId to server" }
+                Success(Unit)
+            }
+            is Failure -> {
+                logger.warn { "restartBook: server sync failed for $bookId, rolling back" }
+                // Rollback on failure
+                if (existing != null) {
+                    dao.save(existing)
+                } else {
+                    dao.delete(BookId(bookId))
+                }
+                result
+            }
+        }
     }
 }
 
@@ -72,4 +208,7 @@ private fun PlaybackPositionEntity.toDomain(): PlaybackPosition =
         updatedAtMs = updatedAt,
         syncedAtMs = syncedAt,
         lastPlayedAtMs = lastPlayedAt,
+        isFinished = isFinished,
+        finishedAtMs = finishedAt,
+        startedAtMs = startedAt,
     )

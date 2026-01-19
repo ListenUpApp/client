@@ -852,6 +852,7 @@ val syncModule =
                 userProfileDao = get(),
                 activeSessionDao = get(),
                 userStatsDao = get(),
+                playbackPositionDao = get(),
                 imageDownloader = get(),
                 playbackStateProvider = get<PlaybackManager>(),
                 downloadService = get(),
@@ -1294,7 +1295,7 @@ val syncModule =
 
         // PlaybackPositionRepository for position tracking (SOLID: interface in domain, impl in data)
         single<PlaybackPositionRepository> {
-            PlaybackPositionRepositoryImpl(dao = get())
+            PlaybackPositionRepositoryImpl(dao = get(), syncApi = get())
         }
 
         // TagRepository for community tags (SOLID: interface in domain, impl in data)

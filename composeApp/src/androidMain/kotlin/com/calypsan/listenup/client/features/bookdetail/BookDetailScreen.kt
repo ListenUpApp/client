@@ -162,7 +162,13 @@ fun BookDetailScreen(
                     onBackClick = onBackClick,
                     onEditClick = { onEditClick(bookId) },
                     onFindMetadataClick = onFindMetadataClick,
-                    onMarkCompleteClick = { /* TODO: Implement */ },
+                    onMarkCompleteClick = {
+                        if (state.isComplete) {
+                            viewModel.restartBook()  // "Mark as Not Started" = restart
+                        } else {
+                            viewModel.markComplete()
+                        }
+                    },
                     onAddToCollectionClick = { /* TODO: Implement */ },
                     onDeleteBookClick = { /* TODO: Implement */ },
                     onPlayClick = { playerViewModel.playBook(BookId(bookId)) },

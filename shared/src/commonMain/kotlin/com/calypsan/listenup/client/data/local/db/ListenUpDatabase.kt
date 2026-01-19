@@ -35,6 +35,8 @@ import androidx.room.TypeConverters
  * - v28: Added firstName, lastName columns to users table
  * - v29: Added genres and book_genres tables for offline genre support
  * - v30: Added isFinished column to playback_positions for authoritative finished status
+ * - v31: Added finishedAt, startedAt columns to playback_positions for timeline tracking
+ * - v32: Added source column to listening_events for tracking event origin (playback/import/manual)
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -65,7 +67,7 @@ import androidx.room.TypeConverters
         ActivityEntity::class,
         UserStatsEntity::class,
     ],
-    version = 30,
+    version = 32,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)

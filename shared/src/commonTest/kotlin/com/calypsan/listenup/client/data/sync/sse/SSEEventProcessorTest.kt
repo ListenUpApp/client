@@ -19,6 +19,7 @@ import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
 import com.calypsan.listenup.client.data.local.db.UserDao
@@ -123,6 +124,7 @@ class SSEEventProcessorTest {
         val userProfileDao: UserProfileDao = mock()
         val activeSessionDao: ActiveSessionDao = mock()
         val userStatsDao: UserStatsDao = mock()
+        val playbackPositionDao: PlaybackPositionDao = mock()
         val imageDownloader: ImageDownloaderContract = mock()
         val playbackStateProvider: PlaybackStateProvider = mock()
         val downloadService: DownloadService = mock()
@@ -159,6 +161,7 @@ class SSEEventProcessorTest {
             everySuspend { activeSessionDao.upsert(any<ActiveSessionEntity>()) } returns Unit
             everySuspend { activeSessionDao.deleteBySessionId(any()) } returns Unit
             everySuspend { userStatsDao.upsert(any<UserStatsEntity>()) } returns Unit
+            everySuspend { playbackPositionDao.delete(any()) } returns Unit
             everySuspend { imageDownloader.downloadCover(any()) } returns Result.Success(false)
             everySuspend { imageDownloader.downloadUserAvatar(any(), any()) } returns Result.Success(false)
             everySuspend { imageDownloader.deleteUserAvatar(any()) } returns Result.Success(Unit)
@@ -196,6 +199,7 @@ class SSEEventProcessorTest {
                 userProfileDao = userProfileDao,
                 activeSessionDao = activeSessionDao,
                 userStatsDao = userStatsDao,
+                playbackPositionDao = playbackPositionDao,
                 imageDownloader = imageDownloader,
                 playbackStateProvider = playbackStateProvider,
                 downloadService = downloadService,

@@ -1093,3 +1093,18 @@ data class SSELibraryAccessModeChangedEvent(
     @SerialName("access_mode")
     val accessMode: String,
 )
+
+// =============================================================================
+// Progress Deleted SSE Event
+// =============================================================================
+
+/**
+ * SSE progress deleted event.
+ * Sent when a user's progress is discarded for a book.
+ * Other devices should delete their local progress record.
+ */
+@Serializable
+data class SSEProgressDeletedEvent(
+    @SerialName("book_id")
+    val bookId: String,
+)

@@ -10,6 +10,8 @@ import com.calypsan.listenup.client.domain.repository.GenreRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
+import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Success
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -135,8 +137,8 @@ class BookDetailViewModel(
                         null
                     }
 
-                // Check if book is complete (99%+ progress)
-                val isComplete = progress != null && progress >= 0.99f
+                // Check if book is marked as finished (authoritative from isFinished flag)
+                val isComplete = position?.isFinished ?: false
 
                 // Calculate time remaining if there's progress (but not complete)
                 val timeRemaining =
@@ -263,6 +265,79 @@ class BookDetailViewModel(
             }
         }
     }
+
+    /**
+     * Mark the current book as complete.
+     */
+    fun markComplete() {
+        val bookId = state.value.book?.id?.value ?: return
+        viewModelScope.launch {
+            state.update { it.copy(isMarkingComplete = true) }
+            when (playbackPositionRepository.markComplete(bookId)) {
+                is Success -> {
+                    state.update { it.copy(isMarkingComplete = false, isComplete = true) }
+                    logger.info { "Marked book $bookId as complete" }
+                }
+                is Failure -> {
+                    state.update { it.copy(isMarkingComplete = false) }
+                    logger.error { "Failed to mark book $bookId as complete" }
+                }
+            }
+        }
+    }
+
+    /**
+     * Discard progress for the current book (start over / DNF).
+     */
+    fun discardProgress() {
+        val bookId = state.value.book?.id?.value ?: return
+        viewModelScope.launch {
+            state.update { it.copy(isDiscardingProgress = true) }
+            when (playbackPositionRepository.discardProgress(bookId)) {
+                is Success -> {
+                    state.update {
+                        it.copy(
+                            isDiscardingProgress = false,
+                            isComplete = false,
+                            progress = null,
+                            timeRemainingFormatted = null,
+                        )
+                    }
+                    logger.info { "Discarded progress for book $bookId" }
+                }
+                is Failure -> {
+                    state.update { it.copy(isDiscardingProgress = false) }
+                    logger.error { "Failed to discard progress for book $bookId" }
+                }
+            }
+        }
+    }
+
+    /**
+     * Restart the current book from the beginning.
+     */
+    fun restartBook() {
+        val bookId = state.value.book?.id?.value ?: return
+        viewModelScope.launch {
+            state.update { it.copy(isRestarting = true) }
+            when (playbackPositionRepository.restartBook(bookId)) {
+                is Success -> {
+                    state.update {
+                        it.copy(
+                            isRestarting = false,
+                            isComplete = false,
+                            progress = 0f,
+                        )
+                    }
+                    logger.info { "Restarted book $bookId" }
+                }
+                is Failure -> {
+                    state.update { it.copy(isRestarting = false) }
+                    logger.error { "Failed to restart book $bookId" }
+                }
+            }
+        }
+    }
 }
 
 data class BookDetailUiState(
@@ -271,6 +346,10 @@ data class BookDetailUiState(
     val error: String? = null,
     val isAdmin: Boolean = false,
     val isComplete: Boolean = false,
+    // Loading states for progress management actions
+    val isMarkingComplete: Boolean = false,
+    val isDiscardingProgress: Boolean = false,
+    val isRestarting: Boolean = false,
     // Extended metadata for UI prototype (now in DB)
     val subtitle: String? = null,
     val series: String? = null,

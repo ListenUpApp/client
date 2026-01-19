@@ -19,6 +19,7 @@ import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
@@ -80,6 +81,7 @@ class SSEEventProcessor(
     private val userProfileDao: UserProfileDao,
     private val activeSessionDao: ActiveSessionDao,
     private val userStatsDao: UserStatsDao,
+    private val playbackPositionDao: PlaybackPositionDao,
     private val imageDownloader: ImageDownloaderContract,
     private val playbackStateProvider: PlaybackStateProvider,
     private val downloadService: DownloadService,
@@ -247,6 +249,10 @@ class SSEEventProcessor(
 
                 is SSEEventType.ProgressUpdated -> {
                     handleProgressUpdated(event)
+                }
+
+                is SSEEventType.ProgressDeleted -> {
+                    handleProgressDeleted(event)
                 }
 
                 is SSEEventType.ReadingSessionUpdated -> {
@@ -646,6 +652,16 @@ class SSEEventProcessor(
         }
         // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
         // Stats/Continue Listening screens can listen for this to refresh
+    }
+
+    private suspend fun handleProgressDeleted(event: SSEEventType.ProgressDeleted) {
+        logger.info { "SSE: Progress deleted for book ${event.bookId} (from another device)" }
+        try {
+            playbackPositionDao.delete(BookId(event.bookId))
+            logger.debug { "SSE: Deleted local progress for book ${event.bookId}" }
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to delete progress for book ${event.bookId}" }
+        }
     }
 
     private fun handleReadingSessionUpdated(event: SSEEventType.ReadingSessionUpdated) {

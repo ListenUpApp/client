@@ -1193,3 +1193,55 @@ val MIGRATION_29_30 =
             )
         }
     }
+
+/**
+ * Migration from version 30 to 31.
+ *
+ * Changes:
+ * - Add finishedAt column to playback_positions table
+ * - Add startedAt column to playback_positions table
+ *
+ * These timestamps enable:
+ * - finishedAt: When the book was marked finished (for stats/activity)
+ * - startedAt: When the user started this book (first listening event)
+ */
+val MIGRATION_30_31 =
+    object : Migration(30, 31) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add finishedAt column (nullable - only set when finished)
+            connection.execSQL(
+                """
+                ALTER TABLE playback_positions ADD COLUMN finishedAt INTEGER DEFAULT NULL
+                """.trimIndent(),
+            )
+
+            // Add startedAt column (nullable - only set on new positions after this migration)
+            connection.execSQL(
+                """
+                ALTER TABLE playback_positions ADD COLUMN startedAt INTEGER DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 31 to 32.
+ *
+ * Changes:
+ * - Add source column to listening_events table
+ *
+ * The source field tracks the origin of listening events:
+ * - "playback": Normal listening activity from the app
+ * - "import": Imported from external systems (e.g., Audiobookshelf)
+ * - "manual": Created by manual user actions
+ */
+val MIGRATION_31_32 =
+    object : Migration(31, 32) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                ALTER TABLE listening_events ADD COLUMN source TEXT NOT NULL DEFAULT 'playback'
+                """.trimIndent(),
+            )
+        }
+    }

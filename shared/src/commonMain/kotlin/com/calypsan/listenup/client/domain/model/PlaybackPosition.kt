@@ -13,6 +13,9 @@ package com.calypsan.listenup.client.domain.model
  * @property updatedAtMs When position was last modified locally
  * @property syncedAtMs When position was last synced to server
  * @property lastPlayedAtMs When user actually last played this book
+ * @property isFinished Whether the book is marked as finished (authoritative from server)
+ * @property finishedAtMs When the book was marked finished (epoch ms)
+ * @property startedAtMs When the user started this book (epoch ms)
  */
 data class PlaybackPosition(
     val bookId: String,
@@ -22,6 +25,9 @@ data class PlaybackPosition(
     val updatedAtMs: Long,
     val syncedAtMs: Long?,
     val lastPlayedAtMs: Long?,
+    val isFinished: Boolean = false,
+    val finishedAtMs: Long? = null,
+    val startedAtMs: Long? = null,
 ) {
     /**
      * Returns true if this position has pending sync changes.

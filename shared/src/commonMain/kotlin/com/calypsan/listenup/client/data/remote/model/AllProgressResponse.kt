@@ -34,6 +34,8 @@ data class ProgressSyncItem(
     val isFinished: Boolean,
     @SerialName("finished_at")
     val finishedAt: String? = null, // ISO 8601 timestamp, nullable
+    @SerialName("started_at")
+    val startedAt: String? = null, // ISO 8601 timestamp, when user started this book
     @SerialName("last_played_at")
     val lastPlayedAt: String, // ISO 8601 timestamp
     @SerialName("updated_at")
@@ -54,6 +56,8 @@ data class ProgressSyncItem(
             syncedAt = parseTimestamp(updatedAt),
             lastPlayedAt = parseTimestamp(lastPlayedAt),
             isFinished = isFinished,
+            finishedAt = finishedAt?.let { parseTimestamp(it) },
+            startedAt = startedAt?.let { parseTimestamp(it) } ?: existing?.startedAt,
         )
 
     /**

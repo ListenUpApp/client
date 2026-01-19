@@ -18,6 +18,7 @@ import com.calypsan.listenup.client.data.remote.model.SyncListeningEventsRespons
 import com.calypsan.listenup.client.data.remote.model.SyncManifestResponse
 import com.calypsan.listenup.client.data.remote.model.SyncSeriesResponse
 import io.ktor.client.call.body
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
@@ -418,6 +419,60 @@ class SyncApi(
                     },
             )
         }
+
+    /**
+     * Mark a book as complete.
+     *
+     * Endpoint: POST /api/v1/books/{bookId}/progress/complete
+     * Auth: Required
+     */
+    override suspend fun markComplete(
+        bookId: String,
+        finishedAt: String?,
+    ): Result<PlaybackProgressResponse> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            val response: ApiResponse<PlaybackProgressResponse> =
+                client
+                    .post("/api/v1/books/$bookId/progress/complete") {
+                        contentType(ContentType.Application.Json)
+                        if (finishedAt != null) {
+                            setBody(MarkCompleteRequest(finishedAt = finishedAt))
+                        }
+                    }.body()
+            response.toResult().getOrThrow()
+        }
+
+    /**
+     * Discard all progress for a book.
+     *
+     * Endpoint: DELETE /api/v1/books/{bookId}/progress/discard
+     * Auth: Required
+     */
+    override suspend fun discardProgress(
+        bookId: String,
+        keepHistory: Boolean,
+    ): Result<Unit> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            client.delete("/api/v1/books/$bookId/progress/discard") {
+                parameter("keep_history", keepHistory)
+            }
+        }
+
+    /**
+     * Restart a book from the beginning.
+     *
+     * Endpoint: POST /api/v1/books/{bookId}/progress/restart
+     * Auth: Required
+     */
+    override suspend fun restartBook(bookId: String): Result<PlaybackProgressResponse> =
+        suspendRunCatching {
+            val client = clientFactory.getClient()
+            val response: ApiResponse<PlaybackProgressResponse> =
+                client.post("/api/v1/books/$bookId/progress/restart").body()
+            response.toResult().getOrThrow()
+        }
 }
 
 /**
@@ -427,6 +482,14 @@ class SyncApi(
 data class EndPlaybackSessionRequest(
     @SerialName("book_id") val bookId: String,
     @SerialName("duration_ms") val durationMs: Long,
+)
+
+/**
+ * Request body for marking a book complete.
+ */
+@Serializable
+data class MarkCompleteRequest(
+    @SerialName("finished_at") val finishedAt: String,
 )
 
 /**

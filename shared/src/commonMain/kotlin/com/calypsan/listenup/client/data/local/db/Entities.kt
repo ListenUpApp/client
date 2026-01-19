@@ -276,6 +276,10 @@ data class PlaybackPositionEntity(
     // Used to filter Continue Listening - a book marked finished in ABS should stay finished
     // even if position < 99%
     val isFinished: Boolean = false,
+    // When the book was marked finished (epoch ms, null if not finished)
+    val finishedAt: Long? = null,
+    // When the user started this book (epoch ms, null for legacy data)
+    val startedAt: Long? = null,
 )
 
 /**
