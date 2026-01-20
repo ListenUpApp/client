@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod")
+
 package com.calypsan.listenup.client.features.bookdetail
 
 import androidx.compose.foundation.background
@@ -164,7 +166,7 @@ fun BookDetailScreen(
                     onFindMetadataClick = onFindMetadataClick,
                     onMarkCompleteClick = {
                         if (state.isComplete) {
-                            viewModel.restartBook()  // "Mark as Not Started" = restart
+                            viewModel.restartBook() // "Mark as Not Started" = restart
                         } else {
                             viewModel.markComplete()
                         }

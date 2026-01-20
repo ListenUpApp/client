@@ -43,18 +43,16 @@ enum class AccessMode {
      * Restricted mode: users only see books they're explicitly granted.
      * Collections grant access (opt in).
      */
-    RESTRICTED;
+    RESTRICTED,
+
+    ;
 
     companion object {
         /**
          * Parse access mode from server string representation.
          * Defaults to OPEN for unknown values.
          */
-        fun fromString(value: String): AccessMode =
-            when (value.lowercase()) {
-                "restricted" -> RESTRICTED
-                else -> OPEN
-            }
+        fun fromString(value: String): AccessMode = if (value.lowercase() == "restricted") RESTRICTED else OPEN
     }
 
     /**

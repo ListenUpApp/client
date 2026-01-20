@@ -62,10 +62,11 @@ class UserDetailViewModelTest {
             val adminRepository: AdminRepository = mock()
             everySuspend { adminRepository.getUser("user-1") } returns createUser()
 
-            val viewModel = UserDetailViewModel(
-                userId = "user-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                UserDetailViewModel(
+                    userId = "user-1",
+                    adminRepository = adminRepository,
+                )
 
             assertTrue(viewModel.state.value.isLoading)
         }
@@ -77,10 +78,11 @@ class UserDetailViewModelTest {
             val user = createUser(canDownload = true, canShare = false)
             everySuspend { adminRepository.getUser("user-1") } returns user
 
-            val viewModel = UserDetailViewModel(
-                userId = "user-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                UserDetailViewModel(
+                    userId = "user-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
@@ -95,14 +97,18 @@ class UserDetailViewModelTest {
             val adminRepository: AdminRepository = mock()
             everySuspend { adminRepository.getUser("user-1") } throws RuntimeException("Network error")
 
-            val viewModel = UserDetailViewModel(
-                userId = "user-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                UserDetailViewModel(
+                    userId = "user-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
-            assertTrue(viewModel.state.value.error?.contains("Network error") == true)
+            assertTrue(
+                viewModel.state.value.error
+                    ?.contains("Network error") == true,
+            )
         }
 
     @Test
@@ -110,9 +116,10 @@ class UserDetailViewModelTest {
         runTest {
             val adminRepository: AdminRepository = mock()
             val user = createUser(canDownload = true, canShare = true)
-            val updatedUser = user.copy(
-                permissions = UserPermissions(canDownload = false, canShare = true),
-            )
+            val updatedUser =
+                user.copy(
+                    permissions = UserPermissions(canDownload = false, canShare = true),
+                )
             everySuspend { adminRepository.getUser("user-1") } returns user
             everySuspend {
                 adminRepository.updateUser(
@@ -121,10 +128,11 @@ class UserDetailViewModelTest {
                 )
             } returns updatedUser
 
-            val viewModel = UserDetailViewModel(
-                userId = "user-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                UserDetailViewModel(
+                    userId = "user-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
 
             viewModel.toggleCanDownload()
@@ -141,9 +149,10 @@ class UserDetailViewModelTest {
         runTest {
             val adminRepository: AdminRepository = mock()
             val user = createUser(canDownload = true, canShare = true)
-            val updatedUser = user.copy(
-                permissions = UserPermissions(canDownload = true, canShare = false),
-            )
+            val updatedUser =
+                user.copy(
+                    permissions = UserPermissions(canDownload = true, canShare = false),
+                )
             everySuspend { adminRepository.getUser("user-1") } returns user
             everySuspend {
                 adminRepository.updateUser(
@@ -152,10 +161,11 @@ class UserDetailViewModelTest {
                 )
             } returns updatedUser
 
-            val viewModel = UserDetailViewModel(
-                userId = "user-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                UserDetailViewModel(
+                    userId = "user-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
 
             viewModel.toggleCanShare()
@@ -180,10 +190,11 @@ class UserDetailViewModelTest {
                 )
             } throws RuntimeException("Server error")
 
-            val viewModel = UserDetailViewModel(
-                userId = "user-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                UserDetailViewModel(
+                    userId = "user-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
 
             viewModel.toggleCanDownload()
@@ -191,7 +202,10 @@ class UserDetailViewModelTest {
 
             // Should revert to original state on error
             assertTrue(viewModel.state.value.canDownload)
-            assertTrue(viewModel.state.value.error?.contains("Server error") == true)
+            assertTrue(
+                viewModel.state.value.error
+                    ?.contains("Server error") == true,
+            )
         }
 
     @Test
@@ -200,10 +214,11 @@ class UserDetailViewModelTest {
             val adminRepository: AdminRepository = mock()
             everySuspend { adminRepository.getUser("user-1") } throws RuntimeException("Error")
 
-            val viewModel = UserDetailViewModel(
-                userId = "user-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                UserDetailViewModel(
+                    userId = "user-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
             assertTrue(viewModel.state.value.error != null)
 
@@ -216,24 +231,26 @@ class UserDetailViewModelTest {
     fun `protected users cannot have permissions toggled`() =
         runTest {
             val adminRepository: AdminRepository = mock()
-            val rootUser = AdminUserInfo(
-                id = "root-1",
-                email = "root@example.com",
-                displayName = "Root User",
-                firstName = "Root",
-                lastName = "User",
-                isRoot = true,
-                role = "admin",
-                status = "active",
-                permissions = UserPermissions(canDownload = true, canShare = true),
-                createdAt = "2024-01-01T00:00:00Z",
-            )
+            val rootUser =
+                AdminUserInfo(
+                    id = "root-1",
+                    email = "root@example.com",
+                    displayName = "Root User",
+                    firstName = "Root",
+                    lastName = "User",
+                    isRoot = true,
+                    role = "admin",
+                    status = "active",
+                    permissions = UserPermissions(canDownload = true, canShare = true),
+                    createdAt = "2024-01-01T00:00:00Z",
+                )
             everySuspend { adminRepository.getUser("root-1") } returns rootUser
 
-            val viewModel = UserDetailViewModel(
-                userId = "root-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                UserDetailViewModel(
+                    userId = "root-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
 
             assertTrue(viewModel.state.value.isProtected)

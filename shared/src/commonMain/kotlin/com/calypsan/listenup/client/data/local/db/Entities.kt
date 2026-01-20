@@ -573,7 +573,6 @@ data class ReadingSessionEntity(
     val userAvatarColor: String,
     val userAvatarType: String,
     val userAvatarValue: String?,
-    // Session state
     /** Whether user is currently actively reading (vs finished) */
     val isCurrentlyReading: Boolean,
     /** Current progress as percentage (0.0 to 1.0) */
@@ -584,7 +583,6 @@ data class ReadingSessionEntity(
     val finishedAt: Long?,
     /** Number of times user has completed this book */
     val completionCount: Int,
-    // Cache metadata
     /** When this cache entry was last updated (epoch ms) */
     val updatedAt: Long,
 ) {

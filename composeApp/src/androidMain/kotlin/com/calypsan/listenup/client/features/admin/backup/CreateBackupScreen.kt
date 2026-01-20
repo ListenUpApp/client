@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod")
+
 package com.calypsan.listenup.client.features.admin.backup
 
 import androidx.compose.foundation.layout.Arrangement
@@ -107,10 +109,11 @@ private fun CreateBackupForm(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
@@ -121,9 +124,10 @@ private fun CreateBackupForm(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -239,9 +243,10 @@ private fun CreateBackupForm(
         // Info card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                ),
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
@@ -252,11 +257,12 @@ private fun CreateBackupForm(
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    text = if (includeImages) {
-                        "Backup will include images. This may take a while and result in a larger file."
-                    } else {
-                        "Backup will not include images. Estimated size depends on your library."
-                    },
+                    text =
+                        if (includeImages) {
+                            "Backup will include images. This may take a while and result in a larger file."
+                        } else {
+                            "Backup will not include images. Estimated size depends on your library."
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
@@ -267,9 +273,10 @@ private fun CreateBackupForm(
         error?.let {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                ),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                    ),
             ) {
                 Text(
                     text = it,
@@ -290,9 +297,8 @@ private fun CreateBackupForm(
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
-private fun CreatingBackupContent(
-    modifier: Modifier = Modifier,
-) {
+private fun CreatingBackupContent(modifier: Modifier = Modifier) {
     FullScreenLoadingIndicator(message = "Creating Backup...")
 }

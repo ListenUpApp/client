@@ -34,20 +34,21 @@ import io.ktor.http.HttpHeaders
 class BackupApi(
     private val clientFactory: ApiClientFactory,
 ) : BackupApiContract {
-
     override suspend fun createBackup(
         includeImages: Boolean,
         includeEvents: Boolean,
     ): BackupResponse {
         val client = clientFactory.getClient()
-        val response: ApiResponse<BackupResponse> = client.post("/api/v1/admin/backups") {
-            setBody(
-                CreateBackupRequest(
-                    includeImages = includeImages,
-                    includeEvents = includeEvents,
-                ),
-            )
-        }.body()
+        val response: ApiResponse<BackupResponse> =
+            client
+                .post("/api/v1/admin/backups") {
+                    setBody(
+                        CreateBackupRequest(
+                            includeImages = includeImages,
+                            includeEvents = includeEvents,
+                        ),
+                    )
+                }.body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
@@ -84,15 +85,20 @@ class BackupApi(
 
         when (val result = response.toResult()) {
             is Success -> { /* Backup deleted successfully */ }
-            is Failure -> throw result.exceptionOrFromMessage()
+
+            is Failure -> {
+                throw result.exceptionOrFromMessage()
+            }
         }
     }
 
     override suspend fun validateBackup(backupId: String): ValidationResponse {
         val client = clientFactory.getClient()
-        val response: ApiResponse<ValidationResponse> = client.post("/api/v1/admin/backups/validate") {
-            setBody(ValidateBackupRequest(backupId = backupId))
-        }.body()
+        val response: ApiResponse<ValidationResponse> =
+            client
+                .post("/api/v1/admin/backups/validate") {
+                    setBody(ValidateBackupRequest(backupId = backupId))
+                }.body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
@@ -102,14 +108,16 @@ class BackupApi(
 
     override suspend fun restore(request: RestoreRequest): RestoreResponse {
         val client = clientFactory.getClient()
-        val response: ApiResponse<RestoreResponse> = client.post("/api/v1/admin/restore") {
-            setBody(request)
-            // Full restore can take significant time to wipe and reimport all data
-            timeout {
-                requestTimeoutMillis = 5 * 60 * 1000
-                socketTimeoutMillis = 5 * 60 * 1000
-            }
-        }.body()
+        val response: ApiResponse<RestoreResponse> =
+            client
+                .post("/api/v1/admin/restore") {
+                    setBody(request)
+                    // Full restore can take significant time to wipe and reimport all data
+                    timeout {
+                        requestTimeoutMillis = 5 * 60 * 1000
+                        socketTimeoutMillis = 5 * 60 * 1000
+                    }
+                }.body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
@@ -133,11 +141,12 @@ class BackupApi(
     override suspend fun browseFilesystem(path: String): BrowseFilesystemResponse {
         val client = clientFactory.getClient()
         val response: ApiResponse<BrowseFilesystemResponse> =
-            client.get("/api/v1/filesystem") {
-                url {
-                    parameters.append("path", path)
-                }
-            }.body()
+            client
+                .get("/api/v1/filesystem") {
+                    url {
+                        parameters.append("path", path)
+                    }
+                }.body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
@@ -150,26 +159,29 @@ class BackupApi(
     override suspend fun uploadABSBackup(fileSource: FileSource): UploadABSBackupResponse {
         val client = clientFactory.getClient()
         val response: ApiResponse<UploadABSBackupResponse> =
-            client.submitFormWithBinaryData(
-                url = "/api/v1/admin/abs/upload",
-                formData = formData {
-                    // Use ChannelProvider for streaming upload - content is read on-demand
-                    // rather than loading the entire file into memory
-                    append(
-                        key = "backup",
-                        value = ChannelProvider(fileSource.size) { fileSource.openChannel() },
-                        headers = Headers.build {
-                            append(HttpHeaders.ContentDisposition, "filename=\"${fileSource.filename}\"")
+            client
+                .submitFormWithBinaryData(
+                    url = "/api/v1/admin/abs/upload",
+                    formData =
+                        formData {
+                            // Use ChannelProvider for streaming upload - content is read on-demand
+                            // rather than loading the entire file into memory
+                            append(
+                                key = "backup",
+                                value = ChannelProvider(fileSource.size) { fileSource.openChannel() },
+                                headers =
+                                    Headers.build {
+                                        append(HttpHeaders.ContentDisposition, "filename=\"${fileSource.filename}\"")
+                                    },
+                            )
                         },
-                    )
-                },
-            ) {
-                // Large file uploads need extended timeout (10 minutes for streaming)
-                timeout {
-                    requestTimeoutMillis = 10 * 60 * 1000
-                    socketTimeoutMillis = 10 * 60 * 1000
-                }
-            }.body()
+                ) {
+                    // Large file uploads need extended timeout (10 minutes for streaming)
+                    timeout {
+                        requestTimeoutMillis = 10 * 60 * 1000
+                        socketTimeoutMillis = 10 * 60 * 1000
+                    }
+                }.body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
@@ -177,18 +189,18 @@ class BackupApi(
         }
     }
 
-    override suspend fun analyzeABSBackup(
-        request: AnalyzeABSRequest,
-    ): AnalyzeABSResponse {
+    override suspend fun analyzeABSBackup(request: AnalyzeABSRequest): AnalyzeABSResponse {
         val client = clientFactory.getClient()
-        val response: ApiResponse<AnalyzeABSResponse> = client.post("/api/v1/admin/abs/analyze") {
-            setBody(request)
-            // Parsing large SQLite databases can take time (5 minutes)
-            timeout {
-                requestTimeoutMillis = 5 * 60 * 1000
-                socketTimeoutMillis = 5 * 60 * 1000
-            }
-        }.body()
+        val response: ApiResponse<AnalyzeABSResponse> =
+            client
+                .post("/api/v1/admin/abs/analyze") {
+                    setBody(request)
+                    // Parsing large SQLite databases can take time (5 minutes)
+                    timeout {
+                        requestTimeoutMillis = 5 * 60 * 1000
+                        socketTimeoutMillis = 5 * 60 * 1000
+                    }
+                }.body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
@@ -196,18 +208,18 @@ class BackupApi(
         }
     }
 
-    override suspend fun importABSBackup(
-        request: ImportABSRequest,
-    ): ImportABSResponse {
+    override suspend fun importABSBackup(request: ImportABSRequest): ImportABSResponse {
         val client = clientFactory.getClient()
-        val response: ApiResponse<ImportABSResponse> = client.post("/api/v1/admin/abs/import") {
-            setBody(request)
-            // Import can process many items (5 minutes)
-            timeout {
-                requestTimeoutMillis = 5 * 60 * 1000
-                socketTimeoutMillis = 5 * 60 * 1000
-            }
-        }.body()
+        val response: ApiResponse<ImportABSResponse> =
+            client
+                .post("/api/v1/admin/abs/import") {
+                    setBody(request)
+                    // Import can process many items (5 minutes)
+                    timeout {
+                        requestTimeoutMillis = 5 * 60 * 1000
+                        socketTimeoutMillis = 5 * 60 * 1000
+                    }
+                }.body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data

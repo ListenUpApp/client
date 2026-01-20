@@ -1,9 +1,9 @@
+@file:Suppress("LongMethod", "LongParameterList", "CognitiveComplexMethod")
+
 package com.calypsan.listenup.client.features.admin.backup
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -39,17 +38,12 @@ import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -61,7 +55,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -105,20 +98,23 @@ fun ABSImportScreen(
     val state by viewModel.state.collectAsState()
 
     // Document picker for local file selection
-    val documentPicker = rememberABSBackupPicker { result ->
-        when (result) {
-            is DocumentPickerResult.Success -> {
-                // Pass the streaming file source (not byte array) to avoid OOM
-                viewModel.setLocalFile(result.fileSource, result.filename, result.size)
-            }
-            is DocumentPickerResult.Error -> {
-                // Error is shown via state
-            }
-            DocumentPickerResult.Cancelled -> {
-                // User cancelled, do nothing
+    val documentPicker =
+        rememberABSBackupPicker { result ->
+            when (result) {
+                is DocumentPickerResult.Success -> {
+                    // Pass the streaming file source (not byte array) to avoid OOM
+                    viewModel.setLocalFile(result.fileSource, result.filename, result.size)
+                }
+
+                is DocumentPickerResult.Error -> {
+                    // Error is shown via state
+                }
+
+                DocumentPickerResult.Cancelled -> {
+                    // User cancelled, do nothing
+                }
             }
         }
-    }
 
     Scaffold(
         topBar = {
@@ -141,91 +137,121 @@ fun ABSImportScreen(
         },
     ) { paddingValues ->
         when (state.step) {
-            ABSImportStep.SOURCE_SELECTION -> SourceSelectionContent(
-                state = state,
-                onSelectLocal = {
-                    viewModel.selectSourceType(ABSSourceType.LOCAL)
-                    documentPicker.launch()
-                },
-                onSelectRemote = { viewModel.selectSourceType(ABSSourceType.REMOTE) },
-                onPickDifferentFile = { documentPicker.launch() },
-                onClearFile = { viewModel.clearLocalFile() },
-                onProceed = { viewModel.uploadAndAnalyze() },
-                modifier = Modifier.padding(paddingValues),
-            )
-            ABSImportStep.FILE_BROWSER -> FileBrowserContent(
-                state = state,
-                onDirectoryClick = { viewModel.loadDirectory(it) },
-                onFileSelect = { viewModel.setFullRemotePath(it) },
-                onNavigateUp = { viewModel.navigateUp() },
-                modifier = Modifier.padding(paddingValues),
-            )
-            ABSImportStep.UPLOADING -> UploadingContent(
-                state = state,
-                modifier = Modifier.padding(paddingValues),
-            )
-            ABSImportStep.ANALYZING -> AnalyzingContent(
-                modifier = Modifier.padding(paddingValues),
-            )
-            ABSImportStep.USER_MAPPING -> UserMappingContent(
-                state = state,
-                onTabChange = viewModel::setUserMappingTab,
-                onActivateSearch = viewModel::activateUserSearch,
-                onSearchQueryChange = viewModel::updateUserSearchQuery,
-                onSelectUser = viewModel::selectUser,
-                onClearMapping = viewModel::clearUserMapping,
-                onNext = viewModel::nextStep,
-                modifier = Modifier.padding(paddingValues),
-            )
-            ABSImportStep.BOOK_MAPPING -> BookMappingContent(
-                state = state,
-                onTabChange = viewModel::setBookMappingTab,
-                onActivateSearch = viewModel::activateBookSearch,
-                onSearchQueryChange = viewModel::updateBookSearchQuery,
-                onSelectBook = viewModel::selectBook,
-                onClearMapping = viewModel::clearBookMapping,
-                onNext = viewModel::nextStep,
-                modifier = Modifier.padding(paddingValues),
-            )
-            ABSImportStep.IMPORT_OPTIONS -> ImportOptionsContent(
-                state = state,
-                onImportSessionsChange = viewModel::setImportSessions,
-                onImportProgressChange = viewModel::setImportProgress,
-                onRebuildProgressChange = viewModel::setRebuildProgress,
-                onImport = viewModel::nextStep,
-                modifier = Modifier.padding(paddingValues),
-            )
-            ABSImportStep.IMPORTING -> ImportingContent(
-                modifier = Modifier.padding(paddingValues),
-            )
-            ABSImportStep.RESULTS -> ResultsContent(
-                state = state,
-                onDone = onComplete,
-                modifier = Modifier.padding(paddingValues),
-            )
+            ABSImportStep.SOURCE_SELECTION -> {
+                SourceSelectionContent(
+                    state = state,
+                    onSelectLocal = {
+                        viewModel.selectSourceType(ABSSourceType.LOCAL)
+                        documentPicker.launch()
+                    },
+                    onSelectRemote = { viewModel.selectSourceType(ABSSourceType.REMOTE) },
+                    onPickDifferentFile = { documentPicker.launch() },
+                    onClearFile = { viewModel.clearLocalFile() },
+                    onProceed = { viewModel.uploadAndAnalyze() },
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            ABSImportStep.FILE_BROWSER -> {
+                FileBrowserContent(
+                    state = state,
+                    onDirectoryClick = { viewModel.loadDirectory(it) },
+                    onFileSelect = { viewModel.setFullRemotePath(it) },
+                    onNavigateUp = { viewModel.navigateUp() },
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            ABSImportStep.UPLOADING -> {
+                UploadingContent(
+                    state = state,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            ABSImportStep.ANALYZING -> {
+                AnalyzingContent(
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            ABSImportStep.USER_MAPPING -> {
+                UserMappingContent(
+                    state = state,
+                    onTabChange = viewModel::setUserMappingTab,
+                    onActivateSearch = viewModel::activateUserSearch,
+                    onSearchQueryChange = viewModel::updateUserSearchQuery,
+                    onSelectUser = viewModel::selectUser,
+                    onClearMapping = viewModel::clearUserMapping,
+                    onNext = viewModel::nextStep,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            ABSImportStep.BOOK_MAPPING -> {
+                BookMappingContent(
+                    state = state,
+                    onTabChange = viewModel::setBookMappingTab,
+                    onActivateSearch = viewModel::activateBookSearch,
+                    onSearchQueryChange = viewModel::updateBookSearchQuery,
+                    onSelectBook = viewModel::selectBook,
+                    onClearMapping = viewModel::clearBookMapping,
+                    onNext = viewModel::nextStep,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            ABSImportStep.IMPORT_OPTIONS -> {
+                ImportOptionsContent(
+                    state = state,
+                    onImportSessionsChange = viewModel::setImportSessions,
+                    onImportProgressChange = viewModel::setImportProgress,
+                    onRebuildProgressChange = viewModel::setRebuildProgress,
+                    onImport = viewModel::nextStep,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            ABSImportStep.IMPORTING -> {
+                ImportingContent(
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            ABSImportStep.RESULTS -> {
+                ResultsContent(
+                    state = state,
+                    onDone = onComplete,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
         }
     }
 }
 
-private fun canNavigateBack(step: ABSImportStep): Boolean = when (step) {
-    ABSImportStep.UPLOADING,
-    ABSImportStep.ANALYZING,
-    ABSImportStep.IMPORTING,
-    ABSImportStep.RESULTS -> false
-    else -> true
-}
+private fun canNavigateBack(step: ABSImportStep): Boolean =
+    when (step) {
+        ABSImportStep.UPLOADING,
+        ABSImportStep.ANALYZING,
+        ABSImportStep.IMPORTING,
+        ABSImportStep.RESULTS,
+        -> false
 
-private fun getStepTitle(step: ABSImportStep): String = when (step) {
-    ABSImportStep.SOURCE_SELECTION -> "Import from Audiobookshelf"
-    ABSImportStep.FILE_BROWSER -> "Select Backup File"
-    ABSImportStep.UPLOADING -> "Uploading..."
-    ABSImportStep.ANALYZING -> "Analyzing..."
-    ABSImportStep.USER_MAPPING -> "Map Users"
-    ABSImportStep.BOOK_MAPPING -> "Map Books"
-    ABSImportStep.IMPORT_OPTIONS -> "Import Options"
-    ABSImportStep.IMPORTING -> "Importing..."
-    ABSImportStep.RESULTS -> "Import Complete"
-}
+        else -> true
+    }
+
+private fun getStepTitle(step: ABSImportStep): String =
+    when (step) {
+        ABSImportStep.SOURCE_SELECTION -> "Import from Audiobookshelf"
+        ABSImportStep.FILE_BROWSER -> "Select Backup File"
+        ABSImportStep.UPLOADING -> "Uploading..."
+        ABSImportStep.ANALYZING -> "Analyzing..."
+        ABSImportStep.USER_MAPPING -> "Map Users"
+        ABSImportStep.BOOK_MAPPING -> "Map Books"
+        ABSImportStep.IMPORT_OPTIONS -> "Import Options"
+        ABSImportStep.IMPORTING -> "Importing..."
+        ABSImportStep.RESULTS -> "Import Complete"
+    }
 
 // === Source Selection ===
 
@@ -240,10 +266,11 @@ private fun SourceSelectionContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
@@ -255,9 +282,10 @@ private fun SourceSelectionContent(
         // Instructions card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                ),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -266,9 +294,10 @@ private fun SourceSelectionContent(
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 Text(
-                    text = "1. In Audiobookshelf, go to Settings > Backups\n" +
-                        "2. Create a new backup or download an existing one\n" +
-                        "3. Choose how to import below",
+                    text =
+                        "1. In Audiobookshelf, go to Settings > Backups\n" +
+                            "2. Create a new backup or download an existing one\n" +
+                            "3. Choose how to import below",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
@@ -334,12 +363,14 @@ private fun SourceOptionCard(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -377,9 +408,10 @@ private fun SelectedFileCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -408,9 +440,10 @@ private fun SelectedFileCard(
                 }
             }
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedButton(
@@ -430,14 +463,14 @@ private fun SelectedFileCard(
     }
 }
 
-private fun formatFileSize(bytes: Long): String {
-    return when {
+@Suppress("MagicNumber")
+private fun formatFileSize(bytes: Long): String =
+    when {
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
         else -> "${bytes / (1024 * 1024 * 1024)} GB"
     }
-}
 
 // === File Browser ===
 
@@ -455,9 +488,10 @@ private fun FileBrowserContent(
         // Current path breadcrumb
         PathBreadcrumb(
             path = state.currentPath,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -469,9 +503,10 @@ private fun FileBrowserContent(
             )
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
             ) {
                 // Navigate up option if not at root
                 if (!state.isRoot) {
@@ -513,9 +548,10 @@ private fun FileBrowserContent(
                 if (state.directories.isEmpty()) {
                     item {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
@@ -538,9 +574,10 @@ private fun FileBrowserContent(
 
         // Filename input and select button
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             OutlinedTextField(
@@ -555,11 +592,12 @@ private fun FileBrowserContent(
             ListenUpButton(
                 onClick = {
                     val currentPath = state.currentPath
-                    val fullPath = if (currentPath.endsWith("/")) {
-                        "$currentPath$filename"
-                    } else {
-                        "$currentPath/$filename"
-                    }
+                    val fullPath =
+                        if (currentPath.endsWith("/")) {
+                            "$currentPath$filename"
+                        } else {
+                            "$currentPath/$filename"
+                        }
                     onFileSelect(fullPath)
                 },
                 text = "Select Backup",
@@ -629,9 +667,10 @@ private fun UploadingContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -662,9 +701,7 @@ private fun UploadingContent(
 // === Analyzing ===
 
 @Composable
-private fun AnalyzingContent(
-    modifier: Modifier = Modifier,
-) {
+private fun AnalyzingContent(modifier: Modifier = Modifier) {
     FullScreenLoadingIndicator(
         modifier = modifier,
         message = "Analyzing Backup...",
@@ -690,9 +727,10 @@ private fun UserMappingContent(
     val needsReviewUsers = state.userMatches.filter { it.listenupId == null }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(16.dp),
     ) {
         Text(
             text = "Match Audiobookshelf users to ListenUp users.",
@@ -729,30 +767,35 @@ private fun UserMappingContent(
             label = "user_mapping_tab",
         ) { tab ->
             when (tab) {
-                UserMappingTab.NEEDS_REVIEW -> UserNeedsReviewTabContent(
-                    users = needsReviewUsers,
-                    selectedUserDisplays = state.selectedUserDisplays,
-                    activeSearchAbsUserId = state.activeSearchAbsUserId,
-                    searchQuery = state.userSearchQuery,
-                    searchResults = state.userSearchResults,
-                    isSearching = state.isSearchingUsers,
-                    onActivateSearch = onActivateSearch,
-                    onSearchQueryChange = onSearchQueryChange,
-                    onSelectUser = onSelectUser,
-                    onClearMapping = onClearMapping,
-                )
-                UserMappingTab.AUTO_MATCHED -> UserAutoMatchedTabContent(
-                    users = autoMatchedUsers,
-                    selectedUserDisplays = state.selectedUserDisplays,
-                    activeSearchAbsUserId = state.activeSearchAbsUserId,
-                    searchQuery = state.userSearchQuery,
-                    searchResults = state.userSearchResults,
-                    isSearching = state.isSearchingUsers,
-                    onActivateSearch = onActivateSearch,
-                    onSearchQueryChange = onSearchQueryChange,
-                    onSelectUser = onSelectUser,
-                    onClearMapping = onClearMapping,
-                )
+                UserMappingTab.NEEDS_REVIEW -> {
+                    UserNeedsReviewTabContent(
+                        users = needsReviewUsers,
+                        selectedUserDisplays = state.selectedUserDisplays,
+                        activeSearchAbsUserId = state.activeSearchAbsUserId,
+                        searchQuery = state.userSearchQuery,
+                        searchResults = state.userSearchResults,
+                        isSearching = state.isSearchingUsers,
+                        onActivateSearch = onActivateSearch,
+                        onSearchQueryChange = onSearchQueryChange,
+                        onSelectUser = onSelectUser,
+                        onClearMapping = onClearMapping,
+                    )
+                }
+
+                UserMappingTab.AUTO_MATCHED -> {
+                    UserAutoMatchedTabContent(
+                        users = autoMatchedUsers,
+                        selectedUserDisplays = state.selectedUserDisplays,
+                        activeSearchAbsUserId = state.activeSearchAbsUserId,
+                        searchQuery = state.userSearchQuery,
+                        searchResults = state.userSearchResults,
+                        isSearching = state.isSearchingUsers,
+                        onActivateSearch = onActivateSearch,
+                        onSearchQueryChange = onSearchQueryChange,
+                        onSelectUser = onSelectUser,
+                        onClearMapping = onClearMapping,
+                    )
+                }
             }
         }
 
@@ -790,9 +833,10 @@ private fun UserNeedsReviewTabContent(
     if (users.isEmpty()) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
@@ -888,13 +932,15 @@ private fun UserMappingCard(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (hasSelection) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (hasSelection) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    },
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // ABS user info header
@@ -973,14 +1019,16 @@ private fun SelectedUserChip(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -1038,25 +1086,26 @@ private fun UserSearchField(
 ) {
     // Combine suggestions with search results
     // Show suggestions when query is empty, search results when typing
-    val displayResults: List<UserSearchItem> = if (searchQuery.isEmpty() && suggestions.isNotEmpty()) {
-        suggestions.map { suggestion ->
-            UserSearchItem(
-                id = suggestion.userId,
-                email = suggestion.email ?: "",
-                displayName = suggestion.displayName,
-                isSuggestion = true,
-            )
+    val displayResults: List<UserSearchItem> =
+        if (searchQuery.isEmpty() && suggestions.isNotEmpty()) {
+            suggestions.map { suggestion ->
+                UserSearchItem(
+                    id = suggestion.userId,
+                    email = suggestion.email ?: "",
+                    displayName = suggestion.displayName,
+                    isSuggestion = true,
+                )
+            }
+        } else {
+            searchResults.map { result ->
+                UserSearchItem(
+                    id = result.id,
+                    email = result.email,
+                    displayName = result.displayName.takeIf { it.isNotBlank() },
+                    isSuggestion = false,
+                )
+            }
         }
-    } else {
-        searchResults.map { result ->
-            UserSearchItem(
-                id = result.id,
-                email = result.email,
-                displayName = result.displayName.takeIf { it.isNotBlank() },
-                isSuggestion = false,
-            )
-        }
-    }
 
     Column(modifier = modifier) {
         ListenUpAutocompleteField(
@@ -1081,11 +1130,12 @@ private fun UserSearchField(
                     onClick = { onSelectUser(item.id, item.email, item.displayName) },
                 )
             },
-            placeholder = if (suggestions.isNotEmpty()) {
-                "Tap to see suggestions or search..."
-            } else {
-                "Search users by name or email..."
-            },
+            placeholder =
+                if (suggestions.isNotEmpty()) {
+                    "Tap to see suggestions or search..."
+                } else {
+                    "Search users by name or email..."
+                },
             isLoading = isSearching,
         )
 
@@ -1123,18 +1173,19 @@ private fun UserSearchResultItem(
 ) {
     AutocompleteResultItem(
         name = item.displayName ?: item.email,
-        subtitle = if (item.displayName != null) item.email else null,
+        subtitle = item.displayName?.let { item.email },
         onClick = onClick,
         modifier = modifier,
         leadingIcon = {
             Icon(
                 Icons.Outlined.Person,
                 contentDescription = null,
-                tint = if (item.isSuggestion) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                tint =
+                    if (item.isSuggestion) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 modifier = Modifier.size(24.dp),
             )
         },
@@ -1160,9 +1211,10 @@ private fun BookMappingContent(
     val needsReviewBooks = state.bookMatches.filter { it.listenupId == null }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(16.dp),
     ) {
         Text(
             text = "Match Audiobookshelf books to your ListenUp library.",
@@ -1199,30 +1251,35 @@ private fun BookMappingContent(
             label = "book_mapping_tab",
         ) { tab ->
             when (tab) {
-                BookMappingTab.NEEDS_REVIEW -> NeedsReviewTabContent(
-                    books = needsReviewBooks,
-                    selectedBookDisplays = state.selectedBookDisplays,
-                    activeSearchAbsItemId = state.activeSearchAbsItemId,
-                    searchQuery = state.bookSearchQuery,
-                    searchResults = state.bookSearchResults,
-                    isSearching = state.isSearchingBooks,
-                    onActivateSearch = onActivateSearch,
-                    onSearchQueryChange = onSearchQueryChange,
-                    onSelectBook = onSelectBook,
-                    onClearMapping = onClearMapping,
-                )
-                BookMappingTab.AUTO_MATCHED -> AutoMatchedTabContent(
-                    books = autoMatchedBooks,
-                    selectedBookDisplays = state.selectedBookDisplays,
-                    activeSearchAbsItemId = state.activeSearchAbsItemId,
-                    searchQuery = state.bookSearchQuery,
-                    searchResults = state.bookSearchResults,
-                    isSearching = state.isSearchingBooks,
-                    onActivateSearch = onActivateSearch,
-                    onSearchQueryChange = onSearchQueryChange,
-                    onSelectBook = onSelectBook,
-                    onClearMapping = onClearMapping,
-                )
+                BookMappingTab.NEEDS_REVIEW -> {
+                    NeedsReviewTabContent(
+                        books = needsReviewBooks,
+                        selectedBookDisplays = state.selectedBookDisplays,
+                        activeSearchAbsItemId = state.activeSearchAbsItemId,
+                        searchQuery = state.bookSearchQuery,
+                        searchResults = state.bookSearchResults,
+                        isSearching = state.isSearchingBooks,
+                        onActivateSearch = onActivateSearch,
+                        onSearchQueryChange = onSearchQueryChange,
+                        onSelectBook = onSelectBook,
+                        onClearMapping = onClearMapping,
+                    )
+                }
+
+                BookMappingTab.AUTO_MATCHED -> {
+                    AutoMatchedTabContent(
+                        books = autoMatchedBooks,
+                        selectedBookDisplays = state.selectedBookDisplays,
+                        activeSearchAbsItemId = state.activeSearchAbsItemId,
+                        searchQuery = state.bookSearchQuery,
+                        searchResults = state.bookSearchResults,
+                        isSearching = state.isSearchingBooks,
+                        onActivateSearch = onActivateSearch,
+                        onSearchQueryChange = onSearchQueryChange,
+                        onSelectBook = onSelectBook,
+                        onClearMapping = onClearMapping,
+                    )
+                }
             }
         }
 
@@ -1260,9 +1317,10 @@ private fun NeedsReviewTabContent(
     if (books.isEmpty()) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
@@ -1358,13 +1416,15 @@ private fun BookMappingCard(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (hasSelection) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (hasSelection) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    },
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // ABS book info header
@@ -1436,14 +1496,16 @@ private fun SelectedBookChip(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -1501,27 +1563,28 @@ private fun BookSearchField(
 ) {
     // Combine suggestions with search results
     // Show suggestions when query is empty, search results when typing
-    val displayResults: List<BookSearchItem> = if (searchQuery.isEmpty() && suggestions.isNotEmpty()) {
-        suggestions.map { suggestion ->
-            BookSearchItem(
-                id = suggestion.bookId,
-                title = suggestion.title,
-                author = suggestion.author,
-                durationMs = suggestion.durationMs,
-                isSuggestion = true,
-            )
+    val displayResults: List<BookSearchItem> =
+        if (searchQuery.isEmpty() && suggestions.isNotEmpty()) {
+            suggestions.map { suggestion ->
+                BookSearchItem(
+                    id = suggestion.bookId,
+                    title = suggestion.title,
+                    author = suggestion.author,
+                    durationMs = suggestion.durationMs,
+                    isSuggestion = true,
+                )
+            }
+        } else {
+            searchResults.map { hit ->
+                BookSearchItem(
+                    id = hit.id,
+                    title = hit.name,
+                    author = hit.author,
+                    durationMs = hit.duration,
+                    isSuggestion = false,
+                )
+            }
         }
-    } else {
-        searchResults.map { hit ->
-            BookSearchItem(
-                id = hit.id,
-                title = hit.name,
-                author = hit.author,
-                durationMs = hit.duration,
-                isSuggestion = false,
-            )
-        }
-    }
 
     Column(modifier = modifier) {
         ListenUpAutocompleteField(
@@ -1546,11 +1609,12 @@ private fun BookSearchField(
                     onClick = { onSelectBook(item.id, item.title, item.author, item.durationMs) },
                 )
             },
-            placeholder = if (suggestions.isNotEmpty()) {
-                "Tap to see suggestions or search..."
-            } else {
-                "Search your library..."
-            },
+            placeholder =
+                if (suggestions.isNotEmpty()) {
+                    "Tap to see suggestions or search..."
+                } else {
+                    "Search your library..."
+                },
             isLoading = isSearching,
         )
 
@@ -1587,11 +1651,12 @@ private fun BookSearchResultItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val durationText = item.durationMs?.let { ms ->
-        val hours = ms / 3600000
-        val mins = (ms % 3600000) / 60000
-        if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
-    }
+    val durationText =
+        item.durationMs?.let { ms ->
+            val hours = ms / 3_600_000
+            val mins = ms % 3_600_000 / 60_000
+            if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
+        }
 
     AutocompleteResultItem(
         name = item.title,
@@ -1602,11 +1667,12 @@ private fun BookSearchResultItem(
             Icon(
                 Icons.AutoMirrored.Outlined.MenuBook,
                 contentDescription = null,
-                tint = if (item.isSuggestion) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                tint =
+                    if (item.isSuggestion) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 modifier = Modifier.size(24.dp),
             )
         },
@@ -1625,10 +1691,11 @@ private fun ImportOptionsContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
@@ -1640,9 +1707,10 @@ private fun ImportOptionsContent(
         // Summary
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -1659,9 +1727,10 @@ private fun ImportOptionsContent(
         // Options
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -1742,9 +1811,10 @@ private fun ImportOptionsContent(
         if (state.analysisWarnings.isNotEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                ),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    ),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -1792,9 +1862,7 @@ private fun ImportOptionsContent(
 // === Importing ===
 
 @Composable
-private fun ImportingContent(
-    modifier: Modifier = Modifier,
-) {
+private fun ImportingContent(modifier: Modifier = Modifier) {
     FullScreenLoadingIndicator(
         modifier = modifier,
         message = "Importing Data...",
@@ -1810,10 +1878,11 @@ private fun ResultsContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         val results = state.importResults
@@ -1822,13 +1891,15 @@ private fun ResultsContent(
         // Success/Error header
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = if (hasErrors) {
-                    MaterialTheme.colorScheme.errorContainer
-                } else {
-                    MaterialTheme.colorScheme.primaryContainer
-                },
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor =
+                        if (hasErrors) {
+                            MaterialTheme.colorScheme.errorContainer
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer
+                        },
+                ),
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
@@ -1838,31 +1909,34 @@ private fun ResultsContent(
                 Icon(
                     if (hasErrors) Icons.Default.Warning else Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = if (hasErrors) {
-                        MaterialTheme.colorScheme.onErrorContainer
-                    } else {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    },
+                    tint =
+                        if (hasErrors) {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        } else {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        },
                 )
                 Column {
                     Text(
                         text = if (hasErrors) "Import Completed with Issues" else "Import Successful",
                         style = MaterialTheme.typography.titleMedium,
-                        color = if (hasErrors) {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        } else {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        },
+                        color =
+                            if (hasErrors) {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            } else {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            },
                     )
                     results?.duration?.let {
                         Text(
                             text = "Completed in $it",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (hasErrors) {
-                                MaterialTheme.colorScheme.onErrorContainer
-                            } else {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            },
+                            color =
+                                if (hasErrors) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                },
                         )
                     }
                 }
@@ -1873,9 +1947,10 @@ private fun ResultsContent(
         results?.let { r ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                ),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -1893,9 +1968,10 @@ private fun ResultsContent(
             if (r.warnings.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
-                    ),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+                        ),
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -1925,9 +2001,10 @@ private fun ResultsContent(
             if (r.errors.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                    ),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                        ),
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -1978,9 +2055,10 @@ private fun ErrorCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+            ),
     ) {
         Text(
             text = text,
@@ -1996,33 +2074,48 @@ private fun ConfidenceBadge(
     confidence: String,
     modifier: Modifier = Modifier,
 ) {
-    val (containerColor, contentColor, label) = when (confidence.lowercase()) {
-        "exact" -> Triple(
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.onPrimaryContainer,
-            "Exact",
-        )
-        "high" -> Triple(
-            MaterialTheme.colorScheme.tertiaryContainer,
-            MaterialTheme.colorScheme.onTertiaryContainer,
-            "High",
-        )
-        "medium" -> Triple(
-            MaterialTheme.colorScheme.secondaryContainer,
-            MaterialTheme.colorScheme.onSecondaryContainer,
-            "Medium",
-        )
-        "low" -> Triple(
-            MaterialTheme.colorScheme.surfaceContainerHighest,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            "Low",
-        )
-        else -> Triple(
-            MaterialTheme.colorScheme.surfaceContainerHigh,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            confidence.replaceFirstChar { it.uppercase() },
-        )
-    }
+    val (containerColor, contentColor, label) =
+        when (confidence.lowercase()) {
+            "exact" -> {
+                Triple(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    MaterialTheme.colorScheme.onPrimaryContainer,
+                    "Exact",
+                )
+            }
+
+            "high" -> {
+                Triple(
+                    MaterialTheme.colorScheme.tertiaryContainer,
+                    MaterialTheme.colorScheme.onTertiaryContainer,
+                    "High",
+                )
+            }
+
+            "medium" -> {
+                Triple(
+                    MaterialTheme.colorScheme.secondaryContainer,
+                    MaterialTheme.colorScheme.onSecondaryContainer,
+                    "Medium",
+                )
+            }
+
+            "low" -> {
+                Triple(
+                    MaterialTheme.colorScheme.surfaceContainerHighest,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    "Low",
+                )
+            }
+
+            else -> {
+                Triple(
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    confidence.replaceFirstChar { it.uppercase() },
+                )
+            }
+        }
 
     Card(
         modifier = modifier,

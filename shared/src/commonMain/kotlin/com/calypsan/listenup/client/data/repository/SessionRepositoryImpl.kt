@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException")
+
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Result
@@ -41,7 +43,6 @@ class SessionRepositoryImpl(
     private val authSession: AuthSession,
     private val repositoryScope: CoroutineScope,
 ) : SessionRepository {
-
     // ═══════════════════════════════════════════════════════════════════════════
     // LEGACY ONE-SHOT METHODS (kept for backwards compatibility)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -116,9 +117,10 @@ class SessionRepositoryImpl(
                 val currentUserId = authSession.getUserId()
                 if (currentUserId != null && response.yourSessions.isNotEmpty()) {
                     // Create a summary entity from user's sessions
-                    val mostRecent = response.yourSessions.maxByOrNull {
-                        it.finishedAt ?: it.startedAt
-                    }
+                    val mostRecent =
+                        response.yourSessions.maxByOrNull {
+                            it.finishedAt ?: it.startedAt
+                        }
                     if (mostRecent != null) {
                         entities.add(
                             ReadingSessionEntity(
@@ -169,18 +171,19 @@ class SessionRepositoryImpl(
         val (userEntities, otherEntities) = entities.partition { it.userId == currentUserId }
 
         // Convert user's entity to SessionSummary list
-        val yourSessions = userEntities.firstOrNull()?.let { entity ->
-            // We store aggregated data, create summary from it
-            listOf(
-                SessionSummary(
-                    id = entity.id,
-                    startedAt = formatTimestamp(entity.startedAt),
-                    finishedAt = entity.finishedAt?.let { formatTimestamp(it) },
-                    isCompleted = entity.completionCount > 0,
-                    listenTimeMs = 0L, // Not tracked in cache
-                ),
-            )
-        } ?: emptyList()
+        val yourSessions =
+            userEntities.firstOrNull()?.let { entity ->
+                // We store aggregated data, create summary from it
+                listOf(
+                    SessionSummary(
+                        id = entity.id,
+                        startedAt = formatTimestamp(entity.startedAt),
+                        finishedAt = entity.finishedAt?.let { formatTimestamp(it) },
+                        isCompleted = entity.completionCount > 0,
+                        listenTimeMs = 0L, // Not tracked in cache
+                    ),
+                )
+            } ?: emptyList()
 
         // Convert other entities to ReaderInfo
         val otherReaders = otherEntities.map { it.toDomain() }
@@ -193,17 +196,20 @@ class SessionRepositoryImpl(
         )
     }
 
-    private fun parseTimestamp(iso: String): Long {
-        return try {
-            kotlin.time.Instant.parse(iso).toEpochMilliseconds()
+    private fun parseTimestamp(iso: String): Long =
+        try {
+            kotlin.time.Instant
+                .parse(iso)
+                .toEpochMilliseconds()
         } catch (e: Exception) {
             currentEpochMilliseconds()
         }
-    }
 
     private fun formatTimestamp(epochMs: Long): String {
         // Convert epoch ms to ISO 8601 string
-        return kotlin.time.Instant.fromEpochMilliseconds(epochMs).toString()
+        return kotlin.time.Instant
+            .fromEpochMilliseconds(epochMs)
+            .toString()
     }
 }
 
@@ -243,9 +249,20 @@ private fun ReadingSessionEntity.toDomain(): ReaderInfo {
         avatarColor = userAvatarColor,
         isCurrentlyReading = isCurrentlyReading,
         currentProgress = currentProgress,
-        startedAt = kotlin.time.Instant.fromEpochMilliseconds(startedAt).toString(),
-        finishedAt = finishedAt?.let { kotlin.time.Instant.fromEpochMilliseconds(it).toString() },
-        lastActivityAt = kotlin.time.Instant.fromEpochMilliseconds(lastActivity).toString(),
+        startedAt =
+            kotlin.time.Instant
+                .fromEpochMilliseconds(startedAt)
+                .toString(),
+        finishedAt =
+            finishedAt?.let {
+                kotlin.time.Instant
+                    .fromEpochMilliseconds(it)
+                    .toString()
+            },
+        lastActivityAt =
+            kotlin.time.Instant
+                .fromEpochMilliseconds(lastActivity)
+                .toString(),
         completionCount = completionCount,
     )
 }
@@ -253,7 +270,10 @@ private fun ReadingSessionEntity.toDomain(): ReaderInfo {
 /**
  * Convert ReaderSummary API model to ReadingSessionEntity for caching.
  */
-private fun ReaderSummary.toEntity(bookId: String, updatedAt: Long): ReadingSessionEntity =
+private fun ReaderSummary.toEntity(
+    bookId: String,
+    updatedAt: Long,
+): ReadingSessionEntity =
     ReadingSessionEntity(
         id = "$bookId-$userId",
         bookId = bookId,
@@ -273,13 +293,14 @@ private fun ReaderSummary.toEntity(bookId: String, updatedAt: Long): ReadingSess
 /**
  * Parse ISO timestamp string to epoch milliseconds.
  */
-private fun parseTimestampToEpoch(iso: String): Long {
-    return try {
-        kotlin.time.Instant.parse(iso).toEpochMilliseconds()
+private fun parseTimestampToEpoch(iso: String): Long =
+    try {
+        kotlin.time.Instant
+            .parse(iso)
+            .toEpochMilliseconds()
     } catch (e: Exception) {
         currentEpochMilliseconds()
     }
-}
 
 /**
  * Convert SessionSummary API model to domain model.

@@ -29,6 +29,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -359,7 +360,7 @@ class BookDetailViewModelTest {
         }
 
     @Test
-    fun `loadBook hides progress when nearly complete`() =
+    fun `loadBook shows progress when nearly complete but not marked finished`() =
         runTest {
             // Given
             val fixture = createFixture()
@@ -374,8 +375,10 @@ class BookDetailViewModelTest {
             viewModel.loadBook("book-1")
             advanceUntilIdle()
 
-            // Then - progress should be null when > 99% complete
-            assertNull(viewModel.state.value.progress)
+            // Then - progress is shown based on position, hidden only when isFinished=true
+            val progress = viewModel.state.value.progress
+            assertNotNull(progress)
+            assertEquals(0.99f, progress!!, 0.01f)
         }
 
     // ========== Time Remaining Tests ==========

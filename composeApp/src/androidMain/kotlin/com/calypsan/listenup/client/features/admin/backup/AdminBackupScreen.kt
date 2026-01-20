@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material3.AlertDialog
@@ -63,7 +62,6 @@ import com.calypsan.listenup.client.domain.model.BackupValidation
 import com.calypsan.listenup.client.presentation.admin.ABSImportHubViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminBackupState
 import com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel
-import com.calypsan.listenup.client.util.DocumentPickerResult
 import com.calypsan.listenup.client.util.rememberABSBackupPicker
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
@@ -89,9 +87,10 @@ fun AdminBackupScreen(
     val uploadSheetState = rememberABSUploadSheetState()
 
     // Document picker for ABS backup files
-    val documentPicker = rememberABSBackupPicker { result ->
-        uploadSheetState.onDocumentSelected(result)
-    }
+    val documentPicker =
+        rememberABSBackupPicker { result ->
+            uploadSheetState.onDocumentSelected(result)
+        }
 
     Scaffold(
         topBar = {
@@ -203,12 +202,14 @@ private fun AdminBackupContent(
         backupState.isLoading -> {
             FullScreenLoadingIndicator()
         }
+
         backupState.backups.isEmpty() && absImports.isEmpty() -> {
             EmptyBackupState(
                 modifier = modifier,
                 onUploadABSBackup = onUploadABSBackup,
             )
         }
+
         else -> {
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
@@ -248,9 +249,10 @@ private fun AdminBackupContent(
                 if (isLoadingImports) {
                     item(key = "loading_imports") {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             ListenUpLoadingIndicatorSmall()
@@ -299,10 +301,23 @@ private fun BackupCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Archive, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        Icons.Default.Archive,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp),
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text(text = backup.id, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        text = backup.id,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
                 Box {
                     if (isValidating) {
@@ -312,18 +327,57 @@ private fun BackupCard(
                             Icon(Icons.Default.MoreVert, contentDescription = "Menu")
                         }
                     }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(text = { Text("Restore") }, onClick = { showMenu = false; onRestoreClick() }, leadingIcon = { Icon(Icons.Default.Restore, contentDescription = null) })
-                        DropdownMenuItem(text = { Text("Validate") }, onClick = { showMenu = false; onValidateClick() }, leadingIcon = { Icon(Icons.Default.Verified, contentDescription = null) })
-                        DropdownMenuItem(text = { Text("Delete") }, onClick = { showMenu = false; onDeleteClick() }, leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) })
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Restore") },
+                            onClick = {
+                                showMenu = false
+                                onRestoreClick()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Restore, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Validate") },
+                            onClick = {
+                                showMenu = false
+                                onValidateClick()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Verified, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = {
+                                showMenu = false
+                                onDeleteClick()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                        )
                     }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
             val localDateTime = backup.createdAt.toLocalDateTime(TimeZone.currentSystemDefault())
-            Text(text = "Created: ${localDateTime.date} at ${localDateTime.hour}:${localDateTime.minute.toString().padStart(2, '0')}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val timeStr = "${localDateTime.hour}:${localDateTime.minute.toString().padStart(2, '0')}"
+            Text(
+                text = "Created: ${localDateTime.date} at $timeStr",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = "Size: ${backup.sizeFormatted}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = "Size: ${backup.sizeFormatted}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -339,16 +393,18 @@ private fun UploadABSBackupCard(onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.primary),
+                modifier =
+                    Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -384,18 +440,20 @@ private fun ABSImportSummaryCard(
     onClick: () -> Unit,
 ) {
     val isActive = import.status.lowercase() == "active"
-    val progress = if (import.totalSessions > 0) {
-        import.sessionsImported.toFloat() / import.totalSessions.toFloat()
-    } else {
-        0f
-    }
+    val progress =
+        if (import.totalSessions > 0) {
+            import.sessionsImported.toFloat() / import.totalSessions.toFloat()
+        } else {
+            0f
+        }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -441,10 +499,11 @@ private fun ABSImportSummaryCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
                     progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp)),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp)),
                 )
             }
         }
@@ -453,28 +512,40 @@ private fun ABSImportSummaryCard(
 
 @Composable
 private fun StatusBadge(status: String) {
-    val (containerColor, contentColor, label) = when (status.lowercase()) {
-        "active" -> Triple(
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.onPrimaryContainer,
-            "Active",
-        )
-        "completed" -> Triple(
-            MaterialTheme.colorScheme.tertiaryContainer,
-            MaterialTheme.colorScheme.onTertiaryContainer,
-            "Completed",
-        )
-        "archived" -> Triple(
-            MaterialTheme.colorScheme.surfaceContainerHighest,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            "Archived",
-        )
-        else -> Triple(
-            MaterialTheme.colorScheme.surfaceContainerHigh,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            status,
-        )
-    }
+    val (containerColor, contentColor, label) =
+        when (status.lowercase()) {
+            "active" -> {
+                Triple(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    MaterialTheme.colorScheme.onPrimaryContainer,
+                    "Active",
+                )
+            }
+
+            "completed" -> {
+                Triple(
+                    MaterialTheme.colorScheme.tertiaryContainer,
+                    MaterialTheme.colorScheme.onTertiaryContainer,
+                    "Completed",
+                )
+            }
+
+            "archived" -> {
+                Triple(
+                    MaterialTheme.colorScheme.surfaceContainerHighest,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    "Archived",
+                )
+            }
+
+            else -> {
+                Triple(
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    status,
+                )
+            }
+        }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = containerColor),
@@ -494,9 +565,10 @@ private fun EmptyBackupState(
     onUploadABSBackup: () -> Unit,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -523,35 +595,71 @@ private fun EmptyBackupState(
 }
 
 @Composable
-private fun ValidationResultDialog(validation: BackupValidation, onDismiss: () -> Unit) {
+private fun ValidationResultDialog(
+    validation: BackupValidation,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = MaterialTheme.shapes.large,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(if (validation.valid) Icons.Default.CheckCircle else Icons.Default.Archive, contentDescription = null, tint = if (validation.valid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                val icon = if (validation.valid) Icons.Default.CheckCircle else Icons.Default.Archive
+                val tint =
+                    if (validation.valid) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    }
+                Icon(icon, contentDescription = null, tint = tint)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(if (validation.valid) "Backup Valid" else "Backup Invalid")
             }
         },
         text = {
             Column {
-                validation.serverName?.let { Text("Server: $it", style = MaterialTheme.typography.bodyMedium) }
-                validation.version?.let { Text("Version: $it", style = MaterialTheme.typography.bodyMedium) }
+                validation.serverName?.let {
+                    Text("Server: $it", style = MaterialTheme.typography.bodyMedium)
+                }
+                validation.version?.let {
+                    Text("Version: $it", style = MaterialTheme.typography.bodyMedium)
+                }
                 if (validation.entityCounts.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Contents:", style = MaterialTheme.typography.titleSmall)
-                    validation.entityCounts.forEach { (type, count) -> Text("  $type: $count", style = MaterialTheme.typography.bodySmall) }
+                    validation.entityCounts.forEach { (type, count) ->
+                        Text("  $type: $count", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
                 if (validation.warnings.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Warnings:", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.tertiary)
-                    validation.warnings.forEach { Text("  $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary) }
+                    Text(
+                        "Warnings:",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                    validation.warnings.forEach {
+                        Text(
+                            "  $it",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
                 }
                 if (validation.errors.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Errors:", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error)
-                    validation.errors.forEach { Text("  $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                    Text(
+                        "Errors:",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    validation.errors.forEach {
+                        Text(
+                            "  $it",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         },

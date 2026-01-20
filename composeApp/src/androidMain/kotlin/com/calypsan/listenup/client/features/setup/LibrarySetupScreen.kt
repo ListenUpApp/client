@@ -6,7 +6,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -113,18 +112,21 @@ fun LibrarySetupScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
         ) {
             when {
                 state.isCheckingStatus -> {
                     FullScreenLoadingIndicator()
                 }
+
                 !state.needsSetup -> {
                     // Library already set up, wait for navigation
                     FullScreenLoadingIndicator()
                 }
+
                 else -> {
                     LibrarySetupContent(
                         state = state,
@@ -168,18 +170,20 @@ private fun LibrarySetupContent(
         // Welcome header (only at root with nothing selected)
         if (state.isRoot && state.selectedPath == null) {
             WelcomeHeader(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 24.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 24.dp),
             )
         }
 
         // Path breadcrumb
         PathBreadcrumb(
             path = state.currentPath,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -191,16 +195,18 @@ private fun LibrarySetupContent(
             EmptyDirectoryMessage(
                 currentPath = state.currentPath,
                 onSelectCurrentFolder = onSelectCurrentFolder,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
             )
         } else {
             // Directory list
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
             ) {
                 items(
                     items = state.directories,
@@ -226,11 +232,12 @@ private fun LibrarySetupContent(
 @Composable
 private fun WelcomeHeader(modifier: Modifier = Modifier) {
     val isDarkTheme = LocalDarkTheme.current
-    val logoRes = if (isDarkTheme) {
-        R.drawable.listenup_logo_white
-    } else {
-        R.drawable.listenup_logo_black
-    }
+    val logoRes =
+        if (isDarkTheme) {
+            R.drawable.listenup_logo_white
+        } else {
+            R.drawable.listenup_logo_black
+        }
 
     Column(
         modifier = modifier,
@@ -289,11 +296,12 @@ private fun DirectoryListItem(
     onSelect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val backgroundColor = if (isSelected) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-    } else {
-        Color.Transparent
-    }
+    val backgroundColor =
+        if (isSelected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        } else {
+            Color.Transparent
+        }
 
     ListItem(
         headlineContent = {
@@ -307,11 +315,12 @@ private fun DirectoryListItem(
             Icon(
                 imageVector = Icons.Outlined.Folder,
                 contentDescription = null,
-                tint = if (isSelected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                tint =
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
             )
         },
         trailingContent = {
@@ -321,21 +330,24 @@ private fun DirectoryListItem(
                 // Radio button for selection
                 IconButton(onClick = onSelect) {
                     Icon(
-                        imageVector = if (isSelected) {
-                            Icons.Outlined.RadioButtonChecked
-                        } else {
-                            Icons.Outlined.RadioButtonUnchecked
-                        },
-                        contentDescription = if (isSelected) {
-                            "Selected"
-                        } else {
-                            "Select this folder"
-                        },
-                        tint = if (isSelected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        imageVector =
+                            if (isSelected) {
+                                Icons.Outlined.RadioButtonChecked
+                            } else {
+                                Icons.Outlined.RadioButtonUnchecked
+                            },
+                        contentDescription =
+                            if (isSelected) {
+                                "Selected"
+                            } else {
+                                "Select this folder"
+                            },
+                        tint =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                     )
                 }
                 // Chevron to navigate into folder
@@ -353,6 +365,7 @@ private fun DirectoryListItem(
     )
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun EmptyDirectoryMessage(
     currentPath: String,
@@ -404,9 +417,10 @@ private fun SelectionBottomBar(
         color = MaterialTheme.colorScheme.surface,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Selected path display

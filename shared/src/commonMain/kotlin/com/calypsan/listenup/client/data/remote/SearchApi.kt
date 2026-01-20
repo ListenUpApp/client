@@ -50,21 +50,28 @@ class SearchApi(
     ): SearchResponse {
         val client = clientFactory.getClient()
         // Search endpoint is wrapped in ApiResponse like all other endpoints
-        val response: ApiResponse<SearchResponse> = client.get("/api/v1/search") {
-            parameter("q", query)
-            types?.let { parameter("types", it) }
-            genres?.let { parameter("genres", it) }
-            genrePath?.let { parameter("genre_path", it) }
-            minDuration?.let { parameter("min_duration", it) }
-            maxDuration?.let { parameter("max_duration", it) }
-            parameter("limit", limit)
-            parameter("offset", offset)
-            parameter("facets", "true")
-        }.body()
+        val response: ApiResponse<SearchResponse> =
+            client
+                .get("/api/v1/search") {
+                    parameter("q", query)
+                    types?.let { parameter("types", it) }
+                    genres?.let { parameter("genres", it) }
+                    genrePath?.let { parameter("genre_path", it) }
+                    minDuration?.let { parameter("min_duration", it) }
+                    maxDuration?.let { parameter("max_duration", it) }
+                    parameter("limit", limit)
+                    parameter("offset", offset)
+                    parameter("facets", "true")
+                }.body()
 
-        logger.info { "Search API response: v=${response.version}, success=${response.success}, data=${response.data != null}, error=${response.error}" }
+        logger.info {
+            "Search API response: v=${response.version}, success=${response.success}, " +
+                "data=${response.data != null}, error=${response.error}"
+        }
         if (response.data != null) {
-            logger.info { "Search data: query=${response.data.query}, total=${response.data.total}, hits=${response.data.hits.size}" }
+            logger.info {
+                "Search data: query=${response.data.query}, total=${response.data.total}, hits=${response.data.hits.size}"
+            }
         }
 
         if (!response.success) {

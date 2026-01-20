@@ -1,3 +1,5 @@
+@file:Suppress("NestedBlockDepth")
+
 package com.calypsan.listenup.client.util
 
 import android.content.Context
@@ -37,7 +39,9 @@ sealed interface DocumentPickerResult {
     data object Cancelled : DocumentPickerResult
 
     /** An error occurred. */
-    data class Error(val message: String) : DocumentPickerResult
+    data class Error(
+        val message: String,
+    ) : DocumentPickerResult
 }
 
 /**
@@ -112,12 +116,13 @@ class DocumentPickerState(
             ?: return DocumentPickerResult.Error("Could not open document stream")
 
         // Create a streaming file source - content will be read on demand during upload
-        val fileSource = AndroidFileSource(
-            contentResolver = contentResolver,
-            uri = uri,
-            filename = filename,
-            size = size,
-        )
+        val fileSource =
+            AndroidFileSource(
+                contentResolver = contentResolver,
+                uri = uri,
+                filename = filename,
+                size = size,
+            )
 
         logger.debug { "Selected document: filename=$filename, mimeType=$mimeType, size=$size" }
 
@@ -165,10 +170,11 @@ fun rememberDocumentPicker(
     val context = LocalContext.current
     val state = remember { DocumentPickerState(context, onResult) }
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri -> state.handleResult(uri) },
-    )
+    val launcher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenDocument(),
+            onResult = { uri -> state.handleResult(uri) },
+        )
 
     state.setLauncher {
         launcher.launch(mimeTypes)
@@ -186,15 +192,14 @@ fun rememberDocumentPicker(
  * @return [DocumentPickerState] that can be used to launch the picker
  */
 @Composable
-fun rememberABSBackupPicker(
-    onResult: (DocumentPickerResult) -> Unit,
-): DocumentPickerState {
+fun rememberABSBackupPicker(onResult: (DocumentPickerResult) -> Unit): DocumentPickerState {
     // Accept common archive formats that ABS might use
     // Also accept */* as fallback since .audiobookshelf extension might not have a MIME type
     return rememberDocumentPicker(
-        mimeTypes = arrayOf(
-            "*/*", // Fallback for unknown extensions like .audiobookshelf
-        ),
+        mimeTypes =
+            arrayOf(
+                "*/*", // Fallback for unknown extensions like .audiobookshelf
+            ),
         onResult = onResult,
     )
 }

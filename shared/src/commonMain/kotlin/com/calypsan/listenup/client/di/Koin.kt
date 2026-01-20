@@ -1183,13 +1183,11 @@ val syncModule =
             )
         }
 
-        // HomeRepository for Home screen data (cross-device sync)
+        // HomeRepository for Home screen data (local-first)
         single<HomeRepository> {
             HomeRepositoryImpl(
                 bookRepository = get(),
                 playbackPositionDao = get(),
-                syncApi = get(),
-                networkMonitor = get(),
             )
         }
 
@@ -1373,7 +1371,6 @@ val syncModule =
         single<com.calypsan.listenup.client.domain.repository.SeriesRepository> {
             com.calypsan.listenup.client.data.repository.SeriesRepositoryImpl(
                 seriesDao = get(),
-                bookDao = get(),
                 searchDao = get(),
                 api = get(),
                 networkMonitor = get(),

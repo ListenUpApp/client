@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.core.configureLogging
 import com.calypsan.listenup.client.data.discovery.IosDiscoveryService
 import com.calypsan.listenup.client.data.discovery.ServerDiscoveryService
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
+import com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.context.startKoin
@@ -105,8 +106,8 @@ object KoinHelper : KoinComponent {
         return viewModel
     }
 
-    fun getContributorDetailViewModel(): com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel {
-        val viewModel: com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel by inject()
+    fun getContributorDetailViewModel(): ContributorDetailViewModel {
+        val viewModel: ContributorDetailViewModel by inject()
         return viewModel
     }
 }

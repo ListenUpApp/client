@@ -19,7 +19,11 @@ private val logger = KotlinLogging.logger {}
  * Restore mode - fresh wipe or merge with existing data.
  * API values must match server's backup.RestoreMode constants.
  */
-enum class RestoreMode(val apiValue: String, val displayName: String, val description: String) {
+enum class RestoreMode(
+    val apiValue: String,
+    val displayName: String,
+    val description: String,
+) {
     FRESH("full", "Fresh Restore", "Wipe all existing data and restore from backup"),
     MERGE("merge", "Merge", "Keep existing data and merge with backup"),
 }
@@ -28,7 +32,11 @@ enum class RestoreMode(val apiValue: String, val displayName: String, val descri
  * Merge strategy when using merge mode.
  * API values must match server's backup.MergeStrategy constants.
  */
-enum class MergeStrategy(val apiValue: String, val displayName: String, val description: String) {
+enum class MergeStrategy(
+    val apiValue: String,
+    val displayName: String,
+    val description: String,
+) {
     KEEP_LOCAL("keep_local", "Keep Local", "Keep existing local data on conflicts"),
     KEEP_BACKUP("keep_backup", "Keep Backup", "Replace with backup data on conflicts"),
     NEWEST("newest", "Newest Wins", "Keep the most recently modified version"),
@@ -90,7 +98,6 @@ class RestoreBackupViewModel(
     private val backupApi: BackupApiContract,
     private val syncRepository: SyncRepository,
 ) : ViewModel() {
-
     val state: StateFlow<RestoreBackupState>
         field = MutableStateFlow(RestoreBackupState(backupId = backupId))
 
@@ -107,14 +114,15 @@ class RestoreBackupViewModel(
                 state.update {
                     it.copy(
                         isValidating = false,
-                        validation = BackupValidation(
-                            valid = result.valid,
-                            version = result.version,
-                            serverName = result.serverName,
-                            entityCounts = result.expectedCounts ?: emptyMap(),
-                            errors = result.errors,
-                            warnings = result.warnings,
-                        ),
+                        validation =
+                            BackupValidation(
+                                valid = result.valid,
+                                version = result.version,
+                                serverName = result.serverName,
+                                entityCounts = result.expectedCounts ?: emptyMap(),
+                                errors = result.errors,
+                                warnings = result.warnings,
+                            ),
                     )
                 }
             } catch (e: Exception) {
@@ -139,42 +147,73 @@ class RestoreBackupViewModel(
 
     fun nextStep() {
         val current = state.value
-        val nextStep = when (current.step) {
-            RestoreStep.MODE_SELECTION -> {
-                if (current.mode == RestoreMode.MERGE) {
-                    RestoreStep.MERGE_STRATEGY
-                } else {
+        val nextStep =
+            when (current.step) {
+                RestoreStep.MODE_SELECTION -> {
+                    if (current.mode == RestoreMode.MERGE) {
+                        RestoreStep.MERGE_STRATEGY
+                    } else {
+                        RestoreStep.VALIDATION
+                    }
+                }
+
+                RestoreStep.MERGE_STRATEGY -> {
                     RestoreStep.VALIDATION
                 }
+
+                RestoreStep.VALIDATION -> {
+                    RestoreStep.CONFIRMATION
+                }
+
+                RestoreStep.CONFIRMATION -> {
+                    performRestore()
+                    RestoreStep.RESTORING
+                }
+
+                RestoreStep.RESTORING -> {
+                    RestoreStep.RESULTS
+                }
+
+                RestoreStep.RESULTS -> {
+                    RestoreStep.RESULTS
+                }
             }
-            RestoreStep.MERGE_STRATEGY -> RestoreStep.VALIDATION
-            RestoreStep.VALIDATION -> RestoreStep.CONFIRMATION
-            RestoreStep.CONFIRMATION -> {
-                performRestore()
-                RestoreStep.RESTORING
-            }
-            RestoreStep.RESTORING -> RestoreStep.RESULTS
-            RestoreStep.RESULTS -> RestoreStep.RESULTS
-        }
         state.update { it.copy(step = nextStep) }
     }
 
     fun previousStep() {
         val current = state.value
-        val prevStep = when (current.step) {
-            RestoreStep.MODE_SELECTION -> RestoreStep.MODE_SELECTION
-            RestoreStep.MERGE_STRATEGY -> RestoreStep.MODE_SELECTION
-            RestoreStep.VALIDATION -> {
-                if (current.mode == RestoreMode.MERGE) {
-                    RestoreStep.MERGE_STRATEGY
-                } else {
+        val prevStep =
+            when (current.step) {
+                RestoreStep.MODE_SELECTION -> {
                     RestoreStep.MODE_SELECTION
                 }
+
+                RestoreStep.MERGE_STRATEGY -> {
+                    RestoreStep.MODE_SELECTION
+                }
+
+                RestoreStep.VALIDATION -> {
+                    if (current.mode == RestoreMode.MERGE) {
+                        RestoreStep.MERGE_STRATEGY
+                    } else {
+                        RestoreStep.MODE_SELECTION
+                    }
+                }
+
+                RestoreStep.CONFIRMATION -> {
+                    RestoreStep.VALIDATION
+                }
+
+                RestoreStep.RESTORING -> {
+                    RestoreStep.RESTORING
+                }
+
+                // Can't go back during restore
+                RestoreStep.RESULTS -> {
+                    RestoreStep.RESULTS
+                } // Can't go back after complete
             }
-            RestoreStep.CONFIRMATION -> RestoreStep.VALIDATION
-            RestoreStep.RESTORING -> RestoreStep.RESTORING // Can't go back during restore
-            RestoreStep.RESULTS -> RestoreStep.RESULTS // Can't go back after complete
-        }
         state.update { it.copy(step = prevStep) }
     }
 
@@ -184,24 +223,26 @@ class RestoreBackupViewModel(
 
             try {
                 val current = state.value
-                val result = backupApi.restore(
-                    RestoreRequest(
-                        backupId = backupId,
-                        mode = current.mode?.apiValue ?: RestoreMode.MERGE.apiValue,
-                        mergeStrategy = current.mergeStrategy?.apiValue,
-                        dryRun = true,
-                        confirmFullWipe = false,
-                    ),
-                )
+                val result =
+                    backupApi.restore(
+                        RestoreRequest(
+                            backupId = backupId,
+                            mode = current.mode?.apiValue ?: RestoreMode.MERGE.apiValue,
+                            mergeStrategy = current.mergeStrategy?.apiValue,
+                            dryRun = true,
+                            confirmFullWipe = false,
+                        ),
+                    )
                 state.update {
                     it.copy(
                         isValidating = false,
-                        dryRunResults = DryRunResults(
-                            willImport = result.imported,
-                            willSkip = result.skipped,
-                            errors = result.errors,
-                            duration = result.duration,
-                        ),
+                        dryRunResults =
+                            DryRunResults(
+                                willImport = result.imported,
+                                willSkip = result.skipped,
+                                errors = result.errors,
+                                duration = result.duration,
+                            ),
                     )
                 }
             } catch (e: Exception) {
@@ -222,15 +263,16 @@ class RestoreBackupViewModel(
 
             try {
                 val current = state.value
-                val result = backupApi.restore(
-                    RestoreRequest(
-                        backupId = backupId,
-                        mode = current.mode?.apiValue ?: RestoreMode.MERGE.apiValue,
-                        mergeStrategy = current.mergeStrategy?.apiValue,
-                        dryRun = false,
-                        confirmFullWipe = current.mode == RestoreMode.FRESH,
-                    ),
-                )
+                val result =
+                    backupApi.restore(
+                        RestoreRequest(
+                            backupId = backupId,
+                            mode = current.mode?.apiValue ?: RestoreMode.MERGE.apiValue,
+                            mergeStrategy = current.mergeStrategy?.apiValue,
+                            dryRun = false,
+                            confirmFullWipe = current.mode == RestoreMode.FRESH,
+                        ),
+                    )
 
                 // After server restore completes, sync client state
                 // FRESH: Server data was completely replaced, need to clear and resync
@@ -248,12 +290,13 @@ class RestoreBackupViewModel(
                     it.copy(
                         isRestoring = false,
                         step = RestoreStep.RESULTS,
-                        restoreResults = RestoreResults(
-                            imported = result.imported,
-                            skipped = result.skipped,
-                            errors = result.errors,
-                            duration = result.duration,
-                        ),
+                        restoreResults =
+                            RestoreResults(
+                                imported = result.imported,
+                                skipped = result.skipped,
+                                errors = result.errors,
+                                duration = result.duration,
+                            ),
                     )
                 }
             } catch (e: Exception) {

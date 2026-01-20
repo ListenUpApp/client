@@ -2,14 +2,11 @@
 
 package com.calypsan.listenup.client.data.repository
 
-import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
-import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import com.calypsan.listenup.client.domain.repository.HomeRepository
-import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -23,21 +20,17 @@ import kotlin.time.Instant
  *
  * Handles fetching continue listening books.
  *
- * Architecture: Local-first when offline, server-first when online.
- * - Checks network status before attempting server call
- * - Server returns display-ready data with embedded book details
- * - Falls back to local data when offline or server unavailable
+ * Architecture: Local-first approach.
+ * - Always use local data as primary source (most up-to-date for this device)
+ * - Local positions are updated immediately during playback
+ * - Server sync happens in background and updates local DB
  *
- * @property bookRepository Repository for fetching book details (fallback only)
- * @property playbackPositionDao DAO for playback positions (fallback only)
- * @property syncApi API for fetching server progress
- * @property networkMonitor Monitor for checking network connectivity
+ * @property bookRepository Repository for fetching book details
+ * @property playbackPositionDao DAO for playback positions
  */
 class HomeRepositoryImpl(
     private val bookRepository: com.calypsan.listenup.client.domain.repository.BookRepository,
     private val playbackPositionDao: PlaybackPositionDao,
-    private val syncApi: SyncApiContract,
-    private val networkMonitor: NetworkMonitor,
 ) : HomeRepository {
     private val logger = KotlinLogging.logger {}
 
@@ -58,39 +51,6 @@ class HomeRepositoryImpl(
         logger.debug { "getContinueListening: using local-first approach" }
         return fetchFromLocal(limit)
     }
-
-    /**
-     * Fetch from server - returns display-ready data with book details embedded.
-     *
-     * Server provides progress data + blurHash, but we need to look up the
-     * local cover path from downloaded covers (server path isn't usable on client).
-     */
-    private suspend fun fetchFromServer(limit: Int): Result<List<ContinueListeningBook>> =
-        try {
-            when (val result = syncApi.getContinueListening(limit)) {
-                is Success -> {
-                    val books =
-                        result.data
-                            .filter { it.progress < 0.99 } // Skip finished books
-                            .map { item ->
-                                // Server gives us progress + blurHash, but we need local cover path
-                                val localBook = bookRepository.getBook(item.bookId)
-                                item.toDomain().copy(
-                                    coverPath = localBook?.coverPath,
-                                    coverBlurHash = item.coverBlurHash ?: localBook?.coverBlurHash,
-                                )
-                            }
-                    Success(books)
-                }
-
-                is Failure -> {
-                    result
-                }
-            }
-        } catch (e: Exception) {
-            logger.error(e) { "fetchFromServer failed" }
-            Failure(e)
-        }
 
     /**
      * Fallback: fetch from local database when offline.
@@ -132,7 +92,9 @@ class HomeRepositoryImpl(
                 // Skip finished books (use server's authoritative isFinished flag)
                 if (position.isFinished) {
                     booksFiltered++
-                    logger.debug { "Local fallback: skipping finished book - id=$bookIdStr, isFinished=${position.isFinished}" }
+                    logger.debug {
+                        "Local fallback: skipping finished book - id=$bookIdStr, isFinished=${position.isFinished}"
+                    }
                     return@mapNotNull null
                 }
 
@@ -178,8 +140,7 @@ class HomeRepositoryImpl(
                 logger.info {
                     "Room EMITTED: ${positions.size} positions (finished=$finishedCount)"
                 }
-            }
-            .mapLatest { positions ->
+            }.mapLatest { positions ->
                 val finishedFromRoom = positions.count { it.isFinished }
                 logger.info {
                     "observeContinueListening: Room emitted ${positions.size} positions " +
@@ -190,9 +151,10 @@ class HomeRepositoryImpl(
                 val inProgress = positions.filter { !it.isFinished && it.positionMs > 0 }
                 logger.info { "observeContinueListening: after filter=${inProgress.size}" }
 
-                val sortedPositions = inProgress
-                    .sortedByDescending { it.lastPlayedAt ?: it.updatedAt }
-                    .take(limit)
+                val sortedPositions =
+                    inProgress
+                        .sortedByDescending { it.lastPlayedAt ?: it.updatedAt }
+                        .take(limit)
                 logger.info { "observeContinueListening: after sort/take=${ sortedPositions.size}" }
 
                 val result = mutableListOf<ContinueListeningBook>()

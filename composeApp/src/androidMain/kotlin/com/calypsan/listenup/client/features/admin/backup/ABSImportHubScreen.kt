@@ -1,11 +1,8 @@
+@file:Suppress("LongMethod", "LongParameterList", "CognitiveComplexMethod")
+
 package com.calypsan.listenup.client.features.admin.backup
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -30,17 +26,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PhoneAndroid
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -53,7 +46,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -109,19 +101,22 @@ fun ABSImportListScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
 
     // Document picker for local file selection
-    val documentPicker = rememberABSBackupPicker { result ->
-        when (result) {
-            is DocumentPickerResult.Success -> {
-                viewModel.createImport(result.fileSource, result.filename)
-            }
-            is DocumentPickerResult.Error -> {
-                // Error handled by state
-            }
-            DocumentPickerResult.Cancelled -> {
-                // User cancelled
+    val documentPicker =
+        rememberABSBackupPicker { result ->
+            when (result) {
+                is DocumentPickerResult.Success -> {
+                    viewModel.createImport(result.fileSource, result.filename)
+                }
+
+                is DocumentPickerResult.Error -> {
+                    // Error handled by state
+                }
+
+                DocumentPickerResult.Cancelled -> {
+                    // User cancelled
+                }
             }
         }
-    }
 
     Scaffold(
         topBar = {
@@ -182,15 +177,18 @@ private fun ImportListContent(
                 message = "Loading imports...",
             )
         }
+
         state.isCreating -> {
             FullScreenLoadingIndicator(
                 modifier = modifier,
                 message = "Creating import...",
             )
         }
+
         state.imports.isEmpty() -> {
             EmptyImportsContent(modifier = modifier)
         }
+
         else -> {
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
@@ -216,9 +214,10 @@ private fun ImportListContent(
 @Composable
 private fun EmptyImportsContent(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -249,17 +248,22 @@ private fun ImportSummaryCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val progress = if (import.totalSessions > 0) {
-        import.sessionsImported.toFloat() / import.totalSessions
-    } else 0f
+    val progress =
+        if (import.totalSessions > 0) {
+            import.sessionsImported.toFloat() / import.totalSessions
+        } else {
+            0f
+        }
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -357,29 +361,44 @@ private fun StatItem(
 }
 
 @Composable
-private fun StatusBadge(status: String, modifier: Modifier = Modifier) {
-    val (containerColor, contentColor, label) = when (status.lowercase()) {
-        "active" -> Triple(
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.onPrimaryContainer,
-            "Active",
-        )
-        "completed" -> Triple(
-            MaterialTheme.colorScheme.tertiaryContainer,
-            MaterialTheme.colorScheme.onTertiaryContainer,
-            "Completed",
-        )
-        "archived" -> Triple(
-            MaterialTheme.colorScheme.surfaceContainerHighest,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            "Archived",
-        )
-        else -> Triple(
-            MaterialTheme.colorScheme.surfaceContainerHigh,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            status,
-        )
-    }
+private fun StatusBadge(
+    status: String,
+    modifier: Modifier = Modifier,
+) {
+    val (containerColor, contentColor, label) =
+        when (status.lowercase()) {
+            "active" -> {
+                Triple(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    MaterialTheme.colorScheme.onPrimaryContainer,
+                    "Active",
+                )
+            }
+
+            "completed" -> {
+                Triple(
+                    MaterialTheme.colorScheme.tertiaryContainer,
+                    MaterialTheme.colorScheme.onTertiaryContainer,
+                    "Completed",
+                )
+            }
+
+            "archived" -> {
+                Triple(
+                    MaterialTheme.colorScheme.surfaceContainerHighest,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    "Archived",
+                )
+            }
+
+            else -> {
+                Triple(
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    status,
+                )
+            }
+        }
 
     Card(
         modifier = modifier,
@@ -409,12 +428,14 @@ private fun CreateImportDialog(
                 Text("Choose how to create a new import:")
 
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onLocalFile),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onLocalFile),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ),
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -437,12 +458,14 @@ private fun CreateImportDialog(
                 }
 
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onLegacyWizard),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onLegacyWizard),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ),
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -569,67 +592,79 @@ private fun ImportHubContent(
         // Tab content
         AnimatedContent(
             targetState = state.activeTab,
-            modifier = Modifier
-                .fillMaxSize()
-                .weight(1f),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .weight(1f),
             label = "hub_tab_content",
         ) { tab ->
             when (tab) {
-                ImportHubTab.OVERVIEW -> OverviewTabContent(
-                    import = state.import!!,
-                    onNavigateToUsers = {
-                        onUsersFilterChange(MappingFilter.UNMAPPED)
-                        onTabChange(ImportHubTab.USERS)
-                    },
-                    onNavigateToBooks = {
-                        onBooksFilterChange(MappingFilter.UNMAPPED)
-                        onTabChange(ImportHubTab.BOOKS)
-                    },
-                    onNavigateToSessions = { onTabChange(ImportHubTab.SESSIONS) },
-                    modifier = Modifier.fillMaxSize(),
-                )
-                ImportHubTab.USERS -> UsersTabContent(
-                    users = state.users,
-                    filter = state.usersFilter,
-                    isLoading = state.isLoadingUsers,
-                    activeSearchAbsUserId = state.activeSearchAbsUserId,
-                    searchQuery = state.userSearchQuery,
-                    searchResults = state.userSearchResults,
-                    isSearching = state.isSearchingUsers,
-                    onFilterChange = onUsersFilterChange,
-                    onActivateSearch = onActivateUserSearch,
-                    onSearchQueryChange = onUserSearchQueryChange,
-                    onMapUser = onMapUser,
-                    onClearMapping = onClearUserMapping,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                ImportHubTab.BOOKS -> BooksTabContent(
-                    books = state.books,
-                    filter = state.booksFilter,
-                    isLoading = state.isLoadingBooks,
-                    activeSearchAbsMediaId = state.activeSearchAbsMediaId,
-                    searchQuery = state.bookSearchQuery,
-                    searchResults = state.bookSearchResults,
-                    isSearching = state.isSearchingBooks,
-                    onFilterChange = onBooksFilterChange,
-                    onActivateSearch = onActivateBookSearch,
-                    onSearchQueryChange = onBookSearchQueryChange,
-                    onMapBook = onMapBook,
-                    onClearMapping = onClearBookMapping,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                ImportHubTab.SESSIONS -> SessionsTabContent(
-                    sessionsResponse = state.sessionsResponse,
-                    filter = state.sessionsFilter,
-                    isLoading = state.isLoadingSessions,
-                    isImporting = state.isImportingSessions,
-                    importResult = state.importResult,
-                    onFilterChange = onSessionsFilterChange,
-                    onImportSessions = onImportSessions,
-                    onSkipSession = onSkipSession,
-                    onClearImportResult = onClearImportResult,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                ImportHubTab.OVERVIEW -> {
+                    OverviewTabContent(
+                        import = state.import!!,
+                        onNavigateToUsers = {
+                            onUsersFilterChange(MappingFilter.UNMAPPED)
+                            onTabChange(ImportHubTab.USERS)
+                        },
+                        onNavigateToBooks = {
+                            onBooksFilterChange(MappingFilter.UNMAPPED)
+                            onTabChange(ImportHubTab.BOOKS)
+                        },
+                        onNavigateToSessions = { onTabChange(ImportHubTab.SESSIONS) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                ImportHubTab.USERS -> {
+                    UsersTabContent(
+                        users = state.users,
+                        filter = state.usersFilter,
+                        isLoading = state.isLoadingUsers,
+                        activeSearchAbsUserId = state.activeSearchAbsUserId,
+                        searchQuery = state.userSearchQuery,
+                        searchResults = state.userSearchResults,
+                        isSearching = state.isSearchingUsers,
+                        onFilterChange = onUsersFilterChange,
+                        onActivateSearch = onActivateUserSearch,
+                        onSearchQueryChange = onUserSearchQueryChange,
+                        onMapUser = onMapUser,
+                        onClearMapping = onClearUserMapping,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                ImportHubTab.BOOKS -> {
+                    BooksTabContent(
+                        books = state.books,
+                        filter = state.booksFilter,
+                        isLoading = state.isLoadingBooks,
+                        activeSearchAbsMediaId = state.activeSearchAbsMediaId,
+                        searchQuery = state.bookSearchQuery,
+                        searchResults = state.bookSearchResults,
+                        isSearching = state.isSearchingBooks,
+                        onFilterChange = onBooksFilterChange,
+                        onActivateSearch = onActivateBookSearch,
+                        onSearchQueryChange = onBookSearchQueryChange,
+                        onMapBook = onMapBook,
+                        onClearMapping = onClearBookMapping,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                ImportHubTab.SESSIONS -> {
+                    SessionsTabContent(
+                        sessionsResponse = state.sessionsResponse,
+                        filter = state.sessionsFilter,
+                        isLoading = state.isLoadingSessions,
+                        isImporting = state.isImportingSessions,
+                        importResult = state.importResult,
+                        onFilterChange = onSessionsFilterChange,
+                        onImportSessions = onImportSessions,
+                        onSkipSession = onSkipSession,
+                        onClearImportResult = onClearImportResult,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
     }
@@ -649,17 +684,19 @@ private fun OverviewTabContent(
     val unmappedBooks = import.totalBooks - import.booksMapped
 
     Column(
-        modifier = modifier
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            modifier
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Status card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
@@ -745,14 +782,16 @@ private fun ActionNeededCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+            ),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -796,16 +835,19 @@ private fun ProgressCard(
     val isComplete = mapped == total && total > 0
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isComplete) {
-                MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (isComplete) {
+                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    },
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -867,9 +909,10 @@ private fun UsersTabContent(
     Column(modifier = modifier) {
         // Filter chips
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             MappingFilter.entries.forEach { f ->
@@ -934,20 +977,30 @@ private fun HubUserMappingCard(
     var showSearchOverride by remember { mutableStateOf(false) }
 
     // Determine if we have a confident suggestion
-    val hasConfidentSuggestion = !user.isMapped &&
-        user.confidence.lowercase() in listOf("definitive", "strong") &&
-        user.suggestions.isNotEmpty()
+    val hasConfidentSuggestion =
+        !user.isMapped &&
+            user.confidence.lowercase() in listOf("definitive", "strong") &&
+            user.suggestions.isNotEmpty()
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = when {
-                user.isMapped -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
-                hasConfidentSuggestion && !showSearchOverride ->
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.15f)
-                else -> MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    when {
+                        user.isMapped -> {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                        }
+
+                        hasConfidentSuggestion && !showSearchOverride -> {
+                            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.15f)
+                        }
+
+                        else -> {
+                            MaterialTheme.colorScheme.surfaceContainerLow
+                        }
+                    },
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -990,14 +1043,16 @@ private fun HubUserMappingCard(
                     // STATE 1: Already mapped - show with clear option
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            ),
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
@@ -1023,9 +1078,10 @@ private fun HubUserMappingCard(
                     // STATE 2: Definitive/strong match - show suggestion with confirm
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        ),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            ),
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Row(
@@ -1039,9 +1095,10 @@ private fun HubUserMappingCard(
                                     modifier = Modifier.size(18.dp),
                                 )
                                 Text(
-                                    text = user.matchReason.ifBlank {
-                                        "${user.confidence.replaceFirstChar { it.uppercase() }} match found"
-                                    },
+                                    text =
+                                        user.matchReason.ifBlank {
+                                            "${user.confidence.replaceFirstChar { it.uppercase() }} match found"
+                                        },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                                 )
@@ -1122,9 +1179,10 @@ private fun BooksTabContent(
     Column(modifier = modifier) {
         // Filter chips
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             MappingFilter.entries.forEach { f ->
@@ -1189,20 +1247,30 @@ private fun HubBookMappingCard(
     var showSearchOverride by remember { mutableStateOf(false) }
 
     // Determine if we have a confident suggestion
-    val hasConfidentSuggestion = !book.isMapped &&
-        book.confidence.lowercase() in listOf("definitive", "strong") &&
-        book.suggestions.isNotEmpty()
+    val hasConfidentSuggestion =
+        !book.isMapped &&
+            book.confidence.lowercase() in listOf("definitive", "strong") &&
+            book.suggestions.isNotEmpty()
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = when {
-                book.isMapped -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
-                hasConfidentSuggestion && !showSearchOverride ->
-                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.15f)
-                else -> MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    when {
+                        book.isMapped -> {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                        }
+
+                        hasConfidentSuggestion && !showSearchOverride -> {
+                            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.15f)
+                        }
+
+                        else -> {
+                            MaterialTheme.colorScheme.surfaceContainerLow
+                        }
+                    },
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -1247,14 +1315,16 @@ private fun HubBookMappingCard(
                     // STATE 1: Already mapped - show with clear option
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            ),
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
@@ -1282,9 +1352,10 @@ private fun HubBookMappingCard(
                     // STATE 2: Definitive/strong match - show suggestion with confirm
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        ),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            ),
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Row(
@@ -1298,9 +1369,10 @@ private fun HubBookMappingCard(
                                     modifier = Modifier.size(18.dp),
                                 )
                                 Text(
-                                    text = book.matchReason.ifBlank {
-                                        "${book.confidence.replaceFirstChar { it.uppercase() }} match found"
-                                    },
+                                    text =
+                                        book.matchReason.ifBlank {
+                                            "${book.confidence.replaceFirstChar { it.uppercase() }} match found"
+                                        },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                                 )
@@ -1379,12 +1451,14 @@ private fun SessionsTabContent(
         // Stats and import button
         sessionsResponse?.let { response ->
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    ),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -1439,17 +1513,20 @@ private fun SessionsTabContent(
         // Import result
         importResult?.let { result ->
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    ),
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -1466,9 +1543,10 @@ private fun SessionsTabContent(
 
         // Filter chips
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             SessionStatusFilter.entries.forEach { f ->
@@ -1515,23 +1593,26 @@ private fun SessionCard(
     onSkip: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val statusColor = when (session.status.lowercase()) {
-        "ready" -> MaterialTheme.colorScheme.primary
-        "imported" -> MaterialTheme.colorScheme.tertiary
-        "skipped" -> MaterialTheme.colorScheme.outline
-        else -> MaterialTheme.colorScheme.secondary
-    }
+    val statusColor =
+        when (session.status.lowercase()) {
+            "ready" -> MaterialTheme.colorScheme.primary
+            "imported" -> MaterialTheme.colorScheme.tertiary
+            "skipped" -> MaterialTheme.colorScheme.outline
+            else -> MaterialTheme.colorScheme.secondary
+        }
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {

@@ -1,3 +1,5 @@
+@file:Suppress("CognitiveComplexMethod")
+
 package com.calypsan.listenup.client.presentation.profile
 
 import androidx.lifecycle.ViewModel
@@ -294,6 +296,7 @@ class EditProfileViewModel(
      * Change the user's password.
      * Requires server confirmation - not offline-first.
      */
+    @Suppress("MagicNumber")
     fun changePassword() {
         val newPassword = state.value.newPassword
         val confirmPassword = state.value.confirmPassword

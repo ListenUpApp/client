@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "StringLiteralDuplication")
 
 package com.calypsan.listenup.client.features.discover.components
 

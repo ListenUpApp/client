@@ -4,7 +4,6 @@ import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.exceptionOrFromMessage
-import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
@@ -37,7 +36,6 @@ private val logger = KotlinLogging.logger {}
  * - Search with "never stranded" pattern (server with local fallback)
  *
  * @property seriesDao Room DAO for series operations
- * @property bookDao Room DAO for book operations
  * @property searchDao Room DAO for FTS search
  * @property api Server API client for series search
  * @property networkMonitor For checking online/offline status
@@ -45,7 +43,6 @@ private val logger = KotlinLogging.logger {}
  */
 class SeriesRepositoryImpl(
     private val seriesDao: SeriesDao,
-    private val bookDao: BookDao,
     private val searchDao: SearchDao,
     private val api: SeriesApiContract,
     private val networkMonitor: NetworkMonitor,

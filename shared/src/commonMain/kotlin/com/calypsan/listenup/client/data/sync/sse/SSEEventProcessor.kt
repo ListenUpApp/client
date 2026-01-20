@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalTime::class)
+@file:Suppress("CyclomaticComplexMethod")
 
 package com.calypsan.listenup.client.data.sync.sse
 
@@ -919,7 +920,8 @@ class SSEEventProcessor(
                     )
                 }
                 logger.info {
-                    "SSE: Updated local UserEntity with profile changes - name=${event.displayName}, avatar=${event.avatarType}/${event.avatarValue}"
+                    "SSE: Updated local UserEntity with profile changes - " +
+                        "name=${event.displayName}, avatar=${event.avatarType}/${event.avatarValue}"
                 }
             } catch (e: Exception) {
                 logger.error(e) { "SSE: Failed to update local UserEntity for profile event" }

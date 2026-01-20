@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod", "CognitiveComplexMethod")
+
 package com.calypsan.listenup.client.features.admin.backup
 
 import androidx.compose.foundation.layout.Arrangement
@@ -83,50 +85,68 @@ fun RestoreBackupScreen(
         },
     ) { paddingValues ->
         when (state.step) {
-            RestoreStep.MODE_SELECTION -> ModeSelectionContent(
-                state = state,
-                onModeSelected = viewModel::selectMode,
-                onNext = viewModel::nextStep,
-                modifier = Modifier.padding(paddingValues),
-            )
-            RestoreStep.MERGE_STRATEGY -> MergeStrategyContent(
-                state = state,
-                onStrategySelected = viewModel::selectMergeStrategy,
-                onNext = viewModel::nextStep,
-                modifier = Modifier.padding(paddingValues),
-            )
-            RestoreStep.VALIDATION -> ValidationContent(
-                state = state,
-                onPerformDryRun = viewModel::performDryRun,
-                onNext = viewModel::nextStep,
-                modifier = Modifier.padding(paddingValues),
-            )
-            RestoreStep.CONFIRMATION -> ConfirmationContent(
-                state = state,
-                onConfirm = viewModel::nextStep,
-                onBack = viewModel::previousStep,
-                modifier = Modifier.padding(paddingValues),
-            )
-            RestoreStep.RESTORING -> RestoringContent(
-                modifier = Modifier.padding(paddingValues),
-            )
-            RestoreStep.RESULTS -> ResultsContent(
-                state = state,
-                onDone = onComplete,
-                modifier = Modifier.padding(paddingValues),
-            )
+            RestoreStep.MODE_SELECTION -> {
+                ModeSelectionContent(
+                    state = state,
+                    onModeSelected = viewModel::selectMode,
+                    onNext = viewModel::nextStep,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            RestoreStep.MERGE_STRATEGY -> {
+                MergeStrategyContent(
+                    state = state,
+                    onStrategySelected = viewModel::selectMergeStrategy,
+                    onNext = viewModel::nextStep,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            RestoreStep.VALIDATION -> {
+                ValidationContent(
+                    state = state,
+                    onPerformDryRun = viewModel::performDryRun,
+                    onNext = viewModel::nextStep,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            RestoreStep.CONFIRMATION -> {
+                ConfirmationContent(
+                    state = state,
+                    onConfirm = viewModel::nextStep,
+                    onBack = viewModel::previousStep,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            RestoreStep.RESTORING -> {
+                RestoringContent(
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            RestoreStep.RESULTS -> {
+                ResultsContent(
+                    state = state,
+                    onDone = onComplete,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
         }
     }
 }
 
-private fun getStepTitle(step: RestoreStep): String = when (step) {
-    RestoreStep.MODE_SELECTION -> "Restore Mode"
-    RestoreStep.MERGE_STRATEGY -> "Merge Strategy"
-    RestoreStep.VALIDATION -> "Preview Changes"
-    RestoreStep.CONFIRMATION -> "Confirm Restore"
-    RestoreStep.RESTORING -> "Restoring..."
-    RestoreStep.RESULTS -> "Restore Complete"
-}
+private fun getStepTitle(step: RestoreStep): String =
+    when (step) {
+        RestoreStep.MODE_SELECTION -> "Restore Mode"
+        RestoreStep.MERGE_STRATEGY -> "Merge Strategy"
+        RestoreStep.VALIDATION -> "Preview Changes"
+        RestoreStep.CONFIRMATION -> "Confirm Restore"
+        RestoreStep.RESTORING -> "Restoring..."
+        RestoreStep.RESULTS -> "Restore Complete"
+    }
 
 @Composable
 private fun ModeSelectionContent(
@@ -136,10 +156,11 @@ private fun ModeSelectionContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
@@ -151,9 +172,8 @@ private fun ModeSelectionContent(
         // Validation info
         state.validation?.let { validation ->
             if (validation.valid) {
-                InfoCard(
-                    text = "Backup contains: ${validation.entityCounts.entries.joinToString { "${it.value} ${it.key}" }}",
-                )
+                val summary = validation.entityCounts.entries.joinToString { "${it.value} ${it.key}" }
+                InfoCard(text = "Backup contains: $summary")
             } else {
                 ErrorCard(
                     text = "Backup validation failed: ${validation.errors.firstOrNull() ?: "Unknown error"}",
@@ -191,9 +211,10 @@ private fun ModeSelectionContent(
         if (state.mode == RestoreMode.FRESH) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                ),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                    ),
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
@@ -206,7 +227,9 @@ private fun ModeSelectionContent(
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                     )
                     Text(
-                        text = "This will permanently delete all existing data including users, books, listening history, and collections.",
+                        text =
+                            "This will permanently delete all existing data including " +
+                                "users, books, listening history, and collections.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                     )
@@ -243,24 +266,27 @@ private fun ModeOption(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .selectable(
-                selected = selected,
-                onClick = onSelect,
-                role = Role.RadioButton,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .selectable(
+                    selected = selected,
+                    onClick = onSelect,
+                    role = Role.RadioButton,
+                ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (selected) {
+                        if (isDestructive) {
+                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        }
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    },
             ),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                if (isDestructive) {
-                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-                } else {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                }
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -271,11 +297,12 @@ private fun ModeOption(
             Icon(
                 icon,
                 contentDescription = null,
-                tint = if (isDestructive) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
+                tint =
+                    if (isDestructive) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -301,10 +328,11 @@ private fun MergeStrategyContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
@@ -350,20 +378,23 @@ private fun StrategyOption(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .selectable(
-                selected = selected,
-                onClick = onSelect,
-                role = Role.RadioButton,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .selectable(
+                    selected = selected,
+                    onClick = onSelect,
+                    role = Role.RadioButton,
+                ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (selected) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    },
             ),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -395,10 +426,11 @@ private fun ValidationContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
@@ -410,9 +442,10 @@ private fun ValidationContent(
         // Summary of selection
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -452,9 +485,10 @@ private fun ValidationContent(
                 // Show dry run results
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ),
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -547,10 +581,11 @@ private fun ConfirmationContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
@@ -562,9 +597,10 @@ private fun ConfirmationContent(
         if (state.mode == RestoreMode.FRESH) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                ),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                    ),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -595,9 +631,10 @@ private fun ConfirmationContent(
         // Summary
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -644,10 +681,9 @@ private fun ConfirmationContent(
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
-private fun RestoringContent(
-    modifier: Modifier = Modifier,
-) {
+private fun RestoringContent(modifier: Modifier = Modifier) {
     FullScreenLoadingIndicator(message = "Restoring Backup...")
 }
 
@@ -658,10 +694,11 @@ private fun ResultsContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         val results = state.restoreResults
@@ -670,13 +707,15 @@ private fun ResultsContent(
         // Success/Error header
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = if (hasErrors) {
-                    MaterialTheme.colorScheme.errorContainer
-                } else {
-                    MaterialTheme.colorScheme.primaryContainer
-                },
-            ),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor =
+                        if (hasErrors) {
+                            MaterialTheme.colorScheme.errorContainer
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer
+                        },
+                ),
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
@@ -686,31 +725,34 @@ private fun ResultsContent(
                 Icon(
                     if (hasErrors) Icons.Default.Warning else Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = if (hasErrors) {
-                        MaterialTheme.colorScheme.onErrorContainer
-                    } else {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    },
+                    tint =
+                        if (hasErrors) {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        } else {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        },
                 )
                 Column {
                     Text(
                         text = if (hasErrors) "Restore Completed with Issues" else "Restore Successful",
                         style = MaterialTheme.typography.titleMedium,
-                        color = if (hasErrors) {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        } else {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        },
+                        color =
+                            if (hasErrors) {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            } else {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            },
                     )
                     results?.duration?.let {
                         Text(
                             text = "Completed in $it",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (hasErrors) {
-                                MaterialTheme.colorScheme.onErrorContainer
-                            } else {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            },
+                            color =
+                                if (hasErrors) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                },
                         )
                     }
                 }
@@ -722,9 +764,10 @@ private fun ResultsContent(
             if (r.imported.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ),
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -745,9 +788,10 @@ private fun ResultsContent(
             if (r.skipped.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ),
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -768,9 +812,10 @@ private fun ResultsContent(
             if (r.errors.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                    ),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                        ),
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -822,9 +867,10 @@ private fun InfoCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            ),
     ) {
         Text(
             text = text,
@@ -842,9 +888,10 @@ private fun ErrorCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+            ),
     ) {
         Text(
             text = text,

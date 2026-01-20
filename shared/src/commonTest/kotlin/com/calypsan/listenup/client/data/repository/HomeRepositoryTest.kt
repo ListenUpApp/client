@@ -6,11 +6,9 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
-import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.repository.BookRepository
-import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -43,15 +41,11 @@ class HomeRepositoryTest {
     private class TestFixture {
         val bookRepository: BookRepository = mock()
         val playbackPositionDao: PlaybackPositionDao = mock()
-        val syncApi: SyncApiContract = mock()
-        val networkMonitor: NetworkMonitor = mock()
 
         fun build(): HomeRepositoryImpl =
             HomeRepositoryImpl(
                 bookRepository = bookRepository,
                 playbackPositionDao = playbackPositionDao,
-                syncApi = syncApi,
-                networkMonitor = networkMonitor,
             )
     }
 
@@ -63,9 +57,6 @@ class HomeRepositoryTest {
         everySuspend { fixture.playbackPositionDao.get(any()) } returns null
         everySuspend { fixture.playbackPositionDao.save(any()) } returns Unit
         everySuspend { fixture.bookRepository.getBook(any()) } returns null
-        // Default: offline mode - tests local fallback behavior
-        every { fixture.networkMonitor.isOnline() } returns false
-        everySuspend { fixture.syncApi.getContinueListening(any()) } returns Failure(Exception("Offline"))
 
         return fixture
     }

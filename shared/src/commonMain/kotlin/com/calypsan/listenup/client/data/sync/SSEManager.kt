@@ -1,3 +1,10 @@
+@file:Suppress(
+    "LoopWithTooManyJumpStatements",
+    "InstanceOfCheckForException",
+    "LongMethod",
+    "CyclomaticComplexMethod",
+)
+
 package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
@@ -122,6 +129,7 @@ class SSEManager(
      *
      * Call this after successful login or sync to start receiving real-time updates.
      */
+    @Suppress("MagicNumber")
     override fun connect() {
         if (connectionJob?.isActive == true) {
             return // Already connected

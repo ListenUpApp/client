@@ -62,7 +62,9 @@ class NsdDiscoveryService(
                 }
 
                 override fun onServiceFound(serviceInfo: NsdServiceInfo) {
-                    logger.info { "mDNS service found: name='${serviceInfo.serviceName}', type='${serviceInfo.serviceType}'" }
+                    logger.info {
+                        "mDNS service found: name='${serviceInfo.serviceName}', type='${serviceInfo.serviceType}'"
+                    }
                     resolveService(serviceInfo)
                 }
 
@@ -83,7 +85,9 @@ class NsdDiscoveryService(
                     errorCode: Int,
                 ) {
                     val errorName = nsdErrorCodeToString(errorCode)
-                    logger.error { "mDNS discovery start FAILED: errorCode=$errorCode ($errorName), serviceType='$serviceType'" }
+                    logger.error {
+                        "mDNS discovery start FAILED: errorCode=$errorCode ($errorName), serviceType='$serviceType'"
+                    }
                     isDiscovering = false
                 }
 

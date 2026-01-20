@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException")
+
 package com.calypsan.listenup.client.presentation.admin
 
 import androidx.lifecycle.ViewModel
@@ -10,7 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
@@ -34,7 +36,6 @@ data class AdminBackupState(
 class AdminBackupViewModel(
     private val backupApi: BackupApiContract,
 ) : ViewModel() {
-
     val state: StateFlow<AdminBackupState>
         field = MutableStateFlow(AdminBackupState())
 
@@ -50,8 +51,10 @@ class AdminBackupViewModel(
                 val backups = backupApi.listBackups()
                 state.update {
                     it.copy(
-                        backups = backups.map { b -> b.toDomain() }
-                            .sortedByDescending { b -> b.createdAt },
+                        backups =
+                            backups
+                                .map { b -> b.toDomain() }
+                                .sortedByDescending { b -> b.createdAt },
                         isLoading = false,
                     )
                 }
@@ -67,7 +70,10 @@ class AdminBackupViewModel(
         }
     }
 
-    fun createBackup(includeImages: Boolean, includeEvents: Boolean) {
+    fun createBackup(
+        includeImages: Boolean,
+        includeEvents: Boolean,
+    ) {
         viewModelScope.launch {
             state.update { it.copy(isCreating = true, error = null) }
 
@@ -132,14 +138,15 @@ class AdminBackupViewModel(
                 state.update {
                     it.copy(
                         validatingBackupId = null,
-                        validationResult = BackupValidation(
-                            valid = result.valid,
-                            version = result.version,
-                            serverName = result.serverName,
-                            entityCounts = result.expectedCounts ?: emptyMap(),
-                            errors = result.errors,
-                            warnings = result.warnings,
-                        ),
+                        validationResult =
+                            BackupValidation(
+                                valid = result.valid,
+                                version = result.version,
+                                serverName = result.serverName,
+                                entityCounts = result.expectedCounts ?: emptyMap(),
+                                errors = result.errors,
+                                warnings = result.warnings,
+                            ),
                     )
                 }
             } catch (e: Exception) {
@@ -167,11 +174,12 @@ class AdminBackupViewModel(
             id = id,
             path = path,
             size = size,
-            createdAt = try {
-                Instant.parse(createdAt)
-            } catch (e: Exception) {
-                Instant.DISTANT_PAST
-            },
+            createdAt =
+                try {
+                    Instant.parse(createdAt)
+                } catch (e: Exception) {
+                    Instant.DISTANT_PAST
+                },
             checksum = checksum,
         )
 }

@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod", "CognitiveComplexMethod")
+
 package com.calypsan.listenup.client.features.library
 
 import android.widget.Toast

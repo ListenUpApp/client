@@ -63,20 +63,23 @@ class ProgressPuller(
 
                     // Batch fetch existing local positions to preserve local-only fields
                     val bookIds = items.map { BookId(it.bookId) }
-                    val existingPositions = playbackPositionDao.getByBookIds(bookIds)
-                        .associateBy { it.bookId.value }
+                    val existingPositions =
+                        playbackPositionDao
+                            .getByBookIds(bookIds)
+                            .associateBy { it.bookId.value }
 
                     var created = 0
                     var updated = 0
                     var finishedCount = 0
 
                     // Convert to entities, preserving local-only fields
-                    val entities = items.map { item ->
-                        val existing = existingPositions[item.bookId]
-                        if (existing == null) created++ else updated++
-                        if (item.isFinished) finishedCount++
-                        item.toEntity(existing)
-                    }
+                    val entities =
+                        items.map { item ->
+                            val existing = existingPositions[item.bookId]
+                            if (existing == null) created++ else updated++
+                            if (item.isFinished) finishedCount++
+                            item.toEntity(existing)
+                        }
 
                     // Debug: Verify entities have correct isFinished values before save
                     val finishedEntities = entities.filter { it.isFinished }
@@ -86,7 +89,9 @@ class ProgressPuller(
                     if (finishedEntities.isNotEmpty()) {
                         val sample = finishedEntities.take(3)
                         logger.debug {
-                            "Sample finished entities: ${sample.map { "${it.bookId.value}: isFinished=${it.isFinished}" }}"
+                            "Sample finished entities: ${sample.map {
+                                "${it.bookId.value}: isFinished=${it.isFinished}"
+                            }}"
                         }
                     }
 

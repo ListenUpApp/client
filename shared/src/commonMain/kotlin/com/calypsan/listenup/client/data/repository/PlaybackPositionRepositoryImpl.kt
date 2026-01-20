@@ -105,6 +105,7 @@ class PlaybackPositionRepositoryImpl(
                 logger.info { "markComplete: synced $bookId to server" }
                 Success(Unit)
             }
+
             is Failure -> {
                 logger.warn { "markComplete: server sync failed for $bookId, rolling back" }
                 // Rollback on failure
@@ -131,6 +132,7 @@ class PlaybackPositionRepositoryImpl(
                 logger.info { "discardProgress: synced $bookId to server" }
                 Success(Unit)
             }
+
             is Failure -> {
                 logger.warn { "discardProgress: server sync failed for $bookId, rolling back" }
                 // Rollback on failure - restore previous state
@@ -182,6 +184,7 @@ class PlaybackPositionRepositoryImpl(
                 logger.info { "restartBook: synced $bookId to server" }
                 Success(Unit)
             }
+
             is Failure -> {
                 logger.warn { "restartBook: server sync failed for $bookId, rolling back" }
                 // Rollback on failure

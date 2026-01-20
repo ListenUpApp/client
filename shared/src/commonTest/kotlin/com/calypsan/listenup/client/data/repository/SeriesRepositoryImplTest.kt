@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.SearchDao
 import com.calypsan.listenup.client.data.local.db.SeriesDao
 import com.calypsan.listenup.client.data.local.db.SeriesEntity
@@ -42,7 +41,6 @@ class SeriesRepositoryImplTest {
     private fun createRepository(dao: SeriesDao): SeriesRepositoryImpl =
         SeriesRepositoryImpl(
             seriesDao = dao,
-            bookDao = mock<BookDao>(MockMode.autoUnit),
             searchDao = mock<SearchDao>(MockMode.autoUnit),
             api = mock<SeriesApiContract>(),
             networkMonitor = mock<NetworkMonitor>(),

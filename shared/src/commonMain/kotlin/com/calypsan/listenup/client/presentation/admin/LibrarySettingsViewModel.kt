@@ -73,10 +73,11 @@ class LibrarySettingsViewModel(
 
         viewModelScope.launch {
             try {
-                val updatedLibrary = adminRepository.updateLibrary(
-                    libraryId = libraryId,
-                    accessMode = accessMode,
-                )
+                val updatedLibrary =
+                    adminRepository.updateLibrary(
+                        libraryId = libraryId,
+                        accessMode = accessMode,
+                    )
                 logger.info { "Updated access mode for library $libraryId to ${accessMode.toApiString()}" }
                 state.value =
                     state.value.copy(
@@ -112,10 +113,11 @@ class LibrarySettingsViewModel(
 
         viewModelScope.launch {
             try {
-                val updatedLibrary = adminRepository.updateLibrary(
-                    libraryId = libraryId,
-                    skipInbox = newValue,
-                )
+                val updatedLibrary =
+                    adminRepository.updateLibrary(
+                        libraryId = libraryId,
+                        skipInbox = newValue,
+                    )
                 logger.info { "Updated skip inbox for library $libraryId to $newValue" }
                 state.value =
                     state.value.copy(

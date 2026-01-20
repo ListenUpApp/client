@@ -1,3 +1,5 @@
+@file:Suppress("TooGenericExceptionThrown")
+
 package com.calypsan.listenup.client.data.remote
 
 import com.calypsan.listenup.client.data.remote.model.ApiResponse

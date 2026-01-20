@@ -270,7 +270,10 @@ class BookDetailViewModel(
      * Mark the current book as complete.
      */
     fun markComplete() {
-        val bookId = state.value.book?.id?.value ?: return
+        val bookId =
+            state.value.book
+                ?.id
+                ?.value ?: return
         viewModelScope.launch {
             state.update { it.copy(isMarkingComplete = true) }
             when (playbackPositionRepository.markComplete(bookId)) {
@@ -278,6 +281,7 @@ class BookDetailViewModel(
                     state.update { it.copy(isMarkingComplete = false, isComplete = true) }
                     logger.info { "Marked book $bookId as complete" }
                 }
+
                 is Failure -> {
                     state.update { it.copy(isMarkingComplete = false) }
                     logger.error { "Failed to mark book $bookId as complete" }
@@ -290,7 +294,10 @@ class BookDetailViewModel(
      * Discard progress for the current book (start over / DNF).
      */
     fun discardProgress() {
-        val bookId = state.value.book?.id?.value ?: return
+        val bookId =
+            state.value.book
+                ?.id
+                ?.value ?: return
         viewModelScope.launch {
             state.update { it.copy(isDiscardingProgress = true) }
             when (playbackPositionRepository.discardProgress(bookId)) {
@@ -305,6 +312,7 @@ class BookDetailViewModel(
                     }
                     logger.info { "Discarded progress for book $bookId" }
                 }
+
                 is Failure -> {
                     state.update { it.copy(isDiscardingProgress = false) }
                     logger.error { "Failed to discard progress for book $bookId" }
@@ -317,7 +325,10 @@ class BookDetailViewModel(
      * Restart the current book from the beginning.
      */
     fun restartBook() {
-        val bookId = state.value.book?.id?.value ?: return
+        val bookId =
+            state.value.book
+                ?.id
+                ?.value ?: return
         viewModelScope.launch {
             state.update { it.copy(isRestarting = true) }
             when (playbackPositionRepository.restartBook(bookId)) {
@@ -331,6 +342,7 @@ class BookDetailViewModel(
                     }
                     logger.info { "Restarted book $bookId" }
                 }
+
                 is Failure -> {
                     state.update { it.copy(isRestarting = false) }
                     logger.error { "Failed to restart book $bookId" }

@@ -23,10 +23,10 @@ class AndroidFileSource(
     override val filename: String,
     override val size: Long?,
 ) : FileSource {
-
     override fun openChannel(): ByteReadChannel {
-        val inputStream = contentResolver.openInputStream(uri)
-            ?: throw IllegalStateException("Could not open input stream for URI: $uri")
+        val inputStream =
+            contentResolver.openInputStream(uri)
+                ?: error("Could not open input stream for URI: $uri")
 
         // Convert InputStream to ByteReadChannel for streaming
         // The ByteReadChannel handles async reads internally - reads will suspend as needed

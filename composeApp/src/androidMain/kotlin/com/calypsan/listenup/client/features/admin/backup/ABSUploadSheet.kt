@@ -1,7 +1,6 @@
 package com.calypsan.listenup.client.features.admin.backup
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -49,7 +48,6 @@ import com.calypsan.listenup.client.core.FileSource
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.util.DocumentPickerResult
-import com.calypsan.listenup.client.util.rememberABSBackupPicker
 import kotlinx.coroutines.delay
 import com.calypsan.listenup.client.core.Result as AppResult
 
@@ -128,21 +126,23 @@ fun ABSUploadSheet(
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         dragHandle = {
             Surface(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(32.dp)
-                    .height(4.dp),
+                modifier =
+                    Modifier
+                        .padding(vertical = 12.dp)
+                        .width(32.dp)
+                        .height(4.dp),
                 shape = RoundedCornerShape(2.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
             ) {}
         },
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 24.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 24.dp),
         ) {
             AnimatedContent(
                 targetState = state,
@@ -156,6 +156,7 @@ fun ABSUploadSheet(
                     is ABSUploadState.SelectFile -> {
                         SelectFileContent(onPickFile = onPickFile)
                     }
+
                     is ABSUploadState.FileSelected -> {
                         FileSelectedContent(
                             filename = currentState.filename,
@@ -164,18 +165,21 @@ fun ABSUploadSheet(
                             onChangeFile = onPickFile,
                         )
                     }
+
                     is ABSUploadState.Uploading -> {
                         UploadingContent(
                             filename = currentState.filename,
                             phase = currentState.phase,
                         )
                     }
+
                     is ABSUploadState.Complete -> {
                         CompleteContent(
                             filename = currentState.filename,
                             onContinue = { onNavigateToImport(currentState.importId) },
                         )
                     }
+
                     is ABSUploadState.Error -> {
                         ErrorContent(
                             message = currentState.message,
@@ -215,10 +219,11 @@ private fun SelectFileContent(onPickFile: () -> Unit) {
 
         // Upload icon area
         Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer),
+            modifier =
+                Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -273,10 +278,11 @@ private fun FileSelectedContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    modifier =
+                        Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -334,10 +340,11 @@ private fun UploadingContent(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = when (phase) {
-                UploadPhase.UPLOADING -> "Uploading..."
-                UploadPhase.ANALYZING -> "Analyzing..."
-            },
+            text =
+                when (phase) {
+                    UploadPhase.UPLOADING -> "Uploading..."
+                    UploadPhase.ANALYZING -> "Analyzing..."
+                },
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -345,10 +352,11 @@ private fun UploadingContent(
         Spacer(Modifier.height(8.dp))
 
         Text(
-            text = when (phase) {
-                UploadPhase.UPLOADING -> "Uploading $filename to server"
-                UploadPhase.ANALYZING -> "Analyzing backup contents and matching books"
-            },
+            text =
+                when (phase) {
+                    UploadPhase.UPLOADING -> "Uploading $filename to server"
+                    UploadPhase.ANALYZING -> "Analyzing backup contents and matching books"
+                },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth(),
@@ -357,10 +365,11 @@ private fun UploadingContent(
         Spacer(Modifier.height(32.dp))
 
         LinearProgressIndicator(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp)),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
         )
 
         Spacer(Modifier.height(16.dp))
@@ -393,16 +402,17 @@ private fun PhaseIndicator(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    when {
-                        isComplete -> MaterialTheme.colorScheme.primary
-                        isActive -> MaterialTheme.colorScheme.primaryContainer
-                        else -> MaterialTheme.colorScheme.surfaceContainerHigh
-                    },
-                ),
+            modifier =
+                Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        when {
+                            isComplete -> MaterialTheme.colorScheme.primary
+                            isActive -> MaterialTheme.colorScheme.primaryContainer
+                            else -> MaterialTheme.colorScheme.surfaceContainerHigh
+                        },
+                    ),
             contentAlignment = Alignment.Center,
         ) {
             if (isComplete) {
@@ -418,14 +428,17 @@ private fun PhaseIndicator(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = when {
-                isActive || isComplete -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color =
+                if (isActive || isComplete) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
         )
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun CompleteContent(
     filename: String,
@@ -436,10 +449,11 @@ private fun CompleteContent(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(RoundedCornerShape(40.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer),
+            modifier =
+                Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(40.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -486,10 +500,11 @@ private fun ErrorContent(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(RoundedCornerShape(40.dp))
-                .background(MaterialTheme.colorScheme.errorContainer),
+            modifier =
+                Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(40.dp))
+                    .background(MaterialTheme.colorScheme.errorContainer),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -538,14 +553,14 @@ private fun ErrorContent(
 /**
  * Format file size in human-readable format.
  */
-private fun formatFileSize(bytes: Long): String {
-    return when {
+@Suppress("MagicNumber")
+private fun formatFileSize(bytes: Long): String =
+    when {
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
         else -> "${bytes / (1024 * 1024 * 1024)} GB"
     }
-}
 
 /**
  * State holder for the ABS upload sheet.
@@ -565,17 +580,21 @@ class ABSUploadSheetState {
         when (result) {
             is DocumentPickerResult.Success -> {
                 pendingFileSource = result.fileSource
-                uploadState = ABSUploadState.FileSelected(
-                    filename = result.filename,
-                    sizeBytes = result.size,
-                )
+                uploadState =
+                    ABSUploadState.FileSelected(
+                        filename = result.filename,
+                        sizeBytes = result.size,
+                    )
             }
+
             is DocumentPickerResult.Error -> {
-                uploadState = ABSUploadState.Error(
-                    message = result.message,
-                    filename = null,
-                )
+                uploadState =
+                    ABSUploadState.Error(
+                        message = result.message,
+                        filename = null,
+                    )
             }
+
             DocumentPickerResult.Cancelled -> {
                 // Do nothing, keep current state
             }
@@ -585,9 +604,8 @@ class ABSUploadSheetState {
     /**
      * Start the upload process.
      */
-    suspend fun startUpload(
-        createImport: suspend (FileSource, String) -> AppResult<String>,
-    ) {
+    @Suppress("MagicNumber")
+    suspend fun startUpload(createImport: suspend (FileSource, String) -> AppResult<String>) {
         val fileSource = pendingFileSource ?: return
         val filename = (uploadState as? ABSUploadState.FileSelected)?.filename ?: return
 
@@ -602,18 +620,21 @@ class ABSUploadSheetState {
                 is Success -> {
                     uploadState = ABSUploadState.Complete(result.data, filename)
                 }
+
                 is Failure -> {
-                    uploadState = ABSUploadState.Error(
-                        message = result.message,
-                        filename = filename,
-                    )
+                    uploadState =
+                        ABSUploadState.Error(
+                            message = result.message,
+                            filename = filename,
+                        )
                 }
             }
         } catch (e: Exception) {
-            uploadState = ABSUploadState.Error(
-                message = e.message ?: "Upload failed",
-                filename = filename,
-            )
+            uploadState =
+                ABSUploadState.Error(
+                    message = e.message ?: "Upload failed",
+                    filename = filename,
+                )
         }
     }
 
@@ -638,6 +659,4 @@ class ABSUploadSheetState {
  * Remember state for the ABS upload sheet.
  */
 @Composable
-fun rememberABSUploadSheetState(): ABSUploadSheetState {
-    return remember { ABSUploadSheetState() }
-}
+fun rememberABSUploadSheetState(): ABSUploadSheetState = remember { ABSUploadSheetState() }

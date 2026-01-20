@@ -168,7 +168,6 @@ val adminPresentationModule =
         single {
             com.calypsan.listenup.client.presentation.admin.ABSImportHubViewModel(
                 absImportApi = get(),
-                backupApi = get(),
                 searchApi = get(),
                 syncRepository = get(),
             )

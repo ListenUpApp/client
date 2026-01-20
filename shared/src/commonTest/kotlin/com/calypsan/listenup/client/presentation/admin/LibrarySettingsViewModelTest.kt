@@ -60,10 +60,11 @@ class LibrarySettingsViewModelTest {
             val adminRepository: AdminRepository = mock()
             everySuspend { adminRepository.getLibrary("lib-1") } returns createLibrary()
 
-            val viewModel = LibrarySettingsViewModel(
-                libraryId = "lib-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                LibrarySettingsViewModel(
+                    libraryId = "lib-1",
+                    adminRepository = adminRepository,
+                )
 
             assertTrue(viewModel.state.value.isLoading)
         }
@@ -75,10 +76,11 @@ class LibrarySettingsViewModelTest {
             val library = createLibrary(accessMode = AccessMode.RESTRICTED, skipInbox = true)
             everySuspend { adminRepository.getLibrary("lib-1") } returns library
 
-            val viewModel = LibrarySettingsViewModel(
-                libraryId = "lib-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                LibrarySettingsViewModel(
+                    libraryId = "lib-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
@@ -93,14 +95,18 @@ class LibrarySettingsViewModelTest {
             val adminRepository: AdminRepository = mock()
             everySuspend { adminRepository.getLibrary("lib-1") } throws RuntimeException("Network error")
 
-            val viewModel = LibrarySettingsViewModel(
-                libraryId = "lib-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                LibrarySettingsViewModel(
+                    libraryId = "lib-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
 
             assertFalse(viewModel.state.value.isLoading)
-            assertTrue(viewModel.state.value.error?.contains("Network error") == true)
+            assertTrue(
+                viewModel.state.value.error
+                    ?.contains("Network error") == true,
+            )
         }
 
     @Test
@@ -117,10 +123,11 @@ class LibrarySettingsViewModelTest {
                 )
             } returns updatedLibrary
 
-            val viewModel = LibrarySettingsViewModel(
-                libraryId = "lib-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                LibrarySettingsViewModel(
+                    libraryId = "lib-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
 
             viewModel.setAccessMode(AccessMode.RESTRICTED)
@@ -146,10 +153,11 @@ class LibrarySettingsViewModelTest {
                 )
             } returns updatedLibrary
 
-            val viewModel = LibrarySettingsViewModel(
-                libraryId = "lib-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                LibrarySettingsViewModel(
+                    libraryId = "lib-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
 
             viewModel.toggleSkipInbox()
@@ -174,10 +182,11 @@ class LibrarySettingsViewModelTest {
                 )
             } throws RuntimeException("Server error")
 
-            val viewModel = LibrarySettingsViewModel(
-                libraryId = "lib-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                LibrarySettingsViewModel(
+                    libraryId = "lib-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
 
             viewModel.setAccessMode(AccessMode.RESTRICTED)
@@ -185,7 +194,10 @@ class LibrarySettingsViewModelTest {
 
             // Should revert to original state on error
             assertEquals(AccessMode.OPEN, viewModel.state.value.accessMode)
-            assertTrue(viewModel.state.value.error?.contains("Server error") == true)
+            assertTrue(
+                viewModel.state.value.error
+                    ?.contains("Server error") == true,
+            )
         }
 
     @Test
@@ -194,10 +206,11 @@ class LibrarySettingsViewModelTest {
             val adminRepository: AdminRepository = mock()
             everySuspend { adminRepository.getLibrary("lib-1") } throws RuntimeException("Error")
 
-            val viewModel = LibrarySettingsViewModel(
-                libraryId = "lib-1",
-                adminRepository = adminRepository,
-            )
+            val viewModel =
+                LibrarySettingsViewModel(
+                    libraryId = "lib-1",
+                    adminRepository = adminRepository,
+                )
             advanceUntilIdle()
             assertTrue(viewModel.state.value.error != null)
 

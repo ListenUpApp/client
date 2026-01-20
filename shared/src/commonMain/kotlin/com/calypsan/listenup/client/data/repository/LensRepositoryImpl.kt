@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException")
+
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Timestamp

@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException")
+
 package com.calypsan.listenup.client.data.remote.model
 
 import com.calypsan.listenup.client.data.remote.BookReadersResponse

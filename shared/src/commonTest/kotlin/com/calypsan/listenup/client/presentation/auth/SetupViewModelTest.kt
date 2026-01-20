@@ -528,7 +528,9 @@ class SetupViewModelTest {
             // Given
             val fixture = createFixture()
             everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } throws Exception("Server already configured")
-            everySuspend { fixture.authSession.checkServerStatus() } returns com.calypsan.listenup.client.domain.repository.AuthState.NeedsLogin()
+            everySuspend { fixture.authSession.checkServerStatus() } returns
+                com.calypsan.listenup.client.domain.repository.AuthState
+                    .NeedsLogin()
             val viewModel = fixture.build()
 
             // When
@@ -554,7 +556,9 @@ class SetupViewModelTest {
             // leaving user stranded on setup screen unable to proceed.
             val fixture = createFixture()
             everySuspend { fixture.authRepository.setup(any(), any(), any(), any()) } throws Exception("Server already configured")
-            everySuspend { fixture.authSession.checkServerStatus() } returns com.calypsan.listenup.client.domain.repository.AuthState.NeedsLogin()
+            everySuspend { fixture.authSession.checkServerStatus() } returns
+                com.calypsan.listenup.client.domain.repository.AuthState
+                    .NeedsLogin()
             val viewModel = fixture.build()
 
             // When

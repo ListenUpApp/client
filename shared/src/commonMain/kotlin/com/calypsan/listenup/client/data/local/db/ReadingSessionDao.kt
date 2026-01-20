@@ -58,7 +58,10 @@ interface ReadingSessionDao {
      * @return The reading session or null if not found
      */
     @Query("SELECT * FROM reading_sessions WHERE bookId = :bookId AND oduserId = :userId")
-    suspend fun getByBookAndUser(bookId: String, userId: String): ReadingSessionEntity?
+    suspend fun getByBookAndUser(
+        bookId: String,
+        userId: String,
+    ): ReadingSessionEntity?
 
     /**
      * Insert or update a reading session entity.

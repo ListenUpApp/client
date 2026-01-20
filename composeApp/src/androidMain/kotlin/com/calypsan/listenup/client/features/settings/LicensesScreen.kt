@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication")
+
 package com.calypsan.listenup.client.features.settings
 
 import androidx.compose.foundation.layout.Column

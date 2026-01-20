@@ -73,10 +73,11 @@ class UserDetailViewModel(
 
         viewModelScope.launch {
             try {
-                val updatedUser = adminRepository.updateUser(
-                    userId = userId,
-                    canDownload = newValue,
-                )
+                val updatedUser =
+                    adminRepository.updateUser(
+                        userId = userId,
+                        canDownload = newValue,
+                    )
                 logger.info { "Updated canDownload for user $userId to $newValue" }
                 state.value =
                     state.value.copy(
@@ -114,10 +115,11 @@ class UserDetailViewModel(
 
         viewModelScope.launch {
             try {
-                val updatedUser = adminRepository.updateUser(
-                    userId = userId,
-                    canShare = newValue,
-                )
+                val updatedUser =
+                    adminRepository.updateUser(
+                        userId = userId,
+                        canShare = newValue,
+                    )
                 logger.info { "Updated canShare for user $userId to $newValue" }
                 state.value =
                     state.value.copy(

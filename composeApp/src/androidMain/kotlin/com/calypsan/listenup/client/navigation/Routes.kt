@@ -343,7 +343,9 @@ data object ABSImportList : Route
  * @param importId The ID of the import to display.
  */
 @Serializable
-data class ABSImportDetail(val importId: String) : Route
+data class ABSImportDetail(
+    val importId: String,
+) : Route
 
 /**
  * ABS import screen (legacy) - wizard-style import from Audiobookshelf backup.

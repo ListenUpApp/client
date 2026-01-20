@@ -163,11 +163,12 @@ class LibrarySetupViewModel(
             state.update { it.copy(isCreatingLibrary = true, error = null) }
 
             try {
-                val request = SetupLibraryRequest(
-                    name = currentState.libraryName.trim(),
-                    scanPaths = listOf(selectedPath),
-                    skipInbox = currentState.skipInbox,
-                )
+                val request =
+                    SetupLibraryRequest(
+                        name = currentState.libraryName.trim(),
+                        scanPaths = listOf(selectedPath),
+                        skipInbox = currentState.skipInbox,
+                    )
 
                 val response = setupApi.setupLibrary(request)
                 logger.info { "Library created: id=${response.id}, name=${response.name}" }

@@ -1,3 +1,5 @@
+@file:Suppress("CognitiveComplexMethod")
+
 package com.calypsan.listenup.client.features.library.components
 
 import androidx.compose.foundation.layout.Row

@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "SwallowedException", "CognitiveComplexMethod")
 
 package com.calypsan.listenup.client.features.bookdetail.components
 

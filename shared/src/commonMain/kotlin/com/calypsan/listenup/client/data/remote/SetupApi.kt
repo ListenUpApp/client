@@ -60,11 +60,12 @@ class SetupApi(
     override suspend fun browseFilesystem(path: String): BrowseFilesystemResponse {
         val client = clientFactory.getClient()
         val response: ApiResponse<BrowseFilesystemResponse> =
-            client.get("/api/v1/filesystem") {
-                url {
-                    parameters.append("path", path)
-                }
-            }.body()
+            client
+                .get("/api/v1/filesystem") {
+                    url {
+                        parameters.append("path", path)
+                    }
+                }.body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
