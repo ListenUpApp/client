@@ -16,6 +16,7 @@ import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.download.DownloadWorkerFactory
+import com.calypsan.listenup.client.automotive.BrowseTreeProvider
 import com.calypsan.listenup.client.playback.AndroidAudioCapabilityDetector
 import com.calypsan.listenup.client.playback.AndroidAudioTokenProvider
 import com.calypsan.listenup.client.playback.AudioCapabilityDetector
@@ -137,6 +138,18 @@ val playbackModule =
         // Sleep timer manager - handles sleep timer state and countdown
         single {
             SleepTimerManager(scope = get())
+        }
+
+        // Browse tree provider for Android Auto
+        single {
+            BrowseTreeProvider(
+                homeRepository = get(),
+                bookDao = get(),
+                seriesDao = get(),
+                contributorDao = get(),
+                downloadDao = get(),
+                imageStorage = get(),
+            )
         }
 
         // Shared MediaController holder - single connection for all ViewModels
