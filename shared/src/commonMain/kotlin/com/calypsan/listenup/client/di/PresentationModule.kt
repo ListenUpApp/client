@@ -238,6 +238,7 @@ val bookPresentationModule =
             com.calypsan.listenup.client.presentation.bookdetail.BookReadersViewModel(
                 sessionRepository = get(),
                 eventStreamRepository = get(),
+                userRepository = get(),
             )
         }
         factory {

@@ -1325,6 +1325,7 @@ data class ReaderSummary(
     val currentProgress: Double = 0.0,
     val startedAt: String,
     val finishedAt: String? = null,
+    val lastActivityAt: String,
     val completionCount: Int,
 )
 

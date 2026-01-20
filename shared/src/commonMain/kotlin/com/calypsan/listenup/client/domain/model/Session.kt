@@ -52,7 +52,9 @@ data class BookReadersResult(
  * @property currentProgress Reading progress as a percentage (0.0 - 1.0)
  * @property startedAt When the user started reading (ISO timestamp)
  * @property finishedAt When the user finished (null if not finished)
+ * @property lastActivityAt When the user last interacted (ISO timestamp) - used for sorting
  * @property completionCount Number of times the user has completed this book
+ * @property isCurrentUser Whether this represents the currently logged-in user
  */
 data class ReaderInfo(
     val userId: String,
@@ -64,7 +66,9 @@ data class ReaderInfo(
     val currentProgress: Double,
     val startedAt: String,
     val finishedAt: String? = null,
+    val lastActivityAt: String,
     val completionCount: Int,
+    val isCurrentUser: Boolean = false,
 ) {
     /**
      * Returns the user's initials for avatar display.

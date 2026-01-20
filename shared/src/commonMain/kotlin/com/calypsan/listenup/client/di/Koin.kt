@@ -1338,6 +1338,13 @@ val syncModule =
             ProfileRepositoryImpl(profileApi = get())
         }
 
+        // UserPreferencesRepository for syncing user preferences across devices
+        single<com.calypsan.listenup.client.domain.repository.UserPreferencesRepository> {
+            com.calypsan.listenup.client.data.repository.UserPreferencesRepositoryImpl(
+                userPreferencesApi = get(),
+            )
+        }
+
         // SessionRepository for reading sessions (SOLID: interface in domain, impl in data)
         // Offline-first: caches reader data in Room, syncs via API and SSE
         single<SessionRepository> {

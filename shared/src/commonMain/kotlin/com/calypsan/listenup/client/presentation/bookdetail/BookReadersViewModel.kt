@@ -7,6 +7,7 @@ import com.calypsan.listenup.client.domain.model.ReaderInfo
 import com.calypsan.listenup.client.domain.model.SessionSummary
 import com.calypsan.listenup.client.domain.repository.EventStreamRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
+import com.calypsan.listenup.client.domain.repository.UserRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +33,7 @@ private val logger = KotlinLogging.logger {}
 class BookReadersViewModel(
     private val sessionRepository: SessionRepository,
     private val eventStreamRepository: EventStreamRepository,
+    private val userRepository: UserRepository,
 ) : ViewModel() {
     val state: StateFlow<BookReadersUiState>
         field = MutableStateFlow(BookReadersUiState())
@@ -73,10 +75,14 @@ class BookReadersViewModel(
                     state.update { it.copy(isLoading = false, error = e.message) }
                 }
                 .collect { result ->
+                    // Build current user's ReaderInfo from their sessions and profile
+                    val currentUserReaderInfo = buildCurrentUserReaderInfo(result.yourSessions)
+
                     state.update {
                         it.copy(
                             isLoading = false,
                             yourSessions = result.yourSessions,
+                            currentUserReaderInfo = currentUserReaderInfo,
                             otherReaders = result.otherReaders,
                             totalReaders = result.totalReaders,
                             totalCompletions = result.totalCompletions,
@@ -140,6 +146,41 @@ class BookReadersViewModel(
             sessionRepository.refreshBookReaders(bookId)
         }
     }
+
+    /**
+     * Build a ReaderInfo for the current user from their sessions.
+     *
+     * Combines session data with current user profile to create a unified
+     * reader representation that can be displayed like any other reader.
+     */
+    private suspend fun buildCurrentUserReaderInfo(sessions: List<SessionSummary>): ReaderInfo? {
+        if (sessions.isEmpty()) return null
+
+        val user = userRepository.getCurrentUser() ?: return null
+
+        // Find the most recent session
+        val mostRecent = sessions.maxByOrNull { it.startedAt } ?: return null
+        val completionCount = sessions.count { it.isCompleted }
+        val isCurrentlyReading = mostRecent.finishedAt == null
+
+        // Compute last activity (most recent of startedAt or finishedAt)
+        val lastActivity = mostRecent.finishedAt ?: mostRecent.startedAt
+
+        return ReaderInfo(
+            userId = user.id.value,
+            displayName = user.displayName,
+            avatarType = user.avatarType,
+            avatarValue = user.avatarValue,
+            avatarColor = user.avatarColor,
+            isCurrentlyReading = isCurrentlyReading,
+            currentProgress = 0.0, // Progress would need to come from PlaybackState
+            startedAt = mostRecent.startedAt,
+            finishedAt = mostRecent.finishedAt,
+            lastActivityAt = lastActivity,
+            completionCount = completionCount,
+            isCurrentUser = true,
+        )
+    }
 }
 
 /**
@@ -148,6 +189,7 @@ class BookReadersViewModel(
 data class BookReadersUiState(
     val isLoading: Boolean = true,
     val yourSessions: List<SessionSummary> = emptyList(),
+    val currentUserReaderInfo: ReaderInfo? = null,
     val otherReaders: List<ReaderInfo> = emptyList(),
     val totalReaders: Int = 0,
     val totalCompletions: Int = 0,
@@ -163,13 +205,22 @@ data class BookReadersUiState(
      * True if the current user has any reading history for this book.
      */
     val hasYourHistory: Boolean
-        get() = yourSessions.isNotEmpty()
+        get() = currentUserReaderInfo != null
 
     /**
      * True if there are other readers besides the current user.
      */
     val hasOtherReaders: Boolean
         get() = otherReaders.isNotEmpty()
+
+    /**
+     * All readers including current user, sorted by last activity.
+     */
+    val allReaders: List<ReaderInfo>
+        get() = buildList {
+            currentUserReaderInfo?.let { add(it) }
+            addAll(otherReaders)
+        }.sortedByDescending { it.lastActivityAt }
 
     /**
      * Number of other readers currently reading (not completed).

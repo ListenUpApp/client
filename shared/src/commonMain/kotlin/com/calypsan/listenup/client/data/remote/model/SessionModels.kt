@@ -61,6 +61,8 @@ internal data class ReaderSummaryResponse(
     val startedAt: String,
     @SerialName("finished_at")
     val finishedAt: String? = null,
+    @SerialName("last_activity_at")
+    val lastActivityAt: String,
     @SerialName("completion_count")
     val completionCount: Int,
 ) {
@@ -75,6 +77,7 @@ internal data class ReaderSummaryResponse(
             currentProgress = currentProgress,
             startedAt = startedAt,
             finishedAt = finishedAt,
+            lastActivityAt = lastActivityAt,
             completionCount = completionCount,
         )
 }

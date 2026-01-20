@@ -225,14 +225,17 @@ private fun ReaderSummary.toDomain(): ReaderInfo =
         currentProgress = currentProgress,
         startedAt = startedAt,
         finishedAt = finishedAt,
+        lastActivityAt = lastActivityAt,
         completionCount = completionCount,
     )
 
 /**
  * Convert ReadingSessionEntity to ReaderInfo domain model.
  */
-private fun ReadingSessionEntity.toDomain(): ReaderInfo =
-    ReaderInfo(
+private fun ReadingSessionEntity.toDomain(): ReaderInfo {
+    // Compute last activity: use finishedAt if available, otherwise startedAt
+    val lastActivity = finishedAt?.takeIf { it > startedAt } ?: startedAt
+    return ReaderInfo(
         userId = userId,
         displayName = userDisplayName,
         avatarType = userAvatarType,
@@ -242,8 +245,10 @@ private fun ReadingSessionEntity.toDomain(): ReaderInfo =
         currentProgress = currentProgress,
         startedAt = kotlin.time.Instant.fromEpochMilliseconds(startedAt).toString(),
         finishedAt = finishedAt?.let { kotlin.time.Instant.fromEpochMilliseconds(it).toString() },
+        lastActivityAt = kotlin.time.Instant.fromEpochMilliseconds(lastActivity).toString(),
         completionCount = completionCount,
     )
+}
 
 /**
  * Convert ReaderSummary API model to ReadingSessionEntity for caching.

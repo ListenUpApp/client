@@ -72,7 +72,8 @@ fun BookReadersSection(
     }
 
     // Don't render section if empty (no readers at all)
-    if (!state.hasYourHistory && state.otherReaders.isEmpty()) {
+    val allReaders = state.allReaders
+    if (allReaders.isEmpty()) {
         return
     }
 
@@ -93,7 +94,7 @@ fun BookReadersSection(
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
-            if (state.otherReaders.size > 3) {
+            if (allReaders.size > 3) {
                 TextButton(onClick = { /* TODO: Navigate to full readers list */ }) {
                     Text("See all")
                 }
@@ -102,17 +103,8 @@ fun BookReadersSection(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Your reading history card (if available)
-        if (state.hasYourHistory) {
-            YourReadingHistory(
-                sessions = state.yourSessions,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        // Other readers (take 3)
-        val displayedReaders = state.otherReaders.take(3)
+        // Unified reader list (take 3) - includes current user with avatar
+        val displayedReaders = allReaders.take(3)
         displayedReaders.forEach { reader ->
             ReaderRow(
                 reader = reader,
