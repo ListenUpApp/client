@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,6 +37,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.getInitials
 import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
 
@@ -136,11 +136,7 @@ fun ContributorIdentityHeader(
                                     .background(Color.Black.copy(alpha = 0.5f)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White,
-                            )
+                            ListenUpLoadingIndicatorSmall()
                         }
                     } else {
                         // Edit indicator

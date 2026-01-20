@@ -184,9 +184,11 @@ private fun ArticleToggleChip(
  * @param books List of books to display
  * @param hasLoadedBooks Whether initial database load has completed (distinguishes loading vs empty)
  * @param syncState Current sync status for loading/error states
+ * @param isServerScanning Whether the server is currently scanning the library
  * @param sortState Current sort state (category + direction)
  * @param ignoreTitleArticles Whether to ignore articles (A, An, The) when sorting by title
  * @param bookProgress Map of bookId to progress (0.0-1.0) for in-progress books
+ * @param bookIsFinished Map of bookId to isFinished flag (authoritative completion status from server)
  * @param isInSelectionMode Whether multi-select mode is active
  * @param selectedBookIds Set of currently selected book IDs
  * @param onCategorySelected Called when user selects a new category
@@ -203,9 +205,11 @@ fun BooksContent(
     books: List<Book>,
     hasLoadedBooks: Boolean,
     syncState: SyncState,
+    isServerScanning: Boolean,
     sortState: SortState,
     ignoreTitleArticles: Boolean,
     bookProgress: Map<String, Float>,
+    bookIsFinished: Map<String, Boolean> = emptyMap(),
     isInSelectionMode: Boolean = false,
     selectedBookIds: Set<String> = emptySet(),
     onCategorySelected: (SortCategory) -> Unit,
@@ -236,6 +240,11 @@ fun BooksContent(
                 )
             }
 
+            // Loaded but empty AND server is scanning - show scanning state
+            books.isEmpty() && isServerScanning -> {
+                BooksScanningState()
+            }
+
             // Loaded AND truly empty - show empty state
             books.isEmpty() -> {
                 BooksEmptyState()
@@ -248,6 +257,7 @@ fun BooksContent(
                     sortState = sortState,
                     ignoreTitleArticles = ignoreTitleArticles,
                     bookProgress = bookProgress,
+                    bookIsFinished = bookIsFinished,
                     isInSelectionMode = isInSelectionMode,
                     selectedBookIds = selectedBookIds,
                     onCategorySelected = onCategorySelected,
@@ -271,6 +281,7 @@ private fun BookGrid(
     sortState: SortState,
     ignoreTitleArticles: Boolean,
     bookProgress: Map<String, Float>,
+    bookIsFinished: Map<String, Boolean>,
     isInSelectionMode: Boolean,
     selectedBookIds: Set<String>,
     onCategorySelected: (SortCategory) -> Unit,
@@ -376,6 +387,7 @@ private fun BookGrid(
                             book = gridItem.book,
                             onClick = { onBookClick(bookId) },
                             progress = bookProgress[bookId],
+                            isFinished = bookIsFinished[bookId] ?: false,
                             isInSelectionMode = isInSelectionMode,
                             isSelected = bookId in selectedBookIds,
                             onLongPress =
@@ -455,6 +467,36 @@ private fun BooksLoadingState() {
                 text = "Loading your library...",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BooksScanningState() {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(32.dp),
+        ) {
+            ListenUpLoadingIndicator()
+            Text(
+                text = "Scanning your library...",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "Your audiobooks will appear here once the scan is complete",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
         }
     }

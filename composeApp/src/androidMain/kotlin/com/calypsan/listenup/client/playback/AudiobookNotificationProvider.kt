@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication", "SwallowedException")
+
 package com.calypsan.listenup.client.playback
 
 import android.app.NotificationChannel

@@ -233,6 +233,7 @@ class StatsRepositoryImpl(
     /**
      * Format epoch ms as YYYY-MM-DD string.
      */
+    @Suppress("MagicNumber")
     private fun formatDate(epochMs: Long): String {
         // Simple calculation without datetime library
         // Days since Unix epoch
@@ -241,8 +242,8 @@ class StatsRepositoryImpl(
         // Calculate year, month, day
         // This is a simplified calculation - using kotlinx-datetime would be better
         // but keeping it simple for now
-        var days = daysSinceEpoch.toInt() + 719528 // Days from year 0 to 1970
-        var year = (10000 * days.toLong() + 14780) / 3652425
+        var days = daysSinceEpoch.toInt() + 719_528 // Days from year 0 to 1970
+        var year = (10_000 * days.toLong() + 14_780) / 3_652_425
         var doy = days - (365 * year + year / 4 - year / 100 + year / 400).toInt()
         if (doy < 0) {
             year--

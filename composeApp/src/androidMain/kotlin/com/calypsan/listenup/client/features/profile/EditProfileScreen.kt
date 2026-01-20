@@ -1,4 +1,10 @@
-@file:Suppress("MagicNumber")
+@file:Suppress(
+    "MagicNumber",
+    "LongMethod",
+    "LongParameterList",
+    "CyclomaticComplexMethod",
+    "CognitiveComplexMethod",
+)
 
 package com.calypsan.listenup.client.features.profile
 

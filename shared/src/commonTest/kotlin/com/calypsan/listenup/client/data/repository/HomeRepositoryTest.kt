@@ -6,11 +6,9 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
-import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.BookContributor
 import com.calypsan.listenup.client.domain.repository.BookRepository
-import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -43,15 +41,11 @@ class HomeRepositoryTest {
     private class TestFixture {
         val bookRepository: BookRepository = mock()
         val playbackPositionDao: PlaybackPositionDao = mock()
-        val syncApi: SyncApiContract = mock()
-        val networkMonitor: NetworkMonitor = mock()
 
         fun build(): HomeRepositoryImpl =
             HomeRepositoryImpl(
                 bookRepository = bookRepository,
                 playbackPositionDao = playbackPositionDao,
-                syncApi = syncApi,
-                networkMonitor = networkMonitor,
             )
     }
 
@@ -63,9 +57,6 @@ class HomeRepositoryTest {
         everySuspend { fixture.playbackPositionDao.get(any()) } returns null
         everySuspend { fixture.playbackPositionDao.save(any()) } returns Unit
         everySuspend { fixture.bookRepository.getBook(any()) } returns null
-        // Default: offline mode - tests local fallback behavior
-        every { fixture.networkMonitor.isOnline() } returns false
-        everySuspend { fixture.syncApi.getContinueListening(any()) } returns Failure(Exception("Offline"))
 
         return fixture
     }
@@ -76,12 +67,14 @@ class HomeRepositoryTest {
         bookId: String,
         positionMs: Long,
         updatedAt: Long = Clock.System.now().toEpochMilliseconds(),
+        isFinished: Boolean = false,
     ): PlaybackPositionEntity =
         PlaybackPositionEntity(
             bookId = BookId(bookId),
             positionMs = positionMs,
             playbackSpeed = 1.0f,
             updatedAt = updatedAt,
+            isFinished = isFinished,
         )
 
     private fun createBook(
@@ -172,11 +165,33 @@ class HomeRepositoryTest {
         }
 
     @Test
-    fun `getContinueListening filters out completed books at 99 percent or more`() =
+    fun `getContinueListening filters out books with isFinished true`() =
         runTest {
-            // Given
+            // Given: A book marked as finished (regardless of position)
             val fixture = createFixture()
-            val almostDone = createPlaybackPosition("book-1", positionMs = 9900L) // 99%
+            val finishedPosition = createPlaybackPosition("book-1", positionMs = 5000L, isFinished = true)
+            val book = createBook(id = "book-1", duration = 10_000L)
+
+            everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(finishedPosition)
+            everySuspend { fixture.bookRepository.getBook("book-1") } returns book
+            val repository = fixture.build()
+
+            // When
+            val result = repository.getContinueListening(10)
+
+            // Then: Book should be filtered out because isFinished=true
+            val success = assertIs<Success<*>>(result)
+            val books = success.data as List<*>
+            assertTrue(books.isEmpty())
+        }
+
+    @Test
+    fun `getContinueListening includes books at 99 percent progress when not marked finished`() =
+        runTest {
+            // Given: A book at 99% progress but NOT marked as finished
+            // This tests the new behavior where isFinished is authoritative, not calculated progress
+            val fixture = createFixture()
+            val almostDone = createPlaybackPosition("book-1", positionMs = 9900L, isFinished = false) // 99% but not marked finished
             val book = createBook(id = "book-1", duration = 10_000L)
 
             everySuspend { fixture.playbackPositionDao.getRecentPositions(10) } returns listOf(almostDone)
@@ -186,10 +201,10 @@ class HomeRepositoryTest {
             // When
             val result = repository.getContinueListening(10)
 
-            // Then
+            // Then: Book should be included because isFinished=false (progress doesn't matter)
             val success = assertIs<Success<*>>(result)
             val books = success.data as List<*>
-            assertTrue(books.isEmpty())
+            assertEquals(1, books.size)
         }
 
     @Test

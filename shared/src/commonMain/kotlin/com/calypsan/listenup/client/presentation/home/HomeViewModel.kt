@@ -66,7 +66,11 @@ class HomeViewModel(
                         )
                     }
                 }.collect { books ->
-                    logger.debug { "Continue listening updated: ${books.size} books" }
+                    val finishedCount = books.count { it.progress >= 0.99f }
+                    logger.info {
+                        "HomeViewModel.collect: ${books.size} books received " +
+                            "(finishedCount=$finishedCount, titles=${books.take(3).map { it.title }})"
+                    }
                     state.update {
                         it.copy(
                             isLoading = false,

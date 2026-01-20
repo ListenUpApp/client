@@ -1,6 +1,17 @@
 package com.calypsan.listenup.client.domain.model
 
 /**
+ * User permission flags for action-level access control.
+ *
+ * @property canDownload Whether user can download content for offline listening
+ * @property canShare Whether user can share collections with other users
+ */
+data class UserPermissions(
+    val canDownload: Boolean = true,
+    val canShare: Boolean = true,
+)
+
+/**
  * Domain model representing a user in the admin context.
  *
  * This is a simplified user representation for admin screens that manage
@@ -15,6 +26,7 @@ package com.calypsan.listenup.client.domain.model
  * @property isRoot Whether this is the root/super admin user
  * @property role User's role in the system
  * @property status User's current status (active, pending, etc.)
+ * @property permissions User's permission flags
  * @property createdAt Creation timestamp as ISO string
  */
 data class AdminUserInfo(
@@ -26,6 +38,7 @@ data class AdminUserInfo(
     val isRoot: Boolean,
     val role: String,
     val status: String,
+    val permissions: UserPermissions = UserPermissions(),
     val createdAt: String,
 ) {
     /**

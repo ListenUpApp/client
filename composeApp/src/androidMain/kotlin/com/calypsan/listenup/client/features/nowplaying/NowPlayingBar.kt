@@ -75,7 +75,7 @@ fun NowPlayingBar(
                     .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
                     .fillMaxWidth()
                     .height(80.dp),
-            shape = RoundedCornerShape(28.dp),
+            shape = MaterialTheme.shapes.large,
             tonalElevation = 6.dp,
             shadowElevation = 4.dp,
         ) {

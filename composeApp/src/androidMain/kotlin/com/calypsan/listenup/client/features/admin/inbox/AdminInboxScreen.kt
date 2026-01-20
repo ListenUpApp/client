@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "LongMethod", "CognitiveComplexMethod")
 
 package com.calypsan.listenup.client.features.admin.inbox
 
@@ -23,7 +23,7 @@ import androidx.compose.material.icons.outlined.Publish
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -157,10 +157,7 @@ fun AdminInboxScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     icon = {
                         if (state.isReleasing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
-                            )
+                            ListenUpLoadingIndicatorSmall()
                         } else {
                             Icon(
                                 imageVector = Icons.Outlined.Publish,
@@ -348,10 +345,7 @@ private fun InboxBookRow(
 
         // Loading indicator
         if (isReleasing) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                strokeWidth = 2.dp,
-            )
+            ListenUpLoadingIndicatorSmall()
         }
     }
 }

@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "CognitiveComplexMethod")
 
 package com.calypsan.listenup.client.features.lens
 

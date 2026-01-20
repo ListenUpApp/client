@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod")
+
 package com.calypsan.listenup.client.features.settings
 
 import android.os.Build
@@ -49,6 +51,7 @@ import org.koin.compose.viewmodel.koinViewModel
 /**
  * Preset durations for skip forward button (in seconds).
  */
+@Suppress("MagicNumber")
 object SkipForwardPresets {
     val presets = listOf(10, 15, 20, 30, 45, 60, 90, 120)
 
@@ -63,6 +66,7 @@ object SkipForwardPresets {
 /**
  * Preset durations for skip backward button (in seconds).
  */
+@Suppress("MagicNumber")
 object SkipBackwardPresets {
     val presets = listOf(5, 10, 15, 20, 30, 45, 60)
 
@@ -78,6 +82,7 @@ object SkipBackwardPresets {
  * Preset durations for sleep timer (in minutes).
  * Includes "Off" option represented as null.
  */
+@Suppress("MagicNumber")
 object SleepTimerPresets {
     val presets: List<Int?> = listOf(null, 5, 10, 15, 20, 30, 45, 60, 90, 120)
 
@@ -105,6 +110,7 @@ fun SettingsScreen(
     if (showSignOutDialog) {
         AlertDialog(
             onDismissRequest = { showSignOutDialog = false },
+            shape = MaterialTheme.shapes.large,
             title = { Text("Sign Out") },
             text = { Text("Are you sure you want to sign out? You'll need to sign in again to access your library.") },
             confirmButton = {

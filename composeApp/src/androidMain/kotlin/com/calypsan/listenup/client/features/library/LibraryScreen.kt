@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod", "CognitiveComplexMethod")
+
 package com.calypsan.listenup.client.features.library
 
 import android.widget.Toast
@@ -91,6 +93,7 @@ fun LibraryScreen(
     val narrators = uiState.narrators
     val syncState = uiState.syncState
     val bookProgress = uiState.bookProgress
+    val bookIsFinished = uiState.bookIsFinished
 
     // Sort state for each tab
     val booksSortState = uiState.booksSortState
@@ -225,9 +228,11 @@ fun LibraryScreen(
                                 books = books,
                                 hasLoadedBooks = hasLoadedBooks,
                                 syncState = syncState,
+                                isServerScanning = uiState.isServerScanning,
                                 sortState = booksSortState,
                                 ignoreTitleArticles = ignoreTitleArticles,
                                 bookProgress = bookProgress,
+                                bookIsFinished = bookIsFinished,
                                 isInSelectionMode = isInSelectionMode,
                                 selectedBookIds = selectedBookIds,
                                 onCategorySelected = { category ->

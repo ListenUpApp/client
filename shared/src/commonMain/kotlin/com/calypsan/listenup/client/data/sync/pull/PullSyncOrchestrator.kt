@@ -22,7 +22,8 @@ class PullSyncOrchestrator(
     private val contributorPuller: Puller,
     private val tagPuller: Puller,
     private val genrePuller: Puller,
-    private val listeningEventPuller: Puller,
+    private val listeningEventPuller: ListeningEventPullerContract,
+    private val progressPuller: Puller,
     private val activeSessionsPuller: Puller,
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
@@ -44,8 +45,8 @@ class PullSyncOrchestrator(
             val lastSyncTime = syncDao.getLastSyncTime()
             val updatedAfter = lastSyncTime?.toIsoString()
 
-            val syncType = if (updatedAfter != null) "Delta (since $updatedAfter)" else "Full"
-            logger.info { "Sync strategy: $syncType" }
+            val syncType = if (updatedAfter != null) "delta" else "full"
+            logger.debug { "Pull sync strategy: $syncType" }
 
             onProgress(
                 SyncStatus.Progress(
@@ -83,7 +84,13 @@ class PullSyncOrchestrator(
                 // Pull genres after books (genres are book categorization)
                 genrePuller.pull(updatedAfter, onProgress)
 
+                // Pull progress FIRST - creates positions with correct isFinished
+                // This must run before listening events so positions exist with
+                // authoritative isFinished values before events update them
+                progressPuller.pull(updatedAfter, onProgress)
+
                 // Pull listening events (from other devices) for offline stats
+                // Uses .copy() on existing positions, preserving isFinished from progress
                 listeningEventPuller.pull(updatedAfter, onProgress)
 
                 // Pull active sessions for "What Others Are Listening To" discovery section
@@ -99,4 +106,22 @@ class PullSyncOrchestrator(
                 ),
             )
         }
+
+    /**
+     * Refresh all listening events and playback positions.
+     *
+     * Fetches ALL events from the server (ignoring delta sync cursor)
+     * and rebuilds playback positions from them.
+     *
+     * Used after importing historical data (e.g., from Audiobookshelf).
+     */
+    suspend fun refreshListeningHistory() {
+        logger.info { "Refreshing all listening history..." }
+
+        // Pull progress FIRST to get authoritative isFinished values
+        progressPuller.pull(null) {}
+
+        // Then pull listening events (preserves isFinished via .copy())
+        listeningEventPuller.pullAll()
+    }
 }

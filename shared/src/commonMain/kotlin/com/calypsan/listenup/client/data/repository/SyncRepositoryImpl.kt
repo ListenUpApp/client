@@ -36,10 +36,16 @@ class SyncRepositoryImpl(
                 initialValue = SyncState.Idle,
             )
 
+    override val isServerScanning: StateFlow<Boolean> = syncManager.isServerScanning
+
     override suspend fun sync(): Result<Unit> = syncManager.sync()
 
     override suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit> =
         syncManager.resetForNewLibrary(newLibraryId)
+
+    override suspend fun refreshListeningHistory(): Result<Unit> = syncManager.refreshListeningHistory()
+
+    override suspend fun forceFullResync(): Result<Unit> = syncManager.forceFullResync()
 }
 
 /**

@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException")
+
 package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.BookId
@@ -17,6 +19,17 @@ import kotlin.time.Instant
 private val logger = KotlinLogging.logger {}
 
 /**
+ * Contract for listening event puller with additional refresh capability.
+ */
+interface ListeningEventPullerContract : Puller {
+    /**
+     * Pull ALL listening events from server, ignoring the delta sync cursor.
+     * Used after importing historical data.
+     */
+    suspend fun pullAll()
+}
+
+/**
  * Handles syncing listening events from server.
  *
  * Fetches listening events from other devices to populate local stats.
@@ -29,7 +42,7 @@ class ListeningEventPuller(
     private val syncApi: SyncApiContract,
     private val listeningEventDao: ListeningEventDao,
     private val playbackPositionDao: PlaybackPositionDao,
-) : Puller {
+) : ListeningEventPullerContract {
     /**
      * Pull listening events from server.
      *
@@ -148,6 +161,7 @@ class ListeningEventPuller(
 
             if (existing == null) {
                 // No local position - create from synced data
+                // Use lastPlayedAt as startedAt since this is the first event we know about
                 toSave.add(
                     PlaybackPositionEntity(
                         bookId = BookId(bookId),
@@ -157,11 +171,15 @@ class ListeningEventPuller(
                         updatedAt = info.lastPlayedAt,
                         syncedAt = now,
                         lastPlayedAt = info.lastPlayedAt,
+                        isFinished = false,
+                        finishedAt = null,
+                        startedAt = info.lastPlayedAt, // First event = when started
                     ),
                 )
                 created++
             } else if (info.lastPlayedAt > (existing.lastPlayedAt ?: existing.updatedAt)) {
                 // Synced position is newer - update local
+                // Preserve isFinished, finishedAt, startedAt from existing
                 toSave.add(
                     existing.copy(
                         positionMs = info.positionMs,
@@ -185,6 +203,61 @@ class ListeningEventPuller(
 
         logger.info {
             "Updated playback positions from events: $created created, $updated updated, $skipped skipped"
+        }
+    }
+
+    /**
+     * Pull ALL listening events from server, ignoring the delta sync cursor.
+     *
+     * Used after importing historical data (e.g., from Audiobookshelf) to fetch
+     * events that wouldn't be included in a normal delta sync due to their
+     * old timestamps.
+     */
+    override suspend fun pullAll() {
+        logger.info { "Starting full listening events refresh (ignoring cursor)..." }
+
+        try {
+            // Fetch ALL events by passing null as the since parameter
+            when (val result = syncApi.getListeningEvents(sinceMs = null)) {
+                is Result.Success -> {
+                    val events = result.data.events
+                    logger.info { "Full refresh: fetched ${events.size} listening events from server" }
+
+                    if (events.isEmpty()) {
+                        logger.debug { "No listening events on server" }
+                        return
+                    }
+
+                    // Convert to entities and upsert
+                    val entities =
+                        events.map { event ->
+                            ListeningEventEntity(
+                                id = event.id,
+                                bookId = event.bookId,
+                                startPositionMs = event.startPositionMs,
+                                endPositionMs = event.endPositionMs,
+                                startedAt = parseTimestamp(event.startedAt),
+                                endedAt = parseTimestamp(event.endedAt),
+                                playbackSpeed = event.playbackSpeed,
+                                deviceId = event.deviceId,
+                                syncState = SyncState.SYNCED,
+                                createdAt = parseTimestamp(event.endedAt),
+                            )
+                        }
+
+                    listeningEventDao.upsertAll(entities)
+                    logger.info { "Full refresh: stored ${entities.size} events" }
+
+                    // Rebuild playback positions from ALL events
+                    updatePlaybackPositionsFromEvents(entities)
+                }
+
+                is Result.Failure -> {
+                    logger.warn(result.exception) { "Full refresh: failed to fetch listening events" }
+                }
+            }
+        } catch (e: Exception) {
+            logger.warn(e) { "Full refresh: failed to sync listening events" }
         }
     }
 

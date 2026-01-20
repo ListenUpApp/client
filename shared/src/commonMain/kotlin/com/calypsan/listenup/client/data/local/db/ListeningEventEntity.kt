@@ -40,6 +40,8 @@ data class ListeningEventEntity(
     val deviceId: String,
     val syncState: SyncState,
     val createdAt: Long,
+    /** Event source: playback, import, or manual */
+    val source: String = "playback",
 ) {
     /** Duration of this listening segment in milliseconds */
     val durationMs: Long get() = endPositionMs - startPositionMs

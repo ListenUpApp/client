@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "LongMethod", "CognitiveComplexMethod", "StringLiteralDuplication")
 
 package com.calypsan.listenup.client.features.admin.collections
 
@@ -22,7 +22,6 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -51,6 +50,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
@@ -242,10 +243,7 @@ private fun CollectionDetailContent(
                                     state.editedName != state.collection?.name,
                         ) {
                             if (state.isSaving) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                )
+                                ListenUpLoadingIndicatorSmall()
                             } else {
                                 Text("Save Changes")
                             }
@@ -434,10 +432,7 @@ private fun MemberRow(
         }
 
         if (isRemoving) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                strokeWidth = 2.dp,
-            )
+            ListenUpLoadingIndicatorSmall()
         } else {
             IconButton(onClick = onRemoveClick) {
                 Icon(
@@ -525,7 +520,7 @@ private fun AddMemberBottomSheet(
                             .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    CircularProgressIndicator()
+                    ListenUpLoadingIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Loading users...",
@@ -578,10 +573,7 @@ private fun AddMemberBottomSheet(
                         },
                         trailingContent = {
                             if (isSharing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp,
-                                )
+                                ListenUpLoadingIndicatorSmall()
                             }
                         },
                         colors =
@@ -640,10 +632,7 @@ private fun BookRow(
         }
 
         if (isRemoving) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                strokeWidth = 2.dp,
-            )
+            ListenUpLoadingIndicatorSmall()
         } else {
             IconButton(onClick = onRemoveClick) {
                 Icon(

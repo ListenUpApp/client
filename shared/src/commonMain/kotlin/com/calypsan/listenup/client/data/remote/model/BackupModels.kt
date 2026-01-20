@@ -1,0 +1,210 @@
+package com.calypsan.listenup.client.data.remote.model
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * Response for a single backup.
+ */
+@Serializable
+data class BackupResponse(
+    val id: String,
+    val path: String,
+    val size: Long,
+    @SerialName("created_at") val createdAt: String,
+    val checksum: String? = null,
+)
+
+/**
+ * Request to create a new backup.
+ */
+@Serializable
+data class CreateBackupRequest(
+    @SerialName("include_images") val includeImages: Boolean = false,
+    @SerialName("include_events") val includeEvents: Boolean = true,
+)
+
+/**
+ * Request to validate a backup.
+ */
+@Serializable
+data class ValidateBackupRequest(
+    @SerialName("backup_id") val backupId: String,
+)
+
+/**
+ * Response from backup validation.
+ */
+@Serializable
+data class ValidationResponse(
+    val valid: Boolean,
+    val version: String? = null,
+    @SerialName("server_id") val serverId: String? = null,
+    @SerialName("server_name") val serverName: String? = null,
+    @SerialName("expected_counts") val expectedCounts: Map<String, Int>? = null,
+    val errors: List<String> = emptyList(),
+    val warnings: List<String> = emptyList(),
+)
+
+/**
+ * Request to restore from a backup.
+ */
+@Serializable
+data class RestoreRequest(
+    @SerialName("backup_id") val backupId: String,
+    val mode: String,
+    @SerialName("merge_strategy") val mergeStrategy: String? = null,
+    @SerialName("dry_run") val dryRun: Boolean = false,
+    @SerialName("confirm_full_wipe") val confirmFullWipe: Boolean = false,
+)
+
+/**
+ * Error during restore.
+ */
+@Serializable
+data class RestoreError(
+    @SerialName("entity_type") val entityType: String,
+    @SerialName("entity_id") val entityId: String = "",
+    val error: String,
+)
+
+/**
+ * Response from restore operation.
+ */
+@Serializable
+data class RestoreResponse(
+    val imported: Map<String, Int>,
+    val skipped: Map<String, Int>,
+    val errors: List<RestoreError> = emptyList(),
+    val duration: String,
+)
+
+/**
+ * Response from rebuild progress.
+ */
+@Serializable
+data class RebuildProgressResponse(
+    val message: String,
+)
+
+// === ABS Import Models ===
+
+/**
+ * Request to analyze an ABS backup.
+ */
+@Serializable
+data class AnalyzeABSRequest(
+    @SerialName("backup_path") val backupPath: String,
+    @SerialName("match_by_email") val matchByEmail: Boolean = true,
+    @SerialName("match_by_path") val matchByPath: Boolean = true,
+    @SerialName("fuzzy_match_books") val fuzzyMatchBooks: Boolean = true,
+    @SerialName("fuzzy_threshold") val fuzzyThreshold: Double = 0.85,
+    @SerialName("user_mappings") val userMappings: Map<String, String>? = null,
+    @SerialName("book_mappings") val bookMappings: Map<String, String>? = null,
+)
+
+/**
+ * Suggestion for user mapping.
+ */
+@Serializable
+data class ABSUserSuggestion(
+    @SerialName("user_id") val userId: String,
+    val email: String? = null,
+    @SerialName("display_name") val displayName: String? = null,
+    val score: Double,
+    val reason: String,
+)
+
+/**
+ * User match result from ABS analysis.
+ */
+@Serializable
+data class ABSUserMatch(
+    @SerialName("abs_user_id") val absUserId: String,
+    @SerialName("abs_username") val absUsername: String,
+    @SerialName("abs_email") val absEmail: String? = null,
+    @SerialName("listenup_id") val listenupId: String? = null,
+    val confidence: String,
+    @SerialName("match_reason") val matchReason: String? = null,
+    val suggestions: List<ABSUserSuggestion> = emptyList(),
+)
+
+/**
+ * Suggestion for book mapping.
+ */
+@Serializable
+data class ABSBookSuggestion(
+    @SerialName("book_id") val bookId: String,
+    val title: String,
+    val author: String? = null,
+    @SerialName("duration_ms") val durationMs: Long,
+    val score: Double,
+    val reason: String,
+)
+
+/**
+ * Book match result from ABS analysis.
+ */
+@Serializable
+data class ABSBookMatch(
+    @SerialName("abs_item_id") val absItemId: String,
+    @SerialName("abs_title") val absTitle: String,
+    @SerialName("abs_author") val absAuthor: String? = null,
+    @SerialName("listenup_id") val listenupId: String? = null,
+    val confidence: String,
+    @SerialName("match_reason") val matchReason: String? = null,
+    val suggestions: List<ABSBookSuggestion> = emptyList(),
+)
+
+/**
+ * Response from ABS backup analysis.
+ */
+@Serializable
+data class AnalyzeABSResponse(
+    @SerialName("backup_path") val backupPath: String,
+    @SerialName("analyzed_at") val analyzedAt: String,
+    val summary: String,
+    @SerialName("total_users") val totalUsers: Int,
+    @SerialName("total_books") val totalBooks: Int,
+    @SerialName("total_sessions") val totalSessions: Int,
+    @SerialName("users_matched") val usersMatched: Int,
+    @SerialName("users_pending") val usersPending: Int,
+    @SerialName("books_matched") val booksMatched: Int,
+    @SerialName("books_pending") val booksPending: Int,
+    @SerialName("sessions_ready") val sessionsReady: Int,
+    @SerialName("sessions_pending") val sessionsPending: Int,
+    @SerialName("progress_ready") val progressReady: Int,
+    @SerialName("progress_pending") val progressPending: Int,
+    @SerialName("user_matches") val userMatches: List<ABSUserMatch>,
+    @SerialName("book_matches") val bookMatches: List<ABSBookMatch>,
+    val warnings: List<String> = emptyList(),
+)
+
+/**
+ * Request to import from an ABS backup.
+ */
+@Serializable
+data class ImportABSRequest(
+    @SerialName("backup_path") val backupPath: String,
+    @SerialName("user_mappings") val userMappings: Map<String, String>,
+    @SerialName("book_mappings") val bookMappings: Map<String, String>,
+    @SerialName("import_sessions") val importSessions: Boolean = true,
+    @SerialName("import_progress") val importProgress: Boolean = true,
+    @SerialName("rebuild_progress") val rebuildProgress: Boolean = true,
+)
+
+/**
+ * Response from ABS import operation.
+ */
+@Serializable
+data class ImportABSResponse(
+    @SerialName("sessions_imported") val sessionsImported: Int,
+    @SerialName("sessions_skipped") val sessionsSkipped: Int,
+    @SerialName("progress_imported") val progressImported: Int,
+    @SerialName("progress_skipped") val progressSkipped: Int,
+    @SerialName("events_created") val eventsCreated: Int,
+    @SerialName("affected_users") val affectedUsers: Int,
+    val duration: String,
+    val warnings: List<String> = emptyList(),
+    val errors: List<String> = emptyList(),
+)

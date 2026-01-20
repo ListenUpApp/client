@@ -22,7 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -124,9 +124,7 @@ fun ContributorMetadataPreviewScreen(
                             modifier = Modifier.weight(1f),
                         ) {
                             if (state.isApplying) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp,
+                                ListenUpLoadingIndicatorSmall(
                                     color = MaterialTheme.colorScheme.onPrimary,
                                 )
                             } else {

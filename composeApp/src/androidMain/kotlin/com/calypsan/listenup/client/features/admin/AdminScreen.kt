@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "LongMethod", "LongParameterList", "CognitiveComplexMethod")
 
 package com.calypsan.listenup.client.features.admin
 
@@ -6,6 +6,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,13 +25,16 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -78,6 +82,8 @@ fun AdminScreen(
     onInviteClick: () -> Unit,
     onCollectionsClick: () -> Unit = {},
     onInboxClick: () -> Unit = {},
+    onBackupClick: () -> Unit = {},
+    onUserClick: (String) -> Unit = {},
     inboxEnabled: Boolean = false,
     inboxCount: Int = 0,
     isTogglingInbox: Boolean = false,
@@ -123,6 +129,7 @@ fun AdminScreen(
                 onApproveUserClick = { viewModel.approveUser(it.id) },
                 onDenyUserClick = { userToDeny = it },
                 onDeleteUserClick = { userToDelete = it },
+                onUserClick = onUserClick,
                 onCopyInviteClick = { invite ->
                     copyToClipboard(context, invite.url)
                     scope.launch {
@@ -133,6 +140,7 @@ fun AdminScreen(
                 onInviteClick = onInviteClick,
                 onCollectionsClick = onCollectionsClick,
                 onInboxClick = onInboxClick,
+                onBackupClick = onBackupClick,
                 inboxEnabled = inboxEnabled,
                 inboxCount = inboxCount,
                 isTogglingInbox = isTogglingInbox,
@@ -208,11 +216,13 @@ private fun AdminContent(
     onApproveUserClick: (AdminUserInfo) -> Unit,
     onDenyUserClick: (AdminUserInfo) -> Unit,
     onDeleteUserClick: (AdminUserInfo) -> Unit,
+    onUserClick: (String) -> Unit,
     onCopyInviteClick: (InviteInfo) -> Unit,
     onRevokeInviteClick: (InviteInfo) -> Unit,
     onInviteClick: () -> Unit,
     onCollectionsClick: () -> Unit,
     onInboxClick: () -> Unit,
+    onBackupClick: () -> Unit,
     inboxEnabled: Boolean,
     inboxCount: Int,
     isTogglingInbox: Boolean,
@@ -344,6 +354,7 @@ private fun AdminContent(
                             UserTableRow(
                                 user = user,
                                 isDeleting = state.deletingUserId == user.id,
+                                onClick = { onUserClick(user.id) },
                                 onDeleteClick = { onDeleteUserClick(user) },
                             )
                             if (index < state.users.lastIndex) {
@@ -420,6 +431,12 @@ private fun AdminContent(
             }
         }
 
+        // Backup & Restore button
+        item {
+            Spacer(modifier = Modifier.height(12.dp))
+            BackupCard(onClick = onBackupClick)
+        }
+
         item {
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -472,10 +489,7 @@ private fun SettingsCard(
                     )
                 }
                 if (isTogglingOpenRegistration) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                    )
+                    ListenUpLoadingIndicatorSmall()
                 } else {
                     Switch(
                         checked = openRegistration,
@@ -515,10 +529,7 @@ private fun SettingsCard(
                     )
                 }
                 if (isTogglingInbox) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                    )
+                    ListenUpLoadingIndicatorSmall()
                 } else {
                     Switch(
                         checked = inboxEnabled,
@@ -568,10 +579,7 @@ private fun PendingUserRow(
 
         // Action buttons
         if (isApproving || isDenying) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                strokeWidth = 2.dp,
-            )
+            ListenUpLoadingIndicatorSmall()
         } else {
             OutlinedButton(
                 onClick = onDenyClick,
@@ -625,7 +633,13 @@ private fun UserTableHeader(modifier: Modifier = Modifier) {
             text = "Role",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.5f),
+            modifier = Modifier.weight(0.4f),
+        )
+        Text(
+            text = "Permissions",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.4f),
         )
         // Space for delete button
         Spacer(modifier = Modifier.size(48.dp))
@@ -636,6 +650,7 @@ private fun UserTableHeader(modifier: Modifier = Modifier) {
 private fun UserTableRow(
     user: AdminUserInfo,
     isDeleting: Boolean,
+    onClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -643,6 +658,7 @@ private fun UserTableRow(
         modifier =
             modifier
                 .fillMaxWidth()
+                .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -684,16 +700,42 @@ private fun UserTableRow(
             text = if (user.isRoot) "Root" else user.role.replaceFirstChar { it.uppercase() }.ifEmpty { "Member" },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(0.5f),
+            modifier = Modifier.weight(0.4f),
         )
+
+        // Permissions indicators
+        Row(
+            modifier = Modifier.weight(0.4f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.CloudDownload,
+                contentDescription = if (user.permissions.canDownload) "Can download" else "Cannot download",
+                tint =
+                    if (user.permissions.canDownload) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant
+                    },
+                modifier = Modifier.size(16.dp),
+            )
+            Icon(
+                imageVector = Icons.Outlined.Share,
+                contentDescription = if (user.permissions.canShare) "Can share" else "Cannot share",
+                tint =
+                    if (user.permissions.canShare) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant
+                    },
+                modifier = Modifier.size(16.dp),
+            )
+        }
 
         // Delete button
         if (!user.isProtected) {
             if (isDeleting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                )
+                ListenUpLoadingIndicatorSmall()
             } else {
                 IconButton(onClick = onDeleteClick) {
                     Icon(
@@ -761,10 +803,7 @@ private fun InviteRow(
 
         // Revoke button
         if (isRevoking) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                strokeWidth = 2.dp,
-            )
+            ListenUpLoadingIndicatorSmall()
         } else {
             IconButton(onClick = onRevokeClick) {
                 Icon(
@@ -906,6 +945,49 @@ private fun InboxCard(
                         },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BackupCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Backup,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Backup & Restore",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Create backups and restore server data",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

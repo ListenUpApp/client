@@ -74,13 +74,10 @@ fun BookActionsMenu(
 
         HorizontalDivider()
 
-        // Mark as Complete / Not Started (stubbed for now)
+        // Mark as Complete / Not Started
         DropdownMenuItem(
             text = {
-                Text(
-                    text = if (isComplete) "Mark as Not Started" else "Mark as Complete",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                )
+                Text(if (isComplete) "Mark as Not Started" else "Mark as Complete")
             },
             leadingIcon = {
                 Icon(
@@ -91,11 +88,9 @@ fun BookActionsMenu(
                             Icons.Default.CheckCircle
                         },
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
             },
             onClick = onMarkCompleteClick,
-            enabled = false, // Stubbed for now
         )
 
         // Add to Collection (admin only)

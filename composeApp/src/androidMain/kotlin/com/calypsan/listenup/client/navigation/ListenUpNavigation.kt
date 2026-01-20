@@ -1,3 +1,5 @@
+@file:Suppress("CognitiveComplexMethod")
+
 package com.calypsan.listenup.client.navigation
 
 import androidx.compose.animation.slideInHorizontally
@@ -25,19 +27,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
+import com.calypsan.listenup.client.data.remote.SetupApiContract
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
 import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
+import com.calypsan.listenup.client.domain.repository.SyncRepository
+import com.calypsan.listenup.client.domain.repository.UserRepository
+import io.github.oshai.kotlinlogging.KotlinLogging
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.AuthState
 import com.calypsan.listenup.client.features.admin.AdminScreen
 import com.calypsan.listenup.client.features.admin.CreateInviteScreen
+import com.calypsan.listenup.client.features.admin.backup.AdminBackupScreen
+import com.calypsan.listenup.client.features.admin.backup.ABSImportHubDetailScreen
+import com.calypsan.listenup.client.features.admin.backup.ABSImportScreen
+import com.calypsan.listenup.client.features.admin.backup.CreateBackupScreen
+import com.calypsan.listenup.client.features.admin.backup.RestoreBackupScreen
 import com.calypsan.listenup.client.features.connect.ServerSelectScreen
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
 import com.calypsan.listenup.client.features.invite.InviteRegistrationScreen
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
 import com.calypsan.listenup.client.features.settings.SettingsScreen
+import com.calypsan.listenup.client.features.setup.LibrarySetupScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
@@ -49,6 +61,8 @@ import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewMo
 import com.calypsan.listenup.client.presentation.invite.InviteSubmissionStatus
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Root navigation composable for ListenUp Android app.
@@ -350,9 +364,56 @@ private fun LoginNavigation(
 private fun AuthenticatedNavigation(
     authSession: AuthSession,
     libraryResetHelper: LibraryResetHelperContract = koinInject(),
+    setupApi: SetupApiContract = koinInject(),
+    syncRepository: SyncRepository = koinInject(),
+    userRepository: UserRepository = koinInject(),
 ) {
     val scope = rememberCoroutineScope()
-    val backStack = remember { mutableStateListOf<Route>(Shell) }
+
+    // Library setup check state
+    var isCheckingLibrarySetup by remember { mutableStateOf(true) }
+    var needsLibrarySetup by remember { mutableStateOf(false) }
+
+    // Check if admin user needs to set up library on initial composition
+    LaunchedEffect(Unit) {
+        try {
+            // Refresh user data to ensure we have current admin status
+            val user = userRepository.refreshCurrentUser() ?: userRepository.getCurrentUser()
+            logger.debug { "Checking library setup: user=${user?.displayName}, isAdmin=${user?.isAdmin}" }
+
+            if (user?.isAdmin == true) {
+                // Admin user - check if library needs setup
+                try {
+                    val status = setupApi.getLibraryStatus()
+                    logger.info { "Library status: needsSetup=${status.needsSetup}" }
+                    needsLibrarySetup = status.needsSetup
+                } catch (e: Exception) {
+                    // Never stranded: if status check fails, proceed to main app
+                    logger.warn(e) { "Failed to check library status, proceeding to main app" }
+                    needsLibrarySetup = false
+                }
+            } else {
+                // Non-admin user - skip library setup check
+                needsLibrarySetup = false
+            }
+        } catch (e: Exception) {
+            // Never stranded: if user check fails, proceed to main app
+            logger.warn(e) { "Failed to check user, proceeding to main app" }
+            needsLibrarySetup = false
+        } finally {
+            isCheckingLibrarySetup = false
+        }
+    }
+
+    // Show loading while checking library setup status
+    if (isCheckingLibrarySetup) {
+        FullScreenLoadingIndicator()
+        return
+    }
+
+    // Determine starting route based on library setup needs
+    val startRoute: Route = if (needsLibrarySetup) LibrarySetup else Shell
+    val backStack = remember(startRoute) { mutableStateListOf(startRoute) }
 
     // Track shell tab state here so it survives navigation to detail screens
     var currentShellDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
@@ -422,6 +483,20 @@ private fun AuthenticatedNavigation(
                                 },
                                 onUserProfileClick = { userId ->
                                     backStack.add(UserProfile(userId))
+                                },
+                            )
+                        }
+                        entry<LibrarySetup> {
+                            LibrarySetupScreen(
+                                onSetupComplete = {
+                                    // Trigger sync to pull newly scanned books
+                                    scope.launch {
+                                        logger.info { "Library setup complete, triggering sync" }
+                                        syncRepository.sync()
+                                    }
+                                    // Navigate to main app, clearing library setup from back stack
+                                    backStack.clear()
+                                    backStack.add(Shell)
                                 },
                             )
                         }
@@ -652,6 +727,12 @@ private fun AuthenticatedNavigation(
                                 onInboxClick = {
                                     backStack.add(AdminInbox)
                                 },
+                                onBackupClick = {
+                                    backStack.add(AdminBackups)
+                                },
+                                onUserClick = { userId ->
+                                    backStack.add(AdminUserDetail(userId))
+                                },
                                 inboxEnabled = settingsState.inboxEnabled,
                                 inboxCount = settingsState.inboxCount,
                                 isTogglingInbox = settingsState.isSaving,
@@ -721,6 +802,85 @@ private fun AuthenticatedNavigation(
                             com.calypsan.listenup.client.features.admin.collections.AdminCollectionDetailScreen(
                                 viewModel = viewModel,
                                 onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<AdminUserDetail> { args ->
+                            val viewModel:
+                                com.calypsan.listenup.client.presentation.admin.UserDetailViewModel =
+                                koinInject {
+                                    org.koin.core.parameter
+                                        .parametersOf(args.userId)
+                                }
+                            com.calypsan.listenup.client.features.admin.UserDetailScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<AdminLibrarySettings> { args ->
+                            val viewModel:
+                                com.calypsan.listenup.client.presentation.admin.LibrarySettingsViewModel =
+                                koinInject {
+                                    org.koin.core.parameter
+                                        .parametersOf(args.libraryId)
+                                }
+                            com.calypsan.listenup.client.features.admin.LibrarySettingsScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<AdminBackups> {
+                            AdminBackupScreen(
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                                onCreateClick = {
+                                    backStack.add(CreateBackup)
+                                },
+                                onRestoreClick = { backupId ->
+                                    backStack.add(RestoreBackup(backupId))
+                                },
+                                onABSImportHubClick = { importId ->
+                                    backStack.add(ABSImportDetail(importId))
+                                },
+                            )
+                        }
+                        entry<CreateBackup> {
+                            CreateBackupScreen(
+                                onBackClick = { backStack.removeAt(backStack.lastIndex) },
+                                onSuccess = {
+                                    // Navigate back to backup list after successful creation
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<RestoreBackup> { args ->
+                            RestoreBackupScreen(
+                                backupId = args.backupId,
+                                onBackClick = { backStack.removeAt(backStack.lastIndex) },
+                                onComplete = {
+                                    // Navigate back to backup list after restore
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        // ABSImportList removed - imports are now shown inline in AdminBackupScreen
+                        entry<ABSImportDetail> { args ->
+                            ABSImportHubDetailScreen(
+                                importId = args.importId,
+                                onBackClick = { backStack.removeAt(backStack.lastIndex) },
+                            )
+                        }
+                        entry<ABSImport> {
+                            ABSImportScreen(
+                                onBackClick = { backStack.removeAt(backStack.lastIndex) },
+                                onComplete = {
+                                    // Navigate back to backup list after import
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                             )

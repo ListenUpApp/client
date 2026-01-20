@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.repository
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
+import com.calypsan.listenup.client.data.remote.SyncApiContract
 import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import dev.mokkery.MockMode
 import dev.mokkery.answering.returns
@@ -64,6 +65,8 @@ class PlaybackPositionRepositoryImplTest {
 
     private fun createMockDao(): PlaybackPositionDao = mock<PlaybackPositionDao>(MockMode.autoUnit)
 
+    private fun createMockSyncApi(): SyncApiContract = mock<SyncApiContract>(MockMode.autoUnit)
+
     // ========== get() Tests ==========
 
     @Test
@@ -73,7 +76,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(bookId = "book-123", positionMs = 45000L)
             everySuspend { dao.get(BookId("book-123")) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-123")
@@ -90,7 +93,7 @@ class PlaybackPositionRepositoryImplTest {
             // Given
             val dao = createMockDao()
             everySuspend { dao.get(any()) } returns null
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("nonexistent-book")
@@ -105,7 +108,7 @@ class PlaybackPositionRepositoryImplTest {
             // Given
             val dao = createMockDao()
             everySuspend { dao.get(any()) } returns null
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             repository.get("test-book-id")
@@ -123,7 +126,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(bookId = "book-1", positionMs = 30000L)
             every { dao.observe(BookId("book-1")) } returns flowOf(entity)
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.observe("book-1").first()
@@ -140,7 +143,7 @@ class PlaybackPositionRepositoryImplTest {
             // Given
             val dao = createMockDao()
             every { dao.observe(any()) } returns flowOf(null)
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.observe("missing-book").first()
@@ -157,7 +160,7 @@ class PlaybackPositionRepositoryImplTest {
             val entity1 = createPlaybackPositionEntity(bookId = "book-1", positionMs = 1000L)
             val entity2 = createPlaybackPositionEntity(bookId = "book-1", positionMs = 2000L)
             every { dao.observe(BookId("book-1")) } returns flowOf(null, entity1, entity2)
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val emissions = repository.observe("book-1").take(3).toList()
@@ -183,7 +186,7 @@ class PlaybackPositionRepositoryImplTest {
                     createPlaybackPositionEntity(bookId = "book-3", positionMs = 3000L),
                 )
             every { dao.observeAll() } returns flowOf(entities)
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.observeAll().first()
@@ -201,7 +204,7 @@ class PlaybackPositionRepositoryImplTest {
             // Given
             val dao = createMockDao()
             every { dao.observeAll() } returns flowOf(emptyList())
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.observeAll().first()
@@ -223,7 +226,7 @@ class PlaybackPositionRepositoryImplTest {
                     createPlaybackPositionEntity(bookId = "book-2"),
                 )
             every { dao.observeAll() } returns flowOf(list0, list1, list2)
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val emissions = repository.observeAll().take(3).toList()
@@ -242,7 +245,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(bookId = "unique-book-id-123")
             every { dao.observeAll() } returns flowOf(listOf(entity))
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.observeAll().first()
@@ -265,7 +268,7 @@ class PlaybackPositionRepositoryImplTest {
                     createPlaybackPositionEntity(bookId = "book-2", positionMs = 2000L),
                 )
             everySuspend { dao.getRecentPositions(10) } returns entities
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.getRecentPositions(10)
@@ -282,7 +285,7 @@ class PlaybackPositionRepositoryImplTest {
             // Given
             val dao = createMockDao()
             everySuspend { dao.getRecentPositions(5) } returns emptyList()
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             repository.getRecentPositions(5)
@@ -297,7 +300,7 @@ class PlaybackPositionRepositoryImplTest {
             // Given
             val dao = createMockDao()
             everySuspend { dao.getRecentPositions(any()) } returns emptyList()
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.getRecentPositions(10)
@@ -327,7 +330,7 @@ class PlaybackPositionRepositoryImplTest {
                     ),
                 )
             everySuspend { dao.getRecentPositions(10) } returns entities
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.getRecentPositions(10)
@@ -347,7 +350,7 @@ class PlaybackPositionRepositoryImplTest {
             // Given
             val dao = createMockDao()
             everySuspend { dao.get(BookId("new-book")) } returns null
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             repository.save(
@@ -377,7 +380,7 @@ class PlaybackPositionRepositoryImplTest {
                     syncedAt = 1704067200000L, // Previously synced
                 )
             everySuspend { dao.get(BookId("book-1")) } returns existingEntity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             repository.save(
@@ -399,7 +402,7 @@ class PlaybackPositionRepositoryImplTest {
             // Given
             val dao = createMockDao()
             everySuspend { dao.get(BookId("new-book")) } returns null
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             repository.save(
@@ -420,7 +423,7 @@ class PlaybackPositionRepositoryImplTest {
             // Given
             val dao = createMockDao()
             everySuspend { dao.get(any()) } returns null
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             repository.save(
@@ -441,7 +444,7 @@ class PlaybackPositionRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             repository.delete("book-to-delete")
@@ -455,7 +458,7 @@ class PlaybackPositionRepositoryImplTest {
         runTest {
             // Given
             val dao = createMockDao()
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When/Then - should not throw
             repository.delete("nonexistent-book")
@@ -473,7 +476,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(bookId = "unique-book-123")
             everySuspend { dao.get(BookId("unique-book-123")) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("unique-book-123")
@@ -490,7 +493,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(positionMs = 123456789L)
             everySuspend { dao.get(any()) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-1")
@@ -507,7 +510,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(playbackSpeed = 2.5f)
             everySuspend { dao.get(any()) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-1")
@@ -524,7 +527,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(hasCustomSpeed = true)
             everySuspend { dao.get(any()) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-1")
@@ -541,7 +544,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(hasCustomSpeed = false)
             everySuspend { dao.get(any()) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-1")
@@ -558,7 +561,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(updatedAt = 1704110400000L)
             everySuspend { dao.get(any()) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-1")
@@ -575,7 +578,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(syncedAt = 1704200000000L)
             everySuspend { dao.get(any()) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-1")
@@ -592,7 +595,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(syncedAt = null)
             everySuspend { dao.get(any()) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-1")
@@ -609,7 +612,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(lastPlayedAt = 1704300000000L)
             everySuspend { dao.get(any()) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-1")
@@ -626,7 +629,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(lastPlayedAt = null)
             everySuspend { dao.get(any()) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-1")
@@ -652,7 +655,7 @@ class PlaybackPositionRepositoryImplTest {
                     lastPlayedAt = 1704200000000L,
                 )
             everySuspend { dao.get(BookId("complete-book-123")) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("complete-book-123")
@@ -677,7 +680,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(positionMs = 0L)
             everySuspend { dao.get(any()) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-1")
@@ -694,7 +697,7 @@ class PlaybackPositionRepositoryImplTest {
             val dao = createMockDao()
             val entity = createPlaybackPositionEntity(playbackSpeed = 1.0f)
             everySuspend { dao.get(any()) } returns entity
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.get("book-1")
@@ -715,7 +718,7 @@ class PlaybackPositionRepositoryImplTest {
                     createPlaybackPositionEntity(bookId = "book-1", positionMs = 2000L), // duplicate
                 )
             every { dao.observeAll() } returns flowOf(entities)
-            val repository = PlaybackPositionRepositoryImpl(dao)
+            val repository = PlaybackPositionRepositoryImpl(dao, createMockSyncApi())
 
             // When
             val result = repository.observeAll().first()

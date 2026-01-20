@@ -184,6 +184,7 @@ class LibraryViewModelTest {
         every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.AUTHOR.apiValue) } returns flowOf(emptyList())
         every { fixture.contributorRepository.observeContributorsByRole(ContributorRole.NARRATOR.apiValue) } returns flowOf(emptyList())
         every { fixture.syncRepository.syncState } returns fixture.syncStateFlow
+        every { fixture.syncRepository.isServerScanning } returns MutableStateFlow(false)
         every { fixture.playbackPositionRepository.observeAll() } returns flowOf(emptyMap())
 
         // Default library preferences stubs (no persisted state)

@@ -36,6 +36,8 @@ import com.calypsan.listenup.client.domain.model.SyncState
  * @property authors Sorted list of authors with their book counts
  * @property narrators Sorted list of narrators with their book counts
  * @property bookProgress Map of bookId to progress (0.0 to 1.0) for all books with playback progress
+ * @property bookIsFinished Map of bookId to isFinished flag; authoritative completion status from server
+ *   (honors ABS imports where books may be marked complete at <99% progress)
  * @property syncState Current synchronization state (idle, syncing, success, error, etc.)
  * @property selectionMode Current selection mode (none or active with selected book IDs)
  */
@@ -57,8 +59,12 @@ data class LibraryUiState(
     val narrators: List<ContributorWithBookCount> = emptyList(),
     // Progress tracking (bookId -> progress 0.0 to 1.0)
     val bookProgress: Map<String, Float> = emptyMap(),
+    // Completion status (bookId -> isFinished, authoritative from server)
+    val bookIsFinished: Map<String, Boolean> = emptyMap(),
     // Sync state
     val syncState: SyncState = SyncState.Idle,
+    // Server scanning state (true during library scan on server)
+    val isServerScanning: Boolean = false,
     // Selection mode
     val selectionMode: SelectionMode = SelectionMode.None,
 ) {

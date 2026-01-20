@@ -52,6 +52,10 @@ actual val platformDatabaseModule: Module =
                     MIGRATION_26_27,
                     MIGRATION_27_28,
                     MIGRATION_28_29,
+                    MIGRATION_29_30,
+                    MIGRATION_30_31,
+                    MIGRATION_31_32,
+                    MIGRATION_32_33,
                 ).fallbackToDestructiveMigration(false)
                 .build()
         }

@@ -1,3 +1,10 @@
+@file:Suppress(
+    "LoopWithTooManyJumpStatements",
+    "InstanceOfCheckForException",
+    "LongMethod",
+    "CyclomaticComplexMethod",
+)
+
 package com.calypsan.listenup.client.data.sync
 
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
@@ -14,6 +21,7 @@ import com.calypsan.listenup.client.data.remote.model.SSECollectionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEEvent
 import com.calypsan.listenup.client.data.remote.model.SSEInboxBookAddedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEInboxBookReleasedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELibraryAccessModeChangedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensBookAddedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensBookRemovedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELensCreatedEvent
@@ -23,6 +31,7 @@ import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEve
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEListeningEventCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEProfileUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEProgressDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEProgressUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEReadingSessionUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSESessionEndedEvent
@@ -120,6 +129,7 @@ class SSEManager(
      *
      * Call this after successful login or sync to start receiving real-time updates.
      */
+    @Suppress("MagicNumber")
     override fun connect() {
         if (connectionJob?.isActive == true) {
             return // Already connected
@@ -343,6 +353,18 @@ class SSEManager(
                         )
                     }
 
+                    "library.access_mode_changed" -> {
+                        val event =
+                            json.decodeFromJsonElement(
+                                SSELibraryAccessModeChangedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.LibraryAccessModeChanged(
+                            libraryId = event.libraryId,
+                            accessMode = event.accessMode,
+                        )
+                    }
+
                     "heartbeat" -> {
                         // Heartbeat keeps connection alive, no action needed
                         SSEEventType.Heartbeat
@@ -537,6 +559,17 @@ class SSEManager(
                         )
                     }
 
+                    "listening.progress_deleted" -> {
+                        val progressEvent =
+                            json.decodeFromJsonElement(
+                                SSEProgressDeletedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ProgressDeleted(
+                            bookId = progressEvent.bookId,
+                        )
+                    }
+
                     "reading_session.updated" -> {
                         val sessionEvent =
                             json.decodeFromJsonElement(
@@ -700,6 +733,15 @@ sealed interface SSEEventType {
         val booksAdded: Int,
         val booksUpdated: Int,
         val booksRemoved: Int,
+    ) : SSEEventType
+
+    /**
+     * Admin-only: Library access mode was changed.
+     * Clients should refresh their book lists as visibility may have changed.
+     */
+    data class LibraryAccessModeChanged(
+        val libraryId: String,
+        val accessMode: String,
     ) : SSEEventType
 
     data object Heartbeat : SSEEventType
@@ -900,6 +942,14 @@ sealed interface SSEEventType {
         val totalListenTimeMs: Long,
         val isFinished: Boolean,
         val lastPlayedAt: String,
+    ) : SSEEventType
+
+    /**
+     * User's playback progress was deleted (discarded).
+     * Used to sync progress deletion across devices.
+     */
+    data class ProgressDeleted(
+        val bookId: String,
     ) : SSEEventType
 
     /**

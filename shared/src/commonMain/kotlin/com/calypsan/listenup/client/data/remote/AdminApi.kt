@@ -70,6 +70,16 @@ interface AdminApiContract {
         bookId: String,
         collectionId: String,
     )
+
+    // Library management
+    suspend fun getLibraries(): List<LibraryResponse>
+
+    suspend fun getLibrary(libraryId: String): LibraryResponse
+
+    suspend fun updateLibrary(
+        libraryId: String,
+        request: UpdateLibraryRequest,
+    ): LibraryResponse
 }
 
 /**
@@ -328,6 +338,47 @@ class AdminApi(
             }
         }
     }
+
+    // Library Management
+
+    override suspend fun getLibraries(): List<LibraryResponse> {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<LibrariesResponse> =
+            client.get("/api/v1/libraries").body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data.libraries
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
+
+    override suspend fun getLibrary(libraryId: String): LibraryResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<LibraryResponse> =
+            client.get("/api/v1/libraries/$libraryId").body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
+
+    override suspend fun updateLibrary(
+        libraryId: String,
+        request: UpdateLibraryRequest,
+    ): LibraryResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<LibraryResponse> =
+            client
+                .patch("/api/v1/libraries/$libraryId") {
+                    setBody(request)
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
 }
 
 // Response wrappers
@@ -358,6 +409,7 @@ data class AdminUser(
     @SerialName("is_root") val isRoot: Boolean,
     @SerialName("role") val role: String,
     @SerialName("status") val status: String = "active",
+    @SerialName("permissions") val permissions: UserPermissionsResponse = UserPermissionsResponse(),
     @SerialName("invited_by") val invitedBy: String? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String? = null,
@@ -374,6 +426,15 @@ data class AdminUser(
      */
     val isPending: Boolean get() = status == "pending"
 }
+
+/**
+ * User permission flags returned by the server.
+ */
+@Serializable
+data class UserPermissionsResponse(
+    @SerialName("can_download") val canDownload: Boolean = true,
+    @SerialName("can_share") val canShare: Boolean = true,
+)
 
 /**
  * Admin view of an invite.
@@ -426,6 +487,17 @@ data class UpdateUserRequest(
     @SerialName("role") val role: String? = null,
     @SerialName("first_name") val firstName: String? = null,
     @SerialName("last_name") val lastName: String? = null,
+    @SerialName("permissions") val permissions: UpdatePermissionsRequest? = null,
+)
+
+/**
+ * Request to update user permissions.
+ * Only include fields that should be changed.
+ */
+@Serializable
+data class UpdatePermissionsRequest(
+    @SerialName("can_download") val canDownload: Boolean? = null,
+    @SerialName("can_share") val canShare: Boolean? = null,
 )
 
 /**
@@ -554,4 +626,41 @@ private data class ReleaseInboxBooksApiResponse(
 @Serializable
 private data class StageCollectionApiRequest(
     @SerialName("collection_id") val collectionId: String,
+)
+
+// =============================================================================
+// Library API Models
+// =============================================================================
+
+/**
+ * Response from GET /api/v1/libraries endpoint.
+ */
+@Serializable
+data class LibrariesResponse(
+    @SerialName("libraries") val libraries: List<LibraryResponse>,
+)
+
+/**
+ * Library information returned by the server.
+ */
+@Serializable
+data class LibraryResponse(
+    @SerialName("id") val id: String,
+    @SerialName("name") val name: String,
+    @SerialName("owner_id") val ownerId: String,
+    @SerialName("scan_paths") val scanPaths: List<String> = emptyList(),
+    @SerialName("skip_inbox") val skipInbox: Boolean = false,
+    @SerialName("access_mode") val accessMode: String = "open",
+    @SerialName("created_at") val createdAt: String = "",
+    @SerialName("updated_at") val updatedAt: String = "",
+)
+
+/**
+ * Request to update library settings.
+ */
+@Serializable
+data class UpdateLibraryRequest(
+    @SerialName("name") val name: String? = null,
+    @SerialName("skip_inbox") val skipInbox: Boolean? = null,
+    @SerialName("access_mode") val accessMode: String? = null,
 )

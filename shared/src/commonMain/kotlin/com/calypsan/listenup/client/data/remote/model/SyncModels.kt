@@ -1076,3 +1076,35 @@ data class ApiActiveSessionResponse(
     @SerialName("avatar_color")
     val avatarColor: String,
 )
+
+// =============================================================================
+// Library Access Mode SSE Event (Admin-only)
+// =============================================================================
+
+/**
+ * SSE library access mode changed event (admin-only).
+ * Sent when an admin changes the library access mode.
+ * Clients should refresh their book lists as visibility may have changed.
+ */
+@Serializable
+data class SSELibraryAccessModeChangedEvent(
+    @SerialName("library_id")
+    val libraryId: String,
+    @SerialName("access_mode")
+    val accessMode: String,
+)
+
+// =============================================================================
+// Progress Deleted SSE Event
+// =============================================================================
+
+/**
+ * SSE progress deleted event.
+ * Sent when a user's progress is discarded for a book.
+ * Other devices should delete their local progress record.
+ */
+@Serializable
+data class SSEProgressDeletedEvent(
+    @SerialName("book_id")
+    val bookId: String,
+)

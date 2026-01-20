@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.data.remote
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.RefreshToken
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.remote.model.AllProgressResponse
 import com.calypsan.listenup.client.data.remote.model.ContinueListeningItemResponse
 import com.calypsan.listenup.client.data.remote.model.ContributorResponse
 import com.calypsan.listenup.client.data.remote.model.PlaybackProgressResponse
@@ -150,6 +151,19 @@ interface SyncApiContract {
     suspend fun getContinueListening(limit: Int = 10): Result<List<ContinueListeningItemResponse>>
 
     /**
+     * Get all playback progress for the current user (for sync).
+     *
+     * Returns all progress records including isFinished status.
+     * Used for bulk sync to ensure client has accurate finished state.
+     *
+     * Endpoint: GET /api/v1/listening/progress
+     * Auth: Required
+     *
+     * @return Result containing AllProgressResponse with all progress items
+     */
+    suspend fun getAllProgress(): Result<AllProgressResponse>
+
+    /**
      * Get a single book by ID.
      *
      * Used to fetch book data on-demand when local data is incomplete
@@ -207,6 +221,56 @@ interface SyncApiContract {
      * @return Result containing list of active sessions
      */
     suspend fun getActiveSessions(): Result<SyncActiveSessionsResponse>
+
+    /**
+     * Mark a book as complete.
+     *
+     * Updates the progress record to mark the book finished, creating
+     * a "finished_book" activity and completing the current reading session.
+     *
+     * Endpoint: POST /api/v1/books/{bookId}/progress/complete
+     * Auth: Required
+     *
+     * @param bookId Book to mark as complete
+     * @param finishedAt Optional ISO 8601 timestamp for when the book was finished
+     * @return Result containing updated PlaybackProgressResponse or error
+     */
+    suspend fun markComplete(
+        bookId: String,
+        finishedAt: String? = null,
+    ): Result<PlaybackProgressResponse>
+
+    /**
+     * Discard all progress for a book.
+     *
+     * Removes the progress record entirely, optionally preserving
+     * listening history (events and stats).
+     *
+     * Endpoint: DELETE /api/v1/books/{bookId}/progress/discard
+     * Auth: Required
+     *
+     * @param bookId Book to discard progress for
+     * @param keepHistory Whether to preserve listening history (default true)
+     * @return Result containing Unit on success or error
+     */
+    suspend fun discardProgress(
+        bookId: String,
+        keepHistory: Boolean = true,
+    ): Result<Unit>
+
+    /**
+     * Restart a book from the beginning.
+     *
+     * Resets progress to position 0, increments reread count,
+     * creates a new reading session, and generates a "started_book" activity.
+     *
+     * Endpoint: POST /api/v1/books/{bookId}/progress/restart
+     * Auth: Required
+     *
+     * @param bookId Book to restart
+     * @return Result containing updated PlaybackProgressResponse or error
+     */
+    suspend fun restartBook(bookId: String): Result<PlaybackProgressResponse>
 }
 
 /**
@@ -1261,6 +1325,7 @@ data class ReaderSummary(
     val currentProgress: Double = 0.0,
     val startedAt: String,
     val finishedAt: String? = null,
+    val lastActivityAt: String,
     val completionCount: Int,
 )
 

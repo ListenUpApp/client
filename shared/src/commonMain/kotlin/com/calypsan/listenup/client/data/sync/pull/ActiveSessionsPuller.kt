@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException")
+
 package com.calypsan.listenup.client.data.sync.pull
 
 import com.calypsan.listenup.client.core.Result

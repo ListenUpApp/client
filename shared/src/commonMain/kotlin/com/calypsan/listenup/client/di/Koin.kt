@@ -7,11 +7,15 @@ import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
 import com.calypsan.listenup.client.data.remote.ActivityFeedApi
 import com.calypsan.listenup.client.data.remote.ActivityFeedApiContract
+import com.calypsan.listenup.client.data.remote.ABSImportApi
+import com.calypsan.listenup.client.data.remote.ABSImportApiContract
 import com.calypsan.listenup.client.data.remote.AdminApi
 import com.calypsan.listenup.client.data.remote.AdminApiContract
 import com.calypsan.listenup.client.data.remote.AdminCollectionApi
 import com.calypsan.listenup.client.data.remote.AdminCollectionApiContract
 import com.calypsan.listenup.client.data.remote.ApiClientFactory
+import com.calypsan.listenup.client.data.remote.BackupApi
+import com.calypsan.listenup.client.data.remote.BackupApiContract
 import com.calypsan.listenup.client.data.remote.AuthApi
 import com.calypsan.listenup.client.data.remote.AuthApiContract
 import com.calypsan.listenup.client.data.remote.BookApiContract
@@ -34,6 +38,8 @@ import com.calypsan.listenup.client.data.remote.ProfileApiContract
 import com.calypsan.listenup.client.data.remote.SearchApi
 import com.calypsan.listenup.client.data.remote.SearchApiContract
 import com.calypsan.listenup.client.data.remote.SeriesApiContract
+import com.calypsan.listenup.client.data.remote.SetupApi
+import com.calypsan.listenup.client.data.remote.SetupApiContract
 import com.calypsan.listenup.client.data.remote.StatsApi
 import com.calypsan.listenup.client.data.remote.StatsApiContract
 import com.calypsan.listenup.client.data.remote.SyncApi
@@ -93,6 +99,8 @@ import com.calypsan.listenup.client.data.sync.pull.BookPuller
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.GenrePuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPuller
+import com.calypsan.listenup.client.data.sync.pull.ListeningEventPullerContract
+import com.calypsan.listenup.client.data.sync.pull.ProgressPuller
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
@@ -744,6 +752,16 @@ val syncModule =
             AdminApi(clientFactory = get())
         } bind AdminApiContract::class
 
+        // BackupApi for admin backup/restore operations
+        single {
+            BackupApi(clientFactory = get())
+        } bind BackupApiContract::class
+
+        // ABSImportApi for persistent ABS import operations
+        single {
+            ABSImportApi(clientFactory = get())
+        } bind ABSImportApiContract::class
+
         // MetadataApi for Audible metadata search and matching
         single {
             MetadataApi(clientFactory = get())
@@ -790,6 +808,11 @@ val syncModule =
             ProfileApi(clientFactory = get())
         } bind ProfileApiContract::class
 
+        // SetupApi for library setup operations
+        single {
+            SetupApi(clientFactory = get())
+        } bind SetupApiContract::class
+
         // FtsPopulator for rebuilding FTS tables after sync
         single {
             FtsPopulator(
@@ -829,6 +852,7 @@ val syncModule =
                 userProfileDao = get(),
                 activeSessionDao = get(),
                 userStatsDao = get(),
+                playbackPositionDao = get(),
                 imageDownloader = get(),
                 playbackStateProvider = get<PlaybackManager>(),
                 downloadService = get(),
@@ -923,11 +947,9 @@ val syncModule =
             )
         }
 
-        single<Puller>(
-            qualifier =
-                org.koin.core.qualifier
-                    .named("listeningEventPuller"),
-        ) {
+        // ListeningEventPuller - registered as ListeningEventPullerContract because
+        // PullSyncOrchestrator needs to call pullAll() for refreshListeningHistory()
+        single<ListeningEventPullerContract> {
             ListeningEventPuller(
                 syncApi = get(),
                 listeningEventDao = get(),
@@ -947,6 +969,19 @@ val syncModule =
                 activeSessionDao = get(),
                 userProfileDao = get(),
                 imageDownloader = get(),
+            )
+        }
+
+        // ProgressPuller - syncs all playback progress including isFinished status
+        // Essential for cross-device sync, fresh installs, and ABS import
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("progressPuller"),
+        ) {
+            ProgressPuller(
+                syncApi = get(),
+                playbackPositionDao = get(),
             )
         }
 
@@ -983,11 +1018,12 @@ val syncModule =
                             org.koin.core.qualifier
                                 .named("genrePuller"),
                     ),
-                listeningEventPuller =
+                listeningEventPuller = get(),
+                progressPuller =
                     get(
                         qualifier =
                             org.koin.core.qualifier
-                                .named("listeningEventPuller"),
+                                .named("progressPuller"),
                     ),
                 activeSessionsPuller =
                     get(
@@ -1107,6 +1143,7 @@ val syncModule =
                 sseEventProcessor = get(),
                 coordinator = get(),
                 sseManager = get(),
+                setupApi = get(),
                 userPreferencesApi = get(),
                 authSession = get(),
                 playbackPreferences = get(),
@@ -1115,6 +1152,7 @@ val syncModule =
                 pendingOperationDao = get(),
                 libraryResetHelper = get(),
                 syncDao = get(),
+                bookDao = get(),
                 ftsPopulator = get(),
                 syncMutex = get(),
                 scope =
@@ -1145,13 +1183,11 @@ val syncModule =
             )
         }
 
-        // HomeRepository for Home screen data (cross-device sync)
+        // HomeRepository for Home screen data (local-first)
         single<HomeRepository> {
             HomeRepositoryImpl(
                 bookRepository = get(),
                 playbackPositionDao = get(),
-                syncApi = get(),
-                networkMonitor = get(),
             )
         }
 
@@ -1257,7 +1293,7 @@ val syncModule =
 
         // PlaybackPositionRepository for position tracking (SOLID: interface in domain, impl in data)
         single<PlaybackPositionRepository> {
-            PlaybackPositionRepositoryImpl(dao = get())
+            PlaybackPositionRepositoryImpl(dao = get(), syncApi = get())
         }
 
         // TagRepository for community tags (SOLID: interface in domain, impl in data)
@@ -1300,9 +1336,22 @@ val syncModule =
             ProfileRepositoryImpl(profileApi = get())
         }
 
+        // UserPreferencesRepository for syncing user preferences across devices
+        single<com.calypsan.listenup.client.domain.repository.UserPreferencesRepository> {
+            com.calypsan.listenup.client.data.repository.UserPreferencesRepositoryImpl(
+                userPreferencesApi = get(),
+            )
+        }
+
         // SessionRepository for reading sessions (SOLID: interface in domain, impl in data)
+        // Offline-first: caches reader data in Room, syncs via API and SSE
         single<SessionRepository> {
-            SessionRepositoryImpl(sessionApi = get())
+            SessionRepositoryImpl(
+                sessionApi = get(),
+                readingSessionDao = get<ListenUpDatabase>().readingSessionDao(),
+                authSession = get(),
+                repositoryScope = get(),
+            )
         }
 
         // ContributorRepository for domain-layer contributor queries including search and metadata
@@ -1322,7 +1371,6 @@ val syncModule =
         single<com.calypsan.listenup.client.domain.repository.SeriesRepository> {
             com.calypsan.listenup.client.data.repository.SeriesRepositoryImpl(
                 seriesDao = get(),
-                bookDao = get(),
                 searchDao = get(),
                 api = get(),
                 networkMonitor = get(),

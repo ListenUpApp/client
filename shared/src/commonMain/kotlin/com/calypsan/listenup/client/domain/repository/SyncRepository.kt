@@ -30,6 +30,15 @@ interface SyncRepository {
     val syncState: StateFlow<SyncState>
 
     /**
+     * Whether the server is currently scanning the library.
+     *
+     * True from when a ScanStarted SSE event is received until ScanCompleted.
+     * UI can use this to show "Scanning your library..." instead of empty state
+     * during initial library setup.
+     */
+    val isServerScanning: StateFlow<Boolean>
+
+    /**
      * Trigger a full library sync with the server.
      *
      * Performs:
@@ -55,4 +64,31 @@ interface SyncRepository {
      * @return Result.Success on completion, Result.Failure on error
      */
     suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit>
+
+    /**
+     * Refresh all listening events and playback positions from server.
+     *
+     * Used after importing data (e.g., from Audiobookshelf) to fetch historical
+     * events that wouldn't be included in a normal delta sync.
+     *
+     * This fetches ALL events from the server (ignoring the delta sync cursor)
+     * and rebuilds playback positions from them.
+     *
+     * @return Result.Success on completion, Result.Failure on error
+     */
+    suspend fun refreshListeningHistory(): Result<Unit>
+
+    /**
+     * Force a complete resync by clearing all local data and syncing fresh.
+     *
+     * Used after backup restore operations where the server data has been
+     * completely replaced. This ensures the client state matches the new
+     * server state.
+     *
+     * WARNING: This is destructive - all local data will be cleared, including
+     * any unsynced changes and downloaded content references.
+     *
+     * @return Result.Success on completion, Result.Failure on error
+     */
+    suspend fun forceFullResync(): Result<Unit>
 }

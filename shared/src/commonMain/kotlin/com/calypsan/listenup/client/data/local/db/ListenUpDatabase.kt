@@ -33,6 +33,11 @@ import androidx.room.TypeConverters
  * - v26: Added activities table for offline activity feed
  * - v27: Added user_stats table for offline leaderboard caching
  * - v28: Added firstName, lastName columns to users table
+ * - v29: Added genres and book_genres tables for offline genre support
+ * - v30: Added isFinished column to playback_positions for authoritative finished status
+ * - v31: Added finishedAt, startedAt columns to playback_positions for timeline tracking
+ * - v32: Added source column to listening_events for tracking event origin (playback/import/manual)
+ * - v33: Added reading_sessions table for offline-first "Readers" section on book detail
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -62,8 +67,9 @@ import androidx.room.TypeConverters
         ActiveSessionEntity::class,
         ActivityEntity::class,
         UserStatsEntity::class,
+        ReadingSessionEntity::class,
     ],
-    version = 29,
+    version = 33,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)
@@ -112,6 +118,8 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun activityDao(): ActivityDao
 
     abstract fun userStatsDao(): UserStatsDao
+
+    abstract fun readingSessionDao(): ReadingSessionDao
 }
 
 /**

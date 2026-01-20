@@ -117,7 +117,7 @@ fun AuthorsContent(
             ) {
                 items(
                     items = authors,
-                    key = { it.contributor.id },
+                    key = { it.contributor.id.value },
                 ) { authorWithCount ->
                     ContributorCard(
                         contributorWithCount = authorWithCount,

@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "StringLiteralDuplication")
 
 package com.calypsan.listenup.client.features.discover.components
 
@@ -23,7 +23,7 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -101,10 +101,7 @@ fun ActivityFeedSection(
                                 .height(100.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp,
-                        )
+                        ListenUpLoadingIndicatorSmall()
                     }
                 }
 

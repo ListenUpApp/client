@@ -59,6 +59,15 @@ interface BookDao {
     suspend fun getAll(): List<BookEntity>
 
     /**
+     * Count total number of books in the database.
+     * Used to detect sync mismatches (server has books but client doesn't).
+     *
+     * @return Total book count
+     */
+    @Query("SELECT COUNT(*) FROM books")
+    suspend fun count(): Int
+
+    /**
      * Observe all books as a reactive Flow.
      * Emits new list whenever any book changes.
      *

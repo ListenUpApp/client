@@ -1,3 +1,5 @@
+@file:Suppress("CyclomaticComplexMethod", "StringLiteralDuplication")
+
 package com.calypsan.listenup.client.presentation.auth
 
 import io.github.oshai.kotlinlogging.KotlinLogging

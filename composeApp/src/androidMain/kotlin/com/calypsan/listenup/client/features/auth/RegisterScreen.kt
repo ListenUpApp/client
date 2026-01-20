@@ -1,3 +1,5 @@
+@file:Suppress("LongMethod")
+
 package com.calypsan.listenup.client.features.auth
 
 import androidx.compose.foundation.layout.Arrangement

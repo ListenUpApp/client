@@ -1,0 +1,668 @@
+package com.calypsan.listenup.client.features.admin.backup
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.data.remote.ABSImportSummary
+import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
+import com.calypsan.listenup.client.domain.model.BackupInfo
+import com.calypsan.listenup.client.domain.model.BackupValidation
+import com.calypsan.listenup.client.presentation.admin.ABSImportHubViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminBackupState
+import com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel
+import com.calypsan.listenup.client.util.rememberABSBackupPicker
+import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import org.koin.compose.koinInject
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AdminBackupScreen(
+    backupViewModel: AdminBackupViewModel = koinInject(),
+    absImportViewModel: ABSImportHubViewModel = koinInject(),
+    onBackClick: () -> Unit,
+    onCreateClick: () -> Unit,
+    onRestoreClick: (String) -> Unit,
+    onABSImportHubClick: (String) -> Unit,
+) {
+    val backupState by backupViewModel.state.collectAsState()
+    val absImportListState by absImportViewModel.listState.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    // Upload sheet state
+    var showUploadSheet by remember { mutableStateOf(false) }
+    val uploadSheetState = rememberABSUploadSheetState()
+
+    // Document picker for ABS backup files
+    val documentPicker =
+        rememberABSBackupPicker { result ->
+            uploadSheetState.onDocumentSelected(result)
+        }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Backups") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+            )
+        },
+        floatingActionButton = {
+            if (!backupState.isLoading) {
+                FloatingActionButton(onClick = onCreateClick) {
+                    Icon(Icons.Default.Add, contentDescription = "Create Backup")
+                }
+            }
+        },
+    ) { paddingValues ->
+        AdminBackupContent(
+            backupState = backupState,
+            absImports = absImportListState.imports,
+            isLoadingImports = absImportListState.isLoading,
+            modifier = Modifier.padding(paddingValues),
+            onRestoreClick = onRestoreClick,
+            onDeleteClick = { backupViewModel.showDeleteConfirmation(it) },
+            onValidateClick = { backupViewModel.validateBackup(it) },
+            onABSImportClick = onABSImportHubClick,
+            onUploadABSBackup = {
+                uploadSheetState.reset() // Ensure clean state
+                showUploadSheet = true
+                // Auto-launch picker when sheet opens
+                documentPicker.launch()
+            },
+        )
+    }
+
+    // ABS Upload Sheet
+    if (showUploadSheet) {
+        ABSUploadSheet(
+            state = uploadSheetState.uploadState,
+            onPickFile = { documentPicker.launch() },
+            onUpload = {
+                scope.launch {
+                    uploadSheetState.startUpload { fileSource, name ->
+                        absImportViewModel.createImportAndGetId(fileSource, name)
+                    }
+                }
+            },
+            onNavigateToImport = { importId ->
+                showUploadSheet = false
+                uploadSheetState.reset()
+                onABSImportHubClick(importId)
+            },
+            onDismiss = {
+                showUploadSheet = false
+                uploadSheetState.reset()
+            },
+            onRetry = {
+                uploadSheetState.retry()
+                documentPicker.launch()
+            },
+        )
+    }
+
+    // Delete confirmation dialog
+    backupState.deleteConfirmBackup?.let { backup ->
+        AlertDialog(
+            onDismissRequest = { backupViewModel.dismissDeleteConfirmation() },
+            shape = MaterialTheme.shapes.large,
+            title = { Text("Delete Backup") },
+            text = { Text("Are you sure you want to delete ${backup.id}? This cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = { backupViewModel.deleteBackup(backup) }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { backupViewModel.dismissDeleteConfirmation() }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    // Validation result dialog
+    backupState.validationResult?.let { validation ->
+        ValidationResultDialog(
+            validation = validation,
+            onDismiss = { backupViewModel.dismissValidation() },
+        )
+    }
+}
+
+@Composable
+private fun AdminBackupContent(
+    backupState: AdminBackupState,
+    absImports: List<ABSImportSummary>,
+    isLoadingImports: Boolean,
+    modifier: Modifier = Modifier,
+    onRestoreClick: (String) -> Unit,
+    onDeleteClick: (BackupInfo) -> Unit,
+    onValidateClick: (BackupInfo) -> Unit,
+    onABSImportClick: (String) -> Unit,
+    onUploadABSBackup: () -> Unit,
+) {
+    when {
+        backupState.isLoading -> {
+            FullScreenLoadingIndicator()
+        }
+
+        backupState.backups.isEmpty() && absImports.isEmpty() -> {
+            EmptyBackupState(
+                modifier = modifier,
+                onUploadABSBackup = onUploadABSBackup,
+            )
+        }
+
+        else -> {
+            LazyColumn(
+                modifier = modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // Backups section
+                if (backupState.backups.isNotEmpty()) {
+                    item(key = "backups_header") {
+                        SectionHeader(title = "Backups")
+                    }
+                    items(backupState.backups, key = { "backup_${it.id}" }) { backup ->
+                        BackupCard(
+                            backup = backup,
+                            isValidating = backupState.validatingBackupId == backup.id,
+                            onRestoreClick = { onRestoreClick(backup.id) },
+                            onDeleteClick = { onDeleteClick(backup) },
+                            onValidateClick = { onValidateClick(backup) },
+                        )
+                    }
+                }
+
+                // ABS Imports section
+                item(key = "abs_header") {
+                    if (backupState.backups.isNotEmpty()) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    }
+                    SectionHeader(title = "Audiobookshelf Imports")
+                }
+
+                // Upload new import card
+                item(key = "upload_new") {
+                    UploadABSBackupCard(onClick = onUploadABSBackup)
+                }
+
+                // Existing imports
+                if (isLoadingImports) {
+                    item(key = "loading_imports") {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            ListenUpLoadingIndicatorSmall()
+                        }
+                    }
+                } else {
+                    items(absImports, key = { "import_${it.id}" }) { import ->
+                        ABSImportSummaryCard(
+                            import = import,
+                            onClick = { onABSImportClick(import.id) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(vertical = 4.dp),
+    )
+}
+
+@Composable
+private fun BackupCard(
+    backup: BackupInfo,
+    isValidating: Boolean,
+    onRestoreClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onValidateClick: () -> Unit,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        Icons.Default.Archive,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = backup.id,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Box {
+                    if (isValidating) {
+                        ListenUpLoadingIndicatorSmall()
+                    } else {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Restore") },
+                            onClick = {
+                                showMenu = false
+                                onRestoreClick()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Restore, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Validate") },
+                            onClick = {
+                                showMenu = false
+                                onValidateClick()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Verified, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = {
+                                showMenu = false
+                                onDeleteClick()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            val localDateTime = backup.createdAt.toLocalDateTime(TimeZone.currentSystemDefault())
+            val timeStr = "${localDateTime.hour}:${localDateTime.minute.toString().padStart(2, '0')}"
+            Text(
+                text = "Created: ${localDateTime.date} at $timeStr",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Size: ${backup.sizeFormatted}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * Card for uploading a new ABS backup file.
+ */
+@Composable
+private fun UploadABSBackupCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.CloudUpload,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = "Upload New Import",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = "Migrate listening history from ABS backup",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Card showing an existing ABS import with progress.
+ */
+@Composable
+private fun ABSImportSummaryCard(
+    import: ABSImportSummary,
+    onClick: () -> Unit,
+) {
+    val isActive = import.status.lowercase() == "active"
+    val progress =
+        if (import.totalSessions > 0) {
+            import.sessionsImported.toFloat() / import.totalSessions.toFloat()
+        } else {
+            0f
+        }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = import.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                StatusBadge(status = import.status)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Progress info
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = "Users: ${import.usersMapped}/${import.totalUsers}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Books: ${import.booksMapped}/${import.totalBooks}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Sessions: ${import.sessionsImported}/${import.totalSessions}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            // Progress bar for active imports
+            if (isActive && progress < 1f) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusBadge(status: String) {
+    val (containerColor, contentColor, label) =
+        when (status.lowercase()) {
+            "active" -> {
+                Triple(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    MaterialTheme.colorScheme.onPrimaryContainer,
+                    "Active",
+                )
+            }
+
+            "completed" -> {
+                Triple(
+                    MaterialTheme.colorScheme.tertiaryContainer,
+                    MaterialTheme.colorScheme.onTertiaryContainer,
+                    "Completed",
+                )
+            }
+
+            "archived" -> {
+                Triple(
+                    MaterialTheme.colorScheme.surfaceContainerHighest,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    "Archived",
+                )
+            }
+
+            else -> {
+                Triple(
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    status,
+                )
+            }
+        }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+    }
+}
+
+@Composable
+private fun EmptyBackupState(
+    modifier: Modifier = Modifier,
+    onUploadABSBackup: () -> Unit,
+) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Archive,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "No backups yet",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = "Create a backup to protect your data",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        UploadABSBackupCard(onClick = onUploadABSBackup)
+    }
+}
+
+@Composable
+private fun ValidationResultDialog(
+    validation: BackupValidation,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.large,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val icon = if (validation.valid) Icons.Default.CheckCircle else Icons.Default.Archive
+                val tint =
+                    if (validation.valid) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    }
+                Icon(icon, contentDescription = null, tint = tint)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(if (validation.valid) "Backup Valid" else "Backup Invalid")
+            }
+        },
+        text = {
+            Column {
+                validation.serverName?.let {
+                    Text("Server: $it", style = MaterialTheme.typography.bodyMedium)
+                }
+                validation.version?.let {
+                    Text("Version: $it", style = MaterialTheme.typography.bodyMedium)
+                }
+                if (validation.entityCounts.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Contents:", style = MaterialTheme.typography.titleSmall)
+                    validation.entityCounts.forEach { (type, count) ->
+                        Text("  $type: $count", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                if (validation.warnings.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Warnings:",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                    validation.warnings.forEach {
+                        Text(
+                            "  $it",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
+                }
+                if (validation.errors.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Errors:",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    validation.errors.forEach {
+                        Text(
+                            "  $it",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}

@@ -112,7 +112,7 @@ fun SeriesContent(
             ) {
                 items(
                     items = series,
-                    key = { it.series.id },
+                    key = { it.series.id.value },
                 ) { seriesWithBooks ->
                     SeriesCard(
                         seriesWithBooks = seriesWithBooks,

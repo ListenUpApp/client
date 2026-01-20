@@ -62,6 +62,12 @@ val authPresentationModule =
                 inviteCode = params.get<String>(1),
             )
         }
+        // LibrarySetupViewModel for initial library configuration
+        factory {
+            com.calypsan.listenup.client.presentation.setup.LibrarySetupViewModel(
+                setupApi = get(),
+            )
+        }
     }
 
 /**
@@ -118,6 +124,52 @@ val adminPresentationModule =
                 shareCollectionUseCase = get(),
                 removeCollectionShareUseCase = get(),
                 getUsersForSharingUseCase = get(),
+            )
+        }
+        // UserDetailViewModel - takes userId as parameter
+        factory { params ->
+            com.calypsan.listenup.client.presentation.admin.UserDetailViewModel(
+                userId = params.get<String>(0),
+                adminRepository = get(),
+            )
+        }
+        // LibrarySettingsViewModel - takes libraryId as parameter
+        factory { params ->
+            com.calypsan.listenup.client.presentation.admin.LibrarySettingsViewModel(
+                libraryId = params.get<String>(0),
+                adminRepository = get(),
+            )
+        }
+        // AdminBackupViewModel for backup management
+        factory {
+            com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel(
+                backupApi = get(),
+            )
+        }
+        // RestoreBackupViewModel - takes backupId as parameter
+        factory { params ->
+            com.calypsan.listenup.client.presentation.admin.RestoreBackupViewModel(
+                backupId = params.get<String>(0),
+                backupApi = get(),
+                syncRepository = get(),
+            )
+        }
+        // ABSImportViewModel for Audiobookshelf import (legacy wizard)
+        factory {
+            com.calypsan.listenup.client.presentation.admin.ABSImportViewModel(
+                backupApi = get(),
+                searchApi = get(),
+                absImportApi = get(),
+                syncRepository = get(),
+            )
+        }
+
+        // ABSImportHubViewModel for persistent/resumable imports
+        single {
+            com.calypsan.listenup.client.presentation.admin.ABSImportHubViewModel(
+                absImportApi = get(),
+                searchApi = get(),
+                syncRepository = get(),
             )
         }
     }
@@ -185,6 +237,7 @@ val bookPresentationModule =
             com.calypsan.listenup.client.presentation.bookdetail.BookReadersViewModel(
                 sessionRepository = get(),
                 eventStreamRepository = get(),
+                userRepository = get(),
             )
         }
         factory {

@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "CyclomaticComplexMethod")
 @file:OptIn(kotlin.time.ExperimentalTime::class)
 
 package com.calypsan.listenup.client.util

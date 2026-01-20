@@ -49,6 +49,7 @@ data class PlaybackProgressResponse(
             updatedAt = Clock.System.now().toEpochMilliseconds(),
             syncedAt = Clock.System.now().toEpochMilliseconds(),
             lastPlayedAt = lastPlayedAtMillis(),
+            isFinished = isFinished, // Trust server's authoritative finished status
         )
 
     /**

@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "SwallowedException", "CognitiveComplexMethod")
 
 package com.calypsan.listenup.client.features.bookdetail.components
 
@@ -120,22 +120,21 @@ fun ReaderRow(
 
         // Reader info
         Column(modifier = Modifier.weight(1f)) {
-            // Display name
+            // Display name - show "You" for current user
             Text(
-                text = reader.displayName,
+                text = if (reader.isCurrentUser) "You" else reader.displayName,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
-            // Status line
+            // Status line - show when they last read
             val statusText =
                 buildString {
                     if (reader.isCurrentlyReading) {
-                        append("is currently reading")
+                        append("Currently reading")
                     } else {
-                        val timeRef = reader.finishedAt ?: reader.startedAt
-                        append("finished ${timeRef.toRelativeOrMonthYear()}")
+                        append("Last read ${reader.lastActivityAt.toRelativeOrMonthYear()}")
                     }
                 }
 

@@ -272,6 +272,14 @@ data class PlaybackPositionEntity(
     // Used for "Continue Listening" ordering and social features ("last read")
     // Falls back to updatedAt if null (legacy data before migration)
     val lastPlayedAt: Long? = null,
+    // Whether the book is finished (authoritative from server, not derived from position)
+    // Used to filter Continue Listening - a book marked finished in ABS should stay finished
+    // even if position < 99%
+    val isFinished: Boolean = false,
+    // When the book was marked finished (epoch ms, null if not finished)
+    val finishedAt: Long? = null,
+    // When the user started this book (epoch ms, null for legacy data)
+    val startedAt: Long? = null,
 )
 
 /**
@@ -531,5 +539,53 @@ data class UserStatsEntity(
     val updatedAt: Long,
 ) {
     /** Convenience property for userId (primary key is named oduserId due to Room bug) */
+    val userId: String get() = oduserId
+}
+
+/**
+ * Cached reading session data for the "Readers" section on book detail page.
+ *
+ * Stores both the user's own sessions and other readers for offline-first display.
+ * Populated via:
+ * - API response from /api/v1/books/{id}/readers (initial/refresh)
+ * - SSE reading_session_updated events (real-time updates)
+ *
+ * User info is denormalized for immediate display without joins.
+ * Sessions are keyed by a composite of bookId + oduserId to allow upserts.
+ */
+@Entity(
+    tableName = "reading_sessions",
+    indices = [
+        Index(value = ["bookId"]),
+        Index(value = ["oduserId"]),
+        Index(value = ["bookId", "oduserId"], unique = true),
+    ],
+)
+data class ReadingSessionEntity(
+    @PrimaryKey
+    val id: String,
+    /** Book being read */
+    val bookId: String,
+    /** User reading the book (named oduserId due to Room keyword issues) */
+    val oduserId: String,
+    // Denormalized user info for offline display
+    val userDisplayName: String,
+    val userAvatarColor: String,
+    val userAvatarType: String,
+    val userAvatarValue: String?,
+    /** Whether user is currently actively reading (vs finished) */
+    val isCurrentlyReading: Boolean,
+    /** Current progress as percentage (0.0 to 1.0) */
+    val currentProgress: Double,
+    /** When the user started reading (epoch ms) */
+    val startedAt: Long,
+    /** When the user finished (epoch ms, null if still reading) */
+    val finishedAt: Long?,
+    /** Number of times user has completed this book */
+    val completionCount: Int,
+    /** When this cache entry was last updated (epoch ms) */
+    val updatedAt: Long,
+) {
+    /** Convenience property for userId */
     val userId: String get() = oduserId
 }

@@ -275,6 +275,87 @@ data class AdminCollectionDetail(
 data object AdminInbox : Route
 
 /**
+ * Admin user detail screen - view and edit a user's details and permissions.
+ *
+ * Shows user information and allows toggling canDownload and canShare permissions.
+ *
+ * @property userId The unique ID of the user to display.
+ */
+@Serializable
+data class AdminUserDetail(
+    val userId: String,
+) : Route
+
+/**
+ * Admin library settings screen - view and edit library settings.
+ *
+ * Shows library information and allows changing access mode and inbox settings.
+ *
+ * @property libraryId The unique ID of the library to configure.
+ */
+@Serializable
+data class AdminLibrarySettings(
+    val libraryId: String,
+) : Route
+
+// Admin Backup Routes
+
+/**
+ * Admin backups screen - manage server backups.
+ *
+ * Shows list of backups with create/delete/restore functionality.
+ * Only accessible to admin users (root or role=admin).
+ */
+@Serializable
+data object AdminBackups : Route
+
+/**
+ * Create backup screen - create a new server backup.
+ *
+ * Form for backup options (include images, include events).
+ */
+@Serializable
+data object CreateBackup : Route
+
+/**
+ * Restore backup screen - restore from a specific backup.
+ *
+ * Multi-step flow for choosing mode, strategy, and confirmation.
+ *
+ * @property backupId The ID of the backup to restore from.
+ */
+@Serializable
+data class RestoreBackup(
+    val backupId: String,
+) : Route
+
+/**
+ * ABS import list screen - shows all ABS imports with their status.
+ *
+ * Entry point for managing Audiobookshelf imports.
+ */
+@Serializable
+data object ABSImportList : Route
+
+/**
+ * ABS import detail screen - shows a single import with mapping UI.
+ *
+ * @param importId The ID of the import to display.
+ */
+@Serializable
+data class ABSImportDetail(
+    val importId: String,
+) : Route
+
+/**
+ * ABS import screen (legacy) - wizard-style import from Audiobookshelf backup.
+ *
+ * Multi-step flow for analyze, map users/books, and import.
+ */
+@Serializable
+data object ABSImport : Route
+
+/**
  * Settings screen - app preferences and configuration.
  */
 @Serializable
@@ -320,6 +401,17 @@ data object CreateLens : Route
 data class LensEdit(
     val lensId: String,
 ) : Route
+
+// Library Setup Route
+
+/**
+ * Library setup screen - configure library scan paths.
+ *
+ * Shown to admin users after login when the server needs a library configured.
+ * Admin browses the server filesystem to select audiobook folders.
+ */
+@Serializable
+data object LibrarySetup : Route
 
 // Profile Routes
 

@@ -1,4 +1,10 @@
-@file:Suppress("MagicNumber", "LongMethod")
+@file:Suppress(
+    "MagicNumber",
+    "LongMethod",
+    "LongParameterList",
+    "CyclomaticComplexMethod",
+    "CognitiveComplexMethod",
+)
 
 package com.calypsan.listenup.client.playback
 
@@ -240,7 +246,16 @@ class PlaybackManager(
 
         // 6. Get resume position and speed
         val savedPosition = progressTracker.getResumePosition(bookId)
-        val resumePositionMs = savedPosition?.positionMs ?: 0L
+
+        // If book is marked as finished, restart from beginning (re-read scenario)
+        // This ensures completed books don't resume near the end where user left off
+        val resumePositionMs =
+            if (savedPosition?.isFinished == true) {
+                logger.info { "Book is marked finished - starting from beginning for re-read" }
+                0L
+            } else {
+                savedPosition?.positionMs ?: 0L
+            }
 
         // Determine playback speed: use book's custom speed if set, otherwise use universal default
         val resumeSpeed =

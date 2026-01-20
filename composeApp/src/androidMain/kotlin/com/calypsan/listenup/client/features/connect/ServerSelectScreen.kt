@@ -28,7 +28,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -150,10 +150,7 @@ private fun ServerSelectContent(
                     enabled = !state.isDiscovering,
                 ) {
                     if (state.isDiscovering) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp,
-                        )
+                        ListenUpLoadingIndicatorSmall()
                     } else {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -314,10 +311,7 @@ private fun ServerCard(
                 exit = fadeOut(),
             ) {
                 if (isConnecting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                    )
+                    ListenUpLoadingIndicatorSmall()
                 } else if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,

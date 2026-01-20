@@ -10,13 +10,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +38,7 @@ import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.design.components.ListenUpDatePicker
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.ListenUpTextArea
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.domain.imagepicker.ImagePickerResult
@@ -211,11 +210,7 @@ private fun SaveFab(
         onClick = { if (isEnabled) onSave() },
         icon = {
             if (isSaving) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color = contentColor,
-                )
+                ListenUpLoadingIndicatorSmall()
             } else {
                 Icon(
                     Icons.Default.Save,

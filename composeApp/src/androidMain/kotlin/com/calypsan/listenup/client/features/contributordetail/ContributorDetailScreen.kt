@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
@@ -184,7 +183,7 @@ fun ContributorDetailScreen(
                         .background(Color.Black.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator()
+                ListenUpLoadingIndicator()
             }
         }
     }

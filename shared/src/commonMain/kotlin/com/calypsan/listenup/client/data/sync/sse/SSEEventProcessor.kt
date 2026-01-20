@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalTime::class)
+@file:Suppress("CyclomaticComplexMethod")
 
 package com.calypsan.listenup.client.data.sync.sse
 
@@ -19,6 +20,7 @@ import com.calypsan.listenup.client.data.local.db.LensDao
 import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
@@ -35,9 +37,11 @@ import com.calypsan.listenup.client.download.DownloadService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -78,6 +82,7 @@ class SSEEventProcessor(
     private val userProfileDao: UserProfileDao,
     private val activeSessionDao: ActiveSessionDao,
     private val userStatsDao: UserStatsDao,
+    private val playbackPositionDao: PlaybackPositionDao,
     private val imageDownloader: ImageDownloaderContract,
     private val playbackStateProvider: PlaybackStateProvider,
     private val downloadService: DownloadService,
@@ -98,6 +103,50 @@ class SSEEventProcessor(
      * App should clear auth state and navigate to login when this emits.
      */
     val userDeletedEvent: SharedFlow<UserDeletedInfo> = _userDeletedEvent.asSharedFlow()
+
+    private val _libraryAccessModeChangedEvent =
+        MutableSharedFlow<LibraryAccessModeChangedInfo>(extraBufferCapacity = 1)
+
+    /**
+     * Flow of library access mode change events.
+     * Emitted when an admin changes the library access mode.
+     * Clients should refresh their book lists as visibility may have changed.
+     */
+    val libraryAccessModeChangedEvent: SharedFlow<LibraryAccessModeChangedInfo> =
+        _libraryAccessModeChangedEvent.asSharedFlow()
+
+    private val _scanCompletedEvent =
+        MutableSharedFlow<ScanCompletedInfo>(extraBufferCapacity = 1)
+
+    /**
+     * Flow of library scan completion events.
+     * Emitted when a library scan finishes (initial or rescan).
+     * Clients should trigger a delta sync to fetch newly scanned books.
+     */
+    val scanCompletedEvent: SharedFlow<ScanCompletedInfo> =
+        _scanCompletedEvent.asSharedFlow()
+
+    private val _isServerScanning = MutableStateFlow(false)
+
+    /**
+     * Whether the server is currently scanning the library.
+     * True from ScanStarted until ScanCompleted.
+     * UI can use this to show "Scanning your library..." instead of empty state.
+     */
+    val isServerScanning: StateFlow<Boolean> = _isServerScanning.asStateFlow()
+
+    /**
+     * Initialize the server scanning state.
+     *
+     * Called when SSE connects for the first time to set the initial scan state
+     * from the library status API. This handles the case where a scan started
+     * before the SSE connection was established (e.g., right after library setup).
+     *
+     * @param isScanning Whether the server is currently scanning
+     */
+    fun initializeScanningState(isScanning: Boolean) {
+        _isServerScanning.value = isScanning
+    }
 
     /**
      * Process an incoming SSE event.
@@ -137,6 +186,10 @@ class SSEEventProcessor(
                 is SSEEventType.InboxBookReleased,
                 -> {
                     // Admin-only events, handled by AdminViewModel/AdminInboxViewModel
+                }
+
+                is SSEEventType.LibraryAccessModeChanged -> {
+                    handleLibraryAccessModeChanged(event)
                 }
 
                 is SSEEventType.UserDeleted -> {
@@ -197,6 +250,10 @@ class SSEEventProcessor(
 
                 is SSEEventType.ProgressUpdated -> {
                     handleProgressUpdated(event)
+                }
+
+                is SSEEventType.ProgressDeleted -> {
+                    handleProgressDeleted(event)
                 }
 
                 is SSEEventType.ReadingSessionUpdated -> {
@@ -285,15 +342,41 @@ class SSEEventProcessor(
 
     private fun handleScanStarted(event: SSEEventType.ScanStarted) {
         logger.debug { "SSE: Library scan started - ${event.libraryId}" }
+        _isServerScanning.value = true
     }
 
-    private fun handleScanCompleted(event: SSEEventType.ScanCompleted) {
-        logger.info {
-            "SSE: Library scan completed - " +
-                "Added: ${event.booksAdded}, " +
-                "Updated: ${event.booksUpdated}, " +
-                "Removed: ${event.booksRemoved}"
+    private suspend fun handleScanCompleted(event: SSEEventType.ScanCompleted) {
+        logger.debug {
+            "SSE: Library scan completed - added=${event.booksAdded}, " +
+                "updated=${event.booksUpdated}, removed=${event.booksRemoved}"
         }
+
+        // Clear scanning flag - UI can now show books or empty state
+        _isServerScanning.value = false
+
+        // Emit event so SyncManager can trigger delta sync to fetch newly scanned books
+        _scanCompletedEvent.emit(
+            ScanCompletedInfo(
+                libraryId = event.libraryId,
+                booksAdded = event.booksAdded,
+                booksUpdated = event.booksUpdated,
+                booksRemoved = event.booksRemoved,
+            ),
+        )
+    }
+
+    private suspend fun handleLibraryAccessModeChanged(event: SSEEventType.LibraryAccessModeChanged) {
+        logger.info {
+            "SSE: Library access mode changed to ${event.accessMode} for library ${event.libraryId}"
+        }
+
+        // Emit event for app to handle (trigger delta sync to refresh book lists)
+        _libraryAccessModeChangedEvent.emit(
+            LibraryAccessModeChangedInfo(
+                libraryId = event.libraryId,
+                accessMode = event.accessMode,
+            ),
+        )
     }
 
     /**
@@ -572,6 +655,16 @@ class SSEEventProcessor(
         // Stats/Continue Listening screens can listen for this to refresh
     }
 
+    private suspend fun handleProgressDeleted(event: SSEEventType.ProgressDeleted) {
+        logger.info { "SSE: Progress deleted for book ${event.bookId} (from another device)" }
+        try {
+            playbackPositionDao.delete(BookId(event.bookId))
+            logger.debug { "SSE: Deleted local progress for book ${event.bookId}" }
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to delete progress for book ${event.bookId}" }
+        }
+    }
+
     private fun handleReadingSessionUpdated(event: SSEEventType.ReadingSessionUpdated) {
         logger.info {
             "SSE: Reading session ${event.sessionId} updated for book ${event.bookId} - completed=${event.isCompleted}"
@@ -827,7 +920,8 @@ class SSEEventProcessor(
                     )
                 }
                 logger.info {
-                    "SSE: Updated local UserEntity with profile changes - name=${event.displayName}, avatar=${event.avatarType}/${event.avatarValue}"
+                    "SSE: Updated local UserEntity with profile changes - " +
+                        "name=${event.displayName}, avatar=${event.avatarType}/${event.avatarValue}"
                 }
             } catch (e: Exception) {
                 logger.error(e) { "SSE: Failed to update local UserEntity for profile event" }
@@ -871,6 +965,26 @@ data class AccessRevokedEvent(
 data class UserDeletedInfo(
     val userId: String,
     val reason: String?,
+)
+
+/**
+ * Event emitted when the library access mode changes.
+ * Clients should refresh their book lists as visibility may have changed.
+ */
+data class LibraryAccessModeChangedInfo(
+    val libraryId: String,
+    val accessMode: String,
+)
+
+/**
+ * Event emitted when a library scan completes.
+ * Clients should trigger a delta sync to fetch newly scanned books.
+ */
+data class ScanCompletedInfo(
+    val libraryId: String,
+    val booksAdded: Int,
+    val booksUpdated: Int,
+    val booksRemoved: Int,
 )
 
 /**

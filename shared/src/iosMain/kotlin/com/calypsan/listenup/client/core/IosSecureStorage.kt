@@ -7,7 +7,6 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
-import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.value
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -69,7 +68,13 @@ internal class IosSecureStorage : SecureStorage {
                 ?: throw IllegalArgumentException("Failed to encode value to UTF-8")
 
         // Delete existing item first
-        val deleteQuery = CFDictionaryCreateMutable(null, 4, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)!!
+        val deleteQuery =
+            CFDictionaryCreateMutable(
+                null,
+                4,
+                kCFTypeDictionaryKeyCallBacks.ptr,
+                kCFTypeDictionaryValueCallBacks.ptr,
+            )!!
         CFDictionarySetValue(deleteQuery, kSecClass, kSecClassGenericPassword)
         CFDictionarySetValue(deleteQuery, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
         CFDictionarySetValue(deleteQuery, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
@@ -77,7 +82,13 @@ internal class IosSecureStorage : SecureStorage {
         SecItemDelete(deleteQuery)
 
         // Add new item
-        val addQuery = CFDictionaryCreateMutable(null, 6, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)!!
+        val addQuery =
+            CFDictionaryCreateMutable(
+                null,
+                6,
+                kCFTypeDictionaryKeyCallBacks.ptr,
+                kCFTypeDictionaryValueCallBacks.ptr,
+            )!!
         CFDictionarySetValue(addQuery, kSecClass, kSecClassGenericPassword)
         CFDictionarySetValue(addQuery, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
         CFDictionarySetValue(addQuery, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
@@ -95,7 +106,13 @@ internal class IosSecureStorage : SecureStorage {
 
     override suspend fun read(key: String): String? =
         withContext(Dispatchers.IO) {
-            val query = CFDictionaryCreateMutable(null, 5, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)!!
+            val query =
+                CFDictionaryCreateMutable(
+                    null,
+                    5,
+                    kCFTypeDictionaryKeyCallBacks.ptr,
+                    kCFTypeDictionaryValueCallBacks.ptr,
+                )!!
             CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword)
             CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
             CFDictionarySetValue(query, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
@@ -129,7 +146,13 @@ internal class IosSecureStorage : SecureStorage {
 
     override suspend fun delete(key: String) =
         withContext(Dispatchers.IO) {
-            val query = CFDictionaryCreateMutable(null, 3, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)!!
+            val query =
+                CFDictionaryCreateMutable(
+                    null,
+                    3,
+                    kCFTypeDictionaryKeyCallBacks.ptr,
+                    kCFTypeDictionaryValueCallBacks.ptr,
+                )!!
             CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword)
             CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
             CFDictionarySetValue(query, kSecAttrAccount, CFBridgingRetain(key) as CFTypeRef?)
@@ -142,7 +165,13 @@ internal class IosSecureStorage : SecureStorage {
 
     override suspend fun clear() =
         withContext(Dispatchers.IO) {
-            val query = CFDictionaryCreateMutable(null, 2, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)!!
+            val query =
+                CFDictionaryCreateMutable(
+                    null,
+                    2,
+                    kCFTypeDictionaryKeyCallBacks.ptr,
+                    kCFTypeDictionaryValueCallBacks.ptr,
+                )!!
             CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword)
             CFDictionarySetValue(query, kSecAttrService, CFBridgingRetain(serviceName) as CFTypeRef?)
 

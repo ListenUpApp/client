@@ -1170,3 +1170,136 @@ val MIGRATION_28_29 =
             )
         }
     }
+
+/**
+ * Migration from version 29 to 30.
+ *
+ * Changes:
+ * - Add isFinished column to playback_positions table
+ *
+ * isFinished is the authoritative "finished" flag from the server.
+ * Unlike deriving finished status from position (>= 99%), this flag
+ * honors books marked complete in ABS even if position < 99%.
+ * This fixes Continue Listening showing finished books from ABS import.
+ */
+val MIGRATION_29_30 =
+    object : Migration(29, 30) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add isFinished column (defaults to false for existing rows)
+            connection.execSQL(
+                """
+                ALTER TABLE playback_positions ADD COLUMN isFinished INTEGER NOT NULL DEFAULT 0
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 30 to 31.
+ *
+ * Changes:
+ * - Add finishedAt column to playback_positions table
+ * - Add startedAt column to playback_positions table
+ *
+ * These timestamps enable:
+ * - finishedAt: When the book was marked finished (for stats/activity)
+ * - startedAt: When the user started this book (first listening event)
+ */
+val MIGRATION_30_31 =
+    object : Migration(30, 31) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Add finishedAt column (nullable - only set when finished)
+            connection.execSQL(
+                """
+                ALTER TABLE playback_positions ADD COLUMN finishedAt INTEGER DEFAULT NULL
+                """.trimIndent(),
+            )
+
+            // Add startedAt column (nullable - only set on new positions after this migration)
+            connection.execSQL(
+                """
+                ALTER TABLE playback_positions ADD COLUMN startedAt INTEGER DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 31 to 32.
+ *
+ * Changes:
+ * - Add source column to listening_events table
+ *
+ * The source field tracks the origin of listening events:
+ * - "playback": Normal listening activity from the app
+ * - "import": Imported from external systems (e.g., Audiobookshelf)
+ * - "manual": Created by manual user actions
+ */
+val MIGRATION_31_32 =
+    object : Migration(31, 32) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                ALTER TABLE listening_events ADD COLUMN source TEXT NOT NULL DEFAULT 'playback'
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 32 to 33.
+ *
+ * Changes:
+ * - Add reading_sessions table for offline-first "Readers" section
+ *
+ * The reading_sessions table caches reader data for each book, enabling:
+ * - Offline display of who's reading a book
+ * - Real-time updates via SSE events
+ * - Immediate display without network round-trips
+ *
+ * User info is denormalized for immediate display without joins.
+ */
+val MIGRATION_32_33 =
+    object : Migration(32, 33) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create reading_sessions table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS reading_sessions (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    bookId TEXT NOT NULL,
+                    oduserId TEXT NOT NULL,
+                    userDisplayName TEXT NOT NULL,
+                    userAvatarColor TEXT NOT NULL,
+                    userAvatarType TEXT NOT NULL,
+                    userAvatarValue TEXT,
+                    isCurrentlyReading INTEGER NOT NULL,
+                    currentProgress REAL NOT NULL,
+                    startedAt INTEGER NOT NULL,
+                    finishedAt INTEGER,
+                    completionCount INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+
+            // Create indices for efficient queries
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_reading_sessions_bookId ON reading_sessions (bookId)
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_reading_sessions_oduserId ON reading_sessions (oduserId)
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS index_reading_sessions_bookId_oduserId ON reading_sessions (bookId, oduserId)
+                """.trimIndent(),
+            )
+        }
+    }

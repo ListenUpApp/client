@@ -77,4 +77,40 @@ interface PlaybackPositionRepository {
      * @param bookId The book to clear position for
      */
     suspend fun delete(bookId: String)
+
+    /**
+     * Mark a book as complete.
+     *
+     * Optimistic local update followed by server sync.
+     * Sets isFinished=true, finishedAt to now.
+     * On server failure, rolls back to previous state.
+     *
+     * @param bookId The book to mark as complete
+     * @return Result with Unit on success, or Failure on error
+     */
+    suspend fun markComplete(bookId: String): com.calypsan.listenup.client.core.Result<Unit>
+
+    /**
+     * Discard all progress for a book.
+     *
+     * Optimistic local delete followed by server sync.
+     * Removes the position from local storage immediately.
+     * On server failure, restores previous position.
+     *
+     * @param bookId The book to discard progress for
+     * @return Result with Unit on success, or Failure on error
+     */
+    suspend fun discardProgress(bookId: String): com.calypsan.listenup.client.core.Result<Unit>
+
+    /**
+     * Restart a book from the beginning.
+     *
+     * Optimistic local update followed by server sync.
+     * Sets position to 0, clears isFinished.
+     * On server failure, rolls back to previous state.
+     *
+     * @param bookId The book to restart
+     * @return Result with Unit on success, or Failure on error
+     */
+    suspend fun restartBook(bookId: String): com.calypsan.listenup.client.core.Result<Unit>
 }

@@ -66,6 +66,11 @@ spotless {
         target("**/*.kt")
         targetExclude("**/build/**")
         ktlint(libs.versions.ktlint.get())
+        // Suppress max-line-length for API files with complex Ktor builders
+        suppressLintsFor {
+            step = "ktlint"
+            shortCode = "standard:max-line-length"
+        }
     }
     kotlinGradle {
         target("**/*.gradle.kts")

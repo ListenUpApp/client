@@ -305,6 +305,7 @@ class LeaderboardRepositoryImpl(
     /**
      * Convert period to epoch milliseconds for start of period.
      */
+    @Suppress("MagicNumber")
     private fun periodToEpochMillis(period: LeaderboardPeriod): Long {
         val now = Clock.System.now().toEpochMilliseconds()
         return when (period) {

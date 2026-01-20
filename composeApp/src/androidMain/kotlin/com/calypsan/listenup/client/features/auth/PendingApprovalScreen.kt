@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -109,10 +109,7 @@ fun PendingApprovalScreen(
                 ) {
                     when (state.status) {
                         PendingApprovalStatus.Waiting -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(48.dp),
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                            ListenUpLoadingIndicator()
 
                             Text(
                                 text = "Waiting for Approval",
@@ -142,10 +139,7 @@ fun PendingApprovalScreen(
                         }
 
                         PendingApprovalStatus.LoggingIn -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(48.dp),
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                            ListenUpLoadingIndicator()
 
                             Text(
                                 text = "Approved!",
@@ -162,10 +156,7 @@ fun PendingApprovalScreen(
 
                         PendingApprovalStatus.LoginSuccess -> {
                             // Will navigate automatically via AuthState
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(48.dp),
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                            ListenUpLoadingIndicator()
                         }
 
                         is PendingApprovalStatus.ApprovedManualLogin,

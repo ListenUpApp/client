@@ -22,7 +22,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -51,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.domain.model.Collection
@@ -312,10 +312,7 @@ private fun CollectionRow(
             }
 
             if (isDeleting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                )
+                ListenUpLoadingIndicatorSmall()
             }
         }
     }
@@ -379,10 +376,7 @@ private fun CreateCollectionDialog(
                 enabled = !isCreating && name.isNotBlank(),
             ) {
                 if (isCreating) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                    )
+                    ListenUpLoadingIndicatorSmall()
                 } else {
                     Text("Create")
                 }

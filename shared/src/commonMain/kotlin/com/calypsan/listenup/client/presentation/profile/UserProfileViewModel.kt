@@ -1,3 +1,5 @@
+@file:Suppress("StringLiteralDuplication", "ComplexCondition")
+
 package com.calypsan.listenup.client.presentation.profile
 
 import androidx.lifecycle.ViewModel

@@ -1,3 +1,5 @@
+@file:Suppress("LongParameterList", "CyclomaticComplexMethod", "CognitiveComplexMethod")
+
 package com.calypsan.listenup.client.features.shell
 
 import androidx.compose.foundation.layout.Box

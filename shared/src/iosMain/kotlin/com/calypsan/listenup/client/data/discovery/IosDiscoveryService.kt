@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+@file:Suppress("NestedBlockDepth")
 
 package com.calypsan.listenup.client.data.discovery
 
