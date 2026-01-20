@@ -1339,8 +1339,14 @@ val syncModule =
         }
 
         // SessionRepository for reading sessions (SOLID: interface in domain, impl in data)
+        // Offline-first: caches reader data in Room, syncs via API and SSE
         single<SessionRepository> {
-            SessionRepositoryImpl(sessionApi = get())
+            SessionRepositoryImpl(
+                sessionApi = get(),
+                readingSessionDao = get<ListenUpDatabase>().readingSessionDao(),
+                authSession = get(),
+                repositoryScope = get(),
+            )
         }
 
         // ContributorRepository for domain-layer contributor queries including search and metadata

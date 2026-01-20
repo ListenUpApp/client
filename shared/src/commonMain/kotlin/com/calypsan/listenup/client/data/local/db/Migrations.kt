@@ -1245,3 +1245,61 @@ val MIGRATION_31_32 =
             )
         }
     }
+
+/**
+ * Migration from version 32 to 33.
+ *
+ * Changes:
+ * - Add reading_sessions table for offline-first "Readers" section
+ *
+ * The reading_sessions table caches reader data for each book, enabling:
+ * - Offline display of who's reading a book
+ * - Real-time updates via SSE events
+ * - Immediate display without network round-trips
+ *
+ * User info is denormalized for immediate display without joins.
+ */
+val MIGRATION_32_33 =
+    object : Migration(32, 33) {
+        override fun migrate(connection: SQLiteConnection) {
+            // Create reading_sessions table
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS reading_sessions (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    bookId TEXT NOT NULL,
+                    oduserId TEXT NOT NULL,
+                    userDisplayName TEXT NOT NULL,
+                    userAvatarColor TEXT NOT NULL,
+                    userAvatarType TEXT NOT NULL,
+                    userAvatarValue TEXT,
+                    isCurrentlyReading INTEGER NOT NULL,
+                    currentProgress REAL NOT NULL,
+                    startedAt INTEGER NOT NULL,
+                    finishedAt INTEGER,
+                    completionCount INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+
+            // Create indices for efficient queries
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_reading_sessions_bookId ON reading_sessions (bookId)
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_reading_sessions_oduserId ON reading_sessions (oduserId)
+                """.trimIndent(),
+            )
+
+            connection.execSQL(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS index_reading_sessions_bookId_oduserId ON reading_sessions (bookId, oduserId)
+                """.trimIndent(),
+            )
+        }
+    }

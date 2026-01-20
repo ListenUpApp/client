@@ -2,16 +2,17 @@ package com.calypsan.listenup.client.presentation.bookdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.calypsan.listenup.client.core.Failure
-import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.BookEvent
 import com.calypsan.listenup.client.domain.model.ReaderInfo
 import com.calypsan.listenup.client.domain.model.SessionSummary
 import com.calypsan.listenup.client.domain.repository.EventStreamRepository
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -23,8 +24,10 @@ private val logger = KotlinLogging.logger {}
  * Displays who else has read or is reading a book, along with
  * the current user's own reading history for that book.
  *
- * Observes SSE events for real-time updates when other users
- * start or complete reading the same book.
+ * Uses offline-first architecture:
+ * - Observes local Room cache for instant display
+ * - Repository triggers background API refresh automatically
+ * - SSE events update the cache for real-time updates
  */
 class BookReadersViewModel(
     private val sessionRepository: SessionRepository,
@@ -33,72 +36,90 @@ class BookReadersViewModel(
     val state: StateFlow<BookReadersUiState>
         field = MutableStateFlow(BookReadersUiState())
 
-    // Track which book we're observing for SSE events
+    // Track which book we're observing
     private var currentBookId: String? = null
+    private var observeJob: Job? = null
+    private var sseJob: Job? = null
 
     /**
-     * Load readers for a specific book.
+     * Start observing readers for a specific book.
      *
-     * Also starts observing SSE events for real-time updates when
-     * other users start or complete reading this book.
+     * Observes the local Room cache via Flow for instant updates.
+     * The repository automatically triggers a background refresh
+     * and SSE events update the cache in real-time.
      *
-     * @param bookId Book ID to load readers for
+     * @param bookId Book ID to observe readers for
      */
-    fun loadReaders(bookId: String) {
-        // Track the current book for SSE filtering
-        if (currentBookId != bookId) {
-            currentBookId = bookId
-            observeSSEEvents(bookId)
+    fun observeReaders(bookId: String) {
+        // Don't restart if already observing this book
+        if (currentBookId == bookId && observeJob?.isActive == true) {
+            return
         }
 
-        viewModelScope.launch {
-            state.update { it.copy(isLoading = true, error = null) }
+        // Cancel previous observations
+        observeJob?.cancel()
+        sseJob?.cancel()
 
-            when (val result = sessionRepository.getBookReadersResult(bookId)) {
-                is Success -> {
+        currentBookId = bookId
+
+        // Observe local cache (repository triggers background refresh)
+        observeJob = viewModelScope.launch {
+            sessionRepository.observeBookReaders(bookId)
+                .onStart {
+                    state.update { it.copy(isLoading = true, error = null) }
+                }
+                .catch { e ->
+                    logger.error(e) { "Error observing book readers" }
+                    state.update { it.copy(isLoading = false, error = e.message) }
+                }
+                .collect { result ->
                     state.update {
                         it.copy(
                             isLoading = false,
-                            yourSessions = result.data.yourSessions,
-                            otherReaders = result.data.otherReaders,
-                            totalReaders = result.data.totalReaders,
-                            totalCompletions = result.data.totalCompletions,
+                            yourSessions = result.yourSessions,
+                            otherReaders = result.otherReaders,
+                            totalReaders = result.totalReaders,
+                            totalCompletions = result.totalCompletions,
                             error = null,
                         )
                     }
                     logger.debug {
-                        "Loaded ${result.data.otherReaders.size} readers and ${result.data.yourSessions.size} sessions"
+                        "Readers updated: ${result.otherReaders.size} readers, ${result.yourSessions.size} sessions"
                     }
                 }
-
-                is Failure -> {
-                    state.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message,
-                        )
-                    }
-                    logger.error(result.exception) { "Failed to load book readers: ${result.message}" }
-                }
-            }
         }
+
+        // Also observe SSE events to trigger refresh
+        observeSSEEvents(bookId)
+    }
+
+    /**
+     * Load readers for a specific book (legacy method).
+     *
+     * Calls [observeReaders] for backwards compatibility.
+     *
+     * @param bookId Book ID to load readers for
+     */
+    fun loadReaders(bookId: String) {
+        observeReaders(bookId)
     }
 
     /**
      * Observe book events for reading session updates.
      *
      * When another user starts or completes reading the same book,
-     * automatically refresh the readers list.
+     * trigger a cache refresh via the repository.
      */
     private fun observeSSEEvents(bookId: String) {
-        viewModelScope.launch {
+        sseJob = viewModelScope.launch {
             eventStreamRepository.bookEvents.collect { event ->
                 when (event) {
                     is BookEvent.ReadingSessionUpdated -> {
                         // Only refresh if the event is for the current book
                         if (event.bookId == bookId) {
-                            logger.debug { "SSE: Reading session updated for book $bookId, refreshing readers" }
-                            refreshQuietly(bookId)
+                            logger.debug { "SSE: Reading session updated for book $bookId, refreshing cache" }
+                            // Repository refresh will update Room, which will emit new data
+                            sessionRepository.refreshBookReaders(bookId)
                         }
                     }
                 }
@@ -107,39 +128,17 @@ class BookReadersViewModel(
     }
 
     /**
-     * Refresh readers without showing loading indicator.
-     * Used for background updates from SSE events.
-     */
-    private fun refreshQuietly(bookId: String) {
-        viewModelScope.launch {
-            when (val result = sessionRepository.getBookReadersResult(bookId)) {
-                is Success -> {
-                    state.update {
-                        it.copy(
-                            yourSessions = result.data.yourSessions,
-                            otherReaders = result.data.otherReaders,
-                            totalReaders = result.data.totalReaders,
-                            totalCompletions = result.data.totalCompletions,
-                        )
-                    }
-                    logger.debug { "SSE refresh: Updated readers list" }
-                }
-
-                is Failure -> {
-                    // Silently ignore refresh failures - user still has existing data
-                    logger.warn { "SSE refresh failed: ${result.message}" }
-                }
-            }
-        }
-    }
-
-    /**
-     * Refresh the readers list.
+     * Manually refresh the readers list.
+     *
+     * Triggers a background API fetch to update the local cache.
+     * The Flow observation will automatically emit the updated data.
      *
      * @param bookId Book ID to refresh readers for
      */
     fun refresh(bookId: String) {
-        loadReaders(bookId)
+        viewModelScope.launch {
+            sessionRepository.refreshBookReaders(bookId)
+        }
     }
 }
 

@@ -166,24 +166,34 @@ class LibraryViewModel(
                 _uiState.update { it.copy(isServerScanning = isScanning) }
             }.launchIn(viewModelScope)
 
-        // Book progress: combine playback positions with book durations
+        // Book progress and completion: combine playback positions with book durations
+        // Produces both progress (for progress bar) and isFinished (for completion badge)
         combine(
             playbackPositionRepository.observeAll(),
             uiState.map { it.books },
         ) { positions, booksList ->
             val bookDurations = booksList.associate { it.id.value to it.duration }
-            buildMap(positions.size) {
-                for ((bookId, position) in positions) {
-                    val duration = bookDurations[bookId] ?: continue
-                    if (duration <= 0) continue
-                    val progress = (position.positionMs.toFloat() / duration).coerceIn(0f, 1f)
-                    if (progress > 0f) {
-                        put(bookId, progress)
-                    }
+            val progressMap = mutableMapOf<String, Float>()
+            val finishedMap = mutableMapOf<String, Boolean>()
+
+            for ((bookId, position) in positions) {
+                // Track isFinished for all positions (authoritative from server)
+                if (position.isFinished) {
+                    finishedMap[bookId] = true
+                }
+
+                // Track progress for books with valid duration
+                val duration = bookDurations[bookId] ?: continue
+                if (duration <= 0) continue
+                val progress = (position.positionMs.toFloat() / duration).coerceIn(0f, 1f)
+                if (progress > 0f) {
+                    progressMap[bookId] = progress
                 }
             }
-        }.onEach { progressMap ->
-            _uiState.update { it.copy(bookProgress = progressMap) }
+
+            progressMap to finishedMap
+        }.onEach { (progressMap, finishedMap) ->
+            _uiState.update { it.copy(bookProgress = progressMap, bookIsFinished = finishedMap) }
         }.launchIn(viewModelScope)
 
         // Selection mode: observe from shared manager

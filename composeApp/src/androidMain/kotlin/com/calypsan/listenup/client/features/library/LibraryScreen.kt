@@ -91,6 +91,7 @@ fun LibraryScreen(
     val narrators = uiState.narrators
     val syncState = uiState.syncState
     val bookProgress = uiState.bookProgress
+    val bookIsFinished = uiState.bookIsFinished
 
     // Sort state for each tab
     val booksSortState = uiState.booksSortState
@@ -229,6 +230,7 @@ fun LibraryScreen(
                                 sortState = booksSortState,
                                 ignoreTitleArticles = ignoreTitleArticles,
                                 bookProgress = bookProgress,
+                                bookIsFinished = bookIsFinished,
                                 isInSelectionMode = isInSelectionMode,
                                 selectedBookIds = selectedBookIds,
                                 onCategorySelected = { category ->

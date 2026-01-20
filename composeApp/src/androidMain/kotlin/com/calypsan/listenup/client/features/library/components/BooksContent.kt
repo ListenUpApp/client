@@ -188,6 +188,7 @@ private fun ArticleToggleChip(
  * @param sortState Current sort state (category + direction)
  * @param ignoreTitleArticles Whether to ignore articles (A, An, The) when sorting by title
  * @param bookProgress Map of bookId to progress (0.0-1.0) for in-progress books
+ * @param bookIsFinished Map of bookId to isFinished flag (authoritative completion status from server)
  * @param isInSelectionMode Whether multi-select mode is active
  * @param selectedBookIds Set of currently selected book IDs
  * @param onCategorySelected Called when user selects a new category
@@ -208,6 +209,7 @@ fun BooksContent(
     sortState: SortState,
     ignoreTitleArticles: Boolean,
     bookProgress: Map<String, Float>,
+    bookIsFinished: Map<String, Boolean> = emptyMap(),
     isInSelectionMode: Boolean = false,
     selectedBookIds: Set<String> = emptySet(),
     onCategorySelected: (SortCategory) -> Unit,
@@ -255,6 +257,7 @@ fun BooksContent(
                     sortState = sortState,
                     ignoreTitleArticles = ignoreTitleArticles,
                     bookProgress = bookProgress,
+                    bookIsFinished = bookIsFinished,
                     isInSelectionMode = isInSelectionMode,
                     selectedBookIds = selectedBookIds,
                     onCategorySelected = onCategorySelected,
@@ -278,6 +281,7 @@ private fun BookGrid(
     sortState: SortState,
     ignoreTitleArticles: Boolean,
     bookProgress: Map<String, Float>,
+    bookIsFinished: Map<String, Boolean>,
     isInSelectionMode: Boolean,
     selectedBookIds: Set<String>,
     onCategorySelected: (SortCategory) -> Unit,
@@ -383,6 +387,7 @@ private fun BookGrid(
                             book = gridItem.book,
                             onClick = { onBookClick(bookId) },
                             progress = bookProgress[bookId],
+                            isFinished = bookIsFinished[bookId] ?: false,
                             isInSelectionMode = isInSelectionMode,
                             isSelected = bookId in selectedBookIds,
                             onLongPress =

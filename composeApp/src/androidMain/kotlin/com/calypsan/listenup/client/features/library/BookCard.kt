@@ -60,15 +60,17 @@ import kotlin.math.sin
  * Press interaction uses scale animation for tactile feedback.
  *
  * Visual states:
- * - In Progress (0-99%): Shows progress overlay at bottom
- * - Completed (99%+): Shows squiggly completion badge in top-right, no progress overlay
+ * - In Progress: Shows progress overlay at bottom (when progress > 0 and not finished)
+ * - Completed: Shows squiggly completion badge in top-right, no progress overlay
  * - Selection mode: Shows selection indicator instead of completion badge
  *
  * @param book The book to display
  * @param onClick Callback when card is clicked
- * @param progress Optional progress (0.0-1.0). Shows progress overlay if 0-0.99,
- *                 completion badge if >= 0.99. Null = no overlay or badge.
+ * @param progress Optional progress (0.0-1.0). Shows progress overlay when not finished.
  * @param timeRemaining Optional formatted time remaining (e.g., "2h 15m left")
+ * @param isFinished Authoritative completion status from server. When true, shows completion
+ *   badge regardless of progress value (supports ABS imports where books may be marked
+ *   complete at <99% progress due to bonus content, credits, etc.)
  * @param isInSelectionMode Whether multi-select mode is active
  * @param isSelected Whether this book is currently selected
  * @param onLongPress Callback when card is long-pressed (for entering selection mode)
@@ -81,6 +83,7 @@ fun BookCard(
     onClick: () -> Unit,
     progress: Float? = null,
     timeRemaining: String? = null,
+    isFinished: Boolean = false,
     isInSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onLongPress: (() -> Unit)? = null,
@@ -132,8 +135,8 @@ fun BookCard(
     ) {
         // Cover with glow, optional progress overlay, and selection/completion indicators
         Box {
-            // Determine if book is completed (99%+ progress)
-            val isCompleted = progress != null && progress >= 0.99f
+            // Use authoritative isFinished flag (not derived from progress)
+            val isCompleted = isFinished
 
             CoverWithGlow(
                 coverPath = book.coverPath,
@@ -407,10 +410,14 @@ private class SquigglyShape(
 }
 
 /**
- * Completion badge shown when a book is finished (progress >= 99%).
+ * Completion badge shown when a book is marked as finished.
  *
  * Uses a squiggly organic shape to feel playful and celebratory.
  * Positioned in top-right corner of book cover.
+ *
+ * Note: Completion is determined by the authoritative [isFinished] flag from the server,
+ * not derived from progress percentage. This correctly handles ABS imports where books
+ * may be marked complete at <99% progress (bonus content, credits, etc.).
  */
 @Composable
 private fun CompletionBadge(modifier: Modifier = Modifier) {
