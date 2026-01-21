@@ -29,18 +29,30 @@ import kotlinx.coroutines.flow.flowOf
 /**
  * Fake implementation of SearchRepository for testing.
  *
- * Configurable search results for testing different resolution scenarios.
+ * Configurable search results and error simulation for testing
+ * different resolution scenarios including error paths.
  */
 class FakeSearchRepository : SearchRepository {
     var searchResults: List<SearchHit> = emptyList()
     var lastQuery: String? = null
     var lastTypes: List<SearchHitType>? = null
 
+    /** Set to non-null to make search throw this exception */
+    var exceptionToThrow: Exception? = null
+
     /**
      * Convenience method to set search results from vararg.
      */
     fun setResults(vararg hits: SearchHit) {
         searchResults = hits.toList()
+        exceptionToThrow = null
+    }
+
+    /**
+     * Configure the repository to throw an exception on next search.
+     */
+    fun setError(exception: Exception) {
+        exceptionToThrow = exception
     }
 
     override suspend fun search(
@@ -50,6 +62,8 @@ class FakeSearchRepository : SearchRepository {
         genrePath: String?,
         limit: Int,
     ): SearchResult {
+        exceptionToThrow?.let { throw it }
+
         lastQuery = query
         lastTypes = types
         return SearchResult(
@@ -80,13 +94,11 @@ class FakeHomeRepository : HomeRepository {
         continueListeningBooks = books.toList()
     }
 
-    override suspend fun getContinueListening(limit: Int): Result<List<ContinueListeningBook>> {
-        return Success(continueListeningBooks.take(limit))
-    }
+    override suspend fun getContinueListening(limit: Int): Result<List<ContinueListeningBook>> =
+        Success(continueListeningBooks.take(limit))
 
-    override fun observeContinueListening(limit: Int): Flow<List<ContinueListeningBook>> {
-        return flowOf(continueListeningBooks.take(limit))
-    }
+    override fun observeContinueListening(limit: Int): Flow<List<ContinueListeningBook>> =
+        flowOf(continueListeningBooks.take(limit))
 }
 
 // ========== Fake Book Repository ==========
@@ -104,33 +116,26 @@ class FakeBookRepository : BookRepository {
         books[book.id.value] = book
     }
 
-    fun addChapters(bookId: String, bookChapters: List<Chapter>) {
+    fun addChapters(
+        bookId: String,
+        bookChapters: List<Chapter>,
+    ) {
         chapters[bookId] = bookChapters
     }
 
-    override fun observeBooks(): Flow<List<Book>> {
-        return flowOf(books.values.toList())
-    }
+    override fun observeBooks(): Flow<List<Book>> = flowOf(books.values.toList())
 
-    override suspend fun refreshBooks(): Result<Unit> {
-        return Success(Unit)
-    }
+    override suspend fun refreshBooks(): Result<Unit> = Success(Unit)
 
-    override suspend fun getBook(id: String): Book? {
-        return books[id]
-    }
+    override suspend fun getBook(id: String): Book? = books[id]
 
-    override suspend fun getChapters(bookId: String): List<Chapter> {
-        return chapters[bookId] ?: emptyList()
-    }
+    override suspend fun getBooks(ids: List<String>): List<Book> = ids.mapNotNull { books[it] }
 
-    override fun observeRandomUnstartedBooks(limit: Int): Flow<List<DiscoveryBook>> {
-        return flowOf(emptyList())
-    }
+    override suspend fun getChapters(bookId: String): List<Chapter> = chapters[bookId] ?: emptyList()
 
-    override fun observeRecentlyAddedBooks(limit: Int): Flow<List<DiscoveryBook>> {
-        return flowOf(emptyList())
-    }
+    override fun observeRandomUnstartedBooks(limit: Int): Flow<List<DiscoveryBook>> = flowOf(emptyList())
+
+    override fun observeRecentlyAddedBooks(limit: Int): Flow<List<DiscoveryBook>> = flowOf(emptyList())
 }
 
 // ========== Fake Series Repository ==========
@@ -153,12 +158,18 @@ class FakeSeriesRepository : SeriesRepository {
     /**
      * Add a series with its book IDs in one call.
      */
-    fun addSeries(series: Series, bookIds: List<String>) {
+    fun addSeries(
+        series: Series,
+        bookIds: List<String>,
+    ) {
         seriesMap[series.id.value] = series
         seriesBooks[series.id.value] = bookIds
     }
 
-    fun setBookIdsForSeries(seriesId: String, bookIds: List<String>) {
+    fun setBookIdsForSeries(
+        seriesId: String,
+        bookIds: List<String>,
+    ) {
         seriesBooks[seriesId] = bookIds
     }
 
@@ -166,50 +177,42 @@ class FakeSeriesRepository : SeriesRepository {
         seriesWithBooksMap[seriesWithBooks.series.id.value] = seriesWithBooks
     }
 
-    fun setSeriesForBook(bookId: String, seriesId: String) {
+    fun setSeriesForBook(
+        bookId: String,
+        seriesId: String,
+    ) {
         bookSeriesMap[bookId] = seriesId
     }
 
-    override fun observeAll(): Flow<List<Series>> {
-        return flowOf(seriesMap.values.toList())
-    }
+    override fun observeAll(): Flow<List<Series>> = flowOf(seriesMap.values.toList())
 
-    override fun observeById(id: String): Flow<Series?> {
-        return flowOf(seriesMap[id])
-    }
+    override fun observeById(id: String): Flow<Series?> = flowOf(seriesMap[id])
 
-    override suspend fun getById(id: String): Series? {
-        return seriesMap[id]
-    }
+    override suspend fun getById(id: String): Series? = seriesMap[id]
 
     override fun observeByBookId(bookId: String): Flow<Series?> {
         val seriesId = bookSeriesMap[bookId]
         return flowOf(seriesId?.let { seriesMap[it] })
     }
 
-    override suspend fun getBookIdsForSeries(seriesId: String): List<String> {
-        return seriesBooks[seriesId] ?: emptyList()
-    }
+    override suspend fun getBookIdsForSeries(seriesId: String): List<String> = seriesBooks[seriesId] ?: emptyList()
 
-    override fun observeBookIdsForSeries(seriesId: String): Flow<List<String>> {
-        return flowOf(seriesBooks[seriesId] ?: emptyList())
-    }
+    override fun observeBookIdsForSeries(seriesId: String): Flow<List<String>> =
+        flowOf(seriesBooks[seriesId] ?: emptyList())
 
-    override fun observeAllWithBooks(): Flow<List<SeriesWithBooks>> {
-        return flowOf(seriesWithBooksMap.values.toList())
-    }
+    override fun observeAllWithBooks(): Flow<List<SeriesWithBooks>> = flowOf(seriesWithBooksMap.values.toList())
 
-    override fun observeSeriesWithBooks(seriesId: String): Flow<SeriesWithBooks?> {
-        return flowOf(seriesWithBooksMap[seriesId])
-    }
+    override fun observeSeriesWithBooks(seriesId: String): Flow<SeriesWithBooks?> = flowOf(seriesWithBooksMap[seriesId])
 
-    override suspend fun searchSeries(query: String, limit: Int): SeriesSearchResponse {
-        return SeriesSearchResponse(
+    override suspend fun searchSeries(
+        query: String,
+        limit: Int,
+    ): SeriesSearchResponse =
+        SeriesSearchResponse(
             series = emptyList(),
             isOfflineResult = false,
             tookMs = 5,
         )
-    }
 }
 
 // ========== Test Data Builders ==========
@@ -229,19 +232,20 @@ fun testBook(
     duration: Long = 3_600_000, // 1 hour
 ): Book {
     // Use explicit series list if provided, otherwise build from individual params
-    val bookSeries = series.ifEmpty {
-        if (seriesId != null && seriesName != null) {
-            listOf(
-                com.calypsan.listenup.client.domain.model.BookSeries(
-                    seriesId = seriesId,
-                    seriesName = seriesName,
-                    sequence = seriesSequence,
+    val bookSeries =
+        series.ifEmpty {
+            if (seriesId != null && seriesName != null) {
+                listOf(
+                    com.calypsan.listenup.client.domain.model.BookSeries(
+                        seriesId = seriesId,
+                        seriesName = seriesName,
+                        sequence = seriesSequence,
+                    ),
                 )
-            )
-        } else {
-            emptyList()
+            } else {
+                emptyList()
+            }
         }
-    }
 
     return Book(
         id = BookId(id),
@@ -275,11 +279,12 @@ fun testBookSeries(
 fun testSeries(
     id: String = "series-1",
     name: String = "Test Series",
-): Series = Series(
-    id = SeriesId(id),
-    name = name,
-    createdAt = Timestamp(1000),
-)
+): Series =
+    Series(
+        id = SeriesId(id),
+        name = name,
+        createdAt = Timestamp(1000),
+    )
 
 /**
  * Create a test continue listening book with sensible defaults.
@@ -292,16 +297,17 @@ fun testContinueListeningBook(
     currentPositionMs: Long = 1_800_000, // 30 minutes
     totalDurationMs: Long = 3_600_000, // 1 hour
     lastPlayedAt: String = "2024-01-15T10:30:00Z",
-): ContinueListeningBook = ContinueListeningBook(
-    bookId = bookId,
-    title = title,
-    authorNames = authorNames,
-    coverPath = null,
-    progress = progress,
-    currentPositionMs = currentPositionMs,
-    totalDurationMs = totalDurationMs,
-    lastPlayedAt = lastPlayedAt,
-)
+): ContinueListeningBook =
+    ContinueListeningBook(
+        bookId = bookId,
+        title = title,
+        authorNames = authorNames,
+        coverPath = null,
+        progress = progress,
+        currentPositionMs = currentPositionMs,
+        totalDurationMs = totalDurationMs,
+        lastPlayedAt = lastPlayedAt,
+    )
 
 /**
  * Create a test search hit with sensible defaults.
@@ -312,10 +318,11 @@ fun testSearchHit(
     name: String = "Test Book",
     author: String? = "Test Author",
     score: Float = 1.0f,
-): SearchHit = SearchHit(
-    id = id,
-    type = type,
-    name = name,
-    author = author,
-    score = score,
-)
+): SearchHit =
+    SearchHit(
+        id = id,
+        type = type,
+        name = name,
+        author = author,
+        score = score,
+    )

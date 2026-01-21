@@ -105,6 +105,24 @@ class BookRepositoryImpl(
     }
 
     /**
+     * Get multiple books by IDs in a single batched query.
+     *
+     * More efficient than calling getBook in a loop - uses a single SQL IN clause
+     * and Room Relations to batch-load all books and their contributors.
+     *
+     * @param ids List of book IDs to fetch
+     * @return List of books found (order not guaranteed, may be fewer than requested)
+     */
+    override suspend fun getBooks(ids: List<String>): List<Book> {
+        if (ids.isEmpty()) return emptyList()
+
+        val bookIds = ids.map { BookId(it) }
+        return bookDao
+            .getByIdsWithContributors(bookIds)
+            .map { it.toDomain(imageStorage) }
+    }
+
+    /**
      * Get chapters for a book.
      *
      * Currently, the backend does not sync chapters.

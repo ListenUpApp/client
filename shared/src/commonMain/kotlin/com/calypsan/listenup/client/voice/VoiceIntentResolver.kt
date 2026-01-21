@@ -24,14 +24,24 @@ class VoiceIntentResolver(
     private val bookRepository: BookRepository,
 ) {
     companion object {
-        // Confidence thresholds
+        // Search configuration
+        private const val MAX_SEARCH_RESULTS = 10
+
+        // Confidence thresholds for intent resolution
         private const val HIGH_CONFIDENCE_THRESHOLD = 0.8f
         private const val AMBIGUOUS_THRESHOLD = 0.5f
 
-        // Confidence boosts
+        // Base confidence from search engine score
+        // Search scores are normalized to this range to leave room for boosts
+        private const val SEARCH_SCORE_WEIGHT = 0.5f
+        private const val MAX_BASE_CONFIDENCE = 0.5f
+
+        // Confidence boosts for title matching
         private const val EXACT_TITLE_MATCH_BOOST = 0.5f
         private const val TITLE_STARTS_WITH_BOOST = 0.3f
         private const val TITLE_CONTAINS_QUERY_BOOST = 0.2f
+
+        // Confidence boosts for assistant hints
         private const val TITLE_HINT_MATCH_BOOST = 0.3f
         private const val AUTHOR_HINT_MATCH_BOOST = 0.2f
     }
@@ -70,21 +80,23 @@ class VoiceIntentResolver(
         query: String,
         hints: VoiceHints,
     ): PlaybackIntent {
-        val searchResult = searchRepository.search(
-            query = query,
-            types = listOf(SearchHitType.BOOK),
-            limit = 10,
-        )
+        val searchResult =
+            searchRepository.search(
+                query = query,
+                types = listOf(SearchHitType.BOOK),
+                limit = MAX_SEARCH_RESULTS,
+            )
 
         if (searchResult.hits.isEmpty()) {
             return PlaybackIntent.NotFound(query)
         }
 
         // Score and rank results
-        val scoredMatches = searchResult.hits
-            .filter { it.type == SearchHitType.BOOK }
-            .map { hit -> scoreMatch(hit, query, hints) }
-            .sortedByDescending { it.confidence }
+        val scoredMatches =
+            searchResult.hits
+                .filter { it.type == SearchHitType.BOOK }
+                .map { hit -> scoreMatch(hit, query, hints) }
+                .sortedByDescending { it.confidence }
 
         if (scoredMatches.isEmpty()) {
             return PlaybackIntent.NotFound(query)
@@ -121,9 +133,9 @@ class VoiceIntentResolver(
         val normalizedQuery = query.lowercase().trim()
         val normalizedTitle = hit.name.lowercase()
 
-        // Start with search engine score (normalized to 0.0-0.5 range)
-        // High search scores indicate good matches from the search engine
-        var confidence = (hit.score * 0.5f).coerceIn(0f, 0.5f)
+        // Start with search engine score (normalized to 0.0-MAX_BASE_CONFIDENCE range)
+        // This leaves room for boosts to push confidence above thresholds
+        var confidence = (hit.score * SEARCH_SCORE_WEIGHT).coerceIn(0f, MAX_BASE_CONFIDENCE)
 
         // Exact title match boost
         if (normalizedTitle == normalizedQuery) {
@@ -158,51 +170,66 @@ class VoiceIntentResolver(
         )
     }
 
-    private suspend fun resolveSeriesNavigation(
-        navigation: SeriesNavigation,
-    ): PlaybackIntent? {
+    private suspend fun resolveSeriesNavigation(navigation: SeriesNavigation): PlaybackIntent? {
         // Get current series context from most recent book
         val context = getCurrentSeriesContext() ?: return null
 
         val bookIds = seriesRepository.getBookIdsForSeries(context.seriesId)
         if (bookIds.isEmpty()) return null
 
-        // Load all books to get their sequence numbers
-        val booksWithSequence = bookIds.mapNotNull { bookId ->
-            bookRepository.getBook(bookId)?.let { book ->
-                val sequence = book.series
-                    .find { it.seriesId == context.seriesId }
-                    ?.sequence
-                book to sequence
-            }
-        }.sortedBy { (_, sequence) ->
-            sequence?.toFloatOrNull() ?: Float.MAX_VALUE
-        }
+        // Batch-load all books in a single query (avoids N+1 problem)
+        val books = bookRepository.getBooks(bookIds)
 
-        val targetBookId = when (navigation) {
-            is SeriesNavigation.Next -> {
-                // Find the book after current
-                val currentIndex = booksWithSequence.indexOfFirst { (book, _) ->
-                    book.id.value == context.currentBookId
+        // Map books to their sequence numbers and sort
+        val booksWithSequence =
+            books
+                .map { book ->
+                    val sequence =
+                        book.series
+                            .find { it.seriesId == context.seriesId }
+                            ?.sequence
+                    book to sequence
+                }.sortedBy { (_, sequence) ->
+                    sequence?.toFloatOrNull() ?: Float.MAX_VALUE
                 }
-                if (currentIndex >= 0 && currentIndex < booksWithSequence.size - 1) {
-                    booksWithSequence[currentIndex + 1].first.id.value
-                } else null
-            }
 
-            is SeriesNavigation.First -> {
-                booksWithSequence.firstOrNull()?.first?.id?.value
-            }
+        val targetBookId =
+            when (navigation) {
+                is SeriesNavigation.Next -> {
+                    // Find the book after current
+                    val currentIndex =
+                        booksWithSequence.indexOfFirst { (book, _) ->
+                            book.id.value == context.currentBookId
+                        }
+                    if (currentIndex >= 0 && currentIndex < booksWithSequence.size - 1) {
+                        booksWithSequence[currentIndex + 1].first.id.value
+                    } else {
+                        null
+                    }
+                }
 
-            is SeriesNavigation.BySequence -> {
-                // Find book by sequence number
-                booksWithSequence.find { (_, sequence) ->
-                    sequence == navigation.sequence
-                }?.first?.id?.value
-            }
+                is SeriesNavigation.First -> {
+                    booksWithSequence
+                        .firstOrNull()
+                        ?.first
+                        ?.id
+                        ?.value
+                }
 
-            is SeriesNavigation.NotSeriesNavigation -> null
-        }
+                is SeriesNavigation.BySequence -> {
+                    // Find book by sequence number
+                    booksWithSequence
+                        .find { (_, sequence) ->
+                            sequence == navigation.sequence
+                        }?.first
+                        ?.id
+                        ?.value
+                }
+
+                is SeriesNavigation.NotSeriesNavigation -> {
+                    null
+                }
+            }
 
         return targetBookId?.let {
             PlaybackIntent.PlaySeriesFrom(

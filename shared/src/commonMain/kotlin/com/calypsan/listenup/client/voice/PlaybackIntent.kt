@@ -6,7 +6,9 @@ package com.calypsan.listenup.client.voice
  */
 sealed class PlaybackIntent {
     /** Play a specific book by ID */
-    data class PlayBook(val bookId: String) : PlaybackIntent()
+    data class PlayBook(
+        val bookId: String,
+    ) : PlaybackIntent()
 
     /** Resume the most recent in-progress book */
     data object Resume : PlaybackIntent()
@@ -24,7 +26,9 @@ sealed class PlaybackIntent {
     ) : PlaybackIntent()
 
     /** No matches found for the query */
-    data class NotFound(val originalQuery: String) : PlaybackIntent()
+    data class NotFound(
+        val originalQuery: String,
+    ) : PlaybackIntent()
 }
 
 /**

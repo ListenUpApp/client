@@ -19,7 +19,9 @@ sealed interface ShortcutAction {
      *
      * @property bookId The ID of the book to play
      */
-    data class PlayBook(val bookId: String) : ShortcutAction
+    data class PlayBook(
+        val bookId: String,
+    ) : ShortcutAction
 
     /**
      * Open library search.
@@ -31,7 +33,9 @@ sealed interface ShortcutAction {
      *
      * @property timerMinutes Optional preset duration in minutes
      */
-    data class SleepTimer(val timerMinutes: Int? = null) : ShortcutAction
+    data class SleepTimer(
+        val timerMinutes: Int? = null,
+    ) : ShortcutAction
 }
 
 /**

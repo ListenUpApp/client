@@ -107,6 +107,19 @@ interface BookDao {
     suspend fun getByIdWithContributors(id: BookId): BookWithContributors?
 
     /**
+     * Get multiple books by IDs with their contributors in a single batched query.
+     *
+     * Uses Room Relations to efficiently load books and their contributors,
+     * avoiding N+1 query problems when loading multiple books.
+     *
+     * @param ids List of type-safe book IDs
+     * @return List of books with contributors (may be fewer than requested if some not found)
+     */
+    @Transaction
+    @Query("SELECT * FROM books WHERE id IN (:ids)")
+    suspend fun getByIdsWithContributors(ids: List<BookId>): List<BookWithContributors>
+
+    /**
      * Get all books with pending local changes that need to be synced.
      *
      * Returns books in NOT_SYNCED state (local modifications) and

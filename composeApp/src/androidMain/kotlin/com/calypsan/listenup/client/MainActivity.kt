@@ -137,8 +137,10 @@ class MainActivity : ComponentActivity() {
             }
 
             ShortcutActions.SLEEP_TIMER -> {
-                val timerMinutes = intent.getIntExtra(ShortcutActions.EXTRA_TIMER_MINUTES, -1)
-                    .takeIf { it > 0 }
+                val timerMinutes =
+                    intent
+                        .getIntExtra(ShortcutActions.EXTRA_TIMER_MINUTES, -1)
+                        .takeIf { it > 0 }
                 println("MainActivity: Received SLEEP_TIMER shortcut action - minutes=$timerMinutes")
                 shortcutActionManager.setPendingAction(ShortcutAction.SleepTimer(timerMinutes))
             }

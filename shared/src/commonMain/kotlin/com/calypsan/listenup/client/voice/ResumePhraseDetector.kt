@@ -5,19 +5,19 @@ package com.calypsan.listenup.client.voice
  * rather than searching for a specific title.
  */
 object ResumePhraseDetector {
-
-    private val RESUME_PHRASES = setOf(
-        "resume",
-        "continue",
-        "continue listening",
-        "continue reading",
-        "my audiobook",
-        "my book",
-        "where i left off",
-        "pick up where i left off",
-        "keep playing",
-        "keep listening",
-    )
+    private val RESUME_PHRASES =
+        setOf(
+            "resume",
+            "continue",
+            "continue listening",
+            "continue reading",
+            "my audiobook",
+            "my book",
+            "where i left off",
+            "pick up where i left off",
+            "keep playing",
+            "keep listening",
+        )
 
     /**
      * Returns true if the query indicates a resume intent.

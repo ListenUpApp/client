@@ -124,7 +124,8 @@ class ListenUpShortcutManager(
             // Load cover art icon or use default
             val icon = loadCoverIcon(book.coverPath) ?: createDefaultIcon()
 
-            ShortcutInfoCompat.Builder(context, shortcutId)
+            ShortcutInfoCompat
+                .Builder(context, shortcutId)
                 .setShortLabel(book.title.take(MAX_SHORT_LABEL_LENGTH))
                 .setLongLabel("${book.title} - ${book.authorNames}".take(MAX_LONG_LABEL_LENGTH))
                 .setIcon(icon)

@@ -5,7 +5,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class SeriesNavigationDetectorTest {
-
     @Test
     fun `next book patterns return Next`() {
         assertIs<SeriesNavigation.Next>(SeriesNavigationDetector.detect("next book"))
@@ -37,12 +36,13 @@ class SeriesNavigationDetectorTest {
 
     @Test
     fun `word numbers return BySequence`() {
-        val testCases = listOf(
-            "second book" to "2",
-            "third book" to "3",
-            "fourth book" to "4",
-            "fifth book" to "5",
-        )
+        val testCases =
+            listOf(
+                "second book" to "2",
+                "third book" to "3",
+                "fourth book" to "4",
+                "fifth book" to "5",
+            )
         testCases.forEach { (input, expected) ->
             val result = SeriesNavigationDetector.detect(input)
             assertIs<SeriesNavigation.BySequence>(result, "Expected BySequence for '$input'")

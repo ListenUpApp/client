@@ -5,7 +5,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ResumePhraseDetectorTest {
-
     @Test
     fun `exact resume phrase returns true`() {
         assertTrue(ResumePhraseDetector.isResumeIntent("resume"))
@@ -46,18 +45,19 @@ class ResumePhraseDetectorTest {
 
     @Test
     fun `all supported phrases are detected`() {
-        val phrases = listOf(
-            "resume",
-            "continue",
-            "continue listening",
-            "continue reading",
-            "my audiobook",
-            "my book",
-            "where i left off",
-            "pick up where i left off",
-            "keep playing",
-            "keep listening",
-        )
+        val phrases =
+            listOf(
+                "resume",
+                "continue",
+                "continue listening",
+                "continue reading",
+                "my audiobook",
+                "my book",
+                "where i left off",
+                "pick up where i left off",
+                "keep playing",
+                "keep listening",
+            )
         phrases.forEach { phrase ->
             assertTrue(ResumePhraseDetector.isResumeIntent(phrase), "Expected '$phrase' to be detected")
         }

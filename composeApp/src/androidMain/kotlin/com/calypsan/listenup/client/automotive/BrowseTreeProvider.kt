@@ -45,10 +45,12 @@ class BrowseTreeProvider(
      * Get the root media item.
      */
     fun getRoot(): MediaItem =
-        MediaItem.Builder()
+        MediaItem
+            .Builder()
             .setMediaId(BrowseTree.ROOT)
             .setMediaMetadata(
-                MediaMetadata.Builder()
+                MediaMetadata
+                    .Builder()
                     .setTitle("ListenUp")
                     .setIsPlayable(false)
                     .setIsBrowsable(true)
@@ -89,10 +91,25 @@ class BrowseTreeProvider(
 
         // Handle static nodes
         return when (mediaId) {
-            BrowseTree.ROOT -> getRoot()
-            BrowseTree.RESUME -> getResumeItem()
-            BrowseTree.LIBRARY -> createBrowsableItem(BrowseTree.LIBRARY, "Library", MediaMetadata.MEDIA_TYPE_FOLDER_AUDIO_BOOKS)
-            else -> null
+            BrowseTree.ROOT -> {
+                getRoot()
+            }
+
+            BrowseTree.RESUME -> {
+                getResumeItem()
+            }
+
+            BrowseTree.LIBRARY -> {
+                createBrowsableItem(
+                    BrowseTree.LIBRARY,
+                    "Library",
+                    MediaMetadata.MEDIA_TYPE_FOLDER_AUDIO_BOOKS,
+                )
+            }
+
+            else -> {
+                null
+            }
         }
     }
 
@@ -283,10 +300,12 @@ class BrowseTreeProvider(
         title: String,
         mediaType: Int,
     ): MediaItem =
-        MediaItem.Builder()
+        MediaItem
+            .Builder()
             .setMediaId(mediaId)
             .setMediaMetadata(
-                MediaMetadata.Builder()
+                MediaMetadata
+                    .Builder()
                     .setTitle(title)
                     .setIsPlayable(false)
                     .setIsBrowsable(true)
@@ -297,10 +316,12 @@ class BrowseTreeProvider(
     private fun createPlayableBookItem(book: ContinueListeningBook): MediaItem {
         val artworkUri = book.coverPath?.let { Uri.parse("file://$it") }
 
-        return MediaItem.Builder()
+        return MediaItem
+            .Builder()
             .setMediaId(BrowseTree.bookId(book.bookId))
             .setMediaMetadata(
-                MediaMetadata.Builder()
+                MediaMetadata
+                    .Builder()
                     .setTitle(book.title)
                     .setSubtitle("${book.authorNames} - ${book.timeRemainingFormatted}")
                     .setArtist(book.authorNames)
@@ -325,10 +346,12 @@ class BrowseTreeProvider(
                 null
             }
 
-        return MediaItem.Builder()
+        return MediaItem
+            .Builder()
             .setMediaId(BrowseTree.bookId(bookId))
             .setMediaMetadata(
-                MediaMetadata.Builder()
+                MediaMetadata
+                    .Builder()
                     .setTitle(title)
                     .setSubtitle(subtitle)
                     .setArtworkUri(artworkUri)

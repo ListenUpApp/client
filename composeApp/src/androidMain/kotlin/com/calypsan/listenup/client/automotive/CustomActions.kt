@@ -33,9 +33,10 @@ object CustomActions {
      */
     fun getNextSpeed(currentSpeed: Float): Float {
         // Find closest speed option
-        val currentIndex = SPEED_OPTIONS.indexOfFirst {
-            kotlin.math.abs(it - currentSpeed) < 0.01f
-        }
+        val currentIndex =
+            SPEED_OPTIONS.indexOfFirst {
+                kotlin.math.abs(it - currentSpeed) < 0.01f
+            }
 
         return if (currentIndex == -1 || currentIndex == SPEED_OPTIONS.lastIndex) {
             SPEED_OPTIONS.first() // Wrap to beginning
@@ -60,8 +61,7 @@ object CustomActions {
     /**
      * Create SessionCommand for speed cycling.
      */
-    fun cycleSpeedCommand(): SessionCommand =
-        SessionCommand(CYCLE_SPEED, Bundle.EMPTY)
+    fun cycleSpeedCommand(): SessionCommand = SessionCommand(CYCLE_SPEED, Bundle.EMPTY)
 
     /**
      * Create SessionCommand for setting sleep timer.
@@ -69,15 +69,15 @@ object CustomActions {
      * @param minutes Timer duration in minutes
      */
     fun setSleepTimerCommand(minutes: Int): SessionCommand {
-        val args = Bundle().apply {
-            putInt(EXTRA_TIMER_MINUTES, minutes)
-        }
+        val args =
+            Bundle().apply {
+                putInt(EXTRA_TIMER_MINUTES, minutes)
+            }
         return SessionCommand(SET_SLEEP_TIMER, args)
     }
 
     /**
      * Create SessionCommand for canceling sleep timer.
      */
-    fun cancelSleepTimerCommand(): SessionCommand =
-        SessionCommand(CANCEL_SLEEP_TIMER, Bundle.EMPTY)
+    fun cancelSleepTimerCommand(): SessionCommand = SessionCommand(CANCEL_SLEEP_TIMER, Bundle.EMPTY)
 }

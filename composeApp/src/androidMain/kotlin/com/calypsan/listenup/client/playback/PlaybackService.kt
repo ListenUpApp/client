@@ -118,6 +118,9 @@ class PlaybackService : MediaLibraryService() {
 
         // Position update interval
         private const val POSITION_UPDATE_INTERVAL = 30_000L // 30 seconds
+
+        // Search cache configuration
+        private const val MAX_SEARCH_CACHE_SIZE = 5
     }
 
     override fun onCreate() {
@@ -258,34 +261,40 @@ class PlaybackService : MediaLibraryService() {
 
         // Build updated metadata with chapter info
         // MEDIA_TYPE_AUDIO_BOOK_CHAPTER tells Android Auto this is a chapter
-        val updatedMetadata = MediaMetadata.Builder()
-            .setTitle(bookTitle)
-            .setDisplayTitle(bookTitle)
-            .setSubtitle(chapterText)
-            .setDescription(displaySubtitle)
-            .setArtist(author)
-            .setAlbumTitle(seriesName)
-            .setArtworkUri(artworkUri)
-            .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER)
-            .setTrackNumber(chapterInfo.index + 1)
-            .setTotalTrackCount(chapterInfo.totalChapters)
-            .build()
+        val updatedMetadata =
+            MediaMetadata
+                .Builder()
+                .setTitle(bookTitle)
+                .setDisplayTitle(bookTitle)
+                .setSubtitle(chapterText)
+                .setDescription(displaySubtitle)
+                .setArtist(author)
+                .setAlbumTitle(seriesName)
+                .setArtworkUri(artworkUri)
+                .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER)
+                .setTrackNumber(chapterInfo.index + 1)
+                .setTotalTrackCount(chapterInfo.totalChapters)
+                .build()
 
         // Update the current MediaItem's metadata
         // This propagates to Android Auto, notifications, and Bluetooth
         val currentIndex = p.currentMediaItemIndex
         val currentItem = p.currentMediaItem
         if (currentItem != null && currentIndex >= 0) {
-            val updatedItem = currentItem.buildUpon()
-                .setMediaMetadata(updatedMetadata)
-                .build()
+            val updatedItem =
+                currentItem
+                    .buildUpon()
+                    .setMediaMetadata(updatedMetadata)
+                    .build()
             p.replaceMediaItem(currentIndex, updatedItem)
         }
 
         // Also update session extras for backward compatibility
         session.setSessionExtras(Bundle().apply { putString("chapter_subtitle", displaySubtitle) })
 
-        logger.debug { "Updated chapter metadata: $chapterText (${chapterInfo.index + 1}/${chapterInfo.totalChapters})" }
+        logger.debug {
+            "Updated chapter metadata: $chapterText (${chapterInfo.index + 1}/${chapterInfo.totalChapters})"
+        }
     }
 
     private fun formatDuration(ms: Long): String {
@@ -299,8 +308,7 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? =
-        mediaLibrarySession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = mediaLibrarySession?.player
@@ -531,28 +539,30 @@ class PlaybackService : MediaLibraryService() {
             // Limited to 3 custom actions by Android Auto guidelines
             // Uses Media3 predefined icons (ICON_SKIP_BACK_30, ICON_SKIP_FORWARD_30)
             // and custom icon for speed (ICON_UNDEFINED + setCustomIconResId)
-            val customLayout = listOf(
-                // Skip back 30s - most common action while driving
-                CommandButton.Builder(CommandButton.ICON_SKIP_BACK_30)
-                    .setDisplayName("Back 30s")
-                    .setSessionCommand(
-                        SessionCommand(AudiobookNotificationProvider.COMMAND_SKIP_BACK_30, Bundle.EMPTY),
-                    )
-                    .build(),
-                // Speed control - useful for long drives (custom icon)
-                CommandButton.Builder(CommandButton.ICON_UNDEFINED)
-                    .setDisplayName("Speed")
-                    .setCustomIconResId(R.drawable.ic_speed)
-                    .setSessionCommand(CustomActions.cycleSpeedCommand())
-                    .build(),
-                // Skip forward 30s
-                CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
-                    .setDisplayName("Forward 30s")
-                    .setSessionCommand(
-                        SessionCommand(AudiobookNotificationProvider.COMMAND_SKIP_FORWARD_30, Bundle.EMPTY),
-                    )
-                    .build(),
-            )
+            val customLayout =
+                listOf(
+                    // Skip back 30s - most common action while driving
+                    CommandButton
+                        .Builder(CommandButton.ICON_SKIP_BACK_30)
+                        .setDisplayName("Back 30s")
+                        .setSessionCommand(
+                            SessionCommand(AudiobookNotificationProvider.COMMAND_SKIP_BACK_30, Bundle.EMPTY),
+                        ).build(),
+                    // Speed control - useful for long drives (custom icon)
+                    CommandButton
+                        .Builder(CommandButton.ICON_UNDEFINED)
+                        .setDisplayName("Speed")
+                        .setCustomIconResId(R.drawable.ic_speed)
+                        .setSessionCommand(CustomActions.cycleSpeedCommand())
+                        .build(),
+                    // Skip forward 30s
+                    CommandButton
+                        .Builder(CommandButton.ICON_SKIP_FORWARD_30)
+                        .setDisplayName("Forward 30s")
+                        .setSessionCommand(
+                            SessionCommand(AudiobookNotificationProvider.COMMAND_SKIP_FORWARD_30, Bundle.EMPTY),
+                        ).build(),
+                )
 
             return MediaSession.ConnectionResult
                 .AcceptedResultBuilder(session)
@@ -624,9 +634,22 @@ class PlaybackService : MediaLibraryService() {
 
         // ========== Search ==========
 
-        // Cache for search results (query -> items)
-        // Used by onGetSearchResult to retrieve results after onSearch completes
-        private val searchResultsCache = mutableMapOf<String, List<MediaItem>>()
+        /**
+         * LRU cache for search results.
+         *
+         * Bridges the gap between onSearch() and onGetSearchResult() in Media3's
+         * async search pattern. Entries are removed after retrieval to prevent
+         * memory leaks. Max size provides safety net for unretrieved results.
+         */
+        private val searchResultsCache =
+            object : LinkedHashMap<String, List<MediaItem>>(
+                MAX_SEARCH_CACHE_SIZE,
+                0.75f,
+                true, // access-order for LRU behavior
+            ) {
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<MediaItem>>?) =
+                    size > MAX_SEARCH_CACHE_SIZE
+            }
 
         /**
          * Handle search queries from Google Assistant / Android Auto.
@@ -654,50 +677,57 @@ class PlaybackService : MediaLibraryService() {
                 try {
                     // Extract hints from params extras if available
                     val extras = params?.extras
-                    val hints = VoiceHints(
-                        title = extras?.getString(MediaStore.EXTRA_MEDIA_TITLE),
-                        artist = extras?.getString(MediaStore.EXTRA_MEDIA_ARTIST),
-                        album = extras?.getString(MediaStore.EXTRA_MEDIA_ALBUM),
-                        focus = extras?.getString(MediaStore.EXTRA_MEDIA_FOCUS)?.toMediaFocus(),
-                    )
+                    val hints =
+                        VoiceHints(
+                            title = extras?.getString(MediaStore.EXTRA_MEDIA_TITLE),
+                            artist = extras?.getString(MediaStore.EXTRA_MEDIA_ARTIST),
+                            album = extras?.getString(MediaStore.EXTRA_MEDIA_ALBUM),
+                            focus = extras?.getString(MediaStore.EXTRA_MEDIA_FOCUS)?.toMediaFocus(),
+                        )
 
                     logger.debug { "Search hints: title=${hints.title}, artist=${hints.artist}, focus=${hints.focus}" }
 
                     val intent = voiceIntentResolver.resolve(query, hints)
                     logger.info { "Search resolved to: $intent" }
 
-                    val items: List<MediaItem> = when (intent) {
-                        is PlaybackIntent.PlayBook -> {
-                            // Single match - return as playable item
-                            listOfNotNull(browseTreeProvider.getBookItem(intent.bookId))
-                        }
+                    val items: List<MediaItem> =
+                        when (intent) {
+                            is PlaybackIntent.PlayBook -> {
+                                // Single match - return as playable item
+                                listOfNotNull(browseTreeProvider.getBookItem(intent.bookId))
+                            }
 
-                        is PlaybackIntent.Resume -> {
-                            // Resume - get the last played book
-                            val lastBook = homeRepository.getContinueListening(1).getOrNull()
-                                ?.firstOrNull()
-                            if (lastBook != null) {
-                                listOfNotNull(browseTreeProvider.getBookItem(lastBook.bookId))
-                            } else emptyList()
-                        }
+                            is PlaybackIntent.Resume -> {
+                                // Resume - get the last played book
+                                val lastBook =
+                                    homeRepository
+                                        .getContinueListening(1)
+                                        .getOrNull()
+                                        ?.firstOrNull()
+                                if (lastBook != null) {
+                                    listOfNotNull(browseTreeProvider.getBookItem(lastBook.bookId))
+                                } else {
+                                    emptyList()
+                                }
+                            }
 
-                        is PlaybackIntent.PlaySeriesFrom -> {
-                            // Series navigation - return the target book
-                            listOfNotNull(browseTreeProvider.getBookItem(intent.startBookId))
-                        }
+                            is PlaybackIntent.PlaySeriesFrom -> {
+                                // Series navigation - return the target book
+                                listOfNotNull(browseTreeProvider.getBookItem(intent.startBookId))
+                            }
 
-                        is PlaybackIntent.Ambiguous -> {
-                            // Multiple matches - return all candidates
-                            intent.candidates.mapNotNull { match ->
-                                browseTreeProvider.getBookItem(match.bookId)
+                            is PlaybackIntent.Ambiguous -> {
+                                // Multiple matches - return all candidates
+                                intent.candidates.mapNotNull { match ->
+                                    browseTreeProvider.getBookItem(match.bookId)
+                                }
+                            }
+
+                            is PlaybackIntent.NotFound -> {
+                                logger.warn { "No search results for: $query" }
+                                emptyList()
                             }
                         }
-
-                        is PlaybackIntent.NotFound -> {
-                            logger.warn { "No search results for: $query" }
-                            emptyList()
-                        }
-                    }
 
                     logger.info { "Search found ${items.size} items for query: $query" }
 
@@ -721,6 +751,7 @@ class PlaybackService : MediaLibraryService() {
          * Return cached search results.
          *
          * Called by Android Auto after we notify that search results are ready.
+         * Removes cache entry after the last page is retrieved to prevent memory leaks.
          */
         override fun onGetSearchResult(
             session: MediaLibrarySession,
@@ -737,14 +768,22 @@ class PlaybackService : MediaLibraryService() {
             // Apply pagination
             val startIndex = page * pageSize
             val endIndex = minOf(startIndex + pageSize, items.size)
-            val pageItems = if (startIndex < items.size) {
-                items.subList(startIndex, endIndex)
-            } else {
-                emptyList()
+            val pageItems =
+                if (startIndex < items.size) {
+                    items.subList(startIndex, endIndex)
+                } else {
+                    emptyList()
+                }
+
+            // Clean up cache after last page is retrieved
+            val isLastPage = endIndex >= items.size
+            if (isLastPage) {
+                searchResultsCache.remove(query)
+                logger.debug { "Search cache cleared for query: $query" }
             }
 
             return Futures.immediateFuture(
-                LibraryResult.ofItemList(ImmutableList.copyOf(pageItems), params)
+                LibraryResult.ofItemList(ImmutableList.copyOf(pageItems), params),
             )
         }
 
@@ -835,12 +874,13 @@ class PlaybackService : MediaLibraryService() {
             val extras = item.requestMetadata.extras
 
             // Extract structured hints from extras (if available)
-            val hints = VoiceHints(
-                title = extras?.getString(MediaStore.EXTRA_MEDIA_TITLE),
-                artist = extras?.getString(MediaStore.EXTRA_MEDIA_ARTIST),
-                album = extras?.getString(MediaStore.EXTRA_MEDIA_ALBUM),
-                focus = extras?.getString(MediaStore.EXTRA_MEDIA_FOCUS)?.toMediaFocus(),
-            )
+            val hints =
+                VoiceHints(
+                    title = extras?.getString(MediaStore.EXTRA_MEDIA_TITLE),
+                    artist = extras?.getString(MediaStore.EXTRA_MEDIA_ARTIST),
+                    album = extras?.getString(MediaStore.EXTRA_MEDIA_ALBUM),
+                    focus = extras?.getString(MediaStore.EXTRA_MEDIA_FOCUS)?.toMediaFocus(),
+                )
 
             logger.debug { "Voice hints: title=${hints.title}, artist=${hints.artist}, focus=${hints.focus}" }
 
@@ -848,26 +888,34 @@ class PlaybackService : MediaLibraryService() {
             logger.debug { "Resolved voice intent: $intent" }
 
             // Convert intent to book ID
-            val bookId = when (intent) {
-                is PlaybackIntent.PlayBook -> intent.bookId
+            val bookId =
+                when (intent) {
+                    is PlaybackIntent.PlayBook -> {
+                        intent.bookId
+                    }
 
-                is PlaybackIntent.Resume -> {
-                    homeRepository.getContinueListening(1).getOrNull()
-                        ?.firstOrNull()?.bookId
+                    is PlaybackIntent.Resume -> {
+                        homeRepository
+                            .getContinueListening(1)
+                            .getOrNull()
+                            ?.firstOrNull()
+                            ?.bookId
+                    }
+
+                    is PlaybackIntent.PlaySeriesFrom -> {
+                        intent.startBookId
+                    }
+
+                    is PlaybackIntent.Ambiguous -> {
+                        // Auto-play best guess if available
+                        intent.bestGuess?.bookId
+                    }
+
+                    is PlaybackIntent.NotFound -> {
+                        logger.warn { "No match found for voice query: ${intent.originalQuery}" }
+                        null
+                    }
                 }
-
-                is PlaybackIntent.PlaySeriesFrom -> intent.startBookId
-
-                is PlaybackIntent.Ambiguous -> {
-                    // Auto-play best guess if available
-                    intent.bestGuess?.bookId
-                }
-
-                is PlaybackIntent.NotFound -> {
-                    logger.warn { "No match found for voice query: ${intent.originalQuery}" }
-                    null
-                }
-            }
 
             if (bookId == null) {
                 logger.warn { "Could not resolve book ID from voice intent: $intent" }
@@ -885,11 +933,13 @@ class PlaybackService : MediaLibraryService() {
 
             // Build MediaItems from timeline
             return prepareResult.timeline.files.map { file ->
-                MediaItem.Builder()
+                MediaItem
+                    .Builder()
                     .setMediaId(file.audioFileId)
                     .setUri(file.streamingUrl)
                     .setMediaMetadata(
-                        MediaMetadata.Builder()
+                        MediaMetadata
+                            .Builder()
                             .setTitle(prepareResult.bookTitle)
                             .setArtist(prepareResult.bookAuthor)
                             .setAlbumTitle(prepareResult.seriesName)
@@ -1050,7 +1100,11 @@ class PlaybackService : MediaLibraryService() {
                     val newSpeed = CustomActions.getNextSpeed(currentSpeed)
                     p.setPlaybackSpeed(newSpeed)
                     playbackManager.onSpeedChanged(newSpeed)
-                    logger.info { "Speed cycled: ${CustomActions.formatSpeed(currentSpeed)} -> ${CustomActions.formatSpeed(newSpeed)}" }
+                    logger.info {
+                        "Speed cycled: ${CustomActions.formatSpeed(
+                            currentSpeed,
+                        )} -> ${CustomActions.formatSpeed(newSpeed)}"
+                    }
                 }
             }
 
@@ -1063,10 +1117,11 @@ class PlaybackService : MediaLibraryService() {
     /**
      * Convert Android's EXTRA_MEDIA_FOCUS string to our MediaFocus enum.
      */
-    private fun String.toMediaFocus(): MediaFocus? = when (this) {
-        MediaStore.Audio.Artists.ENTRY_CONTENT_TYPE -> MediaFocus.ARTIST
-        MediaStore.Audio.Albums.ENTRY_CONTENT_TYPE -> MediaFocus.ALBUM
-        MediaStore.Audio.Media.ENTRY_CONTENT_TYPE -> MediaFocus.TITLE
-        else -> MediaFocus.UNSPECIFIED
-    }
+    private fun String.toMediaFocus(): MediaFocus? =
+        when (this) {
+            MediaStore.Audio.Artists.ENTRY_CONTENT_TYPE -> MediaFocus.ARTIST
+            MediaStore.Audio.Albums.ENTRY_CONTENT_TYPE -> MediaFocus.ALBUM
+            MediaStore.Audio.Media.ENTRY_CONTENT_TYPE -> MediaFocus.TITLE
+            else -> MediaFocus.UNSPECIFIED
+        }
 }
