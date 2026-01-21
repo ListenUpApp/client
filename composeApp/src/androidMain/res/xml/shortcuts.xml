@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Static app shortcuts for ListenUp.
+
+    These shortcuts appear when users long-press the app icon.
+    They provide quick access to common actions without opening the full app.
+
+    Order matters: First shortcut appears closest to the app icon.
+    We prioritize "Resume" as it's the most common use case.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Resume Listening - Always available, highest priority -->
+    <shortcut
+        android:shortcutId="resume_listening"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_play"
+        android:shortcutShortLabel="@string/shortcut_resume_short"
+        android:shortcutLongLabel="@string/shortcut_resume_long">
+        <intent
+            android:action="com.calypsan.listenup.action.RESUME"
+            android:targetPackage="com.calypsan.listenup.client"
+            android:targetClass="com.calypsan.listenup.client.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Search Library -->
+    <shortcut
+        android:shortcutId="search_library"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_search"
+        android:shortcutShortLabel="@string/shortcut_search_short"
+        android:shortcutLongLabel="@string/shortcut_search_long">
+        <intent
+            android:action="com.calypsan.listenup.action.SEARCH"
+            android:targetPackage="com.calypsan.listenup.client"
+            android:targetClass="com.calypsan.listenup.client.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Sleep Timer -->
+    <shortcut
+        android:shortcutId="sleep_timer"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_sleep"
+        android:shortcutShortLabel="@string/shortcut_sleep_short"
+        android:shortcutLongLabel="@string/shortcut_sleep_long">
+        <intent
+            android:action="com.calypsan.listenup.action.SLEEP_TIMER"
+            android:targetPackage="com.calypsan.listenup.client"
+            android:targetClass="com.calypsan.listenup.client.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+</shortcuts>

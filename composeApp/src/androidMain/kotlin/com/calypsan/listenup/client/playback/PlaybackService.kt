@@ -3,6 +3,7 @@ package com.calypsan.listenup.client.playback
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Bundle
+import android.provider.MediaStore
 import androidx.annotation.OptIn
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.media3.common.AudioAttributes
@@ -28,8 +29,14 @@ import com.calypsan.listenup.client.composeapp.R
 import com.calypsan.listenup.client.automotive.BrowseTree
 import com.calypsan.listenup.client.automotive.BrowseTreeProvider
 import com.calypsan.listenup.client.automotive.CustomActions
-import com.google.common.collect.ImmutableList
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.core.getOrNull
+import com.calypsan.listenup.client.domain.repository.HomeRepository
+import com.calypsan.listenup.client.voice.MediaFocus
+import com.calypsan.listenup.client.voice.PlaybackIntent
+import com.calypsan.listenup.client.voice.VoiceHints
+import com.calypsan.listenup.client.voice.VoiceIntentResolver
+import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -81,6 +88,8 @@ class PlaybackService : MediaLibraryService() {
     private val tokenProvider: AndroidAudioTokenProvider by inject()
     private val sleepTimerManager: SleepTimerManager by inject()
     private val browseTreeProvider: BrowseTreeProvider by inject()
+    private val voiceIntentResolver: VoiceIntentResolver by inject()
+    private val homeRepository: HomeRepository by inject()
 
     // Current book ID is read from PlaybackManager (single source of truth)
     private val currentBookId: BookId?
@@ -613,12 +622,145 @@ class PlaybackService : MediaLibraryService() {
             }
         }
 
+        // ========== Search ==========
+
+        // Cache for search results (query -> items)
+        // Used by onGetSearchResult to retrieve results after onSearch completes
+        private val searchResultsCache = mutableMapOf<String, List<MediaItem>>()
+
+        /**
+         * Handle search queries from Google Assistant / Android Auto.
+         *
+         * This is the primary entry point for voice commands like:
+         * "Hey Google, play The Hobbit on ListenUp"
+         *
+         * The Media3 search flow:
+         * 1. Google sends the query to onSearch()
+         * 2. We resolve via VoiceIntentResolver and cache results
+         * 3. Return LibraryResult.ofVoid() to accept the query
+         * 4. Call notifySearchResultChanged() to signal results are ready
+         * 5. Google calls onGetSearchResult() to retrieve results
+         */
+        override fun onSearch(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            params: MediaLibraryService.LibraryParams?,
+        ): ListenableFuture<LibraryResult<Void>> {
+            logger.info { "onSearch: query='$query'" }
+
+            // Perform search asynchronously
+            serviceScope.launch {
+                try {
+                    // Extract hints from params extras if available
+                    val extras = params?.extras
+                    val hints = VoiceHints(
+                        title = extras?.getString(MediaStore.EXTRA_MEDIA_TITLE),
+                        artist = extras?.getString(MediaStore.EXTRA_MEDIA_ARTIST),
+                        album = extras?.getString(MediaStore.EXTRA_MEDIA_ALBUM),
+                        focus = extras?.getString(MediaStore.EXTRA_MEDIA_FOCUS)?.toMediaFocus(),
+                    )
+
+                    logger.debug { "Search hints: title=${hints.title}, artist=${hints.artist}, focus=${hints.focus}" }
+
+                    val intent = voiceIntentResolver.resolve(query, hints)
+                    logger.info { "Search resolved to: $intent" }
+
+                    val items: List<MediaItem> = when (intent) {
+                        is PlaybackIntent.PlayBook -> {
+                            // Single match - return as playable item
+                            listOfNotNull(browseTreeProvider.getBookItem(intent.bookId))
+                        }
+
+                        is PlaybackIntent.Resume -> {
+                            // Resume - get the last played book
+                            val lastBook = homeRepository.getContinueListening(1).getOrNull()
+                                ?.firstOrNull()
+                            if (lastBook != null) {
+                                listOfNotNull(browseTreeProvider.getBookItem(lastBook.bookId))
+                            } else emptyList()
+                        }
+
+                        is PlaybackIntent.PlaySeriesFrom -> {
+                            // Series navigation - return the target book
+                            listOfNotNull(browseTreeProvider.getBookItem(intent.startBookId))
+                        }
+
+                        is PlaybackIntent.Ambiguous -> {
+                            // Multiple matches - return all candidates
+                            intent.candidates.mapNotNull { match ->
+                                browseTreeProvider.getBookItem(match.bookId)
+                            }
+                        }
+
+                        is PlaybackIntent.NotFound -> {
+                            logger.warn { "No search results for: $query" }
+                            emptyList()
+                        }
+                    }
+
+                    logger.info { "Search found ${items.size} items for query: $query" }
+
+                    // Cache results for onGetSearchResult
+                    searchResultsCache[query] = items
+
+                    // Notify that search results are ready
+                    session.notifySearchResultChanged(browser, query, items.size, params)
+                } catch (e: Exception) {
+                    logger.error(e) { "Search failed for query: $query" }
+                    // Still notify with 0 results on error
+                    session.notifySearchResultChanged(browser, query, 0, params)
+                }
+            }
+
+            // Return immediately - results come via onGetSearchResult
+            return Futures.immediateFuture(LibraryResult.ofVoid())
+        }
+
+        /**
+         * Return cached search results.
+         *
+         * Called by Android Auto after we notify that search results are ready.
+         */
+        override fun onGetSearchResult(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            page: Int,
+            pageSize: Int,
+            params: MediaLibraryService.LibraryParams?,
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+            logger.debug { "onGetSearchResult: query='$query', page=$page, pageSize=$pageSize" }
+
+            val items = searchResultsCache[query] ?: emptyList()
+
+            // Apply pagination
+            val startIndex = page * pageSize
+            val endIndex = minOf(startIndex + pageSize, items.size)
+            val pageItems = if (startIndex < items.size) {
+                items.subList(startIndex, endIndex)
+            } else {
+                emptyList()
+            }
+
+            return Futures.immediateFuture(
+                LibraryResult.ofItemList(ImmutableList.copyOf(pageItems), params)
+            )
+        }
+
         // ========== Playback Preparation ==========
 
         /**
          * Called when Android Auto requests to play media items.
          *
          * Resolves book IDs from media items and prepares full playback timeline.
+         * Also handles voice search via requestMetadata.searchQuery (Media3 pattern).
+         *
+         * Voice search flow:
+         * 1. User says "Hey Google, play [book name] on ListenUp"
+         * 2. Android Auto/Google Assistant sends MediaItem with searchQuery in requestMetadata
+         * 3. We resolve the query through VoiceIntentResolver
+         * 4. Return resolved media items for playback
          */
         override fun onAddMediaItems(
             mediaSession: MediaSession,
@@ -633,6 +775,15 @@ class PlaybackService : MediaLibraryService() {
                         val resolvedItems = mutableListOf<MediaItem>()
 
                         for (item in mediaItems) {
+                            // Check for voice search query (Media3 pattern)
+                            val searchQuery = item.requestMetadata.searchQuery
+                            if (searchQuery != null) {
+                                logger.info { "Voice search detected: query='$searchQuery'" }
+                                val voiceItems = handleVoiceSearch(item)
+                                resolvedItems.addAll(voiceItems)
+                                continue
+                            }
+
                             val bookId = BrowseTree.extractBookId(item.mediaId)
                             if (bookId != null) {
                                 // Prepare playback for this book
@@ -670,6 +821,81 @@ class PlaybackService : MediaLibraryService() {
                     }
                 }
                 "AddMediaItems"
+            }
+        }
+
+        /**
+         * Handle voice search from Android Auto / Google Assistant.
+         *
+         * Extracts search query and extras from MediaItem's requestMetadata,
+         * resolves through VoiceIntentResolver, and returns playable media items.
+         */
+        private suspend fun handleVoiceSearch(item: MediaItem): List<MediaItem> {
+            val searchQuery = item.requestMetadata.searchQuery ?: return emptyList()
+            val extras = item.requestMetadata.extras
+
+            // Extract structured hints from extras (if available)
+            val hints = VoiceHints(
+                title = extras?.getString(MediaStore.EXTRA_MEDIA_TITLE),
+                artist = extras?.getString(MediaStore.EXTRA_MEDIA_ARTIST),
+                album = extras?.getString(MediaStore.EXTRA_MEDIA_ALBUM),
+                focus = extras?.getString(MediaStore.EXTRA_MEDIA_FOCUS)?.toMediaFocus(),
+            )
+
+            logger.debug { "Voice hints: title=${hints.title}, artist=${hints.artist}, focus=${hints.focus}" }
+
+            val intent = voiceIntentResolver.resolve(searchQuery, hints)
+            logger.debug { "Resolved voice intent: $intent" }
+
+            // Convert intent to book ID
+            val bookId = when (intent) {
+                is PlaybackIntent.PlayBook -> intent.bookId
+
+                is PlaybackIntent.Resume -> {
+                    homeRepository.getContinueListening(1).getOrNull()
+                        ?.firstOrNull()?.bookId
+                }
+
+                is PlaybackIntent.PlaySeriesFrom -> intent.startBookId
+
+                is PlaybackIntent.Ambiguous -> {
+                    // Auto-play best guess if available
+                    intent.bestGuess?.bookId
+                }
+
+                is PlaybackIntent.NotFound -> {
+                    logger.warn { "No match found for voice query: ${intent.originalQuery}" }
+                    null
+                }
+            }
+
+            if (bookId == null) {
+                logger.warn { "Could not resolve book ID from voice intent: $intent" }
+                return emptyList()
+            }
+
+            logger.info { "Playing book from voice search: $bookId" }
+
+            // Prepare playback for the book
+            val prepareResult = playbackManager.prepareForPlayback(BookId(bookId))
+            if (prepareResult == null) {
+                logger.error { "Failed to prepare book for voice playback: $bookId" }
+                return emptyList()
+            }
+
+            // Build MediaItems from timeline
+            return prepareResult.timeline.files.map { file ->
+                MediaItem.Builder()
+                    .setMediaId(file.audioFileId)
+                    .setUri(file.streamingUrl)
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(prepareResult.bookTitle)
+                            .setArtist(prepareResult.bookAuthor)
+                            .setAlbumTitle(prepareResult.seriesName)
+                            .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
+                            .build(),
+                    ).build()
             }
         }
 
@@ -830,5 +1056,17 @@ class PlaybackService : MediaLibraryService() {
 
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
+    }
+
+    // ========== Voice Search Helpers ==========
+
+    /**
+     * Convert Android's EXTRA_MEDIA_FOCUS string to our MediaFocus enum.
+     */
+    private fun String.toMediaFocus(): MediaFocus? = when (this) {
+        MediaStore.Audio.Artists.ENTRY_CONTENT_TYPE -> MediaFocus.ARTIST
+        MediaStore.Audio.Albums.ENTRY_CONTENT_TYPE -> MediaFocus.ALBUM
+        MediaStore.Audio.Media.ENTRY_CONTENT_TYPE -> MediaFocus.TITLE
+        else -> MediaFocus.UNSPECIFIED
     }
 }

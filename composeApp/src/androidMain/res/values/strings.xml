@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">ListenUp</string>
+
+    <!-- App Shortcuts -->
+    <string name="shortcut_resume_short">Resume</string>
+    <string name="shortcut_resume_long">Resume listening</string>
+    <string name="shortcut_search_short">Search</string>
+    <string name="shortcut_search_long">Search library</string>
+    <string name="shortcut_sleep_short">Sleep Timer</string>
+    <string name="shortcut_sleep_long">Set sleep timer</string>
 </resources>

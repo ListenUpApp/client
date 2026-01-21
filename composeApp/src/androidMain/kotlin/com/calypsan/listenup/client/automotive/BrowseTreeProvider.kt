@@ -262,7 +262,12 @@ class BrowseTreeProvider(
             }
     }
 
-    private suspend fun getBookItem(bookId: String): MediaItem? {
+    /**
+     * Get a playable MediaItem for a specific book.
+     *
+     * Used by voice search to return search results.
+     */
+    suspend fun getBookItem(bookId: String): MediaItem? {
         val book = bookDao.getById(BookId(bookId)) ?: return null
         return createPlayableBookItemFromEntity(
             bookId = book.id.value,

@@ -57,6 +57,7 @@ import com.calypsan.listenup.client.data.repository.BookEditRepositoryImpl
 import com.calypsan.listenup.client.data.repository.BookRepositoryImpl
 import com.calypsan.listenup.client.data.repository.CollectionRepositoryImpl
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
+import com.calypsan.listenup.client.data.repository.ShortcutActionManager
 import com.calypsan.listenup.client.data.repository.EventStreamRepositoryImpl
 import com.calypsan.listenup.client.data.repository.GenreRepositoryImpl
 import com.calypsan.listenup.client.data.repository.HomeRepositoryImpl
@@ -231,6 +232,10 @@ val dataModule =
         // Deep link manager - singleton for handling invite deep links
         // Must be initialized before MainActivity handles intents
         single { DeepLinkManager() }
+
+        // Shortcut action manager - singleton for handling app shortcut intents
+        // Observed by navigation layer to execute shortcut actions
+        single { ShortcutActionManager() }
 
         // Settings repository - single source of truth for app configuration
         // Note: SettingsRepository has no sync dependencies - it emits preference change events
@@ -1406,6 +1411,7 @@ val sharedModules =
         repositoryModule,
         useCaseModule,
         syncModule,
+        voiceModule,
     ) + allPresentationModules
 
 /**

@@ -30,6 +30,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- App Shortcuts metadata -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
             <!-- App Links: https://*.../join/{code} (requires assetlinks.json verification) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
