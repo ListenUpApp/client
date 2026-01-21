@@ -32,6 +32,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
+import com.calypsan.listenup.client.data.repository.ShortcutAction
+import com.calypsan.listenup.client.data.repository.ShortcutActionManager
 import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.deeplink.DeepLinkParser
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
@@ -42,6 +44,7 @@ import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.navigation.ListenUpNavigation
+import com.calypsan.listenup.client.shortcuts.ShortcutActions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -69,6 +72,7 @@ class MainActivity : ComponentActivity() {
     private val authSession: AuthSession by inject()
     private val localPreferences: LocalPreferences by inject()
     private val deepLinkManager: DeepLinkManager by inject()
+    private val shortcutActionManager: ShortcutActionManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -94,12 +98,52 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Parses and stores deep link data for navigation layer to consume.
+     * Parses and stores deep link or shortcut action for navigation layer to consume.
+     *
+     * Handles:
+     * - Invite deep links (listenup://join, https://.../join/...)
+     * - App shortcut actions (RESUME, PLAY_BOOK, SEARCH, SLEEP_TIMER)
      */
     private fun handleIntent(intent: Intent?) {
+        if (intent == null) return
+
+        // Check for deep link first
         DeepLinkParser.parse(intent)?.let { inviteLink ->
             println("MainActivity: Received invite deep link - server=${inviteLink.serverUrl}, code=${inviteLink.code}")
             deepLinkManager.setInviteLink(inviteLink.serverUrl, inviteLink.code)
+            return
+        }
+
+        // Check for shortcut actions
+        when (intent.action) {
+            ShortcutActions.RESUME -> {
+                println("MainActivity: Received RESUME shortcut action")
+                shortcutActionManager.setPendingAction(ShortcutAction.Resume)
+            }
+
+            ShortcutActions.PLAY_BOOK -> {
+                val bookId = intent.getStringExtra(ShortcutActions.EXTRA_BOOK_ID)
+                if (bookId != null) {
+                    println("MainActivity: Received PLAY_BOOK shortcut action - bookId=$bookId")
+                    shortcutActionManager.setPendingAction(ShortcutAction.PlayBook(bookId))
+                } else {
+                    println("MainActivity: PLAY_BOOK action missing book_id extra")
+                }
+            }
+
+            ShortcutActions.SEARCH -> {
+                println("MainActivity: Received SEARCH shortcut action")
+                shortcutActionManager.setPendingAction(ShortcutAction.Search)
+            }
+
+            ShortcutActions.SLEEP_TIMER -> {
+                val timerMinutes =
+                    intent
+                        .getIntExtra(ShortcutActions.EXTRA_TIMER_MINUTES, -1)
+                        .takeIf { it > 0 }
+                println("MainActivity: Received SLEEP_TIMER shortcut action - minutes=$timerMinutes")
+                shortcutActionManager.setPendingAction(ShortcutAction.SleepTimer(timerMinutes))
+            }
         }
     }
 

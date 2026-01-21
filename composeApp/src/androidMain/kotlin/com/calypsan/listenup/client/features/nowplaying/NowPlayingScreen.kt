@@ -68,9 +68,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -139,9 +141,8 @@ fun NowPlayingScreen(
 
     val dragOffset = remember { Animatable(0f) }
 
-    // Simulate radial glow with stacked vertical gradients (radialGradient crashes emulator GPU)
-    // This creates a softer, centered glow effect without using radialGradient
-    val glowBrush =
+    // Vertical glow for tall/portrait layout (centered on cover)
+    val tallGlowBrush =
         remember(dominantColor) {
             if (dominantColor != Color.Transparent) {
                 Brush.verticalGradient(
@@ -153,6 +154,25 @@ fun NowPlayingScreen(
                             0.5f to dominantColor.copy(alpha = 0.6f),
                             0.65f to dominantColor.copy(alpha = 0.3f),
                             0.85f to dominantColor.copy(alpha = 0.1f),
+                            1.0f to Color.Transparent,
+                        ),
+                )
+            } else {
+                null
+            }
+        }
+
+    // Horizontal glow for wide/landscape layout (fades from left to right)
+    val wideGlowBrush =
+        remember(dominantColor) {
+            if (dominantColor != Color.Transparent) {
+                Brush.horizontalGradient(
+                    colorStops =
+                        arrayOf(
+                            0.0f to dominantColor.copy(alpha = 0.5f),
+                            0.3f to dominantColor.copy(alpha = 0.4f),
+                            0.6f to dominantColor.copy(alpha = 0.2f),
+                            0.85f to dominantColor.copy(alpha = 0.05f),
                             1.0f to Color.Transparent,
                         ),
                 )
@@ -204,105 +224,346 @@ fun NowPlayingScreen(
                 },
         color = MaterialTheme.colorScheme.surface,
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Large colored glow behind cover - positioned to center on cover art
-            if (glowAlpha > 0f) {
-                glowBrush?.let { brush ->
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(550.dp)
-                                .offset(y = 80.dp) // Push down to align with cover art
-                                .align(Alignment.TopCenter)
-                                .graphicsLayer { alpha = glowAlpha }
-                                .background(brush = brush),
-                    )
+        // Adaptive layout based on available space
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val constraintsWidth = maxWidth
+            val constraintsHeight = maxHeight
+            val isWideLayout = constraintsWidth > constraintsHeight
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Large colored glow behind cover
+                if (glowAlpha > 0f) {
+                    if (isWideLayout) {
+                        // Wide: horizontal glow on left side behind cover
+                        wideGlowBrush?.let { brush ->
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxHeight()
+                                        .width(constraintsWidth * 0.5f)
+                                        .align(Alignment.CenterStart)
+                                        .graphicsLayer { alpha = glowAlpha }
+                                        .background(brush = brush),
+                            )
+                        }
+                    } else {
+                        // Tall: vertical glow centered on cover art
+                        tallGlowBrush?.let { brush ->
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(550.dp)
+                                        .offset(y = 80.dp)
+                                        .align(Alignment.TopCenter)
+                                        .graphicsLayer { alpha = glowAlpha }
+                                        .background(brush = brush),
+                            )
+                        }
+                    }
                 }
-            }
 
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 24.dp),
-            ) {
-                // Top bar with collapse handle and menu
-                NowPlayingTopBar(
-                    state = state,
-                    onCollapse = onCollapse,
-                    onGoToBook = onGoToBook,
-                    onGoToSeries = onGoToSeries,
-                    onGoToContributor = onGoToContributor,
-                    onShowAuthorPicker = onShowAuthorPicker,
-                    onShowNarratorPicker = onShowNarratorPicker,
-                    onCloseBook = onCloseBook,
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                // Cover art (glow is rendered behind at screen level)
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(0.45f)
-                            .fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CoverArt(
-                        coverUrl = state.coverUrl,
+                if (isWideLayout) {
+                    // Wide layout: cover on left, controls on right
+                    WideNowPlayingLayout(
+                        state = state,
+                        sleepTimerState = sleepTimerState,
+                        dominantColor = dominantColor,
                         onColorExtracted = { dominantColor = it },
+                        onCollapse = onCollapse,
+                        onPlayPause = onPlayPause,
+                        onSeek = onSeek,
+                        onSkipBack = onSkipBack,
+                        onSkipForward = onSkipForward,
+                        onPreviousChapter = onPreviousChapter,
+                        onNextChapter = onNextChapter,
+                        onSpeedClick = onSpeedClick,
+                        onChaptersClick = onChaptersClick,
+                        onSleepTimerClick = onSleepTimerClick,
+                        onGoToBook = onGoToBook,
+                        onGoToSeries = onGoToSeries,
+                        onGoToContributor = onGoToContributor,
+                        onShowAuthorPicker = onShowAuthorPicker,
+                        onShowNarratorPicker = onShowNarratorPicker,
+                        onCloseBook = onCloseBook,
+                    )
+                } else {
+                    // Tall layout: original vertical layout
+                    TallNowPlayingLayout(
+                        state = state,
+                        sleepTimerState = sleepTimerState,
+                        onColorExtracted = { dominantColor = it },
+                        onCollapse = onCollapse,
+                        onPlayPause = onPlayPause,
+                        onSeek = onSeek,
+                        onSkipBack = onSkipBack,
+                        onSkipForward = onSkipForward,
+                        onPreviousChapter = onPreviousChapter,
+                        onNextChapter = onNextChapter,
+                        onSpeedClick = onSpeedClick,
+                        onChaptersClick = onChaptersClick,
+                        onSleepTimerClick = onSleepTimerClick,
+                        onGoToBook = onGoToBook,
+                        onGoToSeries = onGoToSeries,
+                        onGoToContributor = onGoToContributor,
+                        onShowAuthorPicker = onShowAuthorPicker,
+                        onShowNarratorPicker = onShowNarratorPicker,
+                        onCloseBook = onCloseBook,
                     )
                 }
-
-                Spacer(Modifier.height(24.dp))
-
-                // Title and chapter info
-                TitleSection(
-                    title = state.title,
-                    author = state.author,
-                    chapterTitle = state.chapterTitle,
-                    chapterLabel = state.chapterLabel,
-                )
-
-                Spacer(Modifier.height(24.dp))
-
-                // Chapter seek bar
-                ChapterSeekBar(
-                    progress = state.chapterProgress,
-                    currentTime = state.chapterPosition,
-                    totalTime = state.chapterDuration,
-                    isPlaying = state.isPlaying,
-                    onSeek = onSeek,
-                )
-
-                Spacer(Modifier.height(32.dp))
-
-                // Main controls
-                MainControls(
-                    isPlaying = state.isPlaying,
-                    onPlayPause = onPlayPause,
-                    onSkipBack = onSkipBack,
-                    onSkipForward = onSkipForward,
-                    onPreviousChapter = onPreviousChapter,
-                    onNextChapter = onNextChapter,
-                )
-
-                Spacer(Modifier.height(24.dp))
-
-                // Secondary controls
-                SecondaryControls(
-                    playbackSpeed = state.playbackSpeed,
-                    sleepTimerState = sleepTimerState,
-                    onSpeedClick = onSpeedClick,
-                    onChaptersClick = onChaptersClick,
-                    onSleepTimerClick = onSleepTimerClick,
-                )
-
-                Spacer(Modifier.height(16.dp))
             }
+        }
+    }
+}
+
+/**
+ * Tall (portrait) layout - original vertical arrangement.
+ */
+@Suppress("LongParameterList")
+@Composable
+private fun TallNowPlayingLayout(
+    state: NowPlayingState,
+    sleepTimerState: SleepTimerState,
+    onColorExtracted: (Color) -> Unit,
+    onCollapse: () -> Unit,
+    onPlayPause: () -> Unit,
+    onSeek: (Float) -> Unit,
+    onSkipBack: () -> Unit,
+    onSkipForward: () -> Unit,
+    onPreviousChapter: () -> Unit,
+    onNextChapter: () -> Unit,
+    onSpeedClick: () -> Unit,
+    onChaptersClick: () -> Unit,
+    onSleepTimerClick: () -> Unit,
+    onGoToBook: () -> Unit,
+    onGoToSeries: (String) -> Unit,
+    onGoToContributor: (String) -> Unit,
+    onShowAuthorPicker: () -> Unit,
+    onShowNarratorPicker: () -> Unit,
+    onCloseBook: () -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp),
+    ) {
+        // Top bar with collapse handle and menu
+        NowPlayingTopBar(
+            state = state,
+            onCollapse = onCollapse,
+            onGoToBook = onGoToBook,
+            onGoToSeries = onGoToSeries,
+            onGoToContributor = onGoToContributor,
+            onShowAuthorPicker = onShowAuthorPicker,
+            onShowNarratorPicker = onShowNarratorPicker,
+            onCloseBook = onCloseBook,
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Cover art
+        Box(
+            modifier =
+                Modifier
+                    .weight(0.45f)
+                    .fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+        ) {
+            CoverArt(
+                coverUrl = state.coverUrl,
+                onColorExtracted = onColorExtracted,
+            )
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        // Title and chapter info
+        TitleSection(
+            title = state.title,
+            author = state.author,
+            chapterTitle = state.chapterTitle,
+            chapterLabel = state.chapterLabel,
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        // Chapter seek bar
+        ChapterSeekBar(
+            progress = state.chapterProgress,
+            currentTime = state.chapterPosition,
+            totalTime = state.chapterDuration,
+            isPlaying = state.isPlaying,
+            onSeek = onSeek,
+        )
+
+        Spacer(Modifier.height(32.dp))
+
+        // Main controls
+        MainControls(
+            isPlaying = state.isPlaying,
+            onPlayPause = onPlayPause,
+            onSkipBack = onSkipBack,
+            onSkipForward = onSkipForward,
+            onPreviousChapter = onPreviousChapter,
+            onNextChapter = onNextChapter,
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        // Secondary controls
+        SecondaryControls(
+            playbackSpeed = state.playbackSpeed,
+            sleepTimerState = sleepTimerState,
+            onSpeedClick = onSpeedClick,
+            onChaptersClick = onChaptersClick,
+            onSleepTimerClick = onSleepTimerClick,
+        )
+
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+/**
+ * Wide (landscape/tablet) layout - cover on left, controls on right.
+ */
+@Suppress("LongParameterList", "LongMethod")
+@Composable
+private fun WideNowPlayingLayout(
+    state: NowPlayingState,
+    sleepTimerState: SleepTimerState,
+    dominantColor: Color,
+    onColorExtracted: (Color) -> Unit,
+    onCollapse: () -> Unit,
+    onPlayPause: () -> Unit,
+    onSeek: (Float) -> Unit,
+    onSkipBack: () -> Unit,
+    onSkipForward: () -> Unit,
+    onPreviousChapter: () -> Unit,
+    onNextChapter: () -> Unit,
+    onSpeedClick: () -> Unit,
+    onChaptersClick: () -> Unit,
+    onSleepTimerClick: () -> Unit,
+    onGoToBook: () -> Unit,
+    onGoToSeries: (String) -> Unit,
+    onGoToContributor: (String) -> Unit,
+    onShowAuthorPicker: () -> Unit,
+    onShowNarratorPicker: () -> Unit,
+    onCloseBook: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(32.dp),
+    ) {
+        // Left side: Cover art (takes up ~40% of width)
+        Box(
+            modifier =
+                Modifier
+                    .weight(0.4f)
+                    .fillMaxHeight(),
+            contentAlignment = Alignment.Center,
+        ) {
+            CoverArt(
+                coverUrl = state.coverUrl,
+                onColorExtracted = onColorExtracted,
+            )
+        }
+
+        // Right side: Controls and info
+        Column(
+            modifier =
+                Modifier
+                    .weight(0.6f)
+                    .fillMaxHeight(),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            // Top bar with collapse and menu
+            NowPlayingTopBar(
+                state = state,
+                onCollapse = onCollapse,
+                onGoToBook = onGoToBook,
+                onGoToSeries = onGoToSeries,
+                onGoToContributor = onGoToContributor,
+                onShowAuthorPicker = onShowAuthorPicker,
+                onShowNarratorPicker = onShowNarratorPicker,
+                onCloseBook = onCloseBook,
+            )
+
+            // Title and chapter info (left-aligned for wide layout)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = state.title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    text = state.author,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                state.chapterTitle?.let { chapterTitle ->
+                    Spacer(Modifier.height(8.dp))
+
+                    Text(
+                        text = chapterTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    Text(
+                        text = state.chapterLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // Chapter seek bar
+            ChapterSeekBar(
+                progress = state.chapterProgress,
+                currentTime = state.chapterPosition,
+                totalTime = state.chapterDuration,
+                isPlaying = state.isPlaying,
+                onSeek = onSeek,
+            )
+
+            // Main controls
+            MainControls(
+                isPlaying = state.isPlaying,
+                onPlayPause = onPlayPause,
+                onSkipBack = onSkipBack,
+                onSkipForward = onSkipForward,
+                onPreviousChapter = onPreviousChapter,
+                onNextChapter = onNextChapter,
+            )
+
+            // Secondary controls
+            SecondaryControls(
+                playbackSpeed = state.playbackSpeed,
+                sleepTimerState = sleepTimerState,
+                onSpeedClick = onSpeedClick,
+                onChaptersClick = onChaptersClick,
+                onSleepTimerClick = onSleepTimerClick,
+            )
         }
     }
 }

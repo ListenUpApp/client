@@ -27,8 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
+import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.data.remote.SetupApiContract
 import com.calypsan.listenup.client.data.repository.DeepLinkManager
+import com.calypsan.listenup.client.data.repository.ShortcutAction
+import com.calypsan.listenup.client.data.repository.ShortcutActionManager
 import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
@@ -47,7 +50,10 @@ import com.calypsan.listenup.client.features.admin.backup.RestoreBackupScreen
 import com.calypsan.listenup.client.features.connect.ServerSelectScreen
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
 import com.calypsan.listenup.client.features.invite.InviteRegistrationScreen
+import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
+import com.calypsan.listenup.client.playback.NowPlayingViewModel
+import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.features.settings.SettingsScreen
 import com.calypsan.listenup.client.features.setup.LibrarySetupScreen
 import com.calypsan.listenup.client.features.shell.AppShell
@@ -367,8 +373,14 @@ private fun AuthenticatedNavigation(
     setupApi: SetupApiContract = koinInject(),
     syncRepository: SyncRepository = koinInject(),
     userRepository: UserRepository = koinInject(),
+    shortcutActionManager: ShortcutActionManager = koinInject(),
+    homeRepository: HomeRepository = koinInject(),
 ) {
     val scope = rememberCoroutineScope()
+
+    // ViewModels for shortcut action handling
+    val playerViewModel: PlayerViewModel = koinInject()
+    val nowPlayingViewModel: NowPlayingViewModel = koinInject()
 
     // Library setup check state
     var isCheckingLibrarySetup by remember { mutableStateOf(true) }
@@ -423,6 +435,64 @@ private fun AuthenticatedNavigation(
 
     // App-wide snackbar state - provided to all screens via CompositionLocal
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Handle pending shortcut actions
+    val pendingAction by shortcutActionManager.pendingAction.collectAsState()
+    LaunchedEffect(pendingAction) {
+        val action = pendingAction ?: return@LaunchedEffect
+
+        logger.info { "Processing shortcut action: $action" }
+
+        when (action) {
+            is ShortcutAction.Resume -> {
+                // Get the most recent book and play it
+                val result = homeRepository.getContinueListening(1)
+                if (result is com.calypsan.listenup.client.core.Success && result.data.isNotEmpty()) {
+                    val book = result.data.first()
+                    logger.info { "Resuming book: ${book.title}" }
+                    playerViewModel.playBook(BookId(book.bookId))
+                    nowPlayingViewModel.expand()
+                } else {
+                    logger.warn { "No recent book to resume" }
+                    // Navigate to library as fallback
+                    if (backStack.lastOrNull() != Shell) {
+                        backStack.clear()
+                        backStack.add(Shell)
+                    }
+                    currentShellDestination = ShellDestination.Library
+                }
+            }
+
+            is ShortcutAction.PlayBook -> {
+                logger.info { "Playing book: ${action.bookId}" }
+                playerViewModel.playBook(BookId(action.bookId))
+                nowPlayingViewModel.expand()
+            }
+
+            is ShortcutAction.Search -> {
+                // Navigate to library (search tab)
+                if (backStack.lastOrNull() != Shell) {
+                    backStack.clear()
+                    backStack.add(Shell)
+                }
+                currentShellDestination = ShellDestination.Library
+            }
+
+            is ShortcutAction.SleepTimer -> {
+                // If playing, show sleep timer; otherwise resume + set timer
+                val result = homeRepository.getContinueListening(1)
+                if (result is com.calypsan.listenup.client.core.Success && result.data.isNotEmpty()) {
+                    val book = result.data.first()
+                    playerViewModel.playBook(BookId(book.bookId))
+                    nowPlayingViewModel.expand()
+                    // Let the user interact with sleep timer in the player
+                }
+            }
+        }
+
+        // Consume the action after processing
+        shortcutActionManager.consumeAction()
+    }
 
     // Wrap navigation with NowPlayingHost for persistent mini player
     CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {

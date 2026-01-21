@@ -30,6 +30,17 @@ interface BookRepository {
     suspend fun getBook(id: String): Book?
 
     /**
+     * Get multiple books by IDs in a single batched query.
+     *
+     * More efficient than calling getBook in a loop when loading
+     * multiple books (e.g., for series navigation).
+     *
+     * @param ids List of book IDs to fetch
+     * @return List of books found (may be fewer than requested if some not found)
+     */
+    suspend fun getBooks(ids: List<String>): List<Book>
+
+    /**
      * Get chapters for a book.
      */
     suspend fun getChapters(bookId: String): List<Chapter>
