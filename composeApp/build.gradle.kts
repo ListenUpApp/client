@@ -59,32 +59,14 @@ kotlin {
             implementation(libs.compose.ui.tooling.preview)
             implementation(libs.androidx.activity.compose)
 
-            // Koin for Android
+            // Koin Android-specific
             implementation(libs.koin.android)
-            implementation(libs.koin.compose)
-            implementation(libs.koin.compose.viewmodel)
 
-            // Kotlin libraries for playback
-            implementation(libs.kotlin.logging)
-            implementation(libs.kotlinx.serialization.json)
-            implementation(libs.kotlinx.datetime)
-
-            // Navigation 3 (new declarative navigation API)
-            implementation(libs.androidx.navigation3.runtime)
-            implementation(libs.androidx.navigation3.ui)
+            // Navigation 3 Android-specific (deep linking)
             implementation(libs.androidx.navigation3.ui.android)
-
-            // Material 3 Adaptive - for all screen sizes (phones, tablets, desktops, XR, Auto)
-            implementation(libs.androidx.material3.adaptive)
-            implementation(libs.androidx.material3.adaptive.layout)
-            implementation(libs.androidx.material3.adaptive.navigation)
 
             // WorkManager for background sync
             implementation(libs.androidx.work.runtime.ktx)
-
-            // Coil for image loading
-            implementation(libs.coil.compose)
-            implementation(libs.coil.network.ktor3)
 
             // Material Icons Extended
             implementation(libs.androidx.material.icons.extended)
@@ -117,26 +99,39 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
+            implementation(compose.materialIconsExtended)
             implementation(libs.compose.ui.tooling.preview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(projects.shared)
+
+            // Navigation 3 (multiplatform)
+            implementation(libs.navigation3.ui)
+
+            // Material 3 Adaptive (multiplatform)
+            implementation(libs.material3.adaptive)
+            implementation(libs.material3.adaptive.layout)
+            implementation(libs.material3.adaptive.navigation)
+
+            // Koin (shared across platforms)
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose)
+            implementation(libs.koin.compose.viewmodel)
+
+            // Kotlin libraries (shared)
+            implementation(libs.kotlin.logging)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.collections.immutable)
+
+            // Coil for image loading (multiplatform)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
         }
         val desktopMain by getting {
             dependencies {
-                // Koin for Desktop
-                implementation(libs.koin.core)
-                implementation(libs.koin.compose)
-                implementation(libs.koin.compose.viewmodel)
-
-                // Kotlin libraries
-                implementation(libs.kotlin.logging)
-                implementation(libs.kotlinx.serialization.json)
-                implementation(libs.kotlinx.datetime)
-
-                // Coil for image loading (multiplatform)
-                implementation(libs.coil.compose)
-                implementation(libs.coil.network.ktor3)
+                // Desktop-specific dependencies (if any)
+                // Most dependencies are now in commonMain
             }
         }
         // Note: Android tests use androidHostTest/androidDeviceTest source sets

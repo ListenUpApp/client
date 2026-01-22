@@ -15,7 +15,7 @@ import com.calypsan.listenup.client.composeapp.R
  * Supports dynamic weight and width adjustments for expressive typography.
  */
 @OptIn(ExperimentalTextApi::class)
-val GoogleSans =
+internal val GoogleSans =
     FontFamily(
         Font(
             resId = R.font.google_sans,
@@ -33,7 +33,7 @@ val GoogleSans =
  * Used for display and headline styles to establish visual hierarchy.
  */
 @OptIn(ExperimentalTextApi::class)
-val GoogleSansDisplay =
+internal val GoogleSansDisplay =
     FontFamily(
         Font(
             resId = R.font.google_sans,
@@ -49,7 +49,7 @@ val GoogleSansDisplay =
  * ListenUp typography system using Google Sans Flex.
  * Follows Material 3 Expressive type scale with custom font.
  */
-val ListenUpTypography =
+actual val ListenUpTypography =
     Typography(
         // Display - Hero text, large headlines (condensed for editorial feel)
         displayLarge =

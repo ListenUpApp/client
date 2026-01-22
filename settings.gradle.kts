@@ -25,6 +25,8 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
+        // JetBrains Compose dev repository for alpha libraries (Navigation 3, Material 3 Adaptive)
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     }
 }
 

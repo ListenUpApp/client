@@ -1,6 +1,5 @@
 package com.calypsan.listenup.client.features.auth
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -8,10 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CardDefaults
-import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -21,16 +18,15 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.calypsan.listenup.client.composeapp.R
-import com.calypsan.listenup.client.design.theme.LocalDarkTheme
+import com.calypsan.listenup.client.design.components.BrandLogo
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalStatus
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 
@@ -50,7 +46,7 @@ fun PendingApprovalScreen(
     onNavigateToLogin: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Handle status changes
@@ -84,7 +80,7 @@ fun PendingApprovalScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            BrandLogo()
+            BrandLogo(size = 120.dp)
 
             Spacer(modifier = Modifier.height(48.dp))
 
@@ -183,24 +179,4 @@ fun PendingApprovalScreen(
             }
         }
     }
-}
-
-/**
- * Brand logo section.
- */
-@Composable
-private fun BrandLogo(modifier: Modifier = Modifier) {
-    val isDarkTheme = LocalDarkTheme.current
-    val logoRes =
-        if (isDarkTheme) {
-            R.drawable.listenup_logo_white
-        } else {
-            R.drawable.listenup_logo_black
-        }
-
-    Image(
-        painter = painterResource(logoRes),
-        contentDescription = "ListenUp Logo",
-        modifier = modifier.size(120.dp),
-    )
 }

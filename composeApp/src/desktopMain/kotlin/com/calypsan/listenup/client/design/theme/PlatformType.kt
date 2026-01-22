@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.sp
  * custom fonts on desktop. This provides a native feel on each platform
  * (Segoe UI on Windows, system font on Linux).
  */
-val ListenUpTypography =
+actual val ListenUpTypography =
     Typography(
         // Display - Hero text, large headlines
         displayLarge =

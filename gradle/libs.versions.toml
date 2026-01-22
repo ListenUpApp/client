@@ -40,6 +40,10 @@ skie = "0.10.9"
 # Desktop
 logback = "1.5.25"
 
+# Multiplatform (JetBrains) - using dev builds from compose-dev repo
+navigation3-multiplatform = "1.0.0-alpha06"
+material3-adaptive-multiplatform = "1.2.0"
+
 # Quality Tools
 detekt = "1.23.8"
 spotless = "8.1.0"
@@ -69,10 +73,18 @@ compose-components-resources = { module = "org.jetbrains.compose.components:comp
 # Material Icons
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "androidx-material-icons" }
 
-# Navigation 3 (new declarative navigation API)
+# Navigation 3 (AndroidX - Android only)
 androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "androidx-navigation3" }
 androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "androidx-navigation3" }
 androidx-navigation3-ui-android = { module = "androidx.navigation3:navigation3-ui-android", version.ref = "androidx-navigation3" }
+
+# Navigation 3 (JetBrains Multiplatform) - only navigation3-ui exists on Maven Central
+navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3-multiplatform" }
+
+# Material 3 Adaptive (JetBrains Multiplatform)
+material3-adaptive = { module = "org.jetbrains.compose.material3.adaptive:adaptive", version.ref = "material3-adaptive-multiplatform" }
+material3-adaptive-layout = { module = "org.jetbrains.compose.material3.adaptive:adaptive-layout", version.ref = "material3-adaptive-multiplatform" }
+material3-adaptive-navigation = { module = "org.jetbrains.compose.material3.adaptive:adaptive-navigation", version.ref = "material3-adaptive-multiplatform" }
 
 # Palette (dynamic color extraction from images)
 androidx-palette-ktx = { module = "androidx.palette:palette-ktx", version.ref = "androidx-palette" }

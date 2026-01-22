@@ -1,7 +1,9 @@
 package com.calypsan.listenup.client.design.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
@@ -29,30 +31,46 @@ private val ExpressiveShapes =
 
 /**
  * Composition local for accessing the current theme's dark mode state.
- * Use this instead of checking system theme to respect the app's actual theme.
+ * Use this instead of isSystemInDarkTheme() to respect the app's actual theme,
+ * not just the system setting.
  *
  * Usage: val isDark = LocalDarkTheme.current
  */
 val LocalDarkTheme = staticCompositionLocalOf { false }
 
 /**
- * ListenUp Material 3 theme for desktop.
+ * Platform-specific color scheme selection.
+ *
+ * On Android 12+: Uses dynamic color from system wallpaper when dynamicColor is true.
+ * On Desktop: Always uses the static ListenUp color scheme (ignores dynamicColor).
+ */
+@Composable
+expect fun platformColorScheme(
+    darkTheme: Boolean,
+    dynamicColor: Boolean,
+): ColorScheme
+
+/**
+ * ListenUp Material 3 theme.
  *
  * Features:
- * - Static color scheme (no dynamic color on desktop)
- * - Respects dark/light mode preference
- * - ListenUpOrange seed color
+ * - Dynamic color on Android 12+ (adapts to user's wallpaper)
+ * - Respects system dark/light mode setting
+ * - Fallback to ListenUpOrange seed color on older devices and desktop
  * - Expressive shapes with larger corner radii (20-28dp)
  *
- * @param darkTheme Whether to use dark theme. Defaults to true for desktop.
+ * @param darkTheme Whether to use dark theme. Defaults to system setting.
+ * @param dynamicColor Whether to use dynamic color from system (Android 12+).
+ *                     Defaults to true. Ignored on desktop.
  * @param content The composable content to theme.
  */
 @Composable
 fun ListenUpTheme(
-    darkTheme: Boolean = true,
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = platformColorScheme(darkTheme, dynamicColor)
 
     CompositionLocalProvider(LocalDarkTheme provides darkTheme) {
         MaterialTheme(
