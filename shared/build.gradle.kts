@@ -120,6 +120,7 @@ kotlin {
 
         jvmMain.dependencies {
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.jmdns) // mDNS server discovery
             // Note: SLF4J backend provided by consuming app (desktopApp uses logback)
         }
 

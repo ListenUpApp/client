@@ -3,8 +3,8 @@ package com.calypsan.listenup.client.di
 import com.calypsan.listenup.client.core.JvmSecureStorage
 import com.calypsan.listenup.client.core.SecureStorage
 import com.calypsan.listenup.client.core.ServerUrl
+import com.calypsan.listenup.client.data.discovery.JmDnsDiscoveryService
 import com.calypsan.listenup.client.data.discovery.ServerDiscoveryService
-import com.calypsan.listenup.client.data.discovery.StubDiscoveryService
 import com.calypsan.listenup.client.data.local.images.CommonImageStorage
 import com.calypsan.listenup.client.data.local.images.CoverColorExtractor
 import com.calypsan.listenup.client.data.local.images.JvmCoverColorExtractor
@@ -44,12 +44,11 @@ actual fun getBaseUrl(): String = "http://localhost:8080"
 /**
  * JVM desktop discovery module.
  *
- * Currently provides a stub implementation. Manual server URL entry is required.
- * TODO: Implement JmDNS-based mDNS discovery.
+ * Uses JmDNS for mDNS/Zeroconf server discovery on the local network.
  */
 actual val platformDiscoveryModule: Module =
     module {
-        single { StubDiscoveryService() } bind ServerDiscoveryService::class
+        single { JmDnsDiscoveryService() } bind ServerDiscoveryService::class
     }
 
 /**

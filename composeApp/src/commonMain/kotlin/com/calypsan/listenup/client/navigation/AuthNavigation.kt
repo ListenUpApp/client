@@ -21,6 +21,7 @@ import com.calypsan.listenup.client.features.auth.LoginScreen
 import com.calypsan.listenup.client.features.auth.PendingApprovalScreen
 import com.calypsan.listenup.client.features.auth.RegisterScreen
 import com.calypsan.listenup.client.features.auth.SetupScreen
+import com.calypsan.listenup.client.features.connect.ServerSelectScreen
 import com.calypsan.listenup.client.features.connect.ServerSetupScreen
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 import kotlinx.coroutines.launch
@@ -124,12 +125,11 @@ private fun PendingApprovalNavigation(
 /**
  * Server setup navigation - shown when no server URL is configured.
  *
- * Shows manual server URL entry screen.
- * TODO: Add server discovery (mDNS) for desktop
+ * Shows server discovery via mDNS with option for manual URL entry.
  */
 @Composable
 private fun ServerSetupNavigation() {
-    val backStack = remember { mutableStateListOf<AuthRoute>(ServerSetup) }
+    val backStack = remember { mutableStateListOf<AuthRoute>(ServerSelect) }
 
     NavDisplay(
         backStack = backStack,
@@ -139,12 +139,24 @@ private fun ServerSetupNavigation() {
             }
         },
         entryProvider = entryProvider {
+            entry<ServerSelect> {
+                ServerSelectScreen(
+                    onServerActivated = {
+                        // Server is saved, AuthState will change automatically
+                    },
+                    onManualEntryRequested = {
+                        backStack.add(ServerSetup)
+                    },
+                )
+            }
             entry<ServerSetup> {
                 ServerSetupScreen(
                     onServerVerified = {
                         // Server is saved, AuthState will change automatically
                     },
-                    onBack = null, // No back button on initial setup
+                    onBack = {
+                        backStack.removeAt(backStack.lastIndex)
+                    },
                 )
             }
         },

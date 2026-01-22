@@ -1,0 +1,393 @@
+@file:Suppress("StringLiteralDuplication")
+
+package com.calypsan.listenup.client.features.connect
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.design.components.BrandLogo
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
+import com.calypsan.listenup.client.domain.model.ServerWithStatus
+import com.calypsan.listenup.client.presentation.connect.ServerSelectUiEvent
+import com.calypsan.listenup.client.presentation.connect.ServerSelectUiState
+import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
+import org.koin.compose.koinInject
+
+/**
+ * Server selection screen showing discovered and saved servers.
+ *
+ * Features:
+ * - Lists servers discovered via mDNS with online status
+ * - Shows previously connected servers (may be offline)
+ * - Option to add a server manually via URL
+ * - Refresh button to restart discovery
+ *
+ * @param onServerActivated Callback when a server is selected and activated
+ * @param onManualEntryRequested Callback when user wants to enter URL manually
+ * @param modifier Modifier for the root composable
+ */
+@Composable
+fun ServerSelectScreen(
+    onServerActivated: () -> Unit,
+    onManualEntryRequested: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: ServerSelectViewModel = koinInject(),
+) {
+    val state by viewModel.state.collectAsState()
+    val navigationEvent by viewModel.navigationEvents.collectAsState()
+
+    // Handle navigation events
+    LaunchedEffect(navigationEvent) {
+        when (navigationEvent) {
+            ServerSelectViewModel.NavigationEvent.ServerActivated -> {
+                viewModel.onNavigationHandled()
+                onServerActivated()
+            }
+
+            ServerSelectViewModel.NavigationEvent.GoToManualEntry -> {
+                viewModel.onNavigationHandled()
+                onManualEntryRequested()
+            }
+
+            null -> {}
+        }
+    }
+
+    ServerSelectContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Stateless content for ServerSelectScreen.
+ */
+@Composable
+private fun ServerSelectContent(
+    state: ServerSelectUiState,
+    onEvent: (ServerSelectUiEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) { innerPadding ->
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Logo
+            BrandLogo(size = 120.dp)
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Title with refresh button
+            Row(
+                modifier =
+                    Modifier
+                        .widthIn(max = 480.dp)
+                        .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Select Server",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                IconButton(
+                    onClick = { onEvent(ServerSelectUiEvent.RefreshClicked) },
+                    enabled = !state.isDiscovering,
+                ) {
+                    if (state.isDiscovering) {
+                        ListenUpLoadingIndicatorSmall()
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Server list
+            LazyColumn(
+                modifier =
+                    Modifier
+                        .widthIn(max = 480.dp)
+                        .fillMaxWidth()
+                        .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // Discovered/saved servers
+                items(
+                    items = state.servers,
+                    key = { it.server.id },
+                ) { serverWithStatus ->
+                    ServerCard(
+                        serverWithStatus = serverWithStatus,
+                        isSelected = state.selectedServerId == serverWithStatus.server.id,
+                        isConnecting = state.isConnecting && state.selectedServerId == serverWithStatus.server.id,
+                        onClick = { onEvent(ServerSelectUiEvent.ServerSelected(serverWithStatus)) },
+                    )
+                }
+
+                // Empty state
+                if (state.servers.isEmpty() && !state.isDiscovering) {
+                    item {
+                        EmptyState()
+                    }
+                }
+
+                // Manual entry option
+                item {
+                    ManualEntryCard(
+                        onClick = { onEvent(ServerSelectUiEvent.ManualEntryClicked) },
+                    )
+                }
+
+                // Bottom spacing
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Card displaying a server with its online status.
+ */
+@Suppress("CognitiveComplexMethod")
+@Composable
+private fun ServerCard(
+    serverWithStatus: ServerWithStatus,
+    isSelected: Boolean,
+    isConnecting: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val server = serverWithStatus.server
+    val isOnline = serverWithStatus.isOnline
+
+    Card(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(enabled = !isConnecting) { onClick() },
+        shape = MaterialTheme.shapes.medium,
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = server.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color =
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Online indicator
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isOnline) {
+                                        MaterialTheme.colorScheme.tertiary
+                                    } else {
+                                        MaterialTheme.colorScheme.outline
+                                    },
+                                ),
+                    )
+                    Text(
+                        text = if (isOnline) "Online" else "Offline",
+                        style = MaterialTheme.typography.bodySmall,
+                        color =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                    )
+                    // Server version
+                    server.serverVersion.takeIf { it != "unknown" }?.let { version ->
+                        Text(
+                            text = "v$version",
+                            style = MaterialTheme.typography.bodySmall,
+                            color =
+                                if (isSelected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                },
+                        )
+                    }
+                }
+            }
+
+            // Loading or check indicator
+            AnimatedVisibility(
+                visible = isConnecting || isSelected,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                if (isConnecting) {
+                    ListenUpLoadingIndicatorSmall()
+                } else if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Card for manual server entry option.
+ */
+@Composable
+private fun ManualEntryCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable { onClick() },
+        shape = MaterialTheme.shapes.medium,
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Column {
+                Text(
+                    text = "Add Server Manually",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Enter server URL directly",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Empty state when no servers are discovered.
+ */
+@Composable
+private fun EmptyState(modifier: Modifier = Modifier) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "No servers found",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Make sure your ListenUp server is running on the same network",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+        )
+    }
+}
