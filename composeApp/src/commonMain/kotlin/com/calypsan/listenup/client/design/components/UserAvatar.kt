@@ -27,9 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.calypsan.listenup.client.domain.model.User
@@ -66,7 +66,7 @@ fun UserAvatar(
     onSignOutClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
+    val platformContext = LocalPlatformContext.current
     val serverConfig: ServerConfig = koinInject()
     val imageStorage: ImageStorage = koinInject()
     val serverUrl by produceState<String?>(null) {
@@ -105,7 +105,7 @@ fun UserAvatar(
                     AsyncImage(
                         model =
                             ImageRequest
-                                .Builder(context)
+                                .Builder(platformContext)
                                 .data(localPath)
                                 .memoryCacheKey("${user.id}-avatar-$lastModified")
                                 .diskCacheKey("${user.id}-avatar-$lastModified")
@@ -123,7 +123,7 @@ fun UserAvatar(
                     AsyncImage(
                         model =
                             ImageRequest
-                                .Builder(context)
+                                .Builder(platformContext)
                                 .data(avatarUrl)
                                 .memoryCachePolicy(CachePolicy.DISABLED)
                                 .diskCachePolicy(CachePolicy.DISABLED)
@@ -248,9 +248,9 @@ fun avatarColorForUser(userId: String): Color {
  * Extract initials from a display name.
  *
  * Logic:
- * - Two+ words: First letter of first two words (e.g., "John Doe" → "JD")
- * - One word with 2+ chars: First two letters (e.g., "Admin" → "AD")
- * - Single char: That character (e.g., "X" → "X")
+ * - Two+ words: First letter of first two words (e.g., "John Doe" -> "JD")
+ * - One word with 2+ chars: First two letters (e.g., "Admin" -> "AD")
+ * - Single char: That character (e.g., "X" -> "X")
  *
  * @param displayName The user's display name
  * @return Uppercase initials string

@@ -4,6 +4,7 @@ package com.calypsan.listenup.client.features.shell
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -13,6 +14,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,23 +23,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.domain.model.SyncState
+import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.SyncStatusRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
-import com.calypsan.listenup.client.features.discover.DiscoverScreen
-import com.calypsan.listenup.client.features.home.HomeScreen
-import com.calypsan.listenup.client.features.library.LibraryScreen
-import com.calypsan.listenup.client.features.search.SearchResultsOverlay
 import com.calypsan.listenup.client.features.shell.components.AppNavigationBar
 import com.calypsan.listenup.client.features.shell.components.AppNavigationDrawer
 import com.calypsan.listenup.client.features.shell.components.AppNavigationRail
 import com.calypsan.listenup.client.features.shell.components.AppTopBar
 import com.calypsan.listenup.client.features.shell.components.SyncDetailsSheet
-import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.search.SearchNavAction
 import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
@@ -57,16 +54,26 @@ private val logger = KotlinLogging.logger {}
  * - Top bar with collapsible search, sync indicator, user avatar
  * - Content area switching between Home, Library, Discover
  * - Reserved slot for future Now Playing bar
- * - Bottom navigation bar
+ * - Bottom navigation bar (compact), navigation rail (medium), or drawer (expanded)
+ *
+ * The shell is platform-agnostic. Content for each destination is provided via lambdas,
+ * allowing platform-specific navigation to supply the actual screen implementations.
  *
  * @param currentDestination Current bottom nav tab (state lifted to survive navigation)
  * @param onDestinationChange Callback when bottom nav tab changes
  * @param onBookClick Callback when a book is clicked (navigates to detail)
  * @param onSeriesClick Callback when a series is clicked (navigates to detail)
  * @param onContributorClick Callback when a contributor is clicked (author or narrator)
+ * @param onLensClick Callback when a lens is clicked
+ * @param onTagClick Callback when a tag is clicked
  * @param onAdminClick Callback when administration is clicked (only shown for admin users)
  * @param onSettingsClick Callback when settings is clicked
  * @param onSignOut Callback when sign out is triggered
+ * @param onUserProfileClick Callback when a user profile is clicked
+ * @param homeContent Content composable for Home destination
+ * @param libraryContent Content composable for Library destination
+ * @param discoverContent Content composable for Discover destination
+ * @param searchOverlayContent Optional search overlay content
  */
 @Suppress("LongMethod")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,22 +90,21 @@ fun AppShell(
     onSettingsClick: () -> Unit,
     onSignOut: () -> Unit,
     onUserProfileClick: (userId: String) -> Unit,
+    homeContent: @Composable (PaddingValues, topBarCollapseFraction: Float, onNavigateToLibrary: () -> Unit) -> Unit,
+    libraryContent: @Composable (PaddingValues, topBarCollapseFraction: Float) -> Unit,
+    discoverContent: @Composable (PaddingValues) -> Unit,
+    searchOverlayContent: @Composable (PaddingValues) -> Unit = {},
 ) {
     // Inject dependencies
     val syncRepository: SyncRepository = koinInject()
     val userRepository: UserRepository = koinInject()
     val syncStatusRepository: SyncStatusRepository = koinInject()
-    val authSession: com.calypsan.listenup.client.domain.repository.AuthSession = koinInject()
+    val authSession: AuthSession = koinInject()
     val searchViewModel: SearchViewModel = koinViewModel()
     val syncIndicatorViewModel: SyncIndicatorViewModel = koinViewModel()
 
-    // Preload library data by injecting LibraryViewModel (singleton) early.
-    // This starts Room database queries immediately, so Library tab loads instantly.
-    // The @Suppress is needed because we're intentionally not using the value directly.
-    @Suppress("UNUSED_VARIABLE")
-    val libraryViewModel: LibraryViewModel = koinInject()
-
     // Trigger sync on shell entry (not just when Library is visible)
+    val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         val isAuthenticated = authSession.getAccessToken() != null
         val lastSyncTime = syncStatusRepository.getLastSyncTime()
@@ -108,7 +114,6 @@ fun AppShell(
     }
 
     // Fetch user data if missing from database but authenticated
-    // This handles the case where database was cleared but tokens remain
     LaunchedEffect(Unit) {
         val hasTokens = authSession.getAccessToken() != null
         val existingUser = userRepository.getCurrentUser()
@@ -119,13 +124,13 @@ fun AppShell(
         }
     }
 
-    // Collect reactive state
-    val syncState by syncRepository.syncState.collectAsStateWithLifecycle()
-    val user by userRepository.observeCurrentUser().collectAsStateWithLifecycle(initialValue = null)
-    val searchState by searchViewModel.state.collectAsStateWithLifecycle()
-    val searchNavAction by searchViewModel.navActions.collectAsStateWithLifecycle()
-    val syncIndicatorState by syncIndicatorViewModel.state.collectAsStateWithLifecycle()
-    val isSyncDetailsExpanded by syncIndicatorViewModel.isExpanded.collectAsStateWithLifecycle()
+    // Collect reactive state - use collectAsState for multiplatform compatibility
+    val syncState by syncRepository.syncState.collectAsState()
+    val user by userRepository.observeCurrentUser().collectAsState(initial = null)
+    val searchState by searchViewModel.state.collectAsState()
+    val searchNavAction by searchViewModel.navActions.collectAsState()
+    val syncIndicatorState by syncIndicatorViewModel.state.collectAsState()
+    val isSyncDetailsExpanded by syncIndicatorViewModel.isExpanded.collectAsState()
 
     // Handle search navigation
     LaunchedEffect(searchNavAction) {
@@ -153,9 +158,6 @@ fun AppShell(
             null -> {}
         }
     }
-
-    // Coroutine scope for async operations
-    val scope = rememberCoroutineScope()
 
     // Local UI state
     var isAvatarMenuExpanded by remember { mutableStateOf(false) }
@@ -195,7 +197,6 @@ fun AppShell(
     }
 
     // Scroll behavior for collapsing top bar
-    // enterAlwaysScrollBehavior: hides on scroll down, shows immediately on scroll up
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     // Derive collapse fraction for child components (0 = expanded, 1 = fully collapsed)
@@ -274,56 +275,29 @@ fun AppShell(
     }
 
     // Common content configuration
-    val shellContent: @Composable (androidx.compose.foundation.layout.PaddingValues) -> Unit = { padding ->
+    val shellContent: @Composable (PaddingValues) -> Unit = { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             // Content based on current destination
             when (currentDestination) {
                 ShellDestination.Home -> {
-                    HomeScreen(
-                        onBookClick = onBookClick,
-                        onNavigateToLibrary = { onDestinationChange(ShellDestination.Library) },
-                        onLensClick = onLensClick,
-                        // TODO: Navigate to lenses tab
-                        onSeeAllLenses = { onDestinationChange(ShellDestination.Library) },
-                        modifier = Modifier.padding(padding),
+                    homeContent(
+                        padding,
+                        topBarCollapseFraction,
+                        { onDestinationChange(ShellDestination.Library) },
                     )
                 }
 
                 ShellDestination.Library -> {
-                    LibraryScreen(
-                        onBookClick = onBookClick,
-                        onSeriesClick = onSeriesClick,
-                        onAuthorClick = onContributorClick,
-                        onNarratorClick = onContributorClick,
-                        topBarCollapseFraction = topBarCollapseFraction,
-                        modifier = Modifier.padding(padding),
-                    )
+                    libraryContent(padding, topBarCollapseFraction)
                 }
 
                 ShellDestination.Discover -> {
-                    DiscoverScreen(
-                        onLensClick = onLensClick,
-                        onBookClick = onBookClick,
-                        onUserProfileClick = onUserProfileClick,
-                        modifier = Modifier.padding(padding),
-                    )
+                    discoverContent(padding)
                 }
             }
 
             // Search results overlay (floats above content when search is active)
-            SearchResultsOverlay(
-                state = searchState,
-                onResultClick = { hit ->
-                    searchViewModel.onEvent(SearchUiEvent.ResultClicked(hit))
-                },
-                onTypeFilterToggle = { type ->
-                    searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
-                },
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-            )
+            searchOverlayContent(padding)
         }
     }
 

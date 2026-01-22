@@ -54,10 +54,17 @@ import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.features.nowplaying.NowPlayingHost
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
 import com.calypsan.listenup.client.playback.PlayerViewModel
+import com.calypsan.listenup.client.features.discover.DiscoverScreen
+import com.calypsan.listenup.client.features.home.HomeScreen
+import com.calypsan.listenup.client.features.library.LibraryScreen
+import com.calypsan.listenup.client.features.search.SearchResultsOverlay
 import com.calypsan.listenup.client.features.settings.SettingsScreen
 import com.calypsan.listenup.client.features.setup.LibrarySetupScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
+import com.calypsan.listenup.client.presentation.library.LibraryViewModel
+import com.calypsan.listenup.client.presentation.search.SearchUiEvent
+import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
@@ -241,7 +248,7 @@ private fun LoadingScreen(message: String = "Loading...") {
  */
 @Composable
 private fun ServerSetupNavigation() {
-    val backStack = remember { mutableStateListOf<Route>(ServerSelect) }
+    val backStack = remember { mutableStateListOf<AuthRoute>(ServerSelect) }
 
     NavDisplay(
         backStack = backStack,
@@ -283,7 +290,7 @@ private fun ServerSetupNavigation() {
  */
 @Composable
 private fun SetupNavigation() {
-    val backStack = remember { mutableStateListOf<Route>(Setup) }
+    val backStack = remember { mutableStateListOf<AuthRoute>(Setup) }
 
     NavDisplay(
         backStack = backStack,
@@ -309,7 +316,7 @@ private fun LoginNavigation(
     openRegistration: Boolean,
 ) {
     val scope = rememberCoroutineScope()
-    val backStack = remember { mutableStateListOf<Route>(Login) }
+    val backStack = remember { mutableStateListOf<AuthRoute>(Login) }
     val serverConfig: com.calypsan.listenup.client.domain.repository.ServerConfig = koinInject()
 
     // Refresh open registration value from server
@@ -519,6 +526,14 @@ private fun AuthenticatedNavigation(
                 entryProvider =
                     entryProvider {
                         entry<Shell> {
+                            // Preload library data by injecting LibraryViewModel early
+                            @Suppress("UNUSED_VARIABLE")
+                            val libraryViewModel: LibraryViewModel = koinInject()
+
+                            // Get search state for overlay
+                            val searchViewModel: SearchViewModel = koinInject()
+                            val searchState by searchViewModel.state.collectAsState()
+
                             AppShell(
                                 currentDestination = currentShellDestination,
                                 onDestinationChange = { currentShellDestination = it },
@@ -553,6 +568,47 @@ private fun AuthenticatedNavigation(
                                 },
                                 onUserProfileClick = { userId ->
                                     backStack.add(UserProfile(userId))
+                                },
+                                homeContent = { padding, _, onNavigateToLibrary ->
+                                    HomeScreen(
+                                        onBookClick = { bookId -> backStack.add(BookDetail(bookId)) },
+                                        onNavigateToLibrary = onNavigateToLibrary,
+                                        onLensClick = { lensId -> backStack.add(LensDetail(lensId)) },
+                                        onSeeAllLenses = onNavigateToLibrary,
+                                        modifier = Modifier.padding(padding),
+                                    )
+                                },
+                                libraryContent = { padding, topBarCollapseFraction ->
+                                    LibraryScreen(
+                                        onBookClick = { bookId -> backStack.add(BookDetail(bookId)) },
+                                        onSeriesClick = { seriesId -> backStack.add(SeriesDetail(seriesId)) },
+                                        onAuthorClick = { authorId -> backStack.add(ContributorDetail(authorId)) },
+                                        onNarratorClick = { narratorId -> backStack.add(ContributorDetail(narratorId)) },
+                                        topBarCollapseFraction = topBarCollapseFraction,
+                                        modifier = Modifier.padding(padding),
+                                    )
+                                },
+                                discoverContent = { padding ->
+                                    DiscoverScreen(
+                                        onLensClick = { lensId -> backStack.add(LensDetail(lensId)) },
+                                        onBookClick = { bookId -> backStack.add(BookDetail(bookId)) },
+                                        onUserProfileClick = { userId -> backStack.add(UserProfile(userId)) },
+                                        modifier = Modifier.padding(padding),
+                                    )
+                                },
+                                searchOverlayContent = { padding ->
+                                    SearchResultsOverlay(
+                                        state = searchState,
+                                        onResultClick = { hit ->
+                                            searchViewModel.onEvent(SearchUiEvent.ResultClicked(hit))
+                                        },
+                                        onTypeFilterToggle = { type ->
+                                            searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(padding),
+                                    )
                                 },
                             )
                         }
