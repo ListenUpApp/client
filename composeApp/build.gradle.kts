@@ -41,8 +41,18 @@ kotlin {
         }
     }
 
-    // Future: Add desktop target here when ready
-    // jvm("desktop")
+    // JVM target for desktop (Windows/Linux)
+    jvm("desktop") {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+            freeCompilerArgs.addAll(
+                "-Xexpect-actual-classes",
+                "-Xreturn-value-checker=check",
+                "-Xexplicit-backing-fields",
+                "-Xskip-prerelease-check", // Skip pre-release Kotlin metadata check
+            )
+        }
+    }
 
     sourceSets {
         androidMain.dependencies {
@@ -111,6 +121,23 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(projects.shared)
+        }
+        val desktopMain by getting {
+            dependencies {
+                // Koin for Desktop
+                implementation(libs.koin.core)
+                implementation(libs.koin.compose)
+                implementation(libs.koin.compose.viewmodel)
+
+                // Kotlin libraries
+                implementation(libs.kotlin.logging)
+                implementation(libs.kotlinx.serialization.json)
+                implementation(libs.kotlinx.datetime)
+
+                // Coil for image loading (multiplatform)
+                implementation(libs.coil.compose)
+                implementation(libs.coil.network.ktor3)
+            }
         }
         // Note: Android tests use androidHostTest/androidDeviceTest source sets
         // with the new KMP plugin. Add test dependencies there when needed.

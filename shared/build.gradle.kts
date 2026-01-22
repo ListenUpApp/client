@@ -120,12 +120,13 @@ kotlin {
 
         jvmMain.dependencies {
             implementation(libs.ktor.client.okhttp)
-            implementation(libs.slf4j.simple)
+            // Note: SLF4J backend provided by consuming app (desktopApp uses logback)
         }
 
         jvmTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.slf4j.simple) // Simple backend for tests only
         }
 
         commonTest.dependencies {
