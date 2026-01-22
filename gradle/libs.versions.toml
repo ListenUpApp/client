@@ -23,6 +23,7 @@ kotlinx-io = "0.8.2"
 koin = "4.2.0-beta3"
 kotlin-logging = "7.0.14"
 slf4j-android = "2.0.17-0"
+slf4j = "2.0.17"
 room = "2.8.4"
 room-sqlite = "2.6.2"
 androidx-work = "2.11.0"
@@ -100,6 +101,7 @@ koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
 # Logging
 kotlin-logging = { group = "io.github.oshai", name = "kotlin-logging", version.ref = "kotlin-logging" }
 slf4j-android = { group = "uk.uuid.slf4j", name = "slf4j-android", version.ref = "slf4j-android" }
+slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
 
 # Testing
 mokkery-runtime = { group = "dev.mokkery", name = "mokkery-runtime", version.ref = "mokkery" }

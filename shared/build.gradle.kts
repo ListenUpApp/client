@@ -11,6 +11,9 @@ plugins {
 }
 
 kotlin {
+    // JVM target for desktop (Windows/Linux)
+    jvm()
+
     // Android target using new AGP 9.0-compatible plugin
     androidLibrary {
         namespace = "com.calypsan.listenup.client.shared"
@@ -115,6 +118,16 @@ kotlin {
             implementation(libs.ktor.client.darwin)
         }
 
+        jvmMain.dependencies {
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.slf4j.simple)
+        }
+
+        jvmTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+        }
+
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.mokkery.runtime)
@@ -140,6 +153,9 @@ dependencies {
     // iOS targets
     add("kspIosArm64", libs.androidx.room.compiler)
     add("kspIosSimulatorArm64", libs.androidx.room.compiler)
+
+    // JVM target (desktop)
+    add("kspJvm", libs.androidx.room.compiler)
 }
 
 // SKIE configuration for enhanced Swift interop
