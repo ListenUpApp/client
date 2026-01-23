@@ -84,8 +84,6 @@ kotlin {
             // Palette for dynamic color extraction from cover art
             implementation(libs.androidx.palette.ktx)
 
-            // Markdown Rendering
-            implementation(libs.markdown.renderer.m3)
 
             // BlurHash for image placeholders
             implementation(libs.blurhash)
@@ -117,6 +115,9 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
+
+            // Markdown Rendering (multiplatform)
+            implementation(libs.markdown.renderer.m3)
 
             // Kotlin libraries (shared)
             implementation(libs.kotlin.logging)

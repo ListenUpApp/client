@@ -2,6 +2,8 @@ package com.calypsan.listenup.client.di
 
 import com.calypsan.listenup.client.core.IODispatcher
 import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
+import com.calypsan.listenup.client.features.bookdetail.BookDetailPlatformActions
+import com.calypsan.listenup.client.features.bookdetail.NoOpBookDetailPlatformActions
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.platform.DesktopAudioTokenProvider
@@ -13,6 +15,7 @@ import com.calypsan.listenup.client.playback.ProgressTracker
 import com.calypsan.listenup.client.playback.SleepTimerManager
 import com.calypsan.listenup.client.sync.BackgroundSyncScheduler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
@@ -34,6 +37,11 @@ import java.util.UUID
  */
 val platformModule: Module =
     module {
+        // Application-scoped coroutine scope for background operations
+        single {
+            CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        }
+
         // Playback-scoped coroutine scope
         single(qualifier = named("playbackScope")) {
             CoroutineScope(SupervisorJob() + IODispatcher)
@@ -103,4 +111,7 @@ val platformModule: Module =
 
         // Background sync scheduler (stub)
         single<BackgroundSyncScheduler> { StubBackgroundSyncScheduler() }
+
+        // Book detail platform actions (no-op - downloads/playback not yet on Desktop)
+        single<BookDetailPlatformActions> { NoOpBookDetailPlatformActions() }
     }

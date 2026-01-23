@@ -49,6 +49,8 @@ internal val GoogleSansDisplay =
  * ListenUp typography system using Google Sans Flex.
  * Follows Material 3 Expressive type scale with custom font.
  */
+actual val DisplayFontFamily: FontFamily = GoogleSansDisplay
+
 actual val ListenUpTypography =
     Typography(
         // Display - Hero text, large headlines (condensed for editorial feel)

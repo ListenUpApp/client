@@ -9,23 +9,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
+import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.features.bookdetail.BookDetailScreen
+import com.calypsan.listenup.client.features.contributordetail.ContributorDetailScreen
+import com.calypsan.listenup.client.features.lens.LensDetailScreen
+import com.calypsan.listenup.client.features.library.LibraryScreen
+import com.calypsan.listenup.client.features.seriesdetail.SeriesDetailScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
+import com.calypsan.listenup.client.features.tagdetail.TagDetailScreen
 import com.calypsan.listenup.client.navigation.AuthNavigation
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.launch
@@ -34,14 +44,23 @@ import org.koin.compose.koinInject
 private val logger = KotlinLogging.logger {}
 
 /**
+ * Detail screen destinations for the desktop back stack.
+ */
+sealed interface DetailDestination {
+    data class Book(val bookId: String) : DetailDestination
+    data class Series(val seriesId: String) : DetailDestination
+    data class Contributor(val contributorId: String) : DetailDestination
+    data class Lens(val lensId: String) : DetailDestination
+    data class Tag(val tagId: String) : DetailDestination
+}
+
+/**
  * Root composable for the desktop application.
  *
  * Handles:
  * - Authentication flow via shared AuthNavigation
  * - Navigation to main app shell after authentication
- *
- * Uses shared AppShell for adaptive navigation (bottom nav, rail, drawer).
- * Content screens are placeholders until Phase 2 migrates them to commonMain.
+ * - Detail screen navigation via back stack overlay
  */
 @Composable
 fun DesktopApp() {
@@ -61,79 +80,139 @@ fun DesktopApp() {
 /**
  * Navigation for authenticated desktop users.
  *
- * Uses the shared AppShell with placeholder screen content.
- * Screen implementations will be shared in Phase 2.
+ * Uses a back stack to overlay detail screens on top of the shell.
+ * When the back stack is empty, the shell is shown. When non-empty,
+ * the top destination is rendered as the current screen.
  */
 @Composable
 private fun DesktopAuthenticatedNavigation() {
     val scope = rememberCoroutineScope()
     val authSession: AuthSession = koinInject()
     val libraryResetHelper: LibraryResetHelperContract = koinInject()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var currentDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
+    val backStack: SnapshotStateList<DetailDestination> = remember { emptyList<DetailDestination>().toMutableStateList() }
 
-    AppShell(
-        currentDestination = currentDestination,
-        onDestinationChange = { currentDestination = it },
-        onBookClick = { bookId ->
-            logger.info { "Book clicked: $bookId (detail screen coming in Phase 2)" }
-        },
-        onSeriesClick = { seriesId ->
-            logger.info { "Series clicked: $seriesId (detail screen coming in Phase 2)" }
-        },
-        onContributorClick = { contributorId ->
-            logger.info { "Contributor clicked: $contributorId (detail screen coming in Phase 2)" }
-        },
-        onLensClick = { lensId ->
-            logger.info { "Lens clicked: $lensId (detail screen coming in Phase 2)" }
-        },
-        onTagClick = { tagId ->
-            logger.info { "Tag clicked: $tagId (detail screen coming in Phase 2)" }
-        },
-        onAdminClick = {
-            logger.info { "Admin clicked (admin screen coming in Phase 3)" }
-        },
-        onSettingsClick = {
-            logger.info { "Settings clicked (settings screen coming in Phase 3)" }
-        },
-        onSignOut = {
-            scope.launch {
-                logger.info { "Signing out..." }
-                libraryResetHelper.clearLibraryData()
-                authSession.clearAuthTokens()
-            }
-        },
-        onUserProfileClick = { userId ->
-            logger.info { "User profile clicked: $userId (profile screen coming in Phase 3)" }
-        },
-        homeContent = { padding, _, _ ->
-            PlaceholderScreen(
-                title = "Home",
-                description = "Your personal landing page with continue listening, up next, and stats.",
-                icon = { Icon(Icons.Default.Home, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
-                padding = padding,
+    val navigateTo: (DetailDestination) -> Unit = { backStack.add(it) }
+    val navigateBack: () -> Unit = { backStack.removeLastOrNull() }
+
+    CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
+        if (backStack.isNotEmpty()) {
+            DetailScreen(
+                destination = backStack.last(),
+                navigateTo = navigateTo,
+                navigateBack = navigateBack,
             )
-        },
-        libraryContent = { padding, _ ->
-            PlaceholderScreen(
-                title = "Library",
-                description = "Browse your full audiobook collection. Coming in Phase 2.",
-                icon = { Icon(Icons.AutoMirrored.Filled.LibraryBooks, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
-                padding = padding,
+        } else {
+            AppShell(
+                currentDestination = currentDestination,
+                onDestinationChange = { currentDestination = it },
+                onBookClick = { navigateTo(DetailDestination.Book(it)) },
+                onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
+                onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
+                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
+                onTagClick = { navigateTo(DetailDestination.Tag(it)) },
+                onAdminClick = {
+                    logger.info { "Admin clicked (admin screen not yet migrated)" }
+                },
+                onSettingsClick = {
+                    logger.info { "Settings clicked (settings screen not yet migrated)" }
+                },
+                onSignOut = {
+                    scope.launch {
+                        logger.info { "Signing out..." }
+                        libraryResetHelper.clearLibraryData()
+                        authSession.clearAuthTokens()
+                    }
+                },
+                onUserProfileClick = { userId ->
+                    logger.info { "User profile clicked: $userId (profile screen not yet migrated)" }
+                },
+                homeContent = { padding, _, _ ->
+                    PlaceholderScreen(
+                        title = "Home",
+                        description = "Your personal landing page with continue listening, up next, and stats.",
+                        icon = { Icon(Icons.Default.Home, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
+                        padding = padding,
+                    )
+                },
+                libraryContent = { padding, topBarCollapseFraction ->
+                    LibraryScreen(
+                        onBookClick = { navigateTo(DetailDestination.Book(it)) },
+                        onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
+                        onAuthorClick = { navigateTo(DetailDestination.Contributor(it)) },
+                        onNarratorClick = { navigateTo(DetailDestination.Contributor(it)) },
+                        topBarCollapseFraction = topBarCollapseFraction,
+                        modifier = Modifier.padding(padding),
+                    )
+                },
+                discoverContent = { padding ->
+                    PlaceholderScreen(
+                        title = "Discover",
+                        description = "Social features and recommendations.",
+                        icon = { Icon(Icons.Default.Explore, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
+                        padding = padding,
+                    )
+                },
+                searchOverlayContent = { _ ->
+                    // Search overlay will be added later
+                },
             )
-        },
-        discoverContent = { padding ->
-            PlaceholderScreen(
-                title = "Discover",
-                description = "Social features and recommendations. Coming in Phase 2.",
-                icon = { Icon(Icons.Default.Explore, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
-                padding = padding,
-            )
-        },
-        searchOverlayContent = { _ ->
-            // Search overlay will be added in Phase 2
-        },
-    )
+        }
+    }
+}
+
+/**
+ * Renders the appropriate detail screen for the given destination.
+ */
+@Composable
+private fun DetailScreen(
+    destination: DetailDestination,
+    navigateTo: (DetailDestination) -> Unit,
+    navigateBack: () -> Unit,
+) {
+    when (destination) {
+        is DetailDestination.Book -> BookDetailScreen(
+            bookId = destination.bookId,
+            onBackClick = navigateBack,
+            onEditClick = { logger.info { "Book edit: $it (not yet migrated)" } },
+            onMetadataSearchClick = { logger.info { "Metadata search: $it (not yet migrated)" } },
+            onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
+            onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
+            onTagClick = { navigateTo(DetailDestination.Tag(it)) },
+            onUserProfileClick = { logger.info { "User profile: $it (not yet migrated)" } },
+        )
+
+        is DetailDestination.Series -> SeriesDetailScreen(
+            seriesId = destination.seriesId,
+            onBackClick = navigateBack,
+            onBookClick = { navigateTo(DetailDestination.Book(it)) },
+            onEditClick = { logger.info { "Series edit: $it (not yet migrated)" } },
+        )
+
+        is DetailDestination.Contributor -> ContributorDetailScreen(
+            contributorId = destination.contributorId,
+            onBackClick = navigateBack,
+            onBookClick = { navigateTo(DetailDestination.Book(it)) },
+            onEditClick = { logger.info { "Contributor edit: $it (not yet migrated)" } },
+            onViewAllClick = { id, role -> logger.info { "Contributor books: $id/$role (not yet migrated)" } },
+            onMetadataClick = { logger.info { "Contributor metadata: $it (not yet migrated)" } },
+        )
+
+        is DetailDestination.Lens -> LensDetailScreen(
+            lensId = destination.lensId,
+            onBack = navigateBack,
+            onBookClick = { navigateTo(DetailDestination.Book(it)) },
+            onEditClick = { logger.info { "Lens edit: $it (not yet migrated)" } },
+        )
+
+        is DetailDestination.Tag -> TagDetailScreen(
+            tagId = destination.tagId,
+            onBackClick = navigateBack,
+            onBookClick = { navigateTo(DetailDestination.Book(it)) },
+        )
+    }
 }
 
 /**

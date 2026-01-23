@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.design.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.font.FontFamily
 
 /**
  * ListenUp typography system.
@@ -10,3 +11,12 @@ import androidx.compose.material3.Typography
  * - Desktop: Uses system sans-serif font for native platform feel
  */
 expect val ListenUpTypography: Typography
+
+/**
+ * Display font family for hero text and editorial-style headlines.
+ *
+ * Platform-specific implementations:
+ * - Android: Google Sans Flex with condensed width (95f) and semibold weight
+ * - Desktop: System sans-serif (matches platform conventions)
+ */
+expect val DisplayFontFamily: FontFamily

@@ -1,0 +1,61 @@
+package com.calypsan.listenup.client.features.bookdetail
+
+import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import com.calypsan.listenup.client.download.DownloadResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+
+/**
+ * Platform-specific actions for the Book Detail screen.
+ *
+ * Android: Provides full download management and playback via WorkManager + Media3
+ * Desktop: No-op implementation (downloads and playback not yet available)
+ */
+interface BookDetailPlatformActions {
+    /** Whether download/playback features are available on this platform */
+    val isPlaybackAvailable: Boolean
+
+    /** Observe download status for a book */
+    fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus>
+
+    /** Start downloading a book */
+    suspend fun downloadBook(bookId: BookId): DownloadResult
+
+    /** Cancel an in-progress download */
+    suspend fun cancelDownload(bookId: BookId)
+
+    /** Delete downloaded files for a book */
+    suspend fun deleteDownload(bookId: BookId)
+
+    /** Start playback for a book */
+    fun playBook(bookId: BookId)
+
+    /** Observe WiFi-only downloads preference */
+    fun observeWifiOnlyDownloads(): Flow<Boolean>
+
+    /** Observe whether device is on unmetered network */
+    fun observeIsOnUnmeteredNetwork(): Flow<Boolean>
+}
+
+/**
+ * No-op implementation for platforms without download/playback support.
+ */
+class NoOpBookDetailPlatformActions : BookDetailPlatformActions {
+    override val isPlaybackAvailable: Boolean = false
+
+    override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
+        flowOf(BookDownloadStatus.notDownloaded(bookId.value))
+
+    override suspend fun downloadBook(bookId: BookId): DownloadResult = DownloadResult.Error("Not available on this platform")
+
+    override suspend fun cancelDownload(bookId: BookId) {}
+
+    override suspend fun deleteDownload(bookId: BookId) {}
+
+    override fun playBook(bookId: BookId) {}
+
+    override fun observeWifiOnlyDownloads(): Flow<Boolean> = flowOf(false)
+
+    override fun observeIsOnUnmeteredNetwork(): Flow<Boolean> = flowOf(true)
+}
