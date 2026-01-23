@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -18,17 +19,20 @@ import androidx.compose.runtime.Composable
 
 /**
  * Dropdown menu for book actions.
- * Shows Edit, Find Metadata, Mark Complete, Add to Collection.
+ * Shows Edit, Find Metadata, Mark Complete, Discard Progress, Add to Lens.
  * Delete is shown only for admin users.
  *
  * @param expanded Whether the menu is currently showing
  * @param onDismiss Called when the menu should be dismissed
  * @param isComplete Whether the book is marked as complete
+ * @param hasProgress Whether the book has any playback progress
  * @param isAdmin Whether the current user is an admin
  * @param onEditClick Called when Edit Book is clicked
  * @param onFindMetadataClick Called when Find Metadata is clicked
  * @param onMarkCompleteClick Called when Mark as Complete/Not Started is clicked
- * @param onAddToCollectionClick Called when Add to Collection is clicked
+ * @param onDiscardProgressClick Called when Discard Progress is clicked
+ * @param onAddToLensClick Called when Add to Lens is clicked
+ * @param onAddToCollectionClick Called when Add to Collection is clicked (admin only)
  * @param onDeleteClick Called when Delete Book is clicked (admin only)
  */
 @Suppress("LongParameterList")
@@ -37,10 +41,13 @@ fun BookActionsMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
     isComplete: Boolean,
+    hasProgress: Boolean,
     isAdmin: Boolean,
     onEditClick: () -> Unit,
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
+    onDiscardProgressClick: () -> Unit,
+    onAddToLensClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
@@ -91,6 +98,32 @@ fun BookActionsMenu(
                 )
             },
             onClick = onMarkCompleteClick,
+        )
+
+        // Discard Progress (only when there is progress to discard)
+        if (hasProgress) {
+            DropdownMenuItem(
+                text = { Text("Discard Progress") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.RestartAlt,
+                        contentDescription = null,
+                    )
+                },
+                onClick = onDiscardProgressClick,
+            )
+        }
+
+        // Add to Lens
+        DropdownMenuItem(
+            text = { Text("Add to Lens") },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                    contentDescription = null,
+                )
+            },
+            onClick = onAddToLensClick,
         )
 
         // Add to Collection (admin only)

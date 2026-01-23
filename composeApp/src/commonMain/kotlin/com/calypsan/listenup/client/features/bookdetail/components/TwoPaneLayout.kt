@@ -72,6 +72,7 @@ fun TwoPaneBookDetail(
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
+    hasProgress: Boolean,
     isAdmin: Boolean,
     isWaitingForWifi: Boolean,
     showPlaybackActions: Boolean = true,
@@ -79,6 +80,8 @@ fun TwoPaneBookDetail(
     onEditClick: () -> Unit,
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
+    onDiscardProgressClick: () -> Unit,
+    onAddToLensClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
@@ -108,11 +111,14 @@ fun TwoPaneBookDetail(
             showPlaybackActions = showPlaybackActions,
             coverColors = coverColors,
             isComplete = isComplete,
+            hasProgress = hasProgress,
             isAdmin = isAdmin,
             onBackClick = onBackClick,
             onEditClick = onEditClick,
             onFindMetadataClick = onFindMetadataClick,
             onMarkCompleteClick = onMarkCompleteClick,
+            onDiscardProgressClick = onDiscardProgressClick,
+            onAddToLensClick = onAddToLensClick,
             onAddToCollectionClick = onAddToCollectionClick,
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
@@ -151,11 +157,14 @@ private fun TwoPaneLeftPane(
     showPlaybackActions: Boolean,
     coverColors: CoverColors,
     isComplete: Boolean,
+    hasProgress: Boolean,
     isAdmin: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
+    onDiscardProgressClick: () -> Unit,
+    onAddToLensClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
@@ -249,6 +258,7 @@ private fun TwoPaneLeftPane(
                         expanded = showMenu,
                         onDismiss = { showMenu = false },
                         isComplete = isComplete,
+                        hasProgress = hasProgress,
                         isAdmin = isAdmin,
                         onEditClick = {
                             showMenu = false
@@ -261,6 +271,14 @@ private fun TwoPaneLeftPane(
                         onMarkCompleteClick = {
                             showMenu = false
                             onMarkCompleteClick()
+                        },
+                        onDiscardProgressClick = {
+                            showMenu = false
+                            onDiscardProgressClick()
+                        },
+                        onAddToLensClick = {
+                            showMenu = false
+                            onAddToLensClick()
                         },
                         onAddToCollectionClick = {
                             showMenu = false

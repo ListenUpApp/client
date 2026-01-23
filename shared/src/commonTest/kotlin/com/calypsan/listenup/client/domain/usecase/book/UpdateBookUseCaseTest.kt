@@ -86,6 +86,7 @@ class UpdateBookUseCaseTest {
 
     private fun createMetadata(
         title: String = "Test Book",
+        sortTitle: String = "",
         subtitle: String = "",
         description: String = "",
         publishYear: String = "",
@@ -98,6 +99,7 @@ class UpdateBookUseCaseTest {
     ): BookMetadata =
         BookMetadata(
             title = title,
+            sortTitle = sortTitle,
             subtitle = subtitle,
             description = description,
             publishYear = publishYear,

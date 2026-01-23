@@ -33,6 +33,7 @@ interface BookEditRepository {
     suspend fun updateBook(
         bookId: String,
         title: String? = null,
+        sortTitle: String? = null,
         subtitle: String? = null,
         description: String? = null,
         publisher: String? = null,

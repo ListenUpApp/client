@@ -33,6 +33,7 @@ import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SSEEventType
+import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.download.DownloadService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -83,6 +84,7 @@ class SSEEventProcessor(
     private val activeSessionDao: ActiveSessionDao,
     private val userStatsDao: UserStatsDao,
     private val playbackPositionDao: PlaybackPositionDao,
+    private val sessionRepository: SessionRepository,
     private val imageDownloader: ImageDownloaderContract,
     private val playbackStateProvider: PlaybackStateProvider,
     private val downloadService: DownloadService,
@@ -665,12 +667,17 @@ class SSEEventProcessor(
         }
     }
 
-    private fun handleReadingSessionUpdated(event: SSEEventType.ReadingSessionUpdated) {
+    private suspend fun handleReadingSessionUpdated(event: SSEEventType.ReadingSessionUpdated) {
         logger.info {
             "SSE: Reading session ${event.sessionId} updated for book ${event.bookId} - completed=${event.isCompleted}"
         }
-        // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
-        // Book detail/readers screens can listen for this to refresh
+        // Refresh reading sessions cache in Room for offline-first display.
+        // When the user later visits this book's detail page, readers data is already available.
+        try {
+            sessionRepository.refreshBookReaders(event.bookId)
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to refresh readers for book ${event.bookId}" }
+        }
     }
 
     private suspend fun handleListeningEventCreated(event: SSEEventType.ListeningEventCreated) {

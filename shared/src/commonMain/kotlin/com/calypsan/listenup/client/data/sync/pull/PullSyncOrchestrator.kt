@@ -25,6 +25,7 @@ class PullSyncOrchestrator(
     private val listeningEventPuller: ListeningEventPullerContract,
     private val progressPuller: Puller,
     private val activeSessionsPuller: Puller,
+    private val readingSessionsPuller: Puller,
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
 ) {
@@ -95,6 +96,9 @@ class PullSyncOrchestrator(
 
                 // Pull active sessions for "What Others Are Listening To" discovery section
                 activeSessionsPuller.pull(updatedAfter, onProgress)
+
+                // Pull reading sessions for offline-first "Readers" section on book detail pages
+                readingSessionsPuller.pull(updatedAfter, onProgress)
             }
 
             onProgress(

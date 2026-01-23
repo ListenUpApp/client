@@ -67,6 +67,7 @@ class BookEditRepositoryImpl(
     override suspend fun updateBook(
         bookId: String,
         title: String?,
+        sortTitle: String?,
         subtitle: String?,
         description: String?,
         publisher: String?,
@@ -90,6 +91,7 @@ class BookEditRepositoryImpl(
             val updated =
                 existing.copy(
                     title = title ?: existing.title,
+                    sortTitle = sortTitle ?: existing.sortTitle,
                     subtitle = subtitle ?: existing.subtitle,
                     description = description ?: existing.description,
                     publisher = publisher ?: existing.publisher,
@@ -107,6 +109,7 @@ class BookEditRepositoryImpl(
             val payload =
                 BookUpdatePayload(
                     title = title,
+                    sortTitle = sortTitle,
                     subtitle = subtitle,
                     description = description,
                     publisher = publisher,

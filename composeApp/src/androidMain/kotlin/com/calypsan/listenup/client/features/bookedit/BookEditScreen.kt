@@ -359,7 +359,9 @@ private fun SingleColumnCardsLayout(
         // Card 4: Library
         StudioCard(title = "Library") {
             LibrarySection(
+                sortTitle = state.sortTitle,
                 addedAt = state.addedAt,
+                onSortTitleChange = { onEvent(BookEditUiEvent.SortTitleChanged(it)) },
                 onAddedAtChange = { onEvent(BookEditUiEvent.AddedAtChanged(it)) },
             )
         }
@@ -497,7 +499,9 @@ private fun TwoColumnCardsLayout(
 
                 StudioCard(title = "Library") {
                     LibrarySection(
+                        sortTitle = state.sortTitle,
                         addedAt = state.addedAt,
+                        onSortTitleChange = { onEvent(BookEditUiEvent.SortTitleChanged(it)) },
                         onAddedAtChange = { onEvent(BookEditUiEvent.AddedAtChanged(it)) },
                     )
                 }

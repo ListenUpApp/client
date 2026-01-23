@@ -21,6 +21,7 @@ data class BookSeries(
 data class Book(
     val id: BookId,
     val title: String,
+    val sortTitle: String? = null,
     val subtitle: String? = null,
     val authors: List<BookContributor>,
     val narrators: List<BookContributor>,

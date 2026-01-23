@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.design.components.ListenUpTextField
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -37,12 +38,22 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibrarySection(
+    sortTitle: String,
     addedAt: Long?,
+    onSortTitleChange: (String) -> Unit,
     onAddedAtChange: (Long?) -> Unit,
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Sort Title
+        ListenUpTextField(
+            value = sortTitle,
+            onValueChange = onSortTitleChange,
+            label = "Sort Title",
+            placeholder = "e.g., \"Lord of the Rings, The\"",
+        )
+
         // Date Added picker
         DatePickerField(
             label = "Date Added",

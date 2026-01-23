@@ -40,15 +40,18 @@ import com.calypsan.listenup.client.design.components.rememberCoverColors
 import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import com.calypsan.listenup.client.domain.repository.UserRepository
+import com.calypsan.listenup.client.domain.model.Lens
 import com.calypsan.listenup.client.download.DownloadResult
+import com.calypsan.listenup.client.features.library.LensPickerSheet
 import com.calypsan.listenup.client.features.bookdetail.components.BookReadersSection
 import com.calypsan.listenup.client.features.bookdetail.components.ChapterListItem
 import com.calypsan.listenup.client.features.bookdetail.components.ChaptersHeader
 import com.calypsan.listenup.client.features.bookdetail.components.ContextMetadataSection
 import com.calypsan.listenup.client.features.bookdetail.components.DescriptionSection
 import com.calypsan.listenup.client.features.bookdetail.components.HeroSection
+import com.calypsan.listenup.client.features.bookdetail.components.MarkCompleteDialog
 import com.calypsan.listenup.client.features.bookdetail.components.PrimaryActionsSection
-import com.calypsan.listenup.client.features.bookdetail.components.TalentSection
+import com.calypsan.listenup.client.features.bookdetail.components.TalentSectionWithRoles
 import com.calypsan.listenup.client.features.bookdetail.components.TwoPaneBookDetail
 import com.calypsan.listenup.client.presentation.bookdetail.BookDetailUiState
 import com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel
@@ -113,6 +116,7 @@ fun BookDetailScreen(
             !isOnUnmeteredNetwork
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showMarkCompleteDialog by remember { mutableStateOf(false) }
 
     // Callback for opening metadata search
     val onFindMetadataClick: () -> Unit = {
@@ -151,6 +155,7 @@ fun BookDetailScreen(
                     state = state,
                     downloadStatus = downloadStatus,
                     isComplete = state.isComplete,
+                    hasProgress = state.progress != null,
                     isAdmin = isAdmin,
                     isWaitingForWifi = isWaitingForWifi,
                     showPlaybackActions = platformActions.isPlaybackAvailable,
@@ -161,9 +166,11 @@ fun BookDetailScreen(
                         if (state.isComplete) {
                             viewModel.restartBook() // "Mark as Not Started" = restart
                         } else {
-                            viewModel.markComplete()
+                            showMarkCompleteDialog = true
                         }
                     },
+                    onDiscardProgressClick = { viewModel.discardProgress() },
+                    onAddToLensClick = { viewModel.showLensPicker() },
                     onAddToCollectionClick = { /* TODO: Implement */ },
                     onDeleteBookClick = { /* TODO: Implement */ },
                     onPlayClick = { platformActions.playBook(BookId(bookId)) },
@@ -218,6 +225,37 @@ fun BookDetailScreen(
             onDismiss = { showDeleteDialog = false },
         )
     }
+
+    if (showMarkCompleteDialog) {
+        MarkCompleteDialog(
+            startedAtMs = state.startedAtMs,
+            onConfirm = { startedAt, finishedAt ->
+                viewModel.markComplete(startedAt = startedAt, finishedAt = finishedAt)
+                showMarkCompleteDialog = false
+            },
+            onDismiss = { showMarkCompleteDialog = false },
+        )
+    }
+
+    if (state.showLensPicker) {
+        val myLenses by viewModel.myLenses.collectAsState()
+
+        LensPickerSheet(
+            lenses = myLenses,
+            selectedBookCount = 1,
+            onLensSelected = { lensId -> viewModel.addBookToLens(lensId) },
+            onCreateAndAddToLens = { name -> viewModel.createLensAndAddBook(name) },
+            onDismiss = { viewModel.hideLensPicker() },
+            isLoading = state.isAddingToLens,
+        )
+    }
+
+    state.lensError?.let { error ->
+        LaunchedEffect(error) {
+            snackbarHostState.showSnackbar(error)
+            viewModel.clearLensError()
+        }
+    }
 }
 
 /**
@@ -231,6 +269,7 @@ fun BookDetailContent(
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
+    hasProgress: Boolean,
     isAdmin: Boolean,
     isWaitingForWifi: Boolean,
     showPlaybackActions: Boolean,
@@ -238,6 +277,8 @@ fun BookDetailContent(
     onEditClick: () -> Unit,
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
+    onDiscardProgressClick: () -> Unit,
+    onAddToLensClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
@@ -263,6 +304,7 @@ fun BookDetailContent(
             state = state,
             downloadStatus = downloadStatus,
             isComplete = isComplete,
+            hasProgress = hasProgress,
             isAdmin = isAdmin,
             isWaitingForWifi = isWaitingForWifi,
             showPlaybackActions = showPlaybackActions,
@@ -270,6 +312,8 @@ fun BookDetailContent(
             onEditClick = onEditClick,
             onFindMetadataClick = onFindMetadataClick,
             onMarkCompleteClick = onMarkCompleteClick,
+            onDiscardProgressClick = onDiscardProgressClick,
+            onAddToLensClick = onAddToLensClick,
             onAddToCollectionClick = onAddToCollectionClick,
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
@@ -287,6 +331,7 @@ fun BookDetailContent(
             state = state,
             downloadStatus = downloadStatus,
             isComplete = isComplete,
+            hasProgress = hasProgress,
             isAdmin = isAdmin,
             isWaitingForWifi = isWaitingForWifi,
             showPlaybackActions = showPlaybackActions,
@@ -294,6 +339,8 @@ fun BookDetailContent(
             onEditClick = onEditClick,
             onFindMetadataClick = onFindMetadataClick,
             onMarkCompleteClick = onMarkCompleteClick,
+            onDiscardProgressClick = onDiscardProgressClick,
+            onAddToLensClick = onAddToLensClick,
             onAddToCollectionClick = onAddToCollectionClick,
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
@@ -323,6 +370,7 @@ private fun ImmersiveBookDetail(
     state: BookDetailUiState,
     downloadStatus: BookDownloadStatus,
     isComplete: Boolean,
+    hasProgress: Boolean,
     isAdmin: Boolean,
     isWaitingForWifi: Boolean,
     showPlaybackActions: Boolean,
@@ -330,6 +378,8 @@ private fun ImmersiveBookDetail(
     onEditClick: () -> Unit,
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
+    onDiscardProgressClick: () -> Unit,
+    onAddToLensClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
@@ -370,11 +420,14 @@ private fun ImmersiveBookDetail(
                 timeRemaining = state.timeRemainingFormatted,
                 coverColors = coverColors,
                 isComplete = state.isComplete,
+                hasProgress = hasProgress,
                 isAdmin = state.isAdmin,
                 onBackClick = onBackClick,
                 onEditClick = onEditClick,
                 onFindMetadataClick = onFindMetadataClick,
                 onMarkCompleteClick = onMarkCompleteClick,
+                onDiscardProgressClick = onDiscardProgressClick,
+                onAddToLensClick = onAddToLensClick,
                 onAddToCollectionClick = onAddToCollectionClick,
                 onDeleteClick = onDeleteBookClick,
             )
@@ -382,9 +435,10 @@ private fun ImmersiveBookDetail(
 
         // 2. THE TALENT - Who made this
         item {
-            TalentSection(
+            TalentSectionWithRoles(
                 authors = state.book?.authors ?: emptyList(),
                 narrators = state.book?.narrators ?: emptyList(),
+                allContributors = state.book?.allContributors ?: emptyList(),
                 onContributorClick = onContributorClick,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )

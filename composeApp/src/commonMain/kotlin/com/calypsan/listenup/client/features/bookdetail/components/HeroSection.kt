@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -56,11 +55,14 @@ fun HeroSection(
     timeRemaining: String?,
     coverColors: CoverColors,
     isComplete: Boolean,
+    hasProgress: Boolean,
     isAdmin: Boolean,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
+    onDiscardProgressClick: () -> Unit,
+    onAddToLensClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
@@ -94,7 +96,6 @@ fun HeroSection(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = 480.dp)
                 .background(
                     Brush.verticalGradient(gradientColors),
                 ),
@@ -111,10 +112,13 @@ fun HeroSection(
             HeroNavigationBar(
                 onBackClick = onBackClick,
                 isComplete = isComplete,
+                hasProgress = hasProgress,
                 isAdmin = isAdmin,
                 onEditClick = onEditClick,
                 onFindMetadataClick = onFindMetadataClick,
                 onMarkCompleteClick = onMarkCompleteClick,
+                onDiscardProgressClick = onDiscardProgressClick,
+                onAddToLensClick = onAddToLensClick,
                 onAddToCollectionClick = onAddToCollectionClick,
                 onDeleteClick = onDeleteClick,
             )
@@ -172,10 +176,13 @@ fun HeroSection(
 private fun HeroNavigationBar(
     onBackClick: () -> Unit,
     isComplete: Boolean,
+    hasProgress: Boolean,
     isAdmin: Boolean,
     onEditClick: () -> Unit,
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
+    onDiscardProgressClick: () -> Unit,
+    onAddToLensClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
@@ -230,6 +237,7 @@ private fun HeroNavigationBar(
                 expanded = showMenu,
                 onDismiss = { showMenu = false },
                 isComplete = isComplete,
+                hasProgress = hasProgress,
                 isAdmin = isAdmin,
                 onEditClick = {
                     showMenu = false
@@ -242,6 +250,14 @@ private fun HeroNavigationBar(
                 onMarkCompleteClick = {
                     showMenu = false
                     onMarkCompleteClick()
+                },
+                onDiscardProgressClick = {
+                    showMenu = false
+                    onDiscardProgressClick()
+                },
+                onAddToLensClick = {
+                    showMenu = false
+                    onAddToLensClick()
                 },
                 onAddToCollectionClick = {
                     showMenu = false

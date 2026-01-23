@@ -4,20 +4,26 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Genre
+import com.calypsan.listenup.client.domain.model.Lens
 import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.GenreRepository
+import com.calypsan.listenup.client.domain.repository.LensRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
+import com.calypsan.listenup.client.domain.usecase.lens.AddBooksToLensUseCase
+import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -36,6 +42,9 @@ class BookDetailViewModel(
     private val tagRepository: TagRepository,
     private val playbackPositionRepository: PlaybackPositionRepository,
     private val userRepository: UserRepository,
+    private val lensRepository: LensRepository,
+    private val addBooksToLensUseCase: AddBooksToLensUseCase,
+    private val createLensUseCase: CreateLensUseCase,
 ) : ViewModel() {
     val state: StateFlow<BookDetailUiState>
         field = MutableStateFlow(BookDetailUiState())
@@ -102,6 +111,20 @@ class BookDetailViewModel(
         }
     }
 
+    /**
+     * User's lenses for the lens picker sheet.
+     */
+    val myLenses: StateFlow<List<Lens>> =
+        userRepository
+            .observeCurrentUser()
+            .flatMapLatest { user ->
+                if (user != null) {
+                    lensRepository.observeMyLenses(user.id.value)
+                } else {
+                    flowOf(emptyList())
+                }
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun loadBook(bookId: String) {
         viewModelScope.launch {
             state.value = state.value.copy(isLoading = true)
@@ -165,6 +188,7 @@ class BookDetailViewModel(
                         rating = book.rating,
                         chapters = chapters,
                         isComplete = isComplete,
+                        startedAtMs = position?.startedAtMs,
                         progress = if (progress != null && progress > 0f && !isComplete) progress else null,
                         timeRemainingFormatted = timeRemaining,
                         addedAt = book.addedAt.epochMillis,
@@ -267,16 +291,19 @@ class BookDetailViewModel(
     }
 
     /**
-     * Mark the current book as complete.
+     * Mark the current book as complete with optional date overrides.
+     *
+     * @param startedAt Optional start date in epoch milliseconds
+     * @param finishedAt Optional finish date in epoch milliseconds
      */
-    fun markComplete() {
+    fun markComplete(startedAt: Long? = null, finishedAt: Long? = null) {
         val bookId =
             state.value.book
                 ?.id
                 ?.value ?: return
         viewModelScope.launch {
             state.update { it.copy(isMarkingComplete = true) }
-            when (playbackPositionRepository.markComplete(bookId)) {
+            when (playbackPositionRepository.markComplete(bookId, startedAt, finishedAt)) {
                 is Success -> {
                     state.update { it.copy(isMarkingComplete = false, isComplete = true) }
                     logger.info { "Marked book $bookId as complete" }
@@ -350,6 +377,75 @@ class BookDetailViewModel(
             }
         }
     }
+    /**
+     * Add the current book to an existing lens.
+     */
+    fun addBookToLens(lensId: String) {
+        val bookId =
+            state.value.book
+                ?.id
+                ?.value ?: return
+        viewModelScope.launch {
+            state.update { it.copy(isAddingToLens = true) }
+            when (val result = addBooksToLensUseCase(lensId, listOf(bookId))) {
+                is Success -> {
+                    state.update { it.copy(isAddingToLens = false, showLensPicker = false) }
+                    logger.info { "Added book $bookId to lens $lensId" }
+                }
+
+                is Failure -> {
+                    state.update { it.copy(isAddingToLens = false, lensError = result.message) }
+                    logger.error { "Failed to add book $bookId to lens $lensId: ${result.message}" }
+                }
+            }
+        }
+    }
+
+    /**
+     * Create a new lens and add the current book to it.
+     */
+    fun createLensAndAddBook(name: String) {
+        val bookId =
+            state.value.book
+                ?.id
+                ?.value ?: return
+        viewModelScope.launch {
+            state.update { it.copy(isAddingToLens = true) }
+            when (val result = createLensUseCase(name, null)) {
+                is Success -> {
+                    val lens = result.data
+                    when (val addResult = addBooksToLensUseCase(lens.id, listOf(bookId))) {
+                        is Success -> {
+                            state.update { it.copy(isAddingToLens = false, showLensPicker = false) }
+                            logger.info { "Created lens '${lens.name}' and added book $bookId" }
+                        }
+
+                        is Failure -> {
+                            state.update { it.copy(isAddingToLens = false, lensError = addResult.message) }
+                            logger.error { "Created lens but failed to add book $bookId: ${addResult.message}" }
+                        }
+                    }
+                }
+
+                is Failure -> {
+                    state.update { it.copy(isAddingToLens = false, lensError = result.message) }
+                    logger.error { "Failed to create lens '$name': ${result.message}" }
+                }
+            }
+        }
+    }
+
+    fun clearLensError() {
+        state.update { it.copy(lensError = null) }
+    }
+
+    fun showLensPicker() {
+        state.update { it.copy(showLensPicker = true) }
+    }
+
+    fun hideLensPicker() {
+        state.update { it.copy(showLensPicker = false) }
+    }
 }
 
 data class BookDetailUiState(
@@ -358,6 +454,8 @@ data class BookDetailUiState(
     val error: String? = null,
     val isAdmin: Boolean = false,
     val isComplete: Boolean = false,
+    // Existing started-at for pre-populating the mark-complete dialog
+    val startedAtMs: Long? = null,
     // Loading states for progress management actions
     val isMarkingComplete: Boolean = false,
     val isDiscardingProgress: Boolean = false,
@@ -382,6 +480,10 @@ data class BookDetailUiState(
     val allTags: List<Tag> = emptyList(),
     val isLoadingTags: Boolean = false,
     val showTagPicker: Boolean = false,
+    // Lens picker
+    val showLensPicker: Boolean = false,
+    val isAddingToLens: Boolean = false,
+    val lensError: String? = null,
 )
 
 data class ChapterUiModel(

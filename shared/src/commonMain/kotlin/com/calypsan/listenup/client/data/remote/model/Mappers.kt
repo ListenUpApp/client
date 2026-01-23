@@ -35,6 +35,7 @@ fun BookResponse.toEntity(): BookEntity =
     BookEntity(
         id = BookId(id),
         title = title,
+        sortTitle = sortTitle,
         subtitle = subtitle,
         coverUrl = coverImage?.path,
         coverBlurHash = coverImage?.blurHash,

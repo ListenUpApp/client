@@ -31,6 +31,7 @@ import com.calypsan.listenup.client.data.remote.model.BookContributorResponse
 import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.BookSeriesInfoResponse
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
+import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.data.sync.SSEEventType
 import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.download.DownloadService
@@ -125,6 +126,7 @@ class SSEEventProcessorTest {
         val activeSessionDao: ActiveSessionDao = mock()
         val userStatsDao: UserStatsDao = mock()
         val playbackPositionDao: PlaybackPositionDao = mock()
+        val sessionRepository: SessionRepository = mock()
         val imageDownloader: ImageDownloaderContract = mock()
         val playbackStateProvider: PlaybackStateProvider = mock()
         val downloadService: DownloadService = mock()
@@ -162,6 +164,7 @@ class SSEEventProcessorTest {
             everySuspend { activeSessionDao.deleteBySessionId(any()) } returns Unit
             everySuspend { userStatsDao.upsert(any<UserStatsEntity>()) } returns Unit
             everySuspend { playbackPositionDao.delete(any()) } returns Unit
+            everySuspend { sessionRepository.refreshBookReaders(any()) } returns Unit
             everySuspend { imageDownloader.downloadCover(any()) } returns Result.Success(false)
             everySuspend { imageDownloader.downloadUserAvatar(any(), any()) } returns Result.Success(false)
             everySuspend { imageDownloader.deleteUserAvatar(any()) } returns Result.Success(Unit)
@@ -200,6 +203,7 @@ class SSEEventProcessorTest {
                 activeSessionDao = activeSessionDao,
                 userStatsDao = userStatsDao,
                 playbackPositionDao = playbackPositionDao,
+                sessionRepository = sessionRepository,
                 imageDownloader = imageDownloader,
                 playbackStateProvider = playbackStateProvider,
                 downloadService = downloadService,

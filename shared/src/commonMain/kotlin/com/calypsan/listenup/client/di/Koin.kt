@@ -102,6 +102,7 @@ import com.calypsan.listenup.client.data.sync.pull.GenrePuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPullerContract
 import com.calypsan.listenup.client.data.sync.pull.ProgressPuller
+import com.calypsan.listenup.client.data.sync.pull.ReadingSessionPuller
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
@@ -352,6 +353,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().activeSessionDao() }
         single { get<ListenUpDatabase>().activityDao() }
         single { get<ListenUpDatabase>().userStatsDao() }
+        single { get<ListenUpDatabase>().readingSessionDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
         // When active server's URL changes via mDNS rediscovery, updates ServerConfig
@@ -858,6 +860,7 @@ val syncModule =
                 activeSessionDao = get(),
                 userStatsDao = get(),
                 playbackPositionDao = get(),
+                sessionRepository = get(),
                 imageDownloader = get(),
                 playbackStateProvider = get<PlaybackManager>(),
                 downloadService = get(),
@@ -977,6 +980,18 @@ val syncModule =
             )
         }
 
+        // ReadingSessionPuller - syncs book reader summaries for offline-first Readers section
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("readingSessionsPuller"),
+        ) {
+            ReadingSessionPuller(
+                syncApi = get(),
+                readingSessionDao = get(),
+            )
+        }
+
         // ProgressPuller - syncs all playback progress including isFinished status
         // Essential for cross-device sync, fresh installs, and ABS import
         single<Puller>(
@@ -1035,6 +1050,12 @@ val syncModule =
                         qualifier =
                             org.koin.core.qualifier
                                 .named("activeSessionsPuller"),
+                    ),
+                readingSessionsPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("readingSessionsPuller"),
                     ),
                 coordinator = get(),
                 syncDao = get(),
@@ -1353,9 +1374,8 @@ val syncModule =
         single<SessionRepository> {
             SessionRepositoryImpl(
                 sessionApi = get(),
-                readingSessionDao = get<ListenUpDatabase>().readingSessionDao(),
+                readingSessionDao = get(),
                 authSession = get(),
-                repositoryScope = get(),
             )
         }
 

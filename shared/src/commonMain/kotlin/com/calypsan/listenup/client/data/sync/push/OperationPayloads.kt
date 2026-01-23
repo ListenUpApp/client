@@ -12,6 +12,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class BookUpdatePayload(
     val title: String? = null,
+    @SerialName("sort_title")
+    val sortTitle: String? = null,
     val subtitle: String? = null,
     val description: String? = null,
     val publisher: String? = null,

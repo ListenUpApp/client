@@ -128,6 +128,7 @@ class BookEditViewModel(
                             isLoading = false,
                             coverPath = editData.coverPath,
                             title = editData.metadata.title,
+                            sortTitle = editData.metadata.sortTitle,
                             subtitle = editData.metadata.subtitle,
                             description = editData.metadata.description,
                             publishYear = editData.metadata.publishYear,
@@ -169,6 +170,11 @@ class BookEditViewModel(
             // Metadata changes - handled directly
             is BookEditUiEvent.TitleChanged -> {
                 _state.update { it.copy(title = event.title) }
+                updateHasChanges()
+            }
+
+            is BookEditUiEvent.SortTitleChanged -> {
+                _state.update { it.copy(sortTitle = event.sortTitle) }
                 updateHasChanges()
             }
 
@@ -416,6 +422,7 @@ class BookEditViewModel(
     private fun BookEditUiState.toMetadata(): BookMetadata =
         BookMetadata(
             title = title,
+            sortTitle = sortTitle,
             subtitle = subtitle,
             description = description,
             publishYear = publishYear,

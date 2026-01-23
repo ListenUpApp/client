@@ -26,6 +26,7 @@ data class BookEditData(
  */
 data class BookMetadata(
     val title: String,
+    val sortTitle: String,
     val subtitle: String,
     val description: String,
     val publishYear: String,

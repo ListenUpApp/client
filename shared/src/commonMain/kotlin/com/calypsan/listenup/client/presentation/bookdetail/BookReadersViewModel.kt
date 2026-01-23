@@ -188,7 +188,7 @@ class BookReadersViewModel(
  * UI state for the Book Readers screen.
  */
 data class BookReadersUiState(
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
     val yourSessions: List<SessionSummary> = emptyList(),
     val currentUserReaderInfo: ReaderInfo? = null,
     val otherReaders: List<ReaderInfo> = emptyList(),

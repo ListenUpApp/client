@@ -40,6 +40,7 @@ class PullSyncOrchestratorTest {
         val listeningEventPuller: ListeningEventPullerContract = mock()
         val progressPuller: Puller = mock()
         val activeSessionsPuller: Puller = mock()
+        val readingSessionsPuller: Puller = mock()
         val syncDao: SyncDao = mock()
 
         // Use real coordinator for simpler testing
@@ -55,6 +56,7 @@ class PullSyncOrchestratorTest {
             everySuspend { listeningEventPuller.pull(any(), any()) } returns Unit
             everySuspend { progressPuller.pull(any(), any()) } returns Unit
             everySuspend { activeSessionsPuller.pull(any(), any()) } returns Unit
+            everySuspend { readingSessionsPuller.pull(any(), any()) } returns Unit
             everySuspend { syncDao.getValue(SyncDao.KEY_LAST_SYNC_BOOKS) } returns null
         }
 
@@ -68,6 +70,7 @@ class PullSyncOrchestratorTest {
                 listeningEventPuller = listeningEventPuller,
                 progressPuller = progressPuller,
                 activeSessionsPuller = activeSessionsPuller,
+                readingSessionsPuller = readingSessionsPuller,
                 coordinator = coordinator,
                 syncDao = syncDao,
             )
