@@ -9,6 +9,11 @@ import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -92,33 +97,37 @@ class StatsRepositoryImpl(
     private fun computeDailyListening(
         events: List<ListeningEventEntity>,
         startMs: Long,
-        endMs: Long,
+        @Suppress("UnusedParameter") endMs: Long,
     ): List<DomainDailyListening> {
-        // Group events by day
-        val byDay =
+        val tz = TimeZone.currentSystemDefault()
+
+        // Group events by local date
+        val byDate =
             events.groupBy { event ->
-                // Floor to start of day
-                event.endedAt / MS_PER_DAY * MS_PER_DAY
+                formatDate(event.endedAt)
             }
 
-        // Generate 7 days, filling in zeros for days without activity
+        // Generate 7 days from start date to today (local timezone)
+        val today = Clock.System.now().toLocalDateTime(tz).date
+        val startDate = Instant.fromEpochMilliseconds(startMs).toLocalDateTime(tz).date
         val result = mutableListOf<DomainDailyListening>()
-        var dayStart = startMs / MS_PER_DAY * MS_PER_DAY
+        var currentDate = startDate
 
-        while (dayStart < endMs) {
-            val dayEvents = byDay[dayStart] ?: emptyList()
+        while (currentDate <= today) {
+            val dateStr = currentDate.toString()
+            val dayEvents = byDate[dateStr] ?: emptyList()
             val totalMs = dayEvents.sumOf { it.durationMs }
             val booksListened = dayEvents.map { it.bookId }.distinct().size
 
             result.add(
                 DomainDailyListening(
-                    date = formatDate(dayStart),
+                    date = dateStr,
                     listenTimeMs = totalMs,
                     booksListened = booksListened,
                 ),
             )
 
-            dayStart += MS_PER_DAY
+            currentDate = currentDate.plus(1, DateTimeUnit.DAY)
         }
 
         return result
@@ -231,29 +240,12 @@ class StatsRepositoryImpl(
     }
 
     /**
-     * Format epoch ms as YYYY-MM-DD string.
+     * Format epoch ms as YYYY-MM-DD string using local timezone.
      */
-    @Suppress("MagicNumber")
     private fun formatDate(epochMs: Long): String {
-        // Simple calculation without datetime library
-        // Days since Unix epoch
-        val daysSinceEpoch = epochMs / MS_PER_DAY
-
-        // Calculate year, month, day
-        // This is a simplified calculation - using kotlinx-datetime would be better
-        // but keeping it simple for now
-        var days = daysSinceEpoch.toInt() + 719_528 // Days from year 0 to 1970
-        var year = (10_000 * days.toLong() + 14_780) / 3_652_425
-        var doy = days - (365 * year + year / 4 - year / 100 + year / 400).toInt()
-        if (doy < 0) {
-            year--
-            doy = days - (365 * year + year / 4 - year / 100 + year / 400).toInt()
-        }
-        val mi = (100 * doy + 52) / 3060
-        val month = (mi + 2) % 12 + 1
-        year += (mi + 2) / 12
-        val day = doy - (mi * 306 + 5) / 10 + 1
-
-        return "${year.toInt()}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}"
+        return Instant.fromEpochMilliseconds(epochMs)
+            .toLocalDateTime(TimeZone.currentSystemDefault())
+            .date
+            .toString()
     }
 }

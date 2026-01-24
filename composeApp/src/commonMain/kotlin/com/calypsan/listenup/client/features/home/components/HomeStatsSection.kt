@@ -4,15 +4,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.presentation.home.HomeStatsViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -35,12 +36,13 @@ fun HomeStatsSection(
     modifier: Modifier = Modifier,
     viewModel: HomeStatsViewModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsState()
 
     // Always show the card - different content based on state
     Card(
         modifier =
             modifier
+                .widthIn(max = 600.dp)
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
         colors =

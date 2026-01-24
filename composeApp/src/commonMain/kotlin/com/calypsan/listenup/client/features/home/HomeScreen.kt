@@ -2,19 +2,24 @@ package com.calypsan.listenup.client.features.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import com.calypsan.listenup.client.features.home.components.ContinueListeningRow
 import com.calypsan.listenup.client.features.home.components.EmptyContinueListening
 import com.calypsan.listenup.client.features.home.components.HomeHeader
@@ -26,13 +31,9 @@ import org.koin.compose.viewmodel.koinViewModel
 /**
  * Home screen - personalized landing page.
  *
- * Features:
- * - Time-aware greeting (Good morning/afternoon/evening/night)
- * - Weekly stats section with listening chart, streak, and genres
- * - Continue Listening section with in-progress audiobooks
- * - My Lenses section with user's personal curation lenses
- * - Pull-to-refresh to reload data
- * - Empty state with link to browse library
+ * Adaptive layout:
+ * - Compact: single column (header, continue listening, stats, lenses)
+ * - Medium+: stats and lenses render side-by-side below continue listening
  *
  * @param onBookClick Callback when a book is clicked
  * @param onNavigateToLibrary Callback to navigate to the library
@@ -51,7 +52,12 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsState()
+
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val isWide = windowSizeClass.isWidthAtLeastBreakpoint(
+        WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+    )
 
     PullToRefreshBox(
         isRefreshing = state.isLoading,
@@ -70,7 +76,7 @@ fun HomeScreen(
             // Greeting header
             HomeHeader(greeting = state.greeting)
 
-            // Continue Listening section or empty state
+            // Continue Listening section or empty state (always full width)
             if (state.hasContinueListening) {
                 ContinueListeningRow(
                     books = state.continueListening,
@@ -83,17 +89,31 @@ fun HomeScreen(
                 )
             }
 
-            // Stats section (below continue listening)
-            HomeStatsSection()
+            // Stats and Lenses: side-by-side on wider screens, stacked on compact
+            if (isWide) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    HomeStatsSection()
+                    if (state.hasMyLenses) {
+                        Spacer(modifier = Modifier.width(16.dp))
+                        MyLensesRow(
+                            lenses = state.myLenses,
+                            onLensClick = onLensClick,
+                            onSeeAllClick = onSeeAllLenses,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            } else {
+                HomeStatsSection()
 
-            // My Lenses section
-            if (state.hasMyLenses) {
-                Spacer(modifier = Modifier.height(24.dp))
-                MyLensesRow(
-                    lenses = state.myLenses,
-                    onLensClick = onLensClick,
-                    onSeeAllClick = onSeeAllLenses,
-                )
+                if (state.hasMyLenses) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    MyLensesRow(
+                        lenses = state.myLenses,
+                        onLensClick = onLensClick,
+                        onSeeAllClick = onSeeAllLenses,
+                    )
+                }
             }
 
             // Bottom spacing

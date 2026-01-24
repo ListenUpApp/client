@@ -37,6 +37,7 @@ class PullSyncOrchestratorTest {
         val contributorPuller: Puller = mock()
         val tagPuller: Puller = mock()
         val genrePuller: Puller = mock()
+        val lensPuller: Puller = mock()
         val listeningEventPuller: ListeningEventPullerContract = mock()
         val progressPuller: Puller = mock()
         val activeSessionsPuller: Puller = mock()
@@ -53,6 +54,7 @@ class PullSyncOrchestratorTest {
             everySuspend { contributorPuller.pull(any(), any()) } returns Unit
             everySuspend { tagPuller.pull(any(), any()) } returns Unit
             everySuspend { genrePuller.pull(any(), any()) } returns Unit
+            everySuspend { lensPuller.pull(any(), any()) } returns Unit
             everySuspend { listeningEventPuller.pull(any(), any()) } returns Unit
             everySuspend { progressPuller.pull(any(), any()) } returns Unit
             everySuspend { activeSessionsPuller.pull(any(), any()) } returns Unit
@@ -67,6 +69,7 @@ class PullSyncOrchestratorTest {
                 contributorPuller = contributorPuller,
                 tagPuller = tagPuller,
                 genrePuller = genrePuller,
+                lensPuller = lensPuller,
                 listeningEventPuller = listeningEventPuller,
                 progressPuller = progressPuller,
                 activeSessionsPuller = activeSessionsPuller,

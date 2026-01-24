@@ -88,8 +88,6 @@ kotlin {
             // BlurHash for image placeholders
             implementation(libs.blurhash)
 
-            // Vico Charts
-            implementation(libs.vico.compose.m3)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

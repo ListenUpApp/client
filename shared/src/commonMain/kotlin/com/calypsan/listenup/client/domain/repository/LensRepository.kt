@@ -59,6 +59,14 @@ interface LensRepository {
     suspend fun countDiscoverLenses(currentUserId: String): Int
 
     /**
+     * Fetch current user's lenses from API and cache locally.
+     *
+     * Used for initial population when Room is empty (e.g., fresh install
+     * or after adding sync support for lenses).
+     */
+    suspend fun fetchAndCacheMyLenses()
+
+    /**
      * Fetch discover lenses from API and cache locally.
      *
      * Used for initial population of discover lenses when Room is empty,

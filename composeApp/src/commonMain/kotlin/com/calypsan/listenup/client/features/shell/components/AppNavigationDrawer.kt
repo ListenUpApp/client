@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AdminPanelSettings
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
@@ -76,17 +79,47 @@ fun AppNavigationDrawer(
                     )
                 }
 
-                // Push avatar to bottom
+                // Push bottom items down
                 Spacer(modifier = Modifier.weight(1f))
 
-                // User avatar at bottom
+                // Settings
+                NavigationDrawerItem(
+                    selected = false,
+                    onClick = onSettingsClick,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = "Settings",
+                        )
+                    },
+                    label = { Text("Settings") },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                )
+
+                // Administration (admin users only)
+                if (onAdminClick != null) {
+                    NavigationDrawerItem(
+                        selected = false,
+                        onClick = onAdminClick,
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Outlined.AdminPanelSettings,
+                                contentDescription = "Administration",
+                            )
+                        },
+                        label = { Text("Administration") },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // User avatar at bottom (profile + sign out only)
                 UserAvatar(
                     user = user,
                     expanded = isAvatarMenuExpanded,
                     onExpandedChange = onAvatarMenuExpandedChange,
                     onMyProfileClick = onMyProfileClick,
-                    onAdminClick = onAdminClick,
-                    onSettingsClick = onSettingsClick,
                     onSignOutClick = onSignOutClick,
                     modifier = Modifier.padding(start = 16.dp, bottom = 16.dp),
                 )

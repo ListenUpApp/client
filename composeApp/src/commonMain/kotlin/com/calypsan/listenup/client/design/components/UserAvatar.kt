@@ -62,7 +62,7 @@ fun UserAvatar(
     onExpandedChange: (Boolean) -> Unit,
     onMyProfileClick: () -> Unit,
     onAdminClick: (() -> Unit)? = null,
-    onSettingsClick: () -> Unit,
+    onSettingsClick: (() -> Unit)? = null,
     onSignOutClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -209,14 +209,16 @@ fun UserAvatar(
                 )
             }
 
-            DropdownMenuItem(
-                text = { Text("Settings") },
-                leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
-                onClick = {
-                    onExpandedChange(false)
-                    onSettingsClick()
-                },
-            )
+            if (onSettingsClick != null) {
+                DropdownMenuItem(
+                    text = { Text("Settings") },
+                    leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                    onClick = {
+                        onExpandedChange(false)
+                        onSettingsClick()
+                    },
+                )
+            }
 
             DropdownMenuItem(
                 text = { Text("Sign out") },

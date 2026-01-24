@@ -3,6 +3,9 @@ package com.calypsan.listenup.client.features.shell.components
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AdminPanelSettings
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
@@ -65,17 +68,43 @@ fun AppNavigationRail(
             )
         }
 
-        // Push avatar to bottom
+        // Push bottom items down
         Spacer(modifier = Modifier.weight(1f))
 
-        // User avatar at bottom
+        // Settings
+        NavigationRailItem(
+            selected = false,
+            onClick = onSettingsClick,
+            icon = {
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = "Settings",
+                )
+            },
+            label = { Text("Settings") },
+        )
+
+        // Administration (admin users only)
+        if (onAdminClick != null) {
+            NavigationRailItem(
+                selected = false,
+                onClick = onAdminClick,
+                icon = {
+                    Icon(
+                        imageVector = Icons.Outlined.AdminPanelSettings,
+                        contentDescription = "Admin",
+                    )
+                },
+                label = { Text("Admin") },
+            )
+        }
+
+        // User avatar at bottom (profile + sign out only)
         UserAvatar(
             user = user,
             expanded = isAvatarMenuExpanded,
             onExpandedChange = onAvatarMenuExpandedChange,
             onMyProfileClick = onMyProfileClick,
-            onAdminClick = onAdminClick,
-            onSettingsClick = onSettingsClick,
             onSignOutClick = onSignOutClick,
             modifier = Modifier.padding(bottom = 16.dp),
         )

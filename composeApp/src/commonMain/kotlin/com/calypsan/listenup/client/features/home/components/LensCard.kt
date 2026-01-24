@@ -57,14 +57,10 @@ fun LensCard(
         label = "card_scale",
     )
 
-    // Parse avatar color from hex string
+    // Parse avatar color from hex string (e.g. "#FF6B72" or "#FFFF6B72")
     val avatarColor =
         remember(lens.ownerAvatarColor) {
-            try {
-                Color(android.graphics.Color.parseColor(lens.ownerAvatarColor))
-            } catch (_: Exception) {
-                Color(0xFF6B7280) // Fallback gray
-            }
+            parseHexColor(lens.ownerAvatarColor)
         }
 
     Column(
@@ -110,6 +106,21 @@ fun LensCard(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+/**
+ * Parse a hex color string (with or without alpha) to a Compose Color.
+ * Supports "#RRGGBB" and "#AARRGGBB" formats.
+ */
+private fun parseHexColor(hex: String?): Color {
+    if (hex == null) return Color(0xFF6B7280)
+    val clean = hex.removePrefix("#")
+    val longValue = clean.toLongOrNull(16) ?: return Color(0xFF6B7280)
+    return if (clean.length <= 6) {
+        Color(0xFF000000 or longValue)
+    } else {
+        Color(longValue)
     }
 }
 

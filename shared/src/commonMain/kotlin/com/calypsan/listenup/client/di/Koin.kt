@@ -99,6 +99,7 @@ import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.GenrePuller
+import com.calypsan.listenup.client.data.sync.pull.LensPuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPullerContract
 import com.calypsan.listenup.client.data.sync.pull.ProgressPuller
@@ -955,6 +956,17 @@ val syncModule =
             )
         }
 
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("lensPuller"),
+        ) {
+            LensPuller(
+                lensApi = get(),
+                lensDao = get(),
+            )
+        }
+
         // ListeningEventPuller - registered as ListeningEventPullerContract because
         // PullSyncOrchestrator needs to call pullAll() for refreshListeningHistory()
         single<ListeningEventPullerContract> {
@@ -1037,6 +1049,12 @@ val syncModule =
                         qualifier =
                             org.koin.core.qualifier
                                 .named("genrePuller"),
+                    ),
+                lensPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("lensPuller"),
                     ),
                 listeningEventPuller = get(),
                 progressPuller =

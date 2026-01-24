@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -30,6 +29,7 @@ import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.features.bookdetail.BookDetailScreen
+import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.contributordetail.ContributorDetailScreen
 import com.calypsan.listenup.client.features.lens.LensDetailScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
@@ -142,12 +142,13 @@ private fun DesktopAuthenticatedNavigation() {
                         onUserProfileClick = { userId ->
                             logger.info { "User profile clicked: $userId (profile screen not yet migrated)" }
                         },
-                        homeContent = { padding, _, _ ->
-                            PlaceholderScreen(
-                                title = "Home",
-                                description = "Your personal landing page with continue listening, up next, and stats.",
-                                icon = { Icon(Icons.Default.Home, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
-                                padding = padding,
+                        homeContent = { padding, _, onNavigateToLibrary ->
+                            HomeScreen(
+                                onBookClick = { navigateTo(DetailDestination.Book(it)) },
+                                onNavigateToLibrary = onNavigateToLibrary,
+                                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
+                                onSeeAllLenses = onNavigateToLibrary,
+                                modifier = Modifier.padding(padding),
                             )
                         },
                         libraryContent = { padding, topBarCollapseFraction ->
