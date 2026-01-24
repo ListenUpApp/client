@@ -15,6 +15,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +38,9 @@ import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.features.tagdetail.TagDetailScreen
 import com.calypsan.listenup.client.navigation.AuthNavigation
+import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
+import com.calypsan.listenup.desktop.nowplaying.DesktopNowPlayingBar
+import com.calypsan.listenup.desktop.nowplaying.DesktopNowPlayingScreen
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -52,6 +56,7 @@ sealed interface DetailDestination {
     data class Contributor(val contributorId: String) : DetailDestination
     data class Lens(val lensId: String) : DetailDestination
     data class Tag(val tagId: String) : DetailDestination
+    data object NowPlaying : DetailDestination
 }
 
 /**
@@ -89,7 +94,10 @@ private fun DesktopAuthenticatedNavigation() {
     val scope = rememberCoroutineScope()
     val authSession: AuthSession = koinInject()
     val libraryResetHelper: LibraryResetHelperContract = koinInject()
+    val playerViewModel: DesktopPlayerViewModel = koinInject()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val playerState by playerViewModel.state.collectAsState()
 
     var currentDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
     val backStack: SnapshotStateList<DetailDestination> = remember { emptyList<DetailDestination>().toMutableStateList() }
@@ -97,68 +105,86 @@ private fun DesktopAuthenticatedNavigation() {
     val navigateTo: (DetailDestination) -> Unit = { backStack.add(it) }
     val navigateBack: () -> Unit = { backStack.removeLastOrNull() }
 
+    val isShowingNowPlaying = backStack.lastOrNull() is DetailDestination.NowPlaying
+
     CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
-        if (backStack.isNotEmpty()) {
-            DetailScreen(
-                destination = backStack.last(),
-                navigateTo = navigateTo,
-                navigateBack = navigateBack,
-            )
-        } else {
-            AppShell(
-                currentDestination = currentDestination,
-                onDestinationChange = { currentDestination = it },
-                onBookClick = { navigateTo(DetailDestination.Book(it)) },
-                onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
-                onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
-                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
-                onTagClick = { navigateTo(DetailDestination.Tag(it)) },
-                onAdminClick = {
-                    logger.info { "Admin clicked (admin screen not yet migrated)" }
-                },
-                onSettingsClick = {
-                    logger.info { "Settings clicked (settings screen not yet migrated)" }
-                },
-                onSignOut = {
-                    scope.launch {
-                        logger.info { "Signing out..." }
-                        libraryResetHelper.clearLibraryData()
-                        authSession.clearAuthTokens()
-                    }
-                },
-                onUserProfileClick = { userId ->
-                    logger.info { "User profile clicked: $userId (profile screen not yet migrated)" }
-                },
-                homeContent = { padding, _, _ ->
-                    PlaceholderScreen(
-                        title = "Home",
-                        description = "Your personal landing page with continue listening, up next, and stats.",
-                        icon = { Icon(Icons.Default.Home, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
-                        padding = padding,
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.weight(1f)) {
+                if (backStack.isNotEmpty()) {
+                    DetailScreen(
+                        destination = backStack.last(),
+                        navigateTo = navigateTo,
+                        navigateBack = navigateBack,
+                        playerViewModel = playerViewModel,
                     )
-                },
-                libraryContent = { padding, topBarCollapseFraction ->
-                    LibraryScreen(
+                } else {
+                    AppShell(
+                        currentDestination = currentDestination,
+                        onDestinationChange = { currentDestination = it },
                         onBookClick = { navigateTo(DetailDestination.Book(it)) },
                         onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
-                        onAuthorClick = { navigateTo(DetailDestination.Contributor(it)) },
-                        onNarratorClick = { navigateTo(DetailDestination.Contributor(it)) },
-                        topBarCollapseFraction = topBarCollapseFraction,
-                        modifier = Modifier.padding(padding),
+                        onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
+                        onLensClick = { navigateTo(DetailDestination.Lens(it)) },
+                        onTagClick = { navigateTo(DetailDestination.Tag(it)) },
+                        onAdminClick = {
+                            logger.info { "Admin clicked (admin screen not yet migrated)" }
+                        },
+                        onSettingsClick = {
+                            logger.info { "Settings clicked (settings screen not yet migrated)" }
+                        },
+                        onSignOut = {
+                            scope.launch {
+                                logger.info { "Signing out..." }
+                                libraryResetHelper.clearLibraryData()
+                                authSession.clearAuthTokens()
+                            }
+                        },
+                        onUserProfileClick = { userId ->
+                            logger.info { "User profile clicked: $userId (profile screen not yet migrated)" }
+                        },
+                        homeContent = { padding, _, _ ->
+                            PlaceholderScreen(
+                                title = "Home",
+                                description = "Your personal landing page with continue listening, up next, and stats.",
+                                icon = { Icon(Icons.Default.Home, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
+                                padding = padding,
+                            )
+                        },
+                        libraryContent = { padding, topBarCollapseFraction ->
+                            LibraryScreen(
+                                onBookClick = { navigateTo(DetailDestination.Book(it)) },
+                                onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
+                                onAuthorClick = { navigateTo(DetailDestination.Contributor(it)) },
+                                onNarratorClick = { navigateTo(DetailDestination.Contributor(it)) },
+                                topBarCollapseFraction = topBarCollapseFraction,
+                                modifier = Modifier.padding(padding),
+                            )
+                        },
+                        discoverContent = { padding ->
+                            PlaceholderScreen(
+                                title = "Discover",
+                                description = "Social features and recommendations.",
+                                icon = { Icon(Icons.Default.Explore, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
+                                padding = padding,
+                            )
+                        },
+                        searchOverlayContent = { _ ->
+                            // Search overlay will be added later
+                        },
                     )
-                },
-                discoverContent = { padding ->
-                    PlaceholderScreen(
-                        title = "Discover",
-                        description = "Social features and recommendations.",
-                        icon = { Icon(Icons.Default.Explore, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
-                        padding = padding,
-                    )
-                },
-                searchOverlayContent = { _ ->
-                    // Search overlay will be added later
-                },
-            )
+                }
+            }
+
+            // Persistent mini player (visible when playing, hidden on NowPlaying screen)
+            if (playerState.isVisible && !isShowingNowPlaying) {
+                DesktopNowPlayingBar(
+                    state = playerState,
+                    onPlayPause = { playerViewModel.playPause() },
+                    onSkipBack = { playerViewModel.skipBack() },
+                    onSkipForward = { playerViewModel.skipForward() },
+                    onClick = { navigateTo(DetailDestination.NowPlaying) },
+                )
+            }
         }
     }
 }
@@ -171,6 +197,7 @@ private fun DetailScreen(
     destination: DetailDestination,
     navigateTo: (DetailDestination) -> Unit,
     navigateBack: () -> Unit,
+    playerViewModel: DesktopPlayerViewModel,
 ) {
     when (destination) {
         is DetailDestination.Book -> BookDetailScreen(
@@ -212,6 +239,25 @@ private fun DetailScreen(
             onBackClick = navigateBack,
             onBookClick = { navigateTo(DetailDestination.Book(it)) },
         )
+
+        is DetailDestination.NowPlaying -> {
+            val state by playerViewModel.state.collectAsState()
+            DesktopNowPlayingScreen(
+                state = state,
+                onPlayPause = { playerViewModel.playPause() },
+                onSkipBack = { playerViewModel.skipBack() },
+                onSkipForward = { playerViewModel.skipForward() },
+                onPreviousChapter = { playerViewModel.previousChapter() },
+                onNextChapter = { playerViewModel.nextChapter() },
+                onSeekWithinChapter = { progress -> playerViewModel.seekWithinChapter(progress) },
+                onSetSpeed = { speed -> playerViewModel.setSpeed(speed) },
+                onClose = {
+                    playerViewModel.closeBook()
+                    navigateBack()
+                },
+                onBackClick = navigateBack,
+            )
+        }
     }
 }
 

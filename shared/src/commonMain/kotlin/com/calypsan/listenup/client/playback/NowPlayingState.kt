@@ -46,6 +46,8 @@ data class NowPlayingState(
     val chapterProgress: Float = 0f, // 0.0 - 1.0
     val chapterPositionMs: Long = 0,
     val chapterDurationMs: Long = 0,
+    // Error state
+    val errorMessage: String? = null,
     // UI state
     val isExpanded: Boolean = false,
     val showChapterPicker: Boolean = false,

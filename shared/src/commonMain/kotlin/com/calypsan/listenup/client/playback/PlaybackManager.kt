@@ -320,6 +320,85 @@ class PlaybackManager(
     }
 
     /**
+     * Start playback using a platform AudioPlayer.
+     *
+     * Bridges the prepared timeline to the AudioPlayer and connects
+     * state flows back to PlaybackManager for position tracking.
+     *
+     * @param player The platform-specific audio player implementation
+     * @param resumePositionMs Position to resume from (0 to start from beginning)
+     * @param resumeSpeed Playback speed to use
+     */
+    suspend fun startPlayback(
+        player: AudioPlayer,
+        resumePositionMs: Long = 0L,
+        resumeSpeed: Float = 1.0f,
+    ) {
+        val timeline = currentTimeline.value
+        if (timeline == null) {
+            logger.error { "Cannot start playback: no timeline prepared" }
+            return
+        }
+
+        val bookId = currentBookId.value
+        if (bookId == null) {
+            logger.error { "Cannot start playback: no book ID" }
+            return
+        }
+
+        // Build segments from timeline
+        val segments = timeline.files.map { file ->
+            AudioSegment(
+                url = file.streamingUrl,
+                localPath = file.localPath,
+                durationMs = file.durationMs,
+                offsetMs = file.startOffsetMs,
+            )
+        }
+
+        // Load segments into player
+        player.load(segments)
+
+        // Set speed before seeking/playing
+        if (resumeSpeed != 1.0f) {
+            player.setSpeed(resumeSpeed)
+        }
+        playbackSpeed.value = resumeSpeed
+
+        // Resume from saved position
+        if (resumePositionMs > 0) {
+            player.seekTo(resumePositionMs)
+        }
+        currentPositionMs.value = resumePositionMs
+
+        // Bridge player position back to PlaybackManager
+        scope.launch {
+            player.positionMs.collect { position ->
+                updatePosition(position)
+            }
+        }
+
+        // Bridge player state back to PlaybackManager
+        scope.launch {
+            player.state.collect { playbackState ->
+                val playing = playbackState == PlaybackState.Playing
+                setPlaying(playing)
+
+                if (playbackState == PlaybackState.Ended) {
+                    progressTracker.onBookFinished(bookId, totalDurationMs.value)
+                }
+            }
+        }
+
+        // Start playback
+        player.play()
+
+        // Notify progress tracker
+        progressTracker.onPlaybackStarted(bookId, resumePositionMs, resumeSpeed)
+        logger.info { "Playback started via AudioPlayer at position ${resumePositionMs}ms, speed ${resumeSpeed}x" }
+    }
+
+    /**
      * Update playback state.
      * Called by PlayerViewModel when state changes.
      */

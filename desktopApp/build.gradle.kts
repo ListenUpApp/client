@@ -29,6 +29,12 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.materialIconsExtended)
 
+            // Lifecycle (needed for ViewModel supertype from composeApp)
+            implementation(libs.androidx.lifecycle.viewmodelCompose)
+
+            // Global media key support
+            implementation(libs.jnativehook)
+
             // Koin
             implementation(libs.koin.core)
             implementation(libs.koin.compose)

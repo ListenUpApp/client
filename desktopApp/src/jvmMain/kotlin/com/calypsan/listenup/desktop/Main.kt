@@ -6,10 +6,13 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.calypsan.listenup.client.di.platformModule
 import com.calypsan.listenup.client.di.sharedModules
+import com.calypsan.listenup.client.playback.AudioPlayer
 import com.calypsan.listenup.desktop.di.desktopAppModule
+import com.calypsan.listenup.desktop.media.GlobalMediaKeyManager
 import com.calypsan.listenup.desktop.window.ListenUpWindow
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.koin.core.context.startKoin
+import org.koin.java.KoinJavaComponent.getKoin
 
 private val logger = KotlinLogging.logger {}
 
@@ -25,6 +28,14 @@ fun main() {
         )
     }
 
+    // Start global media key listener (non-critical, may fail on some systems)
+    val mediaKeyManager = try {
+        getKoin().get<GlobalMediaKeyManager>().also { it.start() }
+    } catch (e: Exception) {
+        logger.warn(e) { "Global media keys unavailable" }
+        null
+    }
+
     logger.info { "Koin initialized, launching application..." }
 
     application {
@@ -35,7 +46,11 @@ fun main() {
 
         ListenUpWindow(
             state = windowState,
-            onCloseRequest = ::exitApplication,
+            onCloseRequest = {
+                mediaKeyManager?.stop()
+                getKoin().get<AudioPlayer>().release()
+                exitApplication()
+            },
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.calypsan.listenup.desktop.di
 
+import com.calypsan.listenup.desktop.media.GlobalMediaKeyManager
 import org.koin.dsl.module
 
 /**
@@ -7,6 +8,7 @@ import org.koin.dsl.module
  *
  * Provides desktop-only dependencies that don't belong in :composeApp's platformModule.
  * Examples:
+ * - Global media key handling
  * - Window state management
  * - System tray controller
  * - Desktop preferences (window size/position)
@@ -17,12 +19,6 @@ import org.koin.dsl.module
  */
 val desktopAppModule =
     module {
-        // Desktop-specific bindings will go here
-        // For now, empty - composeApp's platformModule provides the core dependencies
-
-        // TODO: Add window state persistence
-        // single { WindowStateManager(storagePaths = get()) }
-
-        // TODO: Add system tray controller with playback integration
-        // single { TrayController(playbackManager = get()) }
+        // Global media key listener (play/pause/next/prev when app is in background)
+        single { GlobalMediaKeyManager(playerViewModel = get()) }
     }

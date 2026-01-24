@@ -131,8 +131,22 @@ kotlin {
         }
         val desktopMain by getting {
             dependencies {
-                // Desktop-specific dependencies (if any)
-                // Most dependencies are now in commonMain
+                // FFmpeg for audio decoding (self-contained, decodes all formats)
+                implementation(libs.javacv)
+                implementation(libs.javacpp)
+                implementation(libs.ffmpeg)
+
+                // Platform-specific native libraries (bundled in JARs)
+                val javacppVersion = libs.versions.javacpp.get()
+                val ffmpegVersion = libs.versions.ffmpeg.javacpp.get()
+                implementation("org.bytedeco:javacpp:$javacppVersion:linux-x86_64")
+                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:linux-x86_64")
+                implementation("org.bytedeco:javacpp:$javacppVersion:macosx-x86_64")
+                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:macosx-x86_64")
+                implementation("org.bytedeco:javacpp:$javacppVersion:macosx-arm64")
+                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:macosx-arm64")
+                implementation("org.bytedeco:javacpp:$javacppVersion:windows-x86_64")
+                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:windows-x86_64")
             }
         }
         // Note: Android tests use androidHostTest/androidDeviceTest source sets

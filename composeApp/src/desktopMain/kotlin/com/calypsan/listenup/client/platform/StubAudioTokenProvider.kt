@@ -8,7 +8,7 @@ import kotlinx.coroutines.runBlocking
  * Desktop implementation of [AudioTokenProvider].
  *
  * Uses the existing auth session to provide tokens for authenticated audio streaming.
- * Desktop playback will be implemented in a future phase using VLCJ.
+ * Uses the existing auth session to provide tokens for JavaFX MediaPlayer streaming.
  */
 class DesktopAudioTokenProvider(
     private val authSession: AuthSession,

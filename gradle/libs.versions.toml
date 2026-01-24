@@ -14,13 +14,13 @@ compose-material3 = "1.11.0-alpha01"
 kotlin = "2.3.0"
 ksp = "2.3.4"
 mokkery = "3.1.1"
-ktor = "3.3.3"
+ktor = "3.4.0"
 kotlinx-coroutines = "1.10.2"
-kotlinx-serialization = "1.9.0"
+kotlinx-serialization = "1.10.0"
 kotlinx-datetime = "0.7.1"
 kotlinx-collections-immutable = "0.4.0"
 kotlinx-io = "0.8.2"
-koin = "4.2.0-beta3"
+koin = "4.2.0-beta4"
 kotlin-logging = "7.0.14"
 slf4j-android = "2.0.17-0"
 slf4j = "2.0.17"
@@ -40,6 +40,9 @@ skie = "0.10.9"
 # Desktop
 logback = "1.5.25"
 jmdns = "3.6.3"
+javacpp = "1.5.12"
+ffmpeg-javacpp = "7.1-1.5.11"
+jnativehook = "2.2.2"
 
 # Multiplatform (JetBrains) - using dev builds from compose-dev repo
 navigation3-multiplatform = "1.0.0-alpha06"
@@ -47,7 +50,7 @@ material3-adaptive-multiplatform = "1.2.0"
 
 # Quality Tools
 detekt = "1.23.8"
-spotless = "8.1.0"
+spotless = "8.2.0"
 ktlint = "1.8.0" # Used by Spotless plugin at runtime
 kover = "0.9.4"
 
@@ -121,6 +124,12 @@ slf4j-android = { group = "uk.uuid.slf4j", name = "slf4j-android", version.ref =
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version.ref = "slf4j" }
 logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
 jmdns = { group = "org.jmdns", name = "jmdns", version.ref = "jmdns" }
+jnativehook = { module = "com.github.kwhat:jnativehook", version.ref = "jnativehook" }
+
+# FFmpeg Audio (Desktop)
+javacv = { module = "org.bytedeco:javacv", version.ref = "javacpp" }
+javacpp = { module = "org.bytedeco:javacpp", version.ref = "javacpp" }
+ffmpeg = { module = "org.bytedeco:ffmpeg", version.ref = "ffmpeg-javacpp" }
 
 # Testing
 mokkery-runtime = { group = "dev.mokkery", name = "mokkery-runtime", version.ref = "mokkery" }

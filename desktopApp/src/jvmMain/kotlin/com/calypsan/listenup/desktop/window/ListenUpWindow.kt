@@ -8,11 +8,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowState
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
+import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
 import com.calypsan.listenup.desktop.DesktopApp
 import com.calypsan.listenup.desktop.tray.ListenUpTray
+import org.koin.compose.koinInject
 
 /**
  * Main window for the ListenUp desktop application.
@@ -48,9 +55,44 @@ fun ListenUpWindow(
         ListenUpTheme(
             darkTheme = true, // Default to dark mode for desktop
         ) {
-            Surface(modifier = Modifier.fillMaxSize()) {
+            val playerViewModel: DesktopPlayerViewModel = koinInject()
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                        handleMediaKey(event.key, playerViewModel)
+                    },
+            ) {
                 DesktopApp()
             }
         }
+    }
+}
+
+/**
+ * Handle media keys and playback shortcuts when the window has focus.
+ *
+ * Supports standard media keys and Space as play/pause toggle.
+ * Returns true if the key was consumed.
+ */
+private fun handleMediaKey(key: Key, playerViewModel: DesktopPlayerViewModel): Boolean {
+    if (!playerViewModel.state.value.isVisible) return false
+
+    return when (key) {
+        Key.MediaPlayPause, Key.Spacebar -> {
+            playerViewModel.playPause()
+            true
+        }
+        Key.MediaNext -> {
+            playerViewModel.skipForward()
+            true
+        }
+        Key.MediaPrevious -> {
+            playerViewModel.skipBack()
+            true
+        }
+        else -> false
     }
 }
