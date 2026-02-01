@@ -22,9 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.design.theme.ListenUpTheme
 
 /**
  * Search field with autocomplete dropdown results.
@@ -145,74 +143,3 @@ fun AutocompleteResultItem(
     }
 }
 
-// Preview data class
-private data class PreviewContributor(
-    val name: String,
-    val bookCount: Int,
-)
-
-@Preview(name = "Empty State")
-@Composable
-private fun PreviewAutocompleteFieldEmpty() {
-    ListenUpTheme {
-        Column(modifier = Modifier.padding(16.dp)) {
-            ListenUpAutocompleteField(
-                value = "",
-                onValueChange = {},
-                results = emptyList<PreviewContributor>(),
-                onResultSelected = {},
-                onSubmit = {},
-                resultContent = {},
-                placeholder = "Add author...",
-            )
-        }
-    }
-}
-
-@Preview(name = "With Results")
-@Composable
-private fun PreviewAutocompleteFieldWithResults() {
-    ListenUpTheme {
-        Column(modifier = Modifier.padding(16.dp)) {
-            ListenUpAutocompleteField(
-                value = "Stephen",
-                onValueChange = {},
-                results =
-                    listOf(
-                        PreviewContributor("Stephen King", 12),
-                        PreviewContributor("Stephen Fry", 8),
-                        PreviewContributor("Stephen Hawking", 3),
-                    ),
-                onResultSelected = {},
-                onSubmit = {},
-                resultContent = { contributor ->
-                    AutocompleteResultItem(
-                        name = contributor.name,
-                        subtitle = "${contributor.bookCount} books",
-                        onClick = {},
-                    )
-                },
-                placeholder = "Add author...",
-            )
-        }
-    }
-}
-
-@Preview(name = "Loading State")
-@Composable
-private fun PreviewAutocompleteFieldLoading() {
-    ListenUpTheme {
-        Column(modifier = Modifier.padding(16.dp)) {
-            ListenUpAutocompleteField(
-                value = "Stephen",
-                onValueChange = {},
-                results = emptyList<PreviewContributor>(),
-                onResultSelected = {},
-                onSubmit = {},
-                resultContent = {},
-                placeholder = "Add author...",
-                isLoading = true,
-            )
-        }
-    }
-}

@@ -3,14 +3,14 @@ agp = "9.0.0"
 android-compileSdk = "36"
 android-minSdk = "33"
 android-targetSdk = "36"
-androidx-activity = "1.12.2"
+androidx-activity = "1.12.3"
 androidx-lifecycle = "2.9.6"
 androidx-material3-adaptive = "1.2.0"
 androidx-navigation3 = "1.0.0"
 androidx-palette = "1.0.0"
 androidx-material-icons = "1.7.8"
 composeMultiplatform = "1.10.0"
-compose-material3 = "1.11.0-alpha01"
+compose-material3 = "1.11.0-alpha02"
 kotlin = "2.3.0"
 ksp = "2.3.4"
 mokkery = "3.1.1"
@@ -20,15 +20,15 @@ kotlinx-serialization = "1.10.0"
 kotlinx-datetime = "0.7.1"
 kotlinx-collections-immutable = "0.4.0"
 kotlinx-io = "0.8.2"
-koin = "4.2.0-beta4"
+koin = "4.2.0-RC1"
 kotlin-logging = "7.0.14"
 slf4j-android = "2.0.17-0"
 slf4j = "2.0.17"
 room = "2.8.4"
 room-sqlite = "2.6.2"
-androidx-work = "2.11.0"
+androidx-work = "2.11.1"
 coil = "3.3.0"
-media3 = "1.9.0"
+media3 = "1.9.1"
 concurrent-futures = "1.3.0"
 markdown-renderer = "0.39.1"
 blurhash = "0.3.0"
@@ -37,7 +37,7 @@ blurhash = "0.3.0"
 skie = "0.10.9"
 
 # Desktop
-logback = "1.5.25"
+logback = "1.5.26"
 jmdns = "3.6.3"
 javacpp = "1.5.12"
 ffmpeg-javacpp = "7.1-1.5.11"
@@ -49,20 +49,15 @@ material3-adaptive-multiplatform = "1.2.0"
 
 # Quality Tools
 detekt = "1.23.8"
-spotless = "8.2.0"
+spotless = "8.2.1"
 ktlint = "1.8.0" # Used by Spotless plugin at runtime
-kover = "0.9.4"
+kover = "0.9.5"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 androidx-lifecycle-viewmodelCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
-
-# Material 3 Adaptive
-androidx-material3-adaptive = { module = "androidx.compose.material3.adaptive:adaptive", version.ref = "androidx-material3-adaptive" }
-androidx-material3-adaptive-layout = { module = "androidx.compose.material3.adaptive:adaptive-layout", version.ref = "androidx-material3-adaptive" }
-androidx-material3-adaptive-navigation = { module = "androidx.compose.material3.adaptive:adaptive-navigation", version.ref = "androidx-material3-adaptive" }
 
 # JetBrains Compose Multiplatform
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
@@ -77,8 +72,6 @@ compose-components-resources = { module = "org.jetbrains.compose.components:comp
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "androidx-material-icons" }
 
 # Navigation 3 (AndroidX - Android only)
-androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "androidx-navigation3" }
-androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "androidx-navigation3" }
 androidx-navigation3-ui-android = { module = "androidx.navigation3:navigation3-ui-android", version.ref = "androidx-navigation3" }
 
 # Navigation 3 (JetBrains Multiplatform) - only navigation3-ui exists on Maven Central

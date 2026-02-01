@@ -20,9 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.design.theme.ListenUpTheme
 
 /**
  * Search text field with leading search icon and trailing clear/loading indicator.
@@ -84,79 +82,4 @@ fun ListenUpSearchField(
         keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
         modifier = modifier.fillMaxWidth(),
     )
-}
-
-@Preview(name = "Empty Search Field")
-@Composable
-private fun PreviewListenUpSearchFieldEmpty() {
-    ListenUpTheme {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ListenUpSearchField(
-                value = "",
-                onValueChange = {},
-                onSubmit = {},
-                placeholder = "Search contributors...",
-            )
-        }
-    }
-}
-
-@Preview(name = "With Text")
-@Composable
-private fun PreviewListenUpSearchFieldWithText() {
-    ListenUpTheme {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ListenUpSearchField(
-                value = "Stephen",
-                onValueChange = {},
-                onSubmit = {},
-                placeholder = "Search contributors...",
-                onClear = {},
-            )
-        }
-    }
-}
-
-@Preview(name = "Loading State")
-@Composable
-private fun PreviewListenUpSearchFieldLoading() {
-    ListenUpTheme {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ListenUpSearchField(
-                value = "Stephen",
-                onValueChange = {},
-                onSubmit = {},
-                placeholder = "Search contributors...",
-                isLoading = true,
-            )
-        }
-    }
-}
-
-@Preview(name = "Disabled State")
-@Composable
-private fun PreviewListenUpSearchFieldDisabled() {
-    ListenUpTheme {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ListenUpSearchField(
-                value = "",
-                onValueChange = {},
-                onSubmit = {},
-                placeholder = "Search contributors...",
-                enabled = false,
-            )
-        }
-    }
 }

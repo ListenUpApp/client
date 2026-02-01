@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.features.seriesedit
 
-import androidx.activity.compose.BackHandler
+import com.calypsan.listenup.client.design.util.PlatformBackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,7 +57,7 @@ import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpTextArea
 import com.calypsan.listenup.client.design.components.rememberCoverColors
-import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
+import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 import com.calypsan.listenup.client.domain.imagepicker.ImagePickerResult
 import com.calypsan.listenup.client.presentation.seriesedit.SeriesEditNavAction
 import com.calypsan.listenup.client.presentation.seriesedit.SeriesEditUiEvent
@@ -103,7 +103,7 @@ fun SeriesEditScreen(
 
     var showUnsavedChangesDialog by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = state.hasChanges) {
+    PlatformBackHandler(enabled = state.hasChanges) {
         showUnsavedChangesDialog = true
     }
 
@@ -498,7 +498,7 @@ private fun SeriesIdentityHeader(
                 onValueChange = onNameChange,
                 textStyle =
                     TextStyle(
-                        fontFamily = GoogleSansDisplay,
+                        fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = MaterialTheme.typography.headlineSmall.fontSize,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -508,7 +508,7 @@ private fun SeriesIdentityHeader(
                         "Series Name",
                         style =
                             MaterialTheme.typography.headlineSmall.copy(
-                                fontFamily = GoogleSansDisplay,
+                                fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.Bold,
                             ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -555,7 +555,7 @@ private fun SeriesStudioCard(
                 text = title,
                 style =
                     MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = GoogleSansDisplay,
+                        fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Bold,
                     ),
                 color = MaterialTheme.colorScheme.onSurface,

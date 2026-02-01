@@ -29,11 +29,16 @@ import com.calypsan.listenup.client.data.sync.LibraryResetHelperContract
 import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.features.bookdetail.BookDetailScreen
+import com.calypsan.listenup.client.features.bookedit.BookEditScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.contributordetail.ContributorDetailScreen
+import com.calypsan.listenup.client.features.contributoredit.ContributorEditScreen
+import com.calypsan.listenup.client.features.lens.CreateEditLensScreen
 import com.calypsan.listenup.client.features.lens.LensDetailScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
 import com.calypsan.listenup.client.features.seriesdetail.SeriesDetailScreen
+import com.calypsan.listenup.client.features.seriesedit.SeriesEditScreen
+import com.calypsan.listenup.client.features.settings.SettingsScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.features.tagdetail.TagDetailScreen
@@ -56,6 +61,12 @@ sealed interface DetailDestination {
     data class Contributor(val contributorId: String) : DetailDestination
     data class Lens(val lensId: String) : DetailDestination
     data class Tag(val tagId: String) : DetailDestination
+    data class BookEdit(val bookId: String) : DetailDestination
+    data class ContributorEdit(val contributorId: String) : DetailDestination
+    data class SeriesEdit(val seriesId: String) : DetailDestination
+    data class LensEdit(val lensId: String) : DetailDestination
+    data object LensCreate : DetailDestination
+    data object Settings : DetailDestination
     data object NowPlaying : DetailDestination
 }
 
@@ -130,7 +141,7 @@ private fun DesktopAuthenticatedNavigation() {
                             logger.info { "Admin clicked (admin screen not yet migrated)" }
                         },
                         onSettingsClick = {
-                            logger.info { "Settings clicked (settings screen not yet migrated)" }
+                            navigateTo(DetailDestination.Settings)
                         },
                         onSignOut = {
                             scope.launch {
@@ -204,7 +215,7 @@ private fun DetailScreen(
         is DetailDestination.Book -> BookDetailScreen(
             bookId = destination.bookId,
             onBackClick = navigateBack,
-            onEditClick = { logger.info { "Book edit: $it (not yet migrated)" } },
+            onEditClick = { navigateTo(DetailDestination.BookEdit(it)) },
             onMetadataSearchClick = { logger.info { "Metadata search: $it (not yet migrated)" } },
             onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
             onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
@@ -212,33 +223,66 @@ private fun DetailScreen(
             onUserProfileClick = { logger.info { "User profile: $it (not yet migrated)" } },
         )
 
+        is DetailDestination.BookEdit -> BookEditScreen(
+            bookId = destination.bookId,
+            onBackClick = navigateBack,
+            onSaveSuccess = navigateBack,
+        )
+
         is DetailDestination.Series -> SeriesDetailScreen(
             seriesId = destination.seriesId,
             onBackClick = navigateBack,
             onBookClick = { navigateTo(DetailDestination.Book(it)) },
-            onEditClick = { logger.info { "Series edit: $it (not yet migrated)" } },
+            onEditClick = { navigateTo(DetailDestination.SeriesEdit(it)) },
+        )
+
+        is DetailDestination.SeriesEdit -> SeriesEditScreen(
+            seriesId = destination.seriesId,
+            onBackClick = navigateBack,
+            onSaveSuccess = navigateBack,
         )
 
         is DetailDestination.Contributor -> ContributorDetailScreen(
             contributorId = destination.contributorId,
             onBackClick = navigateBack,
             onBookClick = { navigateTo(DetailDestination.Book(it)) },
-            onEditClick = { logger.info { "Contributor edit: $it (not yet migrated)" } },
+            onEditClick = { navigateTo(DetailDestination.ContributorEdit(it)) },
             onViewAllClick = { id, role -> logger.info { "Contributor books: $id/$role (not yet migrated)" } },
             onMetadataClick = { logger.info { "Contributor metadata: $it (not yet migrated)" } },
+        )
+
+        is DetailDestination.ContributorEdit -> ContributorEditScreen(
+            contributorId = destination.contributorId,
+            onBackClick = navigateBack,
+            onSaveSuccess = navigateBack,
         )
 
         is DetailDestination.Lens -> LensDetailScreen(
             lensId = destination.lensId,
             onBack = navigateBack,
             onBookClick = { navigateTo(DetailDestination.Book(it)) },
-            onEditClick = { logger.info { "Lens edit: $it (not yet migrated)" } },
+            onEditClick = { navigateTo(DetailDestination.LensEdit(it)) },
         )
 
         is DetailDestination.Tag -> TagDetailScreen(
             tagId = destination.tagId,
             onBackClick = navigateBack,
             onBookClick = { navigateTo(DetailDestination.Book(it)) },
+        )
+
+        is DetailDestination.LensEdit -> CreateEditLensScreen(
+            lensId = destination.lensId,
+            onBack = navigateBack,
+        )
+
+        is DetailDestination.LensCreate -> CreateEditLensScreen(
+            lensId = null,
+            onBack = navigateBack,
+        )
+
+        is DetailDestination.Settings -> SettingsScreen(
+            onNavigateBack = navigateBack,
+            onNavigateToLicenses = null, // TODO: Add licenses screen for desktop
         )
 
         is DetailDestination.NowPlaying -> {

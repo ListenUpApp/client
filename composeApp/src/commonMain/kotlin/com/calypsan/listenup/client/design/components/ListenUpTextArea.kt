@@ -14,9 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.design.theme.ListenUpTheme
 
 /**
  * Multi-line text area using the theme's expressive shape system.
@@ -68,60 +66,4 @@ fun ListenUpTextArea(
         shape = MaterialTheme.shapes.medium,
         modifier = modifier.fillMaxWidth(),
     )
-}
-
-@Preview(name = "Empty TextArea")
-@Composable
-private fun PreviewListenUpTextAreaEmpty() {
-    ListenUpTheme {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ListenUpTextArea(
-                value = "",
-                onValueChange = {},
-                label = "Description",
-                placeholder = "Enter a description...",
-            )
-        }
-    }
-}
-
-@Preview(name = "With Text")
-@Composable
-private fun PreviewListenUpTextAreaWithText() {
-    ListenUpTheme {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ListenUpTextArea(
-                value =
-                    "This is a multi-line description that spans several lines. " +
-                        "It demonstrates how the text area handles longer content with proper wrapping.",
-                onValueChange = {},
-                label = "Description",
-            )
-        }
-    }
-}
-
-@Preview(name = "Error State")
-@Composable
-private fun PreviewListenUpTextAreaError() {
-    ListenUpTheme {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ListenUpTextArea(
-                value = "",
-                onValueChange = {},
-                label = "Description",
-                isError = true,
-                supportingText = "Description is required",
-            )
-        }
-    }
 }

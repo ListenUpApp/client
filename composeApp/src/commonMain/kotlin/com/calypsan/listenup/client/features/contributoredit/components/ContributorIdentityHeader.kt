@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.getInitials
-import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
+import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 
 /**
  * Identity header with large avatar and name field side by side.
@@ -120,7 +120,7 @@ fun ContributorIdentityHeader(
                             text = getInitials(name),
                             style =
                                 MaterialTheme.typography.displaySmall.copy(
-                                    fontFamily = GoogleSansDisplay,
+                                    fontFamily = DisplayFontFamily,
                                     fontWeight = FontWeight.Bold,
                                 ),
                             color = colorScheme.onPrimary,
@@ -169,7 +169,7 @@ fun ContributorIdentityHeader(
                 onValueChange = onNameChange,
                 textStyle =
                     TextStyle(
-                        fontFamily = GoogleSansDisplay,
+                        fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = MaterialTheme.typography.headlineSmall.fontSize,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -179,7 +179,7 @@ fun ContributorIdentityHeader(
                         "Name",
                         style =
                             MaterialTheme.typography.headlineSmall.copy(
-                                fontFamily = GoogleSansDisplay,
+                                fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.Bold,
                             ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),

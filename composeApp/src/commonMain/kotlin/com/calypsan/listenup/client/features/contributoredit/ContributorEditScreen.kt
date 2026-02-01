@@ -1,6 +1,6 @@
 package com.calypsan.listenup.client.features.contributoredit
 
-import androidx.activity.compose.BackHandler
+import com.calypsan.listenup.client.design.util.PlatformBackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -104,7 +104,7 @@ fun ContributorEditScreen(
 
     var showUnsavedChangesDialog by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = state.hasChanges) {
+    PlatformBackHandler(enabled = state.hasChanges) {
         showUnsavedChangesDialog = true
     }
 

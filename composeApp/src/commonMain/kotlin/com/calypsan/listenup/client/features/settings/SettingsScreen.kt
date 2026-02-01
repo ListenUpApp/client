@@ -2,7 +2,6 @@
 
 package com.calypsan.listenup.client.features.settings
 
-import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -35,18 +34,33 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.calypsan.listenup.client.domain.model.ThemeMode
-import com.calypsan.listenup.client.features.nowplaying.PlaybackSpeedPresets
 import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
 import org.koin.compose.viewmodel.koinViewModel
+
+/**
+ * Preset playback speeds.
+ */
+object PlaybackSpeedPresets {
+    val presets = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
+
+    fun format(speed: Float): String =
+        if (speed == speed.toInt().toFloat()) {
+            "${speed.toInt()}.0x"
+        } else {
+            val formatted = "%.2f".format(speed).trimEnd('0').trimEnd('.')
+            "${formatted}x"
+        }
+}
 
 /**
  * Preset durations for skip forward button (in seconds).
@@ -96,6 +110,21 @@ object SleepTimerPresets {
         }
 }
 
+/**
+ * Settings screen for desktop.
+ *
+ * Displays user-configurable settings organized by category:
+ * - Appearance: Theme
+ * - Playback: Speed, skip intervals, auto-rewind, spatial audio
+ * - Sleep Timer: Default duration
+ * - Library: Sorting and display options
+ * - Account: Server info and sign out
+ * - About: Version information
+ *
+ * @param onNavigateBack Callback to navigate back
+ * @param onNavigateToLicenses Optional callback to navigate to licenses screen
+ * @param viewModel SettingsViewModel injected via Koin
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -103,7 +132,7 @@ fun SettingsScreen(
     onNavigateToLicenses: (() -> Unit)? = null,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsState()
     var showSignOutDialog by remember { mutableStateOf(false) }
 
     // Sign out confirmation dialog
@@ -169,15 +198,6 @@ fun SettingsScreen(
                     },
                     onValueSelected = viewModel::setThemeMode,
                 )
-                // Dynamic colors only available on Android 12+
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    SettingsToggleItem(
-                        title = "Dynamic colors",
-                        description = "Use colors from your wallpaper (Material You)",
-                        checked = state.dynamicColorsEnabled,
-                        onCheckedChange = viewModel::setDynamicColorsEnabled,
-                    )
-                }
             }
 
             SettingsDivider()
@@ -194,7 +214,7 @@ fun SettingsScreen(
                 )
                 SettingsDropdownItem(
                     title = "Skip forward",
-                    description = "Duration when tapping skip forward",
+                    description = "Duration when pressing skip forward",
                     selectedValue = state.defaultSkipForwardSec,
                     options = SkipForwardPresets.presets,
                     formatValue = { SkipForwardPresets.format(it) },
@@ -202,7 +222,7 @@ fun SettingsScreen(
                 )
                 SettingsDropdownItem(
                     title = "Skip backward",
-                    description = "Duration when tapping skip backward",
+                    description = "Duration when pressing skip backward",
                     selectedValue = state.defaultSkipBackwardSec,
                     options = SkipBackwardPresets.presets,
                     formatValue = { SkipBackwardPresets.format(it) },
@@ -233,42 +253,6 @@ fun SettingsScreen(
                     options = SleepTimerPresets.presets,
                     formatValue = { SleepTimerPresets.format(it) },
                     onValueSelected = viewModel::setDefaultSleepTimerMin,
-                )
-                SettingsToggleItem(
-                    title = "Shake to reset",
-                    description = "Shake device to reset sleep timer",
-                    checked = state.shakeToResetSleepTimer,
-                    onCheckedChange = viewModel::setShakeToResetSleepTimer,
-                )
-            }
-
-            SettingsDivider()
-
-            // Downloads section
-            SettingsSection(title = "Downloads") {
-                SettingsToggleItem(
-                    title = "WiFi only",
-                    description = "Only download books when connected to WiFi",
-                    checked = state.wifiOnlyDownloads,
-                    onCheckedChange = viewModel::setWifiOnlyDownloads,
-                )
-                SettingsToggleItem(
-                    title = "Auto-remove finished",
-                    description = "Delete downloaded books after finishing",
-                    checked = state.autoRemoveFinished,
-                    onCheckedChange = viewModel::setAutoRemoveFinished,
-                )
-            }
-
-            SettingsDivider()
-
-            // Controls section
-            SettingsSection(title = "Controls") {
-                SettingsToggleItem(
-                    title = "Haptic feedback",
-                    description = "Vibrate when tapping playback controls",
-                    checked = state.hapticFeedbackEnabled,
-                    onCheckedChange = viewModel::setHapticFeedbackEnabled,
                 )
             }
 
@@ -314,7 +298,7 @@ fun SettingsScreen(
             SettingsSection(title = "About") {
                 SettingsInfoItem(
                     title = "App version",
-                    value = getVersionName(),
+                    value = "Desktop",
                 )
                 state.serverVersion?.let { version ->
                     SettingsInfoItem(
@@ -329,24 +313,7 @@ fun SettingsScreen(
                         onClick = onNavigateToLicenses,
                     )
                 }
-                // TODO: Add privacy policy and GitHub links when URLs are finalized
             }
-        }
-    }
-}
-
-/**
- * Get app version name. Returns a placeholder in previews.
- */
-@Composable
-private fun getVersionName(): String {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    return remember(context) {
-        try {
-            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            packageInfo.versionName ?: "Unknown"
-        } catch (_: Exception) {
-            "Unknown"
         }
     }
 }
@@ -451,7 +418,7 @@ private fun SettingsNavigationItem(
 @Composable
 private fun SettingsActionItem(
     title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    icon: ImageVector? = null,
     onClick: () -> Unit,
     destructive: Boolean = false,
 ) {

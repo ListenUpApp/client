@@ -47,7 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ElevatedCoverCard
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
-import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
+import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 
 /**
  * Identity header showing cover image with edit capability and title/subtitle fields.
@@ -159,7 +159,7 @@ fun IdentityHeader(
                     onValueChange = onTitleChange,
                     textStyle =
                         TextStyle(
-                            fontFamily = GoogleSansDisplay,
+                            fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = MaterialTheme.typography.headlineSmall.fontSize,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -169,7 +169,7 @@ fun IdentityHeader(
                             "Title",
                             style =
                                 MaterialTheme.typography.headlineSmall.copy(
-                                    fontFamily = GoogleSansDisplay,
+                                    fontFamily = DisplayFontFamily,
                                     fontWeight = FontWeight.Bold,
                                 ),
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),

@@ -1,4 +1,4 @@
-package com.calypsan.listenup.client.features.bookedit.components
+package com.calypsan.listenup.client.features.contributoredit.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,14 +13,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.design.theme.GoogleSansDisplay
+import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 
 /**
- * Elevated card container for edit sections.
- * Uses surfaceContainerHigh for visual pop against the gradient background.
+ * Elevated card container for contributor edit sections.
  */
 @Composable
-fun StudioCard(
+fun ContributorStudioCard(
     title: String,
     content: @Composable () -> Unit,
 ) {
@@ -29,7 +28,7 @@ fun StudioCard(
         shape = RoundedCornerShape(24.dp),
         colors =
             CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
     ) {
@@ -41,7 +40,7 @@ fun StudioCard(
                 text = title,
                 style =
                     MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = GoogleSansDisplay,
+                        fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Bold,
                     ),
                 color = MaterialTheme.colorScheme.onSurface,

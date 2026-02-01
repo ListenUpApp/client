@@ -15,7 +15,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 private val logger = KotlinLogging.logger {}
 
 /**
- * State holder for the image picker functionality.
+ * Android implementation of [ImagePicker].
  *
  * Uses the modern Android Photo Picker (API 33+) with automatic fallback
  * to GetContent for older devices or devices without Play Services.
@@ -23,7 +23,7 @@ private val logger = KotlinLogging.logger {}
 class ImagePickerState(
     private val context: Context,
     private val onResult: (ImagePickerResult) -> Unit,
-) {
+) : ImagePicker {
     private var launchPicker: (() -> Unit)? = null
 
     internal fun setLauncher(launcher: () -> Unit) {
@@ -33,7 +33,7 @@ class ImagePickerState(
     /**
      * Launch the image picker.
      */
-    fun launch() {
+    override fun launch() {
         launchPicker?.invoke()
     }
 
@@ -103,31 +103,13 @@ class ImagePickerState(
 }
 
 /**
- * Remember an image picker state that can be used to launch the system photo picker.
+ * Android actual implementation of [rememberImagePicker].
  *
  * Uses the modern Android Photo Picker (API 33+) when available, with automatic
  * fallback to the legacy content picker for older devices.
- *
- * @param onResult Callback invoked with the pick result (success, cancelled, or error)
- * @return [ImagePickerState] that can be used to launch the picker via [ImagePickerState.launch]
- *
- * Usage:
- * ```
- * val imagePicker = rememberImagePicker { result ->
- *     when (result) {
- *         is ImagePickerResult.Success -> uploadImage(result.data, result.filename)
- *         is ImagePickerResult.Cancelled -> { /* User cancelled */ }
- *         is ImagePickerResult.Error -> showError(result.message)
- *     }
- * }
- *
- * Button(onClick = { imagePicker.launch() }) {
- *     Text("Pick Image")
- * }
- * ```
  */
 @Composable
-fun rememberImagePicker(onResult: (ImagePickerResult) -> Unit): ImagePickerState {
+actual fun rememberImagePicker(onResult: (ImagePickerResult) -> Unit): ImagePicker {
     val context = LocalContext.current
     val state = remember { ImagePickerState(context, onResult) }
 

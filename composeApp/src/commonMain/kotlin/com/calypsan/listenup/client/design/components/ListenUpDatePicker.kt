@@ -29,9 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -194,69 +192,4 @@ private val monthNames =
 private fun formatForDisplay(date: LocalDate): String {
     val monthName = monthNames[date.monthNumber - 1]
     return "$monthName ${date.dayOfMonth}, ${date.year}"
-}
-
-@Preview(name = "Empty Date Picker")
-@Composable
-private fun PreviewListenUpDatePickerEmpty() {
-    ListenUpTheme {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ListenUpDatePicker(
-                value = "",
-                onValueChange = {},
-                label = "Birth Date",
-                placeholder = "Select a date",
-            )
-        }
-    }
-}
-
-@Preview(name = "With Date Selected")
-@Composable
-private fun PreviewListenUpDatePickerWithDate() {
-    ListenUpTheme {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ListenUpDatePicker(
-                value = "1947-09-21",
-                onValueChange = {},
-                label = "Birth Date",
-            )
-        }
-    }
-}
-
-@Preview(name = "Multiple States")
-@Composable
-private fun PreviewListenUpDatePickerStates() {
-    ListenUpTheme {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ListenUpDatePicker(
-                value = "",
-                onValueChange = {},
-                label = "Birth Date",
-                placeholder = "Select birth date",
-            )
-
-            ListenUpDatePicker(
-                value = "1947-09-21",
-                onValueChange = {},
-                label = "Birth Date",
-            )
-
-            ListenUpDatePicker(
-                value = "2024-01-15",
-                onValueChange = {},
-                label = "Death Date",
-            )
-        }
-    }
 }
