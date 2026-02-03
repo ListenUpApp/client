@@ -130,6 +130,7 @@ object SleepTimerPresets {
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLicenses: (() -> Unit)? = null,
+    showSleepTimer: Boolean = true,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -242,18 +243,20 @@ fun SettingsScreen(
                 )
             }
 
-            SettingsDivider()
+            if (showSleepTimer) {
+                SettingsDivider()
 
-            // Sleep timer section
-            SettingsSection(title = "Sleep Timer") {
-                SettingsDropdownItem(
-                    title = "Default timer",
-                    description = "Auto-start sleep timer when playing",
-                    selectedValue = state.defaultSleepTimerMin,
-                    options = SleepTimerPresets.presets,
-                    formatValue = { SleepTimerPresets.format(it) },
-                    onValueSelected = viewModel::setDefaultSleepTimerMin,
-                )
+                // Sleep timer section
+                SettingsSection(title = "Sleep Timer") {
+                    SettingsDropdownItem(
+                        title = "Default timer",
+                        description = "Auto-start sleep timer when playing",
+                        selectedValue = state.defaultSleepTimerMin,
+                        options = SleepTimerPresets.presets,
+                        formatValue = { SleepTimerPresets.format(it) },
+                        onValueSelected = viewModel::setDefaultSleepTimerMin,
+                    )
+                }
             }
 
             SettingsDivider()

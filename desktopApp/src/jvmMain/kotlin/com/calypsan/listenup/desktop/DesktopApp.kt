@@ -328,6 +328,7 @@ private fun DetailScreen(
 
         is DetailDestination.Settings -> SettingsScreen(
             onNavigateBack = navigateBack,
+            showSleepTimer = false,
             onNavigateToLicenses = null, // TODO: Add licenses screen for desktop
         )
 

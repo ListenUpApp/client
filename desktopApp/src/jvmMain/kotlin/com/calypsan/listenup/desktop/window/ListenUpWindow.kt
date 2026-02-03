@@ -15,7 +15,11 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowState
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.collectAsState
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
+import com.calypsan.listenup.client.domain.model.ThemeMode
+import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
 import com.calypsan.listenup.desktop.DesktopApp
 import com.calypsan.listenup.desktop.tray.ListenUpTray
@@ -52,8 +56,16 @@ fun ListenUpWindow(
         title = "ListenUp",
         state = state,
     ) {
+        val localPreferences: LocalPreferences = koinInject()
+        val themeMode by localPreferences.themeMode.collectAsState()
+        val isDark = when (themeMode) {
+            ThemeMode.DARK -> true
+            ThemeMode.LIGHT -> false
+            ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        }
+
         ListenUpTheme(
-            darkTheme = true, // Default to dark mode for desktop
+            darkTheme = isDark,
         ) {
             val playerViewModel: DesktopPlayerViewModel = koinInject()
 
