@@ -126,6 +126,9 @@ kotlin {
             // Coil for image loading (multiplatform)
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor3)
+
+            // KMPalette for cross-platform color extraction
+            implementation(libs.kmpalette.core)
         }
         val desktopMain by getting {
             dependencies {

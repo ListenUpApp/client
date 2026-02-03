@@ -244,7 +244,7 @@ class DesktopPlayerViewModel(
             val speed = playbackManager.playbackSpeed.value
             progressTracker.onPlaybackPaused(bookId, positionMs, speed)
         }
-        audioPlayer.release()
+        
         playbackManager.clearPlayback()
     }
 
@@ -268,6 +268,8 @@ class DesktopPlayerViewModel(
                 seriesName = book.seriesName,
                 bookDurationMs = book.duration,
                 totalChapters = chapters.size,
+                playbackSpeed = playbackManager.playbackSpeed.value,
+                isPlaying = playbackManager.isPlaying.value,
             )
         }
     }

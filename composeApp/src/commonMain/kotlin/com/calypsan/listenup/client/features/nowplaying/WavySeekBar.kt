@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -44,6 +45,8 @@ import kotlin.math.roundToInt
  * @param modifier Modifier for the composable
  * @param isPlaying Whether audio is currently playing (animates wave when true)
  * @param enabled Whether seeking is enabled
+ * @param color The color of the filled track (defaults to primary)
+ * @param trackColor The color of the unfilled track (defaults to surfaceVariant)
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -53,6 +56,8 @@ fun WavySeekBar(
     modifier: Modifier = Modifier,
     isPlaying: Boolean = false,
     enabled: Boolean = true,
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
     val density = LocalDensity.current
 
@@ -112,8 +117,6 @@ fun WavySeekBar(
         contentAlignment = Alignment.CenterStart,
     ) {
         // Wavy progress indicator track
-        // Wave amplitude builds from flat (0) at the start to full (1) at the playhead,
-        // then drops to flat for the unfilled track portion
         LinearWavyProgressIndicator(
             progress = { displayProgress },
             modifier =
@@ -121,8 +124,8 @@ fun WavySeekBar(
                     .fillMaxWidth()
                     .height(8.dp)
                     .align(Alignment.Center),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            color = color,
+            trackColor = trackColor,
             amplitude = { if (isPlaying) 1f else 0f },
             wavelength = 24.dp,
             waveSpeed = 15.dp,
@@ -140,7 +143,7 @@ fun WavySeekBar(
                         elevation = if (isDragging) 8.dp else 4.dp,
                         shape = CircleShape,
                     ).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(color),
         )
     }
 }

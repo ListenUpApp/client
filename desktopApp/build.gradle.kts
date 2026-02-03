@@ -43,6 +43,9 @@ kotlin {
             implementation(libs.kotlin.logging)
             implementation(libs.logback.classic)
 
+            // KMPalette for dynamic color extraction from cover art
+            implementation(libs.kmpalette.core)
+
             // Coroutines
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.coroutines.swing)

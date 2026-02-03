@@ -328,6 +328,7 @@ class FfmpegAudioPlayer(
 
             if (frame.samples == null || frame.samples.isEmpty()) continue
 
+
             // Apply speed filter if active
             val outputFrame = if (filter != null) {
                 filter!!.push(frame)
@@ -341,6 +342,7 @@ class FfmpegAudioPlayer(
 
             // Write to audio output (blocks until buffer has space)
             line.write(bytes, 0, bytes.size)
+            }
 
             // Update book-relative position
             val positionInSegmentMs = currentGrabber.timestamp / 1000

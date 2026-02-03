@@ -33,7 +33,11 @@ import com.calypsan.listenup.client.features.bookedit.BookEditScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.contributordetail.ContributorDetailScreen
 import com.calypsan.listenup.client.features.contributoredit.ContributorEditScreen
+import com.calypsan.listenup.client.features.contributormetadata.ContributorMetadataPreviewRoute
+import com.calypsan.listenup.client.features.contributormetadata.ContributorMetadataSearchRoute
 import com.calypsan.listenup.client.features.lens.CreateEditLensScreen
+import com.calypsan.listenup.client.features.metadata.MatchPreviewRoute
+import com.calypsan.listenup.client.features.metadata.MetadataSearchRoute
 import com.calypsan.listenup.client.features.lens.LensDetailScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
 import com.calypsan.listenup.client.features.seriesdetail.SeriesDetailScreen
@@ -66,6 +70,10 @@ sealed interface DetailDestination {
     data class SeriesEdit(val seriesId: String) : DetailDestination
     data class LensEdit(val lensId: String) : DetailDestination
     data object LensCreate : DetailDestination
+    data class MetadataSearch(val bookId: String) : DetailDestination
+    data class MatchPreview(val bookId: String, val asin: String) : DetailDestination
+    data class ContributorMetadataSearch(val contributorId: String) : DetailDestination
+    data class ContributorMetadataPreview(val contributorId: String, val asin: String) : DetailDestination
     data object Settings : DetailDestination
     data object NowPlaying : DetailDestination
 }
@@ -216,7 +224,7 @@ private fun DetailScreen(
             bookId = destination.bookId,
             onBackClick = navigateBack,
             onEditClick = { navigateTo(DetailDestination.BookEdit(it)) },
-            onMetadataSearchClick = { logger.info { "Metadata search: $it (not yet migrated)" } },
+            onMetadataSearchClick = { navigateTo(DetailDestination.MetadataSearch(it)) },
             onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
             onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
             onTagClick = { navigateTo(DetailDestination.Tag(it)) },
@@ -248,7 +256,7 @@ private fun DetailScreen(
             onBookClick = { navigateTo(DetailDestination.Book(it)) },
             onEditClick = { navigateTo(DetailDestination.ContributorEdit(it)) },
             onViewAllClick = { id, role -> logger.info { "Contributor books: $id/$role (not yet migrated)" } },
-            onMetadataClick = { logger.info { "Contributor metadata: $it (not yet migrated)" } },
+            onMetadataClick = { navigateTo(DetailDestination.ContributorMetadataSearch(it)) },
         )
 
         is DetailDestination.ContributorEdit -> ContributorEditScreen(
@@ -280,6 +288,44 @@ private fun DetailScreen(
             onBack = navigateBack,
         )
 
+        is DetailDestination.ContributorMetadataSearch -> ContributorMetadataSearchRoute(
+            contributorId = destination.contributorId,
+            onCandidateSelected = { asin ->
+                navigateTo(DetailDestination.ContributorMetadataPreview(destination.contributorId, asin))
+            },
+            onBack = navigateBack,
+        )
+
+        is DetailDestination.ContributorMetadataPreview -> ContributorMetadataPreviewRoute(
+            contributorId = destination.contributorId,
+            asin = destination.asin,
+            onApplySuccess = {
+                navigateBack()
+                navigateBack()
+            },
+            onChangeMatch = navigateBack,
+            onBack = navigateBack,
+        )
+
+        is DetailDestination.MetadataSearch -> MetadataSearchRoute(
+            bookId = destination.bookId,
+            onResultSelected = { asin ->
+                navigateTo(DetailDestination.MatchPreview(destination.bookId, asin))
+            },
+            onBack = navigateBack,
+        )
+
+        is DetailDestination.MatchPreview -> MatchPreviewRoute(
+            bookId = destination.bookId,
+            asin = destination.asin,
+            onBack = navigateBack,
+            onApplySuccess = {
+                // Pop both MatchPreview and MetadataSearch to go back to BookDetail
+                navigateBack()
+                navigateBack()
+            },
+        )
+
         is DetailDestination.Settings -> SettingsScreen(
             onNavigateBack = navigateBack,
             onNavigateToLicenses = null, // TODO: Add licenses screen for desktop
@@ -301,6 +347,18 @@ private fun DetailScreen(
                     navigateBack()
                 },
                 onBackClick = navigateBack,
+                onGoToBook = {
+                    navigateBack()
+                    navigateTo(DetailDestination.Book(state.bookId))
+                },
+                onGoToSeries = { seriesId ->
+                    navigateBack()
+                    navigateTo(DetailDestination.Series(seriesId))
+                },
+                onGoToContributor = { contributorId ->
+                    navigateBack()
+                    navigateTo(DetailDestination.Contributor(contributorId))
+                },
             )
         }
     }
