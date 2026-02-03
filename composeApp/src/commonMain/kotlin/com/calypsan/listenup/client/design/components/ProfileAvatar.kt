@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import coil3.compose.LocalPlatformContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -29,7 +29,6 @@ import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.UserProfileRepository
 import org.koin.compose.koinInject
 import java.io.File
-import android.graphics.Color as AndroidColor
 
 /**
  * Simple avatar component for displaying other users' profiles.
@@ -69,7 +68,7 @@ fun ProfileAvatar(
     size: Dp = 36.dp,
     fontSize: TextUnit = 14.sp,
 ) {
-    val context = LocalContext.current
+    val context = LocalPlatformContext.current
     val userProfileRepository: UserProfileRepository = koinInject()
     val imageStorage: ImageStorage = koinInject()
 
@@ -166,7 +165,7 @@ private data class CachedProfileData(
  */
 private fun parseAvatarColor(hexColor: String): Color =
     try {
-        Color(AndroidColor.parseColor(hexColor))
+        Color(hexColor.removePrefix("#").toLong(16) or 0xFF000000)
     } catch (_: Exception) {
         Color(0xFF6B7280) // Fallback gray
     }

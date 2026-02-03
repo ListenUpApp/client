@@ -43,7 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,8 +78,8 @@ fun AdminBackupScreen(
     onRestoreClick: (String) -> Unit,
     onABSImportHubClick: (String) -> Unit,
 ) {
-    val backupState by backupViewModel.state.collectAsState()
-    val absImportListState by absImportViewModel.listState.collectAsState()
+    val backupState by backupViewModel.state.collectAsStateWithLifecycle()
+    val absImportListState by absImportViewModel.listState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     // Upload sheet state

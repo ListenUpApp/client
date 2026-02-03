@@ -2,9 +2,6 @@
 
 package com.calypsan.listenup.client.features.admin
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,12 +41,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.presentation.admin.CreateInviteErrorType
@@ -69,19 +67,17 @@ fun CreateInviteScreen(
     onSuccess: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
 
     // Handle success - show link and allow copy
     LaunchedEffect(state.status) {
         when (val status = state.status) {
             is CreateInviteStatus.Success -> {
                 // Auto-copy the link
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                val clip = ClipData.newPlainText("Invite Link", status.invite.url)
-                clipboard.setPrimaryClip(clip)
+                clipboardManager.setText(AnnotatedString(status.invite.url))
                 snackbarHostState.showSnackbar("Invite created! Link copied to clipboard.")
             }
 
@@ -123,9 +119,7 @@ fun CreateInviteScreen(
                     inviteUrl = status.invite.url,
                     inviteName = status.invite.name,
                     onCopyClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("Invite Link", status.invite.url)
-                        clipboard.setPrimaryClip(clip)
+                        clipboardManager.setText(AnnotatedString(status.invite.url))
                         scope.launch {
                             snackbarHostState.showSnackbar("Link copied!")
                         }

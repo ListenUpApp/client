@@ -2,9 +2,6 @@
 
 package com.calypsan.listenup.client.features.admin
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -59,10 +56,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
@@ -90,10 +88,10 @@ fun AdminScreen(
     onInboxEnabledChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
 
     var userToDelete by remember { mutableStateOf<AdminUserInfo?>(null) }
     var inviteToRevoke by remember { mutableStateOf<InviteInfo?>(null) }
@@ -131,7 +129,7 @@ fun AdminScreen(
                 onDeleteUserClick = { userToDelete = it },
                 onUserClick = onUserClick,
                 onCopyInviteClick = { invite ->
-                    copyToClipboard(context, invite.url)
+                    clipboardManager.setText(AnnotatedString(invite.url))
                     scope.launch {
                         snackbarHostState.showSnackbar("Link copied!")
                     }
@@ -200,14 +198,6 @@ fun AdminScreen(
     }
 }
 
-private fun copyToClipboard(
-    context: Context,
-    text: String,
-) {
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    val clip = ClipData.newPlainText("Invite Link", text)
-    clipboard.setPrimaryClip(clip)
-}
 
 @Composable
 private fun AdminContent(

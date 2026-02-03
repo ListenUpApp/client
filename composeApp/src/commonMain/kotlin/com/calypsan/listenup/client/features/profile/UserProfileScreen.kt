@@ -53,13 +53,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
@@ -71,7 +71,6 @@ import com.calypsan.listenup.client.presentation.profile.UserProfileUiState
 import com.calypsan.listenup.client.presentation.profile.UserProfileViewModel
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
-import android.graphics.Color as AndroidColor
 
 /**
  * Screen displaying a user's full profile.
@@ -271,7 +270,7 @@ private fun ProfileHeader(
     avatarCacheBuster: Long,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
+    val context = LocalPlatformContext.current
     val serverConfig: ServerConfig = koinInject()
     val serverUrl by produceState<String?>(null) {
         value = serverConfig.getServerUrl()?.value
@@ -288,7 +287,7 @@ private fun ProfileHeader(
         val backgroundColor =
             remember(avatarColor) {
                 try {
-                    Color(AndroidColor.parseColor(avatarColor))
+                    Color(avatarColor.removePrefix("#").toLong(16) or 0xFF000000)
                 } catch (_: Exception) {
                     Color(0xFF6B7280)
                 }

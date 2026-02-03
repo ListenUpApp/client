@@ -16,7 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.calypsan.listenup.client.domain.repository.LeaderboardCategory
 import com.calypsan.listenup.client.presentation.discover.LeaderboardViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -40,7 +40,7 @@ fun DiscoverLeaderboardSection(
     modifier: Modifier = Modifier,
     viewModel: LeaderboardViewModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsState()
 
     // Always show the card - different content based on state
     Card(
