@@ -342,7 +342,6 @@ class FfmpegAudioPlayer(
 
             // Write to audio output (blocks until buffer has space)
             line.write(bytes, 0, bytes.size)
-            }
 
             // Update book-relative position
             val positionInSegmentMs = currentGrabber.timestamp / 1000
