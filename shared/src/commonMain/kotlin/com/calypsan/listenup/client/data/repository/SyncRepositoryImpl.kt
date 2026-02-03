@@ -40,6 +40,8 @@ class SyncRepositoryImpl(
 
     override suspend fun sync(): Result<Unit> = syncManager.sync()
 
+    override suspend fun connectRealtime() = syncManager.connectRealtime()
+
     override suspend fun resetForNewLibrary(newLibraryId: String): Result<Unit> =
         syncManager.resetForNewLibrary(newLibraryId)
 

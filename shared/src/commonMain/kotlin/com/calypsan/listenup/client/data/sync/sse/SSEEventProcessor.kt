@@ -21,6 +21,7 @@ import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
@@ -649,12 +650,42 @@ class SSEEventProcessor(
 
     // ========== Listening Event Handlers ==========
 
-    private fun handleProgressUpdated(event: SSEEventType.ProgressUpdated) {
+    private suspend fun handleProgressUpdated(event: SSEEventType.ProgressUpdated) {
         logger.info {
-            "SSE: Progress updated for book ${event.bookId} - ${(event.progress * 100).toInt()}% (from another device)"
+            "SSE: Progress updated for book ${event.bookId} - " +
+                "${(event.progress * 100).toInt()}%, position=${event.currentPositionMs}ms (from another device)"
         }
-        // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
-        // Stats/Continue Listening screens can listen for this to refresh
+
+        val bookId = BookId(event.bookId)
+        val lastPlayedAtMs = parseTimestamp(event.lastPlayedAt).epochMillis
+
+        try {
+            // Only update if the remote progress is newer than local
+            val existing = playbackPositionDao.get(bookId)
+            if (existing != null && (existing.lastPlayedAt ?: 0L) >= lastPlayedAtMs) {
+                logger.debug {
+                    "SSE: Skipping progress update for ${event.bookId} - local is newer " +
+                        "(local=${existing.lastPlayedAt}, remote=$lastPlayedAtMs)"
+                }
+                return
+            }
+
+            playbackPositionDao.save(
+                PlaybackPositionEntity(
+                    bookId = bookId,
+                    positionMs = event.currentPositionMs,
+                    playbackSpeed = existing?.playbackSpeed ?: 1.0f,
+                    hasCustomSpeed = existing?.hasCustomSpeed ?: false,
+                    updatedAt = lastPlayedAtMs,
+                    syncedAt = lastPlayedAtMs,
+                    lastPlayedAt = lastPlayedAtMs,
+                    isFinished = event.isFinished,
+                ),
+            )
+            logger.info { "SSE: Updated local position for ${event.bookId} to ${event.currentPositionMs}ms" }
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to update progress for ${event.bookId}" }
+        }
     }
 
     private suspend fun handleProgressDeleted(event: SSEEventType.ProgressDeleted) {

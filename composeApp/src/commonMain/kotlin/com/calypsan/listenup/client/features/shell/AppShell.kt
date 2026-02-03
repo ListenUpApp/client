@@ -110,6 +110,9 @@ fun AppShell(
         val lastSyncTime = syncStatusRepository.getLastSyncTime()
         if (isAuthenticated && lastSyncTime == null) {
             syncRepository.sync()
+        } else if (isAuthenticated) {
+            // Already synced before — just reconnect SSE and delta sync
+            syncRepository.connectRealtime()
         }
     }
 
