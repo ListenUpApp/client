@@ -218,6 +218,22 @@ private fun ActivityItem(
 }
 
 /**
+ * Format author name for activity feed display.
+ * Shows "FirstAuthor et al." when there are multiple authors.
+ */
+private fun formatActivityAuthor(authorName: String?): String? {
+    if (authorName.isNullOrBlank()) return null
+
+    // Check for multiple authors (comma-separated)
+    val authors = authorName.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+    return when {
+        authors.size <= 1 -> authorName
+        else -> "${authors.first()} et al."
+    }
+}
+
+/**
  * Get the icon and description for an activity.
  */
 private fun getActivityIconAndDescription(activity: ActivityUiModel): Pair<ImageVector, String> =
@@ -225,13 +241,13 @@ private fun getActivityIconAndDescription(activity: ActivityUiModel): Pair<Image
         "started_book" -> {
             val prefix = if (activity.isReread) "Started re-reading" else "Started reading"
             val bookInfo = activity.bookTitle ?: "a book"
-            val authorInfo = if (activity.bookAuthorName != null) " by ${activity.bookAuthorName}" else ""
+            val authorInfo = formatActivityAuthor(activity.bookAuthorName)?.let { " by $it" } ?: ""
             Icons.AutoMirrored.Filled.MenuBook to "$prefix $bookInfo$authorInfo"
         }
 
         "finished_book" -> {
             val bookInfo = activity.bookTitle ?: "a book"
-            val authorInfo = if (activity.bookAuthorName != null) " by ${activity.bookAuthorName}" else ""
+            val authorInfo = formatActivityAuthor(activity.bookAuthorName)?.let { " by $it" } ?: ""
             Icons.Default.AutoStories to "Finished $bookInfo$authorInfo"
         }
 
