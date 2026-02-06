@@ -42,6 +42,7 @@ import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.admin.UserDetailViewModel
+import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.contributordetail.ContributorDetailScreen
 import com.calypsan.listenup.client.features.contributoredit.ContributorEditScreen
@@ -60,6 +61,7 @@ import com.calypsan.listenup.client.features.settings.SettingsScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.features.tagdetail.TagDetailScreen
+import com.calypsan.listenup.client.features.profile.UserProfileScreen
 import com.calypsan.listenup.client.navigation.AuthNavigation
 import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
 import com.calypsan.listenup.client.presentation.search.SearchUiEvent
@@ -99,6 +101,7 @@ sealed interface DetailDestination {
     data class UserDetail(val userId: String) : DetailDestination
     data object AdminCollections : DetailDestination
     data class AdminCollectionDetail(val collectionId: String) : DetailDestination
+    data class UserProfile(val userId: String) : DetailDestination
     data object AdminInbox : DetailDestination
 }
 
@@ -183,7 +186,7 @@ private fun DesktopAuthenticatedNavigation() {
                             }
                         },
                         onUserProfileClick = { userId ->
-                            logger.info { "User profile clicked: $userId (profile screen not yet migrated)" }
+                            navigateTo(DetailDestination.UserProfile(userId))
                         },
                         homeContent = { padding, _, onNavigateToLibrary ->
                             HomeScreen(
@@ -205,11 +208,11 @@ private fun DesktopAuthenticatedNavigation() {
                             )
                         },
                         discoverContent = { padding ->
-                            PlaceholderScreen(
-                                title = "Discover",
-                                description = "Social features and recommendations.",
-                                icon = { Icon(Icons.Default.Explore, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
-                                padding = padding,
+                            DiscoverScreen(
+                                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
+                                onBookClick = { navigateTo(DetailDestination.Book(it)) },
+                                onUserProfileClick = { navigateTo(DetailDestination.UserProfile(it)) },
+                                modifier = Modifier.padding(padding),
                             )
                         },
                         searchOverlayContent = { padding ->
@@ -263,7 +266,7 @@ private fun DetailScreen(
             onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
             onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
             onTagClick = { navigateTo(DetailDestination.Tag(it)) },
-            onUserProfileClick = { logger.info { "User profile: $it (not yet migrated)" } },
+            onUserProfileClick = { navigateTo(DetailDestination.UserProfile(it)) },
         )
 
         is DetailDestination.BookEdit -> BookEditScreen(
@@ -454,6 +457,17 @@ private fun DetailScreen(
                 viewModel = viewModel,
                 onBackClick = navigateBack,
                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
+            )
+        }
+
+        is DetailDestination.UserProfile -> {
+            UserProfileScreen(
+                userId = destination.userId,
+                onBack = navigateBack,
+                onEditClick = { /* Edit profile not implemented on desktop */ },
+                onBookClick = { navigateTo(DetailDestination.Book(it)) },
+                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
+                onCreateLensClick = { navigateTo(DetailDestination.LensCreate) },
             )
         }
     }
