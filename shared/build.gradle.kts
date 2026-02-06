@@ -162,6 +162,7 @@ dependencies {
 
 // SKIE configuration for enhanced Swift interop
 skie {
+    isEnabled = false
     // Enable Flow support - converts Kotlin Flow to Swift AsyncSequence
     features {
         // Enables StateFlow/SharedFlow → Swift async/await

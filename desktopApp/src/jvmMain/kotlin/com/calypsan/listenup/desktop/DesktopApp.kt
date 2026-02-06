@@ -33,8 +33,10 @@ import com.calypsan.listenup.client.features.bookedit.BookEditScreen
 import com.calypsan.listenup.client.features.admin.AdminScreen
 import com.calypsan.listenup.client.features.admin.CreateInviteScreen
 import com.calypsan.listenup.client.features.admin.UserDetailScreen
+import com.calypsan.listenup.client.features.admin.collections.AdminCollectionDetailScreen
 import com.calypsan.listenup.client.features.admin.collections.AdminCollectionsScreen
 import com.calypsan.listenup.client.features.admin.inbox.AdminInboxScreen
+import com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
@@ -91,6 +93,7 @@ sealed interface DetailDestination {
     data object CreateInvite : DetailDestination
     data class UserDetail(val userId: String) : DetailDestination
     data object AdminCollections : DetailDestination
+    data class AdminCollectionDetail(val collectionId: String) : DetailDestination
     data object AdminInbox : DetailDestination
 }
 
@@ -411,7 +414,15 @@ private fun DetailScreen(
             AdminCollectionsScreen(
                 viewModel = viewModel,
                 onBackClick = navigateBack,
-                onCollectionClick = { logger.info { "Collection: $it (detail not yet migrated)" } },
+                onCollectionClick = { navigateTo(DetailDestination.AdminCollectionDetail(it)) },
+            )
+        }
+
+        is DetailDestination.AdminCollectionDetail -> {
+            val viewModel: AdminCollectionDetailViewModel = koinInject { parametersOf(destination.collectionId) }
+            AdminCollectionDetailScreen(
+                viewModel = viewModel,
+                onBackClick = navigateBack,
             )
         }
 
