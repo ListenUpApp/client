@@ -25,9 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpTextField
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.calypsan.listenup.client.util.formatDateLong
 
 /**
  * Library information section: Date Added.
@@ -115,7 +113,7 @@ private fun DatePickerField(
     }
 
     OutlinedTextField(
-        value = value?.let { formatDate(it) } ?: "",
+        value = value?.let { formatDateLong(it) } ?: "",
         onValueChange = {},
         label = { Text(label) },
         placeholder = { Text("Not set") },
@@ -131,12 +129,4 @@ private fun DatePickerField(
         shape = MaterialTheme.shapes.medium,
         modifier = modifier.fillMaxWidth(),
     )
-}
-
-/**
- * Format epoch milliseconds to a readable date string.
- */
-private fun formatDate(epochMillis: Long): String {
-    val formatter = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
-    return formatter.format(Date(epochMillis))
 }
