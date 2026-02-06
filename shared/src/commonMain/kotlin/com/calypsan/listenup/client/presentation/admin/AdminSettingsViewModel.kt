@@ -16,7 +16,7 @@ private val logger = KotlinLogging.logger {}
 /**
  * ViewModel for admin server settings screen.
  *
- * Manages server-wide settings like the inbox workflow toggle.
+ * Manages server-wide settings like the server name and inbox workflow toggle.
  * When inbox is disabled with pending books, they are automatically
  * released with their staged collections.
  */
@@ -40,6 +40,7 @@ class AdminSettingsViewModel(
                     state.value =
                         state.value.copy(
                             isLoading = false,
+                            serverName = result.data.serverName,
                             inboxEnabled = result.data.inboxEnabled,
                             inboxCount = result.data.inboxCount,
                         )
@@ -50,6 +51,35 @@ class AdminSettingsViewModel(
                     state.value =
                         state.value.copy(
                             isLoading = false,
+                            error = result.message,
+                        )
+                }
+            }
+        }
+    }
+
+    /**
+     * Update the server display name.
+     */
+    fun setServerName(name: String) {
+        viewModelScope.launch {
+            state.value = state.value.copy(isSaving = true, error = null)
+
+            when (val result = updateServerSettingsUseCase.updateServerName(name)) {
+                is Success -> {
+                    state.value =
+                        state.value.copy(
+                            isSaving = false,
+                            serverName = result.data.serverName,
+                        )
+                    logger.info { "Server name updated to: ${result.data.serverName}" }
+                }
+
+                is Failure -> {
+                    logger.error { "Failed to update server name: ${result.message}" }
+                    state.value =
+                        state.value.copy(
+                            isSaving = false,
                             error = result.message,
                         )
                 }
@@ -127,6 +157,7 @@ class AdminSettingsViewModel(
 data class AdminSettingsUiState(
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
+    val serverName: String = "",
     val inboxEnabled: Boolean = false,
     val inboxCount: Int = 0,
     val showDisableConfirmation: Boolean = false,

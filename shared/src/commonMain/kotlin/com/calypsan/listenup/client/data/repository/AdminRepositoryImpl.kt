@@ -118,8 +118,13 @@ class AdminRepositoryImpl(
 
     override suspend fun getServerSettings(): ServerSettings = adminApi.getServerSettings().toDomain()
 
-    override suspend fun updateServerSettings(inboxEnabled: Boolean): ServerSettings =
-        adminApi.updateServerSettings(ServerSettingsRequest(inboxEnabled = inboxEnabled)).toDomain()
+    override suspend fun updateServerSettings(
+        serverName: String?,
+        inboxEnabled: Boolean?,
+    ): ServerSettings =
+        adminApi.updateServerSettings(
+            ServerSettingsRequest(serverName = serverName, inboxEnabled = inboxEnabled),
+        ).toDomain()
 
     // ═══════════════════════════════════════════════════════════════════════
     // INBOX MANAGEMENT
@@ -220,6 +225,7 @@ private fun AdminInvite.toDomain(): InviteInfo =
  */
 private fun ServerSettingsResponse.toDomain(): ServerSettings =
     ServerSettings(
+        serverName = serverName,
         inboxEnabled = inboxEnabled,
         inboxCount = inboxCount,
     )

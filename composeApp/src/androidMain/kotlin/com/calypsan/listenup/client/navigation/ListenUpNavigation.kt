@@ -862,9 +862,11 @@ private fun AuthenticatedNavigation(
                                 onUserClick = { userId ->
                                     backStack.add(AdminUserDetail(userId))
                                 },
+                                serverName = settingsState.serverName,
+                                onServerNameChange = { settingsViewModel.setServerName(it) },
                                 inboxEnabled = settingsState.inboxEnabled,
                                 inboxCount = settingsState.inboxCount,
-                                isTogglingInbox = settingsState.isSaving,
+                                isSaving = settingsState.isSaving,
                                 onInboxEnabledChange = { settingsViewModel.setInboxEnabled(it) },
                             )
 

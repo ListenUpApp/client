@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.HowToReg
+import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Share
@@ -43,6 +44,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -82,9 +84,11 @@ fun AdminScreen(
     onInboxClick: () -> Unit = {},
     onBackupClick: () -> Unit = {},
     onUserClick: (String) -> Unit = {},
+    serverName: String = "",
+    onServerNameChange: (String) -> Unit = {},
     inboxEnabled: Boolean = false,
     inboxCount: Int = 0,
-    isTogglingInbox: Boolean = false,
+    isSaving: Boolean = false,
     onInboxEnabledChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -139,9 +143,11 @@ fun AdminScreen(
                 onCollectionsClick = onCollectionsClick,
                 onInboxClick = onInboxClick,
                 onBackupClick = onBackupClick,
+                serverName = serverName,
+                onServerNameChange = onServerNameChange,
                 inboxEnabled = inboxEnabled,
                 inboxCount = inboxCount,
-                isTogglingInbox = isTogglingInbox,
+                isSaving = isSaving,
                 onInboxEnabledChange = onInboxEnabledChange,
                 modifier = Modifier.padding(innerPadding),
             )
@@ -212,9 +218,11 @@ private fun AdminContent(
     onCollectionsClick: () -> Unit,
     onInboxClick: () -> Unit,
     onBackupClick: () -> Unit,
+    serverName: String,
+    onServerNameChange: (String) -> Unit,
     inboxEnabled: Boolean,
     inboxCount: Int,
-    isTogglingInbox: Boolean,
+    isSaving: Boolean,
     onInboxEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -236,11 +244,13 @@ private fun AdminContent(
 
         item {
             SettingsCard(
+                serverName = serverName,
+                onServerNameChange = onServerNameChange,
                 openRegistration = state.openRegistration,
                 isTogglingOpenRegistration = state.isTogglingOpenRegistration,
                 onOpenRegistrationChange = onOpenRegistrationChange,
                 inboxEnabled = inboxEnabled,
-                isTogglingInbox = isTogglingInbox,
+                isSaving = isSaving,
                 onInboxEnabledChange = onInboxEnabledChange,
             )
         }
@@ -434,11 +444,13 @@ private fun AdminContent(
 
 @Composable
 private fun SettingsCard(
+    serverName: String,
+    onServerNameChange: (String) -> Unit,
     openRegistration: Boolean,
     isTogglingOpenRegistration: Boolean,
     onOpenRegistrationChange: (Boolean) -> Unit,
     inboxEnabled: Boolean,
-    isTogglingInbox: Boolean,
+    isSaving: Boolean,
     onInboxEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -451,6 +463,35 @@ private fun SettingsCard(
             ),
     ) {
         Column {
+            // Server Name field
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Badge,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = serverName,
+                    onValueChange = onServerNameChange,
+                    label = { Text("Server Name") },
+                    placeholder = { Text("ListenUp Server") },
+                    singleLine = true,
+                    enabled = !isSaving,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            )
+
             // Open Registration toggle
             Row(
                 modifier =
@@ -517,7 +558,7 @@ private fun SettingsCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (isTogglingInbox) {
+                if (isSaving) {
                     ListenUpLoadingIndicatorSmall()
                 } else {
                     Switch(

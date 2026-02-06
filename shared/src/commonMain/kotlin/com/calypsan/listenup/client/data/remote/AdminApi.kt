@@ -517,11 +517,13 @@ data class SetOpenRegistrationRequest(
  */
 @Serializable
 private data class ServerSettingsApiResponse(
+    @SerialName("server_name") val serverName: String,
     @SerialName("inbox_enabled") val inboxEnabled: Boolean,
     @SerialName("inbox_count") val inboxCount: Int,
 ) {
     fun toDomain(): ServerSettingsResponse =
         ServerSettingsResponse(
+            serverName = serverName,
             inboxEnabled = inboxEnabled,
             inboxCount = inboxCount,
         )
@@ -532,11 +534,12 @@ private data class ServerSettingsApiResponse(
  */
 @Serializable
 private data class ServerSettingsApiRequest(
+    @SerialName("server_name") val serverName: String?,
     @SerialName("inbox_enabled") val inboxEnabled: Boolean?,
 )
 
 private fun ServerSettingsRequest.toApiRequest(): ServerSettingsApiRequest =
-    ServerSettingsApiRequest(inboxEnabled = inboxEnabled)
+    ServerSettingsApiRequest(serverName = serverName, inboxEnabled = inboxEnabled)
 
 // =============================================================================
 // Inbox API Models

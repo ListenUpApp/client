@@ -142,10 +142,14 @@ interface AdminRepository {
     /**
      * Update server settings.
      *
-     * @param inboxEnabled Whether to enable inbox workflow
+     * @param serverName Display name for the server (null to keep unchanged)
+     * @param inboxEnabled Whether to enable inbox workflow (null to keep unchanged)
      * @return Updated server settings
      */
-    suspend fun updateServerSettings(inboxEnabled: Boolean): ServerSettings
+    suspend fun updateServerSettings(
+        serverName: String? = null,
+        inboxEnabled: Boolean? = null,
+    ): ServerSettings
 
     // ═══════════════════════════════════════════════════════════════════════
     // INBOX MANAGEMENT

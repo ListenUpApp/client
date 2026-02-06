@@ -38,6 +38,7 @@ import com.calypsan.listenup.client.features.admin.inbox.AdminInboxScreen
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.admin.UserDetailViewModel
@@ -512,6 +513,9 @@ private fun DetailScreen(
 
         is DetailDestination.Admin -> {
             val viewModel: AdminViewModel = koinInject()
+            val settingsViewModel: AdminSettingsViewModel = koinInject()
+            val settingsState by settingsViewModel.state.collectAsState()
+            
             AdminScreen(
                 viewModel = viewModel,
                 onBackClick = navigateBack,
@@ -519,7 +523,28 @@ private fun DetailScreen(
                 onCollectionsClick = { navigateTo(DetailDestination.AdminCollections) },
                 onInboxClick = { navigateTo(DetailDestination.AdminInbox) },
                 onUserClick = { navigateTo(DetailDestination.UserDetail(it)) },
+                serverName = settingsState.serverName,
+                onServerNameChange = { settingsViewModel.setServerName(it) },
+                inboxEnabled = settingsState.inboxEnabled,
+                inboxCount = settingsState.inboxCount,
+                isSaving = settingsState.isSaving,
+                onInboxEnabledChange = { settingsViewModel.setInboxEnabled(it) },
             )
+            
+            // Handle disable inbox confirmation dialog
+            if (settingsState.showDisableConfirmation) {
+                com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog(
+                    onDismissRequest = { settingsViewModel.cancelDisableInbox() },
+                    title = "Disable Inbox Workflow",
+                    text = "This will release all ${settingsState.inboxCount} " +
+                        "book${if (settingsState.inboxCount != 1) "s" else ""} " +
+                        "currently in the inbox with their staged collection assignments.\n\n" +
+                        "New books will become immediately visible to users.",
+                    confirmText = "Disable & Release",
+                    onConfirm = { settingsViewModel.confirmDisableInbox() },
+                    onDismiss = { settingsViewModel.cancelDisableInbox() },
+                )
+            }
         }
 
         is DetailDestination.CreateInvite -> {
