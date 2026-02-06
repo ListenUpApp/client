@@ -65,14 +65,19 @@ data class AudioSegment(
 enum class PlaybackState {
     /** No content loaded. */
     Idle,
+
     /** Content is loading/buffering. */
     Buffering,
+
     /** Actively playing audio. */
     Playing,
+
     /** Playback is paused. */
     Paused,
+
     /** Playback completed (reached end of all segments). */
     Ended,
+
     /** An error occurred during playback. */
     Error,
 }

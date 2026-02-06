@@ -68,8 +68,9 @@ class JvmStoragePathsTest {
         val filesDir = storagePaths.filesDir.toString()
 
         // Then - should use APPDATA
-        val appData = System.getenv("APPDATA")
-            ?: "${System.getProperty("user.home")}/AppData/Roaming"
+        val appData =
+            System.getenv("APPDATA")
+                ?: "${System.getProperty("user.home")}/AppData/Roaming"
 
         assertTrue(
             filesDir.startsWith(appData),

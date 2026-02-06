@@ -9,4 +9,8 @@ import androidx.compose.ui.graphics.ImageBitmap
  * - Android: Uses com.vanniktech.blurhash library
  * - Desktop: Uses pure-JVM BlurHash decoding with AWT BufferedImage
  */
-expect fun decodeBlurHash(blurHash: String, width: Int, height: Int): ImageBitmap?
+expect fun decodeBlurHash(
+    blurHash: String,
+    width: Int,
+    height: Int,
+): ImageBitmap?

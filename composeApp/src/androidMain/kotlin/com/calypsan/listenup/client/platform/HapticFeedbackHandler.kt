@@ -17,7 +17,6 @@ private class AndroidHapticFeedbackHandler(
     private val platformHaptics: HapticFeedback,
     private val enabled: Boolean,
 ) : HapticFeedbackHandler {
-
     override fun performClick() {
         if (enabled) {
             platformHaptics.performHapticFeedback(HapticFeedbackType.Confirm)

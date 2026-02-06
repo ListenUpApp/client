@@ -172,9 +172,10 @@ private fun DatePickerDialogWrapper(
     val initialDate = epochMillisToLocalDate(initialMillis)
     val initialSelectionMillis = initialDate.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
 
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = initialSelectionMillis,
-    )
+    val datePickerState =
+        rememberDatePickerState(
+            initialSelectedDateMillis = initialSelectionMillis,
+        )
 
     DatePickerDialog(
         onDismissRequest = onDismiss,
@@ -208,9 +209,18 @@ private fun epochMillisToLocalDate(millis: Long): LocalDate =
 
 private val monthNames =
     arrayOf(
-        "January", "February", "March", "April",
-        "May", "June", "July", "August",
-        "September", "October", "November", "December",
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
     )
 
 private fun formatDateForDisplay(millis: Long): String {

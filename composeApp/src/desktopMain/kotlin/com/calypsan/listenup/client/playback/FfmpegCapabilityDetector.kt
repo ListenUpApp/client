@@ -8,6 +8,5 @@ package com.calypsan.listenup.client.playback
  * reports all supported codecs — no runtime probing needed.
  */
 class FfmpegCapabilityDetector : AudioCapabilityDetector {
-    override fun getSupportedCodecs(): List<String> =
-        listOf("aac", "mp3", "vorbis", "flac", "pcm", "opus")
+    override fun getSupportedCodecs(): List<String> = listOf("aac", "mp3", "vorbis", "flac", "pcm", "opus")
 }

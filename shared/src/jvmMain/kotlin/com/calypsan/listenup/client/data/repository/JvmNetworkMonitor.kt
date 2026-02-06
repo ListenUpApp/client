@@ -39,27 +39,28 @@ class JvmNetworkMonitor(
     private val serverUrlProvider: () -> String?,
 ) : NetworkMonitor {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val httpClient = HttpClient(OkHttp) {
-        engine {
-            config {
-                connectTimeout(HEALTH_CHECK_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
-                readTimeout(HEALTH_CHECK_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+    private val httpClient =
+        HttpClient(OkHttp) {
+            engine {
+                config {
+                    connectTimeout(HEALTH_CHECK_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    readTimeout(HEALTH_CHECK_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+                }
             }
         }
-    }
 
-    private val _isOnline = MutableStateFlow(true) // Optimistic default
-    override val isOnlineFlow: StateFlow<Boolean> = _isOnline.asStateFlow()
+    private val _isOnlineFlow = MutableStateFlow(true) // Optimistic default
+    override val isOnlineFlow: StateFlow<Boolean> = _isOnlineFlow.asStateFlow()
 
     // Desktop networks are always considered unmetered (WiFi/Ethernet)
-    private val _isUnmetered = MutableStateFlow(true)
-    override val isOnUnmeteredNetworkFlow: StateFlow<Boolean> = _isUnmetered.asStateFlow()
+    private val _isOnUnmeteredNetworkFlow = MutableStateFlow(true)
+    override val isOnUnmeteredNetworkFlow: StateFlow<Boolean> = _isOnUnmeteredNetworkFlow.asStateFlow()
 
     init {
         startHealthCheckLoop()
     }
 
-    override fun isOnline(): Boolean = _isOnline.value
+    override fun isOnline(): Boolean = _isOnlineFlow.value
 
     /**
      * Trigger an immediate health check.
@@ -85,21 +86,22 @@ class JvmNetworkMonitor(
 
         if (serverUrl == null) {
             // No server configured - assume online (optimistic)
-            _isOnline.value = true
+            _isOnlineFlow.value = true
             return
         }
 
-        val isReachable = try {
-            val response = httpClient.get("$serverUrl/health")
-            response.status.isSuccess()
-        } catch (e: Exception) {
-            logger.debug(e) { "Health check failed for $serverUrl" }
-            false
-        }
+        val isReachable =
+            try {
+                val response = httpClient.get("$serverUrl/health")
+                response.status.isSuccess()
+            } catch (e: Exception) {
+                logger.debug(e) { "Health check failed for $serverUrl" }
+                false
+            }
 
-        if (_isOnline.value != isReachable) {
+        if (_isOnlineFlow.value != isReachable) {
             logger.info { "Network state changed: online=$isReachable" }
-            _isOnline.value = isReachable
+            _isOnlineFlow.value = isReachable
         }
     }
 }

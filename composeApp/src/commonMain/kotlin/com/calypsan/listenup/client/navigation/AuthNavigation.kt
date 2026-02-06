@@ -62,9 +62,10 @@ fun AuthNavigation(
         AuthState.Initializing -> {
             // Show blank screen while determining auth state
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
             )
         }
 
@@ -110,9 +111,11 @@ private fun PendingApprovalNavigation(
     email: String,
     password: String,
 ) {
-    val viewModel: PendingApprovalViewModel = koinInject {
-        org.koin.core.parameter.parametersOf(userId, email, password)
-    }
+    val viewModel: PendingApprovalViewModel =
+        koinInject {
+            org.koin.core.parameter
+                .parametersOf(userId, email, password)
+        }
 
     PendingApprovalScreen(
         viewModel = viewModel,
@@ -138,28 +141,29 @@ private fun ServerSetupNavigation() {
                 backStack.removeAt(backStack.lastIndex)
             }
         },
-        entryProvider = entryProvider {
-            entry<ServerSelect> {
-                ServerSelectScreen(
-                    onServerActivated = {
-                        // Server is saved, AuthState will change automatically
-                    },
-                    onManualEntryRequested = {
-                        backStack.add(ServerSetup)
-                    },
-                )
-            }
-            entry<ServerSetup> {
-                ServerSetupScreen(
-                    onServerVerified = {
-                        // Server is saved, AuthState will change automatically
-                    },
-                    onBack = {
-                        backStack.removeAt(backStack.lastIndex)
-                    },
-                )
-            }
-        },
+        entryProvider =
+            entryProvider {
+                entry<ServerSelect> {
+                    ServerSelectScreen(
+                        onServerActivated = {
+                            // Server is saved, AuthState will change automatically
+                        },
+                        onManualEntryRequested = {
+                            backStack.add(ServerSetup)
+                        },
+                    )
+                }
+                entry<ServerSetup> {
+                    ServerSetupScreen(
+                        onServerVerified = {
+                            // Server is saved, AuthState will change automatically
+                        },
+                        onBack = {
+                            backStack.removeAt(backStack.lastIndex)
+                        },
+                    )
+                }
+            },
     )
 }
 
@@ -172,11 +176,12 @@ private fun SetupNavigation() {
 
     NavDisplay(
         backStack = backStack,
-        entryProvider = entryProvider {
-            entry<Setup> {
-                SetupScreen()
-            }
-        },
+        entryProvider =
+            entryProvider {
+                entry<Setup> {
+                    SetupScreen()
+                }
+            },
     )
 }
 
@@ -204,27 +209,28 @@ private fun LoginNavigation(
                 backStack.removeAt(backStack.lastIndex)
             }
         },
-        entryProvider = entryProvider {
-            entry<Login> {
-                LoginScreen(
-                    openRegistration = openRegistration,
-                    onChangeServer = {
-                        scope.launch {
-                            serverConfig.disconnectFromServer()
-                        }
-                    },
-                    onRegister = {
-                        backStack.add(Register)
-                    },
-                )
-            }
-            entry<Register> {
-                RegisterScreen(
-                    onBackClick = {
-                        backStack.removeAt(backStack.lastIndex)
-                    },
-                )
-            }
-        },
+        entryProvider =
+            entryProvider {
+                entry<Login> {
+                    LoginScreen(
+                        openRegistration = openRegistration,
+                        onChangeServer = {
+                            scope.launch {
+                                serverConfig.disconnectFromServer()
+                            }
+                        },
+                        onRegister = {
+                            backStack.add(Register)
+                        },
+                    )
+                }
+                entry<Register> {
+                    RegisterScreen(
+                        onBackClick = {
+                            backStack.removeAt(backStack.lastIndex)
+                        },
+                    )
+                }
+            },
     )
 }

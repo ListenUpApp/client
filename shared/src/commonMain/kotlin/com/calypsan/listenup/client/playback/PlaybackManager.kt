@@ -347,14 +347,15 @@ class PlaybackManager(
         }
 
         // Build segments from timeline
-        val segments = timeline.files.map { file ->
-            AudioSegment(
-                url = file.streamingUrl,
-                localPath = file.localPath,
-                durationMs = file.durationMs,
-                offsetMs = file.startOffsetMs,
-            )
-        }
+        val segments =
+            timeline.files.map { file ->
+                AudioSegment(
+                    url = file.streamingUrl,
+                    localPath = file.localPath,
+                    durationMs = file.durationMs,
+                    offsetMs = file.startOffsetMs,
+                )
+            }
 
         // Load segments into player
         player.load(segments)

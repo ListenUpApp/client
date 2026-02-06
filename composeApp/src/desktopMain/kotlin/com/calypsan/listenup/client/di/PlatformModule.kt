@@ -56,9 +56,10 @@ val platformModule: Module =
         // Device ID for listening events
         // Desktop uses a persistent UUID based on machine characteristics
         single(qualifier = named("deviceId")) {
-            val hostname = System.getenv("HOSTNAME")
-                ?: System.getenv("COMPUTERNAME")
-                ?: "desktop"
+            val hostname =
+                System.getenv("HOSTNAME")
+                    ?: System.getenv("COMPUTERNAME")
+                    ?: "desktop"
             val username = System.getProperty("user.name", "user")
             UUID.nameUUIDFromBytes("$hostname:$username".toByteArray()).toString()
         }

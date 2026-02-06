@@ -210,15 +210,16 @@ class FfmpegAudioPlayer(
             }
 
             // Open audio output line
-            val format = AudioFormat(
-                AudioFormat.Encoding.PCM_SIGNED,
-                sampleRate.toFloat(),
-                16, // bits per sample
-                channels,
-                channels * 2, // frame size in bytes
-                sampleRate.toFloat(),
-                false, // little-endian
-            )
+            val format =
+                AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    sampleRate.toFloat(),
+                    16, // bits per sample
+                    channels,
+                    channels * 2, // frame size in bytes
+                    sampleRate.toFloat(),
+                    false, // little-endian
+                )
             val lineInfo = DataLine.Info(SourceDataLine::class.java, format)
             val line = AudioSystem.getLine(lineInfo) as SourceDataLine
             line.open(format, sampleRate * channels * 2 / 10) // ~100ms buffer
@@ -306,16 +307,17 @@ class FfmpegAudioPlayer(
      */
     private fun startDecodeLoop() {
         stopDecodeLoop()
-        decodeJob = scope.launch(Dispatchers.IO) {
-            try {
-                this.decodeLoop()
-            } catch (e: Exception) {
-                if (isActive) {
-                    logger.error(e) { "Decode loop error" }
-                    _state.value = PlaybackState.Error
+        decodeJob =
+            scope.launch(Dispatchers.IO) {
+                try {
+                    this.decodeLoop()
+                } catch (e: Exception) {
+                    if (isActive) {
+                        logger.error(e) { "Decode loop error" }
+                        _state.value = PlaybackState.Error
+                    }
                 }
             }
-        }
     }
 
     private fun CoroutineScope.decodeLoop() {
@@ -328,14 +330,14 @@ class FfmpegAudioPlayer(
 
             if (frame.samples == null || frame.samples.isEmpty()) continue
 
-
             // Apply speed filter if active
-            val outputFrame = if (filter != null) {
-                filter!!.push(frame)
-                filter!!.pullSamples() ?: continue
-            } else {
-                frame
-            }
+            val outputFrame =
+                if (filter != null) {
+                    filter!!.push(frame)
+                    filter!!.pullSamples() ?: continue
+                } else {
+                    frame
+                }
 
             // Convert frame samples to PCM bytes
             val bytes = frameToPcmBytes(outputFrame) ?: continue

@@ -233,7 +233,11 @@ private fun UserLensesSection(
     val avatarColor =
         remember(userLenses.user.avatarColor) {
             try {
-                Color(userLenses.user.avatarColor.removePrefix("#").toLong(16) or 0xFF000000)
+                Color(
+                    userLenses.user.avatarColor
+                        .removePrefix("#")
+                        .toLong(16) or 0xFF000000,
+                )
             } catch (_: Exception) {
                 Color(0xFF6B7280)
             }

@@ -108,7 +108,11 @@ class StatsRepositoryImpl(
             }
 
         // Generate 7 days from start date to today (local timezone)
-        val today = Clock.System.now().toLocalDateTime(tz).date
+        val today =
+            Clock.System
+                .now()
+                .toLocalDateTime(tz)
+                .date
         val startDate = Instant.fromEpochMilliseconds(startMs).toLocalDateTime(tz).date
         val result = mutableListOf<DomainDailyListening>()
         var currentDate = startDate
@@ -242,10 +246,10 @@ class StatsRepositoryImpl(
     /**
      * Format epoch ms as YYYY-MM-DD string using local timezone.
      */
-    private fun formatDate(epochMs: Long): String {
-        return Instant.fromEpochMilliseconds(epochMs)
+    private fun formatDate(epochMs: Long): String =
+        Instant
+            .fromEpochMilliseconds(epochMs)
             .toLocalDateTime(TimeZone.currentSystemDefault())
             .date
             .toString()
-    }
 }

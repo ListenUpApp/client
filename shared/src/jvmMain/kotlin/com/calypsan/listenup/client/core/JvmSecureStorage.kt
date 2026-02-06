@@ -54,25 +54,31 @@ internal class JvmSecureStorage(
      * This makes the encryption machine-specific, preventing token portability.
      */
     private fun deriveKey(): SecretKeySpec {
-        val hostname = runCatching {
-            java.net.InetAddress.getLocalHost().hostName
-        }.getOrDefault("unknown-host")
+        val hostname =
+            runCatching {
+                java.net.InetAddress
+                    .getLocalHost()
+                    .hostName
+            }.getOrDefault("unknown-host")
 
         val username = System.getProperty("user.name", "unknown-user")
         val saltSource = "$hostname:$username:listenup-v1"
 
         // Create deterministic salt from machine identity
-        val saltBytes = java.security.MessageDigest.getInstance("SHA-256")
-            .digest(saltSource.toByteArray(Charsets.UTF_8))
-            .copyOf(SALT_LENGTH)
+        val saltBytes =
+            java.security.MessageDigest
+                .getInstance("SHA-256")
+                .digest(saltSource.toByteArray(Charsets.UTF_8))
+                .copyOf(SALT_LENGTH)
 
         val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        val spec = PBEKeySpec(
-            saltSource.toCharArray(),
-            saltBytes,
-            ITERATION_COUNT,
-            KEY_LENGTH,
-        )
+        val spec =
+            PBEKeySpec(
+                saltSource.toCharArray(),
+                saltBytes,
+                ITERATION_COUNT,
+                KEY_LENGTH,
+            )
 
         val keyBytes = factory.generateSecret(spec).encoded
         return SecretKeySpec(keyBytes, "AES")

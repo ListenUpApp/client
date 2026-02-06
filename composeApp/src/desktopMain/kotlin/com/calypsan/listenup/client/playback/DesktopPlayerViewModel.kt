@@ -154,7 +154,11 @@ class DesktopPlayerViewModel(
 
             // Check if playback actually started
             if (audioPlayer.state.value == PlaybackState.Error) {
-                state.update { it.copy(errorMessage = "Playback failed. Check that GStreamer plugins are installed correctly.") }
+                state.update {
+                    it.copy(
+                        errorMessage = "Playback failed. Check that GStreamer plugins are installed correctly.",
+                    )
+                }
             }
         }
     }
@@ -244,7 +248,7 @@ class DesktopPlayerViewModel(
             val speed = playbackManager.playbackSpeed.value
             progressTracker.onPlaybackPaused(bookId, positionMs, speed)
         }
-        
+
         playbackManager.clearPlayback()
     }
 
@@ -276,25 +280,28 @@ class DesktopPlayerViewModel(
 
     private fun updatePosition(bookPositionMs: Long) {
         val bookDurationMs = state.value.bookDurationMs
-        val bookProgress = if (bookDurationMs > 0) {
-            bookPositionMs.toFloat() / bookDurationMs
-        } else {
-            0f
-        }
-
-        val chapterInfo = playbackManager.currentChapter.value
-        val (chapterProgress, chapterPositionMs) = if (chapterInfo != null) {
-            val posInChapter = bookPositionMs - chapterInfo.startMs
-            val chapterDuration = chapterInfo.endMs - chapterInfo.startMs
-            val progress = if (chapterDuration > 0) {
-                posInChapter.toFloat() / chapterDuration
+        val bookProgress =
+            if (bookDurationMs > 0) {
+                bookPositionMs.toFloat() / bookDurationMs
             } else {
                 0f
             }
-            progress.coerceIn(0f, 1f) to posInChapter.coerceAtLeast(0)
-        } else {
-            0f to 0L
-        }
+
+        val chapterInfo = playbackManager.currentChapter.value
+        val (chapterProgress, chapterPositionMs) =
+            if (chapterInfo != null) {
+                val posInChapter = bookPositionMs - chapterInfo.startMs
+                val chapterDuration = chapterInfo.endMs - chapterInfo.startMs
+                val progress =
+                    if (chapterDuration > 0) {
+                        posInChapter.toFloat() / chapterDuration
+                    } else {
+                        0f
+                    }
+                progress.coerceIn(0f, 1f) to posInChapter.coerceAtLeast(0)
+            } else {
+                0f to 0L
+            }
 
         // Debounce: skip tiny changes
         val positionDeltaMs = kotlin.math.abs(bookPositionMs - state.value.bookPositionMs)
@@ -315,15 +322,16 @@ class DesktopPlayerViewModel(
      */
     private fun startPeriodicUpdates() {
         stopPeriodicUpdates()
-        periodicUpdateJob = viewModelScope.launch {
-            while (isActive) {
-                delay(30_000)
-                val bookId = playbackManager.currentBookId.value ?: continue
-                val positionMs = playbackManager.currentPositionMs.value
-                val speed = playbackManager.playbackSpeed.value
-                progressTracker.onPositionUpdate(bookId, positionMs, speed)
+        periodicUpdateJob =
+            viewModelScope.launch {
+                while (isActive) {
+                    delay(30_000)
+                    val bookId = playbackManager.currentBookId.value ?: continue
+                    val positionMs = playbackManager.currentPositionMs.value
+                    val speed = playbackManager.playbackSpeed.value
+                    progressTracker.onPositionUpdate(bookId, positionMs, speed)
+                }
             }
-        }
     }
 
     private fun stopPeriodicUpdates() {

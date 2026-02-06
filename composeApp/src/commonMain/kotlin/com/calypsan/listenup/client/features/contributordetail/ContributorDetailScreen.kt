@@ -318,8 +318,7 @@ private fun WideHeroHeader(
                 .background(
                     Brush.verticalGradient(gradientColors),
                     RoundedCornerShape(16.dp),
-                )
-                .padding(24.dp),
+                ).padding(24.dp),
     ) {
         Column {
             // Navigation bar
@@ -922,9 +921,18 @@ private fun formatDateForDisplay(isoDate: String): String? {
         if (month < 1 || month > 12) return null
         val monthNames =
             listOf(
-                "January", "February", "March", "April",
-                "May", "June", "July", "August",
-                "September", "October", "November", "December",
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December",
             )
         "${monthNames[month - 1]} $day, $year"
     } catch (

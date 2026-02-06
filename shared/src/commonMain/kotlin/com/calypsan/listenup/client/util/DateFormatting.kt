@@ -9,7 +9,10 @@ package com.calypsan.listenup.client.util
  * @param pattern Date format pattern (e.g., "MMMM d, yyyy" for "January 15, 2024")
  * @return Formatted date string
  */
-expect fun formatDate(epochMillis: Long, pattern: String): String
+expect fun formatDate(
+    epochMillis: Long,
+    pattern: String,
+): String
 
 /**
  * Format epoch milliseconds to a short date (e.g., "Jan 15, 2024").

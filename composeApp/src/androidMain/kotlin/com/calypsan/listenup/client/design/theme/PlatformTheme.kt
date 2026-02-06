@@ -28,8 +28,12 @@ actual fun platformColorScheme(
         }
 
         // Fallback for older devices or when dynamic color is disabled
-        darkTheme -> DarkColorScheme
+        darkTheme -> {
+            DarkColorScheme
+        }
 
-        else -> LightColorScheme
+        else -> {
+            LightColorScheme
+        }
     }
 }

@@ -7,16 +7,16 @@ import androidx.compose.ui.graphics.Color
  * Falls back to gray if the string is invalid.
  */
 @Suppress("MagicNumber")
-fun parseHexColor(hex: String): Color {
-    return try {
+fun parseHexColor(hex: String): Color =
+    try {
         val cleaned = hex.removePrefix("#")
-        val colorLong = when (cleaned.length) {
-            6 -> cleaned.toLong(16) or 0xFF000000L
-            8 -> cleaned.toLong(16)
-            else -> 0xFF6B7280L
-        }
+        val colorLong =
+            when (cleaned.length) {
+                6 -> cleaned.toLong(16) or 0xFF000000L
+                8 -> cleaned.toLong(16)
+                else -> 0xFF6B7280L
+            }
         Color(colorLong.toInt())
     } catch (_: Exception) {
         Color(0xFF6B7280.toInt()) // Fallback gray
     }
-}

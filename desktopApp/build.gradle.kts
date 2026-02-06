@@ -57,10 +57,11 @@ compose.desktop {
     application {
         mainClass = "com.calypsan.listenup.desktop.MainKt"
 
-        jvmArgs += listOf(
-            "-Xmx512m",
-            "-Dfile.encoding=UTF-8",
-        )
+        jvmArgs +=
+            listOf(
+                "-Xmx512m",
+                "-Dfile.encoding=UTF-8",
+            )
 
         nativeDistributions {
             targetFormats(

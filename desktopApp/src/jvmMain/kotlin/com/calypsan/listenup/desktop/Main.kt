@@ -22,19 +22,20 @@ fun main() {
     // Initialize Koin DI
     startKoin {
         modules(
-            sharedModules +      // From :shared module
+            sharedModules + // From :shared module
                 platformModule + // From :composeApp desktopMain
                 desktopAppModule, // Desktop app specific
         )
     }
 
     // Start global media key listener (non-critical, may fail on some systems)
-    val mediaKeyManager = try {
-        getKoin().get<GlobalMediaKeyManager>().also { it.start() }
-    } catch (e: Exception) {
-        logger.warn(e) { "Global media keys unavailable" }
-        null
-    }
+    val mediaKeyManager =
+        try {
+            getKoin().get<GlobalMediaKeyManager>().also { it.start() }
+        } catch (e: Exception) {
+            logger.warn(e) { "Global media keys unavailable" }
+            null
+        }
 
     logger.info { "Koin initialized, launching application..." }
 

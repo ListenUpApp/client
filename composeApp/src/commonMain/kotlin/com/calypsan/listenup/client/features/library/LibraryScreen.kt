@@ -142,8 +142,11 @@ fun LibraryScreen(
                     showCollectionPicker = false
                     scope.launch {
                         snackbarHostState.showSnackbar(
-                            if (event.count == 1) "1 book added to collection"
-                            else "${event.count} books added to collection",
+                            if (event.count == 1) {
+                                "1 book added to collection"
+                            } else {
+                                "${event.count} books added to collection"
+                            },
                         )
                     }
                 }
@@ -158,8 +161,11 @@ fun LibraryScreen(
                     showLensPicker = false
                     scope.launch {
                         snackbarHostState.showSnackbar(
-                            if (event.count == 1) "1 book added to lens"
-                            else "${event.count} books added to lens",
+                            if (event.count == 1) {
+                                "1 book added to lens"
+                            } else {
+                                "${event.count} books added to lens"
+                            },
                         )
                     }
                 }

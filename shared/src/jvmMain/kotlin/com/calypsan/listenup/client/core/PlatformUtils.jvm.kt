@@ -37,6 +37,5 @@ actual object PlatformUtils {
      * Returns the OS version string.
      * Examples: "10.0", "6.5.0-arch1-1"
      */
-    actual fun getPlatformVersion(): String =
-        System.getProperty("os.version", "Unknown")
+    actual fun getPlatformVersion(): String = System.getProperty("os.version", "Unknown")
 }

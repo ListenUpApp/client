@@ -134,42 +134,48 @@ fun DesktopNowPlayingScreen(
             if (dominantColor != Color.Transparent) {
                 if (isWideLayout) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(maxWidth * 0.5f)
-                            .align(Alignment.CenterStart)
-                            .background(
-                                brush = Brush.horizontalGradient(
-                                    colorStops = arrayOf(
-                                        0.0f to dominantColor.copy(alpha = 0.5f),
-                                        0.3f to dominantColor.copy(alpha = 0.4f),
-                                        0.6f to dominantColor.copy(alpha = 0.2f),
-                                        0.85f to dominantColor.copy(alpha = 0.05f),
-                                        1.0f to Color.Transparent,
-                                    ),
+                        modifier =
+                            Modifier
+                                .fillMaxHeight()
+                                .width(maxWidth * 0.5f)
+                                .align(Alignment.CenterStart)
+                                .background(
+                                    brush =
+                                        Brush.horizontalGradient(
+                                            colorStops =
+                                                arrayOf(
+                                                    0.0f to dominantColor.copy(alpha = 0.5f),
+                                                    0.3f to dominantColor.copy(alpha = 0.4f),
+                                                    0.6f to dominantColor.copy(alpha = 0.2f),
+                                                    0.85f to dominantColor.copy(alpha = 0.05f),
+                                                    1.0f to Color.Transparent,
+                                                ),
+                                        ),
                                 ),
-                            ),
                     )
                 } else {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(550.dp)
-                            .offset(y = 80.dp)
-                            .align(Alignment.TopCenter)
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colorStops = arrayOf(
-                                        0.0f to Color.Transparent,
-                                        0.15f to dominantColor.copy(alpha = 0.3f),
-                                        0.35f to dominantColor.copy(alpha = 0.6f),
-                                        0.5f to dominantColor.copy(alpha = 0.6f),
-                                        0.65f to dominantColor.copy(alpha = 0.3f),
-                                        0.85f to dominantColor.copy(alpha = 0.1f),
-                                        1.0f to Color.Transparent,
-                                    ),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(550.dp)
+                                .offset(y = 80.dp)
+                                .align(Alignment.TopCenter)
+                                .background(
+                                    brush =
+                                        Brush.verticalGradient(
+                                            colorStops =
+                                                arrayOf(
+                                                    0.0f to Color.Transparent,
+                                                    0.15f to dominantColor.copy(alpha = 0.3f),
+                                                    0.35f to dominantColor.copy(alpha = 0.6f),
+                                                    0.5f to dominantColor.copy(alpha = 0.6f),
+                                                    0.65f to dominantColor.copy(alpha = 0.3f),
+                                                    0.85f to dominantColor.copy(alpha = 0.1f),
+                                                    1.0f to Color.Transparent,
+                                                ),
+                                        ),
                                 ),
-                            ),
                     )
                 }
             }
@@ -231,9 +237,10 @@ private suspend fun extractDominantColor(coverPath: String): Color? =
 
             val palette = Palette.from(bitmap).generate()
 
-            val swatch = palette.vibrantSwatch
-                ?: palette.mutedSwatch
-                ?: palette.dominantSwatch
+            val swatch =
+                palette.vibrantSwatch
+                    ?: palette.mutedSwatch
+                    ?: palette.dominantSwatch
 
             swatch?.rgb?.let { Color(it) }
         } catch (e: Exception) {
@@ -261,9 +268,10 @@ private fun TallLayout(
     onGoToContributor: ((String) -> Unit)?,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp),
     ) {
         TopBar(
             state = state,
@@ -278,9 +286,10 @@ private fun TallLayout(
 
         // Cover art
         Box(
-            modifier = Modifier
-                .weight(0.45f)
-                .fillMaxWidth(),
+            modifier =
+                Modifier
+                    .weight(0.45f)
+                    .fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
             CoverArt(
@@ -354,16 +363,18 @@ private fun WideLayout(
     onGoToContributor: ((String) -> Unit)?,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(32.dp),
     ) {
         // Left: cover art
         Box(
-            modifier = Modifier
-                .weight(0.4f)
-                .fillMaxHeight(),
+            modifier =
+                Modifier
+                    .weight(0.4f)
+                    .fillMaxHeight(),
             contentAlignment = Alignment.Center,
         ) {
             CoverArt(
@@ -374,9 +385,10 @@ private fun WideLayout(
 
         // Right: controls
         Column(
-            modifier = Modifier
-                .weight(0.6f)
-                .fillMaxHeight(),
+            modifier =
+                Modifier
+                    .weight(0.6f)
+                    .fillMaxHeight(),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             TopBar(
@@ -486,7 +498,10 @@ private fun OverflowMenu(
         if (onGoToBook != null) {
             DropdownMenuItem(
                 text = { Text("Go to Book") },
-                onClick = { onDismiss(); onGoToBook() },
+                onClick = {
+                    onDismiss()
+                    onGoToBook()
+                },
                 leadingIcon = { Icon(Icons.Default.Book, contentDescription = null) },
             )
         }
@@ -494,7 +509,10 @@ private fun OverflowMenu(
         if (onGoToSeries != null && state.hasSeries) {
             DropdownMenuItem(
                 text = { Text("Go to Series") },
-                onClick = { onDismiss(); state.seriesId?.let { onGoToSeries(it) } },
+                onClick = {
+                    onDismiss()
+                    state.seriesId?.let { onGoToSeries(it) }
+                },
                 leadingIcon = { Icon(Icons.AutoMirrored.Filled.LibraryBooks, contentDescription = null) },
             )
         }
@@ -525,7 +543,10 @@ private fun OverflowMenu(
 
         DropdownMenuItem(
             text = { Text("Close Book") },
-            onClick = { onDismiss(); onClose() },
+            onClick = {
+                onDismiss()
+                onClose()
+            },
             leadingIcon = { Icon(Icons.Default.Close, contentDescription = null) },
         )
     }
@@ -537,9 +558,10 @@ private fun CoverArt(
     blurHash: String?,
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxHeight()
-            .aspectRatio(1f),
+        modifier =
+            Modifier
+                .fillMaxHeight()
+                .aspectRatio(1f),
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 24.dp,
         tonalElevation = 0.dp,
@@ -670,20 +692,27 @@ private fun TransportControls(
     val cornerRadius = 16.dp
     val fullRadius = 28.dp
 
-    val leadingShape = RoundedCornerShape(
-        topStart = fullRadius, bottomStart = fullRadius,
-        topEnd = cornerRadius, bottomEnd = cornerRadius,
-    )
+    val leadingShape =
+        RoundedCornerShape(
+            topStart = fullRadius,
+            bottomStart = fullRadius,
+            topEnd = cornerRadius,
+            bottomEnd = cornerRadius,
+        )
     val middleShape = RoundedCornerShape(cornerRadius)
-    val trailingShape = RoundedCornerShape(
-        topStart = cornerRadius, bottomStart = cornerRadius,
-        topEnd = fullRadius, bottomEnd = fullRadius,
-    )
+    val trailingShape =
+        RoundedCornerShape(
+            topStart = cornerRadius,
+            bottomStart = cornerRadius,
+            topEnd = fullRadius,
+            bottomEnd = fullRadius,
+        )
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -712,10 +741,11 @@ private fun TransportControls(
             onClick = onPlayPause,
             modifier = Modifier.weight(1.4f).height(buttonHeight),
             shape = middleShape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            ),
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
             contentPadding = PaddingValues(0.dp),
         ) {
             Icon(
@@ -821,8 +851,16 @@ private fun SecondaryControls(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
-                                Text("${MIN_SPEED}x", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${MAX_SPEED}x", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "${MIN_SPEED}x",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    "${MAX_SPEED}x",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
 
                             Spacer(Modifier.height(20.dp))

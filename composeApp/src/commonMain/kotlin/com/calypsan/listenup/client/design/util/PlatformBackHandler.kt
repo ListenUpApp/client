@@ -12,4 +12,7 @@ import androidx.compose.runtime.Composable
  * @param onBack Callback when back is triggered
  */
 @Composable
-expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)
+expect fun PlatformBackHandler(
+    enabled: Boolean,
+    onBack: () -> Unit,
+)

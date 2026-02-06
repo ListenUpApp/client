@@ -26,11 +26,12 @@ fun BrandLogo(
     size: Dp = 160.dp,
 ) {
     val isDarkTheme = LocalDarkTheme.current
-    val logoRes = if (isDarkTheme) {
-        Res.drawable.listenup_logo_white
-    } else {
-        Res.drawable.listenup_logo_black
-    }
+    val logoRes =
+        if (isDarkTheme) {
+            Res.drawable.listenup_logo_white
+        } else {
+            Res.drawable.listenup_logo_black
+        }
 
     Image(
         painter = painterResource(logoRes),

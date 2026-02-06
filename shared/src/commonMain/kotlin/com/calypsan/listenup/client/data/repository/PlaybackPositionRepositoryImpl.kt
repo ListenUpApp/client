@@ -76,7 +76,11 @@ class PlaybackPositionRepositoryImpl(
         dao.delete(BookId(bookId))
     }
 
-    override suspend fun markComplete(bookId: String, startedAt: Long?, finishedAt: Long?): Result<Unit> {
+    override suspend fun markComplete(
+        bookId: String,
+        startedAt: Long?,
+        finishedAt: Long?,
+    ): Result<Unit> {
         logger.debug { "markComplete: $bookId" }
         val existing = dao.get(BookId(bookId))
         val now = currentEpochMilliseconds()
@@ -227,5 +231,4 @@ private fun PlaybackPositionEntity.toDomain(): PlaybackPosition =
 /**
  * Convert epoch milliseconds to ISO 8601 string for API communication.
  */
-private fun epochMillisToIso8601(millis: Long): String =
-    Instant.fromEpochMilliseconds(millis).toString()
+private fun epochMillisToIso8601(millis: Long): String = Instant.fromEpochMilliseconds(millis).toString()

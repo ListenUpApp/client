@@ -296,7 +296,10 @@ class BookDetailViewModel(
      * @param startedAt Optional start date in epoch milliseconds
      * @param finishedAt Optional finish date in epoch milliseconds
      */
-    fun markComplete(startedAt: Long? = null, finishedAt: Long? = null) {
+    fun markComplete(
+        startedAt: Long? = null,
+        finishedAt: Long? = null,
+    ) {
         val bookId =
             state.value.book
                 ?.id
@@ -377,6 +380,7 @@ class BookDetailViewModel(
             }
         }
     }
+
     /**
      * Add the current book to an existing lens.
      */

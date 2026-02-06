@@ -55,9 +55,10 @@ fun HomeScreen(
     val state by viewModel.state.collectAsState()
 
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-    val isWide = windowSizeClass.isWidthAtLeastBreakpoint(
-        WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
-    )
+    val isWide =
+        windowSizeClass.isWidthAtLeastBreakpoint(
+            WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+        )
 
     PullToRefreshBox(
         isRefreshing = state.isLoading,

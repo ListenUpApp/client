@@ -84,10 +84,8 @@ kotlin {
             // Palette for dynamic color extraction from cover art
             implementation(libs.androidx.palette.ktx)
 
-
             // BlurHash for image placeholders
             implementation(libs.blurhash)
-
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -139,7 +137,9 @@ kotlin {
 
                 // Platform-specific native libraries (bundled in JARs)
                 val javacppVersion = libs.versions.javacpp.get()
-                val ffmpegVersion = libs.versions.ffmpeg.javacpp.get()
+                val ffmpegVersion =
+                    libs.versions.ffmpeg.javacpp
+                        .get()
                 implementation("org.bytedeco:javacpp:$javacppVersion:linux-x86_64")
                 implementation("org.bytedeco:ffmpeg:$ffmpegVersion:linux-x86_64")
                 implementation("org.bytedeco:javacpp:$javacppVersion:macosx-x86_64")

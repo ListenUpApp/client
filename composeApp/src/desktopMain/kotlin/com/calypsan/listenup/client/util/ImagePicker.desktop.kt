@@ -24,14 +24,15 @@ private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
 /**
  * Map file extension to MIME type.
  */
-private fun mimeTypeForExtension(ext: String): String = when (ext.lowercase()) {
-    "jpg", "jpeg" -> "image/jpeg"
-    "png" -> "image/png"
-    "webp" -> "image/webp"
-    "gif" -> "image/gif"
-    "bmp" -> "image/bmp"
-    else -> "image/jpeg"
-}
+private fun mimeTypeForExtension(ext: String): String =
+    when (ext.lowercase()) {
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "webp" -> "image/webp"
+        "gif" -> "image/gif"
+        "bmp" -> "image/bmp"
+        else -> "image/jpeg"
+    }
 
 /**
  * Desktop implementation of [ImagePicker].
@@ -43,7 +44,6 @@ private class DesktopImagePicker(
     private val onResult: (ImagePickerResult) -> Unit,
     private val scope: CoroutineScope,
 ) : ImagePicker {
-
     override fun launch() {
         scope.launch(Dispatchers.IO) {
             try {
@@ -53,10 +53,11 @@ private class DesktopImagePicker(
                 // FileDialog must be shown on the AWT event thread
                 SwingUtilities.invokeAndWait {
                     val dialog = FileDialog(null as Frame?, "Select Image", FileDialog.LOAD)
-                    dialog.filenameFilter = FilenameFilter { _, name ->
-                        val ext = name.substringAfterLast('.', "").lowercase()
-                        ext in IMAGE_EXTENSIONS
-                    }
+                    dialog.filenameFilter =
+                        FilenameFilter { _, name ->
+                            val ext = name.substringAfterLast('.', "").lowercase()
+                            ext in IMAGE_EXTENSIONS
+                        }
                     // macOS ignores FilenameFilter, so also set the file filter string
                     dialog.file = IMAGE_EXTENSIONS.joinToString(";") { "*.$it" }
                     dialog.isVisible = true
@@ -96,7 +97,7 @@ private class DesktopImagePicker(
                         data = data,
                         filename = name,
                         mimeType = mimeType,
-                    )
+                    ),
                 )
             } catch (e: Exception) {
                 logger.error(e) { "Failed to pick image" }

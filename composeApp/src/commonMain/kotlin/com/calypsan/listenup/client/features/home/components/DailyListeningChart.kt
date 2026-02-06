@@ -49,29 +49,35 @@ fun DailyListeningChart(
     val textMeasurer = rememberTextMeasurer()
 
     // Generate the last 7 days and compute minutes per day
-    val chartData = remember(dailyListening) {
-        val today = Clock.System.now()
-            .toLocalDateTime(TimeZone.currentSystemDefault()).date
-        val last7Days = (6 downTo 0).map { daysAgo ->
-            today.minus(daysAgo, DateTimeUnit.DAY)
-        }
+    val chartData =
+        remember(dailyListening) {
+            val today =
+                Clock.System
+                    .now()
+                    .toLocalDateTime(TimeZone.currentSystemDefault())
+                    .date
+            val last7Days =
+                (6 downTo 0).map { daysAgo ->
+                    today.minus(daysAgo, DateTimeUnit.DAY)
+                }
 
-        val listeningByDate = dailyListening.associate { it.date to it.listenTimeMs }
+            val listeningByDate = dailyListening.associate { it.date to it.listenTimeMs }
 
-        last7Days.map { date ->
-            val minutes = (listeningByDate[date.toString()] ?: 0L) / 60_000f
-            val label = date.dayOfWeek.narrow()
-            ChartBar(label = label, minutes = minutes)
+            last7Days.map { date ->
+                val minutes = (listeningByDate[date.toString()] ?: 0L) / 60_000f
+                val label = date.dayOfWeek.narrow()
+                ChartBar(label = label, minutes = minutes)
+            }
         }
-    }
 
     val maxMinutes = chartData.maxOf { it.minutes }.coerceAtLeast(1f)
     val labelStyle = TextStyle(fontSize = 11.sp, color = labelColor)
 
     Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(100.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(100.dp),
     ) {
         val labelHeight = 16.dp.toPx()
         val chartHeight = size.height - labelHeight - 4.dp.toPx()
@@ -104,17 +110,21 @@ fun DailyListeningChart(
     }
 }
 
-private data class ChartBar(val label: String, val minutes: Float)
+private data class ChartBar(
+    val label: String,
+    val minutes: Float,
+)
 
 /**
  * Narrow day-of-week label (single character).
  */
-private fun DayOfWeek.narrow(): String = when (this) {
-    DayOfWeek.MONDAY -> "M"
-    DayOfWeek.TUESDAY -> "T"
-    DayOfWeek.WEDNESDAY -> "W"
-    DayOfWeek.THURSDAY -> "T"
-    DayOfWeek.FRIDAY -> "F"
-    DayOfWeek.SATURDAY -> "S"
-    DayOfWeek.SUNDAY -> "S"
-}
+private fun DayOfWeek.narrow(): String =
+    when (this) {
+        DayOfWeek.MONDAY -> "M"
+        DayOfWeek.TUESDAY -> "T"
+        DayOfWeek.WEDNESDAY -> "W"
+        DayOfWeek.THURSDAY -> "T"
+        DayOfWeek.FRIDAY -> "F"
+        DayOfWeek.SATURDAY -> "S"
+        DayOfWeek.SUNDAY -> "S"
+    }

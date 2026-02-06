@@ -27,9 +27,10 @@ class JvmCoverColorExtractor : CoverColorExtractor {
     override suspend fun extractColors(imageBytes: ByteArray): ExtractedColors? =
         withContext(Dispatchers.IO) {
             try {
-                val image = ByteArrayInputStream(imageBytes).use { stream ->
-                    ImageIO.read(stream)
-                } ?: return@withContext null
+                val image =
+                    ByteArrayInputStream(imageBytes).use { stream ->
+                        ImageIO.read(stream)
+                    } ?: return@withContext null
 
                 val colors = sampleColors(image)
                 if (colors.isEmpty()) return@withContext null
@@ -90,7 +91,10 @@ class JvmCoverColorExtractor : CoverColorExtractor {
     /**
      * Simple k-means clustering to find representative colors.
      */
-    private fun kMeansClusters(colors: List<FloatArray>, k: Int): List<Cluster> {
+    private fun kMeansClusters(
+        colors: List<FloatArray>,
+        k: Int,
+    ): List<Cluster> {
         if (colors.size < k) return colors.map { Cluster(it, 1) }
 
         // Initialize centroids using k-means++ style selection
@@ -98,9 +102,10 @@ class JvmCoverColorExtractor : CoverColorExtractor {
         centroids.add(colors.random())
 
         repeat(k - 1) {
-            val distances = colors.map { color ->
-                centroids.minOf { centroid -> distance(color, centroid) }
-            }
+            val distances =
+                colors.map { color ->
+                    centroids.minOf { centroid -> distance(color, centroid) }
+                }
             val maxIdx = distances.indices.maxByOrNull { distances[it] } ?: 0
             centroids.add(colors[maxIdx].copyOf())
         }
@@ -118,12 +123,14 @@ class JvmCoverColorExtractor : CoverColorExtractor {
             // Update centroids
             for (i in centroids.indices) {
                 if (clusters[i].isNotEmpty()) {
-                    centroids[i] = clusters[i].reduce { acc, arr ->
-                        floatArrayOf(acc[0] + arr[0], acc[1] + arr[1], acc[2] + arr[2])
-                    }.let { sum ->
-                        val size = clusters[i].size
-                        floatArrayOf(sum[0] / size, sum[1] / size, sum[2] / size)
-                    }
+                    centroids[i] =
+                        clusters[i]
+                            .reduce { acc, arr ->
+                                floatArrayOf(acc[0] + arr[0], acc[1] + arr[1], acc[2] + arr[2])
+                            }.let { sum ->
+                                val size = clusters[i].size
+                                floatArrayOf(sum[0] / size, sum[1] / size, sum[2] / size)
+                            }
                 }
             }
         }
@@ -140,7 +147,10 @@ class JvmCoverColorExtractor : CoverColorExtractor {
             .map { Cluster(centroids[it], finalClusters[it].size) }
     }
 
-    private fun distance(a: FloatArray, b: FloatArray): Float {
+    private fun distance(
+        a: FloatArray,
+        b: FloatArray,
+    ): Float {
         val dr = a[0] - b[0]
         val dg = a[1] - b[1]
         val db = a[2] - b[2]
@@ -182,5 +192,8 @@ class JvmCoverColorExtractor : CoverColorExtractor {
         return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
     }
 
-    private data class Cluster(val center: FloatArray, val size: Int)
+    private data class Cluster(
+        val center: FloatArray,
+        val size: Int,
+    )
 }

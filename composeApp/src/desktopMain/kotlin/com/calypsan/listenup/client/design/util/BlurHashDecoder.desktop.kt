@@ -12,7 +12,11 @@ import kotlin.math.pow
  * Implements the BlurHash algorithm (https://blurha.sh) without
  * Android dependencies by rendering to a BufferedImage.
  */
-actual fun decodeBlurHash(blurHash: String, width: Int, height: Int): ImageBitmap? {
+actual fun decodeBlurHash(
+    blurHash: String,
+    width: Int,
+    height: Int,
+): ImageBitmap? {
     if (blurHash.length < 6) return null
 
     val sizeFlag = decode83(blurHash, 0, 1)
@@ -25,15 +29,16 @@ actual fun decodeBlurHash(blurHash: String, width: Int, height: Int): ImageBitma
     val quantisedMaximumValue = decode83(blurHash, 1, 2)
     val maximumValue = (quantisedMaximumValue + 1) / 166f
 
-    val colors = Array(numX * numY) { i ->
-        if (i == 0) {
-            val value = decode83(blurHash, 2, 6)
-            decodeDC(value)
-        } else {
-            val value = decode83(blurHash, 4 + i * 2, 4 + i * 2 + 2)
-            decodeAC(value, maximumValue)
+    val colors =
+        Array(numX * numY) { i ->
+            if (i == 0) {
+                val value = decode83(blurHash, 2, 6)
+                decodeDC(value)
+            } else {
+                val value = decode83(blurHash, 4 + i * 2, 4 + i * 2 + 2)
+                decodeAC(value, maximumValue)
+            }
         }
-    }
 
     val image = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
     for (y in 0 until height) {
@@ -44,8 +49,9 @@ actual fun decodeBlurHash(blurHash: String, width: Int, height: Int): ImageBitma
 
             for (j in 0 until numY) {
                 for (i in 0 until numX) {
-                    val basis = cos(Math.PI * i * x / width).toFloat() *
-                        cos(Math.PI * j * y / height).toFloat()
+                    val basis =
+                        cos(Math.PI * i * x / width).toFloat() *
+                            cos(Math.PI * j * y / height).toFloat()
                     val color = colors[i + j * numX]
                     r += color[0] * basis
                     g += color[1] * basis
@@ -65,7 +71,11 @@ actual fun decodeBlurHash(blurHash: String, width: Int, height: Int): ImageBitma
 
 private const val CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#\$%*+,-.:;=?@[]^_{|}~"
 
-private fun decode83(str: String, from: Int, to: Int): Int {
+private fun decode83(
+    str: String,
+    from: Int,
+    to: Int,
+): Int {
     var value = 0
     for (i in from until to) {
         val index = CHARS.indexOf(str[i])
@@ -82,7 +92,10 @@ private fun decodeDC(value: Int): FloatArray {
     return floatArrayOf(sRGBToLinear(r), sRGBToLinear(g), sRGBToLinear(b))
 }
 
-private fun decodeAC(value: Int, maximumValue: Float): FloatArray {
+private fun decodeAC(
+    value: Int,
+    maximumValue: Float,
+): FloatArray {
     val quantR = value / (19 * 19)
     val quantG = (value / 19) % 19
     val quantB = value % 19
@@ -93,9 +106,10 @@ private fun decodeAC(value: Int, maximumValue: Float): FloatArray {
     )
 }
 
-private fun signPow(value: Float, exp: Float): Float {
-    return kotlin.math.sign(value) * kotlin.math.abs(value).pow(exp)
-}
+private fun signPow(
+    value: Float,
+    exp: Float,
+): Float = kotlin.math.sign(value) * kotlin.math.abs(value).pow(exp)
 
 private fun sRGBToLinear(value: Int): Float {
     val v = value / 255f

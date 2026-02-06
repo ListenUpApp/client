@@ -47,7 +47,8 @@ class NoOpBookDetailPlatformActions : BookDetailPlatformActions {
     override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
         flowOf(BookDownloadStatus.notDownloaded(bookId.value))
 
-    override suspend fun downloadBook(bookId: BookId): DownloadResult = DownloadResult.Error("Not available on this platform")
+    override suspend fun downloadBook(bookId: BookId): DownloadResult =
+        DownloadResult.Error("Not available on this platform")
 
     override suspend fun cancelDownload(bookId: BookId) {}
 

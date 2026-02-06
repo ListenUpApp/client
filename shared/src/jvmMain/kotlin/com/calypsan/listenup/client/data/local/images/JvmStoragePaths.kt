@@ -26,14 +26,17 @@ class JvmStoragePaths : StoragePaths {
         val os = System.getProperty("os.name", "").lowercase()
         return when {
             "windows" in os -> {
-                val appData = System.getenv("APPDATA")
-                    ?: "${System.getProperty("user.home")}/AppData/Roaming"
+                val appData =
+                    System.getenv("APPDATA")
+                        ?: "${System.getProperty("user.home")}/AppData/Roaming"
                 File(appData, "ListenUp")
             }
+
             else -> {
                 // Linux and others: XDG Base Directory Specification
-                val xdgData = System.getenv("XDG_DATA_HOME")
-                    ?: "${System.getProperty("user.home")}/.local/share"
+                val xdgData =
+                    System.getenv("XDG_DATA_HOME")
+                        ?: "${System.getProperty("user.home")}/.local/share"
                 File(xdgData, "listenup")
             }
         }
@@ -52,14 +55,12 @@ class JvmStoragePaths : StoragePaths {
     /**
      * Gets the full database file path.
      */
-    fun getDatabasePath(): String =
-        File(getDatabaseDirectory(), "listenup.db").absolutePath
+    fun getDatabasePath(): String = File(getDatabaseDirectory(), "listenup.db").absolutePath
 
     /**
      * Gets the secure storage file path for encrypted credentials.
      */
-    fun getSecureStoragePath(): File =
-        File(filesDir.toString(), "auth.enc")
+    fun getSecureStoragePath(): File = File(filesDir.toString(), "auth.enc")
 
     /**
      * Gets the cache directory for temporary files.
@@ -68,18 +69,22 @@ class JvmStoragePaths : StoragePaths {
      */
     fun getCacheDirectory(): File {
         val os = System.getProperty("os.name", "").lowercase()
-        val cacheDir = when {
-            "windows" in os -> {
-                val localAppData = System.getenv("LOCALAPPDATA")
-                    ?: "${System.getProperty("user.home")}/AppData/Local"
-                File(localAppData, "ListenUp/cache")
+        val cacheDir =
+            when {
+                "windows" in os -> {
+                    val localAppData =
+                        System.getenv("LOCALAPPDATA")
+                            ?: "${System.getProperty("user.home")}/AppData/Local"
+                    File(localAppData, "ListenUp/cache")
+                }
+
+                else -> {
+                    val xdgCache =
+                        System.getenv("XDG_CACHE_HOME")
+                            ?: "${System.getProperty("user.home")}/.cache"
+                    File(xdgCache, "listenup")
+                }
             }
-            else -> {
-                val xdgCache = System.getenv("XDG_CACHE_HOME")
-                    ?: "${System.getProperty("user.home")}/.cache"
-                File(xdgCache, "listenup")
-            }
-        }
         cacheDir.mkdirs()
         return cacheDir
     }

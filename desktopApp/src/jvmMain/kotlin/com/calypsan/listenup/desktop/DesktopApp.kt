@@ -78,29 +78,86 @@ private val logger = KotlinLogging.logger {}
  * Detail screen destinations for the desktop back stack.
  */
 sealed interface DetailDestination {
-    data class Book(val bookId: String) : DetailDestination
-    data class Series(val seriesId: String) : DetailDestination
-    data class Contributor(val contributorId: String) : DetailDestination
-    data class Lens(val lensId: String) : DetailDestination
-    data class Tag(val tagId: String) : DetailDestination
-    data class BookEdit(val bookId: String) : DetailDestination
-    data class ContributorEdit(val contributorId: String) : DetailDestination
-    data class SeriesEdit(val seriesId: String) : DetailDestination
-    data class LensEdit(val lensId: String) : DetailDestination
+    data class Book(
+        val bookId: String,
+    ) : DetailDestination
+
+    data class Series(
+        val seriesId: String,
+    ) : DetailDestination
+
+    data class Contributor(
+        val contributorId: String,
+    ) : DetailDestination
+
+    data class Lens(
+        val lensId: String,
+    ) : DetailDestination
+
+    data class Tag(
+        val tagId: String,
+    ) : DetailDestination
+
+    data class BookEdit(
+        val bookId: String,
+    ) : DetailDestination
+
+    data class ContributorEdit(
+        val contributorId: String,
+    ) : DetailDestination
+
+    data class SeriesEdit(
+        val seriesId: String,
+    ) : DetailDestination
+
+    data class LensEdit(
+        val lensId: String,
+    ) : DetailDestination
+
     data object LensCreate : DetailDestination
-    data class MetadataSearch(val bookId: String) : DetailDestination
-    data class MatchPreview(val bookId: String, val asin: String) : DetailDestination
-    data class ContributorMetadataSearch(val contributorId: String) : DetailDestination
-    data class ContributorMetadataPreview(val contributorId: String, val asin: String) : DetailDestination
+
+    data class MetadataSearch(
+        val bookId: String,
+    ) : DetailDestination
+
+    data class MatchPreview(
+        val bookId: String,
+        val asin: String,
+    ) : DetailDestination
+
+    data class ContributorMetadataSearch(
+        val contributorId: String,
+    ) : DetailDestination
+
+    data class ContributorMetadataPreview(
+        val contributorId: String,
+        val asin: String,
+    ) : DetailDestination
+
     data object Settings : DetailDestination
+
     data object Licenses : DetailDestination
+
     data object NowPlaying : DetailDestination
+
     data object Admin : DetailDestination
+
     data object CreateInvite : DetailDestination
-    data class UserDetail(val userId: String) : DetailDestination
+
+    data class UserDetail(
+        val userId: String,
+    ) : DetailDestination
+
     data object AdminCollections : DetailDestination
-    data class AdminCollectionDetail(val collectionId: String) : DetailDestination
-    data class UserProfile(val userId: String) : DetailDestination
+
+    data class AdminCollectionDetail(
+        val collectionId: String,
+    ) : DetailDestination
+
+    data class UserProfile(
+        val userId: String,
+    ) : DetailDestination
+
     data object AdminInbox : DetailDestination
 }
 
@@ -147,7 +204,8 @@ private fun DesktopAuthenticatedNavigation() {
     val searchState by searchViewModel.state.collectAsState()
 
     var currentDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
-    val backStack: SnapshotStateList<DetailDestination> = remember { emptyList<DetailDestination>().toMutableStateList() }
+    val backStack: SnapshotStateList<DetailDestination> =
+        remember { emptyList<DetailDestination>().toMutableStateList() }
 
     val navigateTo: (DetailDestination) -> Unit = { backStack.add(it) }
     val navigateBack: () -> Unit = { backStack.removeLastOrNull() }
@@ -223,9 +281,10 @@ private fun DesktopAuthenticatedNavigation() {
                                 onTypeFilterToggle = { type ->
                                     searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
                                 },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(padding),
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .padding(padding),
                             )
                         },
                     )
@@ -257,121 +316,153 @@ private fun DetailScreen(
     playerViewModel: DesktopPlayerViewModel,
 ) {
     when (destination) {
-        is DetailDestination.Book -> BookDetailScreen(
-            bookId = destination.bookId,
-            onBackClick = navigateBack,
-            onEditClick = { navigateTo(DetailDestination.BookEdit(it)) },
-            onMetadataSearchClick = { navigateTo(DetailDestination.MetadataSearch(it)) },
-            onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
-            onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
-            onTagClick = { navigateTo(DetailDestination.Tag(it)) },
-            onUserProfileClick = { navigateTo(DetailDestination.UserProfile(it)) },
-        )
+        is DetailDestination.Book -> {
+            BookDetailScreen(
+                bookId = destination.bookId,
+                onBackClick = navigateBack,
+                onEditClick = { navigateTo(DetailDestination.BookEdit(it)) },
+                onMetadataSearchClick = { navigateTo(DetailDestination.MetadataSearch(it)) },
+                onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
+                onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
+                onTagClick = { navigateTo(DetailDestination.Tag(it)) },
+                onUserProfileClick = { navigateTo(DetailDestination.UserProfile(it)) },
+            )
+        }
 
-        is DetailDestination.BookEdit -> BookEditScreen(
-            bookId = destination.bookId,
-            onBackClick = navigateBack,
-            onSaveSuccess = navigateBack,
-        )
+        is DetailDestination.BookEdit -> {
+            BookEditScreen(
+                bookId = destination.bookId,
+                onBackClick = navigateBack,
+                onSaveSuccess = navigateBack,
+            )
+        }
 
-        is DetailDestination.Series -> SeriesDetailScreen(
-            seriesId = destination.seriesId,
-            onBackClick = navigateBack,
-            onBookClick = { navigateTo(DetailDestination.Book(it)) },
-            onEditClick = { navigateTo(DetailDestination.SeriesEdit(it)) },
-        )
+        is DetailDestination.Series -> {
+            SeriesDetailScreen(
+                seriesId = destination.seriesId,
+                onBackClick = navigateBack,
+                onBookClick = { navigateTo(DetailDestination.Book(it)) },
+                onEditClick = { navigateTo(DetailDestination.SeriesEdit(it)) },
+            )
+        }
 
-        is DetailDestination.SeriesEdit -> SeriesEditScreen(
-            seriesId = destination.seriesId,
-            onBackClick = navigateBack,
-            onSaveSuccess = navigateBack,
-        )
+        is DetailDestination.SeriesEdit -> {
+            SeriesEditScreen(
+                seriesId = destination.seriesId,
+                onBackClick = navigateBack,
+                onSaveSuccess = navigateBack,
+            )
+        }
 
-        is DetailDestination.Contributor -> ContributorDetailScreen(
-            contributorId = destination.contributorId,
-            onBackClick = navigateBack,
-            onBookClick = { navigateTo(DetailDestination.Book(it)) },
-            onEditClick = { navigateTo(DetailDestination.ContributorEdit(it)) },
-            onViewAllClick = { id, role -> logger.info { "Contributor books: $id/$role (not yet migrated)" } },
-            onMetadataClick = { navigateTo(DetailDestination.ContributorMetadataSearch(it)) },
-        )
+        is DetailDestination.Contributor -> {
+            ContributorDetailScreen(
+                contributorId = destination.contributorId,
+                onBackClick = navigateBack,
+                onBookClick = { navigateTo(DetailDestination.Book(it)) },
+                onEditClick = { navigateTo(DetailDestination.ContributorEdit(it)) },
+                onViewAllClick = { id, role -> logger.info { "Contributor books: $id/$role (not yet migrated)" } },
+                onMetadataClick = { navigateTo(DetailDestination.ContributorMetadataSearch(it)) },
+            )
+        }
 
-        is DetailDestination.ContributorEdit -> ContributorEditScreen(
-            contributorId = destination.contributorId,
-            onBackClick = navigateBack,
-            onSaveSuccess = navigateBack,
-        )
+        is DetailDestination.ContributorEdit -> {
+            ContributorEditScreen(
+                contributorId = destination.contributorId,
+                onBackClick = navigateBack,
+                onSaveSuccess = navigateBack,
+            )
+        }
 
-        is DetailDestination.Lens -> LensDetailScreen(
-            lensId = destination.lensId,
-            onBack = navigateBack,
-            onBookClick = { navigateTo(DetailDestination.Book(it)) },
-            onEditClick = { navigateTo(DetailDestination.LensEdit(it)) },
-        )
+        is DetailDestination.Lens -> {
+            LensDetailScreen(
+                lensId = destination.lensId,
+                onBack = navigateBack,
+                onBookClick = { navigateTo(DetailDestination.Book(it)) },
+                onEditClick = { navigateTo(DetailDestination.LensEdit(it)) },
+            )
+        }
 
-        is DetailDestination.Tag -> TagDetailScreen(
-            tagId = destination.tagId,
-            onBackClick = navigateBack,
-            onBookClick = { navigateTo(DetailDestination.Book(it)) },
-        )
+        is DetailDestination.Tag -> {
+            TagDetailScreen(
+                tagId = destination.tagId,
+                onBackClick = navigateBack,
+                onBookClick = { navigateTo(DetailDestination.Book(it)) },
+            )
+        }
 
-        is DetailDestination.LensEdit -> CreateEditLensScreen(
-            lensId = destination.lensId,
-            onBack = navigateBack,
-        )
+        is DetailDestination.LensEdit -> {
+            CreateEditLensScreen(
+                lensId = destination.lensId,
+                onBack = navigateBack,
+            )
+        }
 
-        is DetailDestination.LensCreate -> CreateEditLensScreen(
-            lensId = null,
-            onBack = navigateBack,
-        )
+        is DetailDestination.LensCreate -> {
+            CreateEditLensScreen(
+                lensId = null,
+                onBack = navigateBack,
+            )
+        }
 
-        is DetailDestination.ContributorMetadataSearch -> ContributorMetadataSearchRoute(
-            contributorId = destination.contributorId,
-            onCandidateSelected = { asin ->
-                navigateTo(DetailDestination.ContributorMetadataPreview(destination.contributorId, asin))
-            },
-            onBack = navigateBack,
-        )
+        is DetailDestination.ContributorMetadataSearch -> {
+            ContributorMetadataSearchRoute(
+                contributorId = destination.contributorId,
+                onCandidateSelected = { asin ->
+                    navigateTo(DetailDestination.ContributorMetadataPreview(destination.contributorId, asin))
+                },
+                onBack = navigateBack,
+            )
+        }
 
-        is DetailDestination.ContributorMetadataPreview -> ContributorMetadataPreviewRoute(
-            contributorId = destination.contributorId,
-            asin = destination.asin,
-            onApplySuccess = {
-                navigateBack()
-                navigateBack()
-            },
-            onChangeMatch = navigateBack,
-            onBack = navigateBack,
-        )
+        is DetailDestination.ContributorMetadataPreview -> {
+            ContributorMetadataPreviewRoute(
+                contributorId = destination.contributorId,
+                asin = destination.asin,
+                onApplySuccess = {
+                    navigateBack()
+                    navigateBack()
+                },
+                onChangeMatch = navigateBack,
+                onBack = navigateBack,
+            )
+        }
 
-        is DetailDestination.MetadataSearch -> MetadataSearchRoute(
-            bookId = destination.bookId,
-            onResultSelected = { asin ->
-                navigateTo(DetailDestination.MatchPreview(destination.bookId, asin))
-            },
-            onBack = navigateBack,
-        )
+        is DetailDestination.MetadataSearch -> {
+            MetadataSearchRoute(
+                bookId = destination.bookId,
+                onResultSelected = { asin ->
+                    navigateTo(DetailDestination.MatchPreview(destination.bookId, asin))
+                },
+                onBack = navigateBack,
+            )
+        }
 
-        is DetailDestination.MatchPreview -> MatchPreviewRoute(
-            bookId = destination.bookId,
-            asin = destination.asin,
-            onBack = navigateBack,
-            onApplySuccess = {
-                // Pop both MatchPreview and MetadataSearch to go back to BookDetail
-                navigateBack()
-                navigateBack()
-            },
-        )
+        is DetailDestination.MatchPreview -> {
+            MatchPreviewRoute(
+                bookId = destination.bookId,
+                asin = destination.asin,
+                onBack = navigateBack,
+                onApplySuccess = {
+                    // Pop both MatchPreview and MetadataSearch to go back to BookDetail
+                    navigateBack()
+                    navigateBack()
+                },
+            )
+        }
 
-        is DetailDestination.Settings -> SettingsScreen(
-            onNavigateBack = navigateBack,
-            showSleepTimer = false,
-            onNavigateToLicenses = { navigateTo(DetailDestination.Licenses) },
-        )
+        is DetailDestination.Settings -> {
+            SettingsScreen(
+                onNavigateBack = navigateBack,
+                showSleepTimer = false,
+                onNavigateToLicenses = { navigateTo(DetailDestination.Licenses) },
+            )
+        }
 
-        is DetailDestination.Licenses -> LicensesScreen(
-            onNavigateBack = navigateBack,
-        )
+        is DetailDestination.Licenses -> {
+            LicensesScreen(
+                onNavigateBack = navigateBack,
+            )
+        }
 
         is DetailDestination.NowPlaying -> {
             val state by playerViewModel.state.collectAsState()
@@ -483,9 +574,10 @@ private fun PlaceholderScreen(
     padding: PaddingValues,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(padding),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(padding),
         contentAlignment = Alignment.Center,
     ) {
         Column(

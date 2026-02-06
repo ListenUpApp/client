@@ -21,24 +21,17 @@ class AndroidBookDetailPlatformActions(
 ) : BookDetailPlatformActions {
     override val isPlaybackAvailable: Boolean = true
 
-    override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> =
-        downloadManager.observeBookStatus(bookId)
+    override fun observeBookStatus(bookId: BookId): Flow<BookDownloadStatus> = downloadManager.observeBookStatus(bookId)
 
-    override suspend fun downloadBook(bookId: BookId): DownloadResult =
-        downloadManager.downloadBook(bookId)
+    override suspend fun downloadBook(bookId: BookId): DownloadResult = downloadManager.downloadBook(bookId)
 
-    override suspend fun cancelDownload(bookId: BookId) =
-        downloadManager.cancelDownload(bookId)
+    override suspend fun cancelDownload(bookId: BookId) = downloadManager.cancelDownload(bookId)
 
-    override suspend fun deleteDownload(bookId: BookId) =
-        downloadManager.deleteDownload(bookId)
+    override suspend fun deleteDownload(bookId: BookId) = downloadManager.deleteDownload(bookId)
 
-    override fun playBook(bookId: BookId) =
-        playerViewModel.playBook(bookId)
+    override fun playBook(bookId: BookId) = playerViewModel.playBook(bookId)
 
-    override fun observeWifiOnlyDownloads(): Flow<Boolean> =
-        localPreferences.wifiOnlyDownloads
+    override fun observeWifiOnlyDownloads(): Flow<Boolean> = localPreferences.wifiOnlyDownloads
 
-    override fun observeIsOnUnmeteredNetwork(): Flow<Boolean> =
-        networkMonitor.isOnUnmeteredNetworkFlow
+    override fun observeIsOnUnmeteredNetwork(): Flow<Boolean> = networkMonitor.isOnUnmeteredNetworkFlow
 }

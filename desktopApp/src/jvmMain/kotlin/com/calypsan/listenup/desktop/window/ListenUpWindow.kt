@@ -58,11 +58,12 @@ fun ListenUpWindow(
     ) {
         val localPreferences: LocalPreferences = koinInject()
         val themeMode by localPreferences.themeMode.collectAsState()
-        val isDark = when (themeMode) {
-            ThemeMode.DARK -> true
-            ThemeMode.LIGHT -> false
-            ThemeMode.SYSTEM -> isSystemInDarkTheme()
-        }
+        val isDark =
+            when (themeMode) {
+                ThemeMode.DARK -> true
+                ThemeMode.LIGHT -> false
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+            }
 
         ListenUpTheme(
             darkTheme = isDark,
@@ -70,12 +71,13 @@ fun ListenUpWindow(
             val playerViewModel: DesktopPlayerViewModel = koinInject()
 
             Surface(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .onPreviewKeyEvent { event ->
-                        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                        handleMediaKey(event.key, playerViewModel)
-                    },
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                            handleMediaKey(event.key, playerViewModel)
+                        },
             ) {
                 DesktopApp()
             }
@@ -89,7 +91,10 @@ fun ListenUpWindow(
  * Supports standard media keys and Space as play/pause toggle.
  * Returns true if the key was consumed.
  */
-private fun handleMediaKey(key: Key, playerViewModel: DesktopPlayerViewModel): Boolean {
+private fun handleMediaKey(
+    key: Key,
+    playerViewModel: DesktopPlayerViewModel,
+): Boolean {
     if (!playerViewModel.state.value.isVisible) return false
 
     return when (key) {
@@ -97,14 +102,19 @@ private fun handleMediaKey(key: Key, playerViewModel: DesktopPlayerViewModel): B
             playerViewModel.playPause()
             true
         }
+
         Key.MediaNext -> {
             playerViewModel.skipForward()
             true
         }
+
         Key.MediaPrevious -> {
             playerViewModel.skipBack()
             true
         }
-        else -> false
+
+        else -> {
+            false
+        }
     }
 }

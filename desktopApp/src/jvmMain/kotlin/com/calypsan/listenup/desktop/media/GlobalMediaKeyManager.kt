@@ -24,30 +24,34 @@ class GlobalMediaKeyManager(
 ) {
     private var isRegistered = false
 
-    private val keyListener = object : NativeKeyListener {
-        override fun nativeKeyPressed(event: NativeKeyEvent) {
-            if (!playerViewModel.state.value.isVisible) return
+    private val keyListener =
+        object : NativeKeyListener {
+            override fun nativeKeyPressed(event: NativeKeyEvent) {
+                if (!playerViewModel.state.value.isVisible) return
 
-            when (event.keyCode) {
-                NativeKeyEvent.VC_MEDIA_PLAY -> {
-                    logger.debug { "Global media key: Play/Pause" }
-                    playerViewModel.playPause()
-                }
-                NativeKeyEvent.VC_MEDIA_NEXT -> {
-                    logger.debug { "Global media key: Next" }
-                    playerViewModel.skipForward()
-                }
-                NativeKeyEvent.VC_MEDIA_PREVIOUS -> {
-                    logger.debug { "Global media key: Previous" }
-                    playerViewModel.skipBack()
-                }
-                NativeKeyEvent.VC_MEDIA_STOP -> {
-                    logger.debug { "Global media key: Stop" }
-                    playerViewModel.closeBook()
+                when (event.keyCode) {
+                    NativeKeyEvent.VC_MEDIA_PLAY -> {
+                        logger.debug { "Global media key: Play/Pause" }
+                        playerViewModel.playPause()
+                    }
+
+                    NativeKeyEvent.VC_MEDIA_NEXT -> {
+                        logger.debug { "Global media key: Next" }
+                        playerViewModel.skipForward()
+                    }
+
+                    NativeKeyEvent.VC_MEDIA_PREVIOUS -> {
+                        logger.debug { "Global media key: Previous" }
+                        playerViewModel.skipBack()
+                    }
+
+                    NativeKeyEvent.VC_MEDIA_STOP -> {
+                        logger.debug { "Global media key: Stop" }
+                        playerViewModel.closeBook()
+                    }
                 }
             }
         }
-    }
 
     /**
      * Register the global native hook and start listening for media keys.

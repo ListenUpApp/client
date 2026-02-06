@@ -25,6 +25,4 @@ private object NoOpHapticFeedbackHandler : HapticFeedbackHandler {
  * Desktop implementation returns a no-op handler since desktop doesn't have haptic feedback.
  */
 @Composable
-actual fun rememberHapticFeedback(): HapticFeedbackHandler {
-    return remember { NoOpHapticFeedbackHandler }
-}
+actual fun rememberHapticFeedback(): HapticFeedbackHandler = remember { NoOpHapticFeedbackHandler }

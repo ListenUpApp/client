@@ -583,7 +583,9 @@ private fun AuthenticatedNavigation(
                                         onBookClick = { bookId -> backStack.add(BookDetail(bookId)) },
                                         onSeriesClick = { seriesId -> backStack.add(SeriesDetail(seriesId)) },
                                         onAuthorClick = { authorId -> backStack.add(ContributorDetail(authorId)) },
-                                        onNarratorClick = { narratorId -> backStack.add(ContributorDetail(narratorId)) },
+                                        onNarratorClick = { narratorId ->
+                                            backStack.add(ContributorDetail(narratorId))
+                                        },
                                         topBarCollapseFraction = topBarCollapseFraction,
                                         modifier = Modifier.padding(padding),
                                     )
@@ -605,9 +607,10 @@ private fun AuthenticatedNavigation(
                                         onTypeFilterToggle = { type ->
                                             searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
                                         },
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(padding),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .padding(padding),
                                     )
                                 },
                             )
