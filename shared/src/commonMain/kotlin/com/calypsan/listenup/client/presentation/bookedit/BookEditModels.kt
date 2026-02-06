@@ -76,6 +76,7 @@ data class BookEditUiState(
     // Book metadata fields
     val bookId: String = "",
     val title: String = "",
+    val sortTitle: String = "",
     val subtitle: String = "",
     val description: String = "",
     val publishYear: String = "",
@@ -159,6 +160,10 @@ sealed interface BookEditUiEvent {
     // Metadata changes
     data class TitleChanged(
         val title: String,
+    ) : BookEditUiEvent
+
+    data class SortTitleChanged(
+        val sortTitle: String,
     ) : BookEditUiEvent
 
     data class SubtitleChanged(

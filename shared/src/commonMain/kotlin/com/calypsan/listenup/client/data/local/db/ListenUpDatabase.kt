@@ -69,7 +69,7 @@ import androidx.room.TypeConverters
         UserStatsEntity::class,
         ReadingSessionEntity::class,
     ],
-    version = 33,
+    version = 34,
     exportSchema = true,
 )
 @TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)

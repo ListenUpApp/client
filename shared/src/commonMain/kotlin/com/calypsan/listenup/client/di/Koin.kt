@@ -99,9 +99,11 @@ import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.GenrePuller
+import com.calypsan.listenup.client.data.sync.pull.LensPuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPullerContract
 import com.calypsan.listenup.client.data.sync.pull.ProgressPuller
+import com.calypsan.listenup.client.data.sync.pull.ReadingSessionPuller
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.pull.Puller
 import com.calypsan.listenup.client.data.sync.pull.SeriesPuller
@@ -352,6 +354,7 @@ val repositoryModule =
         single { get<ListenUpDatabase>().activeSessionDao() }
         single { get<ListenUpDatabase>().activityDao() }
         single { get<ListenUpDatabase>().userStatsDao() }
+        single { get<ListenUpDatabase>().readingSessionDao() }
 
         // ServerRepository - bridges mDNS discovery with database persistence
         // When active server's URL changes via mDNS rediscovery, updates ServerConfig
@@ -858,6 +861,7 @@ val syncModule =
                 activeSessionDao = get(),
                 userStatsDao = get(),
                 playbackPositionDao = get(),
+                sessionRepository = get(),
                 imageDownloader = get(),
                 playbackStateProvider = get<PlaybackManager>(),
                 downloadService = get(),
@@ -952,6 +956,17 @@ val syncModule =
             )
         }
 
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("lensPuller"),
+        ) {
+            LensPuller(
+                lensApi = get(),
+                lensDao = get(),
+            )
+        }
+
         // ListeningEventPuller - registered as ListeningEventPullerContract because
         // PullSyncOrchestrator needs to call pullAll() for refreshListeningHistory()
         single<ListeningEventPullerContract> {
@@ -974,6 +989,18 @@ val syncModule =
                 activeSessionDao = get(),
                 userProfileDao = get(),
                 imageDownloader = get(),
+            )
+        }
+
+        // ReadingSessionPuller - syncs book reader summaries for offline-first Readers section
+        single<Puller>(
+            qualifier =
+                org.koin.core.qualifier
+                    .named("readingSessionsPuller"),
+        ) {
+            ReadingSessionPuller(
+                syncApi = get(),
+                readingSessionDao = get(),
             )
         }
 
@@ -1023,6 +1050,12 @@ val syncModule =
                             org.koin.core.qualifier
                                 .named("genrePuller"),
                     ),
+                lensPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("lensPuller"),
+                    ),
                 listeningEventPuller = get(),
                 progressPuller =
                     get(
@@ -1035,6 +1068,12 @@ val syncModule =
                         qualifier =
                             org.koin.core.qualifier
                                 .named("activeSessionsPuller"),
+                    ),
+                readingSessionsPuller =
+                    get(
+                        qualifier =
+                            org.koin.core.qualifier
+                                .named("readingSessionsPuller"),
                     ),
                 coordinator = get(),
                 syncDao = get(),
@@ -1353,9 +1392,8 @@ val syncModule =
         single<SessionRepository> {
             SessionRepositoryImpl(
                 sessionApi = get(),
-                readingSessionDao = get<ListenUpDatabase>().readingSessionDao(),
+                readingSessionDao = get(),
                 authSession = get(),
-                repositoryScope = get(),
             )
         }
 

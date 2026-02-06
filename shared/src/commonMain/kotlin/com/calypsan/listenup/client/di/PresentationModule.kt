@@ -231,6 +231,9 @@ val bookPresentationModule =
                 tagRepository = get(),
                 playbackPositionRepository = get(),
                 userRepository = get(),
+                lensRepository = get(),
+                addBooksToLensUseCase = get(),
+                createLensUseCase = get(),
             )
         }
         factory {

@@ -70,7 +70,7 @@ class UpdateBookUseCaseTest {
         val fixture = TestFixture()
 
         // Default stubs for successful operations
-        everySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns Success(Unit)
+        everySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns Success(Unit)
         everySuspend { fixture.bookEditRepository.setBookContributors(any(), any()) } returns Success(Unit)
         everySuspend { fixture.bookEditRepository.setBookSeries(any(), any()) } returns Success(Unit)
         everySuspend { fixture.genreRepository.setGenresForBook(any(), any()) } returns Unit
@@ -86,6 +86,7 @@ class UpdateBookUseCaseTest {
 
     private fun createMetadata(
         title: String = "Test Book",
+        sortTitle: String = "",
         subtitle: String = "",
         description: String = "",
         publishYear: String = "",
@@ -98,6 +99,7 @@ class UpdateBookUseCaseTest {
     ): BookMetadata =
         BookMetadata(
             title = title,
+            sortTitle = sortTitle,
             subtitle = subtitle,
             description = description,
             publishYear = publishYear,
@@ -213,7 +215,7 @@ class UpdateBookUseCaseTest {
             checkIs<Success<Unit>>(result)
 
             // Verify no repository calls were made
-            verifySuspend(VerifyMode.not) { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+            verifySuspend(VerifyMode.not) { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
             verifySuspend(VerifyMode.not) { fixture.bookEditRepository.setBookContributors(any(), any()) }
             verifySuspend(VerifyMode.not) { fixture.bookEditRepository.setBookSeries(any(), any()) }
             verifySuspend(VerifyMode.not) { fixture.genreRepository.setGenresForBook(any(), any()) }
@@ -238,7 +240,7 @@ class UpdateBookUseCaseTest {
 
             // Then
             checkIs<Success<Unit>>(result)
-            verifySuspend { fixture.bookEditRepository.updateBook(bookId = "book-1", title = "New Title", any(), any(), any(), any(), any(), any(), any(), any()) }
+            verifySuspend { fixture.bookEditRepository.updateBook(bookId = "book-1", title = "New Title", any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         }
 
     @Test
@@ -606,7 +608,7 @@ class UpdateBookUseCaseTest {
             val current = createUpdateRequest(metadata = currentMetadata)
 
             val fixture = createFixture()
-            everySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns Failure(message = "Update failed")
+            everySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns Failure(message = "Update failed")
             val useCase = fixture.build()
 
             // When
@@ -633,7 +635,7 @@ class UpdateBookUseCaseTest {
                 )
 
             val fixture = createFixture()
-            everySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns Failure(message = "Metadata failed")
+            everySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns Failure(message = "Metadata failed")
             val useCase = fixture.build()
 
             // When
@@ -732,7 +734,7 @@ class UpdateBookUseCaseTest {
 
             // Then - all operations should be called
             checkIs<Success<Unit>>(result)
-            verifySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+            verifySuspend { fixture.bookEditRepository.updateBook(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
             verifySuspend { fixture.bookEditRepository.setBookContributors(any(), any()) }
             verifySuspend { fixture.bookEditRepository.setBookSeries(any(), any()) }
             verifySuspend { fixture.genreRepository.setGenresForBook(any(), any()) }

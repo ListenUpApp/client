@@ -14,6 +14,8 @@ import com.calypsan.listenup.client.data.sync.push.ListeningEventHandler
 import com.calypsan.listenup.client.di.sharedModules
 import com.calypsan.listenup.client.download.DownloadFileManager
 import com.calypsan.listenup.client.download.DownloadManager
+import com.calypsan.listenup.client.features.bookdetail.AndroidBookDetailPlatformActions
+import com.calypsan.listenup.client.features.bookdetail.BookDetailPlatformActions
 import com.calypsan.listenup.client.download.DownloadService
 import com.calypsan.listenup.client.download.DownloadWorkerFactory
 import com.calypsan.listenup.client.automotive.BrowseTreeProvider
@@ -212,6 +214,16 @@ val downloadModule =
 
         // Also expose the concrete type for Android-specific features
         single { get<DownloadService>() as DownloadManager }
+
+        // Platform actions for BookDetailScreen (download + playback integration)
+        single<BookDetailPlatformActions> {
+            AndroidBookDetailPlatformActions(
+                downloadManager = get(),
+                playerViewModel = get(),
+                localPreferences = get(),
+                networkMonitor = get(),
+            )
+        }
     }
 
 /**

@@ -22,9 +22,11 @@ class PullSyncOrchestrator(
     private val contributorPuller: Puller,
     private val tagPuller: Puller,
     private val genrePuller: Puller,
+    private val lensPuller: Puller,
     private val listeningEventPuller: ListeningEventPullerContract,
     private val progressPuller: Puller,
     private val activeSessionsPuller: Puller,
+    private val readingSessionsPuller: Puller,
     private val coordinator: SyncCoordinator,
     private val syncDao: SyncDao,
 ) {
@@ -84,6 +86,9 @@ class PullSyncOrchestrator(
                 // Pull genres after books (genres are book categorization)
                 genrePuller.pull(updatedAfter, onProgress)
 
+                // Pull user's lenses (non-critical metadata)
+                lensPuller.pull(updatedAfter, onProgress)
+
                 // Pull progress FIRST - creates positions with correct isFinished
                 // This must run before listening events so positions exist with
                 // authoritative isFinished values before events update them
@@ -95,6 +100,9 @@ class PullSyncOrchestrator(
 
                 // Pull active sessions for "What Others Are Listening To" discovery section
                 activeSessionsPuller.pull(updatedAfter, onProgress)
+
+                // Pull reading sessions for offline-first "Readers" section on book detail pages
+                readingSessionsPuller.pull(updatedAfter, onProgress)
             }
 
             onProgress(

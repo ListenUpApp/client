@@ -13,6 +13,7 @@ import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlin.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
@@ -75,16 +76,23 @@ class PlaybackPositionRepositoryImpl(
         dao.delete(BookId(bookId))
     }
 
-    override suspend fun markComplete(bookId: String): Result<Unit> {
+    override suspend fun markComplete(
+        bookId: String,
+        startedAt: Long?,
+        finishedAt: Long?,
+    ): Result<Unit> {
         logger.debug { "markComplete: $bookId" }
         val existing = dao.get(BookId(bookId))
         val now = currentEpochMilliseconds()
+        val effectiveFinishedAt = finishedAt ?: now
+        val effectiveStartedAt = startedAt ?: existing?.startedAt ?: now
 
         // Optimistic local update
         val updated =
             existing?.copy(
                 isFinished = true,
-                finishedAt = now,
+                finishedAt = effectiveFinishedAt,
+                startedAt = effectiveStartedAt,
                 updatedAt = now,
             ) ?: PlaybackPositionEntity(
                 bookId = BookId(bookId),
@@ -94,13 +102,17 @@ class PlaybackPositionRepositoryImpl(
                 updatedAt = now,
                 lastPlayedAt = now,
                 isFinished = true,
-                finishedAt = now,
-                startedAt = now,
+                finishedAt = effectiveFinishedAt,
+                startedAt = effectiveStartedAt,
             )
         dao.save(updated)
 
+        // Convert to ISO 8601 for API
+        val startedAtIso = epochMillisToIso8601(effectiveStartedAt)
+        val finishedAtIso = epochMillisToIso8601(effectiveFinishedAt)
+
         // Sync to server
-        return when (val result = syncApi.markComplete(bookId)) {
+        return when (val result = syncApi.markComplete(bookId, startedAt = startedAtIso, finishedAt = finishedAtIso)) {
             is Success -> {
                 logger.info { "markComplete: synced $bookId to server" }
                 Success(Unit)
@@ -215,3 +227,8 @@ private fun PlaybackPositionEntity.toDomain(): PlaybackPosition =
         finishedAtMs = finishedAt,
         startedAtMs = startedAt,
     )
+
+/**
+ * Convert epoch milliseconds to ISO 8601 string for API communication.
+ */
+private fun epochMillisToIso8601(millis: Long): String = Instant.fromEpochMilliseconds(millis).toString()

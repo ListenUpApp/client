@@ -53,7 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,7 +97,7 @@ fun ABSImportListScreen(
     onImportClick: (String) -> Unit,
     onLegacyImport: () -> Unit,
 ) {
-    val state by viewModel.listState.collectAsState()
+    val state by viewModel.listState.collectAsStateWithLifecycle()
     var showCreateDialog by remember { mutableStateOf(false) }
 
     // Document picker for local file selection
@@ -508,7 +508,7 @@ fun ABSImportHubDetailScreen(
     viewModel: ABSImportHubViewModel = koinInject(),
     onBackClick: () -> Unit,
 ) {
-    val state by viewModel.hubState.collectAsState()
+    val state by viewModel.hubState.collectAsStateWithLifecycle()
 
     // Load import when screen opens
     androidx.compose.runtime.LaunchedEffect(importId) {

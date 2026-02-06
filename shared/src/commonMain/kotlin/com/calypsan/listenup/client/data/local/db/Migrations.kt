@@ -1303,3 +1303,24 @@ val MIGRATION_32_33 =
             )
         }
     }
+
+/**
+ * Migration from version 33 to version 34.
+ *
+ * Changes:
+ * - Add sortTitle column to books table
+ *
+ * The sortTitle field allows users to specify a custom title for sorting purposes.
+ * For example, "The Lord of the Rings" can have sortTitle "Lord of the Rings, The"
+ * to sort under "L" instead of "T".
+ */
+val MIGRATION_33_34 =
+    object : Migration(33, 34) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                ALTER TABLE books ADD COLUMN sortTitle TEXT DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }

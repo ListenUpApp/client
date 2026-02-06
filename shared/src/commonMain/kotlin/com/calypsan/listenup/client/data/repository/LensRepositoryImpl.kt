@@ -50,6 +50,14 @@ class LensRepositoryImpl(
 
     override suspend fun countDiscoverLenses(currentUserId: String): Int = dao.countDiscoverLenses(currentUserId)
 
+    override suspend fun fetchAndCacheMyLenses() {
+        logger.debug { "Fetching my lenses from API" }
+        val lenses = lensApi.getMyLenses()
+        val entities = lenses.map { it.toEntity() }
+        dao.upsertAll(entities)
+        logger.info { "Fetched and cached ${entities.size} my lenses" }
+    }
+
     /**
      * Fetch discover lenses from API and cache locally.
      *

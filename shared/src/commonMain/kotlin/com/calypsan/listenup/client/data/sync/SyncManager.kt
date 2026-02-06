@@ -60,6 +60,17 @@ interface SyncManagerContract {
     suspend fun sync(): Result<Unit>
 
     /**
+     * Connect to real-time updates (SSE) and perform a delta sync.
+     *
+     * Used when the app launches and a prior sync exists — no need for a full sync,
+     * just reconnect SSE and pull any changes since the last sync.
+     *
+     * On Android, SSE is managed by Activity lifecycle (onResume/onPause).
+     * On Desktop, this must be called explicitly since there's no Activity lifecycle.
+     */
+    suspend fun connectRealtime()
+
+    /**
      * Handle library mismatch by clearing local data and resyncing.
      *
      * Called when the user confirms they want to discard local data
@@ -175,6 +186,33 @@ class SyncManager(
      * 1. Flushing pending local operations first (so local changes aren't lost)
      * 2. Pulling changes since the last sync checkpoint
      */
+    override suspend fun connectRealtime() {
+        logger.info { "Connecting real-time updates (SSE + delta sync)..." }
+
+        // Connect SSE first so we don't miss events during delta sync
+        sseManager.connect()
+
+        // Initialize scan state from library status API
+        initializeScanState()
+
+        // Delta sync to catch anything missed while disconnected
+        try {
+            syncMutex.withLock {
+                // Flush pending local changes first
+                pushOrchestrator.flush()
+
+                // Pull changes since last sync
+                pullOrchestrator.pull { /* suppress progress updates for background sync */ }
+
+                // Update sync timestamp
+                syncDao.setLastSyncTime(Timestamp.now())
+            }
+            logger.info { "Real-time connection established with delta sync" }
+        } catch (e: Exception) {
+            logger.warn(e) { "Delta sync failed during connectRealtime, SSE still connected" }
+        }
+    }
+
     private fun handleReconnection() {
         logger.info { "SSE reconnected - triggering delta sync to catch missed events" }
 

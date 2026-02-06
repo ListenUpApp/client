@@ -223,6 +223,17 @@ interface SyncApiContract {
     suspend fun getActiveSessions(): Result<SyncActiveSessionsResponse>
 
     /**
+     * Get all reading sessions for offline-first book detail pages.
+     *
+     * Returns all book reader summaries across all books and users.
+     * Used during initial sync to populate the Readers section.
+     *
+     * Endpoint: GET /api/v1/sync/reading-sessions
+     * Auth: Required
+     */
+    suspend fun getReadingSessions(): Result<SyncReadingSessionsResponse>
+
+    /**
      * Mark a book as complete.
      *
      * Updates the progress record to mark the book finished, creating
@@ -232,11 +243,13 @@ interface SyncApiContract {
      * Auth: Required
      *
      * @param bookId Book to mark as complete
+     * @param startedAt Optional ISO 8601 timestamp for when reading started
      * @param finishedAt Optional ISO 8601 timestamp for when the book was finished
      * @return Result containing updated PlaybackProgressResponse or error
      */
     suspend fun markComplete(
         bookId: String,
+        startedAt: String? = null,
         finishedAt: String? = null,
     ): Result<PlaybackProgressResponse>
 
@@ -1409,4 +1422,36 @@ data class ActiveSessionApiResponse(
     val avatarType: String,
     val avatarValue: String?,
     val avatarColor: String,
+)
+
+// =============================================================================
+// Reading Sessions Sync Response Types
+// =============================================================================
+
+/**
+ * Response from GET /sync/reading-sessions endpoint.
+ *
+ * Contains all book reader summaries for offline-first Readers section.
+ */
+data class SyncReadingSessionsResponse(
+    val readers: List<SyncReadingSessionReaderResponse>,
+)
+
+/**
+ * A reader summary for a specific book from the sync endpoint.
+ * Includes denormalized user profile data for offline display.
+ */
+data class SyncReadingSessionReaderResponse(
+    val bookId: String,
+    val userId: String,
+    val displayName: String,
+    val avatarType: String,
+    val avatarValue: String?,
+    val avatarColor: String,
+    val isCurrentlyReading: Boolean,
+    val currentProgress: Double,
+    val startedAt: String,
+    val finishedAt: String?,
+    val lastActivityAt: String,
+    val completionCount: Int,
 )

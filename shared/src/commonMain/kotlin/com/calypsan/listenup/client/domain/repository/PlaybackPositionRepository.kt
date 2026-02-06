@@ -82,13 +82,19 @@ interface PlaybackPositionRepository {
      * Mark a book as complete.
      *
      * Optimistic local update followed by server sync.
-     * Sets isFinished=true, finishedAt to now.
+     * Sets isFinished=true, finishedAt to the provided value (or now).
      * On server failure, rolls back to previous state.
      *
      * @param bookId The book to mark as complete
+     * @param startedAt Optional start date in epoch milliseconds (overrides existing)
+     * @param finishedAt Optional finish date in epoch milliseconds (defaults to now)
      * @return Result with Unit on success, or Failure on error
      */
-    suspend fun markComplete(bookId: String): com.calypsan.listenup.client.core.Result<Unit>
+    suspend fun markComplete(
+        bookId: String,
+        startedAt: Long? = null,
+        finishedAt: Long? = null,
+    ): com.calypsan.listenup.client.core.Result<Unit>
 
     /**
      * Discard all progress for a book.

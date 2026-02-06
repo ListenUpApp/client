@@ -112,6 +112,7 @@ data class BookEntity(
     @PrimaryKey val id: BookId,
     // Core book metadata
     val title: String,
+    val sortTitle: String? = null, // Title used for sorting (e.g., "Lord of the Rings, The")
     val subtitle: String? = null, // Book subtitle
     val coverUrl: String?, // URL to cover image (local or remote)
     val coverBlurHash: String? = null, // BlurHash for cover placeholder

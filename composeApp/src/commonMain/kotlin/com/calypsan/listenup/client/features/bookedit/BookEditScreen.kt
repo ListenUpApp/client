@@ -1,0 +1,595 @@
+@file:Suppress("StringLiteralDuplication")
+
+package com.calypsan.listenup.client.features.bookedit
+
+import com.calypsan.listenup.client.design.util.PlatformBackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowSizeClass
+import com.calypsan.listenup.client.design.components.CoverColors
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
+import com.calypsan.listenup.client.design.components.ListenUpTextArea
+import com.calypsan.listenup.client.design.components.rememberCoverColors
+import com.calypsan.listenup.client.domain.imagepicker.ImagePickerResult
+import com.calypsan.listenup.client.features.bookedit.components.ClassificationSection
+import com.calypsan.listenup.client.features.bookedit.components.IdentifiersSection
+import com.calypsan.listenup.client.features.bookedit.components.IdentityHeader
+import com.calypsan.listenup.client.features.bookedit.components.ImmersiveBackdrop
+import com.calypsan.listenup.client.features.bookedit.components.LibrarySection
+import com.calypsan.listenup.client.features.bookedit.components.PublishingSection
+import com.calypsan.listenup.client.features.bookedit.components.SeriesSection
+import com.calypsan.listenup.client.features.bookedit.components.StudioCard
+import com.calypsan.listenup.client.features.bookedit.components.TalentSection
+import com.calypsan.listenup.client.presentation.bookedit.BookEditNavAction
+import com.calypsan.listenup.client.presentation.bookedit.BookEditUiEvent
+import com.calypsan.listenup.client.presentation.bookedit.BookEditUiState
+import com.calypsan.listenup.client.presentation.bookedit.BookEditViewModel
+import com.calypsan.listenup.client.util.rememberImagePicker
+import org.koin.compose.viewmodel.koinViewModel
+
+/**
+ * Creative Studio book editing screen following Material 3 Expressive Design.
+ *
+ * Design Philosophy: Transform data entry into creative expression with immersive
+ * visuals that tie the editing experience to the book's identity.
+ *
+ * Layout:
+ * - Immersive backdrop with blurred cover art
+ * - Identity Header: Cover + Title/Subtitle side by side
+ * - Floating cards for each editing section
+ * - Extended FAB for Save action
+ */
+@Suppress("UnusedParameter", "LongMethod", "CognitiveComplexMethod")
+@Composable
+fun BookEditScreen(
+    bookId: String,
+    onBackClick: () -> Unit,
+    onSaveSuccess: () -> Unit = {},
+    viewModel: BookEditViewModel = koinViewModel(),
+) {
+    LaunchedEffect(bookId) {
+        viewModel.loadBook(bookId)
+    }
+
+    val state by viewModel.state.collectAsState()
+    val navAction by viewModel.navActions.collectAsState()
+
+    LaunchedEffect(navAction) {
+        when (navAction) {
+            is BookEditNavAction.NavigateBack -> {
+                onBackClick()
+                viewModel.clearNavAction()
+            }
+
+            is BookEditNavAction.ShowSaveSuccess -> {
+                onBackClick()
+                viewModel.clearNavAction()
+            }
+
+            null -> { /* no action */ }
+        }
+    }
+
+    var showUnsavedChangesDialog by remember { mutableStateOf(false) }
+
+    PlatformBackHandler(enabled = state.hasChanges) {
+        showUnsavedChangesDialog = true
+    }
+
+    // Extract colors from cover for immersive backdrop (use displayCoverPath to show staging)
+    // Note: Edit screens use staging covers, so we don't have cached colors - use runtime extraction
+    val coverColors =
+        rememberCoverColors(
+            imagePath = state.displayCoverPath,
+            refreshKey = state.pendingCoverData,
+        )
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    Scaffold(
+        containerColor = Color.Transparent,
+        floatingActionButton = {
+            // Extended FAB for Save - always visible, disabled when no changes
+            if (!state.isLoading) {
+                val isEnabled = state.hasChanges && !state.isSaving
+
+                ExtendedFloatingActionButton(
+                    onClick = { if (isEnabled) viewModel.onEvent(BookEditUiEvent.Save) },
+                    icon = {
+                        if (state.isSaving) {
+                            ListenUpLoadingIndicatorSmall()
+                        } else {
+                            Icon(
+                                Icons.Default.Save,
+                                contentDescription = null,
+                                tint =
+                                    if (isEnabled) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    },
+                            )
+                        }
+                    },
+                    text = {
+                        Text(
+                            text = if (state.isSaving) "Saving..." else "Save Changes",
+                            color =
+                                if (isEnabled) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                },
+                        )
+                    },
+                    expanded = true,
+                    containerColor =
+                        if (isEnabled) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        },
+                )
+            }
+        },
+    ) { paddingValues ->
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(surfaceColor),
+        ) {
+            // Immersive blurred backdrop
+            ImmersiveBackdrop(
+                coverPath = state.displayCoverPath,
+                refreshKey = state.pendingCoverData,
+                coverColors = coverColors,
+                surfaceColor = surfaceColor,
+            )
+
+            // Content
+            when {
+                state.isLoading -> {
+                    ListenUpLoadingIndicator(
+                        modifier =
+                            Modifier
+                                .align(Alignment.Center)
+                                .padding(paddingValues),
+                    )
+                }
+
+                state.error != null -> {
+                    Column(
+                        modifier =
+                            Modifier
+                                .align(Alignment.Center)
+                                .padding(paddingValues),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = state.error ?: "Unknown error",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        TextButton(
+                            onClick = { viewModel.onEvent(BookEditUiEvent.DismissError) },
+                        ) {
+                            Text("Dismiss")
+                        }
+                    }
+                }
+
+                else -> {
+                    BookEditContent(
+                        state = state,
+                        coverColors = coverColors,
+                        onEvent = viewModel::onEvent,
+                        onBackClick = {
+                            if (state.hasChanges) {
+                                showUnsavedChangesDialog = true
+                            } else {
+                                onBackClick()
+                            }
+                        },
+                        modifier = Modifier.padding(bottom = paddingValues.calculateBottomPadding()),
+                    )
+                }
+            }
+        }
+    }
+
+    if (showUnsavedChangesDialog) {
+        ListenUpDestructiveDialog(
+            onDismissRequest = { showUnsavedChangesDialog = false },
+            title = "Unsaved Changes",
+            text = "You have unsaved changes. Are you sure you want to discard them?",
+            confirmText = "Discard",
+            onConfirm = {
+                showUnsavedChangesDialog = false
+                onBackClick()
+            },
+            dismissText = "Keep Editing",
+            onDismiss = { showUnsavedChangesDialog = false },
+        )
+    }
+}
+
+// =============================================================================
+// CREATIVE STUDIO LAYOUT
+// =============================================================================
+
+@Suppress("UnusedParameter")
+@Composable
+private fun BookEditContent(
+    state: BookEditUiState,
+    coverColors: CoverColors,
+    onEvent: (BookEditUiEvent) -> Unit,
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Detect window size for responsive layout
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val isMediumOrLarger =
+        windowSizeClass.isWidthAtLeastBreakpoint(
+            WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+        )
+
+    // Image picker for cover uploads
+    val imagePicker =
+        rememberImagePicker { result ->
+            when (result) {
+                is ImagePickerResult.Success -> {
+                    onEvent(BookEditUiEvent.UploadCover(result.data, result.filename))
+                }
+
+                is ImagePickerResult.Cancelled -> { /* User cancelled */ }
+
+                is ImagePickerResult.Error -> {
+                    // Error is handled via the ViewModel's error state
+                }
+            }
+        }
+
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+    ) {
+        // Identity Header with navigation
+        IdentityHeader(
+            coverPath = state.displayCoverPath,
+            refreshKey = state.pendingCoverData,
+            title = state.title,
+            subtitle = state.subtitle,
+            isUploadingCover = state.isUploadingCover,
+            onTitleChange = { onEvent(BookEditUiEvent.TitleChanged(it)) },
+            onSubtitleChange = { onEvent(BookEditUiEvent.SubtitleChanged(it)) },
+            onCoverClick = { imagePicker.launch() },
+            onBackClick = onBackClick,
+        )
+
+        // Cards section - responsive layout
+        if (isMediumOrLarger) {
+            TwoColumnCardsLayout(state = state, onEvent = onEvent)
+        } else {
+            SingleColumnCardsLayout(state = state, onEvent = onEvent)
+        }
+
+        // Bottom spacing for FAB
+        Spacer(modifier = Modifier.height(88.dp))
+    }
+}
+
+/**
+ * Single-column layout for mobile (Compact) screens.
+ */
+@Composable
+private fun SingleColumnCardsLayout(
+    state: BookEditUiState,
+    onEvent: (BookEditUiEvent) -> Unit,
+) {
+    Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        // Card 1: Description (The Hook)
+        StudioCard(title = "Description") {
+            ListenUpTextArea(
+                value = state.description,
+                onValueChange = { onEvent(BookEditUiEvent.DescriptionChanged(it)) },
+                label = "Description",
+                placeholder = "Enter a description...",
+            )
+        }
+
+        // Card 2: Publishing
+        StudioCard(title = "Publishing") {
+            PublishingSection(
+                publisher = state.publisher,
+                publishYear = state.publishYear,
+                language = state.language,
+                onPublisherChange = { onEvent(BookEditUiEvent.PublisherChanged(it)) },
+                onPublishYearChange = { onEvent(BookEditUiEvent.PublishYearChanged(it)) },
+                onLanguageChange = { onEvent(BookEditUiEvent.LanguageChanged(it)) },
+            )
+        }
+
+        // Card 3: Identifiers & Format
+        StudioCard(title = "Identifiers") {
+            IdentifiersSection(
+                isbn = state.isbn,
+                asin = state.asin,
+                abridged = state.abridged,
+                onIsbnChange = { onEvent(BookEditUiEvent.IsbnChanged(it)) },
+                onAsinChange = { onEvent(BookEditUiEvent.AsinChanged(it)) },
+                onAbridgedChange = { onEvent(BookEditUiEvent.AbridgedChanged(it)) },
+            )
+        }
+
+        // Card 4: Library
+        StudioCard(title = "Library") {
+            LibrarySection(
+                sortTitle = state.sortTitle,
+                addedAt = state.addedAt,
+                onSortTitleChange = { onEvent(BookEditUiEvent.SortTitleChanged(it)) },
+                onAddedAtChange = { onEvent(BookEditUiEvent.AddedAtChanged(it)) },
+            )
+        }
+
+        // Card 5: Series
+        StudioCard(title = "Series") {
+            SeriesSection(
+                series = state.series,
+                searchQuery = state.seriesSearchQuery,
+                searchResults = state.seriesSearchResults,
+                isLoading = state.seriesSearchLoading,
+                isOffline = state.seriesOfflineResult,
+                onSearchQueryChange = { onEvent(BookEditUiEvent.SeriesSearchQueryChanged(it)) },
+                onSeriesSelected = { onEvent(BookEditUiEvent.SeriesSelected(it)) },
+                onSeriesEntered = { onEvent(BookEditUiEvent.SeriesEntered(it)) },
+                onSequenceChange = { series, seq -> onEvent(BookEditUiEvent.SeriesSequenceChanged(series, seq)) },
+                onRemoveSeries = { onEvent(BookEditUiEvent.RemoveSeries(it)) },
+            )
+        }
+
+        // Card 5: Classification
+        StudioCard(title = "Classification") {
+            ClassificationSection(
+                genres = state.genres,
+                genreSearchQuery = state.genreSearchQuery,
+                genreSearchResults = state.genreSearchResults,
+                tags = state.tags,
+                tagSearchQuery = state.tagSearchQuery,
+                tagSearchResults = state.tagSearchResults,
+                isTagSearching = state.tagSearchLoading,
+                isTagCreating = state.tagCreating,
+                onGenreSearchQueryChange = { onEvent(BookEditUiEvent.GenreSearchQueryChanged(it)) },
+                onGenreSelected = { onEvent(BookEditUiEvent.GenreSelected(it)) },
+                onRemoveGenre = { onEvent(BookEditUiEvent.RemoveGenre(it)) },
+                onTagSearchQueryChange = { onEvent(BookEditUiEvent.TagSearchQueryChanged(it)) },
+                onTagSelected = { onEvent(BookEditUiEvent.TagSelected(it)) },
+                onTagEntered = { onEvent(BookEditUiEvent.TagEntered(it)) },
+                onRemoveTag = { onEvent(BookEditUiEvent.RemoveTag(it)) },
+            )
+        }
+
+        // Card 6: Talent
+        StudioCard(title = "Talent") {
+            TalentSection(
+                visibleRoles = state.visibleRoles,
+                availableRolesToAdd = state.availableRolesToAdd,
+                contributorsForRole = state::contributorsForRole,
+                roleSearchQueries = state.roleSearchQueries,
+                roleSearchResults = state.roleSearchResults,
+                roleSearchLoading = state.roleSearchLoading,
+                roleOfflineResults = state.roleOfflineResults,
+                onRoleSearchQueryChange = {
+                    role,
+                    query,
+                    ->
+                    onEvent(BookEditUiEvent.RoleSearchQueryChanged(role, query))
+                },
+                onContributorSelected = {
+                    role,
+                    result,
+                    ->
+                    onEvent(BookEditUiEvent.RoleContributorSelected(role, result))
+                },
+                onContributorEntered = { role, name -> onEvent(BookEditUiEvent.RoleContributorEntered(role, name)) },
+                onRemoveContributor = {
+                    contributor,
+                    role,
+                    ->
+                    onEvent(BookEditUiEvent.RemoveContributor(contributor, role))
+                },
+                onAddRoleSection = { onEvent(BookEditUiEvent.AddRoleSection(it)) },
+                onRemoveRoleSection = { onEvent(BookEditUiEvent.RemoveRoleSection(it)) },
+            )
+        }
+    }
+}
+
+/**
+ * Two-column layout for tablet (Medium/Expanded) screens.
+ *
+ * Full Width: Description (The Hook - primary content)
+ * Left Column: Publishing, Identifiers, Series
+ * Right Column: Classification, Talent
+ */
+@Suppress("LongMethod")
+@Composable
+private fun TwoColumnCardsLayout(
+    state: BookEditUiState,
+    onEvent: (BookEditUiEvent) -> Unit,
+) {
+    Column(
+        modifier = Modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        // Full-width: Description (The Hook) - Primary content
+        StudioCard(title = "Description") {
+            ListenUpTextArea(
+                value = state.description,
+                onValueChange = { onEvent(BookEditUiEvent.DescriptionChanged(it)) },
+                label = "Description",
+                placeholder = "Enter a description...",
+            )
+        }
+
+        // Two-column grid for remaining cards
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            // Left Column - Book metadata
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                StudioCard(title = "Publishing") {
+                    PublishingSection(
+                        publisher = state.publisher,
+                        publishYear = state.publishYear,
+                        language = state.language,
+                        onPublisherChange = { onEvent(BookEditUiEvent.PublisherChanged(it)) },
+                        onPublishYearChange = { onEvent(BookEditUiEvent.PublishYearChanged(it)) },
+                        onLanguageChange = { onEvent(BookEditUiEvent.LanguageChanged(it)) },
+                    )
+                }
+
+                StudioCard(title = "Identifiers") {
+                    IdentifiersSection(
+                        isbn = state.isbn,
+                        asin = state.asin,
+                        abridged = state.abridged,
+                        onIsbnChange = { onEvent(BookEditUiEvent.IsbnChanged(it)) },
+                        onAsinChange = { onEvent(BookEditUiEvent.AsinChanged(it)) },
+                        onAbridgedChange = { onEvent(BookEditUiEvent.AbridgedChanged(it)) },
+                    )
+                }
+
+                StudioCard(title = "Library") {
+                    LibrarySection(
+                        sortTitle = state.sortTitle,
+                        addedAt = state.addedAt,
+                        onSortTitleChange = { onEvent(BookEditUiEvent.SortTitleChanged(it)) },
+                        onAddedAtChange = { onEvent(BookEditUiEvent.AddedAtChanged(it)) },
+                    )
+                }
+
+                StudioCard(title = "Series") {
+                    SeriesSection(
+                        series = state.series,
+                        searchQuery = state.seriesSearchQuery,
+                        searchResults = state.seriesSearchResults,
+                        isLoading = state.seriesSearchLoading,
+                        isOffline = state.seriesOfflineResult,
+                        onSearchQueryChange = { onEvent(BookEditUiEvent.SeriesSearchQueryChanged(it)) },
+                        onSeriesSelected = { onEvent(BookEditUiEvent.SeriesSelected(it)) },
+                        onSeriesEntered = { onEvent(BookEditUiEvent.SeriesEntered(it)) },
+                        onSequenceChange = {
+                            series,
+                            seq,
+                            ->
+                            onEvent(BookEditUiEvent.SeriesSequenceChanged(series, seq))
+                        },
+                        onRemoveSeries = { onEvent(BookEditUiEvent.RemoveSeries(it)) },
+                    )
+                }
+            }
+
+            // Right Column - Classification & Talent
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                StudioCard(title = "Classification") {
+                    ClassificationSection(
+                        genres = state.genres,
+                        genreSearchQuery = state.genreSearchQuery,
+                        genreSearchResults = state.genreSearchResults,
+                        tags = state.tags,
+                        tagSearchQuery = state.tagSearchQuery,
+                        tagSearchResults = state.tagSearchResults,
+                        isTagSearching = state.tagSearchLoading,
+                        isTagCreating = state.tagCreating,
+                        onGenreSearchQueryChange = { onEvent(BookEditUiEvent.GenreSearchQueryChanged(it)) },
+                        onGenreSelected = { onEvent(BookEditUiEvent.GenreSelected(it)) },
+                        onRemoveGenre = { onEvent(BookEditUiEvent.RemoveGenre(it)) },
+                        onTagSearchQueryChange = { onEvent(BookEditUiEvent.TagSearchQueryChanged(it)) },
+                        onTagSelected = { onEvent(BookEditUiEvent.TagSelected(it)) },
+                        onTagEntered = { onEvent(BookEditUiEvent.TagEntered(it)) },
+                        onRemoveTag = { onEvent(BookEditUiEvent.RemoveTag(it)) },
+                    )
+                }
+
+                StudioCard(title = "Talent") {
+                    TalentSection(
+                        visibleRoles = state.visibleRoles,
+                        availableRolesToAdd = state.availableRolesToAdd,
+                        contributorsForRole = state::contributorsForRole,
+                        roleSearchQueries = state.roleSearchQueries,
+                        roleSearchResults = state.roleSearchResults,
+                        roleSearchLoading = state.roleSearchLoading,
+                        roleOfflineResults = state.roleOfflineResults,
+                        onRoleSearchQueryChange = {
+                            role,
+                            query,
+                            ->
+                            onEvent(BookEditUiEvent.RoleSearchQueryChanged(role, query))
+                        },
+                        onContributorSelected = {
+                            role,
+                            result,
+                            ->
+                            onEvent(BookEditUiEvent.RoleContributorSelected(role, result))
+                        },
+                        onContributorEntered = {
+                            role,
+                            name,
+                            ->
+                            onEvent(BookEditUiEvent.RoleContributorEntered(role, name))
+                        },
+                        onRemoveContributor = {
+                            contributor,
+                            role,
+                            ->
+                            onEvent(BookEditUiEvent.RemoveContributor(contributor, role))
+                        },
+                        onAddRoleSection = { onEvent(BookEditUiEvent.AddRoleSection(it)) },
+                        onRemoveRoleSection = { onEvent(BookEditUiEvent.RemoveRoleSection(it)) },
+                    )
+                }
+            }
+        }
+    }
+}

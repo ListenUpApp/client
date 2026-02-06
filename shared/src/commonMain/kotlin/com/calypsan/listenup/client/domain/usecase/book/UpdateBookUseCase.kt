@@ -118,6 +118,7 @@ open class UpdateBookUseCase(
         return bookEditRepository.updateBook(
             bookId = current.bookId,
             title = metadata.title,
+            sortTitle = metadata.sortTitle.ifBlank { null },
             subtitle = metadata.subtitle.ifBlank { null },
             description = metadata.description.ifBlank { null },
             publishYear = metadata.publishYear.ifBlank { null },

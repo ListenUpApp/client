@@ -125,6 +125,7 @@ open class LoadBookForEditUseCase(
     private fun Book.toMetadata(): BookMetadata =
         BookMetadata(
             title = title,
+            sortTitle = sortTitle ?: generateSortTitle(title),
             subtitle = subtitle ?: "",
             description = description ?: "",
             publishYear = publishYear?.toString() ?: "",
@@ -169,4 +170,26 @@ open class LoadBookForEditUseCase(
             id = id,
             slug = slug,
         )
+}
+
+private val leadingArticles = listOf("The ", "A ", "An ")
+
+/**
+ * Generate a sort-friendly title by moving leading articles to the end.
+ *
+ * Examples:
+ * - "The Lord of the Rings" → "Lord of the Rings, The"
+ * - "A Brief History of Time" → "Brief History of Time, A"
+ * - "An Introduction to Physics" → "Introduction to Physics, An"
+ * - "Mistborn" → "Mistborn" (no change)
+ */
+private fun generateSortTitle(title: String): String {
+    for (article in leadingArticles) {
+        if (title.startsWith(article, ignoreCase = true)) {
+            val matchedArticle = title.substring(0, article.length).trimEnd()
+            val remainder = title.substring(article.length)
+            return "$remainder, $matchedArticle"
+        }
+    }
+    return title
 }

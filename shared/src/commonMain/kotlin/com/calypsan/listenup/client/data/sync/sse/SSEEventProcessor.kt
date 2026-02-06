@@ -21,6 +21,7 @@ import com.calypsan.listenup.client.data.local.db.LensEntity
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
+import com.calypsan.listenup.client.data.local.db.PlaybackPositionEntity
 import com.calypsan.listenup.client.data.local.db.SyncState
 import com.calypsan.listenup.client.data.local.db.TagDao
 import com.calypsan.listenup.client.data.local.db.TagEntity
@@ -33,6 +34,7 @@ import com.calypsan.listenup.client.data.remote.model.BookResponse
 import com.calypsan.listenup.client.data.remote.model.toEntity
 import com.calypsan.listenup.client.data.sync.ImageDownloaderContract
 import com.calypsan.listenup.client.data.sync.SSEEventType
+import com.calypsan.listenup.client.domain.repository.SessionRepository
 import com.calypsan.listenup.client.download.DownloadService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -83,6 +85,7 @@ class SSEEventProcessor(
     private val activeSessionDao: ActiveSessionDao,
     private val userStatsDao: UserStatsDao,
     private val playbackPositionDao: PlaybackPositionDao,
+    private val sessionRepository: SessionRepository,
     private val imageDownloader: ImageDownloaderContract,
     private val playbackStateProvider: PlaybackStateProvider,
     private val downloadService: DownloadService,
@@ -647,12 +650,42 @@ class SSEEventProcessor(
 
     // ========== Listening Event Handlers ==========
 
-    private fun handleProgressUpdated(event: SSEEventType.ProgressUpdated) {
+    private suspend fun handleProgressUpdated(event: SSEEventType.ProgressUpdated) {
         logger.info {
-            "SSE: Progress updated for book ${event.bookId} - ${(event.progress * 100).toInt()}% (from another device)"
+            "SSE: Progress updated for book ${event.bookId} - " +
+                "${(event.progress * 100).toInt()}%, position=${event.currentPositionMs}ms (from another device)"
         }
-        // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
-        // Stats/Continue Listening screens can listen for this to refresh
+
+        val bookId = BookId(event.bookId)
+        val lastPlayedAtMs = parseTimestamp(event.lastPlayedAt).epochMillis
+
+        try {
+            // Only update if the remote progress is newer than local
+            val existing = playbackPositionDao.get(bookId)
+            if (existing != null && (existing.lastPlayedAt ?: 0L) >= lastPlayedAtMs) {
+                logger.debug {
+                    "SSE: Skipping progress update for ${event.bookId} - local is newer " +
+                        "(local=${existing.lastPlayedAt}, remote=$lastPlayedAtMs)"
+                }
+                return
+            }
+
+            playbackPositionDao.save(
+                PlaybackPositionEntity(
+                    bookId = bookId,
+                    positionMs = event.currentPositionMs,
+                    playbackSpeed = existing?.playbackSpeed ?: 1.0f,
+                    hasCustomSpeed = existing?.hasCustomSpeed ?: false,
+                    updatedAt = lastPlayedAtMs,
+                    syncedAt = lastPlayedAtMs,
+                    lastPlayedAt = lastPlayedAtMs,
+                    isFinished = event.isFinished,
+                ),
+            )
+            logger.info { "SSE: Updated local position for ${event.bookId} to ${event.currentPositionMs}ms" }
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to update progress for ${event.bookId}" }
+        }
     }
 
     private suspend fun handleProgressDeleted(event: SSEEventType.ProgressDeleted) {
@@ -665,12 +698,17 @@ class SSEEventProcessor(
         }
     }
 
-    private fun handleReadingSessionUpdated(event: SSEEventType.ReadingSessionUpdated) {
+    private suspend fun handleReadingSessionUpdated(event: SSEEventType.ReadingSessionUpdated) {
         logger.info {
             "SSE: Reading session ${event.sessionId} updated for book ${event.bookId} - completed=${event.isCompleted}"
         }
-        // The event is logged and can be observed by ViewModels via SSEManager.eventFlow
-        // Book detail/readers screens can listen for this to refresh
+        // Refresh reading sessions cache in Room for offline-first display.
+        // When the user later visits this book's detail page, readers data is already available.
+        try {
+            sessionRepository.refreshBookReaders(event.bookId)
+        } catch (e: Exception) {
+            logger.error(e) { "SSE: Failed to refresh readers for book ${event.bookId}" }
+        }
     }
 
     private suspend fun handleListeningEventCreated(event: SSEEventType.ListeningEventCreated) {

@@ -33,6 +33,7 @@ fun BookEntity.toDomain(
     return Book(
         id = id,
         title = title,
+        sortTitle = sortTitle,
         subtitle = subtitle,
         authors = authors,
         narrators = narrators,
@@ -116,6 +117,7 @@ fun BookWithContributors.toDomain(
     return Book(
         id = book.id,
         title = book.title,
+        sortTitle = book.sortTitle,
         subtitle = book.subtitle,
         authors = authors,
         narrators = narrators,

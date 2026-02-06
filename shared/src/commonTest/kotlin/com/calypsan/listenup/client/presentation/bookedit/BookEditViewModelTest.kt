@@ -108,6 +108,7 @@ class BookEditViewModelTest {
             metadata =
                 BookMetadata(
                     title = title,
+                    sortTitle = "",
                     subtitle = subtitle,
                     description = description,
                     publishYear = publishYear,

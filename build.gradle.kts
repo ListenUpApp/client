@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform) apply false
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
+    alias(libs.plugins.kotlinJvm) apply false
 
     // Quality Tools
     alias(libs.plugins.detekt)
@@ -52,9 +53,10 @@ dependencies {
 }
 
 // Suppress SLF4J "no binding" warnings during SKIE processing
+// Version must match libs.versions.toml slf4j version (2.0.17)
 buildscript {
     dependencies {
-        classpath("org.slf4j:slf4j-simple:2.0.9")
+        classpath("org.slf4j:slf4j-simple:2.0.17")
     }
 }
 

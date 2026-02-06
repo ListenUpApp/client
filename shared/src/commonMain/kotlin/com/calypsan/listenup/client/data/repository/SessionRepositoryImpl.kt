@@ -16,10 +16,7 @@ import com.calypsan.listenup.client.domain.model.SessionSummary
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.SessionRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
 
@@ -27,21 +24,18 @@ private val logger = KotlinLogging.logger {}
  * Implementation of SessionRepository with offline-first architecture.
  *
  * Data flow:
- * 1. UI observes Room database via [observeBookReaders]
- * 2. Repository triggers background API refresh on observation start
- * 3. API response updates Room, which notifies observers
- * 4. SSE events also update Room for real-time updates
+ * 1. ReadingSessionPuller populates Room during initial sync
+ * 2. UI observes Room database via [observeBookReaders]
+ * 3. SSE events update Room for real-time updates
  *
  * @property sessionApi API client for session operations
  * @property readingSessionDao Room DAO for local cache
  * @property authSession Provider for current user ID
- * @property repositoryScope Coroutine scope for background operations
  */
 class SessionRepositoryImpl(
     private val sessionApi: SessionApiContract,
     private val readingSessionDao: ReadingSessionDao,
     private val authSession: AuthSession,
-    private val repositoryScope: CoroutineScope,
 ) : SessionRepository {
     // ═══════════════════════════════════════════════════════════════════════════
     // LEGACY ONE-SHOT METHODS (kept for backwards compatibility)
@@ -73,13 +67,9 @@ class SessionRepositoryImpl(
     override fun observeBookReaders(bookId: String): Flow<BookReadersResult> {
         logger.debug { "Starting observation of readers for book $bookId" }
 
-        // Trigger background refresh
-        repositoryScope.launch {
-            refreshBookReaders(bookId)
-        }
-
-        // Return Flow from Room, transformed to domain model
-        // Use flow builder to handle suspend getUserId() call
+        // Data is populated by ReadingSessionPuller during initial sync
+        // and kept fresh by SSE events updating Room directly.
+        // No API calls needed here.
         return kotlinx.coroutines.flow.flow {
             val currentUserId = authSession.getUserId()
             logger.debug { "Observing Room for book $bookId (currentUserId=$currentUserId)" }

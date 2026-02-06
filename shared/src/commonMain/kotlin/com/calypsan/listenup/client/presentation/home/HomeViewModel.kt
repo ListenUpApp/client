@@ -41,6 +41,7 @@ class HomeViewModel(
 
     // Store user ID for lens observation
     private var currentUserId: String? = null
+    private var hasFetchedLenses = false
 
     init {
         observeUser()
@@ -122,12 +123,24 @@ class HomeViewModel(
 
     /**
      * Observe my lenses from the local database.
+     *
+     * If the first emission is empty and we haven't fetched yet,
+     * triggers a network fetch to populate Room.
      */
     private fun observeMyLenses(userId: String) {
         viewModelScope.launch {
             lensRepository.observeMyLenses(userId).collect { lenses ->
                 state.update { it.copy(myLenses = lenses) }
                 logger.debug { "My lenses updated: ${lenses.size}" }
+
+                if (lenses.isEmpty() && !hasFetchedLenses) {
+                    hasFetchedLenses = true
+                    try {
+                        lensRepository.fetchAndCacheMyLenses()
+                    } catch (e: Exception) {
+                        logger.warn(e) { "Failed to fetch lenses from network" }
+                    }
+                }
             }
         }
     }

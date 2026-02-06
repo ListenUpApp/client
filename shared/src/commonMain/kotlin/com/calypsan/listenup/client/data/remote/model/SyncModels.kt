@@ -86,6 +86,8 @@ data class BookResponse(
     // Core metadata (minimal for v1)
     @SerialName("title")
     val title: String,
+    @SerialName("sort_title")
+    val sortTitle: String? = null,
     @SerialName("subtitle")
     val subtitle: String? = null,
     @SerialName("description")
@@ -901,6 +903,8 @@ data class SingleBookResponse(
     val id: String,
     @SerialName("title")
     val title: String,
+    @SerialName("sort_title")
+    val sortTitle: String? = null,
     @SerialName("subtitle")
     val subtitle: String? = null,
     @SerialName("description")
@@ -939,6 +943,7 @@ data class SingleBookResponse(
         BookResponse(
             id = id,
             title = title,
+            sortTitle = sortTitle,
             subtitle = subtitle,
             description = description,
             publisher = publisher,
@@ -1038,6 +1043,52 @@ data class SingleBookAudioFileResponse(
             size = size,
         )
 }
+
+// =============================================================================
+// Reading Sessions Sync Response (GET /api/v1/sync/reading-sessions)
+// =============================================================================
+
+/**
+ * Response from GET /api/v1/sync/reading-sessions endpoint.
+ * Returns all book reader summaries for offline-first Readers section.
+ */
+@Serializable
+data class ApiReadingSessions(
+    @SerialName("readers")
+    val readers: List<ApiReadingSessionReaderResponse>,
+)
+
+/**
+ * A reader summary for a specific book from the sync endpoint.
+ * Includes denormalized user profile data for offline display.
+ */
+@Serializable
+data class ApiReadingSessionReaderResponse(
+    @SerialName("book_id")
+    val bookId: String,
+    @SerialName("user_id")
+    val userId: String,
+    @SerialName("display_name")
+    val displayName: String,
+    @SerialName("avatar_type")
+    val avatarType: String,
+    @SerialName("avatar_value")
+    val avatarValue: String? = null,
+    @SerialName("avatar_color")
+    val avatarColor: String,
+    @SerialName("is_currently_reading")
+    val isCurrentlyReading: Boolean,
+    @SerialName("current_progress")
+    val currentProgress: Double = 0.0,
+    @SerialName("started_at")
+    val startedAt: String,
+    @SerialName("finished_at")
+    val finishedAt: String? = null,
+    @SerialName("last_activity_at")
+    val lastActivityAt: String,
+    @SerialName("completion_count")
+    val completionCount: Int,
+)
 
 // =============================================================================
 // Active Sessions Sync Response (GET /api/v1/sync/active-sessions)

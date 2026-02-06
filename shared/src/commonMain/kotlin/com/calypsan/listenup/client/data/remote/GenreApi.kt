@@ -50,11 +50,11 @@ class GenreApi(
     /**
      * Get all available genres.
      *
-     * Endpoint: GET /api/v1/genres/
+     * Endpoint: GET /api/v1/genres
      */
     override suspend fun listGenres(): List<Genre> {
         val client = clientFactory.getClient()
-        val response: ApiResponse<GenreListResponse> = client.get("/api/v1/genres/").body()
+        val response: ApiResponse<GenreListResponse> = client.get("/api/v1/genres").body()
         return response.dataOrThrow { GenreApiException(it) }.genres.map { it.toDomain() }
     }
 

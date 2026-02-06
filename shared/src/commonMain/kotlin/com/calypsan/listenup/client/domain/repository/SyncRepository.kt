@@ -53,6 +53,15 @@ interface SyncRepository {
     suspend fun sync(): Result<Unit>
 
     /**
+     * Connect to real-time updates without performing a full sync.
+     *
+     * Establishes SSE connection and performs a delta sync to catch up
+     * on changes since the last full sync. Used on app launch when
+     * a prior sync already exists.
+     */
+    suspend fun connectRealtime()
+
+    /**
      * Reset local data and sync with a new library.
      *
      * Used when library mismatch is detected (server was reset/changed).

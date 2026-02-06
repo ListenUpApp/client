@@ -41,40 +41,32 @@ kotlin {
         }
     }
 
-    // Future: Add desktop target here when ready
-    // jvm("desktop")
+    // JVM target for desktop (Windows/Linux)
+    jvm("desktop") {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+            freeCompilerArgs.addAll(
+                "-Xexpect-actual-classes",
+                "-Xreturn-value-checker=check",
+                "-Xexplicit-backing-fields",
+                "-Xskip-prerelease-check", // Skip pre-release Kotlin metadata check
+            )
+        }
+    }
 
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.ui.tooling.preview)
             implementation(libs.androidx.activity.compose)
 
-            // Koin for Android
+            // Koin Android-specific
             implementation(libs.koin.android)
-            implementation(libs.koin.compose)
-            implementation(libs.koin.compose.viewmodel)
 
-            // Kotlin libraries for playback
-            implementation(libs.kotlin.logging)
-            implementation(libs.kotlinx.serialization.json)
-            implementation(libs.kotlinx.datetime)
-
-            // Navigation 3 (new declarative navigation API)
-            implementation(libs.androidx.navigation3.runtime)
-            implementation(libs.androidx.navigation3.ui)
+            // Navigation 3 Android-specific (deep linking)
             implementation(libs.androidx.navigation3.ui.android)
-
-            // Material 3 Adaptive - for all screen sizes (phones, tablets, desktops, XR, Auto)
-            implementation(libs.androidx.material3.adaptive)
-            implementation(libs.androidx.material3.adaptive.layout)
-            implementation(libs.androidx.material3.adaptive.navigation)
 
             // WorkManager for background sync
             implementation(libs.androidx.work.runtime.ktx)
-
-            // Coil for image loading
-            implementation(libs.coil.compose)
-            implementation(libs.coil.network.ktor3)
 
             // Material Icons Extended
             implementation(libs.androidx.material.icons.extended)
@@ -92,14 +84,8 @@ kotlin {
             // Palette for dynamic color extraction from cover art
             implementation(libs.androidx.palette.ktx)
 
-            // Markdown Rendering
-            implementation(libs.markdown.renderer.m3)
-
             // BlurHash for image placeholders
             implementation(libs.blurhash)
-
-            // Vico Charts
-            implementation(libs.vico.compose.m3)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -107,10 +93,62 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
+            implementation(compose.materialIconsExtended)
             implementation(libs.compose.ui.tooling.preview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(projects.shared)
+
+            // Navigation 3 (multiplatform)
+            implementation(libs.navigation3.ui)
+
+            // Material 3 Adaptive (multiplatform)
+            implementation(libs.material3.adaptive)
+            implementation(libs.material3.adaptive.layout)
+            implementation(libs.material3.adaptive.navigation)
+
+            // Koin (shared across platforms)
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose)
+            implementation(libs.koin.compose.viewmodel)
+
+            // Markdown Rendering (multiplatform)
+            implementation(libs.markdown.renderer.m3)
+
+            // Kotlin libraries (shared)
+            implementation(libs.kotlin.logging)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.collections.immutable)
+
+            // Coil for image loading (multiplatform)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
+
+            // KMPalette for cross-platform color extraction
+            implementation(libs.kmpalette.core)
+        }
+        val desktopMain by getting {
+            dependencies {
+                // FFmpeg for audio decoding (self-contained, decodes all formats)
+                implementation(libs.javacv)
+                implementation(libs.javacpp)
+                implementation(libs.ffmpeg)
+
+                // Platform-specific native libraries (bundled in JARs)
+                val javacppVersion = libs.versions.javacpp.get()
+                val ffmpegVersion =
+                    libs.versions.ffmpeg.javacpp
+                        .get()
+                implementation("org.bytedeco:javacpp:$javacppVersion:linux-x86_64")
+                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:linux-x86_64")
+                implementation("org.bytedeco:javacpp:$javacppVersion:macosx-x86_64")
+                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:macosx-x86_64")
+                implementation("org.bytedeco:javacpp:$javacppVersion:macosx-arm64")
+                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:macosx-arm64")
+                implementation("org.bytedeco:javacpp:$javacppVersion:windows-x86_64")
+                implementation("org.bytedeco:ffmpeg:$ffmpegVersion:windows-x86_64")
+            }
         }
         // Note: Android tests use androidHostTest/androidDeviceTest source sets
         // with the new KMP plugin. Add test dependencies there when needed.
