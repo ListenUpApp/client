@@ -55,6 +55,8 @@ import com.calypsan.listenup.client.features.library.LibraryScreen
 import com.calypsan.listenup.client.features.seriesdetail.SeriesDetailScreen
 import com.calypsan.listenup.client.features.seriesedit.SeriesEditScreen
 import com.calypsan.listenup.client.features.settings.SettingsScreen
+import com.calypsan.listenup.client.features.discover.DiscoverScreen
+import com.calypsan.listenup.client.features.profile.UserProfileScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.features.tagdetail.TagDetailScreen
@@ -95,6 +97,7 @@ sealed interface DetailDestination {
     data object AdminCollections : DetailDestination
     data class AdminCollectionDetail(val collectionId: String) : DetailDestination
     data object AdminInbox : DetailDestination
+    data class UserProfile(val userId: String) : DetailDestination
 }
 
 /**
@@ -176,7 +179,7 @@ private fun DesktopAuthenticatedNavigation() {
                             }
                         },
                         onUserProfileClick = { userId ->
-                            logger.info { "User profile clicked: $userId (profile screen not yet migrated)" }
+                            navigateTo(DetailDestination.UserProfile(userId))
                         },
                         homeContent = { padding, _, onNavigateToLibrary ->
                             HomeScreen(
@@ -198,11 +201,11 @@ private fun DesktopAuthenticatedNavigation() {
                             )
                         },
                         discoverContent = { padding ->
-                            PlaceholderScreen(
-                                title = "Discover",
-                                description = "Social features and recommendations.",
-                                icon = { Icon(Icons.Default.Explore, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
-                                padding = padding,
+                            DiscoverScreen(
+                                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
+                                onBookClick = { navigateTo(DetailDestination.Book(it)) },
+                                onUserProfileClick = { navigateTo(DetailDestination.UserProfile(it)) },
+                                modifier = Modifier.padding(padding),
                             )
                         },
                         searchOverlayContent = { _ ->
@@ -245,7 +248,7 @@ private fun DetailScreen(
             onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
             onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
             onTagClick = { navigateTo(DetailDestination.Tag(it)) },
-            onUserProfileClick = { logger.info { "User profile: $it (not yet migrated)" } },
+            onUserProfileClick = { navigateTo(DetailDestination.UserProfile(it)) },
         )
 
         is DetailDestination.BookEdit -> BookEditScreen(
@@ -434,6 +437,15 @@ private fun DetailScreen(
                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
             )
         }
+
+        is DetailDestination.UserProfile -> UserProfileScreen(
+            userId = destination.userId,
+            onBack = navigateBack,
+            onEditClick = { logger.info { "Edit profile not yet implemented on desktop" } },
+            onBookClick = { navigateTo(DetailDestination.Book(it)) },
+            onLensClick = { navigateTo(DetailDestination.Lens(it)) },
+            onCreateLensClick = { navigateTo(DetailDestination.LensCreate) },
+        )
     }
 }
 
