@@ -30,6 +30,16 @@ import com.calypsan.listenup.client.design.components.LocalSnackbarHostState
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.features.bookdetail.BookDetailScreen
 import com.calypsan.listenup.client.features.bookedit.BookEditScreen
+import com.calypsan.listenup.client.features.admin.AdminScreen
+import com.calypsan.listenup.client.features.admin.CreateInviteScreen
+import com.calypsan.listenup.client.features.admin.UserDetailScreen
+import com.calypsan.listenup.client.features.admin.collections.AdminCollectionsScreen
+import com.calypsan.listenup.client.features.admin.inbox.AdminInboxScreen
+import com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminViewModel
+import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
+import com.calypsan.listenup.client.presentation.admin.UserDetailViewModel
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.contributordetail.ContributorDetailScreen
 import com.calypsan.listenup.client.features.contributoredit.ContributorEditScreen
@@ -53,6 +63,7 @@ import com.calypsan.listenup.desktop.nowplaying.DesktopNowPlayingScreen
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import org.koin.core.parameter.parametersOf
 
 private val logger = KotlinLogging.logger {}
 
@@ -76,6 +87,11 @@ sealed interface DetailDestination {
     data class ContributorMetadataPreview(val contributorId: String, val asin: String) : DetailDestination
     data object Settings : DetailDestination
     data object NowPlaying : DetailDestination
+    data object Admin : DetailDestination
+    data object CreateInvite : DetailDestination
+    data class UserDetail(val userId: String) : DetailDestination
+    data object AdminCollections : DetailDestination
+    data object AdminInbox : DetailDestination
 }
 
 /**
@@ -145,9 +161,7 @@ private fun DesktopAuthenticatedNavigation() {
                         onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
                         onLensClick = { navigateTo(DetailDestination.Lens(it)) },
                         onTagClick = { navigateTo(DetailDestination.Tag(it)) },
-                        onAdminClick = {
-                            logger.info { "Admin clicked (admin screen not yet migrated)" }
-                        },
+                        onAdminClick = { navigateTo(DetailDestination.Admin) },
                         onSettingsClick = {
                             navigateTo(DetailDestination.Settings)
                         },
@@ -360,6 +374,53 @@ private fun DetailScreen(
                     navigateBack()
                     navigateTo(DetailDestination.Contributor(contributorId))
                 },
+            )
+        }
+
+        is DetailDestination.Admin -> {
+            val viewModel: AdminViewModel = koinInject()
+            AdminScreen(
+                viewModel = viewModel,
+                onBackClick = navigateBack,
+                onInviteClick = { navigateTo(DetailDestination.CreateInvite) },
+                onCollectionsClick = { navigateTo(DetailDestination.AdminCollections) },
+                onInboxClick = { navigateTo(DetailDestination.AdminInbox) },
+                onUserClick = { navigateTo(DetailDestination.UserDetail(it)) },
+            )
+        }
+
+        is DetailDestination.CreateInvite -> {
+            val viewModel: CreateInviteViewModel = koinInject()
+            CreateInviteScreen(
+                viewModel = viewModel,
+                onBackClick = navigateBack,
+                onSuccess = navigateBack,
+            )
+        }
+
+        is DetailDestination.UserDetail -> {
+            val viewModel: UserDetailViewModel = koinInject { parametersOf(destination.userId) }
+            UserDetailScreen(
+                viewModel = viewModel,
+                onBackClick = navigateBack,
+            )
+        }
+
+        is DetailDestination.AdminCollections -> {
+            val viewModel: AdminCollectionsViewModel = koinInject()
+            AdminCollectionsScreen(
+                viewModel = viewModel,
+                onBackClick = navigateBack,
+                onCollectionClick = { logger.info { "Collection: $it (detail not yet migrated)" } },
+            )
+        }
+
+        is DetailDestination.AdminInbox -> {
+            val viewModel: AdminInboxViewModel = koinInject()
+            AdminInboxScreen(
+                viewModel = viewModel,
+                onBackClick = navigateBack,
+                onBookClick = { navigateTo(DetailDestination.Book(it)) },
             )
         }
     }
