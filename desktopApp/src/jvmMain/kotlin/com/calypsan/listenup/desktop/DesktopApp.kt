@@ -52,16 +52,18 @@ import com.calypsan.listenup.client.features.metadata.MatchPreviewRoute
 import com.calypsan.listenup.client.features.metadata.MetadataSearchRoute
 import com.calypsan.listenup.client.features.lens.LensDetailScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
+import com.calypsan.listenup.client.features.search.SearchResultsOverlay
 import com.calypsan.listenup.client.features.seriesdetail.SeriesDetailScreen
 import com.calypsan.listenup.client.features.seriesedit.SeriesEditScreen
+import com.calypsan.listenup.client.features.settings.LicensesScreen
 import com.calypsan.listenup.client.features.settings.SettingsScreen
-import com.calypsan.listenup.client.features.discover.DiscoverScreen
-import com.calypsan.listenup.client.features.profile.UserProfileScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.features.tagdetail.TagDetailScreen
 import com.calypsan.listenup.client.navigation.AuthNavigation
 import com.calypsan.listenup.client.playback.DesktopPlayerViewModel
+import com.calypsan.listenup.client.presentation.search.SearchUiEvent
+import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import com.calypsan.listenup.desktop.nowplaying.DesktopNowPlayingBar
 import com.calypsan.listenup.desktop.nowplaying.DesktopNowPlayingScreen
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -90,6 +92,7 @@ sealed interface DetailDestination {
     data class ContributorMetadataSearch(val contributorId: String) : DetailDestination
     data class ContributorMetadataPreview(val contributorId: String, val asin: String) : DetailDestination
     data object Settings : DetailDestination
+    data object Licenses : DetailDestination
     data object NowPlaying : DetailDestination
     data object Admin : DetailDestination
     data object CreateInvite : DetailDestination
@@ -97,7 +100,6 @@ sealed interface DetailDestination {
     data object AdminCollections : DetailDestination
     data class AdminCollectionDetail(val collectionId: String) : DetailDestination
     data object AdminInbox : DetailDestination
-    data class UserProfile(val userId: String) : DetailDestination
 }
 
 /**
@@ -136,9 +138,11 @@ private fun DesktopAuthenticatedNavigation() {
     val authSession: AuthSession = koinInject()
     val libraryResetHelper: LibraryResetHelperContract = koinInject()
     val playerViewModel: DesktopPlayerViewModel = koinInject()
+    val searchViewModel: SearchViewModel = koinInject()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val playerState by playerViewModel.state.collectAsState()
+    val searchState by searchViewModel.state.collectAsState()
 
     var currentDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
     val backStack: SnapshotStateList<DetailDestination> = remember { emptyList<DetailDestination>().toMutableStateList() }
@@ -179,7 +183,7 @@ private fun DesktopAuthenticatedNavigation() {
                             }
                         },
                         onUserProfileClick = { userId ->
-                            navigateTo(DetailDestination.UserProfile(userId))
+                            logger.info { "User profile clicked: $userId (profile screen not yet migrated)" }
                         },
                         homeContent = { padding, _, onNavigateToLibrary ->
                             HomeScreen(
@@ -201,15 +205,26 @@ private fun DesktopAuthenticatedNavigation() {
                             )
                         },
                         discoverContent = { padding ->
-                            DiscoverScreen(
-                                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
-                                onBookClick = { navigateTo(DetailDestination.Book(it)) },
-                                onUserProfileClick = { navigateTo(DetailDestination.UserProfile(it)) },
-                                modifier = Modifier.padding(padding),
+                            PlaceholderScreen(
+                                title = "Discover",
+                                description = "Social features and recommendations.",
+                                icon = { Icon(Icons.Default.Explore, contentDescription = null, modifier = Modifier.padding(bottom = 16.dp)) },
+                                padding = padding,
                             )
                         },
-                        searchOverlayContent = { _ ->
-                            // Search overlay will be added later
+                        searchOverlayContent = { padding ->
+                            SearchResultsOverlay(
+                                state = searchState,
+                                onResultClick = { hit ->
+                                    searchViewModel.onEvent(SearchUiEvent.ResultClicked(hit))
+                                },
+                                onTypeFilterToggle = { type ->
+                                    searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(padding),
+                            )
                         },
                     )
                 }
@@ -248,7 +263,7 @@ private fun DetailScreen(
             onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
             onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
             onTagClick = { navigateTo(DetailDestination.Tag(it)) },
-            onUserProfileClick = { navigateTo(DetailDestination.UserProfile(it)) },
+            onUserProfileClick = { logger.info { "User profile: $it (not yet migrated)" } },
         )
 
         is DetailDestination.BookEdit -> BookEditScreen(
@@ -349,7 +364,11 @@ private fun DetailScreen(
         is DetailDestination.Settings -> SettingsScreen(
             onNavigateBack = navigateBack,
             showSleepTimer = false,
-            onNavigateToLicenses = null, // TODO: Add licenses screen for desktop
+            onNavigateToLicenses = { navigateTo(DetailDestination.Licenses) },
+        )
+
+        is DetailDestination.Licenses -> LicensesScreen(
+            onNavigateBack = navigateBack,
         )
 
         is DetailDestination.NowPlaying -> {
@@ -437,15 +456,6 @@ private fun DetailScreen(
                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
             )
         }
-
-        is DetailDestination.UserProfile -> UserProfileScreen(
-            userId = destination.userId,
-            onBack = navigateBack,
-            onEditClick = { logger.info { "Edit profile not yet implemented on desktop" } },
-            onBookClick = { navigateTo(DetailDestination.Book(it)) },
-            onLensClick = { navigateTo(DetailDestination.Lens(it)) },
-            onCreateLensClick = { navigateTo(DetailDestination.LensCreate) },
-        )
     }
 }
 
