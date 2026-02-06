@@ -22,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import com.calypsan.listenup.client.design.components.ListenUpTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -132,13 +133,11 @@ fun CreateEditLensScreen(
                         .padding(16.dp),
             ) {
                 // Name field
-                OutlinedTextField(
+                ListenUpTextField(
                     value = state.name,
                     onValueChange = viewModel::updateName,
-                    label = { Text("Name") },
-                    placeholder = { Text("e.g., To Read, Favorites, Mystery...") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    label = "Name",
+                    placeholder = "e.g., To Read, Favorites, Mystery...",
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
