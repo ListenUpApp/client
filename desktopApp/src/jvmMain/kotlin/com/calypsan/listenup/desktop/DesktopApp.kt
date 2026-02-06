@@ -43,6 +43,7 @@ import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.admin.UserDetailViewModel
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
+import com.calypsan.listenup.client.features.contributordetail.ContributorBooksScreen
 import com.calypsan.listenup.client.features.contributordetail.ContributorDetailScreen
 import com.calypsan.listenup.client.features.contributoredit.ContributorEditScreen
 import com.calypsan.listenup.client.features.contributormetadata.ContributorMetadataPreviewRoute
@@ -156,6 +157,11 @@ sealed interface DetailDestination {
 
     data class UserProfile(
         val userId: String,
+    ) : DetailDestination
+
+    data class ContributorBooks(
+        val contributorId: String,
+        val role: String,
     ) : DetailDestination
 
     data object AdminInbox : DetailDestination
@@ -360,7 +366,7 @@ private fun DetailScreen(
                 onBackClick = navigateBack,
                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
                 onEditClick = { navigateTo(DetailDestination.ContributorEdit(it)) },
-                onViewAllClick = { id, role -> logger.info { "Contributor books: $id/$role (not yet migrated)" } },
+                onViewAllClick = { id, role -> navigateTo(DetailDestination.ContributorBooks(id, role)) },
                 onMetadataClick = { navigateTo(DetailDestination.ContributorMetadataSearch(it)) },
             )
         }
@@ -370,6 +376,15 @@ private fun DetailScreen(
                 contributorId = destination.contributorId,
                 onBackClick = navigateBack,
                 onSaveSuccess = navigateBack,
+            )
+        }
+
+        is DetailDestination.ContributorBooks -> {
+            ContributorBooksScreen(
+                contributorId = destination.contributorId,
+                role = destination.role,
+                onBackClick = navigateBack,
+                onBookClick = { navigateTo(DetailDestination.Book(it)) },
             )
         }
 
