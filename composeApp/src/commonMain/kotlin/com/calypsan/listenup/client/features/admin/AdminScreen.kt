@@ -49,12 +49,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -502,7 +502,6 @@ private fun SettingsCard(
                     label = { Text("Server Name") },
                     placeholder = { Text("ListenUp Server") },
                     singleLine = true,
-                    enabled = !isSaving,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -531,7 +530,6 @@ private fun SettingsCard(
                     label = { Text("Remote URL") },
                     placeholder = { Text("https://audiobooks.example.com") },
                     singleLine = true,
-                    enabled = !isSaving,
                     modifier = Modifier.weight(1f),
                 )
             }

@@ -12,6 +12,8 @@ import com.calypsan.listenup.client.domain.usecase.admin.UpdateServerSettingsUse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -31,6 +33,9 @@ class AdminSettingsViewModel(
 ) : ViewModel() {
     val state: StateFlow<AdminSettingsUiState>
         field = MutableStateFlow(AdminSettingsUiState())
+
+    private var serverNameSaveJob: Job? = null
+    private var remoteUrlSaveJob: Job? = null
 
     init {
         loadSettings()
@@ -67,28 +72,20 @@ class AdminSettingsViewModel(
 
     /**
      * Update the server display name.
+     * Updates local state immediately, debounces the API save.
      */
     fun setServerName(name: String) {
-        viewModelScope.launch {
-            state.value = state.value.copy(isSaving = true, error = null)
-
+        state.value = state.value.copy(serverName = name)
+        serverNameSaveJob?.cancel()
+        serverNameSaveJob = viewModelScope.launch {
+            delay(SAVE_DEBOUNCE_MS)
             when (val result = updateServerSettingsUseCase.updateServerName(name)) {
                 is Success -> {
-                    state.value =
-                        state.value.copy(
-                            isSaving = false,
-                            serverName = result.data.serverName,
-                        )
-                    logger.info { "Server name updated to: ${result.data.serverName}" }
+                    logger.info { "Server name saved: ${result.data.serverName}" }
                 }
-
                 is Failure -> {
-                    logger.error { "Failed to update server name: ${result.message}" }
-                    state.value =
-                        state.value.copy(
-                            isSaving = false,
-                            error = result.message,
-                        )
+                    logger.error { "Failed to save server name: ${result.message}" }
+                    state.value = state.value.copy(error = result.message)
                 }
             }
         }
@@ -168,30 +165,29 @@ class AdminSettingsViewModel(
 
     /**
      * Update the remote access URL.
+     * Updates local state immediately, debounces the API save.
      */
     fun setRemoteUrl(url: String) {
-        viewModelScope.launch {
-            state.value = state.value.copy(isSaving = true, error = null)
-
+        state.value = state.value.copy(remoteUrl = url)
+        remoteUrlSaveJob?.cancel()
+        remoteUrlSaveJob = viewModelScope.launch {
+            delay(SAVE_DEBOUNCE_MS)
             try {
                 adminRepository.updateInstanceRemoteUrl(url)
-                state.value = state.value.copy(
-                    isSaving = false,
-                    remoteUrl = url,
-                )
-                logger.info { "Remote URL updated to: $url" }
+                logger.info { "Remote URL saved: $url" }
             } catch (e: Exception) {
-                logger.error(e) { "Failed to update remote URL" }
-                state.value = state.value.copy(
-                    isSaving = false,
-                    error = "Failed to update remote URL: ${e.message}",
-                )
+                logger.error(e) { "Failed to save remote URL" }
+                state.value = state.value.copy(error = "Failed to save remote URL: ${e.message}")
             }
         }
     }
 
     fun clearError() {
         state.value = state.value.copy(error = null)
+    }
+
+    companion object {
+        private const val SAVE_DEBOUNCE_MS = 800L
     }
 }
 
