@@ -111,18 +111,36 @@ class LibrarySetupViewModel(
     }
 
     /**
-     * Select a folder path for the library.
-     * @param path The path to select
+     * Toggle a folder path selection.
+     * @param path The path to toggle
      */
-    fun selectPath(path: String) {
-        state.update { it.copy(selectedPath = path) }
+    fun togglePath(path: String) {
+        state.update { current ->
+            val newPaths = current.selectedPaths.toMutableSet()
+            if (path in newPaths) {
+                newPaths.remove(path)
+            } else {
+                newPaths.add(path)
+            }
+            current.copy(selectedPaths = newPaths)
+        }
     }
 
     /**
-     * Clear the currently selected path.
+     * Select a folder path for the library (adds to selection).
+     * @param path The path to select
+     */
+    fun selectPath(path: String) {
+        state.update { current ->
+            current.copy(selectedPaths = current.selectedPaths + path)
+        }
+    }
+
+    /**
+     * Clear all selected paths.
      */
     fun clearSelection() {
-        state.update { it.copy(selectedPath = null) }
+        state.update { it.copy(selectedPaths = emptySet()) }
     }
 
     /**
@@ -147,10 +165,8 @@ class LibrarySetupViewModel(
      */
     fun createLibrary() {
         val currentState = state.value
-        val selectedPath = currentState.selectedPath
-
-        if (selectedPath == null) {
-            state.update { it.copy(error = "Please select a folder for your library") }
+        if (currentState.selectedPaths.isEmpty()) {
+            state.update { it.copy(error = "Please select at least one folder for your library") }
             return
         }
 
@@ -166,7 +182,7 @@ class LibrarySetupViewModel(
                 val request =
                     SetupLibraryRequest(
                         name = currentState.libraryName.trim(),
-                        scanPaths = listOf(selectedPath),
+                        scanPaths = currentState.selectedPaths.toList(),
                         skipInbox = currentState.skipInbox,
                     )
 
@@ -214,7 +230,7 @@ data class LibrarySetupUiState(
     val isLoadingDirectories: Boolean = false,
     val isRoot: Boolean = true,
     // Selection
-    val selectedPath: String? = null,
+    val selectedPaths: Set<String> = emptySet(),
     // Setup
     val libraryName: String = "My Library",
     val skipInbox: Boolean = false,

@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.data.remote.AdminApiContract
+import com.calypsan.listenup.client.data.remote.BrowseFilesystemResponse
 import com.calypsan.listenup.client.data.remote.AdminInvite
 import com.calypsan.listenup.client.data.remote.AdminUser
 import com.calypsan.listenup.client.data.remote.CollectionRef
@@ -177,6 +178,19 @@ class AdminRepositoryImpl(
             )
         return adminApi.updateLibrary(libraryId, request).toDomain()
     }
+
+    override suspend fun addScanPath(libraryId: String, path: String): Library =
+        adminApi.addScanPath(libraryId, path).toDomain()
+
+    override suspend fun removeScanPath(libraryId: String, path: String): Library =
+        adminApi.removeScanPath(libraryId, path).toDomain()
+
+    override suspend fun triggerScan(libraryId: String) {
+        adminApi.triggerScan(libraryId)
+    }
+
+    override suspend fun browseFilesystem(path: String): BrowseFilesystemResponse =
+        adminApi.browseFilesystem(path)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

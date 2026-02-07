@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.domain.model.InboxBook
 import com.calypsan.listenup.client.domain.model.InboxReleaseResult
 import com.calypsan.listenup.client.domain.model.InviteInfo
+import com.calypsan.listenup.client.data.remote.BrowseFilesystemResponse
 import com.calypsan.listenup.client.domain.model.Library
 import com.calypsan.listenup.client.domain.model.ServerSettings
 
@@ -231,4 +232,37 @@ interface AdminRepository {
         skipInbox: Boolean? = null,
         accessMode: AccessMode? = null,
     ): Library
+
+    /**
+     * Add a scan path to a library.
+     *
+     * @param libraryId The library ID
+     * @param path Absolute filesystem path to add
+     * @return The updated library
+     */
+    suspend fun addScanPath(libraryId: String, path: String): Library
+
+    /**
+     * Remove a scan path from a library.
+     *
+     * @param libraryId The library ID
+     * @param path The scan path to remove
+     * @return The updated library
+     */
+    suspend fun removeScanPath(libraryId: String, path: String): Library
+
+    /**
+     * Trigger a manual library rescan.
+     *
+     * @param libraryId The library ID
+     */
+    suspend fun triggerScan(libraryId: String)
+
+    /**
+     * Browse the server filesystem.
+     *
+     * @param path Directory path to browse
+     * @return Directory listing
+     */
+    suspend fun browseFilesystem(path: String): BrowseFilesystemResponse
 }

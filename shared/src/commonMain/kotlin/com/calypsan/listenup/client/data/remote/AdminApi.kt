@@ -80,6 +80,17 @@ interface AdminApiContract {
         libraryId: String,
         request: UpdateLibraryRequest,
     ): LibraryResponse
+
+    // Scan path management
+    suspend fun addScanPath(libraryId: String, path: String): LibraryResponse
+
+    suspend fun removeScanPath(libraryId: String, path: String): LibraryResponse
+
+    // Manual scan trigger
+    suspend fun triggerScan(libraryId: String)
+
+    // Filesystem browsing (reused from setup)
+    suspend fun browseFilesystem(path: String): BrowseFilesystemResponse
 }
 
 /**
@@ -379,6 +390,65 @@ class AdminApi(
             is Failure -> throw result.exceptionOrFromMessage()
         }
     }
+
+    // Scan Path Management
+
+    override suspend fun addScanPath(libraryId: String, path: String): LibraryResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<LibraryResponse> =
+            client
+                .post("/api/v1/libraries/$libraryId/scan-paths") {
+                    setBody(ScanPathRequest(path))
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
+
+    override suspend fun removeScanPath(libraryId: String, path: String): LibraryResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<LibraryResponse> =
+            client
+                .delete("/api/v1/libraries/$libraryId/scan-paths") {
+                    setBody(ScanPathRequest(path))
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
+
+    override suspend fun triggerScan(libraryId: String) {
+        val client = clientFactory.getClient()
+        val response = client.post("/api/v1/libraries/$libraryId/scan")
+
+        if (!response.status.isSuccess()) {
+            val errorResponse: ApiResponse<Unit> = response.body()
+            when (val result = errorResponse.toResult()) {
+                is Success -> { /* Shouldn't happen */ }
+                is Failure -> throw result.exceptionOrFromMessage()
+            }
+        }
+    }
+
+    override suspend fun browseFilesystem(path: String): BrowseFilesystemResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<BrowseFilesystemResponse> =
+            client
+                .get("/api/v1/filesystem") {
+                    url {
+                        parameters.append("path", path)
+                    }
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
 }
 
 // Response wrappers
@@ -656,6 +726,14 @@ data class LibraryResponse(
     @SerialName("access_mode") val accessMode: String = "open",
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",
+)
+
+/**
+ * Request to add or remove a scan path.
+ */
+@Serializable
+data class ScanPathRequest(
+    @SerialName("path") val path: String,
 )
 
 /**
