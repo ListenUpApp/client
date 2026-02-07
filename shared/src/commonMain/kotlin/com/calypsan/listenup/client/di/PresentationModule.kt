@@ -332,6 +332,7 @@ val discoverPresentationModule =
                 homeRepository = get(),
                 userRepository = get(),
                 shelfRepository = get(),
+                syncRepository = get(),
             )
         }
         // HomeStatsViewModel for home screen stats section (observes local stats)

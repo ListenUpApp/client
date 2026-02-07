@@ -7,7 +7,11 @@ import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
+import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
+import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +38,7 @@ class HomeViewModel(
     private val homeRepository: HomeRepository,
     private val userRepository: UserRepository,
     private val shelfRepository: ShelfRepository,
+    private val syncRepository: SyncRepository,
     private val currentHour: () -> Int = { currentHourOfDay() },
 ) : ViewModel() {
     val state: StateFlow<HomeUiState>
@@ -46,6 +51,17 @@ class HomeViewModel(
     init {
         observeUser()
         observeContinueListening()
+        observeScanProgress()
+    }
+
+    /**
+     * Observe server scan progress via SSE events.
+     */
+    private fun observeScanProgress() {
+        syncRepository.scanProgress
+            .onEach { progress ->
+                state.update { it.copy(scanProgress = progress) }
+            }.launchIn(viewModelScope)
     }
 
     /**
@@ -181,6 +197,7 @@ data class HomeUiState(
     val timeGreeting: String = "Good morning",
     val continueListening: List<ContinueListeningBook> = emptyList(),
     val myShelves: List<Shelf> = emptyList(),
+    val scanProgress: ScanProgressState? = null,
     val error: String? = null,
 ) {
     /**

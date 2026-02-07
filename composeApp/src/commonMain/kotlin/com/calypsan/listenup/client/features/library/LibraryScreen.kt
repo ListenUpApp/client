@@ -221,6 +221,7 @@ fun LibraryScreen(
                                 hasLoadedBooks = hasLoadedBooks,
                                 syncState = syncState,
                                 isServerScanning = uiState.isServerScanning,
+                                scanProgress = uiState.scanProgress,
                                 sortState = booksSortState,
                                 ignoreTitleArticles = ignoreTitleArticles,
                                 bookProgress = bookProgress,

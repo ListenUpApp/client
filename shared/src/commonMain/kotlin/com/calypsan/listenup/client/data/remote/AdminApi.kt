@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
+import io.ktor.http.encodeURLPath
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
@@ -409,11 +410,11 @@ class AdminApi(
 
     override suspend fun removeScanPath(libraryId: String, path: String): LibraryResponse {
         val client = clientFactory.getClient()
+        val encodedPath = path.encodeURLPath()
         val response: ApiResponse<LibraryResponse> =
             client
-                .delete("/api/v1/libraries/$libraryId/scan-paths") {
-                    setBody(ScanPathRequest(path))
-                }.body()
+                .delete("/api/v1/libraries/$libraryId/scan-paths/$encodedPath")
+                .body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data

@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.presentation.library
 
 import com.calypsan.listenup.client.domain.model.Book
+import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
 import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
 import com.calypsan.listenup.client.domain.model.SeriesWithBooks
 import com.calypsan.listenup.client.domain.model.SyncState
@@ -65,6 +66,7 @@ data class LibraryUiState(
     val syncState: SyncState = SyncState.Idle,
     // Server scanning state (true during library scan on server)
     val isServerScanning: Boolean = false,
+    val scanProgress: ScanProgressState? = null,
     // Selection mode
     val selectionMode: SelectionMode = SelectionMode.None,
 ) {

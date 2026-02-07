@@ -17,6 +17,7 @@ import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.sse.ScanCompletedInfo
+import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
@@ -53,6 +54,7 @@ interface SyncManagerContract {
      * UI can use this to show "Scanning your library..." instead of empty state.
      */
     val isServerScanning: StateFlow<Boolean>
+    val scanProgress: StateFlow<ScanProgressState?>
 
     /**
      * Perform full synchronization with server.
@@ -142,6 +144,7 @@ class SyncManager(
 
     // Delegate to SSEEventProcessor which tracks ScanStarted/ScanCompleted events
     override val isServerScanning: StateFlow<Boolean> = sseEventProcessor.isServerScanning
+    override val scanProgress: StateFlow<ScanProgressState?> = sseEventProcessor.scanProgress
 
     init {
         // Route SSE events to processor

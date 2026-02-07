@@ -28,6 +28,7 @@ import com.calypsan.listenup.client.data.remote.model.SSEShelfCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEShelfDeletedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEShelfUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELibraryScanProgressEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEListeningEventCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEProfileUpdatedEvent
@@ -350,6 +351,23 @@ class SSEManager(
                             booksAdded = scanEvent.booksAdded,
                             booksUpdated = scanEvent.booksUpdated,
                             booksRemoved = scanEvent.booksRemoved,
+                        )
+                    }
+
+                    "library.scan_progress" -> {
+                        val progressEvent =
+                            json.decodeFromJsonElement(
+                                SSELibraryScanProgressEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ScanProgress(
+                            libraryId = progressEvent.libraryId,
+                            phase = progressEvent.phase,
+                            current = progressEvent.current,
+                            total = progressEvent.total,
+                            added = progressEvent.added,
+                            updated = progressEvent.updated,
+                            removed = progressEvent.removed,
                         )
                     }
 
@@ -733,6 +751,21 @@ sealed interface SSEEventType {
         val booksAdded: Int,
         val booksUpdated: Int,
         val booksRemoved: Int,
+    ) : SSEEventType
+
+
+    /**
+     * Library scan progress update.
+     * Contains current phase, progress counts, and change counts.
+     */
+    data class ScanProgress(
+        val libraryId: String,
+        val phase: String,
+        val current: Int,
+        val total: Int,
+        val added: Int,
+        val updated: Int,
+        val removed: Int,
     ) : SSEEventType
 
     /**

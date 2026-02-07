@@ -170,7 +170,7 @@ private fun LibrarySetupContent(
 ) {
     Column(modifier = modifier) {
         // Welcome header (only at root with nothing selected)
-        if (state.isRoot && state.selectedPath == null) {
+        if (state.isRoot && state.selectedPaths.isEmpty()) {
             WelcomeHeader(
                 modifier =
                     Modifier

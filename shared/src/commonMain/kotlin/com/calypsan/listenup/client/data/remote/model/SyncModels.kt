@@ -362,6 +362,22 @@ data class SSELibraryScanCompletedEvent(
     val booksRemoved: Int,
 )
 
+
+/**
+ * SSE library scan progress event data.
+ */
+@Serializable
+data class SSELibraryScanProgressEvent(
+    @SerialName("library_id")
+    val libraryId: String,
+    val phase: String,
+    val current: Int,
+    val total: Int,
+    val added: Int,
+    val updated: Int,
+    val removed: Int,
+)
+
 /**
  * SSE user pending event data (admin-only).
  * Sent when a new user registers via open registration and is awaiting approval.

@@ -131,6 +131,14 @@ class SSEEventProcessor(
 
     private val _isServerScanning = MutableStateFlow(false)
 
+    private val _scanProgress = MutableStateFlow<ScanProgressState?>(null)
+
+    /**
+     * Current scan progress, or null when not scanning.
+     * Updated in real-time as the server sends progress events.
+     */
+    val scanProgress: StateFlow<ScanProgressState?> = _scanProgress.asStateFlow()
+
     /**
      * Whether the server is currently scanning the library.
      * True from ScanStarted until ScanCompleted.
@@ -171,6 +179,10 @@ class SSEEventProcessor(
 
                 is SSEEventType.ScanStarted -> {
                     handleScanStarted(event)
+                }
+
+                is SSEEventType.ScanProgress -> {
+                    handleScanProgress(event)
                 }
 
                 is SSEEventType.ScanCompleted -> {
@@ -346,6 +358,22 @@ class SSEEventProcessor(
     private fun handleScanStarted(event: SSEEventType.ScanStarted) {
         logger.debug { "SSE: Library scan started - ${event.libraryId}" }
         _isServerScanning.value = true
+        _scanProgress.value = null
+    }
+
+    private fun handleScanProgress(event: SSEEventType.ScanProgress) {
+        logger.debug {
+            "SSE: Scan progress - phase=${event.phase}, ${event.current}/${event.total}, " +
+                "added=${event.added}, updated=${event.updated}, removed=${event.removed}"
+        }
+        _scanProgress.value = ScanProgressState(
+            phase = event.phase,
+            current = event.current,
+            total = event.total,
+            added = event.added,
+            updated = event.updated,
+            removed = event.removed,
+        )
     }
 
     private suspend fun handleScanCompleted(event: SSEEventType.ScanCompleted) {
@@ -354,8 +382,9 @@ class SSEEventProcessor(
                 "updated=${event.booksUpdated}, removed=${event.booksRemoved}"
         }
 
-        // Clear scanning flag - UI can now show books or empty state
+        // Clear scanning flag and progress - UI can now show books or empty state
         _isServerScanning.value = false
+        _scanProgress.value = null
 
         // Emit event so SyncManager can trigger delta sync to fetch newly scanned books
         _scanCompletedEvent.emit(
@@ -1039,4 +1068,51 @@ interface PlaybackStateProvider {
      * Clear current playback state when access is revoked.
      */
     fun clearPlayback()
+}
+
+
+/**
+ * Current state of a library scan in progress.
+ * Null when no scan is running.
+ */
+data class ScanProgressState(
+    val phase: String,
+    val current: Int,
+    val total: Int,
+    val added: Int,
+    val updated: Int,
+    val removed: Int,
+) {
+    /**
+     * Human-readable phase name.
+     */
+    val phaseDisplayName: String
+        get() = when (phase) {
+            "walking" -> "Discovering files"
+            "grouping" -> "Organizing"
+            "analyzing" -> "Analyzing"
+            "resolving" -> "Processing"
+            "diffing" -> "Syncing"
+            "applying" -> "Syncing"
+            "complete" -> "Finishing up"
+            else -> phase.replaceFirstChar { it.uppercase() }
+        }
+
+    /**
+     * Progress as a fraction (0.0 to 1.0), or null if total is 0.
+     */
+    val progressFraction: Float?
+        get() = if (total > 0) current.toFloat() / total.toFloat() else null
+
+    /**
+     * Summary of changes so far (e.g., "3 added, 1 updated").
+     */
+    val changesSummary: String?
+        get() {
+            val parts = mutableListOf<String>()
+            if (added > 0) parts.add("$added added")
+            if (updated > 0) parts.add("$updated updated")
+            if (removed > 0) parts.add("$removed removed")
+            return parts.joinToString(", ").ifEmpty { null }
+        }
 }

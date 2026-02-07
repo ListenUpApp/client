@@ -52,7 +52,7 @@ material3-adaptive-multiplatform = "1.2.0"
 detekt = "1.23.8"
 spotless = "8.2.1"
 ktlint = "1.8.0" # Used by Spotless plugin at runtime
-kover = "0.9.5"
+kover = "0.9.6"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
