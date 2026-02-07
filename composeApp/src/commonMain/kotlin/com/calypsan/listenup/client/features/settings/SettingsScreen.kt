@@ -129,6 +129,7 @@ object SleepTimerPresets {
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToStorage: (() -> Unit)? = null,
     onNavigateToLicenses: (() -> Unit)? = null,
     showSleepTimer: Boolean = true,
     viewModel: SettingsViewModel = koinViewModel(),
@@ -293,6 +294,18 @@ fun SettingsScreen(
                     onClick = { showSignOutDialog = true },
                     destructive = true,
                 )
+            }
+
+            if (onNavigateToStorage != null) {
+                SettingsDivider()
+
+                SettingsSection(title = "Storage") {
+                    SettingsNavigationItem(
+                        title = "Manage storage",
+                        description = "View and manage downloaded audiobooks",
+                        onClick = onNavigateToStorage,
+                    )
+                }
             }
 
             SettingsDivider()

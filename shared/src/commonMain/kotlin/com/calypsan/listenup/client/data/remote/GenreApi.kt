@@ -4,7 +4,9 @@ import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import com.calypsan.listenup.client.domain.model.Genre
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.delete
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -34,6 +36,26 @@ interface GenreApiContract {
      * Get genres for a specific book.
      */
     suspend fun getBookGenres(bookId: String): List<Genre>
+
+    /**
+     * Create a new genre.
+     */
+    suspend fun createGenre(name: String, parentId: String?): Genre
+
+    /**
+     * Update an existing genre's name.
+     */
+    suspend fun updateGenre(id: String, name: String): Genre
+
+    /**
+     * Delete a genre.
+     */
+    suspend fun deleteGenre(id: String)
+
+    /**
+     * Move a genre to a new parent.
+     */
+    suspend fun moveGenre(id: String, newParentId: String?)
 }
 
 /**
@@ -89,6 +111,42 @@ class GenreApi(
         val response: ApiResponse<GenreListResponse> = client.get("/api/v1/books/$bookId/genres").body()
         return response.dataOrThrow { GenreApiException(it) }.genres.map { it.toDomain() }
     }
+
+    override suspend fun createGenre(name: String, parentId: String?): Genre {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<GenreResponse> =
+            client.post("/api/v1/genres") {
+                contentType(ContentType.Application.Json)
+                setBody(CreateGenreRequest(name = name, parentId = parentId))
+            }.body()
+        return response.dataOrThrow { GenreApiException(it) }.toDomain()
+    }
+
+    override suspend fun updateGenre(id: String, name: String): Genre {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<GenreResponse> =
+            client.put("/api/v1/genres/$id") {
+                contentType(ContentType.Application.Json)
+                setBody(UpdateGenreRequest(name = name))
+            }.body()
+        return response.dataOrThrow { GenreApiException(it) }.toDomain()
+    }
+
+    override suspend fun deleteGenre(id: String) {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<Unit> = client.delete("/api/v1/genres/$id").body()
+        response.dataOrThrow { GenreApiException(it) }
+    }
+
+    override suspend fun moveGenre(id: String, newParentId: String?) {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<GenreResponse> =
+            client.post("/api/v1/genres/$id/move") {
+                contentType(ContentType.Application.Json)
+                setBody(MoveGenreRequest(newParentId = newParentId))
+            }.body()
+        response.dataOrThrow { GenreApiException(it) }
+    }
 }
 
 /**
@@ -137,6 +195,24 @@ internal data class GenreResponse(
 internal data class SetBookGenresRequest(
     @SerialName("genre_ids")
     val genreIds: List<String>,
+)
+
+@Serializable
+internal data class CreateGenreRequest(
+    val name: String,
+    @SerialName("parent_id")
+    val parentId: String? = null,
+)
+
+@Serializable
+internal data class UpdateGenreRequest(
+    val name: String,
+)
+
+@Serializable
+internal data class MoveGenreRequest(
+    @SerialName("new_parent_id")
+    val newParentId: String? = null,
 )
 
 /**

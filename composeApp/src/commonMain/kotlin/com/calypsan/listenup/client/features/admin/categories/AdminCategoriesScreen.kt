@@ -6,56 +6,89 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DragIndicator
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.UnfoldLess
 import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
+import androidx.compose.material3.AlertDialog
 import com.calypsan.listenup.client.presentation.admin.AdminCategoriesUiState
 import com.calypsan.listenup.client.presentation.admin.AdminCategoriesViewModel
 import com.calypsan.listenup.client.presentation.admin.GenreTreeNode
+import kotlin.math.roundToInt
 
 /**
- * Admin screen for viewing the category (genre) tree.
+ * Admin screen for managing the category (genre) tree.
  *
  * Displays a hierarchical tree view of all system genres with:
  * - Expandable/collapsible nodes
  * - Book count per category
- * - Visual hierarchy through indentation
+ * - Long-press context menu for rename/delete
+ * - FAB to create new genres
+ * - Drag and drop for reparenting
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,36 +98,79 @@ fun AdminCategoriesScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Dialog state
+    var showCreateDialog by remember { mutableStateOf(false) }
+    var createParentId by remember { mutableStateOf<String?>(null) }
+    var createParentName by remember { mutableStateOf<String?>(null) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var renameGenreId by remember { mutableStateOf("") }
+    var renameGenreName by remember { mutableStateOf("") }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var deleteGenreId by remember { mutableStateOf("") }
+    var deleteGenreName by remember { mutableStateOf("") }
+
+    // Drag state
+    var draggedGenreId by remember { mutableStateOf<String?>(null) }
+    var draggedGenreName by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var dropTargetId by remember { mutableStateOf<String?>(null) }
+
+    // Show error in snackbar
+    LaunchedEffect(state.error) {
+        state.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text("Categories") },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
-                    }
-                },
-                actions = {
-                    // Expand/collapse all toggle
-                    if (state.tree.isNotEmpty()) {
-                        val allExpanded = state.expandedIds.size >= state.genres.count { 
-                            state.tree.any { root -> hasChildren(root, it.id) }
+            Column {
+                TopAppBar(
+                    title = { Text("Categories") },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
                         }
-                        IconButton(
-                            onClick = {
-                                if (allExpanded) viewModel.collapseAll() else viewModel.expandAll()
+                    },
+                    actions = {
+                        // Expand/collapse all toggle
+                        if (state.tree.isNotEmpty()) {
+                            val allExpanded = state.expandedIds.size >= state.genres.count {
+                                state.tree.any { root -> hasChildren(root, it.id) }
                             }
-                        ) {
-                            Icon(
-                                imageVector = if (allExpanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore,
-                                contentDescription = if (allExpanded) "Collapse All" else "Expand All",
-                            )
+                            IconButton(
+                                onClick = {
+                                    if (allExpanded) viewModel.collapseAll() else viewModel.expandAll()
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (allExpanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore,
+                                    contentDescription = if (allExpanded) "Collapse All" else "Expand All",
+                                )
+                            }
                         }
-                    }
+                    },
+                )
+                if (state.isSaving) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    createParentId = null
+                    createParentName = null
+                    showCreateDialog = true
                 },
-            )
+            ) {
+                Icon(Icons.Outlined.Add, contentDescription = "Add Genre")
+            }
         },
     ) { innerPadding ->
         if (state.isLoading && state.tree.isEmpty()) {
@@ -103,10 +179,146 @@ fun AdminCategoriesScreen(
             CategoriesContent(
                 state = state,
                 onToggleExpanded = viewModel::toggleExpanded,
+                dropTargetId = dropTargetId,
+                onAddChild = { id, name ->
+                    createParentId = id
+                    createParentName = name
+                    showCreateDialog = true
+                },
+                onRename = { id, name ->
+                    renameGenreId = id
+                    renameGenreName = name
+                    showRenameDialog = true
+                },
+                onDelete = { id, name ->
+                    deleteGenreId = id
+                    deleteGenreName = name
+                    showDeleteDialog = true
+                },
+                onDragStart = { id, name ->
+                    draggedGenreId = id
+                    draggedGenreName = name
+                },
+                onDragEnd = {
+                    val dragged = draggedGenreId
+                    val target = dropTargetId
+                    if (dragged != null && target != null && dragged != target) {
+                        viewModel.moveGenre(dragged, target)
+                    }
+                    draggedGenreId = null
+                    draggedGenreName = null
+                    dragOffset = Offset.Zero
+                    dropTargetId = null
+                },
+                onDragCancel = {
+                    draggedGenreId = null
+                    draggedGenreName = null
+                    dragOffset = Offset.Zero
+                    dropTargetId = null
+                },
+                onDropTargetChange = { dropTargetId = it },
                 modifier = Modifier.padding(innerPadding),
             )
         }
     }
+
+    // Create dialog
+    if (showCreateDialog) {
+        GenreNameDialog(
+            title = if (createParentName != null) "Add Sub-genre" else "Add Root Genre",
+            subtitle = createParentName?.let { "Under: $it" },
+            initialName = "",
+            confirmLabel = "Create",
+            onConfirm = { name ->
+                viewModel.createGenre(name, createParentId)
+                showCreateDialog = false
+            },
+            onDismiss = { showCreateDialog = false },
+        )
+    }
+
+    // Rename dialog
+    if (showRenameDialog) {
+        GenreNameDialog(
+            title = "Rename Genre",
+            initialName = renameGenreName,
+            confirmLabel = "Rename",
+            onConfirm = { name ->
+                viewModel.renameGenre(renameGenreId, name)
+                showRenameDialog = false
+            },
+            onDismiss = { showRenameDialog = false },
+        )
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog) {
+        ListenUpDestructiveDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = "Delete Genre",
+            text = "Are you sure you want to delete \"$deleteGenreName\"? This action cannot be undone.",
+            confirmText = "Delete",
+            onConfirm = {
+                viewModel.deleteGenre(deleteGenreId)
+                showDeleteDialog = false
+            },
+            onDismiss = { showDeleteDialog = false },
+        )
+    }
+}
+
+/**
+ * Reusable dialog for entering/editing a genre name.
+ */
+@Composable
+private fun GenreNameDialog(
+    title: String,
+    initialName: String,
+    confirmLabel: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+    subtitle: String? = null,
+) {
+    var name by remember { mutableStateOf(initialName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.large,
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(title) },
+        text = {
+            Column {
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Genre name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(name.trim()) },
+                enabled = name.isNotBlank(),
+            ) {
+                Text(confirmLabel)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 /**
@@ -121,6 +333,14 @@ private fun hasChildren(node: GenreTreeNode, id: String): Boolean {
 private fun CategoriesContent(
     state: AdminCategoriesUiState,
     onToggleExpanded: (String) -> Unit,
+    dropTargetId: String?,
+    onAddChild: (String, String) -> Unit,
+    onRename: (String, String) -> Unit,
+    onDelete: (String, String) -> Unit,
+    onDragStart: (String, String) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+    onDropTargetChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.tree.isEmpty()) {
@@ -155,6 +375,14 @@ private fun CategoriesContent(
                                 expandedIds = state.expandedIds,
                                 onToggleExpanded = onToggleExpanded,
                                 isLast = index == state.tree.lastIndex,
+                                dropTargetId = dropTargetId,
+                                onAddChild = onAddChild,
+                                onRename = onRename,
+                                onDelete = onDelete,
+                                onDragStart = onDragStart,
+                                onDragEnd = onDragEnd,
+                                onDragCancel = onDragCancel,
+                                onDropTargetChange = onDropTargetChange,
                             )
                         }
                     }
@@ -162,7 +390,7 @@ private fun CategoriesContent(
             }
 
             item {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(80.dp)) // FAB clearance
             }
         }
     }
@@ -174,17 +402,34 @@ private fun CategoryTreeNode(
     expandedIds: Set<String>,
     onToggleExpanded: (String) -> Unit,
     isLast: Boolean,
+    dropTargetId: String?,
+    onAddChild: (String, String) -> Unit,
+    onRename: (String, String) -> Unit,
+    onDelete: (String, String) -> Unit,
+    onDragStart: (String, String) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+    onDropTargetChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isExpanded = expandedIds.contains(node.genre.id)
     val hasChildren = node.children.isNotEmpty()
+    val isDropTarget = dropTargetId == node.genre.id
 
     Column(modifier = modifier) {
         CategoryRow(
             node = node,
             isExpanded = isExpanded,
             hasChildren = hasChildren,
+            isDropTarget = isDropTarget,
             onToggleExpanded = { onToggleExpanded(node.genre.id) },
+            onAddChild = { onAddChild(node.genre.id, node.genre.name) },
+            onRename = { onRename(node.genre.id, node.genre.name) },
+            onDelete = { onDelete(node.genre.id, node.genre.name) },
+            onDragStart = { onDragStart(node.genre.id, node.genre.name) },
+            onDragEnd = onDragEnd,
+            onDragCancel = onDragCancel,
+            onDropTargetChange = onDropTargetChange,
         )
 
         // Show divider if not last item at root level, or if expanded with children
@@ -208,6 +453,14 @@ private fun CategoryTreeNode(
                         expandedIds = expandedIds,
                         onToggleExpanded = onToggleExpanded,
                         isLast = index == node.children.lastIndex,
+                        dropTargetId = dropTargetId,
+                        onAddChild = onAddChild,
+                        onRename = onRename,
+                        onDelete = onDelete,
+                        onDragStart = onDragStart,
+                        onDragEnd = onDragEnd,
+                        onDragCancel = onDragCancel,
+                        onDropTargetChange = onDropTargetChange,
                     )
                 }
             }
@@ -220,7 +473,15 @@ private fun CategoryRow(
     node: GenreTreeNode,
     isExpanded: Boolean,
     hasChildren: Boolean,
+    isDropTarget: Boolean,
     onToggleExpanded: () -> Unit,
+    onAddChild: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onDragStart: () -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+    onDropTargetChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val rotation by animateFloatAsState(
@@ -228,65 +489,127 @@ private fun CategoryRow(
         label = "ChevronRotation",
     )
 
-    Row(
+    var showContextMenu by remember { mutableStateOf(false) }
+    var rowPosition by remember { mutableStateOf(Offset.Zero) }
+    var rowHeight by remember { mutableStateOf(0) }
+
+    val dropHighlightColor = MaterialTheme.colorScheme.primaryContainer
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(enabled = hasChildren, onClick = onToggleExpanded)
-            .padding(
-                start = (16 + node.depth * 24).dp,
-                end = 16.dp,
-                top = 12.dp,
-                bottom = 12.dp,
-            ),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        // Expand/collapse icon or spacer
-        if (hasChildren) {
-            Icon(
-                imageVector = Icons.Outlined.ExpandMore,
-                contentDescription = if (isExpanded) "Collapse" else "Expand",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .size(20.dp)
-                    .rotate(rotation),
+            .then(
+                if (isDropTarget) {
+                    Modifier.background(dropHighlightColor, RoundedCornerShape(8.dp))
+                } else {
+                    Modifier
+                }
             )
-        } else {
-            Spacer(modifier = Modifier.width(20.dp))
+            .onGloballyPositioned { coordinates ->
+                rowPosition = coordinates.positionInRoot()
+                rowHeight = coordinates.size.height
+            },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = { if (hasChildren) onToggleExpanded() },
+                    onLongClick = { showContextMenu = true },
+                )
+                .padding(
+                    start = (16 + node.depth * 24).dp,
+                    end = 16.dp,
+                    top = 12.dp,
+                    bottom = 12.dp,
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // Expand/collapse icon or spacer
+            if (hasChildren) {
+                Icon(
+                    imageVector = Icons.Outlined.ExpandMore,
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .rotate(rotation),
+                )
+            } else {
+                Spacer(modifier = Modifier.width(20.dp))
+            }
+
+            // Category icon
+            Icon(
+                imageVector = Icons.Outlined.Category,
+                contentDescription = null,
+                tint = if (node.depth == 0) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.size(20.dp),
+            )
+
+            // Category name
+            Text(
+                text = node.genre.name,
+                style = if (node.depth == 0) {
+                    MaterialTheme.typography.bodyLarge
+                } else {
+                    MaterialTheme.typography.bodyMedium
+                },
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+
+            // Book count badge
+            if (node.genre.bookCount > 0) {
+                Text(
+                    text = "${node.genre.bookCount}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
-        // Category icon
-        Icon(
-            imageVector = Icons.Outlined.Category,
-            contentDescription = null,
-            tint = if (node.depth == 0) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier.size(20.dp),
-        )
-
-        // Category name
-        Text(
-            text = node.genre.name,
-            style = if (node.depth == 0) {
-                MaterialTheme.typography.bodyLarge
-            } else {
-                MaterialTheme.typography.bodyMedium
-            },
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-
-        // Book count badge
-        if (node.genre.bookCount > 0) {
-            Text(
-                text = "${node.genre.bookCount}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        // Context menu
+        DropdownMenu(
+            expanded = showContextMenu,
+            onDismissRequest = { showContextMenu = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("Add Sub-genre") },
+                onClick = {
+                    showContextMenu = false
+                    onAddChild()
+                },
+                leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null) },
+            )
+            DropdownMenuItem(
+                text = { Text("Rename") },
+                onClick = {
+                    showContextMenu = false
+                    onRename()
+                },
+                leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+            )
+            DropdownMenuItem(
+                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                onClick = {
+                    showContextMenu = false
+                    onDelete()
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Outlined.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                },
             )
         }
     }
@@ -314,7 +637,7 @@ private fun EmptyCategoriesMessage(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            text = "Categories are managed on the server",
+            text = "Tap + to create your first genre",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
