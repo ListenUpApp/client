@@ -14,10 +14,17 @@ import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
+import io.ktor.http.Url
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.client.network.sockets.SocketTimeoutException
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.plugins.HttpSend
+import kotlinx.io.IOException
+import io.ktor.client.plugins.plugin
 import kotlinx.serialization.json.Json
 
 private val logger = KotlinLogging.logger {}
@@ -102,13 +109,13 @@ class ApiClientFactory(
     }
 
     private suspend fun createClient(): HttpClient {
-        val serverUrl =
-            serverConfig.getServerUrl()
+        val initialUrl =
+            serverConfig.getActiveUrl()
                 ?: error("Server URL not configured")
 
-        logger.info { "Creating HTTP client for server: ${serverUrl.value}" }
+        logger.info { "Creating HTTP client for server: ${initialUrl.value}" }
 
-        return HttpClient {
+        val client = HttpClient {
             install(ContentNegotiation) {
                 json(
                     Json {
@@ -186,11 +193,63 @@ class ApiClientFactory(
             }
 
             defaultRequest {
-                url(serverUrl.value)
+                url(initialUrl.value)
                 contentType(ContentType.Application.Json)
             }
         }
+
+        // Install HttpSend interceptor for dynamic URL resolution and fallback
+        client.plugin(HttpSend).intercept { request ->
+            // Resolve the current active URL dynamically for each request
+            val activeUrl = serverConfig.getActiveUrl()
+            if (activeUrl != null) {
+                val parsed = Url(activeUrl.value)
+                request.url.protocol = parsed.protocol
+                request.url.host = parsed.host
+                request.url.port = parsed.port
+            }
+
+            try {
+                execute(request)
+            } catch (cause: Exception) {
+                if (isNetworkError(cause)) {
+                    // Try fallback URL
+                    val fallbackUrl = serverConfig.switchToFallbackUrl()
+                    if (fallbackUrl != null) {
+                        logger.info { "Network error, retrying with fallback URL: ${fallbackUrl.value}" }
+                        val parsed = Url(fallbackUrl.value)
+                        request.url.protocol = parsed.protocol
+                        request.url.host = parsed.host
+                        request.url.port = parsed.port
+                        try {
+                            execute(request)
+                        } catch (retryError: Exception) {
+                            // Fallback also failed, throw original error
+                            throw cause
+                        }
+                    } else {
+                        throw cause
+                    }
+                } else {
+                    throw cause
+                }
+            }
+        }
+
+        return client
     }
+
+    /**
+     * Check if an exception is a network/connection error (not an HTTP error).
+     * Only these should trigger URL fallback.
+     */
+    private fun isNetworkError(cause: Exception): Boolean =
+        cause is java.net.ConnectException ||
+            cause is java.net.SocketTimeoutException ||
+            cause is java.net.UnknownHostException ||
+            cause is java.net.NoRouteToHostException ||
+            cause is io.ktor.client.plugins.HttpRequestTimeoutException ||
+            cause.cause?.let { it is java.net.ConnectException || it is java.net.SocketTimeoutException } == true
 
     /**
      * Invalidate the cached client and create a new one.
