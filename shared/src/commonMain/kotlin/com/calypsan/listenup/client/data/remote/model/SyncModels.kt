@@ -378,6 +378,10 @@ data class SSELibraryScanProgressEvent(
     val removed: Int,
 )
 
+
+/**
+ * SSE library scan progress event data.
+ */
 /**
  * SSE user pending event data (admin-only).
  * Sent when a new user registers via open registration and is awaiting approval.

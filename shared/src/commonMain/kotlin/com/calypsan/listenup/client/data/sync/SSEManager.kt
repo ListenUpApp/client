@@ -768,7 +768,8 @@ sealed interface SSEEventType {
         val removed: Int,
     ) : SSEEventType
 
-    /**
+
+        /**
      * Admin-only: Library access mode was changed.
      * Clients should refresh their book lists as visibility may have changed.
      */

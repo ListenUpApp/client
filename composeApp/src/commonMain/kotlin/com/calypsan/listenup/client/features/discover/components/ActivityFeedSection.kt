@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
@@ -270,6 +271,10 @@ private fun getActivityIconAndDescription(activity: ActivityUiModel): Pair<Image
         "shelf_created" -> {
             val shelfName = activity.shelfName ?: "a shelf"
             Icons.Default.FilterList to "Created shelf \"$shelfName\""
+        }
+
+        "user_joined" -> {
+            Icons.Default.PersonAdd to "Joined the server"
         }
 
         else -> {

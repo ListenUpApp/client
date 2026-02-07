@@ -1116,3 +1116,9 @@ data class ScanProgressState(
             return parts.joinToString(", ").ifEmpty { null }
         }
 }
+
+
+/**
+ * Current state of a library scan in progress.
+ * Null when no scan is running.
+ */
