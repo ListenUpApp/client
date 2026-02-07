@@ -37,6 +37,8 @@ import com.calypsan.listenup.client.features.admin.collections.AdminCollectionsS
 import com.calypsan.listenup.client.features.admin.inbox.AdminInboxScreen
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminCategoriesViewModel
+import com.calypsan.listenup.client.features.admin.categories.AdminCategoriesScreen
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
@@ -140,6 +142,8 @@ sealed interface DetailDestination {
 
     data object Licenses : DetailDestination
 
+    data object Storage : DetailDestination
+
     data object NowPlaying : DetailDestination
 
     data object Admin : DetailDestination
@@ -164,6 +168,8 @@ sealed interface DetailDestination {
         val contributorId: String,
         val role: String,
     ) : DetailDestination
+
+    data object AdminCategories : DetailDestination
 
     data object AdminInbox : DetailDestination
 }
@@ -470,12 +476,19 @@ private fun DetailScreen(
             SettingsScreen(
                 onNavigateBack = navigateBack,
                 showSleepTimer = false,
+                onNavigateToStorage = { navigateTo(DetailDestination.Storage) },
                 onNavigateToLicenses = { navigateTo(DetailDestination.Licenses) },
             )
         }
 
         is DetailDestination.Licenses -> {
             LicensesScreen(
+                onNavigateBack = navigateBack,
+            )
+        }
+
+        is DetailDestination.Storage -> {
+            com.calypsan.listenup.client.features.settings.StorageScreen(
                 onNavigateBack = navigateBack,
             )
         }
@@ -521,6 +534,7 @@ private fun DetailScreen(
                 onBackClick = navigateBack,
                 onInviteClick = { navigateTo(DetailDestination.CreateInvite) },
                 onCollectionsClick = { navigateTo(DetailDestination.AdminCollections) },
+                onCategoriesClick = { navigateTo(DetailDestination.AdminCategories) },
                 onInboxClick = { navigateTo(DetailDestination.AdminInbox) },
                 onUserClick = { navigateTo(DetailDestination.UserDetail(it)) },
                 serverName = settingsState.serverName,
@@ -576,6 +590,14 @@ private fun DetailScreen(
         is DetailDestination.AdminCollectionDetail -> {
             val viewModel: AdminCollectionDetailViewModel = koinInject { parametersOf(destination.collectionId) }
             AdminCollectionDetailScreen(
+                viewModel = viewModel,
+                onBackClick = navigateBack,
+            )
+        }
+
+        is DetailDestination.AdminCategories -> {
+            val viewModel: AdminCategoriesViewModel = koinInject()
+            AdminCategoriesScreen(
                 viewModel = viewModel,
                 onBackClick = navigateBack,
             )

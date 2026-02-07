@@ -13,6 +13,7 @@ import com.calypsan.listenup.client.presentation.library.LibraryActionsViewModel
 import com.calypsan.listenup.client.presentation.library.LibrarySelectionManager
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
+import com.calypsan.listenup.client.presentation.storage.StorageViewModel
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
 import org.koin.dsl.module
 
@@ -110,6 +111,11 @@ val adminPresentationModule =
                 collectionRepository = get(),
                 createCollectionUseCase = get(),
                 deleteCollectionUseCase = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.admin.AdminCategoriesViewModel(
+                genreRepository = get(),
             )
         }
         // AdminCollectionDetailViewModel - takes collectionId as parameter

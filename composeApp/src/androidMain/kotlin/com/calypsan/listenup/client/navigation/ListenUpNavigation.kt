@@ -65,6 +65,7 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminCategoriesViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
@@ -853,6 +854,9 @@ private fun AuthenticatedNavigation(
                                 onCollectionsClick = {
                                     backStack.add(AdminCollections)
                                 },
+                                onCategoriesClick = {
+                                    backStack.add(AdminCategories)
+                                },
                                 onInboxClick = {
                                     backStack.add(AdminInbox)
                                 },
@@ -895,6 +899,15 @@ private fun AuthenticatedNavigation(
                                 },
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
+                                },
+                            )
+                        }
+                        entry<AdminCategories> {
+                            val viewModel: AdminCategoriesViewModel = koinInject()
+                            com.calypsan.listenup.client.features.admin.categories.AdminCategoriesScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
                                 },
                             )
                         }
@@ -1021,6 +1034,9 @@ private fun AuthenticatedNavigation(
                                 onNavigateBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
+                                onNavigateToStorage = {
+                                    backStack.add(Storage)
+                                },
                                 onNavigateToLicenses = {
                                     backStack.add(Licenses)
                                 },
@@ -1058,6 +1074,13 @@ private fun AuthenticatedNavigation(
                         }
                         entry<Licenses> {
                             com.calypsan.listenup.client.features.settings.LicensesScreen(
+                                onNavigateBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<Storage> {
+                            com.calypsan.listenup.client.features.settings.StorageScreen(
                                 onNavigateBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },

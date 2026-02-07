@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.Badge
@@ -81,6 +82,7 @@ fun AdminScreen(
     onBackClick: () -> Unit,
     onInviteClick: () -> Unit,
     onCollectionsClick: () -> Unit = {},
+    onCategoriesClick: () -> Unit = {},
     onInboxClick: () -> Unit = {},
     onBackupClick: () -> Unit = {},
     onUserClick: (String) -> Unit = {},
@@ -141,6 +143,7 @@ fun AdminScreen(
                 onRevokeInviteClick = { inviteToRevoke = it },
                 onInviteClick = onInviteClick,
                 onCollectionsClick = onCollectionsClick,
+                onCategoriesClick = onCategoriesClick,
                 onInboxClick = onInboxClick,
                 onBackupClick = onBackupClick,
                 serverName = serverName,
@@ -216,6 +219,7 @@ private fun AdminContent(
     onRevokeInviteClick: (InviteInfo) -> Unit,
     onInviteClick: () -> Unit,
     onCollectionsClick: () -> Unit,
+    onCategoriesClick: () -> Unit,
     onInboxClick: () -> Unit,
     onBackupClick: () -> Unit,
     serverName: String,
@@ -417,6 +421,12 @@ private fun AdminContent(
         item {
             Spacer(modifier = Modifier.height(12.dp))
             CollectionsCard(onClick = onCollectionsClick)
+        }
+
+        // Categories button
+        item {
+            Spacer(modifier = Modifier.height(12.dp))
+            CategoriesCard(onClick = onCategoriesClick)
         }
 
         // Inbox button (only shown when inbox workflow is enabled)
@@ -926,6 +936,49 @@ private fun CollectionsCard(
                     text = "Organize books into collections for access control",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoriesCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Category,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = Categories,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = View the genre hierarchy tree,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

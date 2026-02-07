@@ -243,6 +243,15 @@ data class AdminCollectionDetail(
 data object AdminInbox : Route
 
 /**
+ * Admin categories screen - view the genre hierarchy tree.
+ *
+ * Shows all system genres in a hierarchical tree view with
+ * expandable/collapsible nodes and book counts.
+ */
+@Serializable
+data object AdminCategories : Route
+
+/**
  * Admin user detail screen - view and edit a user's details and permissions.
  *
  * Shows user information and allows toggling canDownload and canShare permissions.
@@ -334,6 +343,12 @@ data object Settings : Route
  */
 @Serializable
 data object Licenses : Route
+
+/**
+ * Storage screen - manage downloaded audiobook files.
+ */
+@Serializable
+data object Storage : Route
 
 // Lens Routes
 
