@@ -1,24 +1,24 @@
 package com.calypsan.listenup.client.domain.model
 
 /**
- * Domain model for a personal curation lens.
+ * Domain model for a personal curation shelf.
  *
- * Lenses are user-created curated lists of books for personal organization
- * and social discovery. Each user can create multiple lenses to organize
+ * Shelves are user-created curated lists of books for personal organization
+ * and social discovery. Each user can create multiple shelves to organize
  * their reading journey.
  *
  * @property id Unique identifier
  * @property name Display name (e.g., "To Read", "Favorites")
  * @property description Optional description
- * @property ownerId User who created this lens
+ * @property ownerId User who created this shelf
  * @property ownerDisplayName Owner's display name for social context
  * @property ownerAvatarColor Owner's avatar color for UI display
- * @property bookCount Number of books in this lens
+ * @property bookCount Number of books in this shelf
  * @property totalDurationSeconds Total duration of all books in seconds
  * @property createdAtMs Creation timestamp
  * @property updatedAtMs Last update timestamp
  */
-data class Lens(
+data class Shelf(
     val id: String,
     val name: String,
     val description: String?,
@@ -29,6 +29,7 @@ data class Lens(
     val totalDurationSeconds: Long,
     val createdAtMs: Long,
     val updatedAtMs: Long,
+    val coverPaths: List<String> = emptyList(),
 ) {
     /**
      * Returns the display name formatted for the current user context.
@@ -38,7 +39,7 @@ data class Lens(
     fun displayName(currentUserId: String): String = if (ownerId == currentUserId) name else "$ownerDisplayName's $name"
 
     /**
-     * Returns true if this lens belongs to the given user.
+     * Returns true if this shelf belongs to the given user.
      */
     fun isOwnedBy(userId: String): Boolean = ownerId == userId
 

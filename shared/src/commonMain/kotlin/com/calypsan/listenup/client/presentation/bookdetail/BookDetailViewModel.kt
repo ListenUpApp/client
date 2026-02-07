@@ -4,16 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.Genre
-import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.GenreRepository
-import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
-import com.calypsan.listenup.client.domain.usecase.lens.AddBooksToLensUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.AddBooksToShelfUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -42,9 +42,9 @@ class BookDetailViewModel(
     private val tagRepository: TagRepository,
     private val playbackPositionRepository: PlaybackPositionRepository,
     private val userRepository: UserRepository,
-    private val lensRepository: LensRepository,
-    private val addBooksToLensUseCase: AddBooksToLensUseCase,
-    private val createLensUseCase: CreateLensUseCase,
+    private val shelfRepository: ShelfRepository,
+    private val addBooksToShelfUseCase: AddBooksToShelfUseCase,
+    private val createShelfUseCase: CreateShelfUseCase,
 ) : ViewModel() {
     val state: StateFlow<BookDetailUiState>
         field = MutableStateFlow(BookDetailUiState())
@@ -112,14 +112,14 @@ class BookDetailViewModel(
     }
 
     /**
-     * User's lenses for the lens picker sheet.
+     * User's shelves for the shelf picker sheet.
      */
-    val myLenses: StateFlow<List<Lens>> =
+    val myShelves: StateFlow<List<Shelf>> =
         userRepository
             .observeCurrentUser()
             .flatMapLatest { user ->
                 if (user != null) {
-                    lensRepository.observeMyLenses(user.id.value)
+                    shelfRepository.observeMyShelves(user.id.value)
                 } else {
                     flowOf(emptyList())
                 }
@@ -382,73 +382,73 @@ class BookDetailViewModel(
     }
 
     /**
-     * Add the current book to an existing lens.
+     * Add the current book to an existing shelf.
      */
-    fun addBookToLens(lensId: String) {
+    fun addBookToShelf(shelfId: String) {
         val bookId =
             state.value.book
                 ?.id
                 ?.value ?: return
         viewModelScope.launch {
-            state.update { it.copy(isAddingToLens = true) }
-            when (val result = addBooksToLensUseCase(lensId, listOf(bookId))) {
+            state.update { it.copy(isAddingToShelf = true) }
+            when (val result = addBooksToShelfUseCase(shelfId, listOf(bookId))) {
                 is Success -> {
-                    state.update { it.copy(isAddingToLens = false, showLensPicker = false) }
-                    logger.info { "Added book $bookId to lens $lensId" }
+                    state.update { it.copy(isAddingToShelf = false, showShelfPicker = false) }
+                    logger.info { "Added book $bookId to shelf $shelfId" }
                 }
 
                 is Failure -> {
-                    state.update { it.copy(isAddingToLens = false, lensError = result.message) }
-                    logger.error { "Failed to add book $bookId to lens $lensId: ${result.message}" }
+                    state.update { it.copy(isAddingToShelf = false, shelfError = result.message) }
+                    logger.error { "Failed to add book $bookId to shelf $shelfId: ${result.message}" }
                 }
             }
         }
     }
 
     /**
-     * Create a new lens and add the current book to it.
+     * Create a new shelf and add the current book to it.
      */
-    fun createLensAndAddBook(name: String) {
+    fun createShelfAndAddBook(name: String) {
         val bookId =
             state.value.book
                 ?.id
                 ?.value ?: return
         viewModelScope.launch {
-            state.update { it.copy(isAddingToLens = true) }
-            when (val result = createLensUseCase(name, null)) {
+            state.update { it.copy(isAddingToShelf = true) }
+            when (val result = createShelfUseCase(name, null)) {
                 is Success -> {
-                    val lens = result.data
-                    when (val addResult = addBooksToLensUseCase(lens.id, listOf(bookId))) {
+                    val shelf = result.data
+                    when (val addResult = addBooksToShelfUseCase(shelf.id, listOf(bookId))) {
                         is Success -> {
-                            state.update { it.copy(isAddingToLens = false, showLensPicker = false) }
-                            logger.info { "Created lens '${lens.name}' and added book $bookId" }
+                            state.update { it.copy(isAddingToShelf = false, showShelfPicker = false) }
+                            logger.info { "Created shelf '${shelf.name}' and added book $bookId" }
                         }
 
                         is Failure -> {
-                            state.update { it.copy(isAddingToLens = false, lensError = addResult.message) }
-                            logger.error { "Created lens but failed to add book $bookId: ${addResult.message}" }
+                            state.update { it.copy(isAddingToShelf = false, shelfError = addResult.message) }
+                            logger.error { "Created shelf but failed to add book $bookId: ${addResult.message}" }
                         }
                     }
                 }
 
                 is Failure -> {
-                    state.update { it.copy(isAddingToLens = false, lensError = result.message) }
-                    logger.error { "Failed to create lens '$name': ${result.message}" }
+                    state.update { it.copy(isAddingToShelf = false, shelfError = result.message) }
+                    logger.error { "Failed to create shelf '$name': ${result.message}" }
                 }
             }
         }
     }
 
-    fun clearLensError() {
-        state.update { it.copy(lensError = null) }
+    fun clearShelfError() {
+        state.update { it.copy(shelfError = null) }
     }
 
-    fun showLensPicker() {
-        state.update { it.copy(showLensPicker = true) }
+    fun showShelfPicker() {
+        state.update { it.copy(showShelfPicker = true) }
     }
 
-    fun hideLensPicker() {
-        state.update { it.copy(showLensPicker = false) }
+    fun hideShelfPicker() {
+        state.update { it.copy(showShelfPicker = false) }
     }
 }
 
@@ -484,10 +484,10 @@ data class BookDetailUiState(
     val allTags: List<Tag> = emptyList(),
     val isLoadingTags: Boolean = false,
     val showTagPicker: Boolean = false,
-    // Lens picker
-    val showLensPicker: Boolean = false,
-    val isAddingToLens: Boolean = false,
-    val lensError: String? = null,
+    // Shelf picker
+    val showShelfPicker: Boolean = false,
+    val isAddingToShelf: Boolean = false,
+    val shelfError: String? = null,
 )
 
 data class ChapterUiModel(

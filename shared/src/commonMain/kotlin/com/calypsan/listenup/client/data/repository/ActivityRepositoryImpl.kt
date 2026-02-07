@@ -88,8 +88,8 @@ private fun ActivityEntity.toDomain(): Activity =
         durationMs = durationMs,
         milestoneValue = milestoneValue,
         milestoneUnit = milestoneUnit,
-        lensId = lensId,
-        lensName = lensName,
+        shelfId = shelfId,
+        shelfName = shelfName,
     )
 
 /**
@@ -113,8 +113,8 @@ private fun Activity.toEntity(): ActivityEntity =
         durationMs = durationMs,
         milestoneValue = milestoneValue,
         milestoneUnit = milestoneUnit,
-        lensId = lensId,
-        lensName = lensName,
+        shelfId = shelfId,
+        shelfName = shelfName,
     )
 
 /**
@@ -155,7 +155,7 @@ private fun ActivityResponse.toDomain(): Activity {
         durationMs = durationMs,
         milestoneValue = milestoneValue,
         milestoneUnit = milestoneUnit,
-        lensId = lensId,
-        lensName = lensName,
+        shelfId = shelfId,
+        shelfName = shelfName,
     )
 }

@@ -81,7 +81,7 @@ fun TwoPaneBookDetail(
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
     onDiscardProgressClick: () -> Unit,
-    onAddToLensClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
@@ -118,7 +118,7 @@ fun TwoPaneBookDetail(
             onFindMetadataClick = onFindMetadataClick,
             onMarkCompleteClick = onMarkCompleteClick,
             onDiscardProgressClick = onDiscardProgressClick,
-            onAddToLensClick = onAddToLensClick,
+            onAddToShelfClick = onAddToShelfClick,
             onAddToCollectionClick = onAddToCollectionClick,
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
@@ -164,7 +164,7 @@ private fun TwoPaneLeftPane(
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
     onDiscardProgressClick: () -> Unit,
-    onAddToLensClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
@@ -276,9 +276,9 @@ private fun TwoPaneLeftPane(
                             showMenu = false
                             onDiscardProgressClick()
                         },
-                        onAddToLensClick = {
+                        onAddToShelfClick = {
                             showMenu = false
-                            onAddToLensClick()
+                            onAddToShelfClick()
                         },
                         onAddToCollectionClick = {
                             showMenu = false

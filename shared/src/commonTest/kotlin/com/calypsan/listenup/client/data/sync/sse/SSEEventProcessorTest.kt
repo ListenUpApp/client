@@ -15,8 +15,8 @@ import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
-import com.calypsan.listenup.client.data.local.db.LensDao
-import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.data.local.db.ShelfDao
+import com.calypsan.listenup.client.data.local.db.ShelfEntity
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -117,7 +117,7 @@ class SSEEventProcessorTest {
         val bookContributorDao: BookContributorDao = mock()
         val bookSeriesDao: BookSeriesDao = mock()
         val collectionDao: CollectionDao = mock()
-        val lensDao: LensDao = mock()
+        val shelfDao: ShelfDao = mock()
         val tagDao: TagDao = mock()
         val listeningEventDao: ListeningEventDao = mock()
         val activityDao: ActivityDao = mock()
@@ -146,9 +146,9 @@ class SSEEventProcessorTest {
             everySuspend { collectionDao.upsert(any<CollectionEntity>()) } returns Unit
             everySuspend { collectionDao.deleteById(any()) } returns Unit
             everySuspend { collectionDao.getById(any()) } returns null
-            everySuspend { lensDao.upsert(any<LensEntity>()) } returns Unit
-            everySuspend { lensDao.deleteById(any()) } returns Unit
-            everySuspend { lensDao.getById(any()) } returns null
+            everySuspend { shelfDao.upsert(any<ShelfEntity>()) } returns Unit
+            everySuspend { shelfDao.deleteById(any()) } returns Unit
+            everySuspend { shelfDao.getById(any()) } returns null
             everySuspend { tagDao.upsert(any<TagEntity>()) } returns Unit
             everySuspend { tagDao.insertBookTag(any<BookTagCrossRef>()) } returns Unit
             everySuspend { tagDao.deleteBookTag(any(), any()) } returns Unit
@@ -194,7 +194,7 @@ class SSEEventProcessorTest {
                 bookContributorDao = bookContributorDao,
                 bookSeriesDao = bookSeriesDao,
                 collectionDao = collectionDao,
-                lensDao = lensDao,
+                shelfDao = shelfDao,
                 tagDao = tagDao,
                 listeningEventDao = listeningEventDao,
                 activityDao = activityDao,

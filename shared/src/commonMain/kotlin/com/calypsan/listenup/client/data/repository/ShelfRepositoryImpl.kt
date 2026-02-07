@@ -4,16 +4,16 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.core.currentEpochMilliseconds
-import com.calypsan.listenup.client.data.local.db.LensDao
-import com.calypsan.listenup.client.data.local.db.LensEntity
-import com.calypsan.listenup.client.data.remote.LensApiContract
-import com.calypsan.listenup.client.data.remote.LensDetailResponse
-import com.calypsan.listenup.client.data.remote.LensResponse
-import com.calypsan.listenup.client.domain.model.Lens
-import com.calypsan.listenup.client.domain.model.LensBook
-import com.calypsan.listenup.client.domain.model.LensDetail
-import com.calypsan.listenup.client.domain.model.LensOwner
-import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.data.local.db.ShelfDao
+import com.calypsan.listenup.client.data.local.db.ShelfEntity
+import com.calypsan.listenup.client.data.remote.ShelfApiContract
+import com.calypsan.listenup.client.data.remote.ShelfDetailResponse
+import com.calypsan.listenup.client.data.remote.ShelfResponse
+import com.calypsan.listenup.client.domain.model.Shelf
+import com.calypsan.listenup.client.domain.model.ShelfBook
+import com.calypsan.listenup.client.domain.model.ShelfDetail
+import com.calypsan.listenup.client.domain.model.ShelfOwner
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -22,70 +22,70 @@ import kotlin.time.Instant
 private val logger = KotlinLogging.logger {}
 
 /**
- * Implementation of LensRepository using Room.
+ * Implementation of ShelfRepository using Room.
  *
- * Wraps LensDao and converts entities to domain models.
- * Also handles fetching lenses from API and caching locally.
+ * Wraps ShelfDao and converts entities to domain models.
+ * Also handles fetching shelves from API and caching locally.
  *
- * @property dao Room DAO for lens operations
- * @property lensApi API client for fetching lenses from server
+ * @property dao Room DAO for shelf operations
+ * @property shelfApi API client for fetching shelves from server
  */
-class LensRepositoryImpl(
-    private val dao: LensDao,
-    private val lensApi: LensApiContract,
-) : LensRepository {
-    override fun observeMyLenses(userId: String): Flow<List<Lens>> =
-        dao.observeMyLenses(userId).map { entities ->
+class ShelfRepositoryImpl(
+    private val dao: ShelfDao,
+    private val shelfApi: ShelfApiContract,
+) : ShelfRepository {
+    override fun observeMyShelves(userId: String): Flow<List<Shelf>> =
+        dao.observeMyShelves(userId).map { entities ->
             entities.map { it.toDomain() }
         }
 
-    override fun observeDiscoverLenses(currentUserId: String): Flow<List<Lens>> =
-        dao.observeDiscoverLenses(currentUserId).map { entities ->
+    override fun observeDiscoverShelves(currentUserId: String): Flow<List<Shelf>> =
+        dao.observeDiscoverShelves(currentUserId).map { entities ->
             entities.map { it.toDomain() }
         }
 
-    override fun observeById(id: String): Flow<Lens?> = dao.observeById(id).map { it?.toDomain() }
+    override fun observeById(id: String): Flow<Shelf?> = dao.observeById(id).map { it?.toDomain() }
 
-    override suspend fun getById(id: String): Lens? = dao.getById(id)?.toDomain()
+    override suspend fun getById(id: String): Shelf? = dao.getById(id)?.toDomain()
 
-    override suspend fun countDiscoverLenses(currentUserId: String): Int = dao.countDiscoverLenses(currentUserId)
+    override suspend fun countDiscoverShelves(currentUserId: String): Int = dao.countDiscoverShelves(currentUserId)
 
-    override suspend fun fetchAndCacheMyLenses() {
-        logger.debug { "Fetching my lenses from API" }
-        val lenses = lensApi.getMyLenses()
-        val entities = lenses.map { it.toEntity() }
+    override suspend fun fetchAndCacheMyShelves() {
+        logger.debug { "Fetching my shelves from API" }
+        val shelves = shelfApi.getMyShelves()
+        val entities = shelves.map { it.toEntity() }
         dao.upsertAll(entities)
-        logger.info { "Fetched and cached ${entities.size} my lenses" }
+        logger.info { "Fetched and cached ${entities.size} my shelves" }
     }
 
     /**
-     * Fetch discover lenses from API and cache locally.
+     * Fetch discover shelves from API and cache locally.
      *
-     * Fetches lenses from other users via API and stores them in the local database.
+     * Fetches shelves from other users via API and stores them in the local database.
      * This is used for initial population when Room is empty and for manual refresh.
      *
-     * @return Number of lenses fetched and cached
+     * @return Number of shelves fetched and cached
      */
-    override suspend fun fetchAndCacheDiscoverLenses(): Int {
-        logger.debug { "Fetching discover lenses from API" }
-        val userLenses = lensApi.discoverLenses()
+    override suspend fun fetchAndCacheDiscoverShelves(): Int {
+        logger.debug { "Fetching discover shelves from API" }
+        val userShelves = shelfApi.discoverShelves()
         val entities =
-            userLenses.flatMap { userLensesResponse ->
-                userLensesResponse.lenses.map { lens ->
-                    lens.toEntity()
+            userShelves.flatMap { userShelvesResponse ->
+                userShelvesResponse.shelves.map { shelf ->
+                    shelf.toEntity()
                 }
             }
         dao.upsertAll(entities)
-        logger.info { "Fetched and cached ${entities.size} discover lenses" }
+        logger.info { "Fetched and cached ${entities.size} discover shelves" }
         return entities.size
     }
 
-    override suspend fun getLensDetail(lensId: String): LensDetail {
-        logger.debug { "Fetching lens detail from API: $lensId" }
-        val response = lensApi.getLens(lensId)
+    override suspend fun getShelfDetail(shelfId: String): ShelfDetail {
+        logger.debug { "Fetching shelf detail from API: $shelfId" }
+        val response = shelfApi.getShelf(shelfId)
 
         // Update local cache with latest book count and duration
-        dao.getById(lensId)?.let { cached ->
+        dao.getById(shelfId)?.let { cached ->
             dao.upsert(
                 cached.copy(
                     bookCount = response.bookCount,
@@ -97,42 +97,42 @@ class LensRepositoryImpl(
         return response.toDomain()
     }
 
-    override suspend fun removeBookFromLens(
-        lensId: String,
+    override suspend fun removeBookFromShelf(
+        shelfId: String,
         bookId: String,
     ) {
-        logger.info { "Removing book $bookId from lens $lensId" }
-        lensApi.removeBook(lensId, bookId)
+        logger.info { "Removing book $bookId from shelf $shelfId" }
+        shelfApi.removeBook(shelfId, bookId)
     }
 
-    override suspend fun addBooksToLens(
-        lensId: String,
+    override suspend fun addBooksToShelf(
+        shelfId: String,
         bookIds: List<String>,
     ) {
-        logger.info { "Adding ${bookIds.size} books to lens $lensId" }
-        lensApi.addBooks(lensId, bookIds)
+        logger.info { "Adding ${bookIds.size} books to shelf $shelfId" }
+        shelfApi.addBooks(shelfId, bookIds)
     }
 
-    override suspend fun createLens(
+    override suspend fun createShelf(
         name: String,
         description: String?,
-    ): Lens {
-        logger.info { "Creating lens: $name" }
-        val response = lensApi.createLens(name, description)
-        // Cache the new lens locally
+    ): Shelf {
+        logger.info { "Creating shelf: $name" }
+        val response = shelfApi.createShelf(name, description)
+        // Cache the new shelf locally
         dao.upsert(response.toEntity())
         return response.toDomain()
     }
 
-    override suspend fun updateLens(
-        lensId: String,
+    override suspend fun updateShelf(
+        shelfId: String,
         name: String,
         description: String?,
-    ): Lens {
-        logger.info { "Updating lens $lensId: $name" }
-        val response = lensApi.updateLens(lensId, name, description)
+    ): Shelf {
+        logger.info { "Updating shelf $shelfId: $name" }
+        val response = shelfApi.updateShelf(shelfId, name, description)
         // Update local cache
-        dao.getById(lensId)?.let { cached ->
+        dao.getById(shelfId)?.let { cached ->
             dao.upsert(
                 cached.copy(
                     name = response.name,
@@ -143,18 +143,18 @@ class LensRepositoryImpl(
         return response.toDomain()
     }
 
-    override suspend fun deleteLens(lensId: String) {
-        logger.info { "Deleting lens $lensId" }
-        lensApi.deleteLens(lensId)
+    override suspend fun deleteShelf(shelfId: String) {
+        logger.info { "Deleting shelf $shelfId" }
+        shelfApi.deleteShelf(shelfId)
         // Remove from local cache
-        dao.deleteById(lensId)
+        dao.deleteById(shelfId)
     }
 }
 
 /**
- * Convert LensResponse API model to Lens domain model.
+ * Convert ShelfResponse API model to Shelf domain model.
  */
-fun LensResponse.toDomain(): Lens {
+fun ShelfResponse.toDomain(): Shelf {
     val createdAtMs =
         try {
             Instant.parse(createdAt).toEpochMilliseconds()
@@ -168,7 +168,7 @@ fun LensResponse.toDomain(): Lens {
             currentEpochMilliseconds()
         }
 
-    return Lens(
+    return Shelf(
         id = id,
         name = name,
         description = description.ifEmpty { null },
@@ -185,7 +185,7 @@ fun LensResponse.toDomain(): Lens {
 /**
  * Convert API response to Room entity.
  */
-private fun LensResponse.toEntity(): LensEntity {
+private fun ShelfResponse.toEntity(): ShelfEntity {
     val createdAtMs =
         try {
             Instant.parse(createdAt).toEpochMilliseconds()
@@ -199,7 +199,7 @@ private fun LensResponse.toEntity(): LensEntity {
             currentEpochMilliseconds()
         }
 
-    return LensEntity(
+    return ShelfEntity(
         id = id,
         name = name,
         description = description.ifEmpty { null },
@@ -214,10 +214,10 @@ private fun LensResponse.toEntity(): LensEntity {
 }
 
 /**
- * Convert LensEntity to Lens domain model.
+ * Convert ShelfEntity to Shelf domain model.
  */
-private fun LensEntity.toDomain(): Lens =
-    Lens(
+private fun ShelfEntity.toDomain(): Shelf =
+    Shelf(
         id = id,
         name = name,
         description = description,
@@ -228,18 +228,19 @@ private fun LensEntity.toDomain(): Lens =
         totalDurationSeconds = totalDurationSeconds,
         createdAtMs = createdAt.epochMillis,
         updatedAtMs = updatedAt.epochMillis,
+        coverPaths = coverPaths,
     )
 
 /**
- * Convert LensDetailResponse API model to LensDetail domain model.
+ * Convert ShelfDetailResponse API model to ShelfDetail domain model.
  */
-private fun LensDetailResponse.toDomain(): LensDetail =
-    LensDetail(
+private fun ShelfDetailResponse.toDomain(): ShelfDetail =
+    ShelfDetail(
         id = id,
         name = name,
         description = description,
         owner =
-            LensOwner(
+            ShelfOwner(
                 id = owner.id,
                 displayName = owner.displayName,
                 avatarColor = owner.avatarColor,
@@ -248,7 +249,7 @@ private fun LensDetailResponse.toDomain(): LensDetail =
         totalDurationSeconds = totalDuration,
         books =
             books.map { book ->
-                LensBook(
+                ShelfBook(
                     id = book.id,
                     title = book.title,
                     authorNames = book.authorNames,

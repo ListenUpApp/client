@@ -692,19 +692,19 @@ val MIGRATION_16_17 =
  * Migration from version 17 to version 18.
  *
  * Changes:
- * - Add lenses table for personal curation and social discovery
+ * - Add shelves table for personal curation and social discovery
  *
- * Lenses are user-created curated lists of books. Unlike collections
- * (admin-managed access boundaries), lenses are personal - each belongs
+ * Shelves are user-created curated lists of books. Unlike collections
+ * (admin-managed access boundaries), shelves are personal - each belongs
  * to one user and can contain books from any library/collection.
  */
 val MIGRATION_17_18 =
     object : Migration(17, 18) {
         override fun migrate(connection: SQLiteConnection) {
-            // Create lenses table
+            // Create shelves table
             connection.execSQL(
                 """
-                CREATE TABLE IF NOT EXISTS lenses (
+                CREATE TABLE IF NOT EXISTS shelves (
                     id TEXT PRIMARY KEY NOT NULL,
                     name TEXT NOT NULL,
                     description TEXT,
@@ -719,10 +719,10 @@ val MIGRATION_17_18 =
                 """.trimIndent(),
             )
 
-            // Create index on ownerId for efficient "my lenses" queries
+            // Create index on ownerId for efficient "my shelves" queries
             connection.execSQL(
                 """
-                CREATE INDEX IF NOT EXISTS index_lenses_ownerId ON lenses(ownerId)
+                CREATE INDEX IF NOT EXISTS index_shelves_ownerId ON shelves(ownerId)
                 """.trimIndent(),
             )
         }
@@ -1017,8 +1017,8 @@ val MIGRATION_25_26 =
                     durationMs INTEGER NOT NULL DEFAULT 0,
                     milestoneValue INTEGER NOT NULL DEFAULT 0,
                     milestoneUnit TEXT,
-                    lensId TEXT,
-                    lensName TEXT
+                    shelfId TEXT,
+                    shelfName TEXT
                 )
                 """.trimIndent(),
             )
@@ -1320,6 +1320,81 @@ val MIGRATION_33_34 =
             connection.execSQL(
                 """
                 ALTER TABLE books ADD COLUMN sortTitle TEXT DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 35 to version 36.
+ *
+ * Changes:
+ * - Add syncState column to shelves table for offline-first shelf CRUD
+ */
+val MIGRATION_35_36 =
+    object : Migration(35, 36) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                ALTER TABLE shelves ADD COLUMN syncState INTEGER NOT NULL DEFAULT 0
+                """.trimIndent(),
+            )
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_shelves_syncState ON shelves (syncState)
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 34 to version 35.
+ *
+ * Changes:
+ * - Add coverPaths column to shelves table for book cover grid display
+ */
+val MIGRATION_34_35 =
+    object : Migration(34, 35) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                ALTER TABLE shelves ADD COLUMN coverPaths TEXT NOT NULL DEFAULT ''
+                """.trimIndent(),
+            )
+        }
+    }
+
+/**
+ * Migration from version 36 to version 37.
+ *
+ * Changes:
+ * - Add shelf_books junction table for offline-first shelf-book relationships
+ * - This enables displaying shelf contents without hitting the server
+ * - Replaces the problematic coverPaths field with proper JOIN queries
+ */
+val MIGRATION_36_37 =
+    object : Migration(36, 37) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS shelf_books (
+                    shelfId TEXT NOT NULL,
+                    bookId TEXT NOT NULL,
+                    addedAt INTEGER NOT NULL,
+                    PRIMARY KEY (shelfId, bookId),
+                    FOREIGN KEY (shelfId) REFERENCES shelves(id) ON DELETE CASCADE,
+                    FOREIGN KEY (bookId) REFERENCES books(id) ON DELETE CASCADE
+                )
+                """.trimIndent(),
+            )
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_shelf_books_shelfId ON shelf_books (shelfId)
+                """.trimIndent(),
+            )
+            connection.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_shelf_books_bookId ON shelf_books (bookId)
                 """.trimIndent(),
             )
         }

@@ -547,8 +547,8 @@ private fun AuthenticatedNavigation(
                                 onContributorClick = { contributorId ->
                                     backStack.add(ContributorDetail(contributorId))
                                 },
-                                onLensClick = { lensId ->
-                                    backStack.add(LensDetail(lensId))
+                                onShelfClick = { shelfId ->
+                                    backStack.add(ShelfDetail(shelfId))
                                 },
                                 onTagClick = { tagId ->
                                     backStack.add(TagDetail(tagId))
@@ -574,8 +574,8 @@ private fun AuthenticatedNavigation(
                                     HomeScreen(
                                         onBookClick = { bookId -> backStack.add(BookDetail(bookId)) },
                                         onNavigateToLibrary = onNavigateToLibrary,
-                                        onLensClick = { lensId -> backStack.add(LensDetail(lensId)) },
-                                        onSeeAllLenses = onNavigateToLibrary,
+                                        onShelfClick = { shelfId -> backStack.add(ShelfDetail(shelfId)) },
+                                        onSeeAllShelves = onNavigateToLibrary,
                                         modifier = Modifier.padding(padding),
                                     )
                                 },
@@ -593,7 +593,7 @@ private fun AuthenticatedNavigation(
                                 },
                                 discoverContent = { padding ->
                                     DiscoverScreen(
-                                        onLensClick = { lensId -> backStack.add(LensDetail(lensId)) },
+                                        onShelfClick = { shelfId -> backStack.add(ShelfDetail(shelfId)) },
                                         onBookClick = { bookId -> backStack.add(BookDetail(bookId)) },
                                         onUserProfileClick = { userId -> backStack.add(UserProfile(userId)) },
                                         modifier = Modifier.padding(padding),
@@ -642,11 +642,11 @@ private fun AuthenticatedNavigation(
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
                                 },
-                                onLensClick = { lensId ->
-                                    backStack.add(LensDetail(lensId))
+                                onShelfClick = { shelfId ->
+                                    backStack.add(ShelfDetail(shelfId))
                                 },
-                                onCreateLensClick = {
-                                    backStack.add(CreateLens)
+                                onCreateShelfClick = {
+                                    backStack.add(CreateShelf)
                                 },
                                 refreshKey = profileRefreshKey,
                             )
@@ -1042,31 +1042,31 @@ private fun AuthenticatedNavigation(
                                 },
                             )
                         }
-                        entry<LensDetail> { args ->
-                            com.calypsan.listenup.client.features.lens.LensDetailScreen(
-                                lensId = args.lensId,
+                        entry<ShelfDetail> { args ->
+                            com.calypsan.listenup.client.features.shelf.ShelfDetailScreen(
+                                shelfId = args.shelfId,
                                 onBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
                                 },
-                                onEditClick = { lensId ->
-                                    backStack.add(LensEdit(lensId))
+                                onEditClick = { shelfId ->
+                                    backStack.add(ShelfEdit(shelfId))
                                 },
                             )
                         }
-                        entry<CreateLens> {
-                            com.calypsan.listenup.client.features.lens.CreateEditLensScreen(
-                                lensId = null,
+                        entry<CreateShelf> {
+                            com.calypsan.listenup.client.features.shelf.CreateEditShelfScreen(
+                                shelfId = null,
                                 onBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                             )
                         }
-                        entry<LensEdit> { args ->
-                            com.calypsan.listenup.client.features.lens.CreateEditLensScreen(
-                                lensId = args.lensId,
+                        entry<ShelfEdit> { args ->
+                            com.calypsan.listenup.client.features.shelf.CreateEditShelfScreen(
+                                shelfId = args.shelfId,
                                 onBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },

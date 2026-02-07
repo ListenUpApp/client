@@ -50,19 +50,19 @@ import org.koin.compose.viewmodel.koinViewModel
  * - Started/finished books
  * - Streak milestones
  * - Listening hour milestones
- * - Created lenses
+ * - Created shelves
  *
  * Offline-first: All data comes from Room, synced via SSE events.
  *
  * @param onBookClick Callback when a book is clicked
- * @param onLensClick Callback when a lens is clicked
+ * @param onShelfClick Callback when a shelf is clicked
  * @param modifier Modifier from parent
  * @param viewModel ActivityFeedViewModel injected via Koin
  */
 @Composable
 fun ActivityFeedSection(
     onBookClick: (String) -> Unit,
-    onLensClick: (String) -> Unit,
+    onShelfClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ActivityFeedViewModel = koinViewModel(),
 ) {
@@ -122,7 +122,7 @@ fun ActivityFeedSection(
                             ActivityItem(
                                 activity = activity,
                                 onBookClick = onBookClick,
-                                onLensClick = onLensClick,
+                                onShelfClick = onShelfClick,
                             )
                         }
                     }
@@ -139,7 +139,7 @@ fun ActivityFeedSection(
 private fun ActivityItem(
     activity: ActivityUiModel,
     onBookClick: (String) -> Unit,
-    onLensClick: (String) -> Unit,
+    onShelfClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val (icon, description) =
@@ -148,8 +148,8 @@ private fun ActivityItem(
         }
 
     val bookId = activity.bookId
-    val lensId = activity.lensId
-    val isClickable = bookId != null || lensId != null
+    val shelfId = activity.shelfId
+    val isClickable = bookId != null || shelfId != null
 
     Row(
         modifier =
@@ -161,7 +161,7 @@ private fun ActivityItem(
                         Modifier.clickable {
                             when {
                                 bookId != null -> onBookClick(bookId)
-                                lensId != null -> onLensClick(lensId)
+                                shelfId != null -> onShelfClick(shelfId)
                             }
                         }
                     } else {
@@ -267,9 +267,9 @@ private fun getActivityIconAndDescription(activity: ActivityUiModel): Pair<Image
             Icons.Default.Headphones to "Listened for $hours hours total!"
         }
 
-        "lens_created" -> {
-            val lensName = activity.lensName ?: "a lens"
-            Icons.Default.FilterList to "Created lens \"$lensName\""
+        "shelf_created" -> {
+            val shelfName = activity.shelfName ?: "a shelf"
+            Icons.Default.FilterList to "Created shelf \"$shelfName\""
         }
 
         else -> {

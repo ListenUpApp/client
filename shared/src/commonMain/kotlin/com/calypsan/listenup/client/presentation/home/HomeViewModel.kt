@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.currentHourOfDay
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
-import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.domain.repository.HomeRepository
-import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,25 +23,25 @@ private val logger = KotlinLogging.logger {}
  * Manages:
  * - Time-aware greeting with user's name
  * - Continue listening books list (real-time via local observation)
- * - My lenses list
+ * - My shelves list
  * - Loading and error states
  *
  * @property homeRepository Repository for home screen data
  * @property userRepository Repository for current user data
- * @property lensRepository Repository for lens data
+ * @property shelfRepository Repository for shelf data
  */
 class HomeViewModel(
     private val homeRepository: HomeRepository,
     private val userRepository: UserRepository,
-    private val lensRepository: LensRepository,
+    private val shelfRepository: ShelfRepository,
     private val currentHour: () -> Int = { currentHourOfDay() },
 ) : ViewModel() {
     val state: StateFlow<HomeUiState>
         field = MutableStateFlow(HomeUiState(timeGreeting = computeTimeGreeting()))
 
-    // Store user ID for lens observation
+    // Store user ID for shelf observation
     private var currentUserId: String? = null
-    private var hasFetchedLenses = false
+    private var hasFetchedShelves = false
 
     init {
         observeUser()
@@ -97,11 +97,11 @@ class HomeViewModel(
         }
 
     /**
-     * Observe current user for greeting and lens loading.
+     * Observe current user for greeting and shelf loading.
      *
      * Updates the greeting whenever user data changes.
      * Falls back to generic greeting if no user name available.
-     * Also starts observing lenses when user ID is available.
+     * Also starts observing shelves when user ID is available.
      */
     private fun observeUser() {
         viewModelScope.launch {
@@ -111,34 +111,34 @@ class HomeViewModel(
                 state.update { it.copy(userName = firstName) }
                 logger.debug { "User first name updated: $firstName" }
 
-                // Start observing lenses when we have a user ID
+                // Start observing shelves when we have a user ID
                 val userId = user?.id?.value
                 if (userId != null && userId != currentUserId) {
                     currentUserId = userId
-                    observeMyLenses(userId)
+                    observeMyShelves(userId)
                 }
             }
         }
     }
 
     /**
-     * Observe my lenses from the local database.
+     * Observe my shelves from the local database.
      *
      * If the first emission is empty and we haven't fetched yet,
      * triggers a network fetch to populate Room.
      */
-    private fun observeMyLenses(userId: String) {
+    private fun observeMyShelves(userId: String) {
         viewModelScope.launch {
-            lensRepository.observeMyLenses(userId).collect { lenses ->
-                state.update { it.copy(myLenses = lenses) }
-                logger.debug { "My lenses updated: ${lenses.size}" }
+            shelfRepository.observeMyShelves(userId).collect { shelves ->
+                state.update { it.copy(myShelves = shelves) }
+                logger.debug { "My shelves updated: ${shelves.size}" }
 
-                if (lenses.isEmpty() && !hasFetchedLenses) {
-                    hasFetchedLenses = true
+                if (shelves.isEmpty() && !hasFetchedShelves) {
+                    hasFetchedShelves = true
                     try {
-                        lensRepository.fetchAndCacheMyLenses()
+                        shelfRepository.fetchAndCacheMyShelves()
                     } catch (e: Exception) {
-                        logger.warn(e) { "Failed to fetch lenses from network" }
+                        logger.warn(e) { "Failed to fetch shelves from network" }
                     }
                 }
             }
@@ -180,7 +180,7 @@ data class HomeUiState(
     val userName: String = "",
     val timeGreeting: String = "Good morning",
     val continueListening: List<ContinueListeningBook> = emptyList(),
-    val myLenses: List<Lens> = emptyList(),
+    val myShelves: List<Shelf> = emptyList(),
     val error: String? = null,
 ) {
     /**
@@ -207,8 +207,8 @@ data class HomeUiState(
         get() = continueListening.isNotEmpty()
 
     /**
-     * Whether there are lenses to display.
+     * Whether there are shelves to display.
      */
-    val hasMyLenses: Boolean
-        get() = myLenses.isNotEmpty()
+    val hasMyShelves: Boolean
+        get() = myShelves.isNotEmpty()
 }

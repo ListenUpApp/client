@@ -1,49 +1,49 @@
-package com.calypsan.listenup.client.domain.usecase.lens
+package com.calypsan.listenup.client.domain.usecase.shelf
 
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.core.validationError
-import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * Adds books to a lens.
+ * Adds books to a shelf.
  *
- * Only the lens owner can add books to their lens.
+ * Only the shelf owner can add books to their shelf.
  * The book IDs list must not be empty.
  *
  * Usage:
  * ```kotlin
- * val result = addBooksToLensUseCase(
- *     lensId = "lens-123",
+ * val result = addBooksToShelfUseCase(
+ *     shelfId = "shelf-123",
  *     bookIds = listOf("book-1", "book-2")
  * )
  * ```
  */
-open class AddBooksToLensUseCase(
-    private val lensRepository: LensRepository,
+open class AddBooksToShelfUseCase(
+    private val shelfRepository: ShelfRepository,
 ) {
     /**
-     * Add books to a lens.
+     * Add books to a shelf.
      *
-     * @param lensId The lens to add to
+     * @param shelfId The shelf to add to
      * @param bookIds The books to add (must not be empty)
      * @return Result indicating success or failure
      */
     open suspend operator fun invoke(
-        lensId: String,
+        shelfId: String,
         bookIds: List<String>,
     ): Result<Unit> {
         if (bookIds.isEmpty()) {
             return validationError("At least one book must be selected")
         }
 
-        logger.info { "Adding ${bookIds.size} books to lens $lensId" }
+        logger.info { "Adding ${bookIds.size} books to shelf $shelfId" }
 
         return suspendRunCatching {
-            lensRepository.addBooksToLens(lensId, bookIds)
+            shelfRepository.addBooksToShelf(shelfId, bookIds)
         }
     }
 }

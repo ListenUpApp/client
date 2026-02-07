@@ -6,17 +6,17 @@ import androidx.room.PrimaryKey
 import com.calypsan.listenup.client.core.Timestamp
 
 /**
- * Room entity representing a lens in the local database.
+ * Room entity representing a shelf in the local database.
  *
- * Lenses are user-created curated lists of books for personal organization
+ * Shelves are user-created curated lists of books for personal organization
  * and social discovery. Unlike collections (admin-managed access boundaries),
- * lenses are personal - each belongs to one user.
+ * shelves are personal - each belongs to one user.
  */
 @Entity(
-    tableName = "lenses",
-    indices = [Index("ownerId")],
+    tableName = "shelves",
+    indices = [Index("ownerId"), Index("syncState")],
 )
-data class LensEntity(
+data class ShelfEntity(
     @PrimaryKey
     val id: String,
     val name: String,
@@ -28,6 +28,8 @@ data class LensEntity(
     val totalDurationSeconds: Long,
     val createdAt: Timestamp,
     val updatedAt: Timestamp,
+    val coverPaths: List<String> = emptyList(),
+    val syncState: SyncState = SyncState.SYNCED,
 ) {
     /**
      * Returns the display name formatted for the current user context.

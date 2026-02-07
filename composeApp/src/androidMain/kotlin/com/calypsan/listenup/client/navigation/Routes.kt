@@ -350,39 +350,39 @@ data object Licenses : Route
 @Serializable
 data object Storage : Route
 
-// Lens Routes
+// Shelf Routes
 
 /**
- * Lens detail screen - displays lens info and its books.
+ * Shelf detail screen - displays shelf info and its books.
  *
- * Shows the lens name, description, owner info, and list of books.
- * Owners can edit the lens, add/remove books.
+ * Shows the shelf name, description, owner info, and list of books.
+ * Owners can edit the shelf, add/remove books.
  *
- * @property lensId The unique ID of the lens to display.
+ * @property shelfId The unique ID of the shelf to display.
  */
 @Serializable
-data class LensDetail(
-    val lensId: String,
+data class ShelfDetail(
+    val shelfId: String,
 ) : Route
 
 /**
- * Create lens screen - create a new personal lens.
+ * Create shelf screen - create a new personal shelf.
  *
  * Form for name and optional description.
  */
 @Serializable
-data object CreateLens : Route
+data object CreateShelf : Route
 
 /**
- * Edit lens screen - edit an existing lens.
+ * Edit shelf screen - edit an existing shelf.
  *
  * Form for name and description. Owner only.
  *
- * @property lensId The unique ID of the lens to edit.
+ * @property shelfId The unique ID of the shelf to edit.
  */
 @Serializable
-data class LensEdit(
-    val lensId: String,
+data class ShelfEdit(
+    val shelfId: String,
 ) : Route
 
 // Library Setup Route
@@ -402,7 +402,7 @@ data object LibrarySetup : Route
  * User profile screen - displays a user's full profile with stats and activity.
  *
  * Shows avatar, display name, tagline, listening stats, recent books,
- * and public lenses. If viewing own profile, shows edit option.
+ * and public shelves. If viewing own profile, shows edit option.
  *
  * @property userId The unique ID of the user to display.
  */

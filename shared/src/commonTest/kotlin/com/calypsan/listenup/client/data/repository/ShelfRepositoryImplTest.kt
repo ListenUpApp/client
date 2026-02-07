@@ -1,10 +1,10 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Timestamp
-import com.calypsan.listenup.client.data.local.db.LensDao
-import com.calypsan.listenup.client.data.local.db.LensEntity
-import com.calypsan.listenup.client.data.remote.LensApiContract
-import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.data.local.db.ShelfDao
+import com.calypsan.listenup.client.data.local.db.ShelfEntity
+import com.calypsan.listenup.client.data.remote.ShelfApiContract
+import com.calypsan.listenup.client.domain.model.Shelf
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -20,34 +20,34 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Tests for LensRepositoryImpl.
+ * Tests for ShelfRepositoryImpl.
  *
  * Tests cover:
- * - observeMyLenses: Observing lenses owned by a specific user
- * - observeDiscoverLenses: Observing lenses from other users for discovery
- * - observeById: Observing a single lens by ID
- * - getById: Synchronous lens retrieval by ID
- * - countDiscoverLenses: Counting lenses from other users
+ * - observeMyShelves: Observing shelves owned by a specific user
+ * - observeDiscoverShelves: Observing shelves from other users for discovery
+ * - observeById: Observing a single shelf by ID
+ * - getById: Synchronous shelf retrieval by ID
+ * - countDiscoverShelves: Counting shelves from other users
  * - Entity to domain conversion
  *
- * Uses Mokkery for mocking LensDao.
+ * Uses Mokkery for mocking ShelfDao.
  */
-class LensRepositoryImplTest {
+class ShelfRepositoryImplTest {
     // ========== Test Fixtures ==========
 
-    private fun createMockLensDao(): LensDao = mock()
+    private fun createMockShelfDao(): ShelfDao = mock()
 
-    private fun createMockLensApi(): LensApiContract = mock()
+    private fun createMockShelfApi(): ShelfApiContract = mock()
 
     private fun createRepository(
-        dao: LensDao = createMockLensDao(),
-        lensApi: LensApiContract = createMockLensApi(),
-    ): LensRepositoryImpl = LensRepositoryImpl(dao, lensApi)
+        dao: ShelfDao = createMockShelfDao(),
+        shelfApi: ShelfApiContract = createMockShelfApi(),
+    ): ShelfRepositoryImpl = ShelfRepositoryImpl(dao, lensApi)
 
     // ========== Test Data Factories ==========
 
-    private fun createLensEntity(
-        id: String = "lens-1",
+    private fun createShelfEntity(
+        id: String = "shelf-1",
         name: String = "To Read",
         description: String? = "Books I want to read",
         ownerId: String = "user-1",
@@ -57,8 +57,8 @@ class LensRepositoryImplTest {
         totalDurationSeconds: Long = 36000L, // 10 hours
         createdAtMs: Long = 1704067200000L,
         updatedAtMs: Long = 1704153600000L,
-    ): LensEntity =
-        LensEntity(
+    ): ShelfEntity =
+        ShelfEntity(
             id = id,
             name = name,
             description = description,
@@ -71,58 +71,58 @@ class LensRepositoryImplTest {
             updatedAt = Timestamp(updatedAtMs),
         )
 
-    // ========== observeMyLenses Tests ==========
+    // ========== observeMyShelves Tests ==========
 
     @Test
-    fun `observeMyLenses returns empty list when user has no lenses`() =
+    fun `observeMyShelves returns empty list when user has no shelves`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            every { dao.observeMyLenses("user-1") } returns flowOf(emptyList())
+            val dao = createMockShelfDao()
+            every { dao.observeMyShelves("user-1") } returns flowOf(emptyList())
             val repository = createRepository(dao)
 
             // When
-            val result = repository.observeMyLenses("user-1").first()
+            val result = repository.observeMyShelves("user-1").first()
 
             // Then
             assertTrue(result.isEmpty())
         }
 
     @Test
-    fun `observeMyLenses returns lenses converted to domain models`() =
+    fun `observeMyShelves returns shelves converted to domain models`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             val entities =
                 listOf(
-                    createLensEntity(id = "lens-1", name = "To Read", ownerId = "user-1"),
-                    createLensEntity(id = "lens-2", name = "Favorites", ownerId = "user-1"),
+                    createShelfEntity(id = "shelf-1", name = "To Read", ownerId = "user-1"),
+                    createShelfEntity(id = "shelf-2", name = "Favorites", ownerId = "user-1"),
                 )
-            every { dao.observeMyLenses("user-1") } returns flowOf(entities)
+            every { dao.observeMyShelves("user-1") } returns flowOf(entities)
             val repository = createRepository(dao)
 
             // When
-            val result = repository.observeMyLenses("user-1").first()
+            val result = repository.observeMyShelves("user-1").first()
 
             // Then
             assertEquals(2, result.size)
-            assertEquals("lens-1", result[0].id)
+            assertEquals("shelf-1", result[0].id)
             assertEquals("To Read", result[0].name)
-            assertEquals("lens-2", result[1].id)
+            assertEquals("shelf-2", result[1].id)
             assertEquals("Favorites", result[1].name)
         }
 
     @Test
-    fun `observeMyLenses emits updates when data changes`() =
+    fun `observeMyShelves emits updates when data changes`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            val flow = MutableStateFlow(listOf(createLensEntity(id = "lens-1", name = "To Read")))
-            every { dao.observeMyLenses("user-1") } returns flow
+            val dao = createMockShelfDao()
+            val flow = MutableStateFlow(listOf(createShelfEntity(id = "shelf-1", name = "To Read")))
+            every { dao.observeMyShelves("user-1") } returns flow
             val repository = createRepository(dao)
 
             // When - initial state
-            val initial = repository.observeMyLenses("user-1").first()
+            val initial = repository.observeMyShelves("user-1").first()
 
             // Then
             assertEquals(1, initial.size)
@@ -131,57 +131,57 @@ class LensRepositoryImplTest {
             // When - update
             flow.value =
                 listOf(
-                    createLensEntity(id = "lens-1", name = "To Read"),
-                    createLensEntity(id = "lens-2", name = "Favorites"),
+                    createShelfEntity(id = "shelf-1", name = "To Read"),
+                    createShelfEntity(id = "shelf-2", name = "Favorites"),
                 )
-            val updated = repository.observeMyLenses("user-1").first()
+            val updated = repository.observeMyShelves("user-1").first()
 
             // Then
             assertEquals(2, updated.size)
         }
 
-    // ========== observeDiscoverLenses Tests ==========
+    // ========== observeDiscoverShelves Tests ==========
 
     @Test
-    fun `observeDiscoverLenses returns empty list when no lenses from other users`() =
+    fun `observeDiscoverShelves returns empty list when no shelves from other users`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            every { dao.observeDiscoverLenses("user-1") } returns flowOf(emptyList())
+            val dao = createMockShelfDao()
+            every { dao.observeDiscoverShelves("user-1") } returns flowOf(emptyList())
             val repository = createRepository(dao)
 
             // When
-            val result = repository.observeDiscoverLenses("user-1").first()
+            val result = repository.observeDiscoverShelves("user-1").first()
 
             // Then
             assertTrue(result.isEmpty())
         }
 
     @Test
-    fun `observeDiscoverLenses returns lenses from other users`() =
+    fun `observeDiscoverShelves returns shelves from other users`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             val entities =
                 listOf(
-                    createLensEntity(
-                        id = "lens-1",
+                    createShelfEntity(
+                        id = "shelf-1",
                         name = "Sci-Fi Collection",
                         ownerId = "user-2",
                         ownerDisplayName = "Jane Smith",
                     ),
-                    createLensEntity(
-                        id = "lens-2",
+                    createShelfEntity(
+                        id = "shelf-2",
                         name = "Mystery Novels",
                         ownerId = "user-3",
                         ownerDisplayName = "Bob Wilson",
                     ),
                 )
-            every { dao.observeDiscoverLenses("user-1") } returns flowOf(entities)
+            every { dao.observeDiscoverShelves("user-1") } returns flowOf(entities)
             val repository = createRepository(dao)
 
             // When
-            val result = repository.observeDiscoverLenses("user-1").first()
+            val result = repository.observeDiscoverShelves("user-1").first()
 
             // Then
             assertEquals(2, result.size)
@@ -192,16 +192,16 @@ class LensRepositoryImplTest {
         }
 
     @Test
-    fun `observeDiscoverLenses excludes current user lenses via DAO`() =
+    fun `observeDiscoverShelves excludes current user shelves via DAO`() =
         runTest {
             // Given: DAO is expected to filter by currentUserId
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             val currentUserId = "current-user"
-            every { dao.observeDiscoverLenses(currentUserId) } returns flowOf(emptyList())
+            every { dao.observeDiscoverShelves(currentUserId) } returns flowOf(emptyList())
             val repository = createRepository(dao)
 
             // When
-            repository.observeDiscoverLenses(currentUserId).first()
+            repository.observeDiscoverShelves(currentUserId).first()
 
             // Then: DAO was called with correct userId (filtering happens at DAO level)
             // This is verified by the mock setup - if wrong userId was passed, it would fail
@@ -210,10 +210,10 @@ class LensRepositoryImplTest {
     // ========== observeById Tests ==========
 
     @Test
-    fun `observeById returns null when lens not found`() =
+    fun `observeById returns null when shelf not found`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             every { dao.observeById("non-existent") } returns flowOf(null)
             val repository = createRepository(dao)
 
@@ -225,13 +225,13 @@ class LensRepositoryImplTest {
         }
 
     @Test
-    fun `observeById returns lens converted to domain model`() =
+    fun `observeById returns shelf converted to domain model`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             val entity =
-                createLensEntity(
-                    id = "lens-1",
+                createShelfEntity(
+                    id = "shelf-1",
                     name = "To Read",
                     description = "My reading list",
                     ownerId = "user-1",
@@ -242,14 +242,14 @@ class LensRepositoryImplTest {
                     createdAtMs = 1704067200000L,
                     updatedAtMs = 1704153600000L,
                 )
-            every { dao.observeById("lens-1") } returns flowOf(entity)
+            every { dao.observeById("shelf-1") } returns flowOf(entity)
             val repository = createRepository(dao)
 
             // When
-            val result = repository.observeById("lens-1").first()
+            val result = repository.observeById("shelf-1").first()
 
             // Then
-            assertEquals("lens-1", result?.id)
+            assertEquals("shelf-1", result?.id)
             assertEquals("To Read", result?.name)
             assertEquals("My reading list", result?.description)
             assertEquals("user-1", result?.ownerId)
@@ -262,44 +262,44 @@ class LensRepositoryImplTest {
         }
 
     @Test
-    fun `observeById emits updates when lens changes`() =
+    fun `observeById emits updates when shelf changes`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            val flow = MutableStateFlow<LensEntity?>(createLensEntity(id = "lens-1", name = "To Read"))
-            every { dao.observeById("lens-1") } returns flow
+            val dao = createMockShelfDao()
+            val flow = MutableStateFlow<ShelfEntity?>(createShelfEntity(id = "shelf-1", name = "To Read"))
+            every { dao.observeById("shelf-1") } returns flow
             val repository = createRepository(dao)
 
             // When - initial state
-            val initial = repository.observeById("lens-1").first()
+            val initial = repository.observeById("shelf-1").first()
 
             // Then
             assertEquals("To Read", initial?.name)
 
             // When - update
-            flow.value = createLensEntity(id = "lens-1", name = "Must Read")
-            val updated = repository.observeById("lens-1").first()
+            flow.value = createShelfEntity(id = "shelf-1", name = "Must Read")
+            val updated = repository.observeById("shelf-1").first()
 
             // Then
             assertEquals("Must Read", updated?.name)
         }
 
     @Test
-    fun `observeById emits null when lens is deleted`() =
+    fun `observeById emits null when shelf is deleted`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            val flow = MutableStateFlow<LensEntity?>(createLensEntity(id = "lens-1", name = "To Read"))
-            every { dao.observeById("lens-1") } returns flow
+            val dao = createMockShelfDao()
+            val flow = MutableStateFlow<ShelfEntity?>(createShelfEntity(id = "shelf-1", name = "To Read"))
+            every { dao.observeById("shelf-1") } returns flow
             val repository = createRepository(dao)
 
-            // When - initial state has lens
-            val initial = repository.observeById("lens-1").first()
+            // When - initial state has shelf
+            val initial = repository.observeById("shelf-1").first()
             assertEquals("To Read", initial?.name)
 
-            // When - lens is deleted
+            // When - shelf is deleted
             flow.value = null
-            val afterDeletion = repository.observeById("lens-1").first()
+            val afterDeletion = repository.observeById("shelf-1").first()
 
             // Then
             assertNull(afterDeletion)
@@ -308,10 +308,10 @@ class LensRepositoryImplTest {
     // ========== getById Tests ==========
 
     @Test
-    fun `getById returns null when lens not found`() =
+    fun `getById returns null when shelf not found`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             everySuspend { dao.getById("non-existent") } returns null
             val repository = createRepository(dao)
 
@@ -323,13 +323,13 @@ class LensRepositoryImplTest {
         }
 
     @Test
-    fun `getById returns lens converted to domain model`() =
+    fun `getById returns shelf converted to domain model`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             val entity =
-                createLensEntity(
-                    id = "lens-1",
+                createShelfEntity(
+                    id = "shelf-1",
                     name = "Favorites",
                     description = "My favorite books",
                     ownerId = "user-1",
@@ -340,14 +340,14 @@ class LensRepositoryImplTest {
                     createdAtMs = 1700000000000L,
                     updatedAtMs = 1700100000000L,
                 )
-            everySuspend { dao.getById("lens-1") } returns entity
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val result = repository.getById("lens-1")
+            val result = repository.getById("shelf-1")
 
             // Then
-            assertEquals("lens-1", result?.id)
+            assertEquals("shelf-1", result?.id)
             assertEquals("Favorites", result?.name)
             assertEquals("My favorite books", result?.description)
             assertEquals("user-1", result?.ownerId)
@@ -363,63 +363,63 @@ class LensRepositoryImplTest {
     fun `getById calls DAO with correct id`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            everySuspend { dao.getById("specific-lens-id") } returns null
+            val dao = createMockShelfDao()
+            everySuspend { dao.getById("specific-shelf-id") } returns null
             val repository = createRepository(dao)
 
             // When
-            repository.getById("specific-lens-id")
+            repository.getById("specific-shelf-id")
 
             // Then
-            verifySuspend { dao.getById("specific-lens-id") }
+            verifySuspend { dao.getById("specific-shelf-id") }
         }
 
-    // ========== countDiscoverLenses Tests ==========
+    // ========== countDiscoverShelves Tests ==========
 
     @Test
-    fun `countDiscoverLenses returns zero when no lenses from other users`() =
+    fun `countDiscoverShelves returns zero when no shelves from other users`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            everySuspend { dao.countDiscoverLenses("user-1") } returns 0
+            val dao = createMockShelfDao()
+            everySuspend { dao.countDiscoverShelves("user-1") } returns 0
             val repository = createRepository(dao)
 
             // When
-            val result = repository.countDiscoverLenses("user-1")
+            val result = repository.countDiscoverShelves("user-1")
 
             // Then
             assertEquals(0, result)
         }
 
     @Test
-    fun `countDiscoverLenses returns correct count`() =
+    fun `countDiscoverShelves returns correct count`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            everySuspend { dao.countDiscoverLenses("user-1") } returns 15
+            val dao = createMockShelfDao()
+            everySuspend { dao.countDiscoverShelves("user-1") } returns 15
             val repository = createRepository(dao)
 
             // When
-            val result = repository.countDiscoverLenses("user-1")
+            val result = repository.countDiscoverShelves("user-1")
 
             // Then
             assertEquals(15, result)
         }
 
     @Test
-    fun `countDiscoverLenses calls DAO with correct userId`() =
+    fun `countDiscoverShelves calls DAO with correct userId`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             val currentUserId = "current-user-123"
-            everySuspend { dao.countDiscoverLenses(currentUserId) } returns 5
+            everySuspend { dao.countDiscoverShelves(currentUserId) } returns 5
             val repository = createRepository(dao)
 
             // When
-            repository.countDiscoverLenses(currentUserId)
+            repository.countDiscoverShelves(currentUserId)
 
             // Then
-            verifySuspend { dao.countDiscoverLenses(currentUserId) }
+            verifySuspend { dao.countDiscoverShelves(currentUserId) }
         }
 
     // ========== Entity to Domain Conversion Tests ==========
@@ -428,11 +428,11 @@ class LensRepositoryImplTest {
     fun `toDomain converts all fields correctly`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             val entity =
-                createLensEntity(
-                    id = "test-lens",
-                    name = "Test Lens",
+                createShelfEntity(
+                    id = "test-shelf",
+                    name = "Test Shelf",
                     description = "A test description",
                     ownerId = "owner-123",
                     ownerDisplayName = "Test Owner",
@@ -442,15 +442,15 @@ class LensRepositoryImplTest {
                     createdAtMs = 1609459200000L, // Jan 1, 2021 00:00:00 UTC
                     updatedAtMs = 1640995200000L, // Jan 1, 2022 00:00:00 UTC
                 )
-            everySuspend { dao.getById("test-lens") } returns entity
+            everySuspend { dao.getById("test-shelf") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val result = repository.getById("test-lens")
+            val result = repository.getById("test-shelf")
 
             // Then: All fields should match
-            assertEquals("test-lens", result?.id)
-            assertEquals("Test Lens", result?.name)
+            assertEquals("test-shelf", result?.id)
+            assertEquals("Test Shelf", result?.name)
             assertEquals("A test description", result?.description)
             assertEquals("owner-123", result?.ownerId)
             assertEquals("Test Owner", result?.ownerDisplayName)
@@ -465,13 +465,13 @@ class LensRepositoryImplTest {
     fun `toDomain handles null description`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            val entity = createLensEntity(description = null)
-            everySuspend { dao.getById("lens-1") } returns entity
+            val dao = createMockShelfDao()
+            val entity = createShelfEntity(description = null)
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val result = repository.getById("lens-1")
+            val result = repository.getById("shelf-1")
 
             // Then
             assertNull(result?.description)
@@ -481,13 +481,13 @@ class LensRepositoryImplTest {
     fun `toDomain handles zero book count`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            val entity = createLensEntity(bookCount = 0)
-            everySuspend { dao.getById("lens-1") } returns entity
+            val dao = createMockShelfDao()
+            val entity = createShelfEntity(bookCount = 0)
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val result = repository.getById("lens-1")
+            val result = repository.getById("shelf-1")
 
             // Then
             assertEquals(0, result?.bookCount)
@@ -497,13 +497,13 @@ class LensRepositoryImplTest {
     fun `toDomain handles zero duration`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            val entity = createLensEntity(totalDurationSeconds = 0L)
-            everySuspend { dao.getById("lens-1") } returns entity
+            val dao = createMockShelfDao()
+            val entity = createShelfEntity(totalDurationSeconds = 0L)
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val result = repository.getById("lens-1")
+            val result = repository.getById("shelf-1")
 
             // Then
             assertEquals(0L, result?.totalDurationSeconds)
@@ -512,15 +512,15 @@ class LensRepositoryImplTest {
     @Test
     fun `toDomain handles large duration values`() =
         runTest {
-            // Given: A lens with 1000 hours of content
-            val dao = createMockLensDao()
+            // Given: A shelf with 1000 hours of content
+            val dao = createMockShelfDao()
             val largeSeconds = 1000L * 60 * 60 // 1000 hours
-            val entity = createLensEntity(totalDurationSeconds = largeSeconds)
-            everySuspend { dao.getById("lens-1") } returns entity
+            val entity = createShelfEntity(totalDurationSeconds = largeSeconds)
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val result = repository.getById("lens-1")
+            val result = repository.getById("shelf-1")
 
             // Then
             assertEquals(largeSeconds, result?.totalDurationSeconds)
@@ -530,15 +530,15 @@ class LensRepositoryImplTest {
     fun `toDomain converts timestamps from Timestamp epochMillis`() =
         runTest {
             // Given: Entity with specific timestamps
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             val createdMs = 1704067200000L // Jan 1, 2024 00:00:00 UTC
             val updatedMs = 1704153600000L // Jan 2, 2024 00:00:00 UTC
-            val entity = createLensEntity(createdAtMs = createdMs, updatedAtMs = updatedMs)
-            everySuspend { dao.getById("lens-1") } returns entity
+            val entity = createShelfEntity(createdAtMs = createdMs, updatedAtMs = updatedMs)
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val result = repository.getById("lens-1")
+            val result = repository.getById("shelf-1")
 
             // Then: Domain model should have epoch millis values
             assertEquals(createdMs, result?.createdAtMs)
@@ -548,156 +548,156 @@ class LensRepositoryImplTest {
     // ========== Domain Model Behavior Tests ==========
 
     @Test
-    fun `domain lens displayName returns name for owner`() =
+    fun `domain shelf displayName returns name for owner`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            val entity = createLensEntity(name = "To Read", ownerId = "user-1")
-            everySuspend { dao.getById("lens-1") } returns entity
+            val dao = createMockShelfDao()
+            val entity = createShelfEntity(name = "To Read", ownerId = "user-1")
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val lens = repository.getById("lens-1")
+            val shelf = repository.getById("shelf-1")
 
-            // Then: Owner sees just the lens name
+            // Then: Owner sees just the shelf name
             assertEquals("To Read", lens?.displayName("user-1"))
         }
 
     @Test
-    fun `domain lens displayName includes owner name for other users`() =
+    fun `domain shelf displayName includes owner name for other users`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             val entity =
-                createLensEntity(
+                createShelfEntity(
                     name = "To Read",
                     ownerId = "user-1",
                     ownerDisplayName = "Simon",
                 )
-            everySuspend { dao.getById("lens-1") } returns entity
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val lens = repository.getById("lens-1")
+            val shelf = repository.getById("shelf-1")
 
             // Then: Other users see "Owner's Lens Name"
             assertEquals("Simon's To Read", lens?.displayName("user-2"))
         }
 
     @Test
-    fun `domain lens isOwnedBy returns true for owner`() =
+    fun `domain shelf isOwnedBy returns true for owner`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            val entity = createLensEntity(ownerId = "user-1")
-            everySuspend { dao.getById("lens-1") } returns entity
+            val dao = createMockShelfDao()
+            val entity = createShelfEntity(ownerId = "user-1")
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val lens = repository.getById("lens-1")
+            val shelf = repository.getById("shelf-1")
 
             // Then
             assertTrue(lens?.isOwnedBy("user-1") == true)
         }
 
     @Test
-    fun `domain lens isOwnedBy returns false for non-owner`() =
+    fun `domain shelf isOwnedBy returns false for non-owner`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            val entity = createLensEntity(ownerId = "user-1")
-            everySuspend { dao.getById("lens-1") } returns entity
+            val dao = createMockShelfDao()
+            val entity = createShelfEntity(ownerId = "user-1")
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val lens = repository.getById("lens-1")
+            val shelf = repository.getById("shelf-1")
 
             // Then
             assertTrue(lens?.isOwnedBy("user-2") == false)
         }
 
     @Test
-    fun `domain lens formattedDuration returns hours and minutes`() =
+    fun `domain shelf formattedDuration returns hours and minutes`() =
         runTest {
             // Given: 2 hours 30 minutes = 9000 seconds
-            val dao = createMockLensDao()
-            val entity = createLensEntity(totalDurationSeconds = 9000L)
-            everySuspend { dao.getById("lens-1") } returns entity
+            val dao = createMockShelfDao()
+            val entity = createShelfEntity(totalDurationSeconds = 9000L)
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val lens = repository.getById("lens-1")
+            val shelf = repository.getById("shelf-1")
 
             // Then
             assertEquals("2h 30m", lens?.formattedDuration)
         }
 
     @Test
-    fun `domain lens formattedDuration returns only hours when no minutes`() =
+    fun `domain shelf formattedDuration returns only hours when no minutes`() =
         runTest {
             // Given: 3 hours = 10800 seconds
-            val dao = createMockLensDao()
-            val entity = createLensEntity(totalDurationSeconds = 10800L)
-            everySuspend { dao.getById("lens-1") } returns entity
+            val dao = createMockShelfDao()
+            val entity = createShelfEntity(totalDurationSeconds = 10800L)
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val lens = repository.getById("lens-1")
+            val shelf = repository.getById("shelf-1")
 
             // Then
             assertEquals("3h", lens?.formattedDuration)
         }
 
     @Test
-    fun `domain lens formattedDuration returns only minutes when less than an hour`() =
+    fun `domain shelf formattedDuration returns only minutes when less than an hour`() =
         runTest {
             // Given: 45 minutes = 2700 seconds
-            val dao = createMockLensDao()
-            val entity = createLensEntity(totalDurationSeconds = 2700L)
-            everySuspend { dao.getById("lens-1") } returns entity
+            val dao = createMockShelfDao()
+            val entity = createShelfEntity(totalDurationSeconds = 2700L)
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val lens = repository.getById("lens-1")
+            val shelf = repository.getById("shelf-1")
 
             // Then
             assertEquals("45m", lens?.formattedDuration)
         }
 
     @Test
-    fun `domain lens formattedDuration returns 0m for zero duration`() =
+    fun `domain shelf formattedDuration returns 0m for zero duration`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
-            val entity = createLensEntity(totalDurationSeconds = 0L)
-            everySuspend { dao.getById("lens-1") } returns entity
+            val dao = createMockShelfDao()
+            val entity = createShelfEntity(totalDurationSeconds = 0L)
+            everySuspend { dao.getById("shelf-1") } returns entity
             val repository = createRepository(dao)
 
             // When
-            val lens = repository.getById("lens-1")
+            val shelf = repository.getById("shelf-1")
 
             // Then
             assertEquals("0m", lens?.formattedDuration)
         }
 
-    // ========== Multiple Lenses Flow Tests ==========
+    // ========== Multiple Shelves Flow Tests ==========
 
     @Test
-    fun `observeMyLenses converts all entities in list`() =
+    fun `observeMyShelves converts all entities in list`() =
         runTest {
             // Given
-            val dao = createMockLensDao()
+            val dao = createMockShelfDao()
             val entities =
                 listOf(
-                    createLensEntity(id = "lens-1", name = "To Read", bookCount = 5),
-                    createLensEntity(id = "lens-2", name = "Favorites", bookCount = 10),
-                    createLensEntity(id = "lens-3", name = "Completed", bookCount = 20),
+                    createShelfEntity(id = "shelf-1", name = "To Read", bookCount = 5),
+                    createShelfEntity(id = "shelf-2", name = "Favorites", bookCount = 10),
+                    createShelfEntity(id = "shelf-3", name = "Completed", bookCount = 20),
                 )
-            every { dao.observeMyLenses("user-1") } returns flowOf(entities)
+            every { dao.observeMyShelves("user-1") } returns flowOf(entities)
             val repository = createRepository(dao)
 
             // When
-            val result = repository.observeMyLenses("user-1").first()
+            val result = repository.observeMyShelves("user-1").first()
 
             // Then
             assertEquals(3, result.size)
@@ -707,25 +707,25 @@ class LensRepositoryImplTest {
         }
 
     @Test
-    fun `observeDiscoverLenses preserves ordering from DAO`() =
+    fun `observeDiscoverShelves preserves ordering from DAO`() =
         runTest {
-            // Given: Lenses ordered by ownerDisplayName and name (as per DAO query)
-            val dao = createMockLensDao()
+            // Given: Shelves ordered by ownerDisplayName and name (as per DAO query)
+            val dao = createMockShelfDao()
             val entities =
                 listOf(
-                    createLensEntity(id = "lens-1", name = "A Lens", ownerDisplayName = "Alice"),
-                    createLensEntity(id = "lens-2", name = "B Lens", ownerDisplayName = "Alice"),
-                    createLensEntity(id = "lens-3", name = "C Lens", ownerDisplayName = "Bob"),
+                    createShelfEntity(id = "shelf-1", name = "A Lens", ownerDisplayName = "Alice"),
+                    createShelfEntity(id = "shelf-2", name = "B Lens", ownerDisplayName = "Alice"),
+                    createShelfEntity(id = "shelf-3", name = "C Lens", ownerDisplayName = "Bob"),
                 )
-            every { dao.observeDiscoverLenses("user-1") } returns flowOf(entities)
+            every { dao.observeDiscoverShelves("user-1") } returns flowOf(entities)
             val repository = createRepository(dao)
 
             // When
-            val result = repository.observeDiscoverLenses("user-1").first()
+            val result = repository.observeDiscoverShelves("user-1").first()
 
             // Then: Order should be preserved
-            assertEquals("lens-1", result[0].id)
-            assertEquals("lens-2", result[1].id)
-            assertEquals("lens-3", result[2].id)
+            assertEquals("shelf-1", result[0].id)
+            assertEquals("shelf-2", result[1].id)
+            assertEquals("shelf-3", result[2].id)
         }
 }

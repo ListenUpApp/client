@@ -1,13 +1,13 @@
-package com.calypsan.listenup.client.presentation.lens
+package com.calypsan.listenup.client.presentation.shelf
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.domain.repository.LensRepository
-import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.DeleteLensUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.UpdateLensUseCase
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
+import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.DeleteShelfUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.UpdateShelfUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,52 +17,52 @@ import kotlinx.coroutines.launch
 private val logger = KotlinLogging.logger {}
 
 /**
- * ViewModel for Create/Edit Lens screen.
+ * ViewModel for Create/Edit Shelf screen.
  *
  * Thin presentation coordinator that delegates business logic to use cases:
- * - [CreateLensUseCase]: Creates new lenses with validation
- * - [UpdateLensUseCase]: Updates existing lenses with validation
- * - [DeleteLensUseCase]: Deletes lenses
+ * - [CreateShelfUseCase]: Creates new shelves with validation
+ * - [UpdateShelfUseCase]: Updates existing shelves with validation
+ * - [DeleteShelfUseCase]: Deletes shelves
  *
- * Handles both creating new lenses and editing existing ones.
+ * Handles both creating new shelves and editing existing ones.
  */
-class CreateEditLensViewModel(
-    private val createLensUseCase: CreateLensUseCase,
-    private val updateLensUseCase: UpdateLensUseCase,
-    private val deleteLensUseCase: DeleteLensUseCase,
-    private val lensRepository: LensRepository,
+class CreateEditShelfViewModel(
+    private val createShelfUseCase: CreateShelfUseCase,
+    private val updateShelfUseCase: UpdateShelfUseCase,
+    private val deleteShelfUseCase: DeleteShelfUseCase,
+    private val shelfRepository: ShelfRepository,
 ) : ViewModel() {
-    val state: StateFlow<CreateEditLensUiState>
-        field = MutableStateFlow(CreateEditLensUiState())
+    val state: StateFlow<CreateEditShelfUiState>
+        field = MutableStateFlow(CreateEditShelfUiState())
 
-    private var editingLensId: String? = null
+    private var editingShelfId: String? = null
 
     /**
-     * Initialize for creating a new lens.
+     * Initialize for creating a new shelf.
      */
     fun initCreate() {
-        editingLensId = null
+        editingShelfId = null
         state.update {
-            CreateEditLensUiState(isEditing = false)
+            CreateEditShelfUiState(isEditing = false)
         }
     }
 
     /**
-     * Initialize for editing an existing lens.
+     * Initialize for editing an existing shelf.
      */
-    fun initEdit(lensId: String) {
-        editingLensId = lensId
+    fun initEdit(shelfId: String) {
+        editingShelfId = shelfId
         viewModelScope.launch {
             state.update { it.copy(isLoading = true) }
 
             try {
-                val lens = lensRepository.getById(lensId)
-                if (lens != null) {
+                val shelf = shelfRepository.getById(shelfId)
+                if (shelf != null) {
                     state.update {
-                        CreateEditLensUiState(
+                        CreateEditShelfUiState(
                             isEditing = true,
-                            name = lens.name,
-                            description = lens.description ?: "",
+                            name = shelf.name,
+                            description = shelf.description ?: "",
                             isLoading = false,
                         )
                     }
@@ -70,16 +70,16 @@ class CreateEditLensViewModel(
                     state.update {
                         it.copy(
                             isLoading = false,
-                            error = "Lens not found",
+                            error = "Shelf not found",
                         )
                     }
                 }
             } catch (e: Exception) {
-                logger.error(e) { "Failed to load lens for edit: $lensId" }
+                logger.error(e) { "Failed to load shelf for edit: $shelfId" }
                 state.update {
                     it.copy(
                         isLoading = false,
-                        error = "Failed to load lens: ${e.message}",
+                        error = "Failed to load shelf: ${e.message}",
                     )
                 }
             }
@@ -87,21 +87,21 @@ class CreateEditLensViewModel(
     }
 
     /**
-     * Update the lens name.
+     * Update the shelf name.
      */
     fun updateName(name: String) {
         state.update { it.copy(name = name) }
     }
 
     /**
-     * Update the lens description.
+     * Update the shelf description.
      */
     fun updateDescription(description: String) {
         state.update { it.copy(description = description) }
     }
 
     /**
-     * Save the lens (create or update).
+     * Save the shelf (create or update).
      *
      * Delegates to appropriate use case based on mode.
      * Validation is handled by the use cases.
@@ -113,14 +113,14 @@ class CreateEditLensViewModel(
             state.update { it.copy(isSaving = true, error = null) }
 
             val result =
-                if (editingLensId != null) {
-                    updateLensUseCase(
-                        lensId = editingLensId!!,
+                if (editingShelfId != null) {
+                    updateShelfUseCase(
+                        shelfId = editingShelfId!!,
                         name = currentState.name,
                         description = currentState.description.takeIf { it.isNotEmpty() },
                     )
                 } else {
-                    createLensUseCase(
+                    createShelfUseCase(
                         name = currentState.name,
                         description = currentState.description.takeIf { it.isNotEmpty() },
                     )
@@ -145,17 +145,17 @@ class CreateEditLensViewModel(
     }
 
     /**
-     * Delete the current lens (edit mode only).
+     * Delete the current shelf (edit mode only).
      *
-     * Delegates to [DeleteLensUseCase].
+     * Delegates to [DeleteShelfUseCase].
      */
     fun delete(onSuccess: () -> Unit) {
-        val lensId = editingLensId ?: return
+        val shelfId = editingShelfId ?: return
 
         viewModelScope.launch {
             state.update { it.copy(isSaving = true, error = null) }
 
-            when (val result = deleteLensUseCase(lensId)) {
+            when (val result = deleteShelfUseCase(shelfId)) {
                 is Success -> {
                     state.update { it.copy(isSaving = false) }
                     onSuccess()
@@ -182,9 +182,9 @@ class CreateEditLensViewModel(
 }
 
 /**
- * UI state for Create/Edit Lens screen.
+ * UI state for Create/Edit Shelf screen.
  */
-data class CreateEditLensUiState(
+data class CreateEditShelfUiState(
     val isEditing: Boolean = false,
     val name: String = "",
     val description: String = "",

@@ -40,9 +40,9 @@ import com.calypsan.listenup.client.design.components.rememberCoverColors
 import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import com.calypsan.listenup.client.domain.repository.UserRepository
-import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.download.DownloadResult
-import com.calypsan.listenup.client.features.library.LensPickerSheet
+import com.calypsan.listenup.client.features.library.ShelfPickerSheet
 import com.calypsan.listenup.client.features.bookdetail.components.BookReadersSection
 import com.calypsan.listenup.client.features.bookdetail.components.ChapterListItem
 import com.calypsan.listenup.client.features.bookdetail.components.ChaptersHeader
@@ -170,7 +170,7 @@ fun BookDetailScreen(
                         }
                     },
                     onDiscardProgressClick = { viewModel.discardProgress() },
-                    onAddToLensClick = { viewModel.showLensPicker() },
+                    onAddToShelfClick = { viewModel.showShelfPicker() },
                     onAddToCollectionClick = { /* TODO: Implement */ },
                     onDeleteBookClick = { /* TODO: Implement */ },
                     onPlayClick = { platformActions.playBook(BookId(bookId)) },
@@ -237,23 +237,23 @@ fun BookDetailScreen(
         )
     }
 
-    if (state.showLensPicker) {
-        val myLenses by viewModel.myLenses.collectAsState()
+    if (state.showShelfPicker) {
+        val myShelves by viewModel.myShelves.collectAsState()
 
-        LensPickerSheet(
-            lenses = myLenses,
+        ShelfPickerSheet(
+            shelves = myShelves,
             selectedBookCount = 1,
-            onLensSelected = { lensId -> viewModel.addBookToLens(lensId) },
-            onCreateAndAddToLens = { name -> viewModel.createLensAndAddBook(name) },
-            onDismiss = { viewModel.hideLensPicker() },
-            isLoading = state.isAddingToLens,
+            onShelfSelected = { shelfId -> viewModel.addBookToShelf(shelfId) },
+            onCreateAndAddToShelf = { name -> viewModel.createShelfAndAddBook(name) },
+            onDismiss = { viewModel.hideShelfPicker() },
+            isLoading = state.isAddingToShelf,
         )
     }
 
-    state.lensError?.let { error ->
+    state.shelfError?.let { error ->
         LaunchedEffect(error) {
             snackbarHostState.showSnackbar(error)
-            viewModel.clearLensError()
+            viewModel.clearShelfError()
         }
     }
 }
@@ -278,7 +278,7 @@ fun BookDetailContent(
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
     onDiscardProgressClick: () -> Unit,
-    onAddToLensClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
@@ -313,7 +313,7 @@ fun BookDetailContent(
             onFindMetadataClick = onFindMetadataClick,
             onMarkCompleteClick = onMarkCompleteClick,
             onDiscardProgressClick = onDiscardProgressClick,
-            onAddToLensClick = onAddToLensClick,
+            onAddToShelfClick = onAddToShelfClick,
             onAddToCollectionClick = onAddToCollectionClick,
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
@@ -340,7 +340,7 @@ fun BookDetailContent(
             onFindMetadataClick = onFindMetadataClick,
             onMarkCompleteClick = onMarkCompleteClick,
             onDiscardProgressClick = onDiscardProgressClick,
-            onAddToLensClick = onAddToLensClick,
+            onAddToShelfClick = onAddToShelfClick,
             onAddToCollectionClick = onAddToCollectionClick,
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
@@ -379,7 +379,7 @@ private fun ImmersiveBookDetail(
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
     onDiscardProgressClick: () -> Unit,
-    onAddToLensClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
@@ -427,7 +427,7 @@ private fun ImmersiveBookDetail(
                 onFindMetadataClick = onFindMetadataClick,
                 onMarkCompleteClick = onMarkCompleteClick,
                 onDiscardProgressClick = onDiscardProgressClick,
-                onAddToLensClick = onAddToLensClick,
+                onAddToShelfClick = onAddToShelfClick,
                 onAddToCollectionClick = onAddToCollectionClick,
                 onDeleteClick = onDeleteBookClick,
             )

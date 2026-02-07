@@ -1,6 +1,6 @@
 @file:Suppress("MagicNumber", "CognitiveComplexMethod")
 
-package com.calypsan.listenup.client.features.lens
+package com.calypsan.listenup.client.features.shelf
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -57,39 +57,39 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.util.parseHexColor
-import com.calypsan.listenup.client.domain.model.LensBook
-import com.calypsan.listenup.client.presentation.lens.LensDetailUiState
-import com.calypsan.listenup.client.presentation.lens.LensDetailViewModel
+import com.calypsan.listenup.client.domain.model.ShelfBook
+import com.calypsan.listenup.client.presentation.shelf.ShelfDetailUiState
+import com.calypsan.listenup.client.presentation.shelf.ShelfDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Screen displaying lens details with its books.
+ * Screen displaying shelf details with its books.
  *
  * Features:
- * - Hero section with lens icon and stats
- * - Lens name as title
+ * - Hero section with shelf icon and stats
+ * - Shelf name as title
  * - Owner info with avatar
  * - Optional description (expandable)
- * - List of books in the lens with covers
+ * - List of books in the shelf with covers
  * - Book items are clickable to navigate to book detail
  *
- * @param lensId The ID of the lens to display
+ * @param shelfId The ID of the shelf to display
  * @param onBack Callback when back button is clicked
  * @param onBookClick Callback when a book is clicked
- * @param viewModel The ViewModel for lens detail data
+ * @param viewModel The ViewModel for shelf detail data
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LensDetailScreen(
-    lensId: String,
+fun ShelfDetailScreen(
+    shelfId: String,
     onBack: () -> Unit,
     onBookClick: (String) -> Unit,
     onEditClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
-    viewModel: LensDetailViewModel = koinViewModel(),
+    viewModel: ShelfDetailViewModel = koinViewModel(),
 ) {
-    LaunchedEffect(lensId) {
-        viewModel.loadLens(lensId)
+    LaunchedEffect(shelfId) {
+        viewModel.loadShelf(shelfId)
     }
 
     val state by viewModel.state.collectAsState()
@@ -99,7 +99,7 @@ fun LensDetailScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = state.name.ifBlank { "Lens" },
+                        text = state.name.ifBlank { "Shelf" },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -114,10 +114,10 @@ fun LensDetailScreen(
                 },
                 actions = {
                     if (state.isOwner && onEditClick != null) {
-                        IconButton(onClick = { onEditClick(lensId) }) {
+                        IconButton(onClick = { onEditClick(shelfId) }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit lens",
+                                contentDescription = "Edit shelf",
                             )
                         }
                     }
@@ -151,7 +151,7 @@ fun LensDetailScreen(
                 }
 
                 else -> {
-                    LensDetailContent(
+                    ShelfDetailContent(
                         state = state,
                         onBookClick = onBookClick,
                         formatDuration = viewModel::formatDuration,
@@ -163,11 +163,11 @@ fun LensDetailScreen(
 }
 
 /**
- * Content for lens detail screen.
+ * Content for shelf detail screen.
  */
 @Composable
-private fun LensDetailContent(
-    state: LensDetailUiState,
+private fun ShelfDetailContent(
+    state: ShelfDetailUiState,
     onBookClick: (String) -> Unit,
     formatDuration: (Long) -> String,
 ) {
@@ -177,9 +177,9 @@ private fun LensDetailContent(
         contentPadding = PaddingValues(bottom = 16.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        // Hero section with lens icon and stats
+        // Hero section with shelf icon and stats
         item {
-            LensHeroSection(
+            ShelfHeroSection(
                 avatarColor = state.ownerAvatarColor,
                 ownerDisplayName = state.ownerDisplayName,
                 bookCount = state.bookCount,
@@ -225,7 +225,7 @@ private fun LensDetailContent(
         // Books section header
         item {
             Text(
-                text = "Books in Lens",
+                text = "Books in Shelf",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier =
@@ -277,7 +277,7 @@ private fun LensDetailContent(
             items = state.books,
             key = { it.id },
         ) { book ->
-            LensBookItem(
+            ShelfBookItem(
                 book = book,
                 onClick = { onBookClick(book.id) },
                 formatDuration = formatDuration,
@@ -287,10 +287,10 @@ private fun LensDetailContent(
 }
 
 /**
- * Hero section with lens icon, owner info, and aggregate stats.
+ * Hero section with shelf icon, owner info, and aggregate stats.
  */
 @Composable
-private fun LensHeroSection(
+private fun ShelfHeroSection(
     avatarColor: String,
     ownerDisplayName: String,
     bookCount: Int,
@@ -305,7 +305,7 @@ private fun LensHeroSection(
                 .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Lens icon
+        // Shelf icon
         Box(
             modifier =
                 Modifier
@@ -408,11 +408,11 @@ private fun StatItem(
 }
 
 /**
- * List item for a book in the lens.
+ * List item for a book in the shelf.
  */
 @Composable
-private fun LensBookItem(
-    book: LensBook,
+private fun ShelfBookItem(
+    book: ShelfBook,
     onClick: () -> Unit,
     formatDuration: (Long) -> String,
     modifier: Modifier = Modifier,

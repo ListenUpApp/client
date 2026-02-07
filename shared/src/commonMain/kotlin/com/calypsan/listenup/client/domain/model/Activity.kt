@@ -8,7 +8,7 @@ package com.calypsan.listenup.client.domain.model
  * Discover screen.
  *
  * @property id Unique identifier
- * @property type Activity type (started_book, finished_book, streak_milestone, listening_milestone, lens_created, listening_session)
+ * @property type Activity type (started_book, finished_book, streak_milestone, listening_milestone, shelf_created, listening_session)
  * @property userId User who performed the activity
  * @property createdAtMs When the activity occurred
  * @property user User display information
@@ -17,8 +17,8 @@ package com.calypsan.listenup.client.domain.model
  * @property durationMs Duration for listening sessions
  * @property milestoneValue Milestone value (hours listened, days streak, etc.)
  * @property milestoneUnit Milestone unit (hours, days, etc.)
- * @property lensId Lens ID (for lens_created activities)
- * @property lensName Lens name (for lens_created activities)
+ * @property shelfId Shelf ID (for shelf_created activities)
+ * @property shelfName Shelf name (for shelf_created activities)
  */
 data class Activity(
     val id: String,
@@ -31,8 +31,8 @@ data class Activity(
     val durationMs: Long,
     val milestoneValue: Int,
     val milestoneUnit: String?,
-    val lensId: String?,
-    val lensName: String?,
+    val shelfId: String?,
+    val shelfName: String?,
 ) {
     /**
      * User info for activity display.

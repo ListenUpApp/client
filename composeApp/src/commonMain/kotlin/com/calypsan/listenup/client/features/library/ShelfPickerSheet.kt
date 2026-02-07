@@ -43,28 +43,28 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.util.parseHexColor
 import com.calypsan.listenup.client.design.components.ListenUpTextField
-import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.model.Shelf
 
 /**
- * Bottom sheet for selecting a lens to add books to.
+ * Bottom sheet for selecting a shelf to add books to.
  *
  * Used in the library multi-select flow for users to add selected books
- * to one of their personal lenses. Also supports creating a new lens inline.
+ * to one of their personal shelves. Also supports creating a new shelf inline.
  *
- * @param lenses List of user's lenses
+ * @param shelves List of user's shelves
  * @param selectedBookCount Number of books that will be added
- * @param onLensSelected Called when a lens is tapped
- * @param onCreateAndAddToLens Called to create a new lens and add books to it
+ * @param onShelfSelected Called when a shelf is tapped
+ * @param onCreateAndAddToShelf Called to create a new shelf and add books to it
  * @param onDismiss Called when the sheet is dismissed
  * @param isLoading Whether an add operation is in progress
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LensPickerSheet(
-    lenses: List<Lens>,
+fun ShelfPickerSheet(
+    shelves: List<Shelf>,
     selectedBookCount: Int,
-    onLensSelected: (String) -> Unit,
-    onCreateAndAddToLens: (name: String) -> Unit,
+    onShelfSelected: (String) -> Unit,
+    onCreateAndAddToShelf: (name: String) -> Unit,
     onDismiss: () -> Unit,
     isLoading: Boolean = false,
 ) {
@@ -98,7 +98,7 @@ fun LensPickerSheet(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             ) {
                 Text(
-                    text = "Add to Lens",
+                    text = "Add to Shelf",
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
@@ -122,13 +122,13 @@ fun LensPickerSheet(
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    // Create new lens option (always shown first)
+                    // Create new shelf option (always shown first)
                     item(key = "create_new") {
-                        CreateNewLensRow(
+                        CreateNewShelfRow(
                             onClick = { showCreateDialog = true },
                             enabled = !isLoading,
                         )
-                        if (lenses.isNotEmpty()) {
+                        if (shelves.isNotEmpty()) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 24.dp),
                                 color = MaterialTheme.colorScheme.outlineVariant,
@@ -136,11 +136,11 @@ fun LensPickerSheet(
                         }
                     }
 
-                    // Existing lenses
-                    if (lenses.isEmpty()) {
+                    // Existing shelves
+                    if (shelves.isEmpty()) {
                         item(key = "empty_hint") {
                             Text(
-                                text = "You don't have any lenses yet",
+                                text = "You don't have any shelves yet",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
@@ -148,12 +148,12 @@ fun LensPickerSheet(
                         }
                     } else {
                         items(
-                            items = lenses,
+                            items = shelves,
                             key = { it.id },
-                        ) { lens ->
-                            LensRow(
-                                lens = lens,
-                                onClick = { onLensSelected(lens.id) },
+                        ) { shelf ->
+                            ShelfRow(
+                                shelf = shelf,
+                                onClick = { onShelfSelected(shelf.id) },
                                 enabled = !isLoading,
                             )
                         }
@@ -179,23 +179,23 @@ fun LensPickerSheet(
         }
     }
 
-    // Create lens dialog
+    // Create shelf dialog
     if (showCreateDialog) {
-        CreateLensDialog(
+        CreateShelfDialog(
             onDismiss = { showCreateDialog = false },
             onCreate = { name ->
                 showCreateDialog = false
-                onCreateAndAddToLens(name)
+                onCreateAndAddToShelf(name)
             },
         )
     }
 }
 
 /**
- * Row for creating a new lens.
+ * Row for creating a new shelf.
  */
 @Composable
-private fun CreateNewLensRow(
+private fun CreateNewShelfRow(
     onClick: () -> Unit,
     enabled: Boolean = true,
 ) {
@@ -231,7 +231,7 @@ private fun CreateNewLensRow(
             Spacer(Modifier.width(16.dp))
 
             Text(
-                text = "Create New Lens",
+                text = "Create New Shelf",
                 style = MaterialTheme.typography.bodyLarge,
                 color =
                     if (enabled) {
@@ -245,18 +245,18 @@ private fun CreateNewLensRow(
 }
 
 /**
- * A single lens row in the picker.
+ * A single shelf row in the picker.
  */
 @Composable
-private fun LensRow(
-    lens: Lens,
+private fun ShelfRow(
+    shelf: Shelf,
     onClick: () -> Unit,
     enabled: Boolean = true,
 ) {
-    // Parse the owner's avatar color for the lens icon background
+    // Parse the owner's avatar color for the shelf icon background
     val iconColor =
-        remember(lens.ownerAvatarColor) {
-            parseHexColor(lens.ownerAvatarColor)
+        remember(shelf.ownerAvatarColor) {
+            parseHexColor(shelf.ownerAvatarColor)
         }
 
     Surface(
@@ -271,7 +271,7 @@ private fun LensRow(
                     .padding(horizontal = 24.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Lens icon with avatar color background
+            // Shelf icon with avatar color background
             Box(
                 modifier =
                     Modifier
@@ -292,7 +292,7 @@ private fun LensRow(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = lens.name,
+                    text = shelf.name,
                     style = MaterialTheme.typography.bodyLarge,
                     color =
                         if (enabled) {
@@ -305,10 +305,10 @@ private fun LensRow(
                 )
                 Text(
                     text =
-                        if (lens.bookCount == 1) {
+                        if (shelf.bookCount == 1) {
                             "1 book"
                         } else {
-                            "${lens.bookCount} books"
+                            "${shelf.bookCount} books"
                         },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -319,15 +319,15 @@ private fun LensRow(
 }
 
 /**
- * Dialog for creating a new lens.
+ * Dialog for creating a new shelf.
  */
 @Composable
-private fun CreateLensDialog(
+private fun CreateShelfDialog(
     onDismiss: () -> Unit,
     onCreate: (name: String) -> Unit,
 ) {
-    var lensName by remember { mutableStateOf("") }
-    val isValid = lensName.isNotBlank()
+    var shelfName by remember { mutableStateOf("") }
+    val isValid = shelfName.isNotBlank()
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -339,19 +339,19 @@ private fun CreateLensDialog(
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         shape = MaterialTheme.shapes.large,
-        title = { Text("Create New Lens") },
+        title = { Text("Create New Shelf") },
         text = {
             ListenUpTextField(
-                value = lensName,
-                onValueChange = { lensName = it },
-                label = "Lens name",
+                value = shelfName,
+                onValueChange = { shelfName = it },
+                label = "Shelf name",
                 placeholder = "e.g., To Read, Favorites",
                 modifier = Modifier.focusRequester(focusRequester),
             )
         },
         confirmButton = {
             TextButton(
-                onClick = { onCreate(lensName.trim()) },
+                onClick = { onCreate(shelfName.trim()) },
                 enabled = isValid,
             ) {
                 Text("Create & Add")

@@ -42,7 +42,7 @@ import java.io.File
  *
  * Use this component for:
  * - Activity feed items
- * - Lenses (showing owner)
+ * - Shelves (showing owner)
  * - Book detail reader lists
  * - Any place showing another user
  *

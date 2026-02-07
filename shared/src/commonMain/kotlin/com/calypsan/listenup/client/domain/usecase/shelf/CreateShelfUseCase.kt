@@ -1,53 +1,53 @@
-package com.calypsan.listenup.client.domain.usecase.lens
+package com.calypsan.listenup.client.domain.usecase.shelf
 
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.core.validationError
-import com.calypsan.listenup.client.domain.model.Lens
-import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.model.Shelf
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * Creates a new lens with the given name and optional description.
+ * Creates a new shelf with the given name and optional description.
  *
  * Validates that the name is not blank before calling the repository.
  * Empty descriptions are converted to null.
  *
  * Usage:
  * ```kotlin
- * val result = createLensUseCase(
+ * val result = createShelfUseCase(
  *     name = "My Reading List",
  *     description = "Books I want to read"
  * )
  * ```
  */
-open class CreateLensUseCase(
-    private val lensRepository: LensRepository,
+open class CreateShelfUseCase(
+    private val shelfRepository: ShelfRepository,
 ) {
     /**
-     * Create a new lens.
+     * Create a new shelf.
      *
-     * @param name The lens name (required, will be trimmed)
+     * @param name The shelf name (required, will be trimmed)
      * @param description Optional description (empty strings converted to null)
-     * @return Result containing the created lens or a failure
+     * @return Result containing the created shelf or a failure
      */
     open suspend operator fun invoke(
         name: String,
         description: String?,
-    ): Result<Lens> {
+    ): Result<Shelf> {
         val trimmedName = name.trim()
         if (trimmedName.isBlank()) {
-            return validationError("Lens name is required")
+            return validationError("Shelf name is required")
         }
 
         val trimmedDescription = description?.trim()?.takeIf { it.isNotEmpty() }
 
-        logger.info { "Creating lens: $trimmedName" }
+        logger.info { "Creating shelf: $trimmedName" }
 
         return suspendRunCatching {
-            lensRepository.createLens(trimmedName, trimmedDescription)
+            shelfRepository.createShelf(trimmedName, trimmedDescription)
         }
     }
 }

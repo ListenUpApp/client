@@ -28,11 +28,11 @@ import androidx.compose.ui.unit.dp
  * Displays the selected count and actions for the selection.
  *
  * Actions:
- * - "Add to Lens" - available to all users
+ * - "Add to Shelf" - available to all users
  * - "Add to Collection" - available to admin users only
  *
  * @param selectedCount Number of currently selected books
- * @param onAddToLens Called when "Add to Lens" is tapped
+ * @param onAddToShelf Called when "Add to Shelf" is tapped
  * @param onAddToCollection Called when "Add to Collection" is tapped (null = hide button)
  * @param onClose Called when the close button is tapped
  * @param modifier Optional modifier
@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SelectionToolbar(
     selectedCount: Int,
-    onAddToLens: () -> Unit,
+    onAddToShelf: () -> Unit,
     onAddToCollection: (() -> Unit)?,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -80,9 +80,9 @@ fun SelectionToolbar(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Add to lens button (all users)
+            // Add to shelf button (all users)
             TextButton(
-                onClick = onAddToLens,
+                onClick = onAddToShelf,
                 enabled = selectedCount > 0,
             ) {
                 Icon(
@@ -98,7 +98,7 @@ fun SelectionToolbar(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Lens",
+                    text = "Shelf",
                     color =
                         if (selectedCount > 0) {
                             MaterialTheme.colorScheme.primary

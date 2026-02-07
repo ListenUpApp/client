@@ -19,7 +19,7 @@ enum class ActivityType(
     FINISHED_BOOK("finished_book"),
     STREAK_MILESTONE("streak_milestone"),
     LISTENING_MILESTONE("listening_milestone"),
-    LENS_CREATED("lens_created"),
+    SHELF_CREATED("shelf_created"),
     LISTENING_SESSION("listening_session"),
 }
 
@@ -121,10 +121,10 @@ data class ActivityResponse(
     val milestoneValue: Int = 0,
     @SerialName("milestone_unit")
     val milestoneUnit: String? = null,
-    @SerialName("lens_id")
-    val lensId: String? = null,
-    @SerialName("lens_name")
-    val lensName: String? = null,
+    @SerialName("shelf_id")
+    val shelfId: String? = null,
+    @SerialName("shelf_name")
+    val shelfName: String? = null,
 )
 
 /**

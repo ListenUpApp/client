@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.BookId
 import com.calypsan.listenup.client.core.Success
-import com.calypsan.listenup.client.domain.model.ProfileLensSummary
+import com.calypsan.listenup.client.domain.model.ProfileShelfSummary
 import com.calypsan.listenup.client.domain.model.ProfileRecentBook
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.domain.repository.ImageRepository
@@ -105,7 +105,7 @@ class UserProfileViewModel(
                 currentStreak = 0,
                 longestStreak = 0,
                 recentBooks = emptyList(),
-                publicLenses = emptyList(),
+                publicShelves = emptyList(),
                 error = null,
             )
         }
@@ -215,7 +215,7 @@ class UserProfileViewModel(
                         currentStreak = profile.currentStreak,
                         longestStreak = profile.longestStreak,
                         recentBooks = booksWithLocalCovers,
-                        publicLenses = profile.publicLenses,
+                        publicShelves = profile.publicShelves,
                         error = null,
                     )
                 }
@@ -282,7 +282,7 @@ data class UserProfileUiState(
     val currentStreak: Int = 0,
     val longestStreak: Int = 0,
     val recentBooks: List<ProfileRecentBook> = emptyList(),
-    val publicLenses: List<ProfileLensSummary> = emptyList(),
+    val publicShelves: List<ProfileShelfSummary> = emptyList(),
 ) {
     val hasData: Boolean get() = if (isOwnProfile) localUser != null else serverDisplayName.isNotEmpty()
 

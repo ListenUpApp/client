@@ -79,8 +79,8 @@ data class FullProfileResponse(
     val isOwnProfile: Boolean,
     @SerialName("recent_books")
     val recentBooks: List<RecentBookResponse> = emptyList(),
-    @SerialName("public_lenses")
-    val publicLenses: List<LensSummaryResponse> = emptyList(),
+    @SerialName("public_shelves")
+    val publicShelves: List<ShelfSummaryResponse> = emptyList(),
 )
 
 /**
@@ -101,10 +101,10 @@ data class RecentBookResponse(
 )
 
 /**
- * Lens summary for profile display.
+ * Shelf summary for profile display.
  */
 @Serializable
-data class LensSummaryResponse(
+data class ShelfSummaryResponse(
     @SerialName("id")
     val id: String,
     @SerialName("name")

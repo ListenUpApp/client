@@ -3,13 +3,13 @@ package com.calypsan.listenup.client.presentation.discover
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.domain.model.ActiveSession
-import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.domain.repository.ActiveSessionRepository
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.AuthState
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.DiscoveryBook
-import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,7 +29,7 @@ private val logger = KotlinLogging.logger {}
  * - What others are listening to: active_sessions table via SSE sync
  * - Discover something new: random unstarted books from books table
  * - Recently added: newest books from books table
- * - Lenses from other users: fetched initially from API, stored in Room, observed from Room
+ * - Shelves from other users: fetched initially from API, stored in Room, observed from Room
  *
  * This offline-first architecture ensures the Discover screen works
  * instantly on app launch without any API calls (after initial fetch).
@@ -39,11 +39,11 @@ class DiscoverViewModel(
     private val bookRepository: BookRepository,
     private val activeSessionRepository: ActiveSessionRepository,
     private val authSession: AuthSession,
-    private val lensRepository: LensRepository,
+    private val shelfRepository: ShelfRepository,
 ) : ViewModel() {
     init {
-        // Fetch initial discover lenses if Room is empty
-        fetchInitialLensesIfNeeded()
+        // Fetch initial discover shelves if Room is empty
+        fetchInitialShelvesIfNeeded()
     }
 
     // === Currently Listening State (from Room) ===
@@ -162,55 +162,55 @@ class DiscoverViewModel(
             createdAt = createdAt,
         )
 
-    // === Discover Lenses State (from Room) ===
+    // === Discover Shelves State (from Room) ===
 
     /**
-     * Observe lenses from other users from Room.
+     * Observe shelves from other users from Room.
      * Initial data fetched from API if Room is empty.
      * Subsequent updates via SSE events.
      */
-    private val discoverLensesFlow =
+    private val discoverShelvesFlow =
         authSession.authState.flatMapLatest { authState ->
             if (authState is AuthState.Authenticated) {
-                lensRepository.observeDiscoverLenses(authState.userId)
+                shelfRepository.observeDiscoverShelves(authState.userId)
             } else {
                 flowOf(emptyList())
             }
         }
 
-    val discoverLensesState: StateFlow<DiscoverLensesUiState> =
-        discoverLensesFlow
-            .map { lenses ->
-                // Group lenses by owner for display
-                val groupedByOwner = lenses.groupBy { it.ownerId }
-                val userLenses =
-                    groupedByOwner.map { (ownerId, ownerLenses) ->
-                        val firstLens = ownerLenses.first()
-                        DiscoverUserLenses(
+    val discoverShelvesState: StateFlow<DiscoverShelvesUiState> =
+        discoverShelvesFlow
+            .map { shelves ->
+                // Group shelves by owner for display
+                val groupedByOwner = shelves.groupBy { it.ownerId }
+                val userShelves =
+                    groupedByOwner.map { (ownerId, ownerShelves) ->
+                        val firstShelf = ownerShelves.first()
+                        DiscoverUserShelves(
                             user =
-                                DiscoverLensOwner(
+                                DiscoverShelfOwner(
                                     id = ownerId,
-                                    displayName = firstLens.ownerDisplayName,
-                                    avatarColor = firstLens.ownerAvatarColor,
+                                    displayName = firstShelf.ownerDisplayName,
+                                    avatarColor = firstShelf.ownerAvatarColor,
                                 ),
-                            lenses = ownerLenses.map { it.toUiModel() },
+                            shelves = ownerShelves.map { it.toUiModel() },
                         )
                     }
-                DiscoverLensesUiState(
+                DiscoverShelvesUiState(
                     isLoading = false,
-                    users = userLenses,
+                    users = userShelves,
                 )
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
-                initialValue = DiscoverLensesUiState(isLoading = true),
+                initialValue = DiscoverShelvesUiState(isLoading = true),
             )
 
     /**
-     * Convert Lens domain model to UI model.
+     * Convert Shelf domain model to UI model.
      */
-    private fun Lens.toUiModel(): DiscoverLensUi =
-        DiscoverLensUi(
+    private fun Shelf.toUiModel(): DiscoverShelfUi =
+        DiscoverShelfUi(
             id = id,
             name = name,
             description = description,
@@ -219,95 +219,95 @@ class DiscoverViewModel(
         )
 
     /**
-     * Fetch initial discover lenses from API if Room is empty.
+     * Fetch initial discover shelves from API if Room is empty.
      * This ensures data is available on first launch before any SSE events arrive.
      */
-    private fun fetchInitialLensesIfNeeded() {
+    private fun fetchInitialShelvesIfNeeded() {
         viewModelScope.launch {
             val authState = authSession.authState.value
             if (authState !is AuthState.Authenticated) {
-                logger.debug { "Not authenticated, skipping lens fetch" }
+                logger.debug { "Not authenticated, skipping shelf fetch" }
                 return@launch
             }
 
-            val existingCount = lensRepository.countDiscoverLenses(authState.userId)
+            val existingCount = shelfRepository.countDiscoverShelves(authState.userId)
             if (existingCount > 0) {
-                logger.debug { "Room has $existingCount discover lenses, skipping initial fetch" }
+                logger.debug { "Room has $existingCount discover shelves, skipping initial fetch" }
                 return@launch
             }
 
-            logger.debug { "Room is empty, fetching discover lenses from API" }
+            logger.debug { "Room is empty, fetching discover shelves from API" }
             try {
-                val count = lensRepository.fetchAndCacheDiscoverLenses()
-                logger.info { "Fetched and stored $count discover lenses" }
+                val count = shelfRepository.fetchAndCacheDiscoverShelves()
+                logger.info { "Fetched and stored $count discover shelves" }
             } catch (e: Exception) {
-                logger.error(e) { "Failed to fetch discover lenses" }
+                logger.error(e) { "Failed to fetch discover shelves" }
                 // Not fatal - Room Flow will show empty state, SSE will populate over time
             }
         }
     }
 
     /**
-     * Refresh discover lenses from API.
+     * Refresh discover shelves from API.
      */
-    private fun refreshDiscoverLenses() {
+    private fun refreshDiscoverShelves() {
         viewModelScope.launch {
             try {
-                val count = lensRepository.fetchAndCacheDiscoverLenses()
-                logger.debug { "Refreshed $count discover lenses from API" }
+                val count = shelfRepository.fetchAndCacheDiscoverShelves()
+                logger.debug { "Refreshed $count discover shelves from API" }
             } catch (e: Exception) {
-                logger.error(e) { "Failed to refresh discover lenses" }
+                logger.error(e) { "Failed to refresh discover shelves" }
             }
         }
     }
 
     /**
      * Refresh all discovery content.
-     * - Lenses: fetched from API and stored in Room
+     * - Shelves: fetched from API and stored in Room
      * - Sessions: automatically updated via Room flows (synced via SSE)
      * - Books: automatically updated via Room flows (re-queries with new RANDOM seed)
      */
     fun refresh() {
-        refreshDiscoverLenses()
+        refreshDiscoverShelves()
     }
 }
 
 /**
- * UI state for the Discover lenses section.
+ * UI state for the Discover shelves section.
  * Data comes from Room - no network errors possible after initial fetch.
  */
-data class DiscoverLensesUiState(
+data class DiscoverShelvesUiState(
     val isLoading: Boolean = false,
-    val users: List<DiscoverUserLenses> = emptyList(),
+    val users: List<DiscoverUserShelves> = emptyList(),
 ) {
     val isEmpty: Boolean
         get() = users.isEmpty() && !isLoading
 
-    val totalLensCount: Int
-        get() = users.sumOf { it.lenses.size }
+    val totalShelfCount: Int
+        get() = users.sumOf { it.shelves.size }
 }
 
 /**
- * User with their lenses for Discover screen.
+ * User with their shelves for Discover screen.
  */
-data class DiscoverUserLenses(
-    val user: DiscoverLensOwner,
-    val lenses: List<DiscoverLensUi>,
+data class DiscoverUserShelves(
+    val user: DiscoverShelfOwner,
+    val shelves: List<DiscoverShelfUi>,
 )
 
 /**
- * Lens owner info for display.
+ * Shelf owner info for display.
  */
-data class DiscoverLensOwner(
+data class DiscoverShelfOwner(
     val id: String,
     val displayName: String,
     val avatarColor: String,
 )
 
 /**
- * Lens UI model for Discover screen.
+ * Shelf UI model for Discover screen.
  */
-data class DiscoverLensUi(
+data class DiscoverShelfUi(
     val id: String,
     val name: String,
     val description: String?,

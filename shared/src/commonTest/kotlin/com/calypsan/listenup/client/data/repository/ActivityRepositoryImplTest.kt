@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
  * Tests cover:
  * - All interface methods (observeRecent, getOlderThan, getNewestTimestamp)
  * - Entity to domain model conversion including nested classes
- * - Handling of nullable fields (book, milestoneUnit, lensId, lensName, avatarValue)
+ * - Handling of nullable fields (book, milestoneUnit, shelfId, shelfName, avatarValue)
  * - Various activity types (started_book, finished_book, listening_milestone, etc.)
  *
  * Uses Mokkery for mocking and follows Given-When-Then style.
@@ -66,8 +66,8 @@ class ActivityRepositoryImplTest {
         durationMs: Long = 3600000L,
         milestoneValue: Int = 0,
         milestoneUnit: String? = null,
-        lensId: String? = null,
-        lensName: String? = null,
+        shelfId: String? = null,
+        shelfName: String? = null,
     ): ActivityEntity =
         ActivityEntity(
             id = id,
@@ -86,8 +86,8 @@ class ActivityRepositoryImplTest {
             durationMs = durationMs,
             milestoneValue = milestoneValue,
             milestoneUnit = milestoneUnit,
-            lensId = lensId,
-            lensName = lensName,
+            shelfId = shelfId,
+            shelfName = shelfName,
         )
 
     /**
@@ -111,22 +111,22 @@ class ActivityRepositoryImplTest {
         )
 
     /**
-     * Creates an ActivityEntity for a lens created activity.
+     * Creates an ActivityEntity for a shelf created activity.
      */
-    private fun createLensActivityEntity(
-        id: String = "activity-lens",
-        lensId: String = "lens-1",
-        lensName: String = "Fantasy Favorites",
+    private fun createShelfActivityEntity(
+        id: String = "activity-shelf",
+        shelfId: String = "shelf-1",
+        shelfName: String = "Fantasy Favorites",
     ): ActivityEntity =
         createActivityEntity(
             id = id,
-            type = "lens_created",
+            type = "shelf_created",
             bookId = null,
             bookTitle = null,
             bookAuthorName = null,
             bookCoverPath = null,
-            lensId = lensId,
-            lensName = lensName,
+            shelfId = shelfId,
+            shelfName = shelfName,
         )
 
     // ========== observeRecent Tests ==========
@@ -461,11 +461,11 @@ class ActivityRepositoryImplTest {
         }
 
     @Test
-    fun `toDomain converts lensId correctly when present`() =
+    fun `toDomain converts shelfId correctly when present`() =
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createLensActivityEntity(lensId = "lens-abc-123")
+            val entity = createShelfActivityEntity(shelfId = "shelf-abc-123")
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -473,15 +473,15 @@ class ActivityRepositoryImplTest {
             val result = repository.observeRecent(10).first().first()
 
             // Then
-            assertEquals("lens-abc-123", result.lensId)
+            assertEquals("shelf-abc-123", result.shelfId)
         }
 
     @Test
-    fun `toDomain converts lensId correctly when null`() =
+    fun `toDomain converts shelfId correctly when null`() =
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(lensId = null)
+            val entity = createActivityEntity(shelfId = null)
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -489,15 +489,15 @@ class ActivityRepositoryImplTest {
             val result = repository.observeRecent(10).first().first()
 
             // Then
-            assertNull(result.lensId)
+            assertNull(result.shelfId)
         }
 
     @Test
-    fun `toDomain converts lensName correctly when present`() =
+    fun `toDomain converts shelfName correctly when present`() =
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createLensActivityEntity(lensName = "My Reading List")
+            val entity = createShelfActivityEntity(shelfName = "My Reading List")
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -505,15 +505,15 @@ class ActivityRepositoryImplTest {
             val result = repository.observeRecent(10).first().first()
 
             // Then
-            assertEquals("My Reading List", result.lensName)
+            assertEquals("My Reading List", result.shelfName)
         }
 
     @Test
-    fun `toDomain converts lensName correctly when null`() =
+    fun `toDomain converts shelfName correctly when null`() =
         runTest {
             // Given
             val dao = createMockDao()
-            val entity = createActivityEntity(lensName = null)
+            val entity = createActivityEntity(shelfName = null)
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
 
@@ -521,7 +521,7 @@ class ActivityRepositoryImplTest {
             val result = repository.observeRecent(10).first().first()
 
             // Then
-            assertNull(result.lensName)
+            assertNull(result.shelfName)
         }
 
     // ========== Entity to Domain Conversion - ActivityUser ==========
@@ -868,14 +868,14 @@ class ActivityRepositoryImplTest {
         }
 
     @Test
-    fun `toDomain handles lens_created activity type`() =
+    fun `toDomain handles shelf_created activity type`() =
         runTest {
             // Given
             val dao = createMockDao()
             val entity =
-                createLensActivityEntity(
-                    lensId = "lens-xyz",
-                    lensName = "Sci-Fi Favorites",
+                createShelfActivityEntity(
+                    shelfId = "shelf-xyz",
+                    shelfName = "Sci-Fi Favorites",
                 )
             every { dao.observeRecent(any()) } returns flowOf(listOf(entity))
             val repository = createRepository(dao)
@@ -884,9 +884,9 @@ class ActivityRepositoryImplTest {
             val result = repository.observeRecent(10).first().first()
 
             // Then
-            assertEquals("lens_created", result.type)
-            assertEquals("lens-xyz", result.lensId)
-            assertEquals("Sci-Fi Favorites", result.lensName)
+            assertEquals("shelf_created", result.type)
+            assertEquals("shelf-xyz", result.shelfId)
+            assertEquals("Sci-Fi Favorites", result.shelfName)
             assertNull(result.book)
         }
 
@@ -1014,7 +1014,7 @@ class ActivityRepositoryImplTest {
                 listOf(
                     createActivityEntity(id = "act-1", type = "finished_book"),
                     createMilestoneActivityEntity(id = "act-2", type = "listening_milestone"),
-                    createLensActivityEntity(id = "act-3"),
+                    createShelfActivityEntity(id = "act-3"),
                 )
             every { dao.observeRecent(any()) } returns flowOf(entities)
             val repository = createRepository(dao)
@@ -1028,8 +1028,8 @@ class ActivityRepositoryImplTest {
             assertNotNull(result[0].book)
             assertEquals("listening_milestone", result[1].type)
             assertNull(result[1].book)
-            assertEquals("lens_created", result[2].type)
-            assertNotNull(result[2].lensId)
+            assertEquals("shelf_created", result[2].type)
+            assertNotNull(result[2].shelfId)
         }
 
     @Test

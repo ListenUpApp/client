@@ -60,6 +60,8 @@ actual val platformDatabaseModule: Module =
                     MIGRATION_31_32,
                     MIGRATION_32_33,
                     MIGRATION_33_34,
+                    MIGRATION_34_35,
+                    MIGRATION_35_36,
                 ).addCallback(FtsTableCallback())
                 .fallbackToDestructiveMigration(false)
                 .build()

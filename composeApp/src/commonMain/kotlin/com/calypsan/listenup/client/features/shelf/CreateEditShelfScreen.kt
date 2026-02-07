@@ -1,6 +1,6 @@
 @file:Suppress("LongMethod")
 
-package com.calypsan.listenup.client.features.lens
+package com.calypsan.listenup.client.features.shelf
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -40,32 +40,32 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
-import com.calypsan.listenup.client.presentation.lens.CreateEditLensViewModel
+import com.calypsan.listenup.client.presentation.shelf.CreateEditShelfViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Screen for creating or editing a lens.
+ * Screen for creating or editing a shelf.
  *
- * @param lensId If provided, edit this lens. If null, create new lens.
+ * @param shelfId If provided, edit this shelf. If null, create new shelf.
  * @param onBack Callback for back navigation
  * @param viewModel The ViewModel
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateEditLensScreen(
-    lensId: String?,
+fun CreateEditShelfScreen(
+    shelfId: String?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: CreateEditLensViewModel = koinViewModel(),
+    viewModel: CreateEditShelfViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Initialize based on mode
-    LaunchedEffect(lensId) {
-        if (lensId != null) {
-            viewModel.initEdit(lensId)
+    LaunchedEffect(shelfId) {
+        if (shelfId != null) {
+            viewModel.initEdit(shelfId)
         } else {
             viewModel.initCreate()
         }
@@ -84,7 +84,7 @@ fun CreateEditLensScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = if (state.isEditing) "Edit Lens" else "Create Lens",
+                        text = if (state.isEditing) "Edit Shelf" else "Create Shelf",
                     )
                 },
                 navigationIcon = {
@@ -100,7 +100,7 @@ fun CreateEditLensScreen(
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete lens",
+                                contentDescription = "Delete shelf",
                                 tint = MaterialTheme.colorScheme.error,
                             )
                         }
@@ -147,7 +147,7 @@ fun CreateEditLensScreen(
                     value = state.description,
                     onValueChange = viewModel::updateDescription,
                     label = { Text("Description (optional)") },
-                    placeholder = { Text("What's this lens for?") },
+                    placeholder = { Text("What's this shelf for?") },
                     minLines = 3,
                     maxLines = 5,
                     modifier = Modifier.fillMaxWidth(),
@@ -166,7 +166,7 @@ fun CreateEditLensScreen(
                             when {
                                 state.isSaving -> "Saving..."
                                 state.isEditing -> "Save Changes"
-                                else -> "Create Lens"
+                                else -> "Create Shelf"
                             },
                     )
                 }
@@ -176,9 +176,9 @@ fun CreateEditLensScreen(
                     AlertDialog(
                         onDismissRequest = { showDeleteDialog = false },
                         shape = MaterialTheme.shapes.large,
-                        title = { Text("Delete Lens?") },
+                        title = { Text("Delete Shelf?") },
                         text = {
-                            Text("This will permanently delete this lens. Books in the lens will not be affected.")
+                            Text("This will permanently delete this shelf. Books in the shelf will not be affected.")
                         },
                         confirmButton = {
                             TextButton(

@@ -4,7 +4,7 @@ package com.calypsan.listenup.client.domain.model
  * Domain model representing a user's public profile.
  *
  * Contains all information displayed on a user's profile page,
- * including their stats, recent activity, and public lenses.
+ * including their stats, recent activity, and public shelves.
  *
  * @property userId User's unique identifier
  * @property displayName User's display name
@@ -17,7 +17,7 @@ package com.calypsan.listenup.client.domain.model
  * @property currentStreak Current daily listening streak
  * @property longestStreak Longest daily listening streak achieved
  * @property recentBooks List of recently listened books
- * @property publicLenses List of user's public lenses
+ * @property publicShelves List of user's public shelves
  */
 data class UserProfile(
     val userId: String,
@@ -31,7 +31,7 @@ data class UserProfile(
     val currentStreak: Int,
     val longestStreak: Int,
     val recentBooks: List<ProfileRecentBook>,
-    val publicLenses: List<ProfileLensSummary>,
+    val publicShelves: List<ProfileShelfSummary>,
 ) {
     /**
      * Returns true if the user has an uploaded avatar image.
@@ -80,13 +80,13 @@ data class ProfileRecentBook(
 )
 
 /**
- * Summary of a lens shown on a user's profile.
+ * Summary of a shelf shown on a user's profile.
  *
- * @property id Lens unique identifier
- * @property name Lens display name
- * @property bookCount Number of books in the lens
+ * @property id Shelf unique identifier
+ * @property name Shelf display name
+ * @property bookCount Number of books in the shelf
  */
-data class ProfileLensSummary(
+data class ProfileShelfSummary(
     val id: String,
     val name: String,
     val bookCount: Int,

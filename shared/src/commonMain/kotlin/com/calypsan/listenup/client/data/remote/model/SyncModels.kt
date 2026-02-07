@@ -487,13 +487,13 @@ data class SSECollectionBookRemovedEvent(
     val bookId: String,
 )
 
-// Lens SSE events
+// Shelf SSE events
 
 /**
- * SSE lens created event data.
+ * SSE shelf created event data.
  */
 @Serializable
-data class SSELensCreatedEvent(
+data class SSEShelfCreatedEvent(
     @SerialName("id")
     val id: String,
     @SerialName("owner_id")
@@ -515,10 +515,10 @@ data class SSELensCreatedEvent(
 )
 
 /**
- * SSE lens updated event data.
+ * SSE shelf updated event data.
  */
 @Serializable
-data class SSELensUpdatedEvent(
+data class SSEShelfUpdatedEvent(
     @SerialName("id")
     val id: String,
     @SerialName("owner_id")
@@ -540,10 +540,10 @@ data class SSELensUpdatedEvent(
 )
 
 /**
- * SSE lens deleted event data.
+ * SSE shelf deleted event data.
  */
 @Serializable
-data class SSELensDeletedEvent(
+data class SSEShelfDeletedEvent(
     @SerialName("id")
     val id: String,
     @SerialName("owner_id")
@@ -553,12 +553,12 @@ data class SSELensDeletedEvent(
 )
 
 /**
- * SSE lens book added event data.
+ * SSE shelf book added event data.
  */
 @Serializable
-data class SSELensBookAddedEvent(
-    @SerialName("lens_id")
-    val lensId: String,
+data class SSEShelfBookAddedEvent(
+    @SerialName("shelf_id")
+    val shelfId: String,
     @SerialName("owner_id")
     val ownerId: String,
     @SerialName("book_id")
@@ -570,12 +570,12 @@ data class SSELensBookAddedEvent(
 )
 
 /**
- * SSE lens book removed event data.
+ * SSE shelf book removed event data.
  */
 @Serializable
-data class SSELensBookRemovedEvent(
-    @SerialName("lens_id")
-    val lensId: String,
+data class SSEShelfBookRemovedEvent(
+    @SerialName("shelf_id")
+    val shelfId: String,
     @SerialName("owner_id")
     val ownerId: String,
     @SerialName("book_id")
@@ -829,10 +829,10 @@ data class SSEActivityCreatedEvent(
     val milestoneValue: Int = 0,
     @SerialName("milestone_unit")
     val milestoneUnit: String? = null,
-    @SerialName("lens_id")
-    val lensId: String? = null,
-    @SerialName("lens_name")
-    val lensName: String? = null,
+    @SerialName("shelf_id")
+    val shelfId: String? = null,
+    @SerialName("shelf_name")
+    val shelfName: String? = null,
 )
 
 /**

@@ -64,7 +64,7 @@ private val logger = KotlinLogging.logger {}
  * @param onBookClick Callback when a book is clicked (navigates to detail)
  * @param onSeriesClick Callback when a series is clicked (navigates to detail)
  * @param onContributorClick Callback when a contributor is clicked (author or narrator)
- * @param onLensClick Callback when a lens is clicked
+ * @param onShelfClick Callback when a shelf is clicked
  * @param onTagClick Callback when a tag is clicked
  * @param onAdminClick Callback when administration is clicked (only shown for admin users)
  * @param onSettingsClick Callback when settings is clicked
@@ -84,7 +84,7 @@ fun AppShell(
     onBookClick: (String) -> Unit,
     onSeriesClick: (String) -> Unit,
     onContributorClick: (String) -> Unit,
-    onLensClick: (String) -> Unit,
+    onShelfClick: (String) -> Unit,
     onTagClick: (String) -> Unit,
     onAdminClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,

@@ -47,45 +47,45 @@ import com.calypsan.listenup.client.features.discover.components.CurrentlyListen
 import com.calypsan.listenup.client.features.discover.components.DiscoverBooksSection
 import com.calypsan.listenup.client.features.discover.components.DiscoverLeaderboardSection
 import com.calypsan.listenup.client.features.discover.components.RecentlyAddedSection
-import com.calypsan.listenup.client.presentation.discover.DiscoverLensUi
-import com.calypsan.listenup.client.presentation.discover.DiscoverUserLenses
+import com.calypsan.listenup.client.presentation.discover.DiscoverShelfUi
+import com.calypsan.listenup.client.presentation.discover.DiscoverUserShelves
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Discover screen - browse lenses from other users and view community leaderboard.
+ * Discover screen - browse shelves from other users and view community leaderboard.
  *
  * Features:
  * - Community leaderboard with gamified rankings
  * - Pull to refresh
- * - Users grouped with their lenses
- * - Click lens to view details
+ * - Users grouped with their shelves
+ * - Click shelf to view details
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverScreen(
-    onLensClick: (String) -> Unit,
+    onShelfClick: (String) -> Unit,
     onBookClick: (String) -> Unit,
     onUserProfileClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DiscoverViewModel = koinViewModel(),
 ) {
-    val lensesState by viewModel.discoverLensesState.collectAsState()
+    val shelvesState by viewModel.discoverShelvesState.collectAsState()
 
     PullToRefreshBox(
-        isRefreshing = lensesState.isLoading,
+        isRefreshing = shelvesState.isLoading,
         onRefresh = { viewModel.refresh() },
         modifier =
             modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        // Discover content with leaderboard (always shows) and user lenses
+        // Discover content with leaderboard (always shows) and user shelves
         DiscoverContent(
-            isLoading = lensesState.isLoading,
-            users = lensesState.users,
-            isEmpty = lensesState.isEmpty,
-            onLensClick = onLensClick,
+            isLoading = shelvesState.isLoading,
+            users = shelvesState.users,
+            isEmpty = shelvesState.isEmpty,
+            onShelfClick = onShelfClick,
             onBookClick = onBookClick,
             onUserProfileClick = onUserProfileClick,
         )
@@ -93,12 +93,12 @@ fun DiscoverScreen(
 }
 
 /**
- * Empty state when no lenses are discoverable from other users.
+ * Empty state when no shelves are discoverable from other users.
  *
- * This is shown below the leaderboard when there are no shared lenses.
+ * This is shown below the leaderboard when there are no shared shelves.
  */
 @Composable
-private fun EmptyLensesState(modifier: Modifier = Modifier) {
+private fun EmptyShelvesState(modifier: Modifier = Modifier) {
     Column(
         modifier =
             modifier
@@ -114,11 +114,11 @@ private fun EmptyLensesState(modifier: Modifier = Modifier) {
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         )
         Text(
-            text = "No Lenses to Discover Yet",
+            text = "No Shelves to Discover Yet",
             style = MaterialTheme.typography.titleMedium,
         )
         Text(
-            text = "When other users create lenses with books you can access, they'll appear here.",
+            text = "When other users create shelves with books you can access, they'll appear here.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -127,19 +127,19 @@ private fun EmptyLensesState(modifier: Modifier = Modifier) {
 }
 
 /**
- * Main content showing leaderboard and users with their lenses.
+ * Main content showing leaderboard and users with their shelves.
  *
  * The leaderboard always shows at the top. Below it:
  * - If loading initial data, show loading indicator
  * - If empty, show empty state message
- * - If has users, show their lenses
+ * - If has users, show their shelves
  */
 @Composable
 private fun DiscoverContent(
     isLoading: Boolean,
-    users: List<DiscoverUserLenses>,
+    users: List<DiscoverUserShelves>,
     isEmpty: Boolean,
-    onLensClick: (String) -> Unit,
+    onShelfClick: (String) -> Unit,
     onBookClick: (String) -> Unit,
     onUserProfileClick: (String) -> Unit,
 ) {
@@ -180,7 +180,7 @@ private fun DiscoverContent(
         item {
             ActivityFeedSection(
                 onBookClick = onBookClick,
-                onLensClick = onLensClick,
+                onShelfClick = onShelfClick,
             )
         }
 
@@ -202,19 +202,19 @@ private fun DiscoverContent(
 
             isEmpty -> {
                 item {
-                    EmptyLensesState()
+                    EmptyShelvesState()
                 }
             }
 
             else -> {
-                // Users with lenses
+                // Users with shelves
                 items(
                     items = users,
                     key = { it.user.id },
-                ) { userLenses ->
-                    UserLensesSection(
-                        userLenses = userLenses,
-                        onLensClick = onLensClick,
+                ) { userShelves ->
+                    UserShelvesSection(
+                        userShelves = userShelves,
+                        onShelfClick = onShelfClick,
                     )
                 }
             }
@@ -223,18 +223,18 @@ private fun DiscoverContent(
 }
 
 /**
- * Section for a single user's lenses.
+ * Section for a single user's shelves.
  */
 @Composable
-private fun UserLensesSection(
-    userLenses: DiscoverUserLenses,
-    onLensClick: (String) -> Unit,
+private fun UserShelvesSection(
+    userShelves: DiscoverUserShelves,
+    onShelfClick: (String) -> Unit,
 ) {
     val avatarColor =
-        remember(userLenses.user.avatarColor) {
+        remember(userShelves.user.avatarColor) {
             try {
                 Color(
-                    userLenses.user.avatarColor
+                    userShelves.user.avatarColor
                         .removePrefix("#")
                         .toLong(16) or 0xFF000000,
                 )
@@ -254,9 +254,9 @@ private fun UserLensesSection(
         ) {
             // Avatar - uses ProfileAvatar for offline-first avatar display
             ProfileAvatar(
-                userId = userLenses.user.id,
-                displayName = userLenses.user.displayName,
-                avatarColor = userLenses.user.avatarColor,
+                userId = userShelves.user.id,
+                displayName = userShelves.user.displayName,
+                avatarColor = userShelves.user.avatarColor,
                 size = 40.dp,
             )
 
@@ -264,12 +264,12 @@ private fun UserLensesSection(
 
             Column {
                 Text(
-                    text = userLenses.user.displayName,
+                    text = userShelves.user.displayName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "${userLenses.lenses.size} ${if (userLenses.lenses.size == 1) "lens" else "lenses"}",
+                    text = "${userShelves.shelves.size} ${if (userShelves.shelves.size == 1) "shelf" else "shelves"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -278,19 +278,19 @@ private fun UserLensesSection(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Horizontal scroll of lenses
+        // Horizontal scroll of shelves
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(
-                items = userLenses.lenses,
+                items = userShelves.shelves,
                 key = { it.id },
-            ) { lens ->
-                DiscoverLensCard(
-                    lens = lens,
+            ) { shelf ->
+                DiscoverShelfCard(
+                    shelf = shelf,
                     avatarColor = avatarColor,
-                    onClick = { onLensClick(lens.id) },
+                    onClick = { onShelfClick(shelf.id) },
                 )
             }
         }
@@ -298,11 +298,11 @@ private fun UserLensesSection(
 }
 
 /**
- * Card for a discoverable lens.
+ * Card for a discoverable shelf.
  */
 @Composable
-private fun DiscoverLensCard(
-    lens: DiscoverLensUi,
+private fun DiscoverShelfCard(
+    shelf: DiscoverShelfUi,
     avatarColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -313,7 +313,7 @@ private fun DiscoverLensCard(
                 .width(140.dp)
                 .clickable(onClick = onClick),
     ) {
-        // Lens icon
+        // Shelf icon
         Box(
             modifier =
                 Modifier
@@ -332,9 +332,9 @@ private fun DiscoverLensCard(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Lens name
+        // Shelf name
         Text(
-            text = lens.name,
+            text = shelf.name,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
@@ -343,7 +343,7 @@ private fun DiscoverLensCard(
 
         // Book count
         Text(
-            text = "${lens.bookCount} ${if (lens.bookCount == 1) "book" else "books"}",
+            text = "${shelf.bookCount} ${if (shelf.bookCount == 1) "book" else "books"}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

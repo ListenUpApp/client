@@ -18,23 +18,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.model.Shelf
 
 /**
- * Horizontal scrolling row of My Lenses.
+ * Horizontal scrolling row of My Shelves.
  *
  * Displays a section header with "See All" action, followed by a
- * horizontally scrollable list of LensCard components.
+ * horizontally scrollable list of ShelfCard components.
  *
- * @param lenses List of lenses owned by the user
- * @param onLensClick Callback when a lens card is clicked
+ * @param shelves List of shelves owned by the user
+ * @param onShelfClick Callback when a shelf card is clicked
  * @param onSeeAllClick Callback when "See All" is clicked
  * @param modifier Optional modifier
  */
 @Composable
-fun MyLensesRow(
-    lenses: List<Lens>,
-    onLensClick: (String) -> Unit,
+fun MyShelvesRow(
+    shelves: List<Shelf>,
+    onShelfClick: (String) -> Unit,
     onSeeAllClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -49,7 +49,7 @@ fun MyLensesRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "My Lenses",
+                text = "My Shelves",
                 style =
                     MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
@@ -68,18 +68,18 @@ fun MyLensesRow(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Horizontally scrolling lens cards
+        // Horizontally scrolling shelf cards
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(
-                items = lenses,
+                items = shelves,
                 key = { it.id },
-            ) { lens ->
-                LensCard(
-                    lens = lens,
-                    onClick = { onLensClick(lens.id) },
+            ) { shelf ->
+                ShelfCard(
+                    shelf = shelf,
+                    onClick = { onShelfClick(shelf.id) },
                 )
             }
         }

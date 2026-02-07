@@ -17,88 +17,88 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Contract for lens API operations.
+ * Contract for shelf API operations.
  * All methods require authentication.
  */
-interface LensApiContract {
+interface ShelfApiContract {
     /**
-     * Get all lenses owned by the current user.
+     * Get all shelves owned by the current user.
      */
-    suspend fun getMyLenses(): List<LensResponse>
+    suspend fun getMyShelves(): List<ShelfResponse>
 
     /**
-     * Discover lenses from other users containing accessible books.
-     * Returns lenses grouped by owner.
+     * Discover shelves from other users containing accessible books.
+     * Returns shelves grouped by owner.
      */
-    suspend fun discoverLenses(): List<UserLensesResponse>
+    suspend fun discoverShelves(): List<UserShelvesResponse>
 
     /**
-     * Create a new lens.
+     * Create a new shelf.
      */
-    suspend fun createLens(
+    suspend fun createShelf(
         name: String,
         description: String?,
-    ): LensResponse
+    ): ShelfResponse
 
     /**
-     * Get a lens by ID with its books.
+     * Get a shelf by ID with its books.
      */
-    suspend fun getLens(lensId: String): LensDetailResponse
+    suspend fun getShelf(shelfId: String): ShelfDetailResponse
 
     /**
-     * Update a lens (owner only).
+     * Update a shelf (owner only).
      */
-    suspend fun updateLens(
-        lensId: String,
+    suspend fun updateShelf(
+        shelfId: String,
         name: String,
         description: String?,
-    ): LensResponse
+    ): ShelfResponse
 
     /**
-     * Delete a lens (owner only).
+     * Delete a shelf (owner only).
      */
-    suspend fun deleteLens(lensId: String)
+    suspend fun deleteShelf(shelfId: String)
 
     /**
-     * Add books to a lens (owner only).
+     * Add books to a shelf (owner only).
      */
     suspend fun addBooks(
-        lensId: String,
+        shelfId: String,
         bookIds: List<String>,
     )
 
     /**
-     * Remove a book from a lens (owner only).
+     * Remove a book from a shelf (owner only).
      */
     suspend fun removeBook(
-        lensId: String,
+        shelfId: String,
         bookId: String,
     )
 }
 
 /**
- * API client for lens operations.
+ * API client for shelf operations.
  *
  * Requires authentication via ApiClientFactory.
  */
-class LensApi(
+class ShelfApi(
     private val clientFactory: ApiClientFactory,
-) : LensApiContract {
-    override suspend fun getMyLenses(): List<LensResponse> {
+) : ShelfApiContract {
+    override suspend fun getMyShelves(): List<ShelfResponse> {
         val client = clientFactory.getClient()
-        val response: ApiResponse<ListLensesResponse> =
-            client.get("/api/v1/lenses").body()
+        val response: ApiResponse<ListShelvesResponse> =
+            client.get("/api/v1/shelves").body()
 
         return when (val result = response.toResult()) {
-            is Success -> result.data.lenses
+            is Success -> result.data.shelves
             is Failure -> throw result.exceptionOrFromMessage()
         }
     }
 
-    override suspend fun discoverLenses(): List<UserLensesResponse> {
+    override suspend fun discoverShelves(): List<UserShelvesResponse> {
         val client = clientFactory.getClient()
-        val response: ApiResponse<DiscoverLensesResponse> =
-            client.get("/api/v1/lenses/discover").body()
+        val response: ApiResponse<DiscoverShelvesResponse> =
+            client.get("/api/v1/shelves/discover").body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data.users
@@ -106,15 +106,15 @@ class LensApi(
         }
     }
 
-    override suspend fun createLens(
+    override suspend fun createShelf(
         name: String,
         description: String?,
-    ): LensResponse {
+    ): ShelfResponse {
         val client = clientFactory.getClient()
-        val response: ApiResponse<LensResponse> =
+        val response: ApiResponse<ShelfResponse> =
             client
-                .post("/api/v1/lenses") {
-                    setBody(CreateLensRequest(name, description ?: ""))
+                .post("/api/v1/shelves") {
+                    setBody(CreateShelfRequest(name, description ?: ""))
                 }.body()
 
         return when (val result = response.toResult()) {
@@ -123,10 +123,10 @@ class LensApi(
         }
     }
 
-    override suspend fun getLens(lensId: String): LensDetailResponse {
+    override suspend fun getShelf(shelfId: String): ShelfDetailResponse {
         val client = clientFactory.getClient()
-        val response: ApiResponse<LensDetailResponse> =
-            client.get("/api/v1/lenses/$lensId").body()
+        val response: ApiResponse<ShelfDetailResponse> =
+            client.get("/api/v1/shelves/$shelfId").body()
 
         return when (val result = response.toResult()) {
             is Success -> result.data
@@ -134,16 +134,16 @@ class LensApi(
         }
     }
 
-    override suspend fun updateLens(
-        lensId: String,
+    override suspend fun updateShelf(
+        shelfId: String,
         name: String,
         description: String?,
-    ): LensResponse {
+    ): ShelfResponse {
         val client = clientFactory.getClient()
-        val response: ApiResponse<LensResponse> =
+        val response: ApiResponse<ShelfResponse> =
             client
-                .patch("/api/v1/lenses/$lensId") {
-                    setBody(UpdateLensRequest(name, description ?: ""))
+                .patch("/api/v1/shelves/$shelfId") {
+                    setBody(UpdateShelfRequest(name, description ?: ""))
                 }.body()
 
         return when (val result = response.toResult()) {
@@ -152,12 +152,12 @@ class LensApi(
         }
     }
 
-    override suspend fun deleteLens(lensId: String) {
+    override suspend fun deleteShelf(shelfId: String) {
         val client = clientFactory.getClient()
-        val response: ApiResponse<Unit> = client.delete("/api/v1/lenses/$lensId").body()
+        val response: ApiResponse<Unit> = client.delete("/api/v1/shelves/$shelfId").body()
 
         when (val result = response.toResult()) {
-            is Success -> { /* Lens deleted successfully */ }
+            is Success -> { /* Shelf deleted successfully */ }
 
             is Failure -> {
                 throw result.exceptionOrFromMessage()
@@ -166,13 +166,13 @@ class LensApi(
     }
 
     override suspend fun addBooks(
-        lensId: String,
+        shelfId: String,
         bookIds: List<String>,
     ) {
         val client = clientFactory.getClient()
         val response =
-            client.post("/api/v1/lenses/$lensId/books") {
-                setBody(AddBooksToLensRequest(bookIds))
+            client.post("/api/v1/shelves/$shelfId/books") {
+                setBody(AddBooksToShelfRequest(bookIds))
             }
 
         if (!response.status.isSuccess()) {
@@ -188,14 +188,14 @@ class LensApi(
     }
 
     override suspend fun removeBook(
-        lensId: String,
+        shelfId: String,
         bookId: String,
     ) {
         val client = clientFactory.getClient()
-        val response: ApiResponse<Unit> = client.delete("/api/v1/lenses/$lensId/books/$bookId").body()
+        val response: ApiResponse<Unit> = client.delete("/api/v1/shelves/$shelfId/books/$bookId").body()
 
         when (val result = response.toResult()) {
-            is Success -> { /* Book removed from lens successfully */ }
+            is Success -> { /* Book removed from shelf successfully */ }
 
             is Failure -> {
                 throw result.exceptionOrFromMessage()
@@ -207,24 +207,24 @@ class LensApi(
 // ========== Response Models ==========
 
 /**
- * Lens owner information.
+ * Shelf owner information.
  */
 @Serializable
-data class LensOwnerResponse(
+data class ShelfOwnerResponse(
     @SerialName("id") val id: String,
     @SerialName("display_name") val displayName: String,
     @SerialName("avatar_color") val avatarColor: String,
 )
 
 /**
- * Lens summary response.
+ * Shelf summary response.
  */
 @Serializable
-data class LensResponse(
+data class ShelfResponse(
     @SerialName("id") val id: String,
     @SerialName("name") val name: String,
     @SerialName("description") val description: String,
-    @SerialName("owner") val owner: LensOwnerResponse,
+    @SerialName("owner") val owner: ShelfOwnerResponse,
     @SerialName("book_count") val bookCount: Int,
     @SerialName("total_duration") val totalDuration: Long,
     @SerialName("created_at") val createdAt: String,
@@ -232,10 +232,10 @@ data class LensResponse(
 )
 
 /**
- * A book within a lens.
+ * A book within a shelf.
  */
 @Serializable
-data class LensBookResponse(
+data class ShelfBookResponse(
     @SerialName("id") val id: String,
     @SerialName("title") val title: String,
     @SerialName("author_names") val authorNames: List<String>,
@@ -244,72 +244,72 @@ data class LensBookResponse(
 )
 
 /**
- * Lens detail response with books.
+ * Shelf detail response with books.
  */
 @Serializable
-data class LensDetailResponse(
+data class ShelfDetailResponse(
     @SerialName("id") val id: String,
     @SerialName("name") val name: String,
     @SerialName("description") val description: String,
-    @SerialName("owner") val owner: LensOwnerResponse,
+    @SerialName("owner") val owner: ShelfOwnerResponse,
     @SerialName("book_count") val bookCount: Int,
     @SerialName("total_duration") val totalDuration: Long,
-    @SerialName("books") val books: List<LensBookResponse>,
+    @SerialName("books") val books: List<ShelfBookResponse>,
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
 )
 
 /**
- * A user's lenses in discover response.
+ * A user's shelves in discover response.
  */
 @Serializable
-data class UserLensesResponse(
-    @SerialName("user") val user: LensOwnerResponse,
-    @SerialName("lenses") val lenses: List<LensResponse>,
+data class UserShelvesResponse(
+    @SerialName("user") val user: ShelfOwnerResponse,
+    @SerialName("shelves") val shelves: List<ShelfResponse>,
 )
 
 // ========== Request Models ==========
 
 /**
- * Request to create a lens.
+ * Request to create a shelf.
  */
 @Serializable
-private data class CreateLensRequest(
+private data class CreateShelfRequest(
     @SerialName("name") val name: String,
     @SerialName("description") val description: String,
 )
 
 /**
- * Request to update a lens.
+ * Request to update a shelf.
  */
 @Serializable
-private data class UpdateLensRequest(
+private data class UpdateShelfRequest(
     @SerialName("name") val name: String,
     @SerialName("description") val description: String,
 )
 
 /**
- * Request to add books to a lens.
+ * Request to add books to a shelf.
  */
 @Serializable
-private data class AddBooksToLensRequest(
+private data class AddBooksToShelfRequest(
     @SerialName("book_ids") val bookIds: List<String>,
 )
 
 // ========== Internal Response Wrappers ==========
 
 /**
- * Wrapper for list lenses response.
+ * Wrapper for list shelves response.
  */
 @Serializable
-private data class ListLensesResponse(
-    @SerialName("lenses") val lenses: List<LensResponse>,
+private data class ListShelvesResponse(
+    @SerialName("shelves") val shelves: List<ShelfResponse>,
 )
 
 /**
- * Wrapper for discover lenses response.
+ * Wrapper for discover shelves response.
  */
 @Serializable
-private data class DiscoverLensesResponse(
-    @SerialName("users") val users: List<UserLensesResponse>,
+private data class DiscoverShelvesResponse(
+    @SerialName("users") val users: List<UserShelvesResponse>,
 )

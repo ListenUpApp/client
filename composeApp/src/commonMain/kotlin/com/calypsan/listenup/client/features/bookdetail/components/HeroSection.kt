@@ -62,7 +62,7 @@ fun HeroSection(
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
     onDiscardProgressClick: () -> Unit,
-    onAddToLensClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
@@ -118,7 +118,7 @@ fun HeroSection(
                 onFindMetadataClick = onFindMetadataClick,
                 onMarkCompleteClick = onMarkCompleteClick,
                 onDiscardProgressClick = onDiscardProgressClick,
-                onAddToLensClick = onAddToLensClick,
+                onAddToShelfClick = onAddToShelfClick,
                 onAddToCollectionClick = onAddToCollectionClick,
                 onDeleteClick = onDeleteClick,
             )
@@ -182,7 +182,7 @@ private fun HeroNavigationBar(
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
     onDiscardProgressClick: () -> Unit,
-    onAddToLensClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
@@ -255,9 +255,9 @@ private fun HeroNavigationBar(
                     showMenu = false
                     onDiscardProgressClick()
                 },
-                onAddToLensClick = {
+                onAddToShelfClick = {
                     showMenu = false
-                    onAddToLensClick()
+                    onAddToShelfClick()
                 },
                 onAddToCollectionClick = {
                     showMenu = false

@@ -101,6 +101,7 @@ enum class EntityType {
     CONTRIBUTOR,
     SERIES,
     USER,
+    SHELF,
     ;
 
     companion object {
@@ -108,6 +109,7 @@ enum class EntityType {
         const val CONTRIBUTOR_ORDINAL = 1
         const val SERIES_ORDINAL = 2
         const val USER_ORDINAL = 3
+        const val SHELF_ORDINAL = 4
     }
 }
 

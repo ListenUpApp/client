@@ -51,10 +51,10 @@ import com.calypsan.listenup.client.features.contributordetail.ContributorDetail
 import com.calypsan.listenup.client.features.contributoredit.ContributorEditScreen
 import com.calypsan.listenup.client.features.contributormetadata.ContributorMetadataPreviewRoute
 import com.calypsan.listenup.client.features.contributormetadata.ContributorMetadataSearchRoute
-import com.calypsan.listenup.client.features.lens.CreateEditLensScreen
+import com.calypsan.listenup.client.features.shelf.CreateEditShelfScreen
 import com.calypsan.listenup.client.features.metadata.MatchPreviewRoute
 import com.calypsan.listenup.client.features.metadata.MetadataSearchRoute
-import com.calypsan.listenup.client.features.lens.LensDetailScreen
+import com.calypsan.listenup.client.features.shelf.ShelfDetailScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
 import com.calypsan.listenup.client.features.search.SearchResultsOverlay
 import com.calypsan.listenup.client.features.seriesdetail.SeriesDetailScreen
@@ -94,8 +94,8 @@ sealed interface DetailDestination {
         val contributorId: String,
     ) : DetailDestination
 
-    data class Lens(
-        val lensId: String,
+    data class Shelf(
+        val shelfId: String,
     ) : DetailDestination
 
     data class Tag(
@@ -114,11 +114,11 @@ sealed interface DetailDestination {
         val seriesId: String,
     ) : DetailDestination
 
-    data class LensEdit(
-        val lensId: String,
+    data class ShelfEdit(
+        val shelfId: String,
     ) : DetailDestination
 
-    data object LensCreate : DetailDestination
+    data object ShelfCreate : DetailDestination
 
     data class MetadataSearch(
         val bookId: String,
@@ -242,7 +242,7 @@ private fun DesktopAuthenticatedNavigation() {
                         onBookClick = { navigateTo(DetailDestination.Book(it)) },
                         onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
                         onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
-                        onLensClick = { navigateTo(DetailDestination.Lens(it)) },
+                        onShelfClick = { navigateTo(DetailDestination.Shelf(it)) },
                         onTagClick = { navigateTo(DetailDestination.Tag(it)) },
                         onAdminClick = { navigateTo(DetailDestination.Admin) },
                         onSettingsClick = {
@@ -262,8 +262,8 @@ private fun DesktopAuthenticatedNavigation() {
                             HomeScreen(
                                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
                                 onNavigateToLibrary = onNavigateToLibrary,
-                                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
-                                onSeeAllLenses = onNavigateToLibrary,
+                                onShelfClick = { navigateTo(DetailDestination.Shelf(it)) },
+                                onSeeAllShelves = onNavigateToLibrary,
                                 modifier = Modifier.padding(padding),
                             )
                         },
@@ -279,7 +279,7 @@ private fun DesktopAuthenticatedNavigation() {
                         },
                         discoverContent = { padding ->
                             DiscoverScreen(
-                                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
+                                onShelfClick = { navigateTo(DetailDestination.Shelf(it)) },
                                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
                                 onUserProfileClick = { navigateTo(DetailDestination.UserProfile(it)) },
                                 modifier = Modifier.padding(padding),
@@ -395,12 +395,12 @@ private fun DetailScreen(
             )
         }
 
-        is DetailDestination.Lens -> {
-            LensDetailScreen(
-                lensId = destination.lensId,
+        is DetailDestination.Shelf -> {
+            ShelfDetailScreen(
+                shelfId = destination.shelfId,
                 onBack = navigateBack,
                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
-                onEditClick = { navigateTo(DetailDestination.LensEdit(it)) },
+                onEditClick = { navigateTo(DetailDestination.ShelfEdit(it)) },
             )
         }
 
@@ -412,16 +412,16 @@ private fun DetailScreen(
             )
         }
 
-        is DetailDestination.LensEdit -> {
-            CreateEditLensScreen(
-                lensId = destination.lensId,
+        is DetailDestination.ShelfEdit -> {
+            CreateEditShelfScreen(
+                shelfId = destination.shelfId,
                 onBack = navigateBack,
             )
         }
 
-        is DetailDestination.LensCreate -> {
-            CreateEditLensScreen(
-                lensId = null,
+        is DetailDestination.ShelfCreate -> {
+            CreateEditShelfScreen(
+                shelfId = null,
                 onBack = navigateBack,
             )
         }
@@ -618,8 +618,8 @@ private fun DetailScreen(
                 onBack = navigateBack,
                 onEditClick = { /* Edit profile not implemented on desktop */ },
                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
-                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
-                onCreateLensClick = { navigateTo(DetailDestination.LensCreate) },
+                onShelfClick = { navigateTo(DetailDestination.Shelf(it)) },
+                onCreateShelfClick = { navigateTo(DetailDestination.ShelfCreate) },
             )
         }
     }

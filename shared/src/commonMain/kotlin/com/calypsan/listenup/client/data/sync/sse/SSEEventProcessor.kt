@@ -16,8 +16,8 @@ import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
-import com.calypsan.listenup.client.data.local.db.LensDao
-import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.data.local.db.ShelfDao
+import com.calypsan.listenup.client.data.local.db.ShelfEntity
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -76,7 +76,7 @@ class SSEEventProcessor(
     private val bookContributorDao: BookContributorDao,
     private val bookSeriesDao: BookSeriesDao,
     private val collectionDao: CollectionDao,
-    private val lensDao: LensDao,
+    private val shelfDao: ShelfDao,
     private val tagDao: TagDao,
     private val listeningEventDao: ListeningEventDao,
     private val activityDao: ActivityDao,
@@ -219,24 +219,24 @@ class SSEEventProcessor(
                     handleCollectionBookRemoved(event)
                 }
 
-                is SSEEventType.LensCreated -> {
-                    handleLensCreated(event)
+                is SSEEventType.ShelfCreated -> {
+                    handleShelfCreated(event)
                 }
 
-                is SSEEventType.LensUpdated -> {
-                    handleLensUpdated(event)
+                is SSEEventType.ShelfUpdated -> {
+                    handleShelfUpdated(event)
                 }
 
-                is SSEEventType.LensDeleted -> {
-                    handleLensDeleted(event)
+                is SSEEventType.ShelfDeleted -> {
+                    handleShelfDeleted(event)
                 }
 
-                is SSEEventType.LensBookAdded -> {
-                    handleLensBookAdded(event)
+                is SSEEventType.ShelfBookAdded -> {
+                    handleShelfBookAdded(event)
                 }
 
-                is SSEEventType.LensBookRemoved -> {
-                    handleLensBookRemoved(event)
+                is SSEEventType.ShelfBookRemoved -> {
+                    handleShelfBookRemoved(event)
                 }
 
                 is SSEEventType.TagCreated -> {
@@ -508,12 +508,12 @@ class SSEEventProcessor(
         }
     }
 
-    // ========== Lens Event Handlers ==========
+    // ========== Shelf Event Handlers ==========
 
-    private suspend fun handleLensCreated(event: SSEEventType.LensCreated) {
-        logger.debug { "SSE: Lens created - ${event.name} (${event.id})" }
-        lensDao.upsert(
-            LensEntity(
+    private suspend fun handleShelfCreated(event: SSEEventType.ShelfCreated) {
+        logger.debug { "SSE: Shelf created - ${event.name} (${event.id})" }
+        shelfDao.upsert(
+            ShelfEntity(
                 id = event.id,
                 name = event.name,
                 description = event.description,
@@ -528,12 +528,12 @@ class SSEEventProcessor(
         )
     }
 
-    private suspend fun handleLensUpdated(event: SSEEventType.LensUpdated) {
-        logger.debug { "SSE: Lens updated - ${event.name} (${event.id})" }
+    private suspend fun handleShelfUpdated(event: SSEEventType.ShelfUpdated) {
+        logger.debug { "SSE: Shelf updated - ${event.name} (${event.id})" }
         // Get existing to preserve totalDurationSeconds
-        val existing = lensDao.getById(event.id)
-        lensDao.upsert(
-            LensEntity(
+        val existing = shelfDao.getById(event.id)
+        shelfDao.upsert(
+            ShelfEntity(
                 id = event.id,
                 name = event.name,
                 description = event.description,
@@ -548,17 +548,17 @@ class SSEEventProcessor(
         )
     }
 
-    private suspend fun handleLensDeleted(event: SSEEventType.LensDeleted) {
-        logger.debug { "SSE: Lens deleted - ${event.id}" }
-        lensDao.deleteById(event.id)
+    private suspend fun handleShelfDeleted(event: SSEEventType.ShelfDeleted) {
+        logger.debug { "SSE: Shelf deleted - ${event.id}" }
+        shelfDao.deleteById(event.id)
     }
 
-    private suspend fun handleLensBookAdded(event: SSEEventType.LensBookAdded) {
-        logger.debug { "SSE: Book ${event.bookId} added to lens ${event.lensId}" }
-        // Update the book count for the lens
-        val existing = lensDao.getById(event.lensId)
+    private suspend fun handleShelfBookAdded(event: SSEEventType.ShelfBookAdded) {
+        logger.debug { "SSE: Book ${event.bookId} added to shelf ${event.shelfId}" }
+        // Update the book count for the shelf
+        val existing = shelfDao.getById(event.shelfId)
         if (existing != null) {
-            lensDao.upsert(
+            shelfDao.upsert(
                 existing.copy(
                     bookCount = event.bookCount,
                     updatedAt = Timestamp.now(),
@@ -567,12 +567,12 @@ class SSEEventProcessor(
         }
     }
 
-    private suspend fun handleLensBookRemoved(event: SSEEventType.LensBookRemoved) {
-        logger.debug { "SSE: Book ${event.bookId} removed from lens ${event.lensId}" }
-        // Update the book count for the lens
-        val existing = lensDao.getById(event.lensId)
+    private suspend fun handleShelfBookRemoved(event: SSEEventType.ShelfBookRemoved) {
+        logger.debug { "SSE: Book ${event.bookId} removed from shelf ${event.shelfId}" }
+        // Update the book count for the shelf
+        val existing = shelfDao.getById(event.shelfId)
         if (existing != null) {
-            lensDao.upsert(
+            shelfDao.upsert(
                 existing.copy(
                     bookCount = event.bookCount,
                     updatedAt = Timestamp.now(),
@@ -774,8 +774,8 @@ class SSEEventProcessor(
                 durationMs = event.durationMs,
                 milestoneValue = event.milestoneValue,
                 milestoneUnit = event.milestoneUnit,
-                lensId = event.lensId,
-                lensName = event.lensName,
+                shelfId = event.shelfId,
+                shelfName = event.shelfName,
             )
 
         try {

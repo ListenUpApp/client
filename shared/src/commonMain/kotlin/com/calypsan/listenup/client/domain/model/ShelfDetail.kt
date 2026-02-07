@@ -1,27 +1,27 @@
 package com.calypsan.listenup.client.domain.model
 
 /**
- * Domain model representing full lens details for the lens detail screen.
+ * Domain model representing full shelf details for the shelf detail screen.
  *
- * Contains all information needed to display a lens's detail view,
+ * Contains all information needed to display a shelf's detail view,
  * including owner info, stats, and the list of books.
  *
- * @property id Unique lens identifier
- * @property name Lens display name
- * @property description Optional lens description
- * @property owner Information about the lens owner
- * @property bookCount Number of books in the lens
+ * @property id Unique shelf identifier
+ * @property name Shelf display name
+ * @property description Optional shelf description
+ * @property owner Information about the shelf owner
+ * @property bookCount Number of books in the shelf
  * @property totalDurationSeconds Total duration of all books in seconds
- * @property books List of books in the lens
+ * @property books List of books in the shelf
  */
-data class LensDetail(
+data class ShelfDetail(
     val id: String,
     val name: String,
     val description: String?,
-    val owner: LensOwner,
+    val owner: ShelfOwner,
     val bookCount: Int,
     val totalDurationSeconds: Long,
-    val books: List<LensBook>,
+    val books: List<ShelfBook>,
 ) {
     /**
      * Returns the total duration formatted as hours and minutes.
@@ -39,26 +39,26 @@ data class LensDetail(
         }
 
     /**
-     * Returns true if the given user owns this lens.
+     * Returns true if the given user owns this shelf.
      */
     fun isOwnedBy(userId: String): Boolean = owner.id == userId
 }
 
 /**
- * Owner information for a lens.
+ * Owner information for a shelf.
  *
  * @property id Owner's user ID
  * @property displayName Owner's display name
  * @property avatarColor Owner's avatar color (hex format)
  */
-data class LensOwner(
+data class ShelfOwner(
     val id: String,
     val displayName: String,
     val avatarColor: String,
 )
 
 /**
- * A book within a lens.
+ * A book within a shelf.
  *
  * @property id Book's unique identifier
  * @property title Book title
@@ -66,7 +66,7 @@ data class LensOwner(
  * @property coverPath Local path to cover image (optional)
  * @property durationSeconds Book duration in seconds
  */
-data class LensBook(
+data class ShelfBook(
     val id: String,
     val title: String,
     val authorNames: List<String>,

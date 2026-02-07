@@ -5,14 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.Collection
-import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
-import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.domain.usecase.collection.AddBooksToCollectionUseCase
 import com.calypsan.listenup.client.domain.usecase.collection.RefreshCollectionsUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.AddBooksToLensUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.AddBooksToShelfUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -29,12 +29,12 @@ import kotlinx.coroutines.launch
 private val logger = KotlinLogging.logger {}
 
 /**
- * ViewModel for Library batch actions (collections and lenses).
+ * ViewModel for Library batch actions (collections and shelves).
  *
  * Handles all batch operations on selected books:
  * - Adding books to admin collections
- * - Adding books to user lenses
- * - Creating new lenses with selected books
+ * - Adding books to user shelves
+ * - Creating new shelves with selected books
  *
  * Observes [LibrarySelectionManager] for the current selection state,
  * which is shared with [LibraryViewModel].
@@ -43,11 +43,11 @@ class LibraryActionsViewModel(
     private val selectionManager: LibrarySelectionManager,
     private val userRepository: UserRepository,
     private val collectionRepository: CollectionRepository,
-    private val lensRepository: LensRepository,
+    private val shelfRepository: ShelfRepository,
     private val addBooksToCollectionUseCase: AddBooksToCollectionUseCase,
     private val refreshCollectionsUseCase: RefreshCollectionsUseCase,
-    private val addBooksToLensUseCase: AddBooksToLensUseCase,
-    private val createLensUseCase: CreateLensUseCase,
+    private val addBooksToShelfUseCase: AddBooksToShelfUseCase,
+    private val createShelfUseCase: CreateShelfUseCase,
 ) : ViewModel() {
     // ═══════════════════════════════════════════════════════════════════════
     // SELECTION STATE (observed from shared manager)
@@ -107,20 +107,20 @@ class LibraryActionsViewModel(
             )
 
     // ═══════════════════════════════════════════════════════════════════════
-    // LENS STATE (all users)
+    // SHELF STATE (all users)
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
-     * Observable list of the current user's lenses for the lens picker.
+     * Observable list of the current user's shelves for the shelf picker.
      * Available to all users (not just admins).
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val myLenses: StateFlow<List<Lens>> =
+    val myShelves: StateFlow<List<Shelf>> =
         userRepository
             .observeCurrentUser()
             .flatMapLatest { user ->
                 if (user != null) {
-                    lensRepository.observeMyLenses(user.id.value)
+                    shelfRepository.observeMyShelves(user.id.value)
                 } else {
                     flowOf(emptyList())
                 }
@@ -141,9 +141,9 @@ class LibraryActionsViewModel(
         field = MutableStateFlow(false)
 
     /**
-     * Whether an add-to-lens operation is in progress.
+     * Whether an add-to-shelf operation is in progress.
      */
-    val isAddingToLens: StateFlow<Boolean>
+    val isAddingToShelf: StateFlow<Boolean>
         field = MutableStateFlow(false)
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -226,84 +226,84 @@ class LibraryActionsViewModel(
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // LENS ACTIONS (all users)
+    // SHELF ACTIONS (all users)
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
-     * Add all selected books to the specified lens.
-     * Uses AddBooksToLensUseCase and emits success/error events.
+     * Add all selected books to the specified shelf.
+     * Uses AddBooksToShelfUseCase and emits success/error events.
      *
-     * @param lensId The ID of the lens to add books to
+     * @param shelfId The ID of the shelf to add books to
      */
-    fun addSelectedToLens(lensId: String) {
+    fun addSelectedToShelf(shelfId: String) {
         val selectedIds = selectionManager.getSelectedIds()
         if (selectedIds.isEmpty()) return
 
         viewModelScope.launch {
-            isAddingToLens.value = true
+            isAddingToShelf.value = true
             val bookIds = selectedIds.toList()
 
-            when (val result = addBooksToLensUseCase(lensId, bookIds)) {
+            when (val result = addBooksToShelfUseCase(shelfId, bookIds)) {
                 is Success -> {
-                    logger.info { "Added ${bookIds.size} books to lens $lensId" }
-                    _events.emit(LibraryActionEvent.BooksAddedToLens(bookIds.size))
+                    logger.info { "Added ${bookIds.size} books to shelf $shelfId" }
+                    _events.emit(LibraryActionEvent.BooksAddedToShelf(bookIds.size))
                     selectionManager.clearAfterAction()
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to add books to lens: ${result.message}" }
-                    _events.emit(LibraryActionEvent.AddToLensFailed(result.message))
+                    logger.error { "Failed to add books to shelf: ${result.message}" }
+                    _events.emit(LibraryActionEvent.AddToShelfFailed(result.message))
                 }
             }
 
-            isAddingToLens.value = false
+            isAddingToShelf.value = false
         }
     }
 
     /**
-     * Create a new lens and add all selected books to it.
-     * First creates the lens via use case, then adds the books.
+     * Create a new shelf and add all selected books to it.
+     * First creates the shelf via use case, then adds the books.
      *
-     * @param name The name for the new lens
+     * @param name The name for the new shelf
      */
-    fun createLensAndAddBooks(name: String) {
+    fun createShelfAndAddBooks(name: String) {
         val selectedIds = selectionManager.getSelectedIds()
         if (selectedIds.isEmpty()) return
 
         viewModelScope.launch {
-            isAddingToLens.value = true
+            isAddingToShelf.value = true
             val bookIds = selectedIds.toList()
 
-            // Create the lens
-            when (val createResult = createLensUseCase(name, null)) {
+            // Create the shelf
+            when (val createResult = createShelfUseCase(name, null)) {
                 is Success -> {
-                    val newLens = createResult.data
-                    logger.info { "Created lens '${newLens.name}' with id ${newLens.id}" }
+                    val newShelf = createResult.data
+                    logger.info { "Created shelf '${newShelf.name}' with id ${newShelf.id}" }
 
-                    // Add books to the new lens
-                    when (val addResult = addBooksToLensUseCase(newLens.id, bookIds)) {
+                    // Add books to the new shelf
+                    when (val addResult = addBooksToShelfUseCase(newShelf.id, bookIds)) {
                         is Success -> {
-                            logger.info { "Added ${bookIds.size} books to new lens ${newLens.id}" }
+                            logger.info { "Added ${bookIds.size} books to new shelf ${newShelf.id}" }
                             _events.emit(
-                                LibraryActionEvent.LensCreatedAndBooksAdded(newLens.name, bookIds.size),
+                                LibraryActionEvent.ShelfCreatedAndBooksAdded(newShelf.name, bookIds.size),
                             )
                             selectionManager.clearAfterAction()
                         }
 
                         is Failure -> {
-                            logger.error { "Failed to add books to new lens: ${addResult.message}" }
-                            _events.emit(LibraryActionEvent.AddToLensFailed(addResult.message))
+                            logger.error { "Failed to add books to new shelf: ${addResult.message}" }
+                            _events.emit(LibraryActionEvent.AddToShelfFailed(addResult.message))
                         }
                     }
                 }
 
                 is Failure -> {
-                    logger.error { "Failed to create lens: ${createResult.message}" }
-                    _events.emit(LibraryActionEvent.AddToLensFailed(createResult.message))
+                    logger.error { "Failed to create shelf: ${createResult.message}" }
+                    _events.emit(LibraryActionEvent.AddToShelfFailed(createResult.message))
                 }
             }
 
-            isAddingToLens.value = false
+            isAddingToShelf.value = false
         }
     }
 }
@@ -327,24 +327,24 @@ sealed interface LibraryActionEvent {
     ) : LibraryActionEvent
 
     /**
-     * Books were successfully added to a lens.
+     * Books were successfully added to a shelf.
      */
-    data class BooksAddedToLens(
+    data class BooksAddedToShelf(
         val count: Int,
     ) : LibraryActionEvent
 
     /**
-     * A new lens was created and books were added to it.
+     * A new shelf was created and books were added to it.
      */
-    data class LensCreatedAndBooksAdded(
-        val lensName: String,
+    data class ShelfCreatedAndBooksAdded(
+        val shelfName: String,
         val bookCount: Int,
     ) : LibraryActionEvent
 
     /**
-     * Failed to add books to a lens.
+     * Failed to add books to a shelf.
      */
-    data class AddToLensFailed(
+    data class AddToShelfFailed(
         val message: String,
     ) : LibraryActionEvent
 }
