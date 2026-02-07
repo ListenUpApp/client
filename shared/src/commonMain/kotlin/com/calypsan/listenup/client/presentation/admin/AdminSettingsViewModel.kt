@@ -3,8 +3,11 @@ package com.calypsan.listenup.client.presentation.admin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.Failure
+import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.usecase.admin.LoadServerSettingsUseCase
+import com.calypsan.listenup.client.domain.repository.AdminRepository
+import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.usecase.admin.UpdateServerSettingsUseCase
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +26,8 @@ private val logger = KotlinLogging.logger {}
 class AdminSettingsViewModel(
     private val loadServerSettingsUseCase: LoadServerSettingsUseCase,
     private val updateServerSettingsUseCase: UpdateServerSettingsUseCase,
+    private val instanceRepository: InstanceRepository,
+    private val adminRepository: AdminRepository,
 ) : ViewModel() {
     val state: StateFlow<AdminSettingsUiState>
         field = MutableStateFlow(AdminSettingsUiState())
@@ -44,6 +49,8 @@ class AdminSettingsViewModel(
                             inboxEnabled = result.data.inboxEnabled,
                             inboxCount = result.data.inboxCount,
                         )
+                    // Also load remote URL from instance
+                    loadRemoteUrl()
                 }
 
                 is Failure -> {
@@ -146,6 +153,43 @@ class AdminSettingsViewModel(
         }
     }
 
+    private fun loadRemoteUrl() {
+        viewModelScope.launch {
+            when (val result = instanceRepository.getInstance(forceRefresh = true)) {
+                is Result.Success -> {
+                    state.value = state.value.copy(remoteUrl = result.data.remoteUrl ?: "")
+                }
+                is Result.Failure -> {
+                    // Non-fatal, just leave remote URL empty
+                }
+            }
+        }
+    }
+
+    /**
+     * Update the remote access URL.
+     */
+    fun setRemoteUrl(url: String) {
+        viewModelScope.launch {
+            state.value = state.value.copy(isSaving = true, error = null)
+
+            try {
+                adminRepository.updateInstanceRemoteUrl(url)
+                state.value = state.value.copy(
+                    isSaving = false,
+                    remoteUrl = url,
+                )
+                logger.info { "Remote URL updated to: $url" }
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to update remote URL" }
+                state.value = state.value.copy(
+                    isSaving = false,
+                    error = "Failed to update remote URL: ${e.message}",
+                )
+            }
+        }
+    }
+
     fun clearError() {
         state.value = state.value.copy(error = null)
     }
@@ -158,6 +202,7 @@ data class AdminSettingsUiState(
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val serverName: String = "",
+    val remoteUrl: String = "",
     val inboxEnabled: Boolean = false,
     val inboxCount: Int = 0,
     val showDisableConfirmation: Boolean = false,

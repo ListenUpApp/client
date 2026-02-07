@@ -95,6 +95,8 @@ val adminPresentationModule =
             com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel(
                 loadServerSettingsUseCase = get(),
                 updateServerSettingsUseCase = get(),
+                instanceRepository = get(),
+                adminRepository = get(),
             )
         }
         factory {

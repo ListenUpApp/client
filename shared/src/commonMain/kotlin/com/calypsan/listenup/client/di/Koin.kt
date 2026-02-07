@@ -1197,6 +1197,7 @@ val syncModule =
                 playbackPreferences = get(),
                 librarySync = get(),
                 instanceRepository = get(),
+                serverConfig = get(),
                 pendingOperationDao = get(),
                 libraryResetHelper = get(),
                 syncDao = get(),

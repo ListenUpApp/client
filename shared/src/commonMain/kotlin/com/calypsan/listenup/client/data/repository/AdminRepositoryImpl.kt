@@ -9,6 +9,7 @@ import com.calypsan.listenup.client.data.remote.CreateInviteRequest
 import com.calypsan.listenup.client.data.remote.InboxBookResponse
 import com.calypsan.listenup.client.data.remote.LibraryResponse
 import com.calypsan.listenup.client.data.remote.ServerSettingsRequest
+import com.calypsan.listenup.client.data.remote.UpdateInstanceRequest
 import com.calypsan.listenup.client.data.remote.ServerSettingsResponse
 import com.calypsan.listenup.client.data.remote.UpdateLibraryRequest
 import com.calypsan.listenup.client.data.remote.UpdatePermissionsRequest
@@ -115,6 +116,11 @@ class AdminRepositoryImpl(
 
     override suspend fun setOpenRegistration(enabled: Boolean) {
         adminApi.setOpenRegistration(enabled)
+    }
+
+    override suspend fun updateInstanceRemoteUrl(remoteUrl: String): String? {
+        val response = adminApi.updateInstance(UpdateInstanceRequest(remoteUrl = remoteUrl))
+        return response.remoteUrl
     }
 
     override suspend fun getServerSettings(): ServerSettings = adminApi.getServerSettings().toDomain()

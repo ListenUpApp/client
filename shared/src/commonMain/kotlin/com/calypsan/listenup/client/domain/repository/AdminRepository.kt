@@ -147,6 +147,11 @@ interface AdminRepository {
      * @param inboxEnabled Whether to enable inbox workflow (null to keep unchanged)
      * @return Updated server settings
      */
+    /**
+     * Update instance settings (remote URL, name).
+     */
+    suspend fun updateInstanceRemoteUrl(remoteUrl: String): String?
+
     suspend fun updateServerSettings(
         serverName: String? = null,
         inboxEnabled: Boolean? = null,

@@ -73,7 +73,7 @@ class ApiClientFactory(
      */
     suspend fun getStreamingClient(): HttpClient {
         val serverUrl =
-            serverConfig.getServerUrl()
+            serverConfig.getActiveUrl()
                 ?: error("Server URL not configured")
 
         return createStreamingHttpClient(
@@ -95,7 +95,7 @@ class ApiClientFactory(
      */
     suspend fun getUnauthenticatedStreamingClient(): HttpClient {
         val serverUrl =
-            serverConfig.getServerUrl()
+            serverConfig.getActiveUrl()
                 ?: error("Server URL not configured")
 
         return createUnauthenticatedStreamingHttpClient(serverUrl)

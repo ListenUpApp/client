@@ -57,6 +57,9 @@ interface AdminApiContract {
 
     suspend fun updateServerSettings(request: ServerSettingsRequest): ServerSettingsResponse
 
+    // Instance settings
+    suspend fun updateInstance(request: UpdateInstanceRequest): InstanceSettingsResponse
+
     // Inbox management
     suspend fun listInboxBooks(): InboxBooksResponse
 
@@ -281,6 +284,22 @@ class AdminApi(
 
         return when (val result = response.toResult()) {
             is Success -> result.data.toDomain()
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
+
+    // Instance Management
+
+    override suspend fun updateInstance(request: UpdateInstanceRequest): InstanceSettingsResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<InstanceSettingsResponse> =
+            client
+                .patch("/api/v1/admin/instance") {
+                    setBody(request)
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
             is Failure -> throw result.exceptionOrFromMessage()
         }
     }
@@ -611,6 +630,29 @@ private data class ServerSettingsApiRequest(
 
 private fun ServerSettingsRequest.toApiRequest(): ServerSettingsApiRequest =
     ServerSettingsApiRequest(serverName = serverName, inboxEnabled = inboxEnabled)
+
+// =============================================================================
+// Instance Settings API Models
+// =============================================================================
+
+/**
+ * Request to update instance settings (PATCH semantics).
+ */
+@Serializable
+data class UpdateInstanceRequest(
+    @SerialName("name") val name: String? = null,
+    @SerialName("remote_url") val remoteUrl: String? = null,
+)
+
+/**
+ * Response from instance settings update.
+ */
+@Serializable
+data class InstanceSettingsResponse(
+    @SerialName("id") val id: String,
+    @SerialName("name") val name: String,
+    @SerialName("remote_url") val remoteUrl: String? = null,
+)
 
 // =============================================================================
 // Inbox API Models
