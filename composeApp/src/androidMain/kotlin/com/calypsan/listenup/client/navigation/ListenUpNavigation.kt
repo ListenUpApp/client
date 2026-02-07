@@ -868,6 +868,8 @@ private fun AuthenticatedNavigation(
                                 },
                                 serverName = settingsState.serverName,
                                 onServerNameChange = { settingsViewModel.setServerName(it) },
+                                remoteUrl = settingsState.remoteUrl,
+                                onRemoteUrlChange = { settingsViewModel.setRemoteUrl(it) },
                                 inboxEnabled = settingsState.inboxEnabled,
                                 inboxCount = settingsState.inboxCount,
                                 isSaving = settingsState.isSaving,

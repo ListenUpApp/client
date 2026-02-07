@@ -87,6 +87,8 @@ fun AdminScreen(
     onUserClick: (String) -> Unit = {},
     serverName: String = "",
     onServerNameChange: (String) -> Unit = {},
+    remoteUrl: String = "",
+    onRemoteUrlChange: (String) -> Unit = {},
     inboxEnabled: Boolean = false,
     inboxCount: Int = 0,
     isSaving: Boolean = false,
@@ -147,6 +149,8 @@ fun AdminScreen(
                 onBackupClick = onBackupClick,
                 serverName = serverName,
                 onServerNameChange = onServerNameChange,
+                remoteUrl = remoteUrl,
+                onRemoteUrlChange = onRemoteUrlChange,
                 inboxEnabled = inboxEnabled,
                 inboxCount = inboxCount,
                 isSaving = isSaving,
@@ -223,6 +227,8 @@ private fun AdminContent(
     onBackupClick: () -> Unit,
     serverName: String,
     onServerNameChange: (String) -> Unit,
+    remoteUrl: String,
+    onRemoteUrlChange: (String) -> Unit,
     inboxEnabled: Boolean,
     inboxCount: Int,
     isSaving: Boolean,
@@ -249,6 +255,8 @@ private fun AdminContent(
             SettingsCard(
                 serverName = serverName,
                 onServerNameChange = onServerNameChange,
+                remoteUrl = remoteUrl,
+                onRemoteUrlChange = onRemoteUrlChange,
                 openRegistration = state.openRegistration,
                 isTogglingOpenRegistration = state.isTogglingOpenRegistration,
                 onOpenRegistrationChange = onOpenRegistrationChange,
@@ -455,6 +463,8 @@ private fun AdminContent(
 private fun SettingsCard(
     serverName: String,
     onServerNameChange: (String) -> Unit,
+    remoteUrl: String,
+    onRemoteUrlChange: (String) -> Unit,
     openRegistration: Boolean,
     isTogglingOpenRegistration: Boolean,
     onOpenRegistrationChange: (Boolean) -> Unit,
@@ -491,6 +501,35 @@ private fun SettingsCard(
                     onValueChange = onServerNameChange,
                     label = { Text("Server Name") },
                     placeholder = { Text("ListenUp Server") },
+                    singleLine = true,
+                    enabled = !isSaving,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            )
+
+            // Remote URL field
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.CloudDownload,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = remoteUrl,
+                    onValueChange = onRemoteUrlChange,
+                    label = { Text("Remote URL") },
+                    placeholder = { Text("https://audiobooks.example.com") },
                     singleLine = true,
                     enabled = !isSaving,
                     modifier = Modifier.weight(1f),
