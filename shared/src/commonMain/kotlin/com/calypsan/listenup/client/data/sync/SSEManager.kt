@@ -48,7 +48,7 @@ import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.readUTF8Line
+import io.ktor.utils.io.readLine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -264,7 +264,7 @@ class SSEManager(
         var currentEventType: String? = null
 
         while (!channel.isClosedForRead) {
-            val line = channel.readUTF8Line() ?: break
+            val line = channel.readLine() ?: break
 
             when {
                 line.isEmpty() -> {
