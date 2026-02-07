@@ -20,7 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.DeleteForever
-import androidx.compose.material.icons.outlined.MergeType
+import androidx.compose.material.icons.automirrored.outlined.MergeType
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
@@ -193,7 +193,7 @@ private fun ModeSelectionContent(
         Column(modifier = Modifier.selectableGroup()) {
             ModeOption(
                 mode = RestoreMode.MERGE,
-                icon = Icons.Outlined.MergeType,
+                icon = Icons.AutoMirrored.Outlined.MergeType,
                 selected = state.mode == RestoreMode.MERGE,
                 onSelect = { onModeSelected(RestoreMode.MERGE) },
             )

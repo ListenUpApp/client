@@ -239,15 +239,15 @@ private fun CollectionRow(
     val dismissState =
         rememberSwipeToDismissBoxState(
             initialValue = SwipeToDismissBoxValue.Settled,
-            confirmValueChange = { dismissValue ->
-                if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
-                    onDeleteClick()
-                    false // Don't actually dismiss, let the dialog handle it
-                } else {
-                    false
-                }
-            },
         )
+
+    // Trigger delete when swiped, then snap back
+    LaunchedEffect(dismissState.currentValue) {
+        if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+            onDeleteClick()
+            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+        }
+    }
 
     SwipeToDismissBox(
         state = dismissState,

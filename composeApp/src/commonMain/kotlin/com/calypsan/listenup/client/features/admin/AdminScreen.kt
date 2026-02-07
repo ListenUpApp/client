@@ -59,8 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import com.calypsan.listenup.client.design.util.rememberCopyToClipboard
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.collectAsState
@@ -97,7 +96,7 @@ fun AdminScreen(
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val clipboardManager = LocalClipboardManager.current
+    val copyToClipboard = rememberCopyToClipboard()
 
     var userToDelete by remember { mutableStateOf<AdminUserInfo?>(null) }
     var inviteToRevoke by remember { mutableStateOf<InviteInfo?>(null) }
@@ -135,7 +134,7 @@ fun AdminScreen(
                 onDeleteUserClick = { userToDelete = it },
                 onUserClick = onUserClick,
                 onCopyInviteClick = { invite ->
-                    clipboardManager.setText(AnnotatedString(invite.url))
+                    copyToClipboard(invite.url)
                     scope.launch {
                         snackbarHostState.showSnackbar("Link copied!")
                     }
@@ -971,12 +970,12 @@ private fun CategoriesCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = Categories,
+                    text = "Categories",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = View the genre hierarchy tree,
+                    text = "View the genre hierarchy tree",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
