@@ -41,6 +41,7 @@ import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.domain.model.Instance
 import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.domain.repository.AuthSession
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import com.calypsan.listenup.client.domain.usecase.GetInstanceUseCase
 import com.calypsan.listenup.client.navigation.ListenUpNavigation
@@ -71,6 +72,7 @@ class MainActivity : ComponentActivity() {
     private val sseManager: SSEManager by inject()
     private val authSession: AuthSession by inject()
     private val localPreferences: LocalPreferences by inject()
+    private val serverConfig: ServerConfig by inject()
     private val deepLinkManager: DeepLinkManager by inject()
     private val shortcutActionManager: ShortcutActionManager by inject()
 
@@ -149,6 +151,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+
+        // Prefer local URL when app comes to foreground
+        lifecycleScope.launch {
+            serverConfig.preferLocalUrl()
+        }
 
         // Connect SSE when app comes to foreground (if authenticated)
         lifecycleScope.launch {
