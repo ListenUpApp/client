@@ -358,7 +358,14 @@ interface BookDao {
         """
         SELECT b.* FROM books b
         LEFT JOIN playback_positions p ON b.id = p.bookId
-        WHERE p.bookId IS NULL OR p.positionMs = 0
+        WHERE (p.bookId IS NULL OR p.positionMs = 0)
+        AND (
+            NOT EXISTS (SELECT 1 FROM book_series bs WHERE bs.bookId = b.id)
+            OR EXISTS (
+                SELECT 1 FROM book_series bs WHERE bs.bookId = b.id
+                AND bs.sequence IN ('1', '0', '0.5')
+            )
+        )
         ORDER BY RANDOM()
         LIMIT :limit
     """,
@@ -376,7 +383,14 @@ interface BookDao {
         """
         SELECT b.* FROM books b
         LEFT JOIN playback_positions p ON b.id = p.bookId
-        WHERE p.bookId IS NULL OR p.positionMs = 0
+        WHERE (p.bookId IS NULL OR p.positionMs = 0)
+        AND (
+            NOT EXISTS (SELECT 1 FROM book_series bs WHERE bs.bookId = b.id)
+            OR EXISTS (
+                SELECT 1 FROM book_series bs WHERE bs.bookId = b.id
+                AND bs.sequence IN ('1', '0', '0.5')
+            )
+        )
         ORDER BY RANDOM()
         LIMIT :limit
     """,
@@ -403,6 +417,13 @@ interface BookDao {
                 LIMIT 1
             ) as authorName
         FROM books b
+        WHERE (
+            NOT EXISTS (SELECT 1 FROM book_series bs WHERE bs.bookId = b.id)
+            OR EXISTS (
+                SELECT 1 FROM book_series bs WHERE bs.bookId = b.id
+                AND bs.sequence IN ('1', '0', '0.5')
+            )
+        )
         ORDER BY b.createdAt DESC
         LIMIT :limit
     """,
@@ -428,7 +449,14 @@ interface BookDao {
             ) as authorName
         FROM books b
         LEFT JOIN playback_positions p ON b.id = p.bookId
-        WHERE p.bookId IS NULL OR p.positionMs = 0
+        WHERE (p.bookId IS NULL OR p.positionMs = 0)
+        AND (
+            NOT EXISTS (SELECT 1 FROM book_series bs WHERE bs.bookId = b.id)
+            OR EXISTS (
+                SELECT 1 FROM book_series bs WHERE bs.bookId = b.id
+                AND bs.sequence IN ('1', '0', '0.5')
+            )
+        )
         ORDER BY RANDOM()
         LIMIT :limit
     """,

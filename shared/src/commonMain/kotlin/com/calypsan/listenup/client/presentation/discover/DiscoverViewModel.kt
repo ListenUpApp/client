@@ -15,8 +15,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -96,24 +98,27 @@ class DiscoverViewModel(
 
     // === Discover Books State (Random Unstarted from Room) ===
 
+    private val _discoverBooksState = MutableStateFlow(DiscoverBooksUiState(isLoading = true))
+    val discoverBooksState: StateFlow<DiscoverBooksUiState> = _discoverBooksState
+
+    init {
+        loadDiscoverBooks()
+    }
+
     /**
-     * Observe random unstarted books from Room with author info.
-     * Uses RANDOM() in SQL so results change when table changes.
+     * Load random unstarted books from Room.
+     * Uses the suspend (non-Flow) query so RANDOM() doesn't cause re-emission loops.
      */
-    val discoverBooksState: StateFlow<DiscoverBooksUiState> =
-        bookRepository
-            .observeRandomUnstartedBooks(limit = 10)
-            .map { books ->
-                DiscoverBooksUiState(
-                    isLoading = false,
-                    books = books.map { it.toDiscoverUiBook() },
-                    error = null,
-                )
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = DiscoverBooksUiState(isLoading = true),
+    private fun loadDiscoverBooks() {
+        viewModelScope.launch {
+            val books = bookRepository.observeRandomUnstartedBooks(limit = 10).first()
+            _discoverBooksState.value = DiscoverBooksUiState(
+                isLoading = false,
+                books = books.map { it.toDiscoverUiBook() },
+                error = null,
             )
+        }
+    }
 
     /**
      * Convert DiscoveryBook domain model to DiscoverUiBook.
@@ -269,6 +274,7 @@ class DiscoverViewModel(
      */
     fun refresh() {
         refreshDiscoverShelves()
+        loadDiscoverBooks()
     }
 }
 
