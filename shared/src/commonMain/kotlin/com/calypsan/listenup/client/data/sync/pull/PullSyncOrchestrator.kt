@@ -65,20 +65,23 @@ class PullSyncOrchestrator(
                     onProgress(SyncStatus.Retrying(attempt = attempt, maxAttempts = max))
                 },
             ) {
-                // Run independent sync operations in parallel
-                val booksJob = async { bookPuller.pull(updatedAfter, onProgress) }
+                // Phase 1: Pull series + contributors in parallel (no deps on each other)
+                // These MUST complete before books, because book cross-ref tables
+                // (BookContributorEntity, BookSeriesEntity) have FK constraints
+                // on the contributor/series tables.
                 val seriesJob = async { seriesPuller.pull(updatedAfter, onProgress) }
                 val contributorsJob = async { contributorPuller.pull(updatedAfter, onProgress) }
 
-                // Wait for all to complete - if any fails, others will be cancelled
                 try {
-                    awaitAll(booksJob, seriesJob, contributorsJob)
+                    awaitAll(seriesJob, contributorsJob)
                 } catch (e: Exception) {
-                    booksJob.cancel()
                     seriesJob.cancel()
                     contributorsJob.cancel()
                     throw e
                 }
+
+                // Phase 2: Pull books (depends on series + contributors for cross-refs)
+                bookPuller.pull(updatedAfter, onProgress)
 
                 // Pull tags after books are synced (tags need book data)
                 tagPuller.pull(updatedAfter, onProgress)
