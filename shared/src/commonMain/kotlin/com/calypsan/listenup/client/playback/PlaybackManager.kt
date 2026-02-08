@@ -116,6 +116,11 @@ class PlaybackManager(
      *
      * @return PrepareResult with timeline and resume position, or null on failure
      */
+    /** Set the current book ID — call this only when playback is confirmed to proceed. */
+    fun activateBook(bookId: BookId) {
+        _currentBookId.value = bookId
+    }
+
     suspend fun prepareForPlayback(bookId: BookId): PrepareResult? {
         logger.info { "Preparing playback for book: ${bookId.value}" }
 
@@ -239,7 +244,7 @@ class PlaybackManager(
                 )
             }
         _currentTimeline.value = timeline
-        _currentBookId.value = bookId
+        // Note: currentBookId is set by caller after reachability checks pass
         totalDurationMs.value = timeline.totalDurationMs
 
         // Load chapters for this book

@@ -76,9 +76,10 @@ fun StorageScreen(
                 ListenUpDestructiveDialog(
                     onDismissRequest = viewModel::cancelDelete,
                     title = "Delete Download?",
-                    text = "Remove the downloaded files for \"${confirmation.book.title}\"? " +
-                        "This will free up ${formatFileSize(confirmation.book.sizeBytes)}. " +
-                        "You can re-download anytime by playing the book.",
+                    text =
+                        "Remove the downloaded files for \"${confirmation.book.title}\"? " +
+                            "This will free up ${formatFileSize(confirmation.book.sizeBytes)}. " +
+                            "You can re-download anytime by playing the book.",
                     confirmText = "Delete",
                     onConfirm = viewModel::executeDelete,
                     onDismiss = viewModel::cancelDelete,
@@ -90,9 +91,10 @@ fun StorageScreen(
                 ListenUpDestructiveDialog(
                     onDismissRequest = viewModel::cancelDelete,
                     title = "Clear All Downloads?",
-                    text = "Remove all ${state.downloadedBooks.size} downloaded books? " +
-                        "This will free up ${formatFileSize(state.totalStorageUsed)}. " +
-                        "You can re-download books anytime.",
+                    text =
+                        "Remove all ${state.downloadedBooks.size} downloaded books? " +
+                            "This will free up ${formatFileSize(state.totalStorageUsed)}. " +
+                            "You can re-download books anytime.",
                     confirmText = "Clear All",
                     onConfirm = viewModel::executeDelete,
                     onDismiss = viewModel::cancelDelete,
@@ -206,9 +208,10 @@ private fun StorageSummaryCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -239,10 +242,11 @@ private fun StorageSummaryCard(
 
             LinearProgressIndicator(
                 progress = { usagePercent },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(MaterialTheme.shapes.small),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(MaterialTheme.shapes.small),
                 trackColor = MaterialTheme.colorScheme.surfaceContainerLow,
             )
         }
@@ -252,9 +256,10 @@ private fun StorageSummaryCard(
 @Composable
 private fun EmptyDownloadsMessage() {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 48.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -284,14 +289,16 @@ private fun DownloadedBookItem(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

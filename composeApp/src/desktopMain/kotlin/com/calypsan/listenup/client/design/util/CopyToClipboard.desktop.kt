@@ -6,11 +6,10 @@ import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 
 @Composable
-actual fun rememberCopyToClipboard(): (String) -> Unit {
-    return remember {
+actual fun rememberCopyToClipboard(): (String) -> Unit =
+    remember {
         { text: String ->
             val selection = StringSelection(text)
             Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
         }
     }
-}

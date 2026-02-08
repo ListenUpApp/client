@@ -73,7 +73,12 @@ import androidx.room.TypeConverters
     version = 37,
     exportSchema = true,
 )
-@TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class, StringListConverter::class)
+@TypeConverters(
+    ValueClassConverters::class,
+    Converters::class,
+    PendingOperationConverters::class,
+    StringListConverter::class,
+)
 @ConstructedBy(ListenUpDatabaseConstructor::class)
 abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
@@ -107,6 +112,7 @@ abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun collectionDao(): CollectionDao
 
     abstract fun shelfDao(): ShelfDao
+
     abstract fun shelfBookDao(): ShelfBookDao
 
     abstract fun tagDao(): TagDao

@@ -102,9 +102,6 @@ fun BookDetailScreen(
         .observeBookStatus(BookId(bookId))
         .collectAsState(initial = BookDownloadStatus.notDownloaded(bookId))
 
-    // Network state detection
-    val isOnline by platformActions.observeIsOnline().collectAsState(initial = true)
-
     // WiFi-only download state detection
     val wifiOnlyDownloads by platformActions.observeWifiOnlyDownloads().collectAsState(initial = false)
     val isOnUnmeteredNetwork by platformActions.observeIsOnUnmeteredNetwork().collectAsState(initial = true)

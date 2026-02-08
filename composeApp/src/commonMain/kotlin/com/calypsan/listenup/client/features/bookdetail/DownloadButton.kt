@@ -54,16 +54,18 @@ fun DownloadButton(
     isWaitingForWifi: Boolean = false,
     enabled: Boolean = true,
 ) {
-    val containerColor = if (enabled) {
-        MaterialTheme.colorScheme.secondaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-    }
-    val contentColor = if (enabled) {
-        MaterialTheme.colorScheme.onSecondaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-    }
+    val containerColor =
+        if (enabled) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+        }
+    val contentColor =
+        if (enabled) {
+            MaterialTheme.colorScheme.onSecondaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        }
 
     Surface(
         modifier = modifier.size(56.dp),

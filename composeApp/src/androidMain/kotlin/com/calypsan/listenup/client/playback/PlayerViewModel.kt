@@ -114,20 +114,9 @@ class PlayerViewModel(
                     prepareMessage = null,
                 )
 
-            // Check server reachability before streaming non-downloaded content
-            logger.info { "Timeline isFullyDownloaded=${result.timeline.isFullyDownloaded}, files=${result.timeline.files.map { it.audioFileId to it.isDownloaded }}" }
-            if (!result.timeline.isFullyDownloaded) {
-                logger.info { "Checking server reachability..." }
-                val serverUp = playbackManager.isServerReachable()
-                logger.info { "Server reachable: $serverUp" }
-                if (!serverUp) {
-                    state.value = state.value.copy(
-                        isLoading = false,
-                        error = "Server is unreachable. Download this book for offline listening.",
-                    )
-                    return@launch
-                }
-            }
+            // Activate book ID now — NowPlaying observes this to show UI.
+            // This must happen AFTER prepare succeeds (UI layer gates reachability).
+            playbackManager.activateBook(bookId)
 
             // Connect to the player and start
             connectAndPlay(result)
@@ -406,28 +395,32 @@ class PlayerViewModel(
             }
         }
 
-
         override fun onPlayerError(error: PlaybackException) {
             logger.error { "ExoPlayer error: ${error.errorCodeName} - ${error.message}" }
-            val isNetworkError = error.errorCode in listOf(
-                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
-                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
-                PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
-                PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE,
-                PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
-            )
-            val message = if (isNetworkError) {
-                "Couldn't connect to server. Download this book for offline listening."
-            } else {
-                "Playback error: ${error.localizedMessage ?: "Unknown error"}"
-            }
-            state.value = state.value.copy(
-                isPlaying = false,
-                isLoading = false,
-                error = message,
-            )
+            val isNetworkError =
+                error.errorCode in
+                    listOf(
+                        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+                        PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+                        PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE,
+                        PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+                    )
+            val message =
+                if (isNetworkError) {
+                    "Couldn't connect to server. Download this book for offline listening."
+                } else {
+                    "Playback error: ${error.localizedMessage ?: "Unknown error"}"
+                }
+            state.value =
+                state.value.copy(
+                    isPlaying = false,
+                    isLoading = false,
+                    error = message,
+                )
             playbackManager.setPlaying(false)
         }
+
         override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
             state.value = state.value.copy(playbackSpeed = playbackParameters.speed)
             playbackManager.updateSpeed(playbackParameters.speed)

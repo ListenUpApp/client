@@ -106,10 +106,11 @@ class AdminSettingsViewModel(
      * Called after user confirms they want to release all pending books.
      */
     fun confirmDisableInbox() {
-        state.value = state.value.copy(
-            showDisableConfirmation = false,
-            inboxEnabled = false,
-        )
+        state.value =
+            state.value.copy(
+                showDisableConfirmation = false,
+                inboxEnabled = false,
+            )
         updateDirty()
     }
 
@@ -129,6 +130,7 @@ class AdminSettingsViewModel(
                     state.value = state.value.copy(remoteUrl = url)
                     updateDirty()
                 }
+
                 is Result.Failure -> {
                     // Non-fatal, just leave remote URL empty
                 }
@@ -159,6 +161,7 @@ class AdminSettingsViewModel(
                             savedServerName = result.data.serverName
                             logger.info { "Server name saved: ${result.data.serverName}" }
                         }
+
                         is Failure -> {
                             throw Exception(result.message)
                         }
@@ -177,38 +180,41 @@ class AdminSettingsViewModel(
                     when (val result = updateServerSettingsUseCase(state.value.inboxEnabled)) {
                         is Success -> {
                             savedInboxEnabled = result.data.inboxEnabled
-                            state.value = state.value.copy(
-                                inboxCount = result.data.inboxCount,
-                            )
+                            state.value =
+                                state.value.copy(
+                                    inboxCount = result.data.inboxCount,
+                                )
                             logger.info { "Inbox workflow ${if (state.value.inboxEnabled) "enabled" else "disabled"}" }
                         }
+
                         is Failure -> {
                             throw Exception(result.message)
                         }
                     }
                 }
 
-                state.value = state.value.copy(
-                    isSaving = false,
-                )
+                state.value =
+                    state.value.copy(
+                        isSaving = false,
+                    )
                 updateDirty()
-
-
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save settings" }
-                state.value = state.value.copy(
-                    isSaving = false,
-                    error = "Failed to save settings: ${e.message}",
-                )
+                state.value =
+                    state.value.copy(
+                        isSaving = false,
+                        error = "Failed to save settings: ${e.message}",
+                    )
                 updateDirty()
             }
         }
     }
 
     private fun updateDirty() {
-        val dirty = state.value.serverName != savedServerName ||
-            state.value.remoteUrl != savedRemoteUrl ||
-            state.value.inboxEnabled != savedInboxEnabled
+        val dirty =
+            state.value.serverName != savedServerName ||
+                state.value.remoteUrl != savedRemoteUrl ||
+                state.value.inboxEnabled != savedInboxEnabled
         state.value = state.value.copy(isDirty = dirty)
     }
 

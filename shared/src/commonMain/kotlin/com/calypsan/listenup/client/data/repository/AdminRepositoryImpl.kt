@@ -129,9 +129,10 @@ class AdminRepositoryImpl(
         serverName: String?,
         inboxEnabled: Boolean?,
     ): ServerSettings =
-        adminApi.updateServerSettings(
-            ServerSettingsRequest(serverName = serverName, inboxEnabled = inboxEnabled),
-        ).toDomain()
+        adminApi
+            .updateServerSettings(
+                ServerSettingsRequest(serverName = serverName, inboxEnabled = inboxEnabled),
+            ).toDomain()
 
     // ═══════════════════════════════════════════════════════════════════════
     // INBOX MANAGEMENT
@@ -185,18 +186,21 @@ class AdminRepositoryImpl(
         return adminApi.updateLibrary(libraryId, request).toDomain()
     }
 
-    override suspend fun addScanPath(libraryId: String, path: String): Library =
-        adminApi.addScanPath(libraryId, path).toDomain()
+    override suspend fun addScanPath(
+        libraryId: String,
+        path: String,
+    ): Library = adminApi.addScanPath(libraryId, path).toDomain()
 
-    override suspend fun removeScanPath(libraryId: String, path: String): Library =
-        adminApi.removeScanPath(libraryId, path).toDomain()
+    override suspend fun removeScanPath(
+        libraryId: String,
+        path: String,
+    ): Library = adminApi.removeScanPath(libraryId, path).toDomain()
 
     override suspend fun triggerScan(libraryId: String) {
         adminApi.triggerScan(libraryId)
     }
 
-    override suspend fun browseFilesystem(path: String): BrowseFilesystemResponse =
-        adminApi.browseFilesystem(path)
+    override suspend fun browseFilesystem(path: String): BrowseFilesystemResponse = adminApi.browseFilesystem(path)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

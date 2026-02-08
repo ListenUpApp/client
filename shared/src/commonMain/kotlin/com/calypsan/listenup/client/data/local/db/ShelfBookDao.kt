@@ -34,14 +34,16 @@ interface ShelfBookDao {
      * @param shelfId The shelf ID to get covers for
      * @return List of cover info for the first 4 books
      */
-    @Query("""
+    @Query(
+        """
         SELECT b.coverUrl, b.coverBlurHash 
         FROM shelf_books lb 
         JOIN books b ON lb.bookId = b.id 
         WHERE lb.shelfId = :shelfId 
         ORDER BY lb.addedAt DESC 
         LIMIT 4
-    """)
+    """,
+    )
     suspend fun getShelfCoverInfo(shelfId: String): List<CoverInfo>
 
     /**
@@ -50,12 +52,14 @@ interface ShelfBookDao {
      * @param shelfId The shelf ID
      * @return List of book IDs in the shelf
      */
-    @Query("""
+    @Query(
+        """
         SELECT bookId 
         FROM shelf_books 
         WHERE shelfId = :shelfId 
         ORDER BY addedAt DESC
-    """)
+    """,
+    )
     suspend fun getShelfBookIds(shelfId: String): List<String>
 
     /**
@@ -74,7 +78,10 @@ interface ShelfBookDao {
      * @param bookId The book ID to remove
      */
     @Query("DELETE FROM shelf_books WHERE shelfId = :shelfId AND bookId = :bookId")
-    suspend fun deleteShelfBook(shelfId: String, bookId: String)
+    suspend fun deleteShelfBook(
+        shelfId: String,
+        bookId: String,
+    )
 
     /**
      * Update shelfId for all shelf-book entries (used when remapping temp ID to server ID).
@@ -83,7 +90,10 @@ interface ShelfBookDao {
      * @param newShelfId The new (server) shelf ID
      */
     @Query("UPDATE shelf_books SET shelfId = :newShelfId WHERE shelfId = :oldShelfId")
-    suspend fun updateShelfId(oldShelfId: String, newShelfId: String)
+    suspend fun updateShelfId(
+        oldShelfId: String,
+        newShelfId: String,
+    )
 
     /**
      * Delete all shelf-book relationships.

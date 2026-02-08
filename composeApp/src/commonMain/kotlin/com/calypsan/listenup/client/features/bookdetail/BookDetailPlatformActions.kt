@@ -34,9 +34,6 @@ interface BookDetailPlatformActions {
     /** Observe WiFi-only downloads preference */
     fun observeWifiOnlyDownloads(): Flow<Boolean>
 
-    /** Observe whether device is online (has internet connectivity) */
-    fun observeIsOnline(): Flow<Boolean>
-
     /** Observe whether device is on unmetered network */
     fun observeIsOnUnmeteredNetwork(): Flow<Boolean>
 
@@ -63,8 +60,6 @@ class NoOpBookDetailPlatformActions : BookDetailPlatformActions {
     override fun playBook(bookId: BookId) {}
 
     override fun observeWifiOnlyDownloads(): Flow<Boolean> = flowOf(false)
-
-    override fun observeIsOnline(): Flow<Boolean> = flowOf(true)
 
     override fun observeIsOnUnmeteredNetwork(): Flow<Boolean> = flowOf(true)
 

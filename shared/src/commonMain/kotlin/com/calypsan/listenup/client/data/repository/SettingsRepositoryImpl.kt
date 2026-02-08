@@ -174,11 +174,12 @@ class SettingsRepositoryImpl(
         val remoteUrl = secureStorage.read(KEY_REMOTE_URL)
 
         // Switch to the other URL
-        val fallback = when (currentActive) {
-            localUrl -> remoteUrl
-            remoteUrl -> localUrl
-            else -> remoteUrl ?: localUrl
-        } ?: return null
+        val fallback =
+            when (currentActive) {
+                localUrl -> remoteUrl
+                remoteUrl -> localUrl
+                else -> remoteUrl ?: localUrl
+            } ?: return null
 
         secureStorage.save(KEY_ACTIVE_URL, fallback)
         logger.info { "Switched active URL to: $fallback" }

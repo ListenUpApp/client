@@ -74,37 +74,41 @@ class StorageViewModel(
             downloadDao.observeAll(),
         ) { internal, downloads ->
             // Group downloads by book, filter to completed only
-            val completedByBook = downloads
-                .filter { it.state == DownloadState.COMPLETED }
-                .groupBy { it.bookId }
+            val completedByBook =
+                downloads
+                    .filter { it.state == DownloadState.COMPLETED }
+                    .groupBy { it.bookId }
 
             // Build list of downloaded books with metadata
-            val downloadedBooks = completedByBook.mapNotNull { (bookId, files) ->
-                val book = bookDao.getById(BookId(bookId))
-                if (book != null) {
-                    // Get primary author from the relation
-                    val bookWithContributors = bookDao.getByIdWithContributors(BookId(bookId))
-                    val authorName = bookWithContributors?.let { bwc ->
-                        // Find the author role from contributorRoles, then get the contributor
-                        val authorRole = bwc.contributorRoles.firstOrNull { it.role == "author" }
-                        authorRole?.let { role ->
-                            // Use creditedAs if available, otherwise find contributor by ID
-                            role.creditedAs ?: bwc.contributors.find { it.id == role.contributorId }?.name
-                        }
-                    }
+            val downloadedBooks =
+                completedByBook
+                    .mapNotNull { (bookId, files) ->
+                        val book = bookDao.getById(BookId(bookId))
+                        if (book != null) {
+                            // Get primary author from the relation
+                            val bookWithContributors = bookDao.getByIdWithContributors(BookId(bookId))
+                            val authorName =
+                                bookWithContributors?.let { bwc ->
+                                    // Find the author role from contributorRoles, then get the contributor
+                                    val authorRole = bwc.contributorRoles.firstOrNull { it.role == "author" }
+                                    authorRole?.let { role ->
+                                        // Use creditedAs if available, otherwise find contributor by ID
+                                        role.creditedAs ?: bwc.contributors.find { it.id == role.contributorId }?.name
+                                    }
+                                }
 
-                    DownloadedBook(
-                        bookId = bookId,
-                        title = book.title,
-                        authorName = authorName,
-                        coverBlurHash = book.coverBlurHash,
-                        sizeBytes = files.sumOf { it.downloadedBytes },
-                        fileCount = files.size,
-                    )
-                } else {
-                    null
-                }
-            }.sortedByDescending { it.sizeBytes }
+                            DownloadedBook(
+                                bookId = bookId,
+                                title = book.title,
+                                authorName = authorName,
+                                coverBlurHash = book.coverBlurHash,
+                                sizeBytes = files.sumOf { it.downloadedBytes },
+                                fileCount = files.size,
+                            )
+                        } else {
+                            null
+                        }
+                    }.sortedByDescending { it.sizeBytes }
 
             val totalUsed = downloadFileManager.calculateStorageUsed()
             val available = downloadFileManager.getAvailableSpace()

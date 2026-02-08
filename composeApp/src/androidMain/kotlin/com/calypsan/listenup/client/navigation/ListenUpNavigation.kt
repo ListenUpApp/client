@@ -596,7 +596,6 @@ private fun AuthenticatedNavigation(
                                         modifier = Modifier.padding(padding),
                                     )
                                 },
-
                             )
                         }
                         entry<LibrarySetup> {

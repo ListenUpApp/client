@@ -274,7 +274,15 @@ class PendingOperationRepository(
                 }
             }
 
-            EntityType.SHELF -> {                operation.entityId?.let { id ->                    shelfDao.getById(id)?.let { shelf ->                        shelfDao.upsert(shelf.copy(syncState = SyncState.NOT_SYNCED))                    }                }            }
+            EntityType.SHELF -> {
+                operation.entityId?.let { id ->
+                    shelfDao
+                        .getById(
+                            id,
+                        )?.let { shelf -> shelfDao.upsert(shelf.copy(syncState = SyncState.NOT_SYNCED)) }
+                }
+            }
+
             EntityType.USER -> {
                 // User profile doesn't have syncState - profile will be refreshed
                 // from server on next app launch or profile screen open

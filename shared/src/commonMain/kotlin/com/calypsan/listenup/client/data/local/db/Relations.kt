@@ -334,7 +334,7 @@ data class BookWithTags(
  * matching the server's shelf.BookIDs ordering.
  *
  * @property shelfId Foreign key to the shelf
- * @property bookId Foreign key to the book  
+ * @property bookId Foreign key to the book
  * @property addedAt When the book was added to the shelf (epoch ms)
  */
 @Entity(

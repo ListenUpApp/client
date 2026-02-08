@@ -296,9 +296,10 @@ fun AppShell(
             // Block the entire app shell with a scanning overlay
             ScanningOverlay(
                 scanProgress = scanProgress,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding),
             )
         } else {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -330,9 +331,10 @@ fun AppShell(
                     onTypeFilterToggle = { type ->
                         searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
                     },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(padding),
                 )
             }
         }
@@ -406,7 +408,6 @@ fun AppShell(
     }
 }
 
-
 /**
  * Full-screen scanning overlay.
  *
@@ -419,8 +420,9 @@ private fun ScanningOverlay(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        modifier =
+            modifier
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -432,12 +434,13 @@ private fun ScanningOverlay(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = if (scanProgress != null) {
-                    scanProgress.phaseDisplayName +
-                        if (scanProgress.total > 0) " ${scanProgress.current}/${scanProgress.total}" else ""
-                } else {
-                    "Scanning your library\u2026"
-                },
+                text =
+                    if (scanProgress != null) {
+                        scanProgress.phaseDisplayName +
+                            if (scanProgress.total > 0) " ${scanProgress.current}/${scanProgress.total}" else ""
+                    } else {
+                        "Scanning your library\u2026"
+                    },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )

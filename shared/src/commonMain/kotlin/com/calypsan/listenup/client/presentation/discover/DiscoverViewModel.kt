@@ -112,11 +112,12 @@ class DiscoverViewModel(
     private fun loadDiscoverBooks() {
         viewModelScope.launch {
             val books = bookRepository.observeRandomUnstartedBooks(limit = 10).first()
-            _discoverBooksState.value = DiscoverBooksUiState(
-                isLoading = false,
-                books = books.map { it.toDiscoverUiBook() },
-                error = null,
-            )
+            _discoverBooksState.value =
+                DiscoverBooksUiState(
+                    isLoading = false,
+                    books = books.map { it.toDiscoverUiBook() },
+                    error = null,
+                )
         }
     }
 

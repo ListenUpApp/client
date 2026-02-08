@@ -217,12 +217,13 @@ class LibrarySettingsViewModel(
      * Show or hide the folder browser for adding paths.
      */
     fun setShowFolderBrowser(show: Boolean) {
-        state.value = state.value.copy(
-            showFolderBrowser = show,
-            browserPath = "/",
-            browserEntries = emptyList(),
-            browserParent = null,
-        )
+        state.value =
+            state.value.copy(
+                showFolderBrowser = show,
+                browserPath = "/",
+                browserEntries = emptyList(),
+                browserParent = null,
+            )
         if (show) {
             loadBrowserDirectory("/")
         }

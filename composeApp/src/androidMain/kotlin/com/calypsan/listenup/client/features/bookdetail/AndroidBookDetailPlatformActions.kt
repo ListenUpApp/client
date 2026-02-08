@@ -35,8 +35,6 @@ class AndroidBookDetailPlatformActions(
 
     override fun observeWifiOnlyDownloads(): Flow<Boolean> = localPreferences.wifiOnlyDownloads
 
-    override fun observeIsOnline(): Flow<Boolean> = networkMonitor.isOnlineFlow
-
     override fun observeIsOnUnmeteredNetwork(): Flow<Boolean> = networkMonitor.isOnUnmeteredNetworkFlow
 
     override suspend fun checkServerReachable(): Boolean = playbackManager.isServerReachable()

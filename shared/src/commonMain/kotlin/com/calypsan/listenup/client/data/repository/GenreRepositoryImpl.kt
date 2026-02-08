@@ -55,13 +55,15 @@ class GenreRepositoryImpl(
         dao.replaceGenresForBook(BookId(bookId), genreIds)
     }
 
-    override suspend fun createGenre(name: String, parentId: String?): Genre {
-        return genreApi.createGenre(name, parentId)
-    }
+    override suspend fun createGenre(
+        name: String,
+        parentId: String?,
+    ): Genre = genreApi.createGenre(name, parentId)
 
-    override suspend fun updateGenre(id: String, name: String): Genre {
-        return genreApi.updateGenre(id, name)
-    }
+    override suspend fun updateGenre(
+        id: String,
+        name: String,
+    ): Genre = genreApi.updateGenre(id, name)
 
     override suspend fun deleteGenre(id: String) {
         genreApi.deleteGenre(id)
@@ -69,7 +71,10 @@ class GenreRepositoryImpl(
         dao.deleteById(id)
     }
 
-    override suspend fun moveGenre(id: String, newParentId: String?) {
+    override suspend fun moveGenre(
+        id: String,
+        newParentId: String?,
+    ) {
         genreApi.moveGenre(id, newParentId)
     }
 }

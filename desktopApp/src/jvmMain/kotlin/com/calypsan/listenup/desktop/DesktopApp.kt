@@ -511,7 +511,7 @@ private fun DetailScreen(
             val viewModel: AdminViewModel = koinInject()
             val settingsViewModel: AdminSettingsViewModel = koinInject()
             val settingsState by settingsViewModel.state.collectAsState()
-            
+
             AdminScreen(
                 viewModel = viewModel,
                 onBackClick = navigateBack,
@@ -533,16 +533,17 @@ private fun DetailScreen(
                 settingsError = settingsState.error,
                 onClearSettingsError = { settingsViewModel.clearError() },
             )
-            
+
             // Handle disable inbox confirmation dialog
             if (settingsState.showDisableConfirmation) {
                 com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog(
                     onDismissRequest = { settingsViewModel.cancelDisableInbox() },
                     title = "Disable Inbox Workflow",
-                    text = "This will release all ${settingsState.inboxCount} " +
-                        "book${if (settingsState.inboxCount != 1) "s" else ""} " +
-                        "currently in the inbox with their staged collection assignments.\n\n" +
-                        "New books will become immediately visible to users.",
+                    text =
+                        "This will release all ${settingsState.inboxCount} " +
+                            "book${if (settingsState.inboxCount != 1) "s" else ""} " +
+                            "currently in the inbox with their staged collection assignments.\n\n" +
+                            "New books will become immediately visible to users.",
                     confirmText = "Disable & Release",
                     onConfirm = { settingsViewModel.confirmDisableInbox() },
                     onDismiss = { settingsViewModel.cancelDisableInbox() },

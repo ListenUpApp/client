@@ -504,7 +504,11 @@ class SSEManager(
                     }
 
                     "shelf.book_removed" -> {
-                        val shelfEvent = json.decodeFromJsonElement(SSEShelfBookRemovedEvent.serializer(), sseEvent.data)
+                        val shelfEvent =
+                            json.decodeFromJsonElement(
+                                SSEShelfBookRemovedEvent.serializer(),
+                                sseEvent.data,
+                            )
                         SSEEventType.ShelfBookRemoved(
                             shelfId = shelfEvent.shelfId,
                             ownerId = shelfEvent.ownerId,
@@ -753,7 +757,6 @@ sealed interface SSEEventType {
         val booksRemoved: Int,
     ) : SSEEventType
 
-
     /**
      * Library scan progress update.
      * Contains current phase, progress counts, and change counts.
@@ -768,8 +771,7 @@ sealed interface SSEEventType {
         val removed: Int,
     ) : SSEEventType
 
-
-        /**
+    /**
      * Admin-only: Library access mode was changed.
      * Clients should refresh their book lists as visibility may have changed.
      */

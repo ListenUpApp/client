@@ -261,21 +261,21 @@ fun BooksContent(
                     if (isServerScanning && scanProgress != null) {
                         ScanProgressBanner(scanProgress = scanProgress)
                     }
-                BookGrid(
-                    books = books,
-                    sortState = sortState,
-                    ignoreTitleArticles = ignoreTitleArticles,
-                    bookProgress = bookProgress,
-                    bookIsFinished = bookIsFinished,
-                    isInSelectionMode = isInSelectionMode,
-                    selectedBookIds = selectedBookIds,
-                    onCategorySelected = onCategorySelected,
-                    onDirectionToggle = onDirectionToggle,
-                    onToggleIgnoreArticles = onToggleIgnoreArticles,
-                    onBookClick = onBookClick,
-                    onBookLongPress = onBookLongPress,
-                    modifier = Modifier.weight(1f),
-                )
+                    BookGrid(
+                        books = books,
+                        sortState = sortState,
+                        ignoreTitleArticles = ignoreTitleArticles,
+                        bookProgress = bookProgress,
+                        bookIsFinished = bookIsFinished,
+                        isInSelectionMode = isInSelectionMode,
+                        selectedBookIds = selectedBookIds,
+                        onCategorySelected = onCategorySelected,
+                        onDirectionToggle = onDirectionToggle,
+                        onToggleIgnoreArticles = onToggleIgnoreArticles,
+                        onBookClick = onBookClick,
+                        onBookLongPress = onBookLongPress,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }
@@ -483,7 +483,6 @@ private fun BooksLoadingState() {
     }
 }
 
-
 /**
  * Compact banner showing scan progress when books are already loaded.
  */
@@ -500,8 +499,9 @@ private fun ScanProgressBanner(scanProgress: ScanProgressState) {
             ) {
                 ListenUpLoadingIndicatorSmall()
                 Text(
-                    text = scanProgress.phaseDisplayName +
-                        if (scanProgress.total > 0) " ${scanProgress.current}/${scanProgress.total}" else "",
+                    text =
+                        scanProgress.phaseDisplayName +
+                            if (scanProgress.total > 0) " ${scanProgress.current}/${scanProgress.total}" else "",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
@@ -541,12 +541,13 @@ private fun BooksScanningState(scanProgress: ScanProgressState? = null) {
         ) {
             ListenUpLoadingIndicator()
             Text(
-                text = if (scanProgress != null) {
-                    scanProgress.phaseDisplayName +
-                        if (scanProgress.total > 0) " ${scanProgress.current}/${scanProgress.total}" else ""
-                } else {
-                    "Scanning your library..."
-                },
+                text =
+                    if (scanProgress != null) {
+                        scanProgress.phaseDisplayName +
+                            if (scanProgress.total > 0) " ${scanProgress.current}/${scanProgress.total}" else ""
+                    } else {
+                        "Scanning your library..."
+                    },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

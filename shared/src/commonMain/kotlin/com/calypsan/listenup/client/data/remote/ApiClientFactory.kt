@@ -115,88 +115,89 @@ class ApiClientFactory(
 
         logger.info { "Creating HTTP client for server: ${initialUrl.value}" }
 
-        val client = HttpClient {
-            install(ContentNegotiation) {
-                json(
-                    Json {
-                        prettyPrint = false
-                        isLenient = false
-                        ignoreUnknownKeys = true
-                    },
-                )
-            }
+        val client =
+            HttpClient {
+                install(ContentNegotiation) {
+                    json(
+                        Json {
+                            prettyPrint = false
+                            isLenient = false
+                            ignoreUnknownKeys = true
+                        },
+                    )
+                }
 
-            // Install HttpTimeout plugin to allow per-request timeout configuration
-            // Default timeouts for regular API calls (SSE uses separate client)
-            @Suppress("MagicNumber")
-            install(HttpTimeout) {
-                requestTimeoutMillis = 30_000
-                connectTimeoutMillis = 10_000
-                socketTimeoutMillis = 30_000
-            }
+                // Install HttpTimeout plugin to allow per-request timeout configuration
+                // Default timeouts for regular API calls (SSE uses separate client)
+                @Suppress("MagicNumber")
+                install(HttpTimeout) {
+                    requestTimeoutMillis = 30_000
+                    connectTimeoutMillis = 10_000
+                    socketTimeoutMillis = 30_000
+                }
 
-            install(Auth) {
-                bearer {
-                    // Load initial tokens from storage
-                    loadTokens {
-                        val access = authSession.getAccessToken()?.value
-                        val refresh = authSession.getRefreshToken()?.value
+                install(Auth) {
+                    bearer {
+                        // Load initial tokens from storage
+                        loadTokens {
+                            val access = authSession.getAccessToken()?.value
+                            val refresh = authSession.getRefreshToken()?.value
 
-                        if (access != null && refresh != null) {
-                            BearerTokens(
-                                accessToken = access,
-                                refreshToken = refresh,
-                            )
-                        } else {
-                            null
+                            if (access != null && refresh != null) {
+                                BearerTokens(
+                                    accessToken = access,
+                                    refreshToken = refresh,
+                                )
+                            } else {
+                                null
+                            }
                         }
-                    }
 
-                    // Refresh tokens when receiving 401 Unauthorized
-                    refreshTokens {
-                        val currentRefreshToken =
-                            authSession.getRefreshToken()
-                                ?: error("No refresh token available")
+                        // Refresh tokens when receiving 401 Unauthorized
+                        refreshTokens {
+                            val currentRefreshToken =
+                                authSession.getRefreshToken()
+                                    ?: error("No refresh token available")
 
-                        try {
-                            val response = authApi.refresh(currentRefreshToken)
+                            try {
+                                val response = authApi.refresh(currentRefreshToken)
 
-                            // Save new tokens to storage
-                            authSession.saveAuthTokens(
-                                access = AccessToken(response.accessToken),
-                                refresh = RefreshToken(response.refreshToken),
-                                sessionId = response.sessionId,
-                                userId = response.userId,
-                            )
+                                // Save new tokens to storage
+                                authSession.saveAuthTokens(
+                                    access = AccessToken(response.accessToken),
+                                    refresh = RefreshToken(response.refreshToken),
+                                    sessionId = response.sessionId,
+                                    userId = response.userId,
+                                )
 
-                            BearerTokens(
-                                accessToken = response.accessToken,
-                                refreshToken = response.refreshToken,
-                            )
-                        } catch (e: Exception) {
-                            // Refresh failed - clear auth state and force re-login
-                            logger.warn(e) { "Token refresh failed, clearing auth state" }
-                            authSession.clearAuthTokens()
-                            null
+                                BearerTokens(
+                                    accessToken = response.accessToken,
+                                    refreshToken = response.refreshToken,
+                                )
+                            } catch (e: Exception) {
+                                // Refresh failed - clear auth state and force re-login
+                                logger.warn(e) { "Token refresh failed, clearing auth state" }
+                                authSession.clearAuthTokens()
+                                null
+                            }
                         }
-                    }
 
-                    // Control when to send bearer token
-                    sendWithoutRequest { request ->
-                        // Send auth header for all requests except auth endpoints
-                        // (auth endpoints handle their own credentials in request body)
-                        val urlString = request.url.toString()
-                        // Match /api/v1/auth/ paths (login, refresh, logout, etc.)
-                        !urlString.contains("/auth/")
+                        // Control when to send bearer token
+                        sendWithoutRequest { request ->
+                            // Send auth header for all requests except auth endpoints
+                            // (auth endpoints handle their own credentials in request body)
+                            val urlString = request.url.toString()
+                            // Match /api/v1/auth/ paths (login, refresh, logout, etc.)
+                            !urlString.contains("/auth/")
+                        }
                     }
                 }
-            }
 
-            defaultRequest {
-                url(initialUrl.value)
-                contentType(ContentType.Application.Json)
+                defaultRequest {
+                    url(initialUrl.value)
+                    contentType(ContentType.Application.Json)
+                }
             }
-        }
 
         // Install HttpSend interceptor for dynamic URL resolution and fallback
         client.plugin(HttpSend).intercept { request ->

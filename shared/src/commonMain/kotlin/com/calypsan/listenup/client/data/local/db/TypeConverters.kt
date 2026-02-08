@@ -143,7 +143,8 @@ class PendingOperationConverters {
     fun fromOperationType(value: OperationType): Int = value.ordinal
 
     @TypeConverter
-    fun toOperationType(value: Int): OperationType = OperationType.entries.getOrElse(value) { OperationType.BOOK_UPDATE }
+    fun toOperationType(value: Int): OperationType =
+        OperationType.entries.getOrElse(value) { OperationType.BOOK_UPDATE }
 
     @TypeConverter
     fun fromNullableEntityType(value: EntityType?): Int? = value?.ordinal
@@ -163,10 +164,8 @@ class PendingOperationConverters {
  */
 class StringListConverter {
     @TypeConverter
-    fun fromStringList(value: List<String>): String =
-        value.joinToString(separator = "|||")
+    fun fromStringList(value: List<String>): String = value.joinToString(separator = "|||")
 
     @TypeConverter
-    fun toStringList(value: String): List<String> =
-        if (value.isEmpty()) emptyList() else value.split("|||")
+    fun toStringList(value: String): List<String> = if (value.isEmpty()) emptyList() else value.split("|||")
 }

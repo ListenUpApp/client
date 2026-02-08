@@ -86,9 +86,15 @@ interface AdminApiContract {
     ): LibraryResponse
 
     // Scan path management
-    suspend fun addScanPath(libraryId: String, path: String): LibraryResponse
+    suspend fun addScanPath(
+        libraryId: String,
+        path: String,
+    ): LibraryResponse
 
-    suspend fun removeScanPath(libraryId: String, path: String): LibraryResponse
+    suspend fun removeScanPath(
+        libraryId: String,
+        path: String,
+    ): LibraryResponse
 
     // Manual scan trigger
     suspend fun triggerScan(libraryId: String)
@@ -413,7 +419,10 @@ class AdminApi(
 
     // Scan Path Management
 
-    override suspend fun addScanPath(libraryId: String, path: String): LibraryResponse {
+    override suspend fun addScanPath(
+        libraryId: String,
+        path: String,
+    ): LibraryResponse {
         val client = clientFactory.getClient()
         val response: ApiResponse<LibraryResponse> =
             client
@@ -427,7 +436,10 @@ class AdminApi(
         }
     }
 
-    override suspend fun removeScanPath(libraryId: String, path: String): LibraryResponse {
+    override suspend fun removeScanPath(
+        libraryId: String,
+        path: String,
+    ): LibraryResponse {
         val client = clientFactory.getClient()
         val encodedPath = path.encodeURLPath()
         val response: ApiResponse<LibraryResponse> =
@@ -449,7 +461,10 @@ class AdminApi(
             val errorResponse: ApiResponse<Unit> = response.body()
             when (val result = errorResponse.toResult()) {
                 is Success -> { /* Shouldn't happen */ }
-                is Failure -> throw result.exceptionOrFromMessage()
+
+                is Failure -> {
+                    throw result.exceptionOrFromMessage()
+                }
             }
         }
     }

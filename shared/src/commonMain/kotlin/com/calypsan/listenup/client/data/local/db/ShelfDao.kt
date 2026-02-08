@@ -88,14 +88,21 @@ interface ShelfDao {
      * Update sync state for a shelf.
      */
     @Query("UPDATE shelves SET syncState = :syncState WHERE id = :id")
-    suspend fun updateSyncState(id: String, syncState: SyncState)
+    suspend fun updateSyncState(
+        id: String,
+        syncState: SyncState,
+    )
 
     /**
      * Remap shelf ID after server creation and update sync state.
      * Used when server assigns a new ID to a client-generated shelf.
      */
     @Query("UPDATE shelves SET id = :newId, syncState = :syncState WHERE id = :oldId")
-    suspend fun updateIdAndSyncState(oldId: String, newId: String, syncState: SyncState)
+    suspend fun updateIdAndSyncState(
+        oldId: String,
+        newId: String,
+        syncState: SyncState,
+    )
 
     /**
      * Count shelves from other users.
@@ -106,7 +113,7 @@ interface ShelfDao {
      */
     @Query("SELECT COUNT(*) FROM shelves WHERE ownerId != :userId")
     suspend fun countDiscoverShelves(userId: String): Int
-    
+
     /**
      * Get cover paths for a shelf using the join table.
      * Returns up to 4 cover paths for the shelf card grid display.
@@ -114,13 +121,15 @@ interface ShelfDao {
      * @param shelfId The shelf ID
      * @return List of cover URLs for the first 4 books in the shelf
      */
-    @Query("""
+    @Query(
+        """
         SELECT b.coverUrl 
         FROM shelf_books lb 
         JOIN books b ON lb.bookId = b.id 
         WHERE lb.shelfId = :shelfId AND b.coverUrl IS NOT NULL
         ORDER BY lb.addedAt DESC 
         LIMIT 4
-    """)
+    """,
+    )
     suspend fun getShelfCoverPaths(shelfId: String): List<String>
 }

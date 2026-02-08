@@ -40,12 +40,18 @@ interface GenreApiContract {
     /**
      * Create a new genre.
      */
-    suspend fun createGenre(name: String, parentId: String?): Genre
+    suspend fun createGenre(
+        name: String,
+        parentId: String?,
+    ): Genre
 
     /**
      * Update an existing genre's name.
      */
-    suspend fun updateGenre(id: String, name: String): Genre
+    suspend fun updateGenre(
+        id: String,
+        name: String,
+    ): Genre
 
     /**
      * Delete a genre.
@@ -55,7 +61,10 @@ interface GenreApiContract {
     /**
      * Move a genre to a new parent.
      */
-    suspend fun moveGenre(id: String, newParentId: String?)
+    suspend fun moveGenre(
+        id: String,
+        newParentId: String?,
+    )
 }
 
 /**
@@ -112,23 +121,31 @@ class GenreApi(
         return response.dataOrThrow { GenreApiException(it) }.genres.map { it.toDomain() }
     }
 
-    override suspend fun createGenre(name: String, parentId: String?): Genre {
+    override suspend fun createGenre(
+        name: String,
+        parentId: String?,
+    ): Genre {
         val client = clientFactory.getClient()
         val response: ApiResponse<GenreResponse> =
-            client.post("/api/v1/genres") {
-                contentType(ContentType.Application.Json)
-                setBody(CreateGenreRequest(name = name, parentId = parentId))
-            }.body()
+            client
+                .post("/api/v1/genres") {
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateGenreRequest(name = name, parentId = parentId))
+                }.body()
         return response.dataOrThrow { GenreApiException(it) }.toDomain()
     }
 
-    override suspend fun updateGenre(id: String, name: String): Genre {
+    override suspend fun updateGenre(
+        id: String,
+        name: String,
+    ): Genre {
         val client = clientFactory.getClient()
         val response: ApiResponse<GenreResponse> =
-            client.put("/api/v1/genres/$id") {
-                contentType(ContentType.Application.Json)
-                setBody(UpdateGenreRequest(name = name))
-            }.body()
+            client
+                .put("/api/v1/genres/$id") {
+                    contentType(ContentType.Application.Json)
+                    setBody(UpdateGenreRequest(name = name))
+                }.body()
         return response.dataOrThrow { GenreApiException(it) }.toDomain()
     }
 
@@ -138,13 +155,17 @@ class GenreApi(
         response.dataOrThrow { GenreApiException(it) }
     }
 
-    override suspend fun moveGenre(id: String, newParentId: String?) {
+    override suspend fun moveGenre(
+        id: String,
+        newParentId: String?,
+    ) {
         val client = clientFactory.getClient()
         val response: ApiResponse<GenreResponse> =
-            client.post("/api/v1/genres/$id/move") {
-                contentType(ContentType.Application.Json)
-                setBody(MoveGenreRequest(newParentId = newParentId))
-            }.body()
+            client
+                .post("/api/v1/genres/$id/move") {
+                    contentType(ContentType.Application.Json)
+                    setBody(MoveGenreRequest(newParentId = newParentId))
+                }.body()
         response.dataOrThrow { GenreApiException(it) }
     }
 }

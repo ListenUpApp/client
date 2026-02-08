@@ -38,12 +38,13 @@ class AdminCategoriesViewModel(
             genreRepository.observeAll().collect { genres ->
                 logger.debug { "Genres updated: ${genres.size}" }
                 val tree = buildGenreTree(genres)
-                state.value = state.value.copy(
-                    isLoading = false,
-                    genres = genres,
-                    tree = tree,
-                    totalBookCount = genres.sumOf { it.bookCount },
-                )
+                state.value =
+                    state.value.copy(
+                        isLoading = false,
+                        genres = genres,
+                        tree = tree,
+                        totalBookCount = genres.sumOf { it.bookCount },
+                    )
             }
         }
     }
@@ -65,7 +66,10 @@ class AdminCategoriesViewModel(
      * Expand all nodes in the tree.
      */
     fun expandAll() {
-        val allIds = state.value.genres.map { it.id }.toSet()
+        val allIds =
+            state.value.genres
+                .map { it.id }
+                .toSet()
         state.value = state.value.copy(expandedIds = allIds)
     }
 
@@ -79,7 +83,10 @@ class AdminCategoriesViewModel(
     /**
      * Create a new genre, optionally under a parent.
      */
-    fun createGenre(name: String, parentId: String?) {
+    fun createGenre(
+        name: String,
+        parentId: String?,
+    ) {
         viewModelScope.launch {
             state.value = state.value.copy(isSaving = true, error = null)
             try {
@@ -102,7 +109,10 @@ class AdminCategoriesViewModel(
     /**
      * Rename an existing genre.
      */
-    fun renameGenre(id: String, name: String) {
+    fun renameGenre(
+        id: String,
+        name: String,
+    ) {
         viewModelScope.launch {
             state.value = state.value.copy(isSaving = true, error = null)
             try {
@@ -136,7 +146,10 @@ class AdminCategoriesViewModel(
     /**
      * Move a genre to a new parent.
      */
-    fun moveGenre(id: String, newParentId: String?) {
+    fun moveGenre(
+        id: String,
+        newParentId: String?,
+    ) {
         viewModelScope.launch {
             state.value = state.value.copy(isSaving = true, error = null)
             try {
@@ -180,17 +193,23 @@ class AdminCategoriesViewModel(
         }
 
         // Find root genres (those with single-segment paths like "/fiction")
-        val roots = genres.filter { genre ->
-            val segments = genre.path.trim('/').split('/')
-            segments.size == 1
-        }.sortedBy { it.name }
+        val roots =
+            genres
+                .filter { genre ->
+                    val segments = genre.path.trim('/').split('/')
+                    segments.size == 1
+                }.sortedBy { it.name }
 
         // Build tree recursively
-        fun buildNode(genre: Genre, depth: Int): GenreTreeNode {
-            val children = childrenByParentPath[genre.path]
-                ?.sortedBy { it.name }
-                ?.map { buildNode(it, depth + 1) }
-                ?: emptyList()
+        fun buildNode(
+            genre: Genre,
+            depth: Int,
+        ): GenreTreeNode {
+            val children =
+                childrenByParentPath[genre.path]
+                    ?.sortedBy { it.name }
+                    ?.map { buildNode(it, depth + 1) }
+                    ?: emptyList()
 
             return GenreTreeNode(
                 genre = genre,
