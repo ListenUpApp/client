@@ -532,9 +532,6 @@ private fun AuthenticatedNavigation(
                             val libraryViewModel: LibraryViewModel = koinInject()
 
                             // Get search state for overlay
-                            val searchViewModel: SearchViewModel = koinInject()
-                            val searchState by searchViewModel.state.collectAsState()
-
                             AppShell(
                                 currentDestination = currentShellDestination,
                                 onDestinationChange = { currentShellDestination = it },
@@ -599,21 +596,7 @@ private fun AuthenticatedNavigation(
                                         modifier = Modifier.padding(padding),
                                     )
                                 },
-                                searchOverlayContent = { padding ->
-                                    SearchResultsOverlay(
-                                        state = searchState,
-                                        onResultClick = { hit ->
-                                            searchViewModel.onEvent(SearchUiEvent.ResultClicked(hit))
-                                        },
-                                        onTypeFilterToggle = { type ->
-                                            searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
-                                        },
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .padding(padding),
-                                    )
-                                },
+
                             )
                         }
                         entry<LibrarySetup> {

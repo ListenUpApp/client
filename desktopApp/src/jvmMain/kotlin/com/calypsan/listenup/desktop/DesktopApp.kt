@@ -210,11 +210,9 @@ private fun DesktopAuthenticatedNavigation() {
     val authSession: AuthSession = koinInject()
     val libraryResetHelper: LibraryResetHelperContract = koinInject()
     val playerViewModel: DesktopPlayerViewModel = koinInject()
-    val searchViewModel: SearchViewModel = koinInject()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val playerState by playerViewModel.state.collectAsState()
-    val searchState by searchViewModel.state.collectAsState()
 
     var currentDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
     val backStack: SnapshotStateList<DetailDestination> =
@@ -283,21 +281,6 @@ private fun DesktopAuthenticatedNavigation() {
                                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
                                 onUserProfileClick = { navigateTo(DetailDestination.UserProfile(it)) },
                                 modifier = Modifier.padding(padding),
-                            )
-                        },
-                        searchOverlayContent = { padding ->
-                            SearchResultsOverlay(
-                                state = searchState,
-                                onResultClick = { hit ->
-                                    searchViewModel.onEvent(SearchUiEvent.ResultClicked(hit))
-                                },
-                                onTypeFilterToggle = { type ->
-                                    searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
-                                },
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .padding(padding),
                             )
                         },
                     )

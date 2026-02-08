@@ -49,6 +49,7 @@ import com.calypsan.listenup.client.features.shell.components.AppTopBar
 import com.calypsan.listenup.client.features.shell.components.SyncDetailsSheet
 import com.calypsan.listenup.client.presentation.search.SearchNavAction
 import com.calypsan.listenup.client.presentation.search.SearchUiEvent
+import com.calypsan.listenup.client.features.search.SearchResultsOverlay
 import com.calypsan.listenup.client.presentation.search.SearchViewModel
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiEvent
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
@@ -85,7 +86,6 @@ private val logger = KotlinLogging.logger {}
  * @param homeContent Content composable for Home destination
  * @param libraryContent Content composable for Library destination
  * @param discoverContent Content composable for Discover destination
- * @param searchOverlayContent Optional search overlay content
  */
 @Suppress("LongMethod")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -105,7 +105,6 @@ fun AppShell(
     homeContent: @Composable (PaddingValues, topBarCollapseFraction: Float, onNavigateToLibrary: () -> Unit) -> Unit,
     libraryContent: @Composable (PaddingValues, topBarCollapseFraction: Float) -> Unit,
     discoverContent: @Composable (PaddingValues) -> Unit,
-    searchOverlayContent: @Composable (PaddingValues) -> Unit = {},
 ) {
     // Inject dependencies
     val syncRepository: SyncRepository = koinInject()
@@ -323,7 +322,18 @@ fun AppShell(
                 }
 
                 // Search results overlay (floats above content when search is active)
-                searchOverlayContent(padding)
+                SearchResultsOverlay(
+                    state = searchState,
+                    onResultClick = { hit ->
+                        searchViewModel.onEvent(SearchUiEvent.ResultClicked(hit))
+                    },
+                    onTypeFilterToggle = { type ->
+                        searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                )
             }
         }
     }
