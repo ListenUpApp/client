@@ -40,7 +40,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import com.calypsan.listenup.client.design.components.ListenUpFab
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -162,15 +162,15 @@ fun AdminCategoriesScreen(
             }
         },
         floatingActionButton = {
-            FloatingActionButton(
+            ListenUpFab(
                 onClick = {
                     createParentId = null
                     createParentName = null
                     showCreateDialog = true
                 },
-            ) {
-                Icon(Icons.Outlined.Add, contentDescription = "Add Genre")
-            }
+                icon = Icons.Outlined.Add,
+                contentDescription = "Add Genre",
+            )
         },
     ) { innerPadding ->
         if (state.isLoading && state.tree.isEmpty()) {

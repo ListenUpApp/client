@@ -26,7 +26,7 @@ import androidx.compose.material3.Checkbox
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import com.calypsan.listenup.client.design.components.ListenUpExtendedFab
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -146,7 +146,7 @@ fun AdminInboxScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             if (state.hasSelection) {
-                ExtendedFloatingActionButton(
+                ListenUpExtendedFab(
                     onClick = {
                         if (viewModel.hasSelectedBooksWithoutCollections()) {
                             showReleaseConfirmation = true
@@ -154,18 +154,9 @@ fun AdminInboxScreen(
                             viewModel.releaseBooks(state.selectedBookIds.toList())
                         }
                     },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    icon = {
-                        if (state.isReleasing) {
-                            ListenUpLoadingIndicatorSmall()
-                        } else {
-                            Icon(
-                                imageVector = Icons.Outlined.Publish,
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                    text = { Text("Release") },
+                    icon = Icons.Outlined.Publish,
+                    text = "Release",
+                    isLoading = state.isReleasing,
                 )
             }
         },

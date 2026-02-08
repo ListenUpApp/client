@@ -26,7 +26,7 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.CardDefaults
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExtendedFloatingActionButton
+import com.calypsan.listenup.client.design.components.ListenUpExtendedFab
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -231,40 +231,12 @@ private fun SaveFab(
     isSaving: Boolean,
     onSave: () -> Unit,
 ) {
-    val isEnabled = hasChanges && !isSaving
-    val contentColor =
-        if (isEnabled) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-        }
-
-    ExtendedFloatingActionButton(
-        onClick = { if (isEnabled) onSave() },
-        icon = {
-            if (isSaving) {
-                ListenUpLoadingIndicatorSmall(color = contentColor)
-            } else {
-                Icon(
-                    Icons.Default.Save,
-                    contentDescription = null,
-                    tint = contentColor,
-                )
-            }
-        },
-        text = {
-            Text(
-                text = if (isSaving) "Saving..." else "Save Changes",
-                color = contentColor,
-            )
-        },
-        expanded = true,
-        containerColor =
-            if (isEnabled) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHighest
-            },
+    ListenUpExtendedFab(
+        onClick = onSave,
+        icon = Icons.Default.Save,
+        text = if (isSaving) "Saving..." else "Save Changes",
+        enabled = hasChanges && !isSaving,
+        isLoading = isSaving,
     )
 }
 

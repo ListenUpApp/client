@@ -24,7 +24,7 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import com.calypsan.listenup.client.design.components.ListenUpFab
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -108,16 +108,11 @@ fun AdminCollectionsScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(
+            ListenUpFab(
                 onClick = { showCreateDialog = true },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Add,
-                    contentDescription = "Create Collection",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
+                icon = Icons.Outlined.Add,
+                contentDescription = "Create Collection",
+            )
         },
     ) { innerPadding ->
         if (state.isLoading && state.collections.isEmpty()) {

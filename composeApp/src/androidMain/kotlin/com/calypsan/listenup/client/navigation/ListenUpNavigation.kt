@@ -875,8 +875,9 @@ private fun AuthenticatedNavigation(
                                 isSaving = settingsState.isSaving,
                                 onInboxEnabledChange = { settingsViewModel.setInboxEnabled(it) },
                                 isDirty = settingsState.isDirty,
-                                savedSuccessfully = settingsState.savedSuccessfully,
                                 onSave = { settingsViewModel.saveAll() },
+                                settingsError = settingsState.error,
+                                onClearSettingsError = { settingsViewModel.clearError() },
                             )
 
                             // Handle disable inbox confirmation dialog

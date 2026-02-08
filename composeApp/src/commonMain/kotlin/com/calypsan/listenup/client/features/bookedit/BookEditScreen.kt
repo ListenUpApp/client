@@ -16,7 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.ExtendedFloatingActionButton
+import com.calypsan.listenup.client.design.components.ListenUpExtendedFab
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -119,46 +119,13 @@ fun BookEditScreen(
     Scaffold(
         containerColor = Color.Transparent,
         floatingActionButton = {
-            // Extended FAB for Save - always visible, disabled when no changes
             if (!state.isLoading) {
-                val isEnabled = state.hasChanges && !state.isSaving
-
-                ExtendedFloatingActionButton(
-                    onClick = { if (isEnabled) viewModel.onEvent(BookEditUiEvent.Save) },
-                    icon = {
-                        if (state.isSaving) {
-                            ListenUpLoadingIndicatorSmall()
-                        } else {
-                            Icon(
-                                Icons.Default.Save,
-                                contentDescription = null,
-                                tint =
-                                    if (isEnabled) {
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    },
-                            )
-                        }
-                    },
-                    text = {
-                        Text(
-                            text = if (state.isSaving) "Saving..." else "Save Changes",
-                            color =
-                                if (isEnabled) {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                },
-                        )
-                    },
-                    expanded = true,
-                    containerColor =
-                        if (isEnabled) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        },
+                ListenUpExtendedFab(
+                    onClick = { viewModel.onEvent(BookEditUiEvent.Save) },
+                    icon = Icons.Default.Save,
+                    text = if (state.isSaving) "Saving..." else "Save Changes",
+                    enabled = state.hasChanges && !state.isSaving,
+                    isLoading = state.isSaving,
                 )
             }
         },

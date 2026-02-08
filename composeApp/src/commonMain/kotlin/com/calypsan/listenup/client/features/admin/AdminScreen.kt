@@ -34,7 +34,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.material3.SmallFloatingActionButton
+import com.calypsan.listenup.client.design.components.ListenUpFab
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Share
@@ -101,8 +101,9 @@ fun AdminScreen(
     isSaving: Boolean = false,
     onInboxEnabledChange: (Boolean) -> Unit = {},
     isDirty: Boolean = false,
-    savedSuccessfully: Boolean = false,
     onSave: () -> Unit = {},
+    settingsError: String? = null,
+    onClearSettingsError: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
@@ -121,6 +122,13 @@ fun AdminScreen(
         }
     }
 
+    LaunchedEffect(settingsError) {
+        settingsError?.let {
+            snackbarHostState.showSnackbar(it)
+            onClearSettingsError()
+        }
+    }
+
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -135,34 +143,12 @@ fun AdminScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            AnimatedVisibility(
-                visible = isDirty || savedSuccessfully,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut(),
-            ) {
-                SmallFloatingActionButton(
-                    onClick = onSave,
-                    containerColor = if (savedSuccessfully) {
-                        MaterialTheme.colorScheme.tertiary
-                    } else {
-                        MaterialTheme.colorScheme.primaryContainer
-                    },
-                ) {
-                    if (savedSuccessfully) {
-                        Icon(
-                            imageVector = Icons.Outlined.Check,
-                            contentDescription = "Saved",
-                            tint = MaterialTheme.colorScheme.onTertiary,
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.Save,
-                            contentDescription = "Save settings",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
-                }
-            }
+            ListenUpFab(
+                onClick = onSave,
+                icon = Icons.Outlined.Save,
+                contentDescription = "Save settings",
+                enabled = isDirty,
+            )
         },
     ) { innerPadding ->
         if (state.isLoading) {

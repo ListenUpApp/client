@@ -190,12 +190,10 @@ class AdminSettingsViewModel(
 
                 state.value = state.value.copy(
                     isSaving = false,
-                    savedSuccessfully = true,
                 )
                 updateDirty()
 
-                delay(SAVE_SUCCESS_DISPLAY_MS)
-                state.value = state.value.copy(savedSuccessfully = false)
+
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save settings" }
                 state.value = state.value.copy(
@@ -219,7 +217,6 @@ class AdminSettingsViewModel(
     }
 
     companion object {
-        private const val SAVE_SUCCESS_DISPLAY_MS = 2000L
     }
 }
 
@@ -235,7 +232,6 @@ data class AdminSettingsUiState(
     val inboxCount: Int = 0,
     val showDisableConfirmation: Boolean = false,
     val isDirty: Boolean = false,
-    val savedSuccessfully: Boolean = false,
     val error: String? = null,
 ) {
     val hasPendingBooks: Boolean get() = inboxCount > 0

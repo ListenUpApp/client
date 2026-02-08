@@ -32,7 +32,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import com.calypsan.listenup.client.design.components.ListenUpFab
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -105,9 +105,11 @@ fun AdminBackupScreen(
         },
         floatingActionButton = {
             if (!backupState.isLoading) {
-                FloatingActionButton(onClick = onCreateClick) {
-                    Icon(Icons.Default.Add, contentDescription = "Create Backup")
-                }
+                ListenUpFab(
+                    onClick = onCreateClick,
+                    icon = Icons.Default.Add,
+                    contentDescription = "Create Backup",
+                )
             }
         },
     ) { paddingValues ->
