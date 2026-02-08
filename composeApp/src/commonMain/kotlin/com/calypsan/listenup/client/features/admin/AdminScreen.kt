@@ -28,6 +28,8 @@ import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Share
@@ -89,6 +91,9 @@ fun AdminScreen(
     onServerNameChange: (String) -> Unit = {},
     remoteUrl: String = "",
     onRemoteUrlChange: (String) -> Unit = {},
+    onSaveRemoteUrl: () -> Unit = {},
+    remoteUrlSaved: Boolean = false,
+    remoteUrlDirty: Boolean = false,
     inboxEnabled: Boolean = false,
     inboxCount: Int = 0,
     isSaving: Boolean = false,
@@ -151,6 +156,9 @@ fun AdminScreen(
                 onServerNameChange = onServerNameChange,
                 remoteUrl = remoteUrl,
                 onRemoteUrlChange = onRemoteUrlChange,
+                onSaveRemoteUrl = onSaveRemoteUrl,
+                remoteUrlSaved = remoteUrlSaved,
+                remoteUrlDirty = remoteUrlDirty,
                 inboxEnabled = inboxEnabled,
                 inboxCount = inboxCount,
                 isSaving = isSaving,
@@ -229,6 +237,9 @@ private fun AdminContent(
     onServerNameChange: (String) -> Unit,
     remoteUrl: String,
     onRemoteUrlChange: (String) -> Unit,
+    onSaveRemoteUrl: () -> Unit,
+    remoteUrlSaved: Boolean,
+    remoteUrlDirty: Boolean,
     inboxEnabled: Boolean,
     inboxCount: Int,
     isSaving: Boolean,
@@ -257,6 +268,9 @@ private fun AdminContent(
                 onServerNameChange = onServerNameChange,
                 remoteUrl = remoteUrl,
                 onRemoteUrlChange = onRemoteUrlChange,
+                onSaveRemoteUrl = onSaveRemoteUrl,
+                remoteUrlSaved = remoteUrlSaved,
+                remoteUrlDirty = remoteUrlDirty,
                 openRegistration = state.openRegistration,
                 isTogglingOpenRegistration = state.isTogglingOpenRegistration,
                 onOpenRegistrationChange = onOpenRegistrationChange,
@@ -465,6 +479,9 @@ private fun SettingsCard(
     onServerNameChange: (String) -> Unit,
     remoteUrl: String,
     onRemoteUrlChange: (String) -> Unit,
+    onSaveRemoteUrl: () -> Unit,
+    remoteUrlSaved: Boolean,
+    remoteUrlDirty: Boolean,
     openRegistration: Boolean,
     isTogglingOpenRegistration: Boolean,
     onOpenRegistrationChange: (Boolean) -> Unit,
@@ -532,6 +549,23 @@ private fun SettingsCard(
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
+                FilledTonalIconButton(
+                    onClick = onSaveRemoteUrl,
+                    enabled = remoteUrlDirty && !isSaving,
+                ) {
+                    if (remoteUrlSaved) {
+                        Icon(
+                            imageVector = Icons.Outlined.Check,
+                            contentDescription = "Saved",
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.Save,
+                            contentDescription = "Save Remote URL",
+                        )
+                    }
+                }
             }
 
             HorizontalDivider(

@@ -35,7 +35,6 @@ class AdminSettingsViewModel(
         field = MutableStateFlow(AdminSettingsUiState())
 
     private var serverNameSaveJob: Job? = null
-    private var remoteUrlSaveJob: Job? = null
 
     init {
         loadSettings()
@@ -154,7 +153,8 @@ class AdminSettingsViewModel(
         viewModelScope.launch {
             when (val result = instanceRepository.getInstance(forceRefresh = true)) {
                 is Result.Success -> {
-                    state.value = state.value.copy(remoteUrl = result.data.remoteUrl ?: "")
+                    val url = result.data.remoteUrl ?: ""
+                    state.value = state.value.copy(remoteUrl = url, savedRemoteUrl = url)
                 }
                 is Result.Failure -> {
                     // Non-fatal, just leave remote URL empty
@@ -164,20 +164,35 @@ class AdminSettingsViewModel(
     }
 
     /**
-     * Update the remote access URL.
-     * Updates local state immediately, debounces the API save.
+     * Update the remote access URL locally.
+     * Does not save to the server — call [saveRemoteUrl] explicitly.
      */
     fun setRemoteUrl(url: String) {
-        state.value = state.value.copy(remoteUrl = url)
-        remoteUrlSaveJob?.cancel()
-        remoteUrlSaveJob = viewModelScope.launch {
-            delay(SAVE_DEBOUNCE_MS)
+        state.value = state.value.copy(remoteUrl = url, remoteUrlSaved = false)
+    }
+
+    /**
+     * Persist the current remote URL to the server.
+     */
+    fun saveRemoteUrl() {
+        viewModelScope.launch {
+            state.value = state.value.copy(isSaving = true, error = null)
             try {
-                adminRepository.updateInstanceRemoteUrl(url)
-                logger.info { "Remote URL saved: $url" }
+                adminRepository.updateInstanceRemoteUrl(state.value.remoteUrl)
+                logger.info { "Remote URL saved: ${state.value.remoteUrl}" }
+                state.value = state.value.copy(
+                    isSaving = false,
+                    remoteUrlSaved = true,
+                    savedRemoteUrl = state.value.remoteUrl,
+                )
+                delay(2000)
+                state.value = state.value.copy(remoteUrlSaved = false)
             } catch (e: Exception) {
                 logger.error(e) { "Failed to save remote URL" }
-                state.value = state.value.copy(error = "Failed to save remote URL: ${e.message}")
+                state.value = state.value.copy(
+                    isSaving = false,
+                    error = "Failed to save remote URL: ${e.message}",
+                )
             }
         }
     }
@@ -202,6 +217,8 @@ data class AdminSettingsUiState(
     val inboxEnabled: Boolean = false,
     val inboxCount: Int = 0,
     val showDisableConfirmation: Boolean = false,
+    val remoteUrlSaved: Boolean = false,
+    val savedRemoteUrl: String = "",
     val error: String? = null,
 ) {
     val hasPendingBooks: Boolean get() = inboxCount > 0
