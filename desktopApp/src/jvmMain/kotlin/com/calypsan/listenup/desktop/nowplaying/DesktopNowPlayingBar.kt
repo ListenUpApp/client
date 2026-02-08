@@ -29,7 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.playback.NowPlayingState
 
 /**
@@ -77,8 +77,9 @@ fun DesktopNowPlayingBar(
                             .clip(RoundedCornerShape(6.dp))
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                 ) {
-                    ListenUpAsyncImage(
-                        path = state.coverUrl,
+                    BookCoverImage(
+                        bookId = state.bookId,
+                        coverPath = state.coverUrl,
                         contentDescription = state.title,
                         blurHash = state.coverBlurHash,
                         modifier = Modifier.size(48.dp),

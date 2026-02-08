@@ -43,7 +43,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.presentation.tagdetail.TagDetailUiState
@@ -262,8 +262,9 @@ private fun TagBookItem(
                 contentAlignment = Alignment.Center,
             ) {
                 if (book.coverPath != null) {
-                    ListenUpAsyncImage(
-                        path = book.coverPath,
+                    BookCoverImage(
+                        bookId = book.id.value,
+                        coverPath = book.coverPath,
                         contentDescription = book.title,
                         contentScale = ContentScale.Crop,
                         modifier =

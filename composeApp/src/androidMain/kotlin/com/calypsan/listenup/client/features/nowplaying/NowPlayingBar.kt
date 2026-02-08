@@ -33,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.playback.NowPlayingState
 
 /**
@@ -88,8 +88,9 @@ fun NowPlayingBar(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // Cover art
-                    ListenUpAsyncImage(
-                        path = state.coverUrl,
+                    BookCoverImage(
+                        bookId = state.bookId,
+                        coverPath = state.coverUrl,
                         blurHash = state.coverBlurHash,
                         contentDescription = "Book cover",
                         modifier =

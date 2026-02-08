@@ -54,7 +54,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.util.parseHexColor
 import com.calypsan.listenup.client.domain.model.ShelfBook
@@ -440,8 +440,9 @@ private fun ShelfBookItem(
                 contentAlignment = Alignment.Center,
             ) {
                 if (book.coverPath != null) {
-                    ListenUpAsyncImage(
-                        path = book.coverPath,
+                    BookCoverImage(
+                        bookId = book.id,
+                        coverPath = book.coverPath,
                         contentDescription = book.title,
                         contentScale = ContentScale.Crop,
                         modifier =
