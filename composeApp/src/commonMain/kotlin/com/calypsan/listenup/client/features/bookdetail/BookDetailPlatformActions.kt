@@ -34,8 +34,14 @@ interface BookDetailPlatformActions {
     /** Observe WiFi-only downloads preference */
     fun observeWifiOnlyDownloads(): Flow<Boolean>
 
+    /** Observe whether device is online (has internet connectivity) */
+    fun observeIsOnline(): Flow<Boolean>
+
     /** Observe whether device is on unmetered network */
     fun observeIsOnUnmeteredNetwork(): Flow<Boolean>
+
+    /** Check if the server is reachable (quick health check) */
+    suspend fun checkServerReachable(): Boolean
 }
 
 /**
@@ -58,5 +64,9 @@ class NoOpBookDetailPlatformActions : BookDetailPlatformActions {
 
     override fun observeWifiOnlyDownloads(): Flow<Boolean> = flowOf(false)
 
+    override fun observeIsOnline(): Flow<Boolean> = flowOf(true)
+
     override fun observeIsOnUnmeteredNetwork(): Flow<Boolean> = flowOf(true)
+
+    override suspend fun checkServerReachable(): Boolean = true
 }

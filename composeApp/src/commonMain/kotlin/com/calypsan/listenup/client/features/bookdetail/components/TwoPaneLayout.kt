@@ -88,6 +88,8 @@ fun TwoPaneBookDetail(
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    playEnabled: Boolean = true,
+    onPlayDisabledClick: () -> Unit = {},
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
@@ -125,6 +127,8 @@ fun TwoPaneBookDetail(
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
+            playEnabled = playEnabled,
+            onPlayDisabledClick = onPlayDisabledClick,
             onContributorClick = onContributorClick,
             modifier =
                 Modifier
@@ -171,6 +175,8 @@ private fun TwoPaneLeftPane(
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    playEnabled: Boolean = true,
+    onPlayDisabledClick: () -> Unit = {},
     onContributorClick: (contributorId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -357,6 +363,8 @@ private fun TwoPaneLeftPane(
                     onCancelClick = onCancelClick,
                     onDeleteClick = onDeleteClick,
                     isWaitingForWifi = isWaitingForWifi,
+                    playEnabled = playEnabled,
+                    onPlayDisabledClick = onPlayDisabledClick,
                 )
             }
         }

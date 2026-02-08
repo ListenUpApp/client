@@ -175,6 +175,7 @@ val playbackModule =
             PlayerViewModel(
                 playbackManager = get(),
                 mediaControllerHolder = get(),
+                networkMonitor = get(),
             )
         }
 
@@ -222,6 +223,7 @@ val downloadModule =
                 playerViewModel = get(),
                 localPreferences = get(),
                 networkMonitor = get(),
+                playbackManager = get(),
             )
         }
     }

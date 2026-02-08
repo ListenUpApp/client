@@ -102,6 +102,9 @@ fun BookDetailScreen(
         .observeBookStatus(BookId(bookId))
         .collectAsState(initial = BookDownloadStatus.notDownloaded(bookId))
 
+    // Network state detection
+    val isOnline by platformActions.observeIsOnline().collectAsState(initial = true)
+
     // WiFi-only download state detection
     val wifiOnlyDownloads by platformActions.observeWifiOnlyDownloads().collectAsState(initial = false)
     val isOnUnmeteredNetwork by platformActions.observeIsOnUnmeteredNetwork().collectAsState(initial = true)
@@ -114,6 +117,19 @@ fun BookDetailScreen(
         downloadStatus.state == BookDownloadState.QUEUED &&
             wifiOnlyDownloads &&
             !isOnUnmeteredNetwork
+
+    // Server reachability check - runs when screen loads
+    var isServerReachable by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(bookId, downloadStatus.isFullyDownloaded) {
+        // Only check if book isn't downloaded - downloaded books always play
+        if (!downloadStatus.isFullyDownloaded) {
+            isServerReachable = platformActions.checkServerReachable()
+        }
+    }
+
+    // Playback availability: can play if book is downloaded OR server is confirmed reachable
+    // While check is in progress (null), assume playable to avoid flicker for fast connections
+    val canPlay = downloadStatus.isFullyDownloaded || isServerReachable != false
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showMarkCompleteDialog by remember { mutableStateOf(false) }
@@ -174,6 +190,14 @@ fun BookDetailScreen(
                     onAddToCollectionClick = { /* TODO: Implement */ },
                     onDeleteBookClick = { /* TODO: Implement */ },
                     onPlayClick = { platformActions.playBook(BookId(bookId)) },
+                    canPlay = canPlay,
+                    onPlayDisabledClick = {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                "Server is unreachable. Connect to your server to play or download this book.",
+                            )
+                        }
+                    },
                     onUserProfileClick = onUserProfileClick,
                     onDownloadClick = {
                         scope.launch {
@@ -282,6 +306,8 @@ fun BookDetailContent(
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
+    canPlay: Boolean,
+    onPlayDisabledClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -320,6 +346,8 @@ fun BookDetailContent(
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
+            playEnabled = canPlay,
+            onPlayDisabledClick = onPlayDisabledClick,
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
             onTagClick = onTagClick,
@@ -344,6 +372,8 @@ fun BookDetailContent(
             onAddToCollectionClick = onAddToCollectionClick,
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
+            canPlay = canPlay,
+            onPlayDisabledClick = onPlayDisabledClick,
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
@@ -383,6 +413,8 @@ private fun ImmersiveBookDetail(
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
+    canPlay: Boolean,
+    onPlayDisabledClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -455,6 +487,8 @@ private fun ImmersiveBookDetail(
                     onDeleteClick = onDeleteClick,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
                     isWaitingForWifi = isWaitingForWifi,
+                    playEnabled = canPlay,
+                    onPlayDisabledClick = onPlayDisabledClick,
                 )
             }
         }
