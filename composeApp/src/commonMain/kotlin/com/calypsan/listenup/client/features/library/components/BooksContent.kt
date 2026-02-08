@@ -174,7 +174,7 @@ private fun ArticleToggleChip(
         onClick = onToggle,
         label = {
             Text(
-                text = "Aa",
+                text = "Title Sort",
                 style = MaterialTheme.typography.labelLarge,
             )
         },
