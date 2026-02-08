@@ -539,10 +539,15 @@ private fun DetailScreen(
                 onUserClick = { navigateTo(DetailDestination.UserDetail(it)) },
                 serverName = settingsState.serverName,
                 onServerNameChange = { settingsViewModel.setServerName(it) },
+                remoteUrl = settingsState.remoteUrl,
+                onRemoteUrlChange = { settingsViewModel.setRemoteUrl(it) },
                 inboxEnabled = settingsState.inboxEnabled,
                 inboxCount = settingsState.inboxCount,
                 isSaving = settingsState.isSaving,
                 onInboxEnabledChange = { settingsViewModel.setInboxEnabled(it) },
+                isDirty = settingsState.isDirty,
+                savedSuccessfully = settingsState.savedSuccessfully,
+                onSave = { settingsViewModel.saveAll() },
             )
             
             // Handle disable inbox confirmation dialog

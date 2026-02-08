@@ -29,7 +29,12 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Save
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Share
@@ -91,13 +96,13 @@ fun AdminScreen(
     onServerNameChange: (String) -> Unit = {},
     remoteUrl: String = "",
     onRemoteUrlChange: (String) -> Unit = {},
-    onSaveRemoteUrl: () -> Unit = {},
-    remoteUrlSaved: Boolean = false,
-    remoteUrlDirty: Boolean = false,
     inboxEnabled: Boolean = false,
     inboxCount: Int = 0,
     isSaving: Boolean = false,
     onInboxEnabledChange: (Boolean) -> Unit = {},
+    isDirty: Boolean = false,
+    savedSuccessfully: Boolean = false,
+    onSave: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
@@ -129,6 +134,36 @@ fun AdminScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            AnimatedVisibility(
+                visible = isDirty || savedSuccessfully,
+                enter = scaleIn() + fadeIn(),
+                exit = scaleOut() + fadeOut(),
+            ) {
+                SmallFloatingActionButton(
+                    onClick = onSave,
+                    containerColor = if (savedSuccessfully) {
+                        MaterialTheme.colorScheme.tertiary
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer
+                    },
+                ) {
+                    if (savedSuccessfully) {
+                        Icon(
+                            imageVector = Icons.Outlined.Check,
+                            contentDescription = "Saved",
+                            tint = MaterialTheme.colorScheme.onTertiary,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.Save,
+                            contentDescription = "Save settings",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                }
+            }
+        },
     ) { innerPadding ->
         if (state.isLoading) {
             FullScreenLoadingIndicator()
@@ -156,9 +191,6 @@ fun AdminScreen(
                 onServerNameChange = onServerNameChange,
                 remoteUrl = remoteUrl,
                 onRemoteUrlChange = onRemoteUrlChange,
-                onSaveRemoteUrl = onSaveRemoteUrl,
-                remoteUrlSaved = remoteUrlSaved,
-                remoteUrlDirty = remoteUrlDirty,
                 inboxEnabled = inboxEnabled,
                 inboxCount = inboxCount,
                 isSaving = isSaving,
@@ -237,9 +269,6 @@ private fun AdminContent(
     onServerNameChange: (String) -> Unit,
     remoteUrl: String,
     onRemoteUrlChange: (String) -> Unit,
-    onSaveRemoteUrl: () -> Unit,
-    remoteUrlSaved: Boolean,
-    remoteUrlDirty: Boolean,
     inboxEnabled: Boolean,
     inboxCount: Int,
     isSaving: Boolean,
@@ -268,9 +297,6 @@ private fun AdminContent(
                 onServerNameChange = onServerNameChange,
                 remoteUrl = remoteUrl,
                 onRemoteUrlChange = onRemoteUrlChange,
-                onSaveRemoteUrl = onSaveRemoteUrl,
-                remoteUrlSaved = remoteUrlSaved,
-                remoteUrlDirty = remoteUrlDirty,
                 openRegistration = state.openRegistration,
                 isTogglingOpenRegistration = state.isTogglingOpenRegistration,
                 onOpenRegistrationChange = onOpenRegistrationChange,
@@ -479,9 +505,6 @@ private fun SettingsCard(
     onServerNameChange: (String) -> Unit,
     remoteUrl: String,
     onRemoteUrlChange: (String) -> Unit,
-    onSaveRemoteUrl: () -> Unit,
-    remoteUrlSaved: Boolean,
-    remoteUrlDirty: Boolean,
     openRegistration: Boolean,
     isTogglingOpenRegistration: Boolean,
     onOpenRegistrationChange: (Boolean) -> Unit,
@@ -549,23 +572,6 @@ private fun SettingsCard(
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
-                FilledTonalIconButton(
-                    onClick = onSaveRemoteUrl,
-                    enabled = remoteUrlDirty && !isSaving,
-                ) {
-                    if (remoteUrlSaved) {
-                        Icon(
-                            imageVector = Icons.Outlined.Check,
-                            contentDescription = "Saved",
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.Save,
-                            contentDescription = "Save Remote URL",
-                        )
-                    }
-                }
             }
 
             HorizontalDivider(

@@ -870,13 +870,13 @@ private fun AuthenticatedNavigation(
                                 onServerNameChange = { settingsViewModel.setServerName(it) },
                                 remoteUrl = settingsState.remoteUrl,
                                 onRemoteUrlChange = { settingsViewModel.setRemoteUrl(it) },
-                                onSaveRemoteUrl = { settingsViewModel.saveRemoteUrl() },
-                                remoteUrlSaved = settingsState.remoteUrlSaved,
-                                remoteUrlDirty = settingsState.remoteUrl != settingsState.savedRemoteUrl,
                                 inboxEnabled = settingsState.inboxEnabled,
                                 inboxCount = settingsState.inboxCount,
                                 isSaving = settingsState.isSaving,
                                 onInboxEnabledChange = { settingsViewModel.setInboxEnabled(it) },
+                                isDirty = settingsState.isDirty,
+                                savedSuccessfully = settingsState.savedSuccessfully,
+                                onSave = { settingsViewModel.saveAll() },
                             )
 
                             // Handle disable inbox confirmation dialog
