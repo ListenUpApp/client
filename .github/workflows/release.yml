@@ -80,7 +80,7 @@ jobs:
             androidApp/build/outputs/apk/release/*.apk
 
       - name: Upload to Google Play (Internal)
-        if: ${{ startsWith(github.ref, 'refs/tags/') && secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        if: startsWith(github.ref, 'refs/tags/')
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
