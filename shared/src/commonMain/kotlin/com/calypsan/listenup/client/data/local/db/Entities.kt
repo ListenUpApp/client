@@ -483,7 +483,7 @@ data class ActivityEntity(
     val id: String,
     /** User who performed the activity */
     val userId: String,
-    /** Activity type: started_book, finished_book, streak_milestone, listening_milestone, lens_created, listening_session */
+    /** Activity type: started_book, finished_book, streak_milestone, listening_milestone, shelf_created, listening_session */
     val type: String,
     /** When the activity was created (epoch ms) */
     val createdAt: Long,
@@ -502,8 +502,8 @@ data class ActivityEntity(
     val durationMs: Long,
     val milestoneValue: Int,
     val milestoneUnit: String?,
-    val lensId: String?,
-    val lensName: String?,
+    val shelfId: String?,
+    val shelfName: String?,
 )
 
 /**

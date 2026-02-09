@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.domain.model.InboxBook
 import com.calypsan.listenup.client.domain.model.InboxReleaseResult
 import com.calypsan.listenup.client.domain.model.InviteInfo
+import com.calypsan.listenup.client.data.remote.BrowseFilesystemResponse
 import com.calypsan.listenup.client.domain.model.Library
 import com.calypsan.listenup.client.domain.model.ServerSettings
 
@@ -16,6 +17,7 @@ import com.calypsan.listenup.client.domain.model.ServerSettings
  *
  * Part of the domain layer - implementations live in the data layer.
  */
+@Suppress("TooManyFunctions")
 interface AdminRepository {
     // ═══════════════════════════════════════════════════════════════════════
     // USER MANAGEMENT
@@ -140,12 +142,14 @@ interface AdminRepository {
     suspend fun getServerSettings(): ServerSettings
 
     /**
-     * Update server settings.
-     *
-     * @param inboxEnabled Whether to enable inbox workflow
-     * @return Updated server settings
+     * Update instance settings (remote URL, name).
      */
-    suspend fun updateServerSettings(inboxEnabled: Boolean): ServerSettings
+    suspend fun updateInstanceRemoteUrl(remoteUrl: String): String?
+
+    suspend fun updateServerSettings(
+        serverName: String? = null,
+        inboxEnabled: Boolean? = null,
+    ): ServerSettings
 
     // ═══════════════════════════════════════════════════════════════════════
     // INBOX MANAGEMENT
@@ -227,4 +231,43 @@ interface AdminRepository {
         skipInbox: Boolean? = null,
         accessMode: AccessMode? = null,
     ): Library
+
+    /**
+     * Add a scan path to a library.
+     *
+     * @param libraryId The library ID
+     * @param path Absolute filesystem path to add
+     * @return The updated library
+     */
+    suspend fun addScanPath(
+        libraryId: String,
+        path: String,
+    ): Library
+
+    /**
+     * Remove a scan path from a library.
+     *
+     * @param libraryId The library ID
+     * @param path The scan path to remove
+     * @return The updated library
+     */
+    suspend fun removeScanPath(
+        libraryId: String,
+        path: String,
+    ): Library
+
+    /**
+     * Trigger a manual library rescan.
+     *
+     * @param libraryId The library ID
+     */
+    suspend fun triggerScan(libraryId: String)
+
+    /**
+     * Browse the server filesystem.
+     *
+     * @param path Directory path to browse
+     * @return Directory listing
+     */
+    suspend fun browseFilesystem(path: String): BrowseFilesystemResponse
 }

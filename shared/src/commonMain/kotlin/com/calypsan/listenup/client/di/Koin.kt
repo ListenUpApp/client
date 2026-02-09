@@ -29,8 +29,8 @@ import com.calypsan.listenup.client.data.remote.InviteApi
 import com.calypsan.listenup.client.data.remote.InviteApiContract
 import com.calypsan.listenup.client.data.remote.LeaderboardApi
 import com.calypsan.listenup.client.data.remote.LeaderboardApiContract
-import com.calypsan.listenup.client.data.remote.LensApi
-import com.calypsan.listenup.client.data.remote.LensApiContract
+import com.calypsan.listenup.client.data.remote.ShelfApi
+import com.calypsan.listenup.client.data.remote.ShelfApiContract
 import com.calypsan.listenup.client.data.remote.MetadataApi
 import com.calypsan.listenup.client.data.remote.MetadataApiContract
 import com.calypsan.listenup.client.data.remote.ProfileApi
@@ -64,7 +64,7 @@ import com.calypsan.listenup.client.data.repository.HomeRepositoryImpl
 import com.calypsan.listenup.client.data.repository.ImageRepositoryImpl
 import com.calypsan.listenup.client.data.repository.InstanceRepositoryImpl
 import com.calypsan.listenup.client.data.repository.LeaderboardRepositoryImpl
-import com.calypsan.listenup.client.data.repository.LensRepositoryImpl
+import com.calypsan.listenup.client.data.repository.ShelfRepositoryImpl
 import com.calypsan.listenup.client.data.repository.MetadataRepositoryImpl
 import com.calypsan.listenup.client.data.repository.PlaybackPositionRepositoryImpl
 import com.calypsan.listenup.client.data.repository.ProfileEditRepositoryImpl
@@ -99,7 +99,7 @@ import com.calypsan.listenup.client.data.sync.pull.ActiveSessionsPuller
 import com.calypsan.listenup.client.data.sync.pull.BookPuller
 import com.calypsan.listenup.client.data.sync.pull.ContributorPuller
 import com.calypsan.listenup.client.data.sync.pull.GenrePuller
-import com.calypsan.listenup.client.data.sync.pull.LensPuller
+import com.calypsan.listenup.client.data.sync.pull.ShelfPuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPuller
 import com.calypsan.listenup.client.data.sync.pull.ListeningEventPullerContract
 import com.calypsan.listenup.client.data.sync.pull.ProgressPuller
@@ -139,7 +139,7 @@ import com.calypsan.listenup.client.domain.repository.ContributorEditRepository
 import com.calypsan.listenup.client.domain.repository.GenreRepository
 import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
-import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.LibraryPreferences
 import com.calypsan.listenup.client.domain.repository.LibrarySync
 import com.calypsan.listenup.client.domain.repository.LocalPreferences
@@ -193,12 +193,12 @@ import com.calypsan.listenup.client.domain.usecase.collection.UpdateCollectionNa
 import com.calypsan.listenup.client.domain.usecase.contributor.ApplyContributorMetadataUseCase
 import com.calypsan.listenup.client.domain.usecase.contributor.DeleteContributorUseCase
 import com.calypsan.listenup.client.domain.usecase.contributor.UpdateContributorUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.AddBooksToLensUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.DeleteLensUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.LoadLensDetailUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.RemoveBookFromLensUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.UpdateLensUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.AddBooksToShelfUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.DeleteShelfUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.LoadShelfDetailUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.RemoveBookFromShelfUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.UpdateShelfUseCase
 import com.calypsan.listenup.client.domain.usecase.library.GetContinueListeningUseCase
 import com.calypsan.listenup.client.domain.usecase.library.RefreshLibraryUseCase
 import com.calypsan.listenup.client.domain.usecase.library.SearchBooksUseCase
@@ -347,7 +347,8 @@ val repositoryModule =
         single { get<ListenUpDatabase>().searchDao() }
         single { get<ListenUpDatabase>().serverDao() }
         single { get<ListenUpDatabase>().collectionDao() }
-        single { get<ListenUpDatabase>().lensDao() }
+        single { get<ListenUpDatabase>().shelfDao() }
+        single { get<ListenUpDatabase>().shelfBookDao() }
         single { get<ListenUpDatabase>().tagDao() }
         single { get<ListenUpDatabase>().genreDao() }
         single { get<ListenUpDatabase>().listeningEventDao() }
@@ -484,36 +485,36 @@ val useCaseModule =
                 imageRepository = get(),
             )
         }
-        // Lens use cases
+        // Shelf use cases
         factory {
-            CreateLensUseCase(
-                lensRepository = get(),
+            CreateShelfUseCase(
+                shelfRepository = get(),
             )
         }
         factory {
-            UpdateLensUseCase(
-                lensRepository = get(),
+            UpdateShelfUseCase(
+                shelfRepository = get(),
             )
         }
         factory {
-            DeleteLensUseCase(
-                lensRepository = get(),
+            DeleteShelfUseCase(
+                shelfRepository = get(),
             )
         }
         factory {
-            LoadLensDetailUseCase(
-                lensRepository = get(),
+            LoadShelfDetailUseCase(
+                shelfRepository = get(),
                 imageRepository = get(),
             )
         }
         factory {
-            RemoveBookFromLensUseCase(
-                lensRepository = get(),
+            RemoveBookFromShelfUseCase(
+                shelfRepository = get(),
             )
         }
         factory {
-            AddBooksToLensUseCase(
-                lensRepository = get(),
+            AddBooksToShelfUseCase(
+                shelfRepository = get(),
             )
         }
         // Collection use cases
@@ -806,10 +807,10 @@ val syncModule =
             UserPreferencesApi(clientFactory = get())
         } bind UserPreferencesApiContract::class
 
-        // LensApi for personal curation lenses
+        // ShelfApi for personal curation shelves
         single {
-            LensApi(clientFactory = get())
-        } bind LensApiContract::class
+            ShelfApi(clientFactory = get())
+        } bind ShelfApiContract::class
 
         // ProfileApi for user profile operations
         single {
@@ -852,7 +853,7 @@ val syncModule =
                 bookContributorDao = get(),
                 bookSeriesDao = get(),
                 collectionDao = get(),
-                lensDao = get(),
+                shelfDao = get(),
                 tagDao = get(),
                 listeningEventDao = get(),
                 activityDao = get(),
@@ -959,11 +960,13 @@ val syncModule =
         single<Puller>(
             qualifier =
                 org.koin.core.qualifier
-                    .named("lensPuller"),
+                    .named("shelfPuller"),
         ) {
-            LensPuller(
-                lensApi = get(),
-                lensDao = get(),
+            ShelfPuller(
+                shelfApi = get(),
+                shelfDao = get(),
+                shelfBookDao = get(),
+                imageStorage = get(),
             )
         }
 
@@ -1050,11 +1053,11 @@ val syncModule =
                             org.koin.core.qualifier
                                 .named("genrePuller"),
                     ),
-                lensPuller =
+                shelfPuller =
                     get(
                         qualifier =
                             org.koin.core.qualifier
-                                .named("lensPuller"),
+                                .named("shelfPuller"),
                     ),
                 listeningEventPuller = get(),
                 progressPuller =
@@ -1139,6 +1142,7 @@ val syncModule =
                 bookDao = get(),
                 contributorDao = get(),
                 seriesDao = get(),
+                shelfDao = get(),
             )
         } bind PendingOperationRepositoryContract::class
 
@@ -1193,6 +1197,7 @@ val syncModule =
                 playbackPreferences = get(),
                 librarySync = get(),
                 instanceRepository = get(),
+                serverConfig = get(),
                 pendingOperationDao = get(),
                 libraryResetHelper = get(),
                 syncDao = get(),
@@ -1350,9 +1355,9 @@ val syncModule =
             GenreRepositoryImpl(dao = get(), genreApi = get())
         }
 
-        // LensRepository for personal curation lenses (SOLID: interface in domain, impl in data)
-        single<LensRepository> {
-            LensRepositoryImpl(dao = get(), lensApi = get())
+        // ShelfRepository for personal curation shelves (SOLID: interface in domain, impl in data)
+        single<ShelfRepository> {
+            ShelfRepositoryImpl(dao = get(), shelfApi = get())
         }
 
         // CollectionRepository for admin collections (SOLID: interface in domain, impl in data)

@@ -14,12 +14,18 @@ import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
+import io.ktor.http.Url
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.plugins.HttpSend
+import kotlinx.io.IOException
+import io.ktor.client.plugins.plugin
 import kotlinx.serialization.json.Json
 
+private const val SERVER_URL_NOT_CONFIGURED_MESSAGE = "Server URL not configured"
 private val logger = KotlinLogging.logger {}
 
 /**
@@ -73,8 +79,8 @@ class ApiClientFactory(
      */
     suspend fun getStreamingClient(): HttpClient {
         val serverUrl =
-            serverConfig.getServerUrl()
-                ?: error("Server URL not configured")
+            serverConfig.getActiveUrl()
+                ?: error(SERVER_URL_NOT_CONFIGURED_MESSAGE)
 
         return createStreamingHttpClient(
             serverUrl = serverUrl,
@@ -95,102 +101,154 @@ class ApiClientFactory(
      */
     suspend fun getUnauthenticatedStreamingClient(): HttpClient {
         val serverUrl =
-            serverConfig.getServerUrl()
-                ?: error("Server URL not configured")
+            serverConfig.getActiveUrl()
+                ?: error(SERVER_URL_NOT_CONFIGURED_MESSAGE)
 
         return createUnauthenticatedStreamingHttpClient(serverUrl)
     }
 
+    @Suppress("ThrowsCount", "CognitiveComplexMethod")
     private suspend fun createClient(): HttpClient {
-        val serverUrl =
-            serverConfig.getServerUrl()
-                ?: error("Server URL not configured")
+        val initialUrl =
+            serverConfig.getActiveUrl()
+                ?: error(SERVER_URL_NOT_CONFIGURED_MESSAGE)
 
-        logger.info { "Creating HTTP client for server: ${serverUrl.value}" }
+        logger.info { "Creating HTTP client for server: ${initialUrl.value}" }
 
-        return HttpClient {
-            install(ContentNegotiation) {
-                json(
-                    Json {
-                        prettyPrint = false
-                        isLenient = false
-                        ignoreUnknownKeys = true
-                    },
-                )
-            }
+        val client =
+            HttpClient {
+                install(ContentNegotiation) {
+                    json(
+                        Json {
+                            prettyPrint = false
+                            isLenient = false
+                            ignoreUnknownKeys = true
+                        },
+                    )
+                }
 
-            // Install HttpTimeout plugin to allow per-request timeout configuration
-            // Default timeouts for regular API calls (SSE uses separate client)
-            @Suppress("MagicNumber")
-            install(HttpTimeout) {
-                requestTimeoutMillis = 30_000
-                connectTimeoutMillis = 10_000
-                socketTimeoutMillis = 30_000
-            }
+                // Install HttpTimeout plugin to allow per-request timeout configuration
+                // Default timeouts for regular API calls (SSE uses separate client)
+                @Suppress("MagicNumber")
+                install(HttpTimeout) {
+                    requestTimeoutMillis = 30_000
+                    connectTimeoutMillis = 10_000
+                    socketTimeoutMillis = 30_000
+                }
 
-            install(Auth) {
-                bearer {
-                    // Load initial tokens from storage
-                    loadTokens {
-                        val access = authSession.getAccessToken()?.value
-                        val refresh = authSession.getRefreshToken()?.value
+                install(Auth) {
+                    bearer {
+                        // Load initial tokens from storage
+                        loadTokens {
+                            val access = authSession.getAccessToken()?.value
+                            val refresh = authSession.getRefreshToken()?.value
 
-                        if (access != null && refresh != null) {
-                            BearerTokens(
-                                accessToken = access,
-                                refreshToken = refresh,
-                            )
-                        } else {
-                            null
+                            if (access != null && refresh != null) {
+                                BearerTokens(
+                                    accessToken = access,
+                                    refreshToken = refresh,
+                                )
+                            } else {
+                                null
+                            }
+                        }
+
+                        // Refresh tokens when receiving 401 Unauthorized
+                        refreshTokens {
+                            val currentRefreshToken =
+                                authSession.getRefreshToken()
+                                    ?: error("No refresh token available")
+
+                            try {
+                                val response = authApi.refresh(currentRefreshToken)
+
+                                // Save new tokens to storage
+                                authSession.saveAuthTokens(
+                                    access = AccessToken(response.accessToken),
+                                    refresh = RefreshToken(response.refreshToken),
+                                    sessionId = response.sessionId,
+                                    userId = response.userId,
+                                )
+
+                                BearerTokens(
+                                    accessToken = response.accessToken,
+                                    refreshToken = response.refreshToken,
+                                )
+                            } catch (e: Exception) {
+                                // Refresh failed - clear auth state and force re-login
+                                logger.warn(e) { "Token refresh failed, clearing auth state" }
+                                authSession.clearAuthTokens()
+                                null
+                            }
+                        }
+
+                        // Control when to send bearer token
+                        sendWithoutRequest { request ->
+                            // Send auth header for all requests except auth endpoints
+                            // (auth endpoints handle their own credentials in request body)
+                            val urlString = request.url.toString()
+                            // Match /api/v1/auth/ paths (login, refresh, logout, etc.)
+                            !urlString.contains("/auth/")
                         }
                     }
+                }
 
-                    // Refresh tokens when receiving 401 Unauthorized
-                    refreshTokens {
-                        val currentRefreshToken =
-                            authSession.getRefreshToken()
-                                ?: error("No refresh token available")
-
-                        try {
-                            val response = authApi.refresh(currentRefreshToken)
-
-                            // Save new tokens to storage
-                            authSession.saveAuthTokens(
-                                access = AccessToken(response.accessToken),
-                                refresh = RefreshToken(response.refreshToken),
-                                sessionId = response.sessionId,
-                                userId = response.userId,
-                            )
-
-                            BearerTokens(
-                                accessToken = response.accessToken,
-                                refreshToken = response.refreshToken,
-                            )
-                        } catch (e: Exception) {
-                            // Refresh failed - clear auth state and force re-login
-                            logger.warn(e) { "Token refresh failed, clearing auth state" }
-                            authSession.clearAuthTokens()
-                            null
-                        }
-                    }
-
-                    // Control when to send bearer token
-                    sendWithoutRequest { request ->
-                        // Send auth header for all requests except auth endpoints
-                        // (auth endpoints handle their own credentials in request body)
-                        val urlString = request.url.toString()
-                        // Match /api/v1/auth/ paths (login, refresh, logout, etc.)
-                        !urlString.contains("/auth/")
-                    }
+                defaultRequest {
+                    url(initialUrl.value)
+                    contentType(ContentType.Application.Json)
                 }
             }
 
-            defaultRequest {
-                url(serverUrl.value)
-                contentType(ContentType.Application.Json)
+        // Install HttpSend interceptor for dynamic URL resolution and fallback
+        client.plugin(HttpSend).intercept { request ->
+            // Resolve the current active URL dynamically for each request
+            val activeUrl = serverConfig.getActiveUrl()
+            if (activeUrl != null) {
+                val parsed = Url(activeUrl.value)
+                request.url.protocol = parsed.protocol
+                request.url.host = parsed.host
+                request.url.port = parsed.port
+            }
+
+            try {
+                execute(request)
+            } catch (cause: Exception) {
+                if (isNetworkError(cause)) {
+                    // Try fallback URL
+                    val fallbackUrl = serverConfig.switchToFallbackUrl()
+                    if (fallbackUrl != null) {
+                        logger.info { "Network error, retrying with fallback URL: ${fallbackUrl.value}" }
+                        val parsed = Url(fallbackUrl.value)
+                        request.url.protocol = parsed.protocol
+                        request.url.host = parsed.host
+                        request.url.port = parsed.port
+                        try {
+                            execute(request)
+                        } catch (retryError: Exception) {
+                            // Fallback also failed, preserve both errors
+                            cause.addSuppressed(retryError)
+                            throw cause
+                        }
+                    } else {
+                        throw cause
+                    }
+                } else {
+                    throw cause
+                }
             }
         }
+
+        return client
     }
+
+    /**
+     * Check if an exception is a network/connection error (not an HTTP error).
+     * Only these should trigger URL fallback.
+     */
+    private fun isNetworkError(cause: Exception): Boolean =
+        cause is kotlinx.io.IOException ||
+            cause is io.ktor.client.plugins.HttpRequestTimeoutException ||
+            cause.cause?.let { it is kotlinx.io.IOException } == true
 
     /**
      * Invalidate the cached client and create a new one.

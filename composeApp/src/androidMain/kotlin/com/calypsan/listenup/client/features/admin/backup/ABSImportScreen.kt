@@ -45,7 +45,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.calypsan.listenup.client.design.components.ListenUpTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -580,13 +580,11 @@ private fun FileBrowserContent(
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            OutlinedTextField(
+            ListenUpTextField(
                 value = filename,
                 onValueChange = { filename = it },
-                label = { Text("Backup filename") },
-                placeholder = { Text("e.g., backup-2024-01-15.audiobookshelf") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                label = "Backup filename",
+                placeholder = "e.g., backup-2024-01-15.audiobookshelf",
             )
 
             ListenUpButton(

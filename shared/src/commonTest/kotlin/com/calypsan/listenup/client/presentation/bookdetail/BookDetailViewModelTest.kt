@@ -6,12 +6,12 @@ import com.calypsan.listenup.client.domain.model.PlaybackPosition
 import com.calypsan.listenup.client.domain.model.Tag
 import com.calypsan.listenup.client.domain.repository.BookRepository
 import com.calypsan.listenup.client.domain.repository.GenreRepository
-import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.PlaybackPositionRepository
 import com.calypsan.listenup.client.domain.repository.TagRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
-import com.calypsan.listenup.client.domain.usecase.lens.AddBooksToLensUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.AddBooksToShelfUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
 import dev.mokkery.answering.returns
 import dev.mokkery.answering.throws
 import dev.mokkery.every
@@ -61,9 +61,9 @@ class BookDetailViewModelTest {
         val tagRepository: TagRepository = mock()
         val playbackPositionRepository: PlaybackPositionRepository = mock()
         val userRepository: UserRepository = mock()
-        val lensRepository: LensRepository = mock()
-        val addBooksToLensUseCase: AddBooksToLensUseCase = mock()
-        val createLensUseCase: CreateLensUseCase = mock()
+        val shelfRepository: ShelfRepository = mock()
+        val addBooksToShelfUseCase: AddBooksToShelfUseCase = mock()
+        val createShelfUseCase: CreateShelfUseCase = mock()
 
         fun build(): BookDetailViewModel =
             BookDetailViewModel(
@@ -72,9 +72,9 @@ class BookDetailViewModelTest {
                 tagRepository = tagRepository,
                 playbackPositionRepository = playbackPositionRepository,
                 userRepository = userRepository,
-                lensRepository = lensRepository,
-                addBooksToLensUseCase = addBooksToLensUseCase,
-                createLensUseCase = createLensUseCase,
+                shelfRepository = shelfRepository,
+                addBooksToShelfUseCase = addBooksToShelfUseCase,
+                createShelfUseCase = createShelfUseCase,
             )
     }
 
@@ -85,7 +85,7 @@ class BookDetailViewModelTest {
         every { fixture.genreRepository.observeGenresForBook(any()) } returns flowOf(emptyList())
         everySuspend { fixture.playbackPositionRepository.get(any()) } returns null
         every { fixture.userRepository.observeCurrentUser() } returns flowOf(null)
-        every { fixture.lensRepository.observeMyLenses(any()) } returns flowOf(emptyList())
+        every { fixture.shelfRepository.observeMyShelves(any()) } returns flowOf(emptyList())
         every { fixture.tagRepository.observeTagsForBook(any()) } returns flowOf(emptyList())
         every { fixture.tagRepository.observeAll() } returns flowOf(emptyList())
         every { fixture.userRepository.observeIsAdmin() } returns flowOf(false)

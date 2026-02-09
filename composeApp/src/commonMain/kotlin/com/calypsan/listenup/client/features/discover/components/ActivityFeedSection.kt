@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber", "StringLiteralDuplication")
+@file:Suppress("UseIfInsteadOfWhen")
 
 package com.calypsan.listenup.client.features.discover.components
 
@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
@@ -50,19 +51,19 @@ import org.koin.compose.viewmodel.koinViewModel
  * - Started/finished books
  * - Streak milestones
  * - Listening hour milestones
- * - Created lenses
+ * - Created shelves
  *
  * Offline-first: All data comes from Room, synced via SSE events.
  *
  * @param onBookClick Callback when a book is clicked
- * @param onLensClick Callback when a lens is clicked
+ * @param onShelfClick Callback when a shelf is clicked
  * @param modifier Modifier from parent
  * @param viewModel ActivityFeedViewModel injected via Koin
  */
 @Composable
 fun ActivityFeedSection(
     onBookClick: (String) -> Unit,
-    onLensClick: (String) -> Unit,
+    onShelfClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ActivityFeedViewModel = koinViewModel(),
 ) {
@@ -122,7 +123,7 @@ fun ActivityFeedSection(
                             ActivityItem(
                                 activity = activity,
                                 onBookClick = onBookClick,
-                                onLensClick = onLensClick,
+                                onShelfClick = onShelfClick,
                             )
                         }
                     }
@@ -139,7 +140,7 @@ fun ActivityFeedSection(
 private fun ActivityItem(
     activity: ActivityUiModel,
     onBookClick: (String) -> Unit,
-    onLensClick: (String) -> Unit,
+    onShelfClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val (icon, description) =
@@ -148,8 +149,8 @@ private fun ActivityItem(
         }
 
     val bookId = activity.bookId
-    val lensId = activity.lensId
-    val isClickable = bookId != null || lensId != null
+    val shelfId = activity.shelfId
+    val isClickable = bookId != null || shelfId != null
 
     Row(
         modifier =
@@ -161,7 +162,7 @@ private fun ActivityItem(
                         Modifier.clickable {
                             when {
                                 bookId != null -> onBookClick(bookId)
-                                lensId != null -> onLensClick(lensId)
+                                shelfId != null -> onShelfClick(shelfId)
                             }
                         }
                     } else {
@@ -218,6 +219,19 @@ private fun ActivityItem(
 }
 
 /**
+ * Format author name for activity feed display.
+ * Shows "FirstAuthor et al." when there are multiple authors.
+ */
+private fun formatActivityAuthor(authorName: String?): String? {
+    if (authorName.isNullOrBlank()) return null
+
+    // Check for multiple authors (comma-separated)
+    val authors = authorName.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+    return if (authors.size <= 1) authorName else "${authors.first()} et al."
+}
+
+/**
  * Get the icon and description for an activity.
  */
 private fun getActivityIconAndDescription(activity: ActivityUiModel): Pair<ImageVector, String> =
@@ -225,13 +239,13 @@ private fun getActivityIconAndDescription(activity: ActivityUiModel): Pair<Image
         "started_book" -> {
             val prefix = if (activity.isReread) "Started re-reading" else "Started reading"
             val bookInfo = activity.bookTitle ?: "a book"
-            val authorInfo = if (activity.bookAuthorName != null) " by ${activity.bookAuthorName}" else ""
+            val authorInfo = formatActivityAuthor(activity.bookAuthorName)?.let { " by $it" } ?: ""
             Icons.AutoMirrored.Filled.MenuBook to "$prefix $bookInfo$authorInfo"
         }
 
         "finished_book" -> {
             val bookInfo = activity.bookTitle ?: "a book"
-            val authorInfo = if (activity.bookAuthorName != null) " by ${activity.bookAuthorName}" else ""
+            val authorInfo = formatActivityAuthor(activity.bookAuthorName)?.let { " by $it" } ?: ""
             Icons.Default.AutoStories to "Finished $bookInfo$authorInfo"
         }
 
@@ -251,9 +265,13 @@ private fun getActivityIconAndDescription(activity: ActivityUiModel): Pair<Image
             Icons.Default.Headphones to "Listened for $hours hours total!"
         }
 
-        "lens_created" -> {
-            val lensName = activity.lensName ?: "a lens"
-            Icons.Default.FilterList to "Created lens \"$lensName\""
+        "shelf_created" -> {
+            val shelfName = activity.shelfName ?: "a shelf"
+            Icons.Default.FilterList to "Created shelf \"$shelfName\""
+        }
+
+        "user_joined" -> {
+            Icons.Default.PersonAdd to "Joined the server"
         }
 
         else -> {

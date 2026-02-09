@@ -24,7 +24,7 @@ import com.calypsan.listenup.client.features.home.components.ContinueListeningRo
 import com.calypsan.listenup.client.features.home.components.EmptyContinueListening
 import com.calypsan.listenup.client.features.home.components.HomeHeader
 import com.calypsan.listenup.client.features.home.components.HomeStatsSection
-import com.calypsan.listenup.client.features.home.components.MyLensesRow
+import com.calypsan.listenup.client.features.home.components.MyShelvesRow
 import com.calypsan.listenup.client.presentation.home.HomeViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -32,13 +32,13 @@ import org.koin.compose.viewmodel.koinViewModel
  * Home screen - personalized landing page.
  *
  * Adaptive layout:
- * - Compact: single column (header, continue listening, stats, lenses)
- * - Medium+: stats and lenses render side-by-side below continue listening
+ * - Compact: single column (header, continue listening, stats, shelves)
+ * - Medium+: stats and shelves render side-by-side below continue listening
  *
  * @param onBookClick Callback when a book is clicked
  * @param onNavigateToLibrary Callback to navigate to the library
- * @param onLensClick Callback when a lens is clicked
- * @param onSeeAllLenses Callback when "See All" is clicked for lenses
+ * @param onShelfClick Callback when a shelf is clicked
+ * @param onSeeAllShelves Callback when "See All" is clicked for shelves
  * @param modifier Modifier from parent
  * @param viewModel HomeViewModel injected via Koin
  */
@@ -47,8 +47,8 @@ import org.koin.compose.viewmodel.koinViewModel
 fun HomeScreen(
     onBookClick: (String) -> Unit,
     onNavigateToLibrary: () -> Unit,
-    onLensClick: (String) -> Unit,
-    onSeeAllLenses: () -> Unit,
+    onShelfClick: (String) -> Unit,
+    onSeeAllShelves: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
@@ -90,16 +90,16 @@ fun HomeScreen(
                 )
             }
 
-            // Stats and Lenses: side-by-side on wider screens, stacked on compact
+            // Stats and Shelves: side-by-side on wider screens, stacked on compact
             if (isWide) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     HomeStatsSection()
-                    if (state.hasMyLenses) {
+                    if (state.hasMyShelves) {
                         Spacer(modifier = Modifier.width(16.dp))
-                        MyLensesRow(
-                            lenses = state.myLenses,
-                            onLensClick = onLensClick,
-                            onSeeAllClick = onSeeAllLenses,
+                        MyShelvesRow(
+                            shelves = state.myShelves,
+                            onShelfClick = onShelfClick,
+                            onSeeAllClick = onSeeAllShelves,
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -107,12 +107,12 @@ fun HomeScreen(
             } else {
                 HomeStatsSection()
 
-                if (state.hasMyLenses) {
+                if (state.hasMyShelves) {
                     Spacer(modifier = Modifier.height(24.dp))
-                    MyLensesRow(
-                        lenses = state.myLenses,
-                        onLensClick = onLensClick,
-                        onSeeAllClick = onSeeAllLenses,
+                    MyShelvesRow(
+                        shelves = state.myShelves,
+                        onShelfClick = onShelfClick,
+                        onSeeAllClick = onSeeAllShelves,
                     )
                 }
             }

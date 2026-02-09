@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.features.library.components
 
 import androidx.compose.foundation.background
@@ -6,6 +8,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Surface
+import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +46,7 @@ import com.calypsan.listenup.client.design.components.AlphabetIndex
 import com.calypsan.listenup.client.design.components.AlphabetScrollbar
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
+import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.SortSplitButton
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.SyncState
@@ -50,6 +56,8 @@ import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
 import com.calypsan.listenup.client.util.sortLetter
 import kotlinx.coroutines.launch
+
+private const val SCAN_PROGRESS_WIDTH_FRACTION = 0.6f
 
 /**
  * Represents an item in the book grid - either a section header or a book.
@@ -170,7 +178,7 @@ private fun ArticleToggleChip(
         onClick = onToggle,
         label = {
             Text(
-                text = "Aa",
+                text = "Title Sort",
                 style = MaterialTheme.typography.labelLarge,
             )
         },
@@ -206,6 +214,7 @@ fun BooksContent(
     hasLoadedBooks: Boolean,
     syncState: SyncState,
     isServerScanning: Boolean,
+    scanProgress: ScanProgressState? = null,
     sortState: SortState,
     ignoreTitleArticles: Boolean,
     bookProgress: Map<String, Float>,
@@ -242,7 +251,7 @@ fun BooksContent(
 
             // Loaded but empty AND server is scanning - show scanning state
             books.isEmpty() && isServerScanning -> {
-                BooksScanningState()
+                BooksScanningState(scanProgress = scanProgress)
             }
 
             // Loaded AND truly empty - show empty state
@@ -252,20 +261,26 @@ fun BooksContent(
 
             // Loaded with books - show grid
             else -> {
-                BookGrid(
-                    books = books,
-                    sortState = sortState,
-                    ignoreTitleArticles = ignoreTitleArticles,
-                    bookProgress = bookProgress,
-                    bookIsFinished = bookIsFinished,
-                    isInSelectionMode = isInSelectionMode,
-                    selectedBookIds = selectedBookIds,
-                    onCategorySelected = onCategorySelected,
-                    onDirectionToggle = onDirectionToggle,
-                    onToggleIgnoreArticles = onToggleIgnoreArticles,
-                    onBookClick = onBookClick,
-                    onBookLongPress = onBookLongPress,
-                )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    if (isServerScanning && scanProgress != null) {
+                        ScanProgressBanner(scanProgress = scanProgress)
+                    }
+                    BookGrid(
+                        books = books,
+                        sortState = sortState,
+                        ignoreTitleArticles = ignoreTitleArticles,
+                        bookProgress = bookProgress,
+                        bookIsFinished = bookIsFinished,
+                        isInSelectionMode = isInSelectionMode,
+                        selectedBookIds = selectedBookIds,
+                        onCategorySelected = onCategorySelected,
+                        onDirectionToggle = onDirectionToggle,
+                        onToggleIgnoreArticles = onToggleIgnoreArticles,
+                        onBookClick = onBookClick,
+                        onBookLongPress = onBookLongPress,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }
@@ -472,8 +487,50 @@ private fun BooksLoadingState() {
     }
 }
 
+/**
+ * Compact banner showing scan progress when books are already loaded.
+ */
 @Composable
-private fun BooksScanningState() {
+private fun ScanProgressBanner(scanProgress: ScanProgressState) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ListenUpLoadingIndicatorSmall()
+                Text(
+                    text =
+                        scanProgress.phaseDisplayName +
+                            if (scanProgress.total > 0) " ${scanProgress.current}/${scanProgress.total}" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                val summary = scanProgress.changesSummary
+                if (summary != null) {
+                    Text(
+                        text = "• $summary",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                    )
+                }
+            }
+            if (scanProgress.progressFraction != null) {
+                LinearProgressIndicator(
+                    progress = { scanProgress.progressFraction!! },
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    trackColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.12f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BooksScanningState(scanProgress: ScanProgressState? = null) {
     Box(
         modifier =
             Modifier
@@ -488,10 +545,29 @@ private fun BooksScanningState() {
         ) {
             ListenUpLoadingIndicator()
             Text(
-                text = "Scanning your library...",
+                text =
+                    if (scanProgress != null) {
+                        scanProgress.phaseDisplayName +
+                            if (scanProgress.total > 0) " ${scanProgress.current}/${scanProgress.total}" else ""
+                    } else {
+                        "Scanning your library..."
+                    },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (scanProgress?.progressFraction != null) {
+                LinearProgressIndicator(
+                    progress = { scanProgress.progressFraction!! },
+                    modifier = Modifier.fillMaxWidth(SCAN_PROGRESS_WIDTH_FRACTION),
+                )
+            }
+            if (scanProgress?.changesSummary != null) {
+                Text(
+                    text = scanProgress.changesSummary!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 text = "Your audiobooks will appear here once the scan is complete",
                 style = MaterialTheme.typography.bodyMedium,

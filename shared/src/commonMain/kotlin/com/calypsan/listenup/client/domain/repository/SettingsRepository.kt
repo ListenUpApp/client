@@ -146,6 +146,29 @@ interface ServerConfig {
 
     suspend fun hasServerConfigured(): Boolean
 
+    /** Set the remote URL learned from instance API or mDNS discovery. */
+    suspend fun setRemoteUrl(url: String?)
+
+    /** Get the stored remote URL. */
+    suspend fun getRemoteUrl(): ServerUrl?
+
+    /**
+     * Get the currently active URL for API requests.
+     * Defaults to localUrl, falls back to remoteUrl on network failure.
+     */
+    suspend fun getActiveUrl(): ServerUrl?
+
+    /**
+     * Switch the active URL (called on network failure to try the other URL).
+     * Returns the new active URL, or null if no fallback is available.
+     */
+    suspend fun switchToFallbackUrl(): ServerUrl?
+
+    /**
+     * Reset active URL to prefer local (called on app foreground/resume).
+     */
+    suspend fun preferLocalUrl()
+
     /** Disconnect from current server (clears URL and auth data). */
     suspend fun disconnectFromServer()
 

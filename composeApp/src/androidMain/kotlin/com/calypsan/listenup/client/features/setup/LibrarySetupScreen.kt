@@ -25,8 +25,8 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material.icons.outlined.RadioButtonChecked
-import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.CheckBox
+import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -131,10 +131,11 @@ fun LibrarySetupScreen(
                     LibrarySetupContent(
                         state = state,
                         onDirectoryClick = viewModel::loadDirectory,
-                        onSelectPath = viewModel::selectPath,
+                        onTogglePath = viewModel::togglePath,
                         onSelectCurrentFolder = {
                             viewModel.selectPath(state.currentPath)
                         },
+                        selectedPaths = state.selectedPaths,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -142,13 +143,13 @@ fun LibrarySetupScreen(
 
             // Bottom bar for confirming selection
             AnimatedVisibility(
-                visible = state.selectedPath != null,
+                visible = state.selectedPaths.isNotEmpty(),
                 enter = slideInVertically(initialOffsetY = { it }),
                 exit = slideOutVertically(targetOffsetY = { it }),
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
                 SelectionBottomBar(
-                    selectedPath = state.selectedPath ?: "",
+                    selectedCount = state.selectedPaths.size,
                     isCreating = state.isCreatingLibrary,
                     onCreateLibrary = viewModel::createLibrary,
                     modifier = Modifier.fillMaxWidth(),
@@ -162,13 +163,14 @@ fun LibrarySetupScreen(
 private fun LibrarySetupContent(
     state: LibrarySetupUiState,
     onDirectoryClick: (String) -> Unit,
-    onSelectPath: (String) -> Unit,
+    onTogglePath: (String) -> Unit,
     onSelectCurrentFolder: () -> Unit,
+    selectedPaths: Set<String>,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
         // Welcome header (only at root with nothing selected)
-        if (state.isRoot && state.selectedPath == null) {
+        if (state.isRoot && state.selectedPaths.isEmpty()) {
             WelcomeHeader(
                 modifier =
                     Modifier
@@ -214,9 +216,9 @@ private fun LibrarySetupContent(
                 ) { directory ->
                     DirectoryListItem(
                         directory = directory,
-                        isSelected = state.selectedPath == directory.path,
+                        isSelected = directory.path in selectedPaths,
                         onNavigate = { onDirectoryClick(directory.path) },
-                        onSelect = { onSelectPath(directory.path) },
+                        onSelect = { onTogglePath(directory.path) },
                     )
                 }
 
@@ -255,7 +257,7 @@ private fun WelcomeHeader(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            text = "Select a folder where your audiobooks are stored",
+            text = "Select one or more folders where your audiobooks are stored",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -332,9 +334,9 @@ private fun DirectoryListItem(
                     Icon(
                         imageVector =
                             if (isSelected) {
-                                Icons.Outlined.RadioButtonChecked
+                                Icons.Outlined.CheckBox
                             } else {
-                                Icons.Outlined.RadioButtonUnchecked
+                                Icons.Outlined.CheckBoxOutlineBlank
                             },
                         contentDescription =
                             if (isSelected) {
@@ -406,7 +408,7 @@ private fun EmptyDirectoryMessage(
 
 @Composable
 private fun SelectionBottomBar(
-    selectedPath: String,
+    selectedCount: Int,
     isCreating: Boolean,
     onCreateLibrary: () -> Unit,
     modifier: Modifier = Modifier,
@@ -423,7 +425,7 @@ private fun SelectionBottomBar(
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Selected path display
+            // Selected count display
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -436,12 +438,9 @@ private fun SelectionBottomBar(
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = selectedPath,
+                    text = if (selectedCount == 1) "1 folder selected" else "$selectedCount folders selected",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
                 )
             }
 

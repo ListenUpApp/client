@@ -22,7 +22,7 @@ import androidx.room.TypeConverters
  * - v12: Added website, birthDate, deathDate, aliases columns to contributors; creditedAs to book_contributors
  * - v13: Added servers table for multi-server support with per-server auth tokens
  * - v17: Added collections table for admin collection management
- * - v18: Added lenses table for personal curation and social discovery
+ * - v18: Added shelves table for personal curation and social discovery
  * - v19: Added tags and book_tags tables for community tagging
  * - v20: Added lastPlayedAt column to playback_positions for accurate "last read" tracking
  * - v21: Added listening_events table for offline-first stats
@@ -58,7 +58,8 @@ import androidx.room.TypeConverters
         DownloadEntity::class,
         ServerEntity::class,
         CollectionEntity::class,
-        LensEntity::class,
+        ShelfEntity::class,
+        ShelfBookCrossRef::class,
         TagEntity::class,
         BookTagCrossRef::class,
         GenreEntity::class,
@@ -69,10 +70,15 @@ import androidx.room.TypeConverters
         UserStatsEntity::class,
         ReadingSessionEntity::class,
     ],
-    version = 34,
+    version = 37,
     exportSchema = true,
 )
-@TypeConverters(ValueClassConverters::class, Converters::class, PendingOperationConverters::class)
+@TypeConverters(
+    ValueClassConverters::class,
+    Converters::class,
+    PendingOperationConverters::class,
+    StringListConverter::class,
+)
 @ConstructedBy(ListenUpDatabaseConstructor::class)
 abstract class ListenUpDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
@@ -105,7 +111,9 @@ abstract class ListenUpDatabase : RoomDatabase() {
 
     abstract fun collectionDao(): CollectionDao
 
-    abstract fun lensDao(): LensDao
+    abstract fun shelfDao(): ShelfDao
+
+    abstract fun shelfBookDao(): ShelfBookDao
 
     abstract fun tagDao(): TagDao
 

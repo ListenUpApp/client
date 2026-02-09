@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber", "LongParameterList")
+@file:Suppress("CognitiveComplexMethod")
 
 package com.calypsan.listenup.client.features.contributordetail
 
@@ -286,6 +286,7 @@ private fun WideContributorPortfolio(
  * Avatar on the left, name/metadata/bio on the right, with subtle gradient.
  */
 @Composable
+@Suppress("CognitiveComplexMethod")
 private fun WideHeroHeader(
     name: String,
     aliases: List<String>,

@@ -166,6 +166,12 @@ class LibraryViewModel(
                 _uiState.update { it.copy(isServerScanning = isScanning) }
             }.launchIn(viewModelScope)
 
+        // Server scan progress: observe detailed progress updates
+        syncRepository.scanProgress
+            .onEach { progress ->
+                _uiState.update { it.copy(scanProgress = progress) }
+            }.launchIn(viewModelScope)
+
         // Book progress and completion: combine playback positions with book durations
         // Produces both progress (for progress bar) and isFinished (for completion badge)
         combine(

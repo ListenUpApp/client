@@ -38,6 +38,8 @@ fun PrimaryActionsSection(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
     isWaitingForWifi: Boolean = false,
+    playEnabled: Boolean = true,
+    onPlayDisabledClick: () -> Unit = {},
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -46,7 +48,7 @@ fun PrimaryActionsSection(
     ) {
         // Primary Play Button
         Button(
-            onClick = onPlayClick,
+            onClick = if (playEnabled) onPlayClick else onPlayDisabledClick,
             modifier =
                 Modifier
                     .weight(1f)
@@ -54,13 +56,23 @@ fun PrimaryActionsSection(
             shape = RoundedCornerShape(32.dp),
             colors =
                 ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor =
+                        if (playEnabled) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                        },
+                    contentColor =
+                        if (playEnabled) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        },
                 ),
             elevation =
                 ButtonDefaults.buttonElevation(
-                    defaultElevation = 4.dp,
-                    pressedElevation = 8.dp,
+                    defaultElevation = if (playEnabled) 4.dp else 0.dp,
+                    pressedElevation = if (playEnabled) 8.dp else 0.dp,
                 ),
         ) {
             Icon(
@@ -77,13 +89,15 @@ fun PrimaryActionsSection(
         }
 
         // Download Button - icon-only square
+        // When server is unavailable and book isn't downloaded, disable download too
         DownloadButton(
             status = downloadStatus,
-            onDownloadClick = onDownloadClick,
+            onDownloadClick = if (playEnabled) onDownloadClick else onPlayDisabledClick,
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
             modifier = Modifier.size(64.dp),
             isWaitingForWifi = isWaitingForWifi,
+            enabled = playEnabled || downloadStatus.isFullyDownloaded,
         )
     }
 }

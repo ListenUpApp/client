@@ -24,8 +24,12 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.HowToReg
+import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Save
+import com.calypsan.listenup.client.design.components.ListenUpFab
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Share
@@ -43,21 +47,21 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import com.calypsan.listenup.client.design.util.rememberCopyToClipboard
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.collectAsState
@@ -79,19 +83,28 @@ fun AdminScreen(
     onBackClick: () -> Unit,
     onInviteClick: () -> Unit,
     onCollectionsClick: () -> Unit = {},
+    onCategoriesClick: () -> Unit = {},
     onInboxClick: () -> Unit = {},
     onBackupClick: () -> Unit = {},
     onUserClick: (String) -> Unit = {},
+    serverName: String = "",
+    onServerNameChange: (String) -> Unit = {},
+    remoteUrl: String = "",
+    onRemoteUrlChange: (String) -> Unit = {},
     inboxEnabled: Boolean = false,
     inboxCount: Int = 0,
-    isTogglingInbox: Boolean = false,
+    isSaving: Boolean = false,
     onInboxEnabledChange: (Boolean) -> Unit = {},
+    isDirty: Boolean = false,
+    onSave: () -> Unit = {},
+    settingsError: String? = null,
+    onClearSettingsError: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val clipboardManager = LocalClipboardManager.current
+    val copyToClipboard = rememberCopyToClipboard()
 
     var userToDelete by remember { mutableStateOf<AdminUserInfo?>(null) }
     var inviteToRevoke by remember { mutableStateOf<InviteInfo?>(null) }
@@ -101,6 +114,13 @@ fun AdminScreen(
         state.error?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(settingsError) {
+        settingsError?.let {
+            snackbarHostState.showSnackbar(it)
+            onClearSettingsError()
         }
     }
 
@@ -117,6 +137,14 @@ fun AdminScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            ListenUpFab(
+                onClick = onSave,
+                icon = Icons.Outlined.Save,
+                contentDescription = "Save settings",
+                enabled = isDirty,
+            )
+        },
     ) { innerPadding ->
         if (state.isLoading) {
             FullScreenLoadingIndicator()
@@ -129,7 +157,7 @@ fun AdminScreen(
                 onDeleteUserClick = { userToDelete = it },
                 onUserClick = onUserClick,
                 onCopyInviteClick = { invite ->
-                    clipboardManager.setText(AnnotatedString(invite.url))
+                    copyToClipboard(invite.url)
                     scope.launch {
                         snackbarHostState.showSnackbar("Link copied!")
                     }
@@ -137,11 +165,16 @@ fun AdminScreen(
                 onRevokeInviteClick = { inviteToRevoke = it },
                 onInviteClick = onInviteClick,
                 onCollectionsClick = onCollectionsClick,
+                onCategoriesClick = onCategoriesClick,
                 onInboxClick = onInboxClick,
                 onBackupClick = onBackupClick,
+                serverName = serverName,
+                onServerNameChange = onServerNameChange,
+                remoteUrl = remoteUrl,
+                onRemoteUrlChange = onRemoteUrlChange,
                 inboxEnabled = inboxEnabled,
                 inboxCount = inboxCount,
-                isTogglingInbox = isTogglingInbox,
+                isSaving = isSaving,
                 onInboxEnabledChange = onInboxEnabledChange,
                 modifier = Modifier.padding(innerPadding),
             )
@@ -210,11 +243,16 @@ private fun AdminContent(
     onRevokeInviteClick: (InviteInfo) -> Unit,
     onInviteClick: () -> Unit,
     onCollectionsClick: () -> Unit,
+    onCategoriesClick: () -> Unit,
     onInboxClick: () -> Unit,
     onBackupClick: () -> Unit,
+    serverName: String,
+    onServerNameChange: (String) -> Unit,
+    remoteUrl: String,
+    onRemoteUrlChange: (String) -> Unit,
     inboxEnabled: Boolean,
     inboxCount: Int,
-    isTogglingInbox: Boolean,
+    isSaving: Boolean,
     onInboxEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -236,11 +274,15 @@ private fun AdminContent(
 
         item {
             SettingsCard(
+                serverName = serverName,
+                onServerNameChange = onServerNameChange,
+                remoteUrl = remoteUrl,
+                onRemoteUrlChange = onRemoteUrlChange,
                 openRegistration = state.openRegistration,
                 isTogglingOpenRegistration = state.isTogglingOpenRegistration,
                 onOpenRegistrationChange = onOpenRegistrationChange,
                 inboxEnabled = inboxEnabled,
-                isTogglingInbox = isTogglingInbox,
+                isSaving = isSaving,
                 onInboxEnabledChange = onInboxEnabledChange,
             )
         }
@@ -409,6 +451,12 @@ private fun AdminContent(
             CollectionsCard(onClick = onCollectionsClick)
         }
 
+        // Categories button
+        item {
+            Spacer(modifier = Modifier.height(12.dp))
+            CategoriesCard(onClick = onCategoriesClick)
+        }
+
         // Inbox button (only shown when inbox workflow is enabled)
         if (inboxEnabled) {
             item {
@@ -434,11 +482,15 @@ private fun AdminContent(
 
 @Composable
 private fun SettingsCard(
+    serverName: String,
+    onServerNameChange: (String) -> Unit,
+    remoteUrl: String,
+    onRemoteUrlChange: (String) -> Unit,
     openRegistration: Boolean,
     isTogglingOpenRegistration: Boolean,
     onOpenRegistrationChange: (Boolean) -> Unit,
     inboxEnabled: Boolean,
-    isTogglingInbox: Boolean,
+    isSaving: Boolean,
     onInboxEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -451,6 +503,62 @@ private fun SettingsCard(
             ),
     ) {
         Column {
+            // Server Name field
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Badge,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = serverName,
+                    onValueChange = onServerNameChange,
+                    label = { Text("Server Name") },
+                    placeholder = { Text("ListenUp Server") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            )
+
+            // Remote URL field
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.CloudDownload,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = remoteUrl,
+                    onValueChange = onRemoteUrlChange,
+                    label = { Text("Remote URL") },
+                    placeholder = { Text("https://audiobooks.example.com") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            )
+
             // Open Registration toggle
             Row(
                 modifier =
@@ -517,7 +625,7 @@ private fun SettingsCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (isTogglingInbox) {
+                if (isSaving) {
                     ListenUpLoadingIndicatorSmall()
                 } else {
                     Switch(
@@ -885,6 +993,49 @@ private fun CollectionsCard(
                     text = "Organize books into collections for access control",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoriesCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Category,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Categories",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "View the genre hierarchy tree",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

@@ -41,8 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import com.calypsan.listenup.client.design.util.rememberCopyToClipboard
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -70,14 +69,14 @@ fun CreateInviteScreen(
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val clipboardManager = LocalClipboardManager.current
+    val copyToClipboard = rememberCopyToClipboard()
 
     // Handle success - show link and allow copy
     LaunchedEffect(state.status) {
         when (val status = state.status) {
             is CreateInviteStatus.Success -> {
                 // Auto-copy the link
-                clipboardManager.setText(AnnotatedString(status.invite.url))
+                copyToClipboard(status.invite.url)
                 snackbarHostState.showSnackbar("Invite created! Link copied to clipboard.")
             }
 
@@ -119,8 +118,8 @@ fun CreateInviteScreen(
                     inviteUrl = status.invite.url,
                     inviteName = status.invite.name,
                     onCopyClick = {
-                        clipboardManager.setText(AnnotatedString(status.invite.url))
                         scope.launch {
+                            copyToClipboard(status.invite.url)
                             snackbarHostState.showSnackbar("Link copied!")
                         }
                     },

@@ -40,7 +40,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
+import com.calypsan.listenup.client.design.components.ListenUpFab
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -135,9 +135,11 @@ fun ABSImportListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showCreateDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "New Import")
-            }
+            ListenUpFab(
+                onClick = { showCreateDialog = true },
+                icon = Icons.Default.Add,
+                contentDescription = "New Import",
+            )
         },
     ) { paddingValues ->
         ImportListContent(

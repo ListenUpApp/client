@@ -7,7 +7,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,30 +19,29 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Material 3 loading indicator.
+ * Material 3 Expressive loading indicator.
  *
- * Uses CircularProgressIndicator for cross-platform compatibility.
- * Android platform can override with M3 Expressive LoadingIndicator if available.
+ * Uses the M3 Expressive LoadingIndicator with animated morphing shapes.
  *
  * @param modifier Optional modifier for the indicator
  * @param size Size of the indicator (default 48.dp)
  * @param color Color of the indicator (default primary)
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ListenUpLoadingIndicator(
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
     color: Color = MaterialTheme.colorScheme.primary,
 ) {
-    CircularProgressIndicator(
+    LoadingIndicator(
         modifier = modifier.size(size),
         color = color,
-        strokeWidth = 4.dp,
     )
 }
 
 /**
- * Small Material 3 loading indicator.
+ * Small Material 3 Expressive loading indicator.
  *
  * Sized for inline use in buttons, list items, and compact spaces.
  *
@@ -69,6 +69,7 @@ fun ListenUpLoadingIndicatorSmall(
  * @param modifier Optional modifier for the outer Box
  * @param message Optional message to display below the indicator
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FullScreenLoadingIndicator(
     modifier: Modifier = Modifier,
@@ -83,7 +84,9 @@ fun FullScreenLoadingIndicator(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                ListenUpLoadingIndicator()
+                LoadingIndicator(
+                    modifier = Modifier.size(64.dp),
+                )
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = message,
@@ -91,7 +94,9 @@ fun FullScreenLoadingIndicator(
                 )
             }
         } else {
-            ListenUpLoadingIndicator()
+            LoadingIndicator(
+                modifier = Modifier.size(64.dp),
+            )
         }
     }
 }

@@ -35,4 +35,6 @@ class DesktopBookDetailPlatformActions(
     override fun observeWifiOnlyDownloads(): Flow<Boolean> = flowOf(false)
 
     override fun observeIsOnUnmeteredNetwork(): Flow<Boolean> = flowOf(true)
+
+    override suspend fun checkServerReachable(): Boolean = true
 }

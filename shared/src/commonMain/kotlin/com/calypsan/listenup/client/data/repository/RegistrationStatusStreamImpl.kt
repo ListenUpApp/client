@@ -7,7 +7,7 @@ import com.calypsan.listenup.client.domain.repository.StreamedRegistrationStatus
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
-import io.ktor.utils.io.readUTF8Line
+import io.ktor.utils.io.readLine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
@@ -49,7 +49,7 @@ class RegistrationStatusStreamImpl(
                 var eventData = StringBuilder()
 
                 while (!channel.isClosedForRead) {
-                    val line = channel.readUTF8Line() ?: break
+                    val line = channel.readLine() ?: break
 
                     when {
                         line.isEmpty() -> {

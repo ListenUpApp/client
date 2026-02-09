@@ -52,9 +52,20 @@ fun DownloadButton(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
     isWaitingForWifi: Boolean = false,
+    enabled: Boolean = true,
 ) {
-    val containerColor = MaterialTheme.colorScheme.secondaryContainer
-    val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    val containerColor =
+        if (enabled) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+        }
+    val contentColor =
+        if (enabled) {
+            MaterialTheme.colorScheme.onSecondaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        }
 
     Surface(
         modifier = modifier.size(56.dp),

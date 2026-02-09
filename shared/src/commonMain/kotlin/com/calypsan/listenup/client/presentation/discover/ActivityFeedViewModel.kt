@@ -109,8 +109,8 @@ private fun Activity.toUiModel(): ActivityUiModel =
         durationMs = durationMs,
         milestoneValue = milestoneValue,
         milestoneUnit = milestoneUnit,
-        lensId = lensId,
-        lensName = lensName,
+        shelfId = shelfId,
+        shelfName = shelfName,
     )
 
 /**
@@ -134,8 +134,8 @@ data class ActivityUiModel(
     val durationMs: Long,
     val milestoneValue: Int,
     val milestoneUnit: String?,
-    val lensId: String?,
-    val lensName: String?,
+    val shelfId: String?,
+    val shelfName: String?,
 )
 
 /**

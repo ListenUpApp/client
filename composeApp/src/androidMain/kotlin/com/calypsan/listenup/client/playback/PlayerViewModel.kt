@@ -9,8 +9,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackException
 import androidx.media3.session.MediaController
 import com.calypsan.listenup.client.core.BookId
+import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.domain.playback.PlaybackTimeline
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Job
@@ -34,6 +36,7 @@ private val logger = KotlinLogging.logger {}
 class PlayerViewModel(
     private val playbackManager: PlaybackManager,
     private val mediaControllerHolder: MediaControllerHolder,
+    private val networkMonitor: NetworkMonitor,
 ) : ViewModel() {
     private var positionUpdateJob: Job? = null
     private var playerListener: Player.Listener? = null
@@ -83,12 +86,18 @@ class PlayerViewModel(
             progressJob.cancel() // Stop observing once prepare is done
 
             if (result == null) {
+                val errorMessage =
+                    if (!networkMonitor.isOnline()) {
+                        "Can't play this book offline. Download it first."
+                    } else {
+                        "Failed to load book"
+                    }
                 state.value =
                     state.value.copy(
                         isLoading = false,
                         prepareProgress = null,
                         prepareMessage = null,
-                        error = "Failed to load book",
+                        error = errorMessage,
                     )
                 return@launch
             }
@@ -104,6 +113,10 @@ class PlayerViewModel(
                     prepareProgress = null,
                     prepareMessage = null,
                 )
+
+            // Activate book ID now — NowPlaying observes this to show UI.
+            // This must happen AFTER prepare succeeds (UI layer gates reachability).
+            playbackManager.activateBook(bookId)
 
             // Connect to the player and start
             connectAndPlay(result)
@@ -380,6 +393,32 @@ class PlayerViewModel(
                         isFinished = true,
                     )
             }
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            logger.error { "ExoPlayer error: ${error.errorCodeName} - ${error.message}" }
+            val isNetworkError =
+                error.errorCode in
+                    listOf(
+                        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+                        PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+                        PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE,
+                        PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+                    )
+            val message =
+                if (isNetworkError) {
+                    "Couldn't connect to server. Download this book for offline listening."
+                } else {
+                    "Playback error: ${error.localizedMessage ?: "Unknown error"}"
+                }
+            state.value =
+                state.value.copy(
+                    isPlaying = false,
+                    isLoading = false,
+                    error = message,
+                )
+            playbackManager.setPlaying(false)
         }
 
         override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {

@@ -4,15 +4,15 @@ import com.calypsan.listenup.client.checkIs
 import com.calypsan.listenup.client.core.Failure
 import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.domain.model.Collection
-import com.calypsan.listenup.client.domain.model.Lens
+import com.calypsan.listenup.client.domain.model.Shelf
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.domain.repository.CollectionRepository
-import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import com.calypsan.listenup.client.domain.usecase.collection.AddBooksToCollectionUseCase
 import com.calypsan.listenup.client.domain.usecase.collection.RefreshCollectionsUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.AddBooksToLensUseCase
-import com.calypsan.listenup.client.domain.usecase.lens.CreateLensUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.AddBooksToShelfUseCase
+import com.calypsan.listenup.client.domain.usecase.shelf.CreateShelfUseCase
 import dev.mokkery.answering.returns
 import dev.mokkery.every
 import dev.mokkery.everySuspend
@@ -40,10 +40,10 @@ import kotlin.test.assertIs
  * Tests cover:
  * - Selection mode observation from shared manager
  * - Admin state observation (isAdmin, collections)
- * - Lens observation (myLenses)
+ * - Shelf observation (myShelves)
  * - addSelectedToCollection success/failure
- * - addSelectedToLens success/failure
- * - createLensAndAddBooks success/failure
+ * - addSelectedToShelf success/failure
+ * - createShelfAndAddBooks success/failure
  * - Loading state during operations
  * - Selection clearing after actions
  *
@@ -59,26 +59,26 @@ class LibraryActionsViewModelTest {
         val selectionManager = LibrarySelectionManager()
         val userRepository: UserRepository = mock()
         val collectionRepository: CollectionRepository = mock()
-        val lensRepository: LensRepository = mock()
+        val shelfRepository: ShelfRepository = mock()
         val addBooksToCollectionUseCase: AddBooksToCollectionUseCase = mock()
         val refreshCollectionsUseCase: RefreshCollectionsUseCase = mock()
-        val addBooksToLensUseCase: AddBooksToLensUseCase = mock()
-        val createLensUseCase: CreateLensUseCase = mock()
+        val addBooksToShelfUseCase: AddBooksToShelfUseCase = mock()
+        val createShelfUseCase: CreateShelfUseCase = mock()
 
         val userFlow = MutableStateFlow<User?>(null)
         val collectionsFlow = MutableStateFlow<List<Collection>>(emptyList())
-        val lensesFlow = MutableStateFlow<List<Lens>>(emptyList())
+        val shelvesFlow = MutableStateFlow<List<Shelf>>(emptyList())
 
         fun build(): LibraryActionsViewModel =
             LibraryActionsViewModel(
                 selectionManager = selectionManager,
                 userRepository = userRepository,
                 collectionRepository = collectionRepository,
-                lensRepository = lensRepository,
+                shelfRepository = shelfRepository,
                 addBooksToCollectionUseCase = addBooksToCollectionUseCase,
                 refreshCollectionsUseCase = refreshCollectionsUseCase,
-                addBooksToLensUseCase = addBooksToLensUseCase,
-                createLensUseCase = createLensUseCase,
+                addBooksToShelfUseCase = addBooksToShelfUseCase,
+                createShelfUseCase = createShelfUseCase,
             )
     }
 
@@ -88,7 +88,7 @@ class LibraryActionsViewModelTest {
         // Default stubs for reactive observation
         every { fixture.userRepository.observeCurrentUser() } returns fixture.userFlow
         every { fixture.collectionRepository.observeAll() } returns fixture.collectionsFlow
-        every { fixture.lensRepository.observeMyLenses(any()) } returns fixture.lensesFlow
+        every { fixture.shelfRepository.observeMyShelves(any()) } returns fixture.shelvesFlow
 
         return fixture
     }
@@ -125,12 +125,12 @@ class LibraryActionsViewModelTest {
             updatedAtMs = 1704067200000L,
         )
 
-    private fun createLens(
-        id: String = "lens-1",
-        name: String = "My Lens",
+    private fun createShelf(
+        id: String = "shelf-1",
+        name: String = "My Shelf",
         ownerId: String = "user-1",
-    ): Lens =
-        Lens(
+    ): Shelf =
+        Shelf(
             id = id,
             name = name,
             description = "",
@@ -294,10 +294,10 @@ class LibraryActionsViewModelTest {
             assertFalse(viewModel.isAddingToCollection.value)
         }
 
-    // ========== addSelectedToLens Tests ==========
+    // ========== addSelectedToShelf Tests ==========
 
     @Test
-    fun `addSelectedToLens does nothing when no books selected`() =
+    fun `addSelectedToShelf does nothing when no books selected`() =
         runTest {
             // Given
             val fixture = createFixture()
@@ -305,43 +305,43 @@ class LibraryActionsViewModelTest {
             advanceUntilIdle()
 
             // When
-            viewModel.addSelectedToLens("lens-1")
+            viewModel.addSelectedToShelf("shelf-1")
             advanceUntilIdle()
 
             // Then - use case should not be called
-            assertFalse(viewModel.isAddingToLens.value)
+            assertFalse(viewModel.isAddingToShelf.value)
         }
 
     @Test
-    fun `addSelectedToLens calls use case with selected book IDs`() =
+    fun `addSelectedToShelf calls use case with selected book IDs`() =
         runTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Success(Unit)
+            everySuspend { fixture.addBooksToShelfUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
             // When
-            viewModel.addSelectedToLens("lens-1")
+            viewModel.addSelectedToShelf("shelf-1")
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.addBooksToLensUseCase("lens-1", any()) }
+            verifySuspend { fixture.addBooksToShelfUseCase("shelf-1", any()) }
         }
 
     @Test
-    fun `addSelectedToLens clears selection on success`() =
+    fun `addSelectedToShelf clears selection on success`() =
         runTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Success(Unit)
+            everySuspend { fixture.addBooksToShelfUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
             // When
-            viewModel.addSelectedToLens("lens-1")
+            viewModel.addSelectedToShelf("shelf-1")
             advanceUntilIdle()
 
             // Then
@@ -349,12 +349,12 @@ class LibraryActionsViewModelTest {
         }
 
     @Test
-    fun `addSelectedToLens does not clear selection on failure`() =
+    fun `addSelectedToShelf does not clear selection on failure`() =
         runTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns
+            everySuspend { fixture.addBooksToShelfUseCase(any(), any()) } returns
                 Failure(
                     RuntimeException("Server error"),
                     "Server error",
@@ -363,17 +363,17 @@ class LibraryActionsViewModelTest {
             advanceUntilIdle()
 
             // When
-            viewModel.addSelectedToLens("lens-1")
+            viewModel.addSelectedToShelf("shelf-1")
             advanceUntilIdle()
 
             // Then - selection should still be active
             checkIs<SelectionMode.Active>(fixture.selectionManager.selectionMode.value)
         }
 
-    // ========== createLensAndAddBooks Tests ==========
+    // ========== createShelfAndAddBooks Tests ==========
 
     @Test
-    fun `createLensAndAddBooks does nothing when no books selected`() =
+    fun `createShelfAndAddBooks does nothing when no books selected`() =
         runTest {
             // Given
             val fixture = createFixture()
@@ -381,48 +381,48 @@ class LibraryActionsViewModelTest {
             advanceUntilIdle()
 
             // When
-            viewModel.createLensAndAddBooks("New Lens")
+            viewModel.createShelfAndAddBooks("New Shelf")
             advanceUntilIdle()
 
             // Then - use case should not be called
-            assertFalse(viewModel.isAddingToLens.value)
+            assertFalse(viewModel.isAddingToShelf.value)
         }
 
     @Test
-    fun `createLensAndAddBooks creates lens then adds books`() =
+    fun `createShelfAndAddBooks creates shelf then adds books`() =
         runTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            val newLens = createLens(id = "new-lens", name = "My New Lens")
-            everySuspend { fixture.createLensUseCase(any(), any()) } returns Success(newLens)
-            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Success(Unit)
+            val newShelf = createShelf(id = "new-shelf", name = "My New Shelf")
+            everySuspend { fixture.createShelfUseCase(any(), any()) } returns Success(newShelf)
+            everySuspend { fixture.addBooksToShelfUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
             // When
-            viewModel.createLensAndAddBooks("My New Lens")
+            viewModel.createShelfAndAddBooks("My New Shelf")
             advanceUntilIdle()
 
             // Then
-            verifySuspend { fixture.createLensUseCase("My New Lens", null) }
-            verifySuspend { fixture.addBooksToLensUseCase("new-lens", any()) }
+            verifySuspend { fixture.createShelfUseCase("My New Shelf", null) }
+            verifySuspend { fixture.addBooksToShelfUseCase("new-shelf", any()) }
         }
 
     @Test
-    fun `createLensAndAddBooks clears selection on success`() =
+    fun `createShelfAndAddBooks clears selection on success`() =
         runTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            val newLens = createLens()
-            everySuspend { fixture.createLensUseCase(any(), any()) } returns Success(newLens)
-            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Success(Unit)
+            val newShelf = createShelf()
+            everySuspend { fixture.createShelfUseCase(any(), any()) } returns Success(newShelf)
+            everySuspend { fixture.addBooksToShelfUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
             // When
-            viewModel.createLensAndAddBooks("New Lens")
+            viewModel.createShelfAndAddBooks("New Shelf")
             advanceUntilIdle()
 
             // Then
@@ -430,21 +430,21 @@ class LibraryActionsViewModelTest {
         }
 
     @Test
-    fun `createLensAndAddBooks does not clear selection on lens creation failure`() =
+    fun `createShelfAndAddBooks does not clear selection on shelf creation failure`() =
         runTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            everySuspend { fixture.createLensUseCase(any(), any()) } returns
+            everySuspend { fixture.createShelfUseCase(any(), any()) } returns
                 Failure(
-                    RuntimeException("Failed to create lens"),
-                    "Failed to create lens",
+                    RuntimeException("Failed to create shelf"),
+                    "Failed to create shelf",
                 )
             val viewModel = fixture.build()
             advanceUntilIdle()
 
             // When
-            viewModel.createLensAndAddBooks("New Lens")
+            viewModel.createShelfAndAddBooks("New Shelf")
             advanceUntilIdle()
 
             // Then - selection should still be active
@@ -452,14 +452,14 @@ class LibraryActionsViewModelTest {
         }
 
     @Test
-    fun `createLensAndAddBooks does not clear selection on addBooks failure`() =
+    fun `createShelfAndAddBooks does not clear selection on addBooks failure`() =
         runTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            val newLens = createLens()
-            everySuspend { fixture.createLensUseCase(any(), any()) } returns Success(newLens)
-            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns
+            val newShelf = createShelf()
+            everySuspend { fixture.createShelfUseCase(any(), any()) } returns Success(newShelf)
+            everySuspend { fixture.addBooksToShelfUseCase(any(), any()) } returns
                 Failure(
                     RuntimeException("Failed to add books"),
                     "Failed to add books",
@@ -468,7 +468,7 @@ class LibraryActionsViewModelTest {
             advanceUntilIdle()
 
             // When
-            viewModel.createLensAndAddBooks("New Lens")
+            viewModel.createShelfAndAddBooks("New Shelf")
             advanceUntilIdle()
 
             // Then - selection should still be active
@@ -476,22 +476,22 @@ class LibraryActionsViewModelTest {
         }
 
     @Test
-    fun `createLensAndAddBooks sets and clears loading state`() =
+    fun `createShelfAndAddBooks sets and clears loading state`() =
         runTest {
             // Given
             val fixture = createFixture()
             fixture.selectionManager.enterSelectionMode("book-1")
-            val newLens = createLens()
-            everySuspend { fixture.createLensUseCase(any(), any()) } returns Success(newLens)
-            everySuspend { fixture.addBooksToLensUseCase(any(), any()) } returns Success(Unit)
+            val newShelf = createShelf()
+            everySuspend { fixture.createShelfUseCase(any(), any()) } returns Success(newShelf)
+            everySuspend { fixture.addBooksToShelfUseCase(any(), any()) } returns Success(Unit)
             val viewModel = fixture.build()
             advanceUntilIdle()
 
             // When
-            viewModel.createLensAndAddBooks("New Lens")
+            viewModel.createShelfAndAddBooks("New Shelf")
             advanceUntilIdle()
 
             // Then - loading should be false after completion
-            assertFalse(viewModel.isAddingToLens.value)
+            assertFalse(viewModel.isAddingToShelf.value)
         }
 }

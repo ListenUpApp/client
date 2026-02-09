@@ -89,7 +89,7 @@ fun UserAvatar(
                 },
             modifier = Modifier.size(40.dp),
         ) {
-            if (hasImageAvatar && user != null) {
+            if (hasImageAvatar) {
                 // Offline-first: prefer local cached avatar
                 val localPath =
                     if (imageStorage.userAvatarExists(user.id.value)) {

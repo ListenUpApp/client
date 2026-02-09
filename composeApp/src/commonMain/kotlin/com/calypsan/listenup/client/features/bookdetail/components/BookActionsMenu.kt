@@ -19,7 +19,7 @@ import androidx.compose.runtime.Composable
 
 /**
  * Dropdown menu for book actions.
- * Shows Edit, Find Metadata, Mark Complete, Discard Progress, Add to Lens.
+ * Shows Edit, Find Metadata, Mark Complete, Discard Progress, Add to Shelf.
  * Delete is shown only for admin users.
  *
  * @param expanded Whether the menu is currently showing
@@ -31,7 +31,7 @@ import androidx.compose.runtime.Composable
  * @param onFindMetadataClick Called when Find Metadata is clicked
  * @param onMarkCompleteClick Called when Mark as Complete/Not Started is clicked
  * @param onDiscardProgressClick Called when Discard Progress is clicked
- * @param onAddToLensClick Called when Add to Lens is clicked
+ * @param onAddToShelfClick Called when Add to Shelf is clicked
  * @param onAddToCollectionClick Called when Add to Collection is clicked (admin only)
  * @param onDeleteClick Called when Delete Book is clicked (admin only)
  */
@@ -47,7 +47,7 @@ fun BookActionsMenu(
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
     onDiscardProgressClick: () -> Unit,
-    onAddToLensClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
@@ -114,16 +114,16 @@ fun BookActionsMenu(
             )
         }
 
-        // Add to Lens
+        // Add to Shelf
         DropdownMenuItem(
-            text = { Text("Add to Lens") },
+            text = { Text("Add to Shelf") },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
                     contentDescription = null,
                 )
             },
-            onClick = onAddToLensClick,
+            onClick = onAddToShelfClick,
         )
 
         // Add to Collection (admin only)

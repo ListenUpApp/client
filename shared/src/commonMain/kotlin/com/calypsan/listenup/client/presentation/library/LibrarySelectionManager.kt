@@ -71,7 +71,7 @@ class LibrarySelectionManager {
     }
 
     /**
-     * Clear selection after a successful action (add to collection/lens).
+     * Clear selection after a successful action (add to collection/shelf).
      * Semantically identical to [exitSelectionMode] but named for clarity at call sites.
      */
     fun clearAfterAction() {

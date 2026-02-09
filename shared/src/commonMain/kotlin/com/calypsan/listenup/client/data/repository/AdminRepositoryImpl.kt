@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.data.remote.AdminApiContract
+import com.calypsan.listenup.client.data.remote.BrowseFilesystemResponse
 import com.calypsan.listenup.client.data.remote.AdminInvite
 import com.calypsan.listenup.client.data.remote.AdminUser
 import com.calypsan.listenup.client.data.remote.CollectionRef
@@ -8,6 +9,7 @@ import com.calypsan.listenup.client.data.remote.CreateInviteRequest
 import com.calypsan.listenup.client.data.remote.InboxBookResponse
 import com.calypsan.listenup.client.data.remote.LibraryResponse
 import com.calypsan.listenup.client.data.remote.ServerSettingsRequest
+import com.calypsan.listenup.client.data.remote.UpdateInstanceRequest
 import com.calypsan.listenup.client.data.remote.ServerSettingsResponse
 import com.calypsan.listenup.client.data.remote.UpdateLibraryRequest
 import com.calypsan.listenup.client.data.remote.UpdatePermissionsRequest
@@ -116,10 +118,21 @@ class AdminRepositoryImpl(
         adminApi.setOpenRegistration(enabled)
     }
 
+    override suspend fun updateInstanceRemoteUrl(remoteUrl: String): String? {
+        val response = adminApi.updateInstance(UpdateInstanceRequest(remoteUrl = remoteUrl))
+        return response.remoteUrl
+    }
+
     override suspend fun getServerSettings(): ServerSettings = adminApi.getServerSettings().toDomain()
 
-    override suspend fun updateServerSettings(inboxEnabled: Boolean): ServerSettings =
-        adminApi.updateServerSettings(ServerSettingsRequest(inboxEnabled = inboxEnabled)).toDomain()
+    override suspend fun updateServerSettings(
+        serverName: String?,
+        inboxEnabled: Boolean?,
+    ): ServerSettings =
+        adminApi
+            .updateServerSettings(
+                ServerSettingsRequest(serverName = serverName, inboxEnabled = inboxEnabled),
+            ).toDomain()
 
     // ═══════════════════════════════════════════════════════════════════════
     // INBOX MANAGEMENT
@@ -172,6 +185,22 @@ class AdminRepositoryImpl(
             )
         return adminApi.updateLibrary(libraryId, request).toDomain()
     }
+
+    override suspend fun addScanPath(
+        libraryId: String,
+        path: String,
+    ): Library = adminApi.addScanPath(libraryId, path).toDomain()
+
+    override suspend fun removeScanPath(
+        libraryId: String,
+        path: String,
+    ): Library = adminApi.removeScanPath(libraryId, path).toDomain()
+
+    override suspend fun triggerScan(libraryId: String) {
+        adminApi.triggerScan(libraryId)
+    }
+
+    override suspend fun browseFilesystem(path: String): BrowseFilesystemResponse = adminApi.browseFilesystem(path)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -220,6 +249,7 @@ private fun AdminInvite.toDomain(): InviteInfo =
  */
 private fun ServerSettingsResponse.toDomain(): ServerSettings =
     ServerSettings(
+        serverName = serverName,
         inboxEnabled = inboxEnabled,
         inboxCount = inboxCount,
     )

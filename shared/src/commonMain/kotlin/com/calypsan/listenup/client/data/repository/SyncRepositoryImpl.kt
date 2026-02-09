@@ -2,6 +2,7 @@ package com.calypsan.listenup.client.data.repository
 
 import com.calypsan.listenup.client.core.Result
 import com.calypsan.listenup.client.data.sync.SyncManagerContract
+import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
 import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.domain.repository.SyncRepository
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +38,7 @@ class SyncRepositoryImpl(
             )
 
     override val isServerScanning: StateFlow<Boolean> = syncManager.isServerScanning
+    override val scanProgress: StateFlow<ScanProgressState?> = syncManager.scanProgress
 
     override suspend fun sync(): Result<Unit> = syncManager.sync()
 

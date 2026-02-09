@@ -1163,19 +1163,25 @@ interface AdminSettingsApiContract {
  *
  * Contains server-wide configuration managed by admins.
  */
+@Serializable
 data class ServerSettingsResponse(
+    /** Display name for the server */
+    @SerialName("server_name") val serverName: String,
     /** Whether inbox workflow is enabled */
-    val inboxEnabled: Boolean,
+    @SerialName("inbox_enabled") val inboxEnabled: Boolean,
     /** Number of books currently in inbox */
-    val inboxCount: Int,
+    @SerialName("inbox_count") val inboxCount: Int,
 )
 
 /**
  * Request to update server settings (PATCH semantics).
  */
+@Serializable
 data class ServerSettingsRequest(
+    /** Display name for the server */
+    @SerialName("server_name") val serverName: String? = null,
     /** Enable or disable inbox workflow */
-    val inboxEnabled: Boolean? = null,
+    @SerialName("inbox_enabled") val inboxEnabled: Boolean? = null,
 )
 
 /**

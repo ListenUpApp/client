@@ -27,6 +27,9 @@ import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.download.DownloadService
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.request.get
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -100,6 +103,11 @@ class PlaybackManager(
     var onChapterChanged: ((ChapterInfo) -> Unit)? = null
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    /** Set the current book ID — call this only when playback is confirmed to proceed. */
+    fun activateBook(bookId: BookId) {
+        _currentBookId.value = bookId
+    }
 
     /**
      * Prepare for playback of a book.
@@ -236,7 +244,7 @@ class PlaybackManager(
                 )
             }
         _currentTimeline.value = timeline
-        _currentBookId.value = bookId
+        // Note: currentBookId is set by caller after reachability checks pass
         totalDurationMs.value = timeline.totalDurationMs
 
         // Load chapters for this book
@@ -446,6 +454,34 @@ class PlaybackManager(
         val positionMs = currentPositionMs.value
         playbackSpeed.value = defaultSpeed
         progressTracker.onSpeedReset(bookId, positionMs, defaultSpeed)
+    }
+
+    /**
+     * Check if the server is reachable with a quick health check.
+     * Used to warn users before attempting to stream non-downloaded content.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    suspend fun isServerReachable(): Boolean {
+        val url = serverConfig.getActiveUrl()?.value ?: return false
+        return try {
+            val client =
+                HttpClient {
+                    install(HttpTimeout) {
+                        requestTimeoutMillis = 3_000
+                        connectTimeoutMillis = 3_000
+                        socketTimeoutMillis = 3_000
+                    }
+                }
+            try {
+                val response = client.get("$url/health")
+                response.status.value in 200..299
+            } finally {
+                client.close()
+            }
+        } catch (e: Exception) {
+            logger.debug { "Server reachability check failed: ${e.message}" }
+            false
+        }
     }
 
     /**

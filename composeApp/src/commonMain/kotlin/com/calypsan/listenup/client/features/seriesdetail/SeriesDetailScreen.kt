@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("CognitiveComplexMethod")
 
 package com.calypsan.listenup.client.features.seriesdetail
 
@@ -56,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.domain.model.Book
@@ -221,6 +222,7 @@ private fun WideSeriesDetailContent(
  * Horizontal header: cover on the left, stats and description on the right.
  */
 @Composable
+@Suppress("CognitiveComplexMethod")
 private fun SeriesHeaderRow(
     coverPath: String?,
     bookCount: Int,
@@ -333,8 +335,9 @@ private fun SeriesBookCard(
                 contentAlignment = Alignment.Center,
             ) {
                 if (book.coverPath != null) {
-                    ListenUpAsyncImage(
-                        path = book.coverPath,
+                    BookCoverImage(
+                        bookId = book.id.value,
+                        coverPath = book.coverPath,
                         contentDescription = book.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
@@ -572,8 +575,9 @@ private fun SeriesBookItem(
                 contentAlignment = Alignment.Center,
             ) {
                 if (book.coverPath != null) {
-                    ListenUpAsyncImage(
-                        path = book.coverPath,
+                    BookCoverImage(
+                        bookId = book.id.value,
+                        coverPath = book.coverPath,
                         contentDescription = book.title,
                         contentScale = ContentScale.Crop,
                         modifier =

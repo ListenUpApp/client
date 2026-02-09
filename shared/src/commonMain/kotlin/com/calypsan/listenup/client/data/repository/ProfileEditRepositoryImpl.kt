@@ -20,6 +20,9 @@ import kotlinx.coroutines.withContext
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
+private const val NO_CURRENT_USER_MESSAGE = "No current user"
+private const val NO_CURRENT_USER_FOUND_MESSAGE = "No current user found"
+private const val AUTO_VALUE = "auto"
 private val logger = KotlinLogging.logger {}
 
 /**
@@ -51,8 +54,8 @@ class ProfileEditRepositoryImpl(
             // Get current user
             val user = userDao.getCurrentUser()
             if (user == null) {
-                logger.error { "No current user found" }
-                return@withContext Failure(Exception("No current user"))
+                logger.error { NO_CURRENT_USER_FOUND_MESSAGE }
+                return@withContext Failure(Exception(NO_CURRENT_USER_MESSAGE))
             }
 
             // Apply optimistic update
@@ -95,8 +98,8 @@ class ProfileEditRepositoryImpl(
             // Get current user
             val user = userDao.getCurrentUser()
             if (user == null) {
-                logger.error { "No current user found" }
-                return@withContext Failure(Exception("No current user"))
+                logger.error { NO_CURRENT_USER_FOUND_MESSAGE }
+                return@withContext Failure(Exception(NO_CURRENT_USER_MESSAGE))
             }
 
             // Do NOT update avatar locally - we don't have the server path yet.
@@ -135,21 +138,21 @@ class ProfileEditRepositoryImpl(
             // Get current user
             val user = userDao.getCurrentUser()
             if (user == null) {
-                logger.error { "No current user found" }
-                return@withContext Failure(Exception("No current user"))
+                logger.error { NO_CURRENT_USER_FOUND_MESSAGE }
+                return@withContext Failure(Exception(NO_CURRENT_USER_MESSAGE))
             }
 
             // Apply optimistic update
             userDao.updateAvatar(
                 userId = user.id.value,
-                avatarType = "auto",
+                avatarType = AUTO_VALUE,
                 avatarValue = null,
                 avatarColor = user.avatarColor, // Keep existing color
                 updatedAt = currentEpochMilliseconds(),
             )
 
-            // Queue operation - use profile update with avatarType = "auto"
-            val payload = ProfileUpdatePayload(avatarType = "auto")
+            // Queue operation - use profile update with avatarType = AUTO_VALUE
+            val payload = ProfileUpdatePayload(avatarType = AUTO_VALUE)
             pendingOperationRepository.queue(
                 type = OperationType.PROFILE_UPDATE,
                 entityType = EntityType.USER,
@@ -177,8 +180,8 @@ class ProfileEditRepositoryImpl(
             // Get current user
             val user = userDao.getCurrentUser()
             if (user == null) {
-                logger.error { "No current user found" }
-                return@withContext Failure(Exception("No current user"))
+                logger.error { NO_CURRENT_USER_FOUND_MESSAGE }
+                return@withContext Failure(Exception(NO_CURRENT_USER_MESSAGE))
             }
 
             // Apply optimistic update - compute displayName locally

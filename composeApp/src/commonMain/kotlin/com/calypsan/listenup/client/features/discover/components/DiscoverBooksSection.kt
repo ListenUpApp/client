@@ -41,7 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.collectAsState
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.presentation.discover.DiscoverUiBook
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -153,6 +153,7 @@ private fun DiscoverBookCard(
     ) {
         // Cover image
         BookCover(
+            bookId = book.id,
             coverPath = book.coverPath,
             blurHash = book.coverBlurHash,
             contentDescription = book.title,
@@ -204,6 +205,7 @@ private fun DiscoverBookCard(
  */
 @Composable
 private fun BookCover(
+    bookId: String,
     coverPath: String?,
     blurHash: String?,
     contentDescription: String?,
@@ -219,8 +221,9 @@ private fun BookCover(
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         if (coverPath != null || blurHash != null) {
-            ListenUpAsyncImage(
-                path = coverPath,
+            BookCoverImage(
+                bookId = bookId,
+                coverPath = coverPath,
                 blurHash = blurHash,
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),

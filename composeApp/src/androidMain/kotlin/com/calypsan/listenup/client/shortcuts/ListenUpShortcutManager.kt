@@ -201,8 +201,8 @@ class ListenUpShortcutManager(
             val halfHeight = height / 2
             val halfWidth = width / 2
 
-            while ((halfHeight / sampleSize) >= targetHeight &&
-                (halfWidth / sampleSize) >= targetWidth
+            while (halfHeight / sampleSize >= targetHeight &&
+                halfWidth / sampleSize >= targetWidth
             ) {
                 sampleSize *= 2
             }

@@ -78,4 +78,33 @@ interface GenreRepository {
         bookId: String,
         genreIds: List<String>,
     )
+
+    /**
+     * Create a new genre.
+     */
+    suspend fun createGenre(
+        name: String,
+        parentId: String?,
+    ): Genre
+
+    /**
+     * Update an existing genre's name.
+     */
+    suspend fun updateGenre(
+        id: String,
+        name: String,
+    ): Genre
+
+    /**
+     * Delete a genre.
+     */
+    suspend fun deleteGenre(id: String)
+
+    /**
+     * Move a genre to a new parent.
+     */
+    suspend fun moveGenre(
+        id: String,
+        newParentId: String?,
+    )
 }

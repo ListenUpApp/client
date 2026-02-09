@@ -17,10 +17,12 @@ import com.calypsan.listenup.client.data.sync.model.SyncStatus
 import com.calypsan.listenup.client.data.sync.pull.PullSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.push.PushSyncOrchestrator
 import com.calypsan.listenup.client.data.sync.sse.ScanCompletedInfo
+import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
 import com.calypsan.listenup.client.data.sync.sse.SSEEventProcessor
 import com.calypsan.listenup.client.domain.repository.AuthSession
 import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.repository.LibrarySync
+import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.domain.repository.PlaybackPreferences
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
@@ -53,6 +55,7 @@ interface SyncManagerContract {
      * UI can use this to show "Scanning your library..." instead of empty state.
      */
     val isServerScanning: StateFlow<Boolean>
+    val scanProgress: StateFlow<ScanProgressState?>
 
     /**
      * Perform full synchronization with server.
@@ -128,6 +131,7 @@ class SyncManager(
     private val playbackPreferences: PlaybackPreferences,
     private val librarySync: LibrarySync,
     private val instanceRepository: InstanceRepository,
+    private val serverConfig: ServerConfig,
     private val pendingOperationDao: PendingOperationDao,
     private val libraryResetHelper: LibraryResetHelperContract,
     private val syncDao: SyncDao,
@@ -142,6 +146,7 @@ class SyncManager(
 
     // Delegate to SSEEventProcessor which tracks ScanStarted/ScanCompleted events
     override val isServerScanning: StateFlow<Boolean> = sseEventProcessor.isServerScanning
+    override val scanProgress: StateFlow<ScanProgressState?> = sseEventProcessor.scanProgress
 
     init {
         // Route SSE events to processor
@@ -331,6 +336,9 @@ class SyncManager(
             // Phase 2: Pull user preferences (non-blocking)
             pullUserPreferences()
 
+            // Phase 2.5: Refresh remote URL from instance API
+            refreshRemoteUrl()
+
             // Phase 3: Push local changes
             // Mutex ensures conflict detection reads consistent data (not mid-SSE-write)
             syncMutex.withLock {
@@ -453,8 +461,30 @@ class SyncManager(
     }
 
     /**
-     * Pull user preferences from server and cache locally.
+     * Refresh the remote URL from the instance API.
+     * This ensures the client always has the latest remote URL,
+     * even if the admin updated it since last sync.
      */
+    private suspend fun refreshRemoteUrl() {
+        try {
+            when (val result = instanceRepository.getInstance(forceRefresh = true)) {
+                is Success -> {
+                    val remoteUrl = result.data.remoteUrl
+                    serverConfig.setRemoteUrl(remoteUrl)
+                    if (remoteUrl != null) {
+                        logger.debug { "Remote URL refreshed: $remoteUrl" }
+                    }
+                }
+
+                is Failure -> {
+                    logger.debug { "Failed to refresh remote URL: ${result.message}" }
+                }
+            }
+        } catch (e: Exception) {
+            logger.debug(e) { "Failed to refresh remote URL" }
+        }
+    }
+
     private suspend fun pullUserPreferences() {
         try {
             logger.debug { "Pulling user preferences from server" }

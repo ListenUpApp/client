@@ -81,13 +81,15 @@ fun TwoPaneBookDetail(
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
     onDiscardProgressClick: () -> Unit,
-    onAddToLensClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    playEnabled: Boolean = true,
+    onPlayDisabledClick: () -> Unit = {},
     onSeriesClick: (seriesId: String) -> Unit,
     onContributorClick: (contributorId: String) -> Unit,
     onTagClick: (tagId: String) -> Unit,
@@ -118,13 +120,15 @@ fun TwoPaneBookDetail(
             onFindMetadataClick = onFindMetadataClick,
             onMarkCompleteClick = onMarkCompleteClick,
             onDiscardProgressClick = onDiscardProgressClick,
-            onAddToLensClick = onAddToLensClick,
+            onAddToShelfClick = onAddToShelfClick,
             onAddToCollectionClick = onAddToCollectionClick,
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
+            playEnabled = playEnabled,
+            onPlayDisabledClick = onPlayDisabledClick,
             onContributorClick = onContributorClick,
             modifier =
                 Modifier
@@ -164,13 +168,15 @@ private fun TwoPaneLeftPane(
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
     onDiscardProgressClick: () -> Unit,
-    onAddToLensClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    playEnabled: Boolean = true,
+    onPlayDisabledClick: () -> Unit = {},
     onContributorClick: (contributorId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -276,9 +282,9 @@ private fun TwoPaneLeftPane(
                             showMenu = false
                             onDiscardProgressClick()
                         },
-                        onAddToLensClick = {
+                        onAddToShelfClick = {
                             showMenu = false
-                            onAddToLensClick()
+                            onAddToShelfClick()
                         },
                         onAddToCollectionClick = {
                             showMenu = false
@@ -357,6 +363,8 @@ private fun TwoPaneLeftPane(
                     onCancelClick = onCancelClick,
                     onDeleteClick = onDeleteClick,
                     isWaitingForWifi = isWaitingForWifi,
+                    playEnabled = playEnabled,
+                    onPlayDisabledClick = onPlayDisabledClick,
                 )
             }
         }

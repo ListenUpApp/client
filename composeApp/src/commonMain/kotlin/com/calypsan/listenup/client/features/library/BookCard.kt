@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.domain.model.Book
 import kotlin.math.PI
@@ -139,6 +139,7 @@ fun BookCard(
             val isCompleted = isFinished
 
             CoverWithGlow(
+                bookId = book.id.value,
                 coverPath = book.coverPath,
                 blurHash = book.coverBlurHash,
                 contentDescription = book.title,
@@ -222,6 +223,7 @@ fun BookCard(
  */
 @Composable
 private fun CoverWithGlow(
+    bookId: String,
     coverPath: String?,
     blurHash: String?,
     contentDescription: String?,
@@ -255,8 +257,9 @@ private fun CoverWithGlow(
         contentAlignment = Alignment.Center,
     ) {
         if (coverPath != null || blurHash != null) {
-            ListenUpAsyncImage(
-                path = coverPath,
+            BookCoverImage(
+                bookId = bookId,
+                coverPath = coverPath,
                 blurHash = blurHash,
                 contentDescription = contentDescription,
                 modifier = Modifier.matchParentSize(),

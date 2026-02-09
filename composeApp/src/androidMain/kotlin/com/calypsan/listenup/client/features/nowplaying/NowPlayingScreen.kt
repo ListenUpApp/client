@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("CognitiveComplexMethod", "UnusedParameter")
 
 package com.calypsan.listenup.client.features.nowplaying
 

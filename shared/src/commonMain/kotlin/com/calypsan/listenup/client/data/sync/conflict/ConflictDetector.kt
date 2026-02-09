@@ -116,6 +116,11 @@ class ConflictDetector(
                     // The server handles conflicts internally (last-write-wins)
                     null
                 }
+
+                EntityType.SHELF -> {
+                    // Shelf updates use simple last-write-wins
+                    null
+                }
             } ?: return null // Entity not found - no conflict, but might fail on push
 
         // If server was updated after we queued our change, it's a conflict

@@ -1,4 +1,4 @@
-@file:Suppress("CognitiveComplexMethod")
+@file:Suppress("CyclomaticComplexMethod", "UnusedParameter")
 
 package com.calypsan.listenup.client.navigation
 
@@ -57,14 +57,12 @@ import com.calypsan.listenup.client.playback.PlayerViewModel
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
-import com.calypsan.listenup.client.features.search.SearchResultsOverlay
 import com.calypsan.listenup.client.features.settings.SettingsScreen
 import com.calypsan.listenup.client.features.setup.LibrarySetupScreen
 import com.calypsan.listenup.client.features.shell.AppShell
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
-import com.calypsan.listenup.client.presentation.search.SearchUiEvent
-import com.calypsan.listenup.client.presentation.search.SearchViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminCategoriesViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
@@ -531,9 +529,6 @@ private fun AuthenticatedNavigation(
                             val libraryViewModel: LibraryViewModel = koinInject()
 
                             // Get search state for overlay
-                            val searchViewModel: SearchViewModel = koinInject()
-                            val searchState by searchViewModel.state.collectAsState()
-
                             AppShell(
                                 currentDestination = currentShellDestination,
                                 onDestinationChange = { currentShellDestination = it },
@@ -546,8 +541,8 @@ private fun AuthenticatedNavigation(
                                 onContributorClick = { contributorId ->
                                     backStack.add(ContributorDetail(contributorId))
                                 },
-                                onLensClick = { lensId ->
-                                    backStack.add(LensDetail(lensId))
+                                onShelfClick = { shelfId ->
+                                    backStack.add(ShelfDetail(shelfId))
                                 },
                                 onTagClick = { tagId ->
                                     backStack.add(TagDetail(tagId))
@@ -573,8 +568,8 @@ private fun AuthenticatedNavigation(
                                     HomeScreen(
                                         onBookClick = { bookId -> backStack.add(BookDetail(bookId)) },
                                         onNavigateToLibrary = onNavigateToLibrary,
-                                        onLensClick = { lensId -> backStack.add(LensDetail(lensId)) },
-                                        onSeeAllLenses = onNavigateToLibrary,
+                                        onShelfClick = { shelfId -> backStack.add(ShelfDetail(shelfId)) },
+                                        onSeeAllShelves = onNavigateToLibrary,
                                         modifier = Modifier.padding(padding),
                                     )
                                 },
@@ -592,25 +587,10 @@ private fun AuthenticatedNavigation(
                                 },
                                 discoverContent = { padding ->
                                     DiscoverScreen(
-                                        onLensClick = { lensId -> backStack.add(LensDetail(lensId)) },
+                                        onShelfClick = { shelfId -> backStack.add(ShelfDetail(shelfId)) },
                                         onBookClick = { bookId -> backStack.add(BookDetail(bookId)) },
                                         onUserProfileClick = { userId -> backStack.add(UserProfile(userId)) },
                                         modifier = Modifier.padding(padding),
-                                    )
-                                },
-                                searchOverlayContent = { padding ->
-                                    SearchResultsOverlay(
-                                        state = searchState,
-                                        onResultClick = { hit ->
-                                            searchViewModel.onEvent(SearchUiEvent.ResultClicked(hit))
-                                        },
-                                        onTypeFilterToggle = { type ->
-                                            searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
-                                        },
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .padding(padding),
                                     )
                                 },
                             )
@@ -641,11 +621,11 @@ private fun AuthenticatedNavigation(
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
                                 },
-                                onLensClick = { lensId ->
-                                    backStack.add(LensDetail(lensId))
+                                onShelfClick = { shelfId ->
+                                    backStack.add(ShelfDetail(shelfId))
                                 },
-                                onCreateLensClick = {
-                                    backStack.add(CreateLens)
+                                onCreateShelfClick = {
+                                    backStack.add(CreateShelf)
                                 },
                                 refreshKey = profileRefreshKey,
                             )
@@ -853,6 +833,9 @@ private fun AuthenticatedNavigation(
                                 onCollectionsClick = {
                                     backStack.add(AdminCollections)
                                 },
+                                onCategoriesClick = {
+                                    backStack.add(AdminCategories)
+                                },
                                 onInboxClick = {
                                     backStack.add(AdminInbox)
                                 },
@@ -862,10 +845,18 @@ private fun AuthenticatedNavigation(
                                 onUserClick = { userId ->
                                     backStack.add(AdminUserDetail(userId))
                                 },
+                                serverName = settingsState.serverName,
+                                onServerNameChange = { settingsViewModel.setServerName(it) },
+                                remoteUrl = settingsState.remoteUrl,
+                                onRemoteUrlChange = { settingsViewModel.setRemoteUrl(it) },
                                 inboxEnabled = settingsState.inboxEnabled,
                                 inboxCount = settingsState.inboxCount,
-                                isTogglingInbox = settingsState.isSaving,
+                                isSaving = settingsState.isSaving,
                                 onInboxEnabledChange = { settingsViewModel.setInboxEnabled(it) },
+                                isDirty = settingsState.isDirty,
+                                onSave = { settingsViewModel.saveAll() },
+                                settingsError = settingsState.error,
+                                onClearSettingsError = { settingsViewModel.clearError() },
                             )
 
                             // Handle disable inbox confirmation dialog
@@ -893,6 +884,15 @@ private fun AuthenticatedNavigation(
                                 },
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
+                                },
+                            )
+                        }
+                        entry<AdminCategories> {
+                            val viewModel: AdminCategoriesViewModel = koinInject()
+                            com.calypsan.listenup.client.features.admin.categories.AdminCategoriesScreen(
+                                viewModel = viewModel,
+                                onBackClick = {
+                                    backStack.removeAt(backStack.lastIndex)
                                 },
                             )
                         }
@@ -1019,36 +1019,39 @@ private fun AuthenticatedNavigation(
                                 onNavigateBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
+                                onNavigateToStorage = {
+                                    backStack.add(Storage)
+                                },
                                 onNavigateToLicenses = {
                                     backStack.add(Licenses)
                                 },
                             )
                         }
-                        entry<LensDetail> { args ->
-                            com.calypsan.listenup.client.features.lens.LensDetailScreen(
-                                lensId = args.lensId,
+                        entry<ShelfDetail> { args ->
+                            com.calypsan.listenup.client.features.shelf.ShelfDetailScreen(
+                                shelfId = args.shelfId,
                                 onBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                                 onBookClick = { bookId ->
                                     backStack.add(BookDetail(bookId))
                                 },
-                                onEditClick = { lensId ->
-                                    backStack.add(LensEdit(lensId))
+                                onEditClick = { shelfId ->
+                                    backStack.add(ShelfEdit(shelfId))
                                 },
                             )
                         }
-                        entry<CreateLens> {
-                            com.calypsan.listenup.client.features.lens.CreateEditLensScreen(
-                                lensId = null,
+                        entry<CreateShelf> {
+                            com.calypsan.listenup.client.features.shelf.CreateEditShelfScreen(
+                                shelfId = null,
                                 onBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
                             )
                         }
-                        entry<LensEdit> { args ->
-                            com.calypsan.listenup.client.features.lens.CreateEditLensScreen(
-                                lensId = args.lensId,
+                        entry<ShelfEdit> { args ->
+                            com.calypsan.listenup.client.features.shelf.CreateEditShelfScreen(
+                                shelfId = args.shelfId,
                                 onBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },
@@ -1056,6 +1059,13 @@ private fun AuthenticatedNavigation(
                         }
                         entry<Licenses> {
                             com.calypsan.listenup.client.features.settings.LicensesScreen(
+                                onNavigateBack = {
+                                    backStack.removeAt(backStack.lastIndex)
+                                },
+                            )
+                        }
+                        entry<Storage> {
+                            com.calypsan.listenup.client.features.settings.StorageScreen(
                                 onNavigateBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },

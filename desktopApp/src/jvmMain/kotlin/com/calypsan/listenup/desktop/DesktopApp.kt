@@ -37,20 +37,24 @@ import com.calypsan.listenup.client.features.admin.collections.AdminCollectionsS
 import com.calypsan.listenup.client.features.admin.inbox.AdminInboxScreen
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminCategoriesViewModel
+import com.calypsan.listenup.client.features.admin.categories.AdminCategoriesScreen
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
+import com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import com.calypsan.listenup.client.presentation.admin.UserDetailViewModel
 import com.calypsan.listenup.client.features.discover.DiscoverScreen
 import com.calypsan.listenup.client.features.home.HomeScreen
+import com.calypsan.listenup.client.features.contributordetail.ContributorBooksScreen
 import com.calypsan.listenup.client.features.contributordetail.ContributorDetailScreen
 import com.calypsan.listenup.client.features.contributoredit.ContributorEditScreen
 import com.calypsan.listenup.client.features.contributormetadata.ContributorMetadataPreviewRoute
 import com.calypsan.listenup.client.features.contributormetadata.ContributorMetadataSearchRoute
-import com.calypsan.listenup.client.features.lens.CreateEditLensScreen
+import com.calypsan.listenup.client.features.shelf.CreateEditShelfScreen
 import com.calypsan.listenup.client.features.metadata.MatchPreviewRoute
 import com.calypsan.listenup.client.features.metadata.MetadataSearchRoute
-import com.calypsan.listenup.client.features.lens.LensDetailScreen
+import com.calypsan.listenup.client.features.shelf.ShelfDetailScreen
 import com.calypsan.listenup.client.features.library.LibraryScreen
 import com.calypsan.listenup.client.features.search.SearchResultsOverlay
 import com.calypsan.listenup.client.features.seriesdetail.SeriesDetailScreen
@@ -90,8 +94,8 @@ sealed interface DetailDestination {
         val contributorId: String,
     ) : DetailDestination
 
-    data class Lens(
-        val lensId: String,
+    data class Shelf(
+        val shelfId: String,
     ) : DetailDestination
 
     data class Tag(
@@ -110,11 +114,11 @@ sealed interface DetailDestination {
         val seriesId: String,
     ) : DetailDestination
 
-    data class LensEdit(
-        val lensId: String,
+    data class ShelfEdit(
+        val shelfId: String,
     ) : DetailDestination
 
-    data object LensCreate : DetailDestination
+    data object ShelfCreate : DetailDestination
 
     data class MetadataSearch(
         val bookId: String,
@@ -138,6 +142,8 @@ sealed interface DetailDestination {
 
     data object Licenses : DetailDestination
 
+    data object Storage : DetailDestination
+
     data object NowPlaying : DetailDestination
 
     data object Admin : DetailDestination
@@ -157,6 +163,13 @@ sealed interface DetailDestination {
     data class UserProfile(
         val userId: String,
     ) : DetailDestination
+
+    data class ContributorBooks(
+        val contributorId: String,
+        val role: String,
+    ) : DetailDestination
+
+    data object AdminCategories : DetailDestination
 
     data object AdminInbox : DetailDestination
 }
@@ -197,11 +210,9 @@ private fun DesktopAuthenticatedNavigation() {
     val authSession: AuthSession = koinInject()
     val libraryResetHelper: LibraryResetHelperContract = koinInject()
     val playerViewModel: DesktopPlayerViewModel = koinInject()
-    val searchViewModel: SearchViewModel = koinInject()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val playerState by playerViewModel.state.collectAsState()
-    val searchState by searchViewModel.state.collectAsState()
 
     var currentDestination by remember { mutableStateOf<ShellDestination>(ShellDestination.Home) }
     val backStack: SnapshotStateList<DetailDestination> =
@@ -229,7 +240,7 @@ private fun DesktopAuthenticatedNavigation() {
                         onBookClick = { navigateTo(DetailDestination.Book(it)) },
                         onSeriesClick = { navigateTo(DetailDestination.Series(it)) },
                         onContributorClick = { navigateTo(DetailDestination.Contributor(it)) },
-                        onLensClick = { navigateTo(DetailDestination.Lens(it)) },
+                        onShelfClick = { navigateTo(DetailDestination.Shelf(it)) },
                         onTagClick = { navigateTo(DetailDestination.Tag(it)) },
                         onAdminClick = { navigateTo(DetailDestination.Admin) },
                         onSettingsClick = {
@@ -249,8 +260,8 @@ private fun DesktopAuthenticatedNavigation() {
                             HomeScreen(
                                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
                                 onNavigateToLibrary = onNavigateToLibrary,
-                                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
-                                onSeeAllLenses = onNavigateToLibrary,
+                                onShelfClick = { navigateTo(DetailDestination.Shelf(it)) },
+                                onSeeAllShelves = onNavigateToLibrary,
                                 modifier = Modifier.padding(padding),
                             )
                         },
@@ -266,25 +277,10 @@ private fun DesktopAuthenticatedNavigation() {
                         },
                         discoverContent = { padding ->
                             DiscoverScreen(
-                                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
+                                onShelfClick = { navigateTo(DetailDestination.Shelf(it)) },
                                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
                                 onUserProfileClick = { navigateTo(DetailDestination.UserProfile(it)) },
                                 modifier = Modifier.padding(padding),
-                            )
-                        },
-                        searchOverlayContent = { padding ->
-                            SearchResultsOverlay(
-                                state = searchState,
-                                onResultClick = { hit ->
-                                    searchViewModel.onEvent(SearchUiEvent.ResultClicked(hit))
-                                },
-                                onTypeFilterToggle = { type ->
-                                    searchViewModel.onEvent(SearchUiEvent.ToggleTypeFilter(type))
-                                },
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .padding(padding),
                             )
                         },
                     )
@@ -360,7 +356,7 @@ private fun DetailScreen(
                 onBackClick = navigateBack,
                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
                 onEditClick = { navigateTo(DetailDestination.ContributorEdit(it)) },
-                onViewAllClick = { id, role -> logger.info { "Contributor books: $id/$role (not yet migrated)" } },
+                onViewAllClick = { id, role -> navigateTo(DetailDestination.ContributorBooks(id, role)) },
                 onMetadataClick = { navigateTo(DetailDestination.ContributorMetadataSearch(it)) },
             )
         }
@@ -373,12 +369,21 @@ private fun DetailScreen(
             )
         }
 
-        is DetailDestination.Lens -> {
-            LensDetailScreen(
-                lensId = destination.lensId,
+        is DetailDestination.ContributorBooks -> {
+            ContributorBooksScreen(
+                contributorId = destination.contributorId,
+                role = destination.role,
+                onBackClick = navigateBack,
+                onBookClick = { navigateTo(DetailDestination.Book(it)) },
+            )
+        }
+
+        is DetailDestination.Shelf -> {
+            ShelfDetailScreen(
+                shelfId = destination.shelfId,
                 onBack = navigateBack,
                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
-                onEditClick = { navigateTo(DetailDestination.LensEdit(it)) },
+                onEditClick = { navigateTo(DetailDestination.ShelfEdit(it)) },
             )
         }
 
@@ -390,16 +395,16 @@ private fun DetailScreen(
             )
         }
 
-        is DetailDestination.LensEdit -> {
-            CreateEditLensScreen(
-                lensId = destination.lensId,
+        is DetailDestination.ShelfEdit -> {
+            CreateEditShelfScreen(
+                shelfId = destination.shelfId,
                 onBack = navigateBack,
             )
         }
 
-        is DetailDestination.LensCreate -> {
-            CreateEditLensScreen(
-                lensId = null,
+        is DetailDestination.ShelfCreate -> {
+            CreateEditShelfScreen(
+                shelfId = null,
                 onBack = navigateBack,
             )
         }
@@ -454,12 +459,19 @@ private fun DetailScreen(
             SettingsScreen(
                 onNavigateBack = navigateBack,
                 showSleepTimer = false,
+                onNavigateToStorage = { navigateTo(DetailDestination.Storage) },
                 onNavigateToLicenses = { navigateTo(DetailDestination.Licenses) },
             )
         }
 
         is DetailDestination.Licenses -> {
             LicensesScreen(
+                onNavigateBack = navigateBack,
+            )
+        }
+
+        is DetailDestination.Storage -> {
+            com.calypsan.listenup.client.features.settings.StorageScreen(
                 onNavigateBack = navigateBack,
             )
         }
@@ -497,14 +509,46 @@ private fun DetailScreen(
 
         is DetailDestination.Admin -> {
             val viewModel: AdminViewModel = koinInject()
+            val settingsViewModel: AdminSettingsViewModel = koinInject()
+            val settingsState by settingsViewModel.state.collectAsState()
+
             AdminScreen(
                 viewModel = viewModel,
                 onBackClick = navigateBack,
                 onInviteClick = { navigateTo(DetailDestination.CreateInvite) },
                 onCollectionsClick = { navigateTo(DetailDestination.AdminCollections) },
+                onCategoriesClick = { navigateTo(DetailDestination.AdminCategories) },
                 onInboxClick = { navigateTo(DetailDestination.AdminInbox) },
                 onUserClick = { navigateTo(DetailDestination.UserDetail(it)) },
+                serverName = settingsState.serverName,
+                onServerNameChange = { settingsViewModel.setServerName(it) },
+                remoteUrl = settingsState.remoteUrl,
+                onRemoteUrlChange = { settingsViewModel.setRemoteUrl(it) },
+                inboxEnabled = settingsState.inboxEnabled,
+                inboxCount = settingsState.inboxCount,
+                isSaving = settingsState.isSaving,
+                onInboxEnabledChange = { settingsViewModel.setInboxEnabled(it) },
+                isDirty = settingsState.isDirty,
+                onSave = { settingsViewModel.saveAll() },
+                settingsError = settingsState.error,
+                onClearSettingsError = { settingsViewModel.clearError() },
             )
+
+            // Handle disable inbox confirmation dialog
+            if (settingsState.showDisableConfirmation) {
+                com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog(
+                    onDismissRequest = { settingsViewModel.cancelDisableInbox() },
+                    title = "Disable Inbox Workflow",
+                    text =
+                        "This will release all ${settingsState.inboxCount} " +
+                            "book${if (settingsState.inboxCount != 1) "s" else ""} " +
+                            "currently in the inbox with their staged collection assignments.\n\n" +
+                            "New books will become immediately visible to users.",
+                    confirmText = "Disable & Release",
+                    onConfirm = { settingsViewModel.confirmDisableInbox() },
+                    onDismiss = { settingsViewModel.cancelDisableInbox() },
+                )
+            }
         }
 
         is DetailDestination.CreateInvite -> {
@@ -541,6 +585,14 @@ private fun DetailScreen(
             )
         }
 
+        is DetailDestination.AdminCategories -> {
+            val viewModel: AdminCategoriesViewModel = koinInject()
+            AdminCategoriesScreen(
+                viewModel = viewModel,
+                onBackClick = navigateBack,
+            )
+        }
+
         is DetailDestination.AdminInbox -> {
             val viewModel: AdminInboxViewModel = koinInject()
             AdminInboxScreen(
@@ -556,8 +608,8 @@ private fun DetailScreen(
                 onBack = navigateBack,
                 onEditClick = { /* Edit profile not implemented on desktop */ },
                 onBookClick = { navigateTo(DetailDestination.Book(it)) },
-                onLensClick = { navigateTo(DetailDestination.Lens(it)) },
-                onCreateLensClick = { navigateTo(DetailDestination.LensCreate) },
+                onShelfClick = { navigateTo(DetailDestination.Shelf(it)) },
+                onCreateShelfClick = { navigateTo(DetailDestination.ShelfCreate) },
             )
         }
     }

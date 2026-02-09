@@ -43,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import com.calypsan.listenup.client.design.components.ListenUpTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -402,25 +403,21 @@ private fun EditProfileContent(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
+        ListenUpTextField(
             value = state.editedFirstName,
             onValueChange = onFirstNameChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("First Name") },
-            placeholder = { Text("Enter your first name") },
-            singleLine = true,
+            label = "First Name",
+            placeholder = "Enter your first name",
             enabled = !state.isSaving,
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
+        ListenUpTextField(
             value = state.editedLastName,
             onValueChange = onLastNameChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Last Name") },
-            placeholder = { Text("Enter your last name") },
-            singleLine = true,
+            label = "Last Name",
+            placeholder = "Enter your last name",
             enabled = !state.isSaving,
         )
 

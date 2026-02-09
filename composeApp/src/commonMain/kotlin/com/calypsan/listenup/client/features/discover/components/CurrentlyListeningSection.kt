@@ -39,7 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.collectAsState
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.ProfileAvatar
 import com.calypsan.listenup.client.presentation.discover.CurrentlyListeningUiSession
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
@@ -131,6 +131,7 @@ private fun CurrentlyListeningCard(
     ) {
         // Cover with avatar overlay
         CoverWithAvatarOverlay(
+            bookId = session.bookId,
             coverPath = session.coverPath,
             blurHash = session.coverBlurHash,
             contentDescription = session.bookTitle,
@@ -178,6 +179,7 @@ private fun CurrentlyListeningCard(
  */
 @Composable
 private fun CoverWithAvatarOverlay(
+    bookId: String,
     coverPath: String?,
     blurHash: String?,
     contentDescription: String?,
@@ -203,8 +205,9 @@ private fun CoverWithAvatarOverlay(
         ) {
             // Cover image
             if (coverPath != null || blurHash != null) {
-                ListenUpAsyncImage(
-                    path = coverPath,
+                BookCoverImage(
+                    bookId = bookId,
+                    coverPath = coverPath,
                     blurHash = blurHash,
                     contentDescription = contentDescription,
                     modifier = Modifier.fillMaxSize(),

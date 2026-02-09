@@ -6,9 +6,9 @@ import com.calypsan.listenup.client.core.Success
 import com.calypsan.listenup.client.core.suspendRunCatching
 import com.calypsan.listenup.client.data.remote.ProfileApiContract
 import com.calypsan.listenup.client.data.remote.model.FullProfileResponse
-import com.calypsan.listenup.client.data.remote.model.LensSummaryResponse
+import com.calypsan.listenup.client.data.remote.model.ShelfSummaryResponse
 import com.calypsan.listenup.client.data.remote.model.RecentBookResponse
-import com.calypsan.listenup.client.domain.model.ProfileLensSummary
+import com.calypsan.listenup.client.domain.model.ProfileShelfSummary
 import com.calypsan.listenup.client.domain.model.ProfileRecentBook
 import com.calypsan.listenup.client.domain.model.UserProfile
 import com.calypsan.listenup.client.domain.repository.ProfileRepository
@@ -52,7 +52,7 @@ private fun FullProfileResponse.toDomain(): UserProfile =
         currentStreak = currentStreak,
         longestStreak = longestStreak,
         recentBooks = recentBooks.map { it.toDomain() },
-        publicLenses = publicLenses.map { it.toDomain() },
+        publicShelves = publicShelves.map { it.toDomain() },
     )
 
 /**
@@ -66,10 +66,10 @@ private fun RecentBookResponse.toDomain(): ProfileRecentBook =
     )
 
 /**
- * Convert LensSummaryResponse to ProfileLensSummary domain model.
+ * Convert ShelfSummaryResponse to ProfileShelfSummary domain model.
  */
-private fun LensSummaryResponse.toDomain(): ProfileLensSummary =
-    ProfileLensSummary(
+private fun ShelfSummaryResponse.toDomain(): ProfileShelfSummary =
+    ProfileShelfSummary(
         id = id,
         name = name,
         bookCount = bookCount,

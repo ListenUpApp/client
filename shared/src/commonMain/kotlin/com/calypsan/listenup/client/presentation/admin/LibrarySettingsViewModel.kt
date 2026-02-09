@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.domain.model.AccessMode
 import com.calypsan.listenup.client.domain.model.Library
+import com.calypsan.listenup.client.data.remote.DirectoryEntryResponse
 import com.calypsan.listenup.client.domain.repository.AdminRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -139,6 +140,134 @@ class LibrarySettingsViewModel(
     }
 
     /**
+     * Remove a scan path from the library.
+     */
+    fun removeScanPath(path: String) {
+        viewModelScope.launch {
+            state.value = state.value.copy(isSaving = true)
+
+            try {
+                val updatedLibrary = adminRepository.removeScanPath(libraryId, path)
+                logger.info { "Removed scan path from library $libraryId: $path" }
+                state.value =
+                    state.value.copy(
+                        isSaving = false,
+                        library = updatedLibrary,
+                    )
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to remove scan path from library: $libraryId" }
+                state.value =
+                    state.value.copy(
+                        isSaving = false,
+                        error = e.message ?: "Failed to remove scan path",
+                    )
+            }
+        }
+    }
+
+    /**
+     * Add a scan path to the library.
+     */
+    fun addScanPath(path: String) {
+        viewModelScope.launch {
+            state.value = state.value.copy(isSaving = true, showFolderBrowser = false)
+
+            try {
+                val updatedLibrary = adminRepository.addScanPath(libraryId, path)
+                logger.info { "Added scan path to library $libraryId: $path" }
+                state.value =
+                    state.value.copy(
+                        isSaving = false,
+                        library = updatedLibrary,
+                    )
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to add scan path to library: $libraryId" }
+                state.value =
+                    state.value.copy(
+                        isSaving = false,
+                        error = e.message ?: "Failed to add scan path",
+                    )
+            }
+        }
+    }
+
+    /**
+     * Trigger a manual library rescan.
+     */
+    fun triggerScan() {
+        viewModelScope.launch {
+            state.value = state.value.copy(isScanning = true)
+
+            try {
+                adminRepository.triggerScan(libraryId)
+                logger.info { "Triggered scan for library $libraryId" }
+                state.value = state.value.copy(isScanning = false)
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to trigger scan for library: $libraryId" }
+                state.value =
+                    state.value.copy(
+                        isScanning = false,
+                        error = e.message ?: "Failed to trigger scan",
+                    )
+            }
+        }
+    }
+
+    /**
+     * Show or hide the folder browser for adding paths.
+     */
+    fun setShowFolderBrowser(show: Boolean) {
+        state.value =
+            state.value.copy(
+                showFolderBrowser = show,
+                browserPath = "/",
+                browserEntries = emptyList(),
+                browserParent = null,
+            )
+        if (show) {
+            loadBrowserDirectory("/")
+        }
+    }
+
+    /**
+     * Load directory contents in the folder browser.
+     */
+    fun loadBrowserDirectory(path: String) {
+        viewModelScope.launch {
+            state.value = state.value.copy(isBrowserLoading = true)
+
+            try {
+                val response = adminRepository.browseFilesystem(path)
+                state.value =
+                    state.value.copy(
+                        isBrowserLoading = false,
+                        browserPath = response.path,
+                        browserParent = response.parent,
+                        browserEntries = response.entries,
+                        browserIsRoot = response.isRoot,
+                    )
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to browse directory: $path" }
+                state.value =
+                    state.value.copy(
+                        isBrowserLoading = false,
+                        error = e.message ?: "Failed to browse directory",
+                    )
+            }
+        }
+    }
+
+    /**
+     * Navigate up in the folder browser.
+     */
+    fun browserNavigateUp() {
+        val parent = state.value.browserParent
+        if (parent != null) {
+            loadBrowserDirectory(parent)
+        }
+    }
+
+    /**
      * Clear the error state.
      */
     fun clearError() {
@@ -155,5 +284,13 @@ data class LibrarySettingsUiState(
     val accessMode: AccessMode = AccessMode.OPEN,
     val skipInbox: Boolean = false,
     val isSaving: Boolean = false,
+    val isScanning: Boolean = false,
     val error: String? = null,
+    // Folder browser state
+    val showFolderBrowser: Boolean = false,
+    val isBrowserLoading: Boolean = false,
+    val browserPath: String = "/",
+    val browserParent: String? = null,
+    val browserEntries: List<DirectoryEntryResponse> = emptyList(),
+    val browserIsRoot: Boolean = true,
 )

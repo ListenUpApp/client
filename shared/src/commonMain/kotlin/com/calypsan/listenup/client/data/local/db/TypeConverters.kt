@@ -143,7 +143,8 @@ class PendingOperationConverters {
     fun fromOperationType(value: OperationType): Int = value.ordinal
 
     @TypeConverter
-    fun toOperationType(value: Int): OperationType = OperationType.entries[value]
+    fun toOperationType(value: Int): OperationType =
+        OperationType.entries.getOrElse(value) { OperationType.BOOK_UPDATE }
 
     @TypeConverter
     fun fromNullableEntityType(value: EntityType?): Int? = value?.ordinal
@@ -156,4 +157,15 @@ class PendingOperationConverters {
 
     @TypeConverter
     fun toOperationStatus(value: Int): OperationStatus = OperationStatus.entries[value]
+}
+
+/**
+ * Room type converter for List<String> stored as JSON.
+ */
+class StringListConverter {
+    @TypeConverter
+    fun fromStringList(value: List<String>): String = value.joinToString(separator = "|||")
+
+    @TypeConverter
+    fun toStringList(value: String): List<String> = if (value.isEmpty()) emptyList() else value.split("|||")
 }

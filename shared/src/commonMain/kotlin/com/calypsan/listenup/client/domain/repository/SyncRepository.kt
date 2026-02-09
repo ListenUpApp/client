@@ -1,6 +1,7 @@
 package com.calypsan.listenup.client.domain.repository
 
 import com.calypsan.listenup.client.core.Result
+import com.calypsan.listenup.client.data.sync.sse.ScanProgressState
 import com.calypsan.listenup.client.domain.model.SyncState
 import kotlinx.coroutines.flow.StateFlow
 
@@ -37,6 +38,7 @@ interface SyncRepository {
      * during initial library setup.
      */
     val isServerScanning: StateFlow<Boolean>
+    val scanProgress: StateFlow<ScanProgressState?>
 
     /**
      * Trigger a full library sync with the server.

@@ -5,6 +5,7 @@ import com.calypsan.listenup.client.core.currentEpochMilliseconds
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.ContributorDao
 import com.calypsan.listenup.client.data.local.db.EntityType
+import com.calypsan.listenup.client.data.local.db.ShelfDao
 import com.calypsan.listenup.client.data.local.db.OperationStatus
 import com.calypsan.listenup.client.data.local.db.OperationType
 import com.calypsan.listenup.client.data.local.db.PendingOperationDao
@@ -120,6 +121,7 @@ class PendingOperationRepository(
     private val bookDao: BookDao,
     private val contributorDao: ContributorDao,
     private val seriesDao: SeriesDao,
+    private val shelfDao: ShelfDao,
 ) : PendingOperationRepositoryContract {
     private val _newOperationQueued = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     override val newOperationQueued: Flow<Unit> = _newOperationQueued.asSharedFlow()
@@ -269,6 +271,15 @@ class PendingOperationRepository(
                     seriesDao.getById(id)?.let { series ->
                         seriesDao.upsert(series.copy(syncState = SyncState.NOT_SYNCED))
                     }
+                }
+            }
+
+            EntityType.SHELF -> {
+                operation.entityId?.let { id ->
+                    shelfDao
+                        .getById(
+                            id,
+                        )?.let { shelf -> shelfDao.upsert(shelf.copy(syncState = SyncState.NOT_SYNCED)) }
                 }
             }
 

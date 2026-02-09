@@ -13,6 +13,7 @@ import com.calypsan.listenup.client.presentation.library.LibraryActionsViewModel
 import com.calypsan.listenup.client.presentation.library.LibrarySelectionManager
 import com.calypsan.listenup.client.presentation.library.LibraryViewModel
 import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
+import com.calypsan.listenup.client.presentation.storage.StorageViewModel
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorViewModel
 import org.koin.dsl.module
 
@@ -94,6 +95,8 @@ val adminPresentationModule =
             com.calypsan.listenup.client.presentation.admin.AdminSettingsViewModel(
                 loadServerSettingsUseCase = get(),
                 updateServerSettingsUseCase = get(),
+                instanceRepository = get(),
+                adminRepository = get(),
             )
         }
         factory {
@@ -110,6 +113,11 @@ val adminPresentationModule =
                 collectionRepository = get(),
                 createCollectionUseCase = get(),
                 deleteCollectionUseCase = get(),
+            )
+        }
+        factory {
+            com.calypsan.listenup.client.presentation.admin.AdminCategoriesViewModel(
+                genreRepository = get(),
             )
         }
         // AdminCollectionDetailViewModel - takes collectionId as parameter
@@ -204,11 +212,11 @@ val libraryPresentationModule =
                 selectionManager = get(),
                 userRepository = get(),
                 collectionRepository = get(),
-                lensRepository = get(),
+                shelfRepository = get(),
                 addBooksToCollectionUseCase = get(),
                 refreshCollectionsUseCase = get(),
-                addBooksToLensUseCase = get(),
-                createLensUseCase = get(),
+                addBooksToShelfUseCase = get(),
+                createShelfUseCase = get(),
             )
         }
 
@@ -231,9 +239,9 @@ val bookPresentationModule =
                 tagRepository = get(),
                 playbackPositionRepository = get(),
                 userRepository = get(),
-                lensRepository = get(),
-                addBooksToLensUseCase = get(),
-                createLensUseCase = get(),
+                shelfRepository = get(),
+                addBooksToShelfUseCase = get(),
+                createShelfUseCase = get(),
             )
         }
         factory {
@@ -325,7 +333,8 @@ val discoverPresentationModule =
             com.calypsan.listenup.client.presentation.home.HomeViewModel(
                 homeRepository = get(),
                 userRepository = get(),
-                lensRepository = get(),
+                shelfRepository = get(),
+                syncRepository = get(),
             )
         }
         // HomeStatsViewModel for home screen stats section (observes local stats)
@@ -335,7 +344,7 @@ val discoverPresentationModule =
                 bookRepository = get(),
                 activeSessionRepository = get(),
                 authSession = get(),
-                lensRepository = get(),
+                shelfRepository = get(),
             )
         }
         // LeaderboardViewModel for discover screen leaderboard
@@ -345,9 +354,9 @@ val discoverPresentationModule =
     }
 
 /**
- * Tag and lens ViewModels.
+ * Tag and shelf ViewModels.
  */
-val tagLensPresentationModule =
+val tagShelfPresentationModule =
     module {
         factory {
             com.calypsan.listenup.client.presentation.tagdetail.TagDetailViewModel(
@@ -356,18 +365,18 @@ val tagLensPresentationModule =
             )
         }
         factory {
-            com.calypsan.listenup.client.presentation.lens.LensDetailViewModel(
-                loadLensDetailUseCase = get(),
-                removeBookFromLensUseCase = get(),
+            com.calypsan.listenup.client.presentation.shelf.ShelfDetailViewModel(
+                loadShelfDetailUseCase = get(),
+                removeBookFromShelfUseCase = get(),
                 userRepository = get(),
             )
         }
         factory {
-            com.calypsan.listenup.client.presentation.lens.CreateEditLensViewModel(
-                createLensUseCase = get(),
-                updateLensUseCase = get(),
-                deleteLensUseCase = get(),
-                lensRepository = get(),
+            com.calypsan.listenup.client.presentation.shelf.CreateEditShelfViewModel(
+                createShelfUseCase = get(),
+                updateShelfUseCase = get(),
+                deleteShelfUseCase = get(),
+                shelfRepository = get(),
             )
         }
     }
@@ -413,6 +422,15 @@ val settingsPresentationModule =
         }
         // SyncIndicatorViewModel as singleton for app-wide sync status
         single { SyncIndicatorViewModel(pendingOperationRepository = get()) }
+        // StorageViewModel for storage management screen
+        factory {
+            StorageViewModel(
+                downloadDao = get(),
+                bookDao = get(),
+                downloadService = get(),
+                downloadFileManager = get(),
+            )
+        }
     }
 
 /**
@@ -427,7 +445,7 @@ val allPresentationModules =
         seriesPresentationModule,
         contributorPresentationModule,
         discoverPresentationModule,
-        tagLensPresentationModule,
+        tagShelfPresentationModule,
         profilePresentationModule,
         settingsPresentationModule,
     )

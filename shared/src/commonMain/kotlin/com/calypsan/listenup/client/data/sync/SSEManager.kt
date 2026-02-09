@@ -22,12 +22,13 @@ import com.calypsan.listenup.client.data.remote.model.SSEEvent
 import com.calypsan.listenup.client.data.remote.model.SSEInboxBookAddedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEInboxBookReleasedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryAccessModeChangedEvent
-import com.calypsan.listenup.client.data.remote.model.SSELensBookAddedEvent
-import com.calypsan.listenup.client.data.remote.model.SSELensBookRemovedEvent
-import com.calypsan.listenup.client.data.remote.model.SSELensCreatedEvent
-import com.calypsan.listenup.client.data.remote.model.SSELensDeletedEvent
-import com.calypsan.listenup.client.data.remote.model.SSELensUpdatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEShelfBookAddedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEShelfBookRemovedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEShelfCreatedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEShelfDeletedEvent
+import com.calypsan.listenup.client.data.remote.model.SSEShelfUpdatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanCompletedEvent
+import com.calypsan.listenup.client.data.remote.model.SSELibraryScanProgressEvent
 import com.calypsan.listenup.client.data.remote.model.SSELibraryScanStartedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEListeningEventCreatedEvent
 import com.calypsan.listenup.client.data.remote.model.SSEProfileUpdatedEvent
@@ -48,7 +49,7 @@ import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.readUTF8Line
+import io.ktor.utils.io.readLine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -264,7 +265,7 @@ class SSEManager(
         var currentEventType: String? = null
 
         while (!channel.isClosedForRead) {
-            val line = channel.readUTF8Line() ?: break
+            val line = channel.readLine() ?: break
 
             when {
                 line.isEmpty() -> {
@@ -353,6 +354,23 @@ class SSEManager(
                         )
                     }
 
+                    "library.scan_progress" -> {
+                        val progressEvent =
+                            json.decodeFromJsonElement(
+                                SSELibraryScanProgressEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ScanProgress(
+                            libraryId = progressEvent.libraryId,
+                            phase = progressEvent.phase,
+                            current = progressEvent.current,
+                            total = progressEvent.total,
+                            added = progressEvent.added,
+                            updated = progressEvent.updated,
+                            removed = progressEvent.removed,
+                        )
+                    }
+
                     "library.access_mode_changed" -> {
                         val event =
                             json.decodeFromJsonElement(
@@ -437,61 +455,65 @@ class SSEManager(
                         )
                     }
 
-                    "lens.created" -> {
-                        val lensEvent = json.decodeFromJsonElement(SSELensCreatedEvent.serializer(), sseEvent.data)
-                        SSEEventType.LensCreated(
-                            id = lensEvent.id,
-                            ownerId = lensEvent.ownerId,
-                            name = lensEvent.name,
-                            description = lensEvent.description,
-                            bookCount = lensEvent.bookCount,
-                            ownerDisplayName = lensEvent.ownerDisplayName,
-                            ownerAvatarColor = lensEvent.ownerAvatarColor,
-                            createdAt = lensEvent.createdAt,
-                            updatedAt = lensEvent.updatedAt,
+                    "shelf.created" -> {
+                        val shelfEvent = json.decodeFromJsonElement(SSEShelfCreatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.ShelfCreated(
+                            id = shelfEvent.id,
+                            ownerId = shelfEvent.ownerId,
+                            name = shelfEvent.name,
+                            description = shelfEvent.description,
+                            bookCount = shelfEvent.bookCount,
+                            ownerDisplayName = shelfEvent.ownerDisplayName,
+                            ownerAvatarColor = shelfEvent.ownerAvatarColor,
+                            createdAt = shelfEvent.createdAt,
+                            updatedAt = shelfEvent.updatedAt,
                         )
                     }
 
-                    "lens.updated" -> {
-                        val lensEvent = json.decodeFromJsonElement(SSELensUpdatedEvent.serializer(), sseEvent.data)
-                        SSEEventType.LensUpdated(
-                            id = lensEvent.id,
-                            ownerId = lensEvent.ownerId,
-                            name = lensEvent.name,
-                            description = lensEvent.description,
-                            bookCount = lensEvent.bookCount,
-                            ownerDisplayName = lensEvent.ownerDisplayName,
-                            ownerAvatarColor = lensEvent.ownerAvatarColor,
-                            createdAt = lensEvent.createdAt,
-                            updatedAt = lensEvent.updatedAt,
+                    "shelf.updated" -> {
+                        val shelfEvent = json.decodeFromJsonElement(SSEShelfUpdatedEvent.serializer(), sseEvent.data)
+                        SSEEventType.ShelfUpdated(
+                            id = shelfEvent.id,
+                            ownerId = shelfEvent.ownerId,
+                            name = shelfEvent.name,
+                            description = shelfEvent.description,
+                            bookCount = shelfEvent.bookCount,
+                            ownerDisplayName = shelfEvent.ownerDisplayName,
+                            ownerAvatarColor = shelfEvent.ownerAvatarColor,
+                            createdAt = shelfEvent.createdAt,
+                            updatedAt = shelfEvent.updatedAt,
                         )
                     }
 
-                    "lens.deleted" -> {
-                        val lensEvent = json.decodeFromJsonElement(SSELensDeletedEvent.serializer(), sseEvent.data)
-                        SSEEventType.LensDeleted(
-                            id = lensEvent.id,
-                            ownerId = lensEvent.ownerId,
+                    "shelf.deleted" -> {
+                        val shelfEvent = json.decodeFromJsonElement(SSEShelfDeletedEvent.serializer(), sseEvent.data)
+                        SSEEventType.ShelfDeleted(
+                            id = shelfEvent.id,
+                            ownerId = shelfEvent.ownerId,
                         )
                     }
 
-                    "lens.book_added" -> {
-                        val lensEvent = json.decodeFromJsonElement(SSELensBookAddedEvent.serializer(), sseEvent.data)
-                        SSEEventType.LensBookAdded(
-                            lensId = lensEvent.lensId,
-                            ownerId = lensEvent.ownerId,
-                            bookId = lensEvent.bookId,
-                            bookCount = lensEvent.bookCount,
+                    "shelf.book_added" -> {
+                        val shelfEvent = json.decodeFromJsonElement(SSEShelfBookAddedEvent.serializer(), sseEvent.data)
+                        SSEEventType.ShelfBookAdded(
+                            shelfId = shelfEvent.shelfId,
+                            ownerId = shelfEvent.ownerId,
+                            bookId = shelfEvent.bookId,
+                            bookCount = shelfEvent.bookCount,
                         )
                     }
 
-                    "lens.book_removed" -> {
-                        val lensEvent = json.decodeFromJsonElement(SSELensBookRemovedEvent.serializer(), sseEvent.data)
-                        SSEEventType.LensBookRemoved(
-                            lensId = lensEvent.lensId,
-                            ownerId = lensEvent.ownerId,
-                            bookId = lensEvent.bookId,
-                            bookCount = lensEvent.bookCount,
+                    "shelf.book_removed" -> {
+                        val shelfEvent =
+                            json.decodeFromJsonElement(
+                                SSEShelfBookRemovedEvent.serializer(),
+                                sseEvent.data,
+                            )
+                        SSEEventType.ShelfBookRemoved(
+                            shelfId = shelfEvent.shelfId,
+                            ownerId = shelfEvent.ownerId,
+                            bookId = shelfEvent.bookId,
+                            bookCount = shelfEvent.bookCount,
                         )
                     }
 
@@ -627,8 +649,8 @@ class SSEManager(
                             durationMs = activityEvent.durationMs,
                             milestoneValue = activityEvent.milestoneValue,
                             milestoneUnit = activityEvent.milestoneUnit,
-                            lensId = activityEvent.lensId,
-                            lensName = activityEvent.lensName,
+                            shelfId = activityEvent.shelfId,
+                            shelfName = activityEvent.shelfName,
                         )
                     }
 
@@ -736,6 +758,20 @@ sealed interface SSEEventType {
     ) : SSEEventType
 
     /**
+     * Library scan progress update.
+     * Contains current phase, progress counts, and change counts.
+     */
+    data class ScanProgress(
+        val libraryId: String,
+        val phase: String,
+        val current: Int,
+        val total: Int,
+        val added: Int,
+        val updated: Int,
+        val removed: Int,
+    ) : SSEEventType
+
+    /**
      * Admin-only: Library access mode was changed.
      * Clients should refresh their book lists as visibility may have changed.
      */
@@ -821,12 +857,12 @@ sealed interface SSEEventType {
         val bookId: String,
     ) : SSEEventType
 
-    // Lens events
+    // Shelf events
 
     /**
-     * A new lens was created.
+     * A new shelf was created.
      */
-    data class LensCreated(
+    data class ShelfCreated(
         val id: String,
         val ownerId: String,
         val name: String,
@@ -839,9 +875,9 @@ sealed interface SSEEventType {
     ) : SSEEventType
 
     /**
-     * An existing lens was updated.
+     * An existing shelf was updated.
      */
-    data class LensUpdated(
+    data class ShelfUpdated(
         val id: String,
         val ownerId: String,
         val name: String,
@@ -854,28 +890,28 @@ sealed interface SSEEventType {
     ) : SSEEventType
 
     /**
-     * A lens was deleted.
+     * A shelf was deleted.
      */
-    data class LensDeleted(
+    data class ShelfDeleted(
         val id: String,
         val ownerId: String,
     ) : SSEEventType
 
     /**
-     * A book was added to a lens.
+     * A book was added to a shelf.
      */
-    data class LensBookAdded(
-        val lensId: String,
+    data class ShelfBookAdded(
+        val shelfId: String,
         val ownerId: String,
         val bookId: String,
         val bookCount: Int,
     ) : SSEEventType
 
     /**
-     * A book was removed from a lens.
+     * A book was removed from a shelf.
      */
-    data class LensBookRemoved(
-        val lensId: String,
+    data class ShelfBookRemoved(
+        val shelfId: String,
         val ownerId: String,
         val bookId: String,
         val bookCount: Int,
@@ -983,7 +1019,7 @@ sealed interface SSEEventType {
     // Activity events
 
     /**
-     * A new activity was created (started book, finished book, milestone, listening session, lens created, etc.).
+     * A new activity was created (started book, finished book, milestone, listening session, shelf created, etc.).
      * Used for real-time activity feed updates.
      */
     data class ActivityCreated(
@@ -1003,8 +1039,8 @@ sealed interface SSEEventType {
         val durationMs: Long = 0,
         val milestoneValue: Int = 0,
         val milestoneUnit: String? = null,
-        val lensId: String? = null,
-        val lensName: String? = null,
+        val shelfId: String? = null,
+        val shelfName: String? = null,
     ) : SSEEventType
 
     // Profile events

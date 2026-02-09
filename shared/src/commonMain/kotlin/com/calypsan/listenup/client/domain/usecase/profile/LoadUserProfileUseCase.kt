@@ -11,7 +11,7 @@ private val logger = KotlinLogging.logger {}
  * Loads a user's public profile.
  *
  * Retrieves the complete profile data including stats, recent activity,
- * and public lenses. Used for viewing other users' profiles.
+ * and public shelves. Used for viewing other users' profiles.
  *
  * Usage:
  * ```kotlin

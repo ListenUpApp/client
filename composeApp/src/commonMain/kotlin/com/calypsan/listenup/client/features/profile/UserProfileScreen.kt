@@ -64,7 +64,7 @@ import coil3.request.ImageRequest
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.getInitials
-import com.calypsan.listenup.client.domain.model.ProfileLensSummary
+import com.calypsan.listenup.client.domain.model.ProfileShelfSummary
 import com.calypsan.listenup.client.domain.model.ProfileRecentBook
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.presentation.profile.UserProfileUiState
@@ -80,14 +80,14 @@ import org.koin.compose.viewmodel.koinViewModel
  * - Display name and tagline
  * - Listening stats in card format
  * - Recent finished books carousel
- * - Public lenses list
+ * - Public shelves list
  * - Edit button if viewing own profile
  *
  * @param userId The ID of the user to display
  * @param onBack Callback when back button is clicked
  * @param onEditClick Callback when edit button is clicked (own profile only)
  * @param onBookClick Callback when a book is clicked
- * @param onLensClick Callback when a lens is clicked
+ * @param onShelfClick Callback when a shelf is clicked
  * @param viewModel The ViewModel for profile data
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,8 +97,8 @@ fun UserProfileScreen(
     onBack: () -> Unit,
     onEditClick: () -> Unit,
     onBookClick: (String) -> Unit,
-    onLensClick: (String) -> Unit,
-    onCreateLensClick: () -> Unit,
+    onShelfClick: (String) -> Unit,
+    onCreateShelfClick: () -> Unit,
     refreshKey: Int = 0,
     modifier: Modifier = Modifier,
     viewModel: UserProfileViewModel = koinViewModel(),
@@ -165,8 +165,8 @@ fun UserProfileScreen(
                         state = state,
                         formatListenTime = viewModel::formatListenTime,
                         onBookClick = onBookClick,
-                        onLensClick = onLensClick,
-                        onCreateLensClick = onCreateLensClick,
+                        onShelfClick = onShelfClick,
+                        onCreateShelfClick = onCreateShelfClick,
                     )
                 }
             }
@@ -179,8 +179,8 @@ private fun ProfileContent(
     state: UserProfileUiState,
     formatListenTime: (Long) -> String,
     onBookClick: (String) -> Unit,
-    onLensClick: (String) -> Unit,
-    onCreateLensClick: () -> Unit,
+    onShelfClick: (String) -> Unit,
+    onCreateShelfClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -227,26 +227,26 @@ private fun ProfileContent(
             }
         }
 
-        // Public lenses section (show for own profile even if empty, to allow creating lenses)
-        if (state.publicLenses.isNotEmpty() || state.isOwnProfile) {
+        // Public shelves section (show for own profile even if empty, to allow creating shelves)
+        if (state.publicShelves.isNotEmpty() || state.isOwnProfile) {
             item {
                 Spacer(modifier = Modifier.height(32.dp))
-                LensesSectionHeader(
+                ShelvesSectionHeader(
                     showAddButton = state.isOwnProfile,
-                    onAddClick = onCreateLensClick,
+                    onAddClick = onCreateShelfClick,
                 )
             }
-            if (state.publicLenses.isNotEmpty()) {
-                items(state.publicLenses) { lens ->
-                    LensItem(
-                        lens = lens,
-                        onClick = { onLensClick(lens.id) },
+            if (state.publicShelves.isNotEmpty()) {
+                items(state.publicShelves) { shelf ->
+                    ShelfItem(
+                        shelf = shelf,
+                        onClick = { onShelfClick(shelf.id) },
                     )
                 }
             } else {
                 item {
                     Text(
-                        text = "No lenses yet. Create one to curate your favorite books!",
+                        text = "No shelves yet. Create one to curate your favorite books!",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -474,7 +474,7 @@ private fun SectionHeader(
 }
 
 @Composable
-private fun LensesSectionHeader(
+private fun ShelvesSectionHeader(
     showAddButton: Boolean,
     onAddClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -488,7 +488,7 @@ private fun LensesSectionHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Lenses",
+            text = "Shelves",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
         )
@@ -496,7 +496,7 @@ private fun LensesSectionHeader(
             IconButton(onClick = onAddClick) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Create lens",
+                    contentDescription = "Create shelf",
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }
@@ -583,8 +583,8 @@ private fun RecentBookCard(
 }
 
 @Composable
-private fun LensItem(
-    lens: ProfileLensSummary,
+private fun ShelfItem(
+    shelf: ProfileShelfSummary,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -606,12 +606,12 @@ private fun LensItem(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = lens.name,
+                    text = shelf.name,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    text = "${lens.bookCount} books",
+                    text = "${shelf.bookCount} books",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -175,6 +175,7 @@ val playbackModule =
             PlayerViewModel(
                 playbackManager = get(),
                 mediaControllerHolder = get(),
+                networkMonitor = get(),
             )
         }
 
@@ -222,6 +223,7 @@ val downloadModule =
                 playerViewModel = get(),
                 localPreferences = get(),
                 networkMonitor = get(),
+                playbackManager = get(),
             )
         }
     }
@@ -299,15 +301,27 @@ class ListenUp :
      * try to use them. Issues are logged with clear error messages.
      */
     private fun verifyCriticalKoinBindings() {
-        val criticalTypes =
+        val criticalTypes: List<Pair<String, () -> Unit>> =
             listOf(
-                "ServerConfig" to { get<com.calypsan.listenup.client.domain.repository.ServerConfig>() },
-                "AuthSession" to { get<com.calypsan.listenup.client.domain.repository.AuthSession>() },
-                "SyncManager" to { get<com.calypsan.listenup.client.data.sync.SyncManagerContract>() },
-                "ProgressTracker" to { get<ProgressTracker>() },
-                "PlaybackManager" to { get<PlaybackManager>() },
+                "ServerConfig" to {
+                    get<com.calypsan.listenup.client.domain.repository.ServerConfig>()
+                },
+                "AuthSession" to {
+                    get<com.calypsan.listenup.client.domain.repository.AuthSession>()
+                },
+                "SyncManager" to {
+                    get<com.calypsan.listenup.client.data.sync.SyncManagerContract>()
+                },
+                "ProgressTracker" to {
+                    get<ProgressTracker>()
+                },
+                "PlaybackManager" to {
+                    get<PlaybackManager>()
+                },
                 "PushSyncOrchestrator" to
-                    { get<com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract>() },
+                    {
+                        get<com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract>()
+                    },
             )
 
         criticalTypes.forEach { (name, resolver) ->

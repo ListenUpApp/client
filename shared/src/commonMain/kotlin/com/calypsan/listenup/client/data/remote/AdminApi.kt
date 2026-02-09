@@ -8,6 +8,7 @@ import com.calypsan.listenup.client.core.exceptionOrFromMessage
 import com.calypsan.listenup.client.data.remote.model.ApiResponse
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
+import io.ktor.http.encodeURLPath
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
@@ -21,6 +22,7 @@ import kotlinx.serialization.Serializable
  * Contract for admin API operations.
  * All methods require authentication as an admin user.
  */
+@Suppress("TooManyFunctions")
 interface AdminApiContract {
     // User management
     suspend fun getUsers(): List<AdminUser>
@@ -56,6 +58,9 @@ interface AdminApiContract {
 
     suspend fun updateServerSettings(request: ServerSettingsRequest): ServerSettingsResponse
 
+    // Instance settings
+    suspend fun updateInstance(request: UpdateInstanceRequest): InstanceSettingsResponse
+
     // Inbox management
     suspend fun listInboxBooks(): InboxBooksResponse
 
@@ -80,6 +85,23 @@ interface AdminApiContract {
         libraryId: String,
         request: UpdateLibraryRequest,
     ): LibraryResponse
+
+    // Scan path management
+    suspend fun addScanPath(
+        libraryId: String,
+        path: String,
+    ): LibraryResponse
+
+    suspend fun removeScanPath(
+        libraryId: String,
+        path: String,
+    ): LibraryResponse
+
+    // Manual scan trigger
+    suspend fun triggerScan(libraryId: String)
+
+    // Filesystem browsing (reused from setup)
+    suspend fun browseFilesystem(path: String): BrowseFilesystemResponse
 }
 
 /**
@@ -273,6 +295,22 @@ class AdminApi(
         }
     }
 
+    // Instance Management
+
+    override suspend fun updateInstance(request: UpdateInstanceRequest): InstanceSettingsResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<InstanceSettingsResponse> =
+            client
+                .patch("/api/v1/admin/instance") {
+                    setBody(request)
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
+
     // Inbox Management
 
     override suspend fun listInboxBooks(): InboxBooksResponse {
@@ -372,6 +410,74 @@ class AdminApi(
             client
                 .patch("/api/v1/libraries/$libraryId") {
                     setBody(request)
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
+
+    // Scan Path Management
+
+    override suspend fun addScanPath(
+        libraryId: String,
+        path: String,
+    ): LibraryResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<LibraryResponse> =
+            client
+                .post("/api/v1/libraries/$libraryId/scan-paths") {
+                    setBody(ScanPathRequest(path))
+                }.body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
+
+    override suspend fun removeScanPath(
+        libraryId: String,
+        path: String,
+    ): LibraryResponse {
+        val client = clientFactory.getClient()
+        val encodedPath = path.encodeURLPath()
+        val response: ApiResponse<LibraryResponse> =
+            client
+                .delete("/api/v1/libraries/$libraryId/scan-paths/$encodedPath")
+                .body()
+
+        return when (val result = response.toResult()) {
+            is Success -> result.data
+            is Failure -> throw result.exceptionOrFromMessage()
+        }
+    }
+
+    override suspend fun triggerScan(libraryId: String) {
+        val client = clientFactory.getClient()
+        val response = client.post("/api/v1/libraries/$libraryId/scan")
+
+        if (!response.status.isSuccess()) {
+            val errorResponse: ApiResponse<Unit> = response.body()
+            when (val result = errorResponse.toResult()) {
+                is Success -> { /* Shouldn't happen */ }
+
+                is Failure -> {
+                    throw result.exceptionOrFromMessage()
+                }
+            }
+        }
+    }
+
+    override suspend fun browseFilesystem(path: String): BrowseFilesystemResponse {
+        val client = clientFactory.getClient()
+        val response: ApiResponse<BrowseFilesystemResponse> =
+            client
+                .get("/api/v1/filesystem") {
+                    url {
+                        parameters.append("path", path)
+                    }
                 }.body()
 
         return when (val result = response.toResult()) {
@@ -517,11 +623,13 @@ data class SetOpenRegistrationRequest(
  */
 @Serializable
 private data class ServerSettingsApiResponse(
+    @SerialName("server_name") val serverName: String,
     @SerialName("inbox_enabled") val inboxEnabled: Boolean,
     @SerialName("inbox_count") val inboxCount: Int,
 ) {
     fun toDomain(): ServerSettingsResponse =
         ServerSettingsResponse(
+            serverName = serverName,
             inboxEnabled = inboxEnabled,
             inboxCount = inboxCount,
         )
@@ -532,11 +640,35 @@ private data class ServerSettingsApiResponse(
  */
 @Serializable
 private data class ServerSettingsApiRequest(
+    @SerialName("server_name") val serverName: String?,
     @SerialName("inbox_enabled") val inboxEnabled: Boolean?,
 )
 
 private fun ServerSettingsRequest.toApiRequest(): ServerSettingsApiRequest =
-    ServerSettingsApiRequest(inboxEnabled = inboxEnabled)
+    ServerSettingsApiRequest(serverName = serverName, inboxEnabled = inboxEnabled)
+
+// =============================================================================
+// Instance Settings API Models
+// =============================================================================
+
+/**
+ * Request to update instance settings (PATCH semantics).
+ */
+@Serializable
+data class UpdateInstanceRequest(
+    @SerialName("name") val name: String? = null,
+    @SerialName("remote_url") val remoteUrl: String? = null,
+)
+
+/**
+ * Response from instance settings update.
+ */
+@Serializable
+data class InstanceSettingsResponse(
+    @SerialName("id") val id: String,
+    @SerialName("name") val name: String,
+    @SerialName("remote_url") val remoteUrl: String? = null,
+)
 
 // =============================================================================
 // Inbox API Models
@@ -653,6 +785,14 @@ data class LibraryResponse(
     @SerialName("access_mode") val accessMode: String = "open",
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",
+)
+
+/**
+ * Request to add or remove a scan path.
+ */
+@Serializable
+data class ScanPathRequest(
+    @SerialName("path") val path: String,
 )
 
 /**

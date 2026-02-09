@@ -16,8 +16,8 @@ import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.CollectionDao
 import com.calypsan.listenup.client.data.local.db.CollectionEntity
-import com.calypsan.listenup.client.data.local.db.LensDao
-import com.calypsan.listenup.client.data.local.db.LensEntity
+import com.calypsan.listenup.client.data.local.db.ShelfDao
+import com.calypsan.listenup.client.data.local.db.ShelfEntity
 import com.calypsan.listenup.client.data.local.db.ListeningEventDao
 import com.calypsan.listenup.client.data.local.db.ListeningEventEntity
 import com.calypsan.listenup.client.data.local.db.PlaybackPositionDao
@@ -71,12 +71,13 @@ private fun parseTimestamp(isoString: String): Timestamp =
  * - Collection events: Update local collection cache (admin-only)
  * - Tag events: Update local tag cache and book-tag relationships
  */
+@Suppress("LargeClass", "LongParameterList")
 class SSEEventProcessor(
     private val bookDao: BookDao,
     private val bookContributorDao: BookContributorDao,
     private val bookSeriesDao: BookSeriesDao,
     private val collectionDao: CollectionDao,
-    private val lensDao: LensDao,
+    private val shelfDao: ShelfDao,
     private val tagDao: TagDao,
     private val listeningEventDao: ListeningEventDao,
     private val activityDao: ActivityDao,
@@ -131,6 +132,14 @@ class SSEEventProcessor(
 
     private val _isServerScanning = MutableStateFlow(false)
 
+    private val _scanProgress = MutableStateFlow<ScanProgressState?>(null)
+
+    /**
+     * Current scan progress, or null when not scanning.
+     * Updated in real-time as the server sends progress events.
+     */
+    val scanProgress: StateFlow<ScanProgressState?> = _scanProgress.asStateFlow()
+
     /**
      * Whether the server is currently scanning the library.
      * True from ScanStarted until ScanCompleted.
@@ -171,6 +180,10 @@ class SSEEventProcessor(
 
                 is SSEEventType.ScanStarted -> {
                     handleScanStarted(event)
+                }
+
+                is SSEEventType.ScanProgress -> {
+                    handleScanProgress(event)
                 }
 
                 is SSEEventType.ScanCompleted -> {
@@ -219,24 +232,24 @@ class SSEEventProcessor(
                     handleCollectionBookRemoved(event)
                 }
 
-                is SSEEventType.LensCreated -> {
-                    handleLensCreated(event)
+                is SSEEventType.ShelfCreated -> {
+                    handleShelfCreated(event)
                 }
 
-                is SSEEventType.LensUpdated -> {
-                    handleLensUpdated(event)
+                is SSEEventType.ShelfUpdated -> {
+                    handleShelfUpdated(event)
                 }
 
-                is SSEEventType.LensDeleted -> {
-                    handleLensDeleted(event)
+                is SSEEventType.ShelfDeleted -> {
+                    handleShelfDeleted(event)
                 }
 
-                is SSEEventType.LensBookAdded -> {
-                    handleLensBookAdded(event)
+                is SSEEventType.ShelfBookAdded -> {
+                    handleShelfBookAdded(event)
                 }
 
-                is SSEEventType.LensBookRemoved -> {
-                    handleLensBookRemoved(event)
+                is SSEEventType.ShelfBookRemoved -> {
+                    handleShelfBookRemoved(event)
                 }
 
                 is SSEEventType.TagCreated -> {
@@ -346,6 +359,23 @@ class SSEEventProcessor(
     private fun handleScanStarted(event: SSEEventType.ScanStarted) {
         logger.debug { "SSE: Library scan started - ${event.libraryId}" }
         _isServerScanning.value = true
+        _scanProgress.value = null
+    }
+
+    private fun handleScanProgress(event: SSEEventType.ScanProgress) {
+        logger.debug {
+            "SSE: Scan progress - phase=${event.phase}, ${event.current}/${event.total}, " +
+                "added=${event.added}, updated=${event.updated}, removed=${event.removed}"
+        }
+        _scanProgress.value =
+            ScanProgressState(
+                phase = event.phase,
+                current = event.current,
+                total = event.total,
+                added = event.added,
+                updated = event.updated,
+                removed = event.removed,
+            )
     }
 
     private suspend fun handleScanCompleted(event: SSEEventType.ScanCompleted) {
@@ -354,8 +384,9 @@ class SSEEventProcessor(
                 "updated=${event.booksUpdated}, removed=${event.booksRemoved}"
         }
 
-        // Clear scanning flag - UI can now show books or empty state
+        // Clear scanning flag and progress - UI can now show books or empty state
         _isServerScanning.value = false
+        _scanProgress.value = null
 
         // Emit event so SyncManager can trigger delta sync to fetch newly scanned books
         _scanCompletedEvent.emit(
@@ -508,12 +539,12 @@ class SSEEventProcessor(
         }
     }
 
-    // ========== Lens Event Handlers ==========
+    // ========== Shelf Event Handlers ==========
 
-    private suspend fun handleLensCreated(event: SSEEventType.LensCreated) {
-        logger.debug { "SSE: Lens created - ${event.name} (${event.id})" }
-        lensDao.upsert(
-            LensEntity(
+    private suspend fun handleShelfCreated(event: SSEEventType.ShelfCreated) {
+        logger.debug { "SSE: Shelf created - ${event.name} (${event.id})" }
+        shelfDao.upsert(
+            ShelfEntity(
                 id = event.id,
                 name = event.name,
                 description = event.description,
@@ -528,12 +559,12 @@ class SSEEventProcessor(
         )
     }
 
-    private suspend fun handleLensUpdated(event: SSEEventType.LensUpdated) {
-        logger.debug { "SSE: Lens updated - ${event.name} (${event.id})" }
+    private suspend fun handleShelfUpdated(event: SSEEventType.ShelfUpdated) {
+        logger.debug { "SSE: Shelf updated - ${event.name} (${event.id})" }
         // Get existing to preserve totalDurationSeconds
-        val existing = lensDao.getById(event.id)
-        lensDao.upsert(
-            LensEntity(
+        val existing = shelfDao.getById(event.id)
+        shelfDao.upsert(
+            ShelfEntity(
                 id = event.id,
                 name = event.name,
                 description = event.description,
@@ -548,17 +579,17 @@ class SSEEventProcessor(
         )
     }
 
-    private suspend fun handleLensDeleted(event: SSEEventType.LensDeleted) {
-        logger.debug { "SSE: Lens deleted - ${event.id}" }
-        lensDao.deleteById(event.id)
+    private suspend fun handleShelfDeleted(event: SSEEventType.ShelfDeleted) {
+        logger.debug { "SSE: Shelf deleted - ${event.id}" }
+        shelfDao.deleteById(event.id)
     }
 
-    private suspend fun handleLensBookAdded(event: SSEEventType.LensBookAdded) {
-        logger.debug { "SSE: Book ${event.bookId} added to lens ${event.lensId}" }
-        // Update the book count for the lens
-        val existing = lensDao.getById(event.lensId)
+    private suspend fun handleShelfBookAdded(event: SSEEventType.ShelfBookAdded) {
+        logger.debug { "SSE: Book ${event.bookId} added to shelf ${event.shelfId}" }
+        // Update the book count for the shelf
+        val existing = shelfDao.getById(event.shelfId)
         if (existing != null) {
-            lensDao.upsert(
+            shelfDao.upsert(
                 existing.copy(
                     bookCount = event.bookCount,
                     updatedAt = Timestamp.now(),
@@ -567,12 +598,12 @@ class SSEEventProcessor(
         }
     }
 
-    private suspend fun handleLensBookRemoved(event: SSEEventType.LensBookRemoved) {
-        logger.debug { "SSE: Book ${event.bookId} removed from lens ${event.lensId}" }
-        // Update the book count for the lens
-        val existing = lensDao.getById(event.lensId)
+    private suspend fun handleShelfBookRemoved(event: SSEEventType.ShelfBookRemoved) {
+        logger.debug { "SSE: Book ${event.bookId} removed from shelf ${event.shelfId}" }
+        // Update the book count for the shelf
+        val existing = shelfDao.getById(event.shelfId)
         if (existing != null) {
-            lensDao.upsert(
+            shelfDao.upsert(
                 existing.copy(
                     bookCount = event.bookCount,
                     updatedAt = Timestamp.now(),
@@ -774,8 +805,8 @@ class SSEEventProcessor(
                 durationMs = event.durationMs,
                 milestoneValue = event.milestoneValue,
                 milestoneUnit = event.milestoneUnit,
-                lensId = event.lensId,
-                lensName = event.lensName,
+                shelfId = event.shelfId,
+                shelfName = event.shelfName,
             )
 
         try {
@@ -1039,4 +1070,51 @@ interface PlaybackStateProvider {
      * Clear current playback state when access is revoked.
      */
     fun clearPlayback()
+}
+
+/**
+ * Current state of a library scan in progress.
+ * Null when no scan is running.
+ */
+data class ScanProgressState(
+    val phase: String,
+    val current: Int,
+    val total: Int,
+    val added: Int,
+    val updated: Int,
+    val removed: Int,
+) {
+    /**
+     * Human-readable phase name.
+     */
+    val phaseDisplayName: String
+        get() =
+            when (phase) {
+                "walking" -> "Discovering files"
+                "grouping" -> "Organizing"
+                "analyzing" -> "Analyzing"
+                "resolving" -> "Processing"
+                "diffing" -> "Syncing"
+                "applying" -> "Syncing"
+                "complete" -> "Finishing up"
+                else -> phase.replaceFirstChar { it.uppercase() }
+            }
+
+    /**
+     * Progress as a fraction (0.0 to 1.0), or null if total is 0.
+     */
+    val progressFraction: Float?
+        get() = if (total > 0) current.toFloat() / total.toFloat() else null
+
+    /**
+     * Summary of changes so far (e.g., "3 added, 1 updated").
+     */
+    val changesSummary: String?
+        get() {
+            val parts = mutableListOf<String>()
+            if (added > 0) parts.add("$added added")
+            if (updated > 0) parts.add("$updated updated")
+            if (removed > 0) parts.add("$removed removed")
+            return parts.joinToString(", ").ifEmpty { null }
+        }
 }

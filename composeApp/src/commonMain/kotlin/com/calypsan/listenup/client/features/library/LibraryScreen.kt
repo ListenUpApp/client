@@ -111,16 +111,16 @@ fun LibraryScreen(
     val isAdmin by actionsViewModel.isAdmin.collectAsState()
     val collections by actionsViewModel.collections.collectAsState()
     val isAddingToCollection by actionsViewModel.isAddingToCollection.collectAsState()
-    val myLenses by actionsViewModel.myLenses.collectAsState()
-    val isAddingToLens by actionsViewModel.isAddingToLens.collectAsState()
+    val myShelves by actionsViewModel.myShelves.collectAsState()
+    val isAddingToShelf by actionsViewModel.isAddingToShelf.collectAsState()
 
     // Derive selection state
     val isInSelectionMode = selectionMode is SelectionMode.Active
     val selectedBookIds = (selectionMode as? SelectionMode.Active)?.selectedIds ?: emptySet()
 
-    // Collection and lens picker sheet state
+    // Collection and shelf picker sheet state
     var showCollectionPicker by remember { mutableStateOf(false) }
-    var showLensPicker by remember { mutableStateOf(false) }
+    var showShelfPicker by remember { mutableStateOf(false) }
 
     // Handle back press to exit selection mode
     PlatformBackHandler(enabled = isInSelectionMode) {
@@ -157,28 +157,28 @@ fun LibraryScreen(
                     }
                 }
 
-                is LibraryActionEvent.BooksAddedToLens -> {
-                    showLensPicker = false
+                is LibraryActionEvent.BooksAddedToShelf -> {
+                    showShelfPicker = false
                     scope.launch {
                         snackbarHostState.showSnackbar(
                             if (event.count == 1) {
-                                "1 book added to lens"
+                                "1 book added to shelf"
                             } else {
-                                "${event.count} books added to lens"
+                                "${event.count} books added to shelf"
                             },
                         )
                     }
                 }
 
-                is LibraryActionEvent.LensCreatedAndBooksAdded -> {
-                    showLensPicker = false
+                is LibraryActionEvent.ShelfCreatedAndBooksAdded -> {
+                    showShelfPicker = false
                     val bookText = if (event.bookCount == 1) "1 book" else "${event.bookCount} books"
                     scope.launch {
-                        snackbarHostState.showSnackbar("Created \"${event.lensName}\" with $bookText")
+                        snackbarHostState.showSnackbar("Created \"${event.shelfName}\" with $bookText")
                     }
                 }
 
-                is LibraryActionEvent.AddToLensFailed -> {
+                is LibraryActionEvent.AddToShelfFailed -> {
                     scope.launch {
                         snackbarHostState.showSnackbar("Failed to add: ${event.message}")
                     }
@@ -221,6 +221,7 @@ fun LibraryScreen(
                                 hasLoadedBooks = hasLoadedBooks,
                                 syncState = syncState,
                                 isServerScanning = uiState.isServerScanning,
+                                scanProgress = uiState.scanProgress,
                                 sortState = booksSortState,
                                 ignoreTitleArticles = ignoreTitleArticles,
                                 bookProgress = bookProgress,
@@ -305,7 +306,7 @@ fun LibraryScreen(
         ) {
             SelectionToolbar(
                 selectedCount = selectedBookIds.size,
-                onAddToLens = { showLensPicker = true },
+                onAddToShelf = { showShelfPicker = true },
                 onAddToCollection =
                     if (isAdmin) {
                         { showCollectionPicker = true }
@@ -330,19 +331,19 @@ fun LibraryScreen(
         )
     }
 
-    // Lens picker sheet
-    if (showLensPicker) {
-        LensPickerSheet(
-            lenses = myLenses,
+    // Shelf picker sheet
+    if (showShelfPicker) {
+        ShelfPickerSheet(
+            shelves = myShelves,
             selectedBookCount = selectedBookIds.size,
-            onLensSelected = { lensId ->
-                actionsViewModel.addSelectedToLens(lensId)
+            onShelfSelected = { shelfId ->
+                actionsViewModel.addSelectedToShelf(shelfId)
             },
-            onCreateAndAddToLens = { name ->
-                actionsViewModel.createLensAndAddBooks(name)
+            onCreateAndAddToShelf = { name ->
+                actionsViewModel.createShelfAndAddBooks(name)
             },
-            onDismiss = { showLensPicker = false },
-            isLoading = isAddingToLens,
+            onDismiss = { showShelfPicker = false },
+            isLoading = isAddingToShelf,
         )
     }
 }

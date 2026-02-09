@@ -68,7 +68,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
-import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
+import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.features.nowplaying.WavySeekBar
 import com.calypsan.listenup.client.playback.NowPlayingState
 import androidx.compose.ui.graphics.toComposeImageBitmap
@@ -293,6 +293,7 @@ private fun TallLayout(
             contentAlignment = Alignment.Center,
         ) {
             CoverArt(
+                bookId = state.bookId,
                 coverUrl = state.coverUrl,
                 blurHash = state.coverBlurHash,
             )
@@ -378,6 +379,7 @@ private fun WideLayout(
             contentAlignment = Alignment.Center,
         ) {
             CoverArt(
+                bookId = state.bookId,
                 coverUrl = state.coverUrl,
                 blurHash = state.coverBlurHash,
             )
@@ -554,6 +556,7 @@ private fun OverflowMenu(
 
 @Composable
 private fun CoverArt(
+    bookId: String,
     coverUrl: String?,
     blurHash: String?,
 ) {
@@ -566,8 +569,9 @@ private fun CoverArt(
         shadowElevation = 24.dp,
         tonalElevation = 0.dp,
     ) {
-        ListenUpAsyncImage(
-            path = coverUrl,
+        BookCoverImage(
+            bookId = bookId,
+            coverPath = coverUrl,
             contentDescription = "Book cover",
             blurHash = blurHash,
             modifier = Modifier.fillMaxSize(),

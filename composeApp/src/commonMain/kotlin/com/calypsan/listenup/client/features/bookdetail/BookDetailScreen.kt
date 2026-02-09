@@ -40,9 +40,8 @@ import com.calypsan.listenup.client.design.components.rememberCoverColors
 import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import com.calypsan.listenup.client.domain.repository.UserRepository
-import com.calypsan.listenup.client.domain.model.Lens
 import com.calypsan.listenup.client.download.DownloadResult
-import com.calypsan.listenup.client.features.library.LensPickerSheet
+import com.calypsan.listenup.client.features.library.ShelfPickerSheet
 import com.calypsan.listenup.client.features.bookdetail.components.BookReadersSection
 import com.calypsan.listenup.client.features.bookdetail.components.ChapterListItem
 import com.calypsan.listenup.client.features.bookdetail.components.ChaptersHeader
@@ -115,6 +114,19 @@ fun BookDetailScreen(
             wifiOnlyDownloads &&
             !isOnUnmeteredNetwork
 
+    // Server reachability check - runs when screen loads
+    var isServerReachable by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(bookId, downloadStatus.isFullyDownloaded) {
+        // Only check if book isn't downloaded - downloaded books always play
+        if (!downloadStatus.isFullyDownloaded) {
+            isServerReachable = platformActions.checkServerReachable()
+        }
+    }
+
+    // Playback availability: can play if book is downloaded OR server is confirmed reachable
+    // While check is in progress (null), assume playable to avoid flicker for fast connections
+    val canPlay = downloadStatus.isFullyDownloaded || isServerReachable != false
+
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showMarkCompleteDialog by remember { mutableStateOf(false) }
 
@@ -170,10 +182,18 @@ fun BookDetailScreen(
                         }
                     },
                     onDiscardProgressClick = { viewModel.discardProgress() },
-                    onAddToLensClick = { viewModel.showLensPicker() },
+                    onAddToShelfClick = { viewModel.showShelfPicker() },
                     onAddToCollectionClick = { /* TODO: Implement */ },
                     onDeleteBookClick = { /* TODO: Implement */ },
                     onPlayClick = { platformActions.playBook(BookId(bookId)) },
+                    canPlay = canPlay,
+                    onPlayDisabledClick = {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                "Server is unreachable. Connect to your server to play or download this book.",
+                            )
+                        }
+                    },
                     onUserProfileClick = onUserProfileClick,
                     onDownloadClick = {
                         scope.launch {
@@ -237,23 +257,23 @@ fun BookDetailScreen(
         )
     }
 
-    if (state.showLensPicker) {
-        val myLenses by viewModel.myLenses.collectAsState()
+    if (state.showShelfPicker) {
+        val myShelves by viewModel.myShelves.collectAsState()
 
-        LensPickerSheet(
-            lenses = myLenses,
+        ShelfPickerSheet(
+            shelves = myShelves,
             selectedBookCount = 1,
-            onLensSelected = { lensId -> viewModel.addBookToLens(lensId) },
-            onCreateAndAddToLens = { name -> viewModel.createLensAndAddBook(name) },
-            onDismiss = { viewModel.hideLensPicker() },
-            isLoading = state.isAddingToLens,
+            onShelfSelected = { shelfId -> viewModel.addBookToShelf(shelfId) },
+            onCreateAndAddToShelf = { name -> viewModel.createShelfAndAddBook(name) },
+            onDismiss = { viewModel.hideShelfPicker() },
+            isLoading = state.isAddingToShelf,
         )
     }
 
-    state.lensError?.let { error ->
+    state.shelfError?.let { error ->
         LaunchedEffect(error) {
             snackbarHostState.showSnackbar(error)
-            viewModel.clearLensError()
+            viewModel.clearShelfError()
         }
     }
 }
@@ -278,10 +298,12 @@ fun BookDetailContent(
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
     onDiscardProgressClick: () -> Unit,
-    onAddToLensClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
+    canPlay: Boolean,
+    onPlayDisabledClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -313,13 +335,15 @@ fun BookDetailContent(
             onFindMetadataClick = onFindMetadataClick,
             onMarkCompleteClick = onMarkCompleteClick,
             onDiscardProgressClick = onDiscardProgressClick,
-            onAddToLensClick = onAddToLensClick,
+            onAddToShelfClick = onAddToShelfClick,
             onAddToCollectionClick = onAddToCollectionClick,
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
+            playEnabled = canPlay,
+            onPlayDisabledClick = onPlayDisabledClick,
             onSeriesClick = onSeriesClick,
             onContributorClick = onContributorClick,
             onTagClick = onTagClick,
@@ -340,10 +364,12 @@ fun BookDetailContent(
             onFindMetadataClick = onFindMetadataClick,
             onMarkCompleteClick = onMarkCompleteClick,
             onDiscardProgressClick = onDiscardProgressClick,
-            onAddToLensClick = onAddToLensClick,
+            onAddToShelfClick = onAddToShelfClick,
             onAddToCollectionClick = onAddToCollectionClick,
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
+            canPlay = canPlay,
+            onPlayDisabledClick = onPlayDisabledClick,
             onDownloadClick = onDownloadClick,
             onCancelClick = onCancelClick,
             onDeleteClick = onDeleteClick,
@@ -379,10 +405,12 @@ private fun ImmersiveBookDetail(
     onFindMetadataClick: () -> Unit,
     onMarkCompleteClick: () -> Unit,
     onDiscardProgressClick: () -> Unit,
-    onAddToLensClick: () -> Unit,
+    onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
+    canPlay: Boolean,
+    onPlayDisabledClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onCancelClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -427,7 +455,7 @@ private fun ImmersiveBookDetail(
                 onFindMetadataClick = onFindMetadataClick,
                 onMarkCompleteClick = onMarkCompleteClick,
                 onDiscardProgressClick = onDiscardProgressClick,
-                onAddToLensClick = onAddToLensClick,
+                onAddToShelfClick = onAddToShelfClick,
                 onAddToCollectionClick = onAddToCollectionClick,
                 onDeleteClick = onDeleteBookClick,
             )
@@ -455,6 +483,8 @@ private fun ImmersiveBookDetail(
                     onDeleteClick = onDeleteClick,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
                     isWaitingForWifi = isWaitingForWifi,
+                    playEnabled = canPlay,
+                    onPlayDisabledClick = onPlayDisabledClick,
                 )
             }
         }

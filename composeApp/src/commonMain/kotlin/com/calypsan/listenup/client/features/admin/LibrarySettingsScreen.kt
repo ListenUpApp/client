@@ -12,9 +12,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockOpen
@@ -100,8 +110,22 @@ fun LibrarySettingsScreen(
                 state = state,
                 onAccessModeChange = viewModel::setAccessMode,
                 onToggleSkipInbox = viewModel::toggleSkipInbox,
+                onRemoveScanPath = viewModel::removeScanPath,
+                onAddFolder = { viewModel.setShowFolderBrowser(true) },
+                onTriggerScan = viewModel::triggerScan,
                 modifier = Modifier.padding(innerPadding),
             )
+
+            // Folder browser dialog
+            if (state.showFolderBrowser) {
+                FolderBrowserDialog(
+                    state = state,
+                    onDismiss = { viewModel.setShowFolderBrowser(false) },
+                    onNavigate = viewModel::loadBrowserDirectory,
+                    onNavigateUp = viewModel::browserNavigateUp,
+                    onSelectPath = viewModel::addScanPath,
+                )
+            }
         }
     }
 }
@@ -111,6 +135,9 @@ private fun LibrarySettingsContent(
     state: LibrarySettingsUiState,
     onAccessModeChange: (AccessMode) -> Unit,
     onToggleSkipInbox: () -> Unit,
+    onRemoveScanPath: (String) -> Unit,
+    onAddFolder: () -> Unit,
+    onTriggerScan: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val library = state.library ?: return
@@ -133,6 +160,44 @@ private fun LibrarySettingsContent(
 
         item {
             LibraryInfoCard(library = library)
+        }
+
+        // Scan paths section
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Scan Paths",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+        }
+
+        item {
+            ScanPathsCard(
+                scanPaths = library.scanPaths,
+                isSaving = state.isSaving,
+                onRemovePath = onRemoveScanPath,
+                onAddFolder = onAddFolder,
+            )
+        }
+
+        // Rescan section
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Scanning",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+        }
+
+        item {
+            RescanCard(
+                isScanning = state.isScanning,
+                onTriggerScan = onTriggerScan,
+            )
         }
 
         // Access mode section
@@ -411,6 +476,255 @@ private fun InboxSettingsCard(
                     checked = skipInbox,
                     onCheckedChange = { onToggleSkipInbox() },
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScanPathsCard(
+    scanPaths: List<String>,
+    isSaving: Boolean,
+    onRemovePath: (String) -> Unit,
+    onAddFolder: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var pathToRemove by remember { mutableStateOf<String?>(null) }
+
+    // Confirm removal dialog
+    pathToRemove?.let { path ->
+        AlertDialog(
+            onDismissRequest = { pathToRemove = null },
+            title = { Text("Remove Scan Path") },
+            text = { Text("Remove \"$path\" from library scan paths?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onRemovePath(path)
+                    pathToRemove = null
+                }) {
+                    Text("Remove")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pathToRemove = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            scanPaths.forEachIndexed { index, path ->
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Folder,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = path,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (scanPaths.size > 1 && !isSaving) {
+                        IconButton(onClick = { pathToRemove = path }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "Remove path",
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                }
+                if (index < scanPaths.lastIndex) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            )
+
+            // Add folder button
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isSaving, onClick = onAddFolder)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Add,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = "Add Folder",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RescanCard(
+    isScanning: Boolean,
+    onTriggerScan: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !isScanning, onClick = onTriggerScan)
+                    .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Refresh,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Rescan Library",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = "Scan all paths for new or updated audiobooks",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (isScanning) {
+                ListenUpLoadingIndicatorSmall()
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FolderBrowserDialog(
+    state: LibrarySettingsUiState,
+    onDismiss: () -> Unit,
+    onNavigate: (String) -> Unit,
+    onNavigateUp: () -> Unit,
+    onSelectPath: (String) -> Unit,
+) {
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+    ) {
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth().height(500.dp),
+            shape = MaterialTheme.shapes.large,
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                TopAppBar(
+                    title = { Text("Select Folder") },
+                    navigationIcon = {
+                        if (!state.browserIsRoot) {
+                            IconButton(onClick = onNavigateUp) {
+                                Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
+                            }
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Outlined.Close, "Close")
+                        }
+                    },
+                )
+
+                // Current path
+                Text(
+                    text = state.browserPath,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+
+                // Select current folder button
+                TextButton(
+                    onClick = { onSelectPath(state.browserPath) },
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                ) {
+                    Icon(Icons.Outlined.Add, null, modifier = Modifier.padding(end = 4.dp))
+                    Text("Add This Folder")
+                }
+
+                HorizontalDivider()
+
+                if (state.isBrowserLoading) {
+                    FullScreenLoadingIndicator()
+                } else {
+                    LazyColumn(modifier = Modifier.weight(1f)) {
+                        items(
+                            count = state.browserEntries.size,
+                            key = { state.browserEntries[it].path },
+                        ) { index ->
+                            val entry = state.browserEntries[index]
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onNavigate(entry.path) }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Folder,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = entry.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Icon(
+                                    Icons.Outlined.ChevronRight,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

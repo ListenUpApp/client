@@ -3,7 +3,8 @@ package com.calypsan.listenup.client.presentation.home
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.domain.repository.HomeRepository
-import com.calypsan.listenup.client.domain.repository.LensRepository
+import com.calypsan.listenup.client.domain.repository.ShelfRepository
+import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -47,18 +48,23 @@ class HomeViewModelTest {
     private class TestFixture {
         val homeRepository: HomeRepository = mock()
         val userRepository: UserRepository = mock()
-        val lensRepository: LensRepository = mock()
+        val shelfRepository: ShelfRepository = mock()
+        val syncRepository: SyncRepository = mock()
         val userFlow = MutableStateFlow<User?>(null)
         val continueListeningFlow = MutableStateFlow<List<ContinueListeningBook>>(emptyList())
+        val scanProgressFlow = MutableStateFlow<com.calypsan.listenup.client.data.sync.sse.ScanProgressState?>(null)
         var currentHour: Int = 10 // Default to morning
 
-        fun build(): HomeViewModel =
-            HomeViewModel(
+        fun build(): HomeViewModel {
+            dev.mokkery.every { syncRepository.scanProgress } returns scanProgressFlow
+            return HomeViewModel(
                 homeRepository = homeRepository,
                 userRepository = userRepository,
-                lensRepository = lensRepository,
+                shelfRepository = shelfRepository,
+                syncRepository = syncRepository,
                 currentHour = { currentHour },
             )
+        }
     }
 
     private fun createFixture(): TestFixture {
@@ -67,7 +73,7 @@ class HomeViewModelTest {
         // Default stubs for reactive observation
         every { fixture.userRepository.observeCurrentUser() } returns fixture.userFlow
         every { fixture.homeRepository.observeContinueListening(any()) } returns fixture.continueListeningFlow
-        every { fixture.lensRepository.observeMyLenses(any()) } returns flowOf(emptyList())
+        every { fixture.shelfRepository.observeMyShelves(any()) } returns flowOf(emptyList())
 
         return fixture
     }

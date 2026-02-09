@@ -6,6 +6,7 @@ import com.calypsan.listenup.client.domain.repository.LocalPreferences
 import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.download.DownloadResult
+import com.calypsan.listenup.client.playback.PlaybackManager
 import com.calypsan.listenup.client.playback.PlayerViewModel
 import kotlinx.coroutines.flow.Flow
 
@@ -18,6 +19,7 @@ class AndroidBookDetailPlatformActions(
     private val playerViewModel: PlayerViewModel,
     private val localPreferences: LocalPreferences,
     private val networkMonitor: NetworkMonitor,
+    private val playbackManager: PlaybackManager,
 ) : BookDetailPlatformActions {
     override val isPlaybackAvailable: Boolean = true
 
@@ -34,4 +36,6 @@ class AndroidBookDetailPlatformActions(
     override fun observeWifiOnlyDownloads(): Flow<Boolean> = localPreferences.wifiOnlyDownloads
 
     override fun observeIsOnUnmeteredNetwork(): Flow<Boolean> = networkMonitor.isOnUnmeteredNetworkFlow
+
+    override suspend fun checkServerReachable(): Boolean = playbackManager.isServerReachable()
 }

@@ -71,6 +71,8 @@ class SettingsRepositoryImpl(
 
     companion object {
         private const val KEY_SERVER_URL = "server_url"
+        private const val KEY_REMOTE_URL = "server_remote_url"
+        private const val KEY_ACTIVE_URL = "active_url"
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_SESSION_ID = "session_id"
@@ -144,10 +146,52 @@ class SettingsRepositoryImpl(
     }
 
     /**
-     * Get the configured server URL.
+     * Get the configured server URL (local URL).
      * @return ServerUrl if configured, null otherwise
      */
     override suspend fun getServerUrl(): ServerUrl? = secureStorage.read(KEY_SERVER_URL)?.let { ServerUrl(it) }
+
+    override suspend fun setRemoteUrl(url: String?) {
+        if (url != null) {
+            secureStorage.save(KEY_REMOTE_URL, url)
+        } else {
+            secureStorage.delete(KEY_REMOTE_URL)
+        }
+    }
+
+    override suspend fun getRemoteUrl(): ServerUrl? = secureStorage.read(KEY_REMOTE_URL)?.let { ServerUrl(it) }
+
+    override suspend fun getActiveUrl(): ServerUrl? {
+        val activeUrl = secureStorage.read(KEY_ACTIVE_URL)
+        if (activeUrl != null) return ServerUrl(activeUrl)
+        // Default to local URL
+        return getServerUrl() ?: getRemoteUrl()
+    }
+
+    override suspend fun switchToFallbackUrl(): ServerUrl? {
+        val currentActive = secureStorage.read(KEY_ACTIVE_URL) ?: secureStorage.read(KEY_SERVER_URL)
+        val localUrl = secureStorage.read(KEY_SERVER_URL)
+        val remoteUrl = secureStorage.read(KEY_REMOTE_URL)
+
+        // Switch to the other URL
+        val fallback =
+            when (currentActive) {
+                localUrl -> remoteUrl
+                remoteUrl -> localUrl
+                else -> remoteUrl ?: localUrl
+            } ?: return null
+
+        secureStorage.save(KEY_ACTIVE_URL, fallback)
+        logger.info { "Switched active URL to: $fallback" }
+        return ServerUrl(fallback)
+    }
+
+    override suspend fun preferLocalUrl() {
+        val localUrl = secureStorage.read(KEY_SERVER_URL)
+        if (localUrl != null) {
+            secureStorage.save(KEY_ACTIVE_URL, localUrl)
+        }
+    }
 
     // Authentication state management
 
@@ -421,6 +465,8 @@ class SettingsRepositoryImpl(
         secureStorage.delete(KEY_USER_ID)
         secureStorage.delete(KEY_OPEN_REGISTRATION)
         secureStorage.delete(KEY_CONNECTED_LIBRARY_ID)
+        secureStorage.delete(KEY_REMOTE_URL)
+        secureStorage.delete(KEY_ACTIVE_URL)
         _authState.value = DomainAuthState.NeedsServerUrl
     }
 
