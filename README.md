@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.png" alt="ListenUp" width="120" />
+  <img src=".github/logo.svg" alt="ListenUp" width="120" />
 </p>
 
 <h1 align="center">ListenUp</h1>
