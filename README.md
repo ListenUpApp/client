@@ -1,5 +1,9 @@
 <p align="center">
-  <img src=".github/logo.svg" alt="ListenUp" width="120" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/logo-dark.svg" />
+    <source media="(prefers-color-scheme: light)" srcset=".github/logo-light.svg" />
+    <img src=".github/logo-light.svg" alt="ListenUp" width="120" />
+  </picture>
 </p>
 
 <h1 align="center">ListenUp</h1>
