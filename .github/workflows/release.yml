@@ -1,29 +1,28 @@
 # ListenUp Client — Android Release
 #
-# Builds signed AAB + debug APK, uploads to GitHub Release,
-# and optionally publishes to Google Play Internal Testing.
-#
-# Required GitHub Secrets:
-#   KEYSTORE_BASE64              - Base64-encoded release keystore (.jks)
-#   KEYSTORE_PASSWORD            - Keystore password
-#   KEY_ALIAS                    - Signing key alias
-#   KEY_PASSWORD                 - Signing key password
-#   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON - (Optional) Google Play service account JSON for automated upload
+# Builds signed AAB + APK on push to main or manual trigger.
+# Uploads to GitHub Release on tag push.
+# Optionally publishes to Google Play Internal Testing.
 
 name: Client Release
 
 on:
   push:
+    branches: [main]
     tags:
       - "v*"
   workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   android:
     name: Build & Release Android
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # needed to upload release assets
+      contents: write
 
     steps:
       - name: Checkout
@@ -38,39 +37,53 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # Decode the release keystore from base64 secret
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > ${{ runner.temp }}/release.keystore
 
-      # Build signed release AAB
-      - name: Build release AAB
+      - name: Build signed release AAB
         env:
           KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew :androidApp:bundleRelease
+        run: ./gradlew :androidApp:bundleRelease --no-daemon
 
-      # Build debug APK for sideloading convenience
-      - name: Build debug APK
-        run: ./gradlew :androidApp:assembleDebug
+      - name: Build signed release APK
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew :androidApp:assembleRelease --no-daemon
 
-      # Upload artifacts to GitHub Release (only on tag push)
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: androidApp/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-aab
+          path: androidApp/build/outputs/bundle/release/*.aab
+          retention-days: 30
+
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |
             androidApp/build/outputs/bundle/release/*.aab
-            androidApp/build/outputs/apk/debug/*.apk
+            androidApp/build/outputs/apk/release/*.apk
 
-      # Optional: Publish to Google Play Internal Testing
       - name: Upload to Google Play (Internal)
-        if: ${{ startsWith(github.ref, 'refs/tags/') && secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        if: ${{ startsWith(github.ref, 'refs/tags/') && secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
         uses: r0adkll/upload-google-play@v1
         with:
-          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.calypsan.listenup.client
           releaseFiles: androidApp/build/outputs/bundle/release/*.aab
           track: internal
