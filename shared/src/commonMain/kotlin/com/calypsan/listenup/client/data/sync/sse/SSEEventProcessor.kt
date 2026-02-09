@@ -366,14 +366,15 @@ class SSEEventProcessor(
             "SSE: Scan progress - phase=${event.phase}, ${event.current}/${event.total}, " +
                 "added=${event.added}, updated=${event.updated}, removed=${event.removed}"
         }
-        _scanProgress.value = ScanProgressState(
-            phase = event.phase,
-            current = event.current,
-            total = event.total,
-            added = event.added,
-            updated = event.updated,
-            removed = event.removed,
-        )
+        _scanProgress.value =
+            ScanProgressState(
+                phase = event.phase,
+                current = event.current,
+                total = event.total,
+                added = event.added,
+                updated = event.updated,
+                removed = event.removed,
+            )
     }
 
     private suspend fun handleScanCompleted(event: SSEEventType.ScanCompleted) {
@@ -1070,7 +1071,6 @@ interface PlaybackStateProvider {
     fun clearPlayback()
 }
 
-
 /**
  * Current state of a library scan in progress.
  * Null when no scan is running.
@@ -1087,16 +1087,17 @@ data class ScanProgressState(
      * Human-readable phase name.
      */
     val phaseDisplayName: String
-        get() = when (phase) {
-            "walking" -> "Discovering files"
-            "grouping" -> "Organizing"
-            "analyzing" -> "Analyzing"
-            "resolving" -> "Processing"
-            "diffing" -> "Syncing"
-            "applying" -> "Syncing"
-            "complete" -> "Finishing up"
-            else -> phase.replaceFirstChar { it.uppercase() }
-        }
+        get() =
+            when (phase) {
+                "walking" -> "Discovering files"
+                "grouping" -> "Organizing"
+                "analyzing" -> "Analyzing"
+                "resolving" -> "Processing"
+                "diffing" -> "Syncing"
+                "applying" -> "Syncing"
+                "complete" -> "Finishing up"
+                else -> phase.replaceFirstChar { it.uppercase() }
+            }
 
     /**
      * Progress as a fraction (0.0 to 1.0), or null if total is 0.
@@ -1116,5 +1117,3 @@ data class ScanProgressState(
             return parts.joinToString(", ").ifEmpty { null }
         }
 }
-
-

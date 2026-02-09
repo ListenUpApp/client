@@ -464,13 +464,14 @@ class PlaybackManager(
     suspend fun isServerReachable(): Boolean {
         val url = serverConfig.getActiveUrl()?.value ?: return false
         return try {
-            val client = HttpClient {
-                install(HttpTimeout) {
-                    requestTimeoutMillis = 3_000
-                    connectTimeoutMillis = 3_000
-                    socketTimeoutMillis = 3_000
+            val client =
+                HttpClient {
+                    install(HttpTimeout) {
+                        requestTimeoutMillis = 3_000
+                        connectTimeoutMillis = 3_000
+                        socketTimeoutMillis = 3_000
+                    }
                 }
-            }
             try {
                 val response = client.get("$url/health")
                 response.status.value in 200..299

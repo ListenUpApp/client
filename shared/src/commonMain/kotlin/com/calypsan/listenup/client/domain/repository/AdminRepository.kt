@@ -238,7 +238,10 @@ interface AdminRepository {
      * @param path Absolute filesystem path to add
      * @return The updated library
      */
-    suspend fun addScanPath(libraryId: String, path: String): Library
+    suspend fun addScanPath(
+        libraryId: String,
+        path: String,
+    ): Library
 
     /**
      * Remove a scan path from a library.
@@ -247,7 +250,10 @@ interface AdminRepository {
      * @param path The scan path to remove
      * @return The updated library
      */
-    suspend fun removeScanPath(libraryId: String, path: String): Library
+    suspend fun removeScanPath(
+        libraryId: String,
+        path: String,
+    ): Library
 
     /**
      * Trigger a manual library rescan.

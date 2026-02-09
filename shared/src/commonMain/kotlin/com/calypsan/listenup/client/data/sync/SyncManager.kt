@@ -475,6 +475,7 @@ class SyncManager(
                         logger.debug { "Remote URL refreshed: $remoteUrl" }
                     }
                 }
+
                 is Failure -> {
                     logger.debug { "Failed to refresh remote URL: ${result.message}" }
                 }
