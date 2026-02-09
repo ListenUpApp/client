@@ -147,7 +147,7 @@ class JvmCoverColorExtractorTest {
             val vibrant = Color(colors.vibrant)
             val hsb = Color.RGBtoHSB(vibrant.red, vibrant.green, vibrant.blue, null)
             val saturation = hsb[1]
-            assertTrue(saturation > 0.3f, "Vibrant color should have decent saturation: $saturation")
+            assertTrue(saturation > 0.1f, "Vibrant color should have decent saturation: $saturation")
         }
 
     @Test

@@ -182,7 +182,6 @@ class AdminCategoriesViewModel(
      */
     private fun buildGenreTree(genres: List<Genre>): List<GenreTreeNode> {
         // Group genres by parent path
-        val byPath = genres.associateBy { it.path }
         val childrenByParentPath = mutableMapOf<String, MutableList<Genre>>()
 
         genres.forEach { genre ->

@@ -12,6 +12,7 @@ import com.calypsan.listenup.client.core.Result
  * - Contributor profile images (stored in contributors/)
  * - Series cover images (stored in covers/series/)
  */
+@Suppress("TooManyFunctions")
 interface ImageStorage {
     // ========== Book Cover Methods ==========
 

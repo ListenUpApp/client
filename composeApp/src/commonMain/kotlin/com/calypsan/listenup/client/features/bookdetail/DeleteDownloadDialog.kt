@@ -37,6 +37,6 @@ fun formatFileSize(bytes: Long): String =
     when {
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        bytes < 1024 * 1024 * 1024 -> "${((bytes / (1024.0 * 1024.0)) * 10).toInt() / 10.0} MB"
-        else -> "${((bytes / (1024.0 * 1024.0 * 1024.0)) * 100).toInt() / 100.0} GB"
+        bytes < 1024 * 1024 * 1024 -> "${(bytes / (1024.0 * 1024.0) * 10).toInt() / 10.0} MB"
+        else -> "${(bytes / (1024.0 * 1024.0 * 1024.0) * 100).toInt() / 100.0} GB"
     }

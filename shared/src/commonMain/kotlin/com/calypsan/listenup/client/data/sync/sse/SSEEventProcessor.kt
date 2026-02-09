@@ -71,6 +71,7 @@ private fun parseTimestamp(isoString: String): Timestamp =
  * - Collection events: Update local collection cache (admin-only)
  * - Tag events: Update local tag cache and book-tag relationships
  */
+@Suppress("LargeClass", "LongParameterList")
 class SSEEventProcessor(
     private val bookDao: BookDao,
     private val bookContributorDao: BookContributorDao,

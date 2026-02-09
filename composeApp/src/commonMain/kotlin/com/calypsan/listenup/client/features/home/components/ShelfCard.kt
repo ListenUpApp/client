@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,6 +37,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.domain.model.Shelf
+
+private const val DEFAULT_HEX_COLOR = 0xFF6B7280L
+private const val ALPHA_MASK = 0xFF000000L
+private const val HEX_RADIX = 16
+private const val MAX_RGB_LENGTH = 6
 
 /**
  * Card for a shelf in the My Shelves section.
@@ -121,13 +126,13 @@ fun ShelfCard(
  * Supports "#RRGGBB" and "#AARRGGBB" formats.
  */
 private fun parseHexColor(hex: String?): Color {
-    if (hex == null) return Color(0xFF6B7280)
+    if (hex == null) return Color(DEFAULT_HEX_COLOR.toInt())
     val clean = hex.removePrefix("#")
-    val longValue = clean.toLongOrNull(16) ?: return Color(0xFF6B7280)
+    val longValue = clean.toLongOrNull(16) ?: return Color(DEFAULT_HEX_COLOR.toInt())
     return if (clean.length <= 6) {
-        Color(0xFF000000 or longValue)
+        Color((ALPHA_MASK or longValue).toInt())
     } else {
-        Color(longValue)
+        Color(longValue.toInt())
     }
 }
 
@@ -237,7 +242,7 @@ private fun CoverCell(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Default.MenuBook,
+                imageVector = Icons.AutoMirrored.Filled.MenuBook,
                 contentDescription = null,
                 tint = color.copy(alpha = 0.3f),
                 modifier = Modifier.size(20.dp),

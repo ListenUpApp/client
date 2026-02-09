@@ -305,28 +305,22 @@ class ListenUp :
             listOf(
                 "ServerConfig" to {
                     get<com.calypsan.listenup.client.domain.repository.ServerConfig>()
-                    Unit
                 },
                 "AuthSession" to {
                     get<com.calypsan.listenup.client.domain.repository.AuthSession>()
-                    Unit
                 },
                 "SyncManager" to {
                     get<com.calypsan.listenup.client.data.sync.SyncManagerContract>()
-                    Unit
                 },
                 "ProgressTracker" to {
                     get<ProgressTracker>()
-                    Unit
                 },
                 "PlaybackManager" to {
                     get<PlaybackManager>()
-                    Unit
                 },
                 "PushSyncOrchestrator" to
                     {
                         get<com.calypsan.listenup.client.data.sync.push.PushSyncOrchestratorContract>()
-                        Unit
                     },
             )
 

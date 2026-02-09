@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber", "StringLiteralDuplication")
+@file:Suppress("UseIfInsteadOfWhen")
 
 package com.calypsan.listenup.client.features.discover.components
 
@@ -228,10 +228,7 @@ private fun formatActivityAuthor(authorName: String?): String? {
     // Check for multiple authors (comma-separated)
     val authors = authorName.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-    return when {
-        authors.size <= 1 -> authorName
-        else -> "${authors.first()} et al."
-    }
+    return if (authors.size <= 1) authorName else "${authors.first()} et al."
 }
 
 /**

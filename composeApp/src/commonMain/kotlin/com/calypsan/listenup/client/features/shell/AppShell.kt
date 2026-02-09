@@ -1,4 +1,4 @@
-@file:Suppress("LongParameterList", "CyclomaticComplexMethod", "CognitiveComplexMethod")
+@file:Suppress("UnusedParameter", "MagicNumber")
 
 package com.calypsan.listenup.client.features.shell
 

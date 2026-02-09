@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
  * ordinal values with comments instead of ${SyncState.SYNCED.ordinal} templates.
  */
 @Dao
+@Suppress("TooManyFunctions")
 interface BookDao {
     /**
      * Insert or update a book entity.

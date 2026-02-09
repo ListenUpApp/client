@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.calypsan.listenup.client.core
 
 import kotlinx.coroutines.CancellationException
@@ -5,6 +7,8 @@ import kotlin.MustUseReturnValues
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+
+@PublishedApi internal const val UNKNOWN_ERROR_MESSAGE = "Unknown error"
 
 /**
  * Typed error codes for business logic failures.
@@ -70,7 +74,7 @@ typealias Failure = Result.Failure
  * This is the most common way to create a Failure when catching exceptions.
  */
 fun Failure(exception: Exception): Failure =
-    Failure(exception = exception, message = exception.message ?: "Unknown error")
+    Failure(exception = exception, message = exception.message ?: UNKNOWN_ERROR_MESSAGE)
 
 /** Create a validation error failure */
 fun validationError(message: String): Failure = Failure(message = message, errorCode = ErrorCode.VALIDATION_ERROR)
@@ -223,7 +227,7 @@ suspend inline fun <T> suspendRunCatching(crossinline block: suspend () -> T): R
     } catch (e: CancellationException) {
         throw e // Preserve coroutine cancellation
     } catch (e: Exception) {
-        Failure(exception = e, message = e.message ?: "Unknown error")
+        Failure(exception = e, message = e.message ?: UNKNOWN_ERROR_MESSAGE)
     }
 }
 
@@ -238,6 +242,6 @@ inline fun <T> runCatching(block: () -> T): Result<T> {
     return try {
         Success(block())
     } catch (e: Exception) {
-        Failure(exception = e, message = e.message ?: "Unknown error")
+        Failure(exception = e, message = e.message ?: UNKNOWN_ERROR_MESSAGE)
     }
 }

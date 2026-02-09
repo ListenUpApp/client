@@ -22,6 +22,7 @@ import kotlinx.serialization.Serializable
  * Contract for admin API operations.
  * All methods require authentication as an admin user.
  */
+@Suppress("TooManyFunctions")
 interface AdminApiContract {
     // User management
     suspend fun getUsers(): List<AdminUser>

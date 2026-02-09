@@ -42,7 +42,7 @@ class ShelfRepositoryImplTest {
     private fun createRepository(
         dao: ShelfDao = createMockShelfDao(),
         shelfApi: ShelfApiContract = createMockShelfApi(),
-    ): ShelfRepositoryImpl = ShelfRepositoryImpl(dao, lensApi)
+    ): ShelfRepositoryImpl = ShelfRepositoryImpl(dao, shelfApi)
 
     // ========== Test Data Factories ==========
 
@@ -560,7 +560,7 @@ class ShelfRepositoryImplTest {
             val shelf = repository.getById("shelf-1")
 
             // Then: Owner sees just the shelf name
-            assertEquals("To Read", lens?.displayName("user-1"))
+            assertEquals("To Read", shelf?.displayName("user-1"))
         }
 
     @Test
@@ -581,7 +581,7 @@ class ShelfRepositoryImplTest {
             val shelf = repository.getById("shelf-1")
 
             // Then: Other users see "Owner's Lens Name"
-            assertEquals("Simon's To Read", lens?.displayName("user-2"))
+            assertEquals("Simon's To Read", shelf?.displayName("user-2"))
         }
 
     @Test
@@ -597,7 +597,7 @@ class ShelfRepositoryImplTest {
             val shelf = repository.getById("shelf-1")
 
             // Then
-            assertTrue(lens?.isOwnedBy("user-1") == true)
+            assertTrue(shelf?.isOwnedBy("user-1") == true)
         }
 
     @Test
@@ -613,7 +613,7 @@ class ShelfRepositoryImplTest {
             val shelf = repository.getById("shelf-1")
 
             // Then
-            assertTrue(lens?.isOwnedBy("user-2") == false)
+            assertTrue(shelf?.isOwnedBy("user-2") == false)
         }
 
     @Test
@@ -629,7 +629,7 @@ class ShelfRepositoryImplTest {
             val shelf = repository.getById("shelf-1")
 
             // Then
-            assertEquals("2h 30m", lens?.formattedDuration)
+            assertEquals("2h 30m", shelf?.formattedDuration)
         }
 
     @Test
@@ -645,7 +645,7 @@ class ShelfRepositoryImplTest {
             val shelf = repository.getById("shelf-1")
 
             // Then
-            assertEquals("3h", lens?.formattedDuration)
+            assertEquals("3h", shelf?.formattedDuration)
         }
 
     @Test
@@ -661,7 +661,7 @@ class ShelfRepositoryImplTest {
             val shelf = repository.getById("shelf-1")
 
             // Then
-            assertEquals("45m", lens?.formattedDuration)
+            assertEquals("45m", shelf?.formattedDuration)
         }
 
     @Test
@@ -677,7 +677,7 @@ class ShelfRepositoryImplTest {
             val shelf = repository.getById("shelf-1")
 
             // Then
-            assertEquals("0m", lens?.formattedDuration)
+            assertEquals("0m", shelf?.formattedDuration)
         }
 
     // ========== Multiple Shelves Flow Tests ==========

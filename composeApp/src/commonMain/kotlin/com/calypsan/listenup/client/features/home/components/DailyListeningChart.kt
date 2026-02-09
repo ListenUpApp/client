@@ -88,7 +88,7 @@ fun DailyListeningChart(
 
         chartData.forEachIndexed { index, bar ->
             val x = index * (barWidth + barSpacing)
-            val barHeight = (bar.minutes / maxMinutes) * chartHeight
+            val barHeight = bar.minutes / maxMinutes * chartHeight
             val barTop = chartHeight - barHeight
 
             // Draw bar with rounded top corners

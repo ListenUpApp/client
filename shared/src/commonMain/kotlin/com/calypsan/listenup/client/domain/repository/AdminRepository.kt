@@ -17,6 +17,7 @@ import com.calypsan.listenup.client.domain.model.ServerSettings
  *
  * Part of the domain layer - implementations live in the data layer.
  */
+@Suppress("TooManyFunctions")
 interface AdminRepository {
     // ═══════════════════════════════════════════════════════════════════════
     // USER MANAGEMENT

@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package com.calypsan.listenup.client.features.library.components
 
 import androidx.compose.foundation.background
@@ -54,6 +56,8 @@ import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
 import com.calypsan.listenup.client.util.sortLetter
 import kotlinx.coroutines.launch
+
+private const val SCAN_PROGRESS_WIDTH_FRACTION = 0.6f
 
 /**
  * Represents an item in the book grid - either a section header or a book.
@@ -554,7 +558,7 @@ private fun BooksScanningState(scanProgress: ScanProgressState? = null) {
             if (scanProgress?.progressFraction != null) {
                 LinearProgressIndicator(
                     progress = { scanProgress.progressFraction!! },
-                    modifier = Modifier.fillMaxWidth(0.6f),
+                    modifier = Modifier.fillMaxWidth(SCAN_PROGRESS_WIDTH_FRACTION),
                 )
             }
             if (scanProgress?.changesSummary != null) {

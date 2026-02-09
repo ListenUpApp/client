@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("CognitiveComplexMethod")
 
 package com.calypsan.listenup.client.features.seriesdetail
 
@@ -222,6 +222,7 @@ private fun WideSeriesDetailContent(
  * Horizontal header: cover on the left, stats and description on the right.
  */
 @Composable
+@Suppress("CognitiveComplexMethod")
 private fun SeriesHeaderRow(
     coverPath: String?,
     bookCount: Int,

@@ -111,51 +111,54 @@ class InstanceRepositoryImpl(
         }
     }
 
+    private suspend fun attemptServerVerification(currentUrl: String): Result<VerifiedServer> {
+        val client = createUnauthenticatedClient()
+        return try {
+            val instanceUrl = currentUrl.trimEnd('/') + "/api/v1/instance"
+            logger.debug { "Verifying server at $instanceUrl" }
+            val response: ApiResponse<Instance> = client.get(instanceUrl).body()
+            when (val result = response.toResult()) {
+                is Success -> {
+                    logger.info { "Server verified at $currentUrl" }
+                    Success(VerifiedServer(result.data, currentUrl))
+                }
+
+                is Failure -> {
+                    Failure(result.exceptionOrFromMessage())
+                }
+            }
+        } catch (e: Exception) {
+            Failure(e)
+        } finally {
+            client.close()
+        }
+    }
+
     override suspend fun verifyServer(baseUrl: String): Result<VerifiedServer> {
         val urlsToTry = normalizeUrl(baseUrl)
-
         var lastException: Exception? = null
-
         for ((index, currentUrl) in urlsToTry.withIndex()) {
-            try {
-                val client = createUnauthenticatedClient()
-                try {
-                    val instanceUrl = currentUrl.trimEnd('/') + "/api/v1/instance"
-                    logger.debug { "Verifying server at $instanceUrl" }
+            when (val result = attemptServerVerification(currentUrl)) {
+                is Success -> {
+                    return result
+                }
 
-                    val response: ApiResponse<Instance> = client.get(instanceUrl).body()
-
-                    when (val result = response.toResult()) {
-                        is Success -> {
-                            logger.info { "Server verified at $currentUrl" }
-                            return Success(VerifiedServer(result.data, currentUrl))
-                        }
-
-                        is Failure -> {
-                            throw result.exceptionOrFromMessage()
-                        }
+                is Failure -> {
+                    val errorMessage = result.message?.lowercase() ?: ""
+                    val isSslError =
+                        errorMessage.contains("ssl") ||
+                            errorMessage.contains("tls") ||
+                            errorMessage.contains("handshake")
+                    if (isSslError && index < urlsToTry.size - 1) {
+                        logger.debug { "SSL error at $currentUrl, trying HTTP fallback" }
+                        lastException = result.exception
+                        continue
                     }
-                } finally {
-                    client.close()
+                    lastException = result.exception
+                    break
                 }
-            } catch (e: Exception) {
-                val errorMessage = e.message?.lowercase() ?: ""
-                val isSslError =
-                    errorMessage.contains("ssl") ||
-                        errorMessage.contains("tls") ||
-                        errorMessage.contains("handshake")
-
-                if (isSslError && index < urlsToTry.size - 1) {
-                    logger.debug { "SSL error at $currentUrl, trying HTTP fallback" }
-                    lastException = e
-                    continue
-                }
-
-                lastException = e
-                break
             }
         }
-
         return Failure(lastException ?: Exception("Server verification failed"))
     }
 

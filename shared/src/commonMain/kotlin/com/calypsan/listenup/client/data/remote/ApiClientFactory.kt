@@ -19,14 +19,13 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import io.ktor.client.network.sockets.ConnectTimeoutException
-import io.ktor.client.network.sockets.SocketTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpSend
 import kotlinx.io.IOException
 import io.ktor.client.plugins.plugin
 import kotlinx.serialization.json.Json
 
+private const val SERVER_URL_NOT_CONFIGURED_MESSAGE = "Server URL not configured"
 private val logger = KotlinLogging.logger {}
 
 /**
@@ -81,7 +80,7 @@ class ApiClientFactory(
     suspend fun getStreamingClient(): HttpClient {
         val serverUrl =
             serverConfig.getActiveUrl()
-                ?: error("Server URL not configured")
+                ?: error(SERVER_URL_NOT_CONFIGURED_MESSAGE)
 
         return createStreamingHttpClient(
             serverUrl = serverUrl,
@@ -103,15 +102,16 @@ class ApiClientFactory(
     suspend fun getUnauthenticatedStreamingClient(): HttpClient {
         val serverUrl =
             serverConfig.getActiveUrl()
-                ?: error("Server URL not configured")
+                ?: error(SERVER_URL_NOT_CONFIGURED_MESSAGE)
 
         return createUnauthenticatedStreamingHttpClient(serverUrl)
     }
 
+    @Suppress("ThrowsCount", "CognitiveComplexMethod")
     private suspend fun createClient(): HttpClient {
         val initialUrl =
             serverConfig.getActiveUrl()
-                ?: error("Server URL not configured")
+                ?: error(SERVER_URL_NOT_CONFIGURED_MESSAGE)
 
         logger.info { "Creating HTTP client for server: ${initialUrl.value}" }
 
@@ -225,7 +225,8 @@ class ApiClientFactory(
                         try {
                             execute(request)
                         } catch (retryError: Exception) {
-                            // Fallback also failed, throw original error
+                            // Fallback also failed, preserve both errors
+                            cause.addSuppressed(retryError)
                             throw cause
                         }
                     } else {
@@ -245,12 +246,9 @@ class ApiClientFactory(
      * Only these should trigger URL fallback.
      */
     private fun isNetworkError(cause: Exception): Boolean =
-        cause is java.net.ConnectException ||
-            cause is java.net.SocketTimeoutException ||
-            cause is java.net.UnknownHostException ||
-            cause is java.net.NoRouteToHostException ||
+        cause is kotlinx.io.IOException ||
             cause is io.ktor.client.plugins.HttpRequestTimeoutException ||
-            cause.cause?.let { it is java.net.ConnectException || it is java.net.SocketTimeoutException } == true
+            cause.cause?.let { it is kotlinx.io.IOException } == true
 
     /**
      * Invalidate the cached client and create a new one.

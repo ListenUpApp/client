@@ -12,7 +12,6 @@ import com.calypsan.listenup.client.domain.usecase.admin.UpdateServerSettingsUse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val logger = KotlinLogging.logger {}
@@ -163,7 +162,7 @@ class AdminSettingsViewModel(
                         }
 
                         is Failure -> {
-                            throw Exception(result.message)
+                            throw IllegalStateException(result.message)
                         }
                     }
                 }
@@ -188,7 +187,7 @@ class AdminSettingsViewModel(
                         }
 
                         is Failure -> {
-                            throw Exception(result.message)
+                            throw IllegalStateException(result.message)
                         }
                     }
                 }
@@ -220,9 +219,6 @@ class AdminSettingsViewModel(
 
     fun clearError() {
         state.value = state.value.copy(error = null)
-    }
-
-    companion object {
     }
 }
 

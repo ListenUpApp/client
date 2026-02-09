@@ -4,6 +4,7 @@ import com.calypsan.listenup.client.domain.model.ContinueListeningBook
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.domain.repository.HomeRepository
 import com.calypsan.listenup.client.domain.repository.ShelfRepository
+import com.calypsan.listenup.client.domain.repository.SyncRepository
 import com.calypsan.listenup.client.domain.repository.UserRepository
 import dev.mokkery.answering.returns
 import dev.mokkery.every
@@ -48,17 +49,22 @@ class HomeViewModelTest {
         val homeRepository: HomeRepository = mock()
         val userRepository: UserRepository = mock()
         val shelfRepository: ShelfRepository = mock()
+        val syncRepository: SyncRepository = mock()
         val userFlow = MutableStateFlow<User?>(null)
         val continueListeningFlow = MutableStateFlow<List<ContinueListeningBook>>(emptyList())
+        val scanProgressFlow = MutableStateFlow<com.calypsan.listenup.client.data.sync.sse.ScanProgressState?>(null)
         var currentHour: Int = 10 // Default to morning
 
-        fun build(): HomeViewModel =
-            HomeViewModel(
+        fun build(): HomeViewModel {
+            dev.mokkery.every { syncRepository.scanProgress } returns scanProgressFlow
+            return HomeViewModel(
                 homeRepository = homeRepository,
                 userRepository = userRepository,
                 shelfRepository = shelfRepository,
+                syncRepository = syncRepository,
                 currentHour = { currentHour },
             )
+        }
     }
 
     private fun createFixture(): TestFixture {

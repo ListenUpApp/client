@@ -83,8 +83,7 @@ class StorageViewModel(
             val downloadedBooks =
                 completedByBook
                     .mapNotNull { (bookId, files) ->
-                        val book = bookDao.getById(BookId(bookId))
-                        if (book != null) {
+                        bookDao.getById(BookId(bookId))?.let { book ->
                             // Get primary author from the relation
                             val bookWithContributors = bookDao.getByIdWithContributors(BookId(bookId))
                             val authorName =
@@ -105,8 +104,6 @@ class StorageViewModel(
                                 sizeBytes = files.sumOf { it.downloadedBytes },
                                 fileCount = files.size,
                             )
-                        } else {
-                            null
                         }
                     }.sortedByDescending { it.sizeBytes }
 
