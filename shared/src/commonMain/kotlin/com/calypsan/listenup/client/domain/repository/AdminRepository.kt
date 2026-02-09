@@ -141,13 +141,6 @@ interface AdminRepository {
     suspend fun getServerSettings(): ServerSettings
 
     /**
-     * Update server settings.
-     *
-     * @param serverName Display name for the server (null to keep unchanged)
-     * @param inboxEnabled Whether to enable inbox workflow (null to keep unchanged)
-     * @return Updated server settings
-     */
-    /**
      * Update instance settings (remote URL, name).
      */
     suspend fun updateInstanceRemoteUrl(remoteUrl: String): String?

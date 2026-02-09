@@ -378,9 +378,6 @@ data class SSELibraryScanProgressEvent(
     val removed: Int,
 )
 
-
-/**
- * SSE library scan progress event data.
  */
 /**
  * SSE user pending event data (admin-only).

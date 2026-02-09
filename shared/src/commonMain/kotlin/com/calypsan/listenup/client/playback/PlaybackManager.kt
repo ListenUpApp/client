@@ -104,6 +104,11 @@ class PlaybackManager(
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    /** Set the current book ID — call this only when playback is confirmed to proceed. */
+    fun activateBook(bookId: BookId) {
+        _currentBookId.value = bookId
+    }
+
     /**
      * Prepare for playback of a book.
      *
@@ -116,11 +121,6 @@ class PlaybackManager(
      *
      * @return PrepareResult with timeline and resume position, or null on failure
      */
-    /** Set the current book ID — call this only when playback is confirmed to proceed. */
-    fun activateBook(bookId: BookId) {
-        _currentBookId.value = bookId
-    }
-
     suspend fun prepareForPlayback(bookId: BookId): PrepareResult? {
         logger.info { "Preparing playback for book: ${bookId.value}" }
 

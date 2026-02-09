@@ -1118,7 +1118,3 @@ data class ScanProgressState(
 }
 
 
-/**
- * Current state of a library scan in progress.
- * Null when no scan is running.
- */

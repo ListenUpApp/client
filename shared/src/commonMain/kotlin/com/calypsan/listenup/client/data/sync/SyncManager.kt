@@ -461,9 +461,6 @@ class SyncManager(
     }
 
     /**
-     * Pull user preferences from server and cache locally.
-     */
-    /**
      * Refresh the remote URL from the instance API.
      * This ensures the client always has the latest remote URL,
      * even if the admin updated it since last sync.
