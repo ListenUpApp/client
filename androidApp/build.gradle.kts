@@ -1,3 +1,33 @@
+// Auto-version from git tags (e.g. v0.1.0 -> versionName "0.1.0", versionCode from commit count)
+fun gitVersionName(): String =
+    try {
+        providers
+            .exec {
+                commandLine("git", "describe", "--tags", "--abbrev=0")
+                isIgnoreExitValue = true
+            }.standardOutput.asText
+            .get()
+            .trim()
+            .removePrefix("v")
+            .ifEmpty { "0.0.1" }
+    } catch (_: Exception) {
+        "0.0.1"
+    }
+
+fun gitVersionCode(): Int =
+    try {
+        providers
+            .exec {
+                commandLine("git", "rev-list", "--count", "HEAD")
+                isIgnoreExitValue = true
+            }.standardOutput.asText
+            .get()
+            .trim()
+            .toIntOrNull() ?: 1
+    } catch (_: Exception) {
+        1
+    }
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
@@ -20,8 +50,8 @@ android {
             libs.versions.android.targetSdk
                 .get()
                 .toInt()
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = gitVersionCode()
+        versionName = gitVersionName()
     }
 
     packaging {
