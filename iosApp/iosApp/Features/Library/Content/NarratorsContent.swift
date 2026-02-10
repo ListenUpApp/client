@@ -134,10 +134,10 @@ struct NarratorsContent: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
 
-            Text("No Narrators Yet")
+            Text(NSLocalizedString("library.no_narrators_title", comment: ""))
                 .font(.title2.bold())
 
-            Text("Narrators will appear here when you have audiobooks in your library")
+            Text(NSLocalizedString("library.no_narrators_description", comment: ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

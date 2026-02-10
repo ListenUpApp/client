@@ -90,22 +90,22 @@ final class LoginViewModelWrapper {
 
         switch onEnum(of: errorType) {
         case .invalidCredentials:
-            generalError = "Invalid email or password"
+            generalError = NSLocalizedString("auth.invalid_credentials", comment: "")
 
         case .networkError(let error):
-            generalError = error.detail ?? "Unable to connect to server"
+            generalError = error.detail ?? NSLocalizedString("auth.unable_to_connect", comment: "")
 
         case .serverError(let error):
-            generalError = error.detail ?? "Server error. Please try again."
+            generalError = error.detail ?? NSLocalizedString("auth.server_error", comment: "")
 
         case .validationError(let error):
             switch error.field {
             case .email:
-                emailError = "Please enter a valid email"
+                emailError = NSLocalizedString("auth.invalid_email", comment: "")
             case .password:
-                passwordError = "Please enter your password"
+                passwordError = NSLocalizedString("auth.enter_password", comment: "")
             default:
-                generalError = "Please check your input"
+                generalError = NSLocalizedString("auth.check_input", comment: "")
             }
         }
     }

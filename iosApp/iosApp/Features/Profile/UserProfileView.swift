@@ -23,7 +23,7 @@ struct UserProfileView: View {
             .padding()
         }
         .background(Color(.systemBackground))
-        .navigationTitle("Profile")
+        .navigationTitle(NSLocalizedString("profile.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -34,7 +34,7 @@ struct UserProfileView: View {
             UserAvatarView(user: user, size: 100)
 
             VStack(spacing: 4) {
-                Text(user?.displayName ?? "Loading...")
+                Text(user?.displayName ?? NSLocalizedString("common.loading", comment: ""))
                     .font(.title2.bold())
 
                 if let email = user?.email {
@@ -58,9 +58,9 @@ struct UserProfileView: View {
 
     private var statsSection: some View {
         HStack(spacing: 24) {
-            statItem(value: "--", label: "Hours Listened")
-            statItem(value: "--", label: "Books Finished")
-            statItem(value: "--", label: "In Progress")
+            statItem(value: "--", label: NSLocalizedString("profile.hours_listened", comment: ""))
+            statItem(value: "--", label: NSLocalizedString("profile.books_finished", comment: ""))
+            statItem(value: "--", label: NSLocalizedString("profile.in_progress", comment: ""))
         }
         .padding()
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
@@ -83,13 +83,13 @@ struct UserProfileView: View {
     private var actionsSection: some View {
         VStack(spacing: 0) {
             NavigationLink(value: SettingsDestination()) {
-                actionRow(icon: "gearshape", title: "Settings")
+                actionRow(icon: "gearshape", title: NSLocalizedString("settings.title", comment: ""))
             }
             .buttonStyle(.plain)
 
             Divider()
 
-            actionRow(icon: "arrow.down.circle", title: "Downloads")
+            actionRow(icon: "arrow.down.circle", title: NSLocalizedString("common.downloads", comment: ""))
         }
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
     }

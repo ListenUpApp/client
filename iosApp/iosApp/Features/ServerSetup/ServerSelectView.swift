@@ -50,10 +50,10 @@ struct ServerSelectView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Select Server")
+                Text(NSLocalizedString("server.select_server", comment: ""))
                     .font(.largeTitle.bold())
 
-                Text("Choose a server from your network")
+                Text(NSLocalizedString("server.choose_server", comment: ""))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -126,7 +126,7 @@ private struct ServerCard: View {
                         .foregroundStyle(.primary)
 
                     HStack(spacing: 8) {
-                        Text(server.isOnline ? "Online" : "Offline")
+                        Text(server.isOnline ? NSLocalizedString("common.online", comment: "") : NSLocalizedString("common.offline", comment: ""))
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -186,15 +186,15 @@ private struct EmptyDiscoveryState: View {
                 HStack(spacing: 8) {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("Searching for servers...")
+                    Text(NSLocalizedString("server.searching", comment: ""))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Text("No servers found")
+                Text(NSLocalizedString("server.no_servers_found", comment: ""))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text("Make sure your ListenUp server is running on the same network")
+                Text(NSLocalizedString("server.server_same_network", comment: ""))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -222,11 +222,11 @@ private struct ManualEntryCard: View {
                     .foregroundStyle(Color.listenUpOrange)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Add Server Manually")
+                    Text(NSLocalizedString("server.add_manually", comment: ""))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
 
-                    Text("Enter server URL directly")
+                    Text(NSLocalizedString("server.enter_url_directly", comment: ""))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

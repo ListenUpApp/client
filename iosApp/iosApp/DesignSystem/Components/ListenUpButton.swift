@@ -55,8 +55,8 @@ struct ListenUpButton: View {
         .buttonStyle(ScaleButtonStyle())
         .disabled(isLoading)
         // Accessibility
-        .accessibilityLabel(isLoading ? "Loading" : title)
-        .accessibilityHint(isLoading ? "Please wait" : "Double tap to \(title.lowercased())")
+        .accessibilityLabel(isLoading ? NSLocalizedString("accessibility.loading", comment: "") : title)
+        .accessibilityHint(isLoading ? NSLocalizedString("accessibility.please_wait", comment: "") : "Double tap to \(title.lowercased())")
         .accessibilityAddTraits(isLoading ? [.updatesFrequently] : [])
         .accessibilityRemoveTraits(isLoading ? [.isButton] : [])
     }

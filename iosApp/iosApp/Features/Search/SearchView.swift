@@ -26,7 +26,7 @@ struct SearchView: View {
             }
         }
         .background(Color(.systemBackground))
-        .navigationTitle("Search")
+        .navigationTitle(NSLocalizedString("search.title", comment: ""))
         .navigationBarTitleDisplayMode(.large)
     }
 
@@ -37,7 +37,7 @@ struct SearchView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
-            TextField("Search books, authors, series...", text: $searchText)
+            TextField(NSLocalizedString("search.search_placeholder", comment: ""), text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($isSearchFocused)
                 .submitLabel(.search)
@@ -66,10 +66,10 @@ struct SearchView: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
 
-            Text("Search Your Library")
+            Text(NSLocalizedString("search.search_your_library", comment: ""))
                 .font(.title2.bold())
 
-            Text("Find books by title, author, narrator, or series")
+            Text(NSLocalizedString("search.find_description", comment: ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -85,13 +85,13 @@ struct SearchView: View {
     private var searchResults: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                Text("Results for \"\(searchText)\"")
+                Text(String(format: NSLocalizedString("search.results_for", comment: ""), searchText))
                     .font(.headline)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)
 
                 // TODO: Implement actual search with SearchViewModel
-                Text("Search functionality coming soon")
+                Text(NSLocalizedString("search.coming_soon", comment: ""))
                     .foregroundStyle(.secondary)
                     .padding()
             }

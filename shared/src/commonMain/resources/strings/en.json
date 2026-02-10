@@ -5,7 +5,22 @@
     "save": "Save",
     "delete": "Delete",
     "loading": "Loading...",
-    "checking_server": "Checking server..."
+    "checking_server": "Checking server...",
+    "edit": "Edit",
+    "share": "Share",
+    "error": "Error",
+    "retry": "Retry",
+    "website": "Website",
+    "yes": "Yes",
+    "no": "No",
+    "about": "About",
+    "view_all": "View All",
+    "sign_out": "Sign Out",
+    "disconnect": "Disconnect",
+    "version": "Version",
+    "online": "Online",
+    "offline": "Offline",
+    "downloads": "Downloads"
   },
   "library": {
     "title": "Library",
@@ -37,7 +52,21 @@
     "summary": "• %1$s",
     "title_sort": "Title Sort",
     "you_dont_have_any_shelves": "You don't have any shelves yet",
-    "your_audiobooks_will_appear_here": "Your audiobooks will appear here once the scan is complete"
+    "your_audiobooks_will_appear_here": "Your audiobooks will appear here once the scan is complete",
+    "no_authors_title": "No Authors Yet",
+    "no_authors_description": "Authors will appear here when you have audiobooks in your library",
+    "empty_title": "Your Library is Empty",
+    "empty_description": "Books you add to your server will appear here",
+    "sync_failed": "Sync Failed",
+    "try_again": "Try Again",
+    "no_narrators_title": "No Narrators Yet",
+    "no_narrators_description": "Narrators will appear here when you have audiobooks in your library",
+    "no_series_title": "No Series Yet",
+    "no_series_description": "Series will appear here when books are part of a series",
+    "books_tab": "Books",
+    "series_tab": "Series",
+    "authors_tab": "Authors",
+    "narrators_tab": "Narrators"
   },
   "player": {
     "now_playing": "Now Playing"
@@ -204,7 +233,34 @@
     "signing_you_in": "Signing you in...",
     "waiting_for_approval": "Waiting for Approval",
     "youll_be_automatically_signed_in": "You'll be automatically signed in once approved.",
-    "your_registration_request_has_been": "Your registration request has been submitted and is awaiting admin approval."
+    "your_registration_request_has_been": "Your registration request has been submitted and is awaiting admin approval.",
+    "sign_in_title": "Sign In",
+    "sign_in_subtitle": "Sign in to access your audiobook library",
+    "email_label": "Email",
+    "email_placeholder": "Enter your email",
+    "password_label": "Password",
+    "password_placeholder": "Enter your password",
+    "dont_have_account": "Don't have an account?",
+    "sign_up": "Sign Up",
+    "invalid_credentials": "Invalid email or password",
+    "unable_to_connect": "Unable to connect to server",
+    "server_error": "Server error. Please try again.",
+    "invalid_email": "Please enter a valid email",
+    "enter_password": "Please enter your password",
+    "check_input": "Please check your input",
+    "create_account_title": "Create Account",
+    "join_listenup": "Join ListenUp to start listening",
+    "first_name_label": "First Name",
+    "first_name_placeholder": "First",
+    "last_name_label": "Last Name",
+    "last_name_placeholder": "Last",
+    "create_password_placeholder": "Create a password",
+    "confirm_password_label": "Confirm Password",
+    "confirm_password_placeholder": "Confirm your password",
+    "passwords_dont_match": "Passwords don't match",
+    "already_have_account": "Already have an account?",
+    "awaiting_approval": "Awaiting Approval",
+    "pending_approval_message": "Your account is pending administrator approval."
   },
   "book": {
     "detail_about": "About",
@@ -265,7 +321,16 @@
     "edit_this_will_remove_contributorstoremovecount": "This will remove %1$s ",
     "edit_title": "Title",
     "edit_unsaved_changes": "Unsaved Changes",
-    "edit_you_have_unsaved_changes_are": "You have unsaved changes. Are you sure you want to discard them?"
+    "edit_you_have_unsaved_changes_are": "You have unsaved changes. Are you sure you want to discard them?",
+    "detail_completed": "Completed",
+    "detail_stream_now": "Stream Now",
+    "detail_written_by": "Written by",
+    "detail_narrated_by": "Narrated by",
+    "detail_genres": "Genres",
+    "detail_synopsis": "Synopsis",
+    "detail_chapters": "Chapters",
+    "detail_show_less": "Show Less",
+    "detail_see_all_chapters": "See All %1$d Chapters"
   },
   "connect": {
     "add_server_manually": "Add Server Manually",
@@ -317,7 +382,9 @@
     "search": "Search",
     "select_birth_date": "Select birth date",
     "select_death_date": "Select death date",
-    "view_all": "View All"
+    "view_all": "View All",
+    "author": "Author",
+    "narrator": "Narrator"
   },
   "design": {
     "add_name": "Add %1$s",
@@ -352,7 +419,10 @@
     "start_listening_to_join_the": "Start listening to join the community rankings",
     "total_time": "Total Time",
     "what_others_are_listening_to": "What Others Are Listening To",
-    "when_other_users_create_shelves": "When other users create shelves with books you can access, they'll appear here."
+    "when_other_users_create_shelves": "When other users create shelves with books you can access, they'll appear here.",
+    "title": "Discover",
+    "discover_screen": "Discover Screen",
+    "find_next_favorite": "Find your next favorite audiobook"
   },
   "home": {
     "best_longeststreak": "(best: %1$s)",
@@ -369,7 +439,11 @@
     "start_listening_to_an_audiobook": "Start listening to an audiobook and it will appear here",
     "start_listening_to_see_your": "Start listening to see your stats here",
     "this_week": "This Week",
-    "top_genres": "Top Genres"
+    "top_genres": "Top Genres",
+    "greeting": "Hello, %1$s!",
+    "what_to_read": "What you want to read?",
+    "home_screen": "Home Screen",
+    "content_coming_soon": "Content sections coming soon"
   },
   "metadata": {
     "apply_selected_metadata": "Apply Selected Metadata",
@@ -393,13 +467,23 @@
     "no_shelves_yet_create_one": "No shelves yet. Create one to curate your favorite books!",
     "profile": "Profile",
     "recently_finished": "Recently Finished",
-    "shelves": "Shelves"
+    "shelves": "Shelves",
+    "title": "Profile",
+    "hours_listened": "Hours Listened",
+    "books_finished": "Books Finished",
+    "in_progress": "In Progress"
   },
   "search": {
     "count_books": "%1$s books",
     "no_results_for_query": "No results for \\\"%1$s\\\"",
     "people": "People",
-    "try_a_different_search_term": "Try a different search term"
+    "try_a_different_search_term": "Try a different search term",
+    "title": "Search",
+    "search_placeholder": "Search books, authors, series...",
+    "search_your_library": "Search Your Library",
+    "find_description": "Find books by title, author, narrator, or series",
+    "results_for": "Results for \\\"%1$s\\\"",
+    "coming_soon": "Search functionality coming soon"
   },
   "series": {
     "book_sequence": "Book %1$s",
@@ -451,7 +535,23 @@
     "theme": "Theme",
     "view_and_manage_downloaded_audiobooks": "View and manage downloaded audiobooks",
     "view_thirdparty_licenses": "View third-party licenses",
-    "you_can_redownload_books_anytime": "You can re-download books anytime."
+    "you_can_redownload_books_anytime": "You can re-download books anytime.",
+    "title": "Settings",
+    "interface": "Interface",
+    "use_bookshelf_view": "Use Bookshelf View",
+    "lock_orientation": "Lock Orientation",
+    "theme_label": "Theme",
+    "haptic_feedback": "Haptic Feedback",
+    "haptic_light": "Light",
+    "language": "Language",
+    "language_english": "English",
+    "auto_rewind_label": "Auto Rewind",
+    "jump_forward": "Jump Forward",
+    "jump_backward": "Jump Backward",
+    "server_section": "Server",
+    "connected_to": "Connected to",
+    "account_section": "Account",
+    "about_section": "About"
   },
   "shelf": {
     "add_books_from_the_library": "Add books from the library",
@@ -482,5 +582,55 @@
     "syncing": "Syncing...",
     "the_servers_library_has_changed": "The server's library has changed. You have unsaved changes that will be lost. ",
     "your_library_is_up_to": "Your library is up to date"
+  },
+  "contributor_detail": {
+    "delete_contributor": "Delete Contributor",
+    "remove_from_library": "This will remove this contributor from your library. Books will not be deleted.",
+    "aka": "aka %1$s",
+    "audiobook_count": "%1$d audiobook",
+    "audiobooks_count": "%1$d audiobooks",
+    "born_year": "Born %1$s"
+  },
+  "series_detail": {
+    "title": "Series",
+    "books_in_series": "Books in Series"
+  },
+  "server": {
+    "add_server": "Add Server",
+    "enter_server_url": "Enter your ListenUp server URL",
+    "server_url_label": "Server URL",
+    "server_url_placeholder": "example.com or 192.168.1.100:8080",
+    "connect": "Connect",
+    "back_to_server_list": "Back to Server List",
+    "select_server": "Select Server",
+    "choose_server": "Choose a server from your network",
+    "searching": "Searching for servers...",
+    "no_servers_found": "No servers found",
+    "server_same_network": "Make sure your ListenUp server is running on the same network",
+    "add_manually": "Add Server Manually",
+    "enter_url_directly": "Enter server URL directly"
+  },
+  "instance": {
+    "listenup_server": "ListenUp Server",
+    "instance_id": "Instance ID",
+    "status": "Status",
+    "ready": "Ready",
+    "needs_setup": "Needs Setup",
+    "has_root_user": "Has Root User",
+    "server_needs_setup": "⚠️ Server needs initial setup"
+  },
+  "accessibility": {
+    "tab_label": "%1$s tab",
+    "currently_selected": "Currently selected",
+    "double_tap_select": "Double tap to select",
+    "loading": "Loading",
+    "please_wait": "Please wait",
+    "sort_by": "Sort by %1$s",
+    "change_sort": "Double tap to change sort options",
+    "view_series_details": "Double tap to view series details",
+    "view_details": "Double tap to view %1$s details"
+  },
+  "sort": {
+    "direction": "Direction"
   }
 }

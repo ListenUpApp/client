@@ -15,14 +15,14 @@ struct SettingsView: View {
     var body: some View {
         List {
             // Interface section
-            Section("Interface") {
-                Toggle("Use Bookshelf View", isOn: $useBookshelfView)
-                Toggle("Lock Orientation", isOn: $lockOrientation)
+            Section(NSLocalizedString("settings.interface", comment: "")) {
+                Toggle(NSLocalizedString("settings.use_bookshelf_view", comment: ""), isOn: $useBookshelfView)
+                Toggle(NSLocalizedString("settings.lock_orientation", comment: ""), isOn: $lockOrientation)
 
                 HStack {
-                    Text("Theme")
+                    Text(NSLocalizedString("settings.theme_label", comment: ""))
                     Spacer()
-                    Picker("Theme", selection: $darkMode) {
+                    Picker(NSLocalizedString("settings.theme_label", comment: ""), selection: $darkMode) {
                         Image(systemName: "sun.max.fill").tag(false)
                         Image(systemName: "moon.fill").tag(true)
                     }
@@ -31,33 +31,33 @@ struct SettingsView: View {
                 }
 
                 HStack {
-                    Text("Haptic Feedback")
+                    Text(NSLocalizedString("settings.haptic_feedback", comment: ""))
                     Spacer()
-                    Text("Light")
+                    Text(NSLocalizedString("settings.haptic_light", comment: ""))
                         .foregroundStyle(.secondary)
                 }
 
                 HStack {
-                    Text("Language")
+                    Text(NSLocalizedString("settings.language", comment: ""))
                     Spacer()
-                    Text("English")
+                    Text(NSLocalizedString("settings.language_english", comment: ""))
                         .foregroundStyle(.secondary)
                 }
             }
 
             // Playback section
-            Section("Playback") {
-                Toggle("Auto Rewind", isOn: $autoRewind)
+            Section(NSLocalizedString("settings.playback", comment: "")) {
+                Toggle(NSLocalizedString("settings.auto_rewind_label", comment: ""), isOn: $autoRewind)
 
                 HStack {
-                    Text("Jump Forward")
+                    Text(NSLocalizedString("settings.jump_forward", comment: ""))
                     Spacer()
                     Image(systemName: "goforward.10")
                         .foregroundStyle(.secondary)
                 }
 
                 HStack {
-                    Text("Jump Backward")
+                    Text(NSLocalizedString("settings.jump_backward", comment: ""))
                     Spacer()
                     Image(systemName: "gobackward.10")
                         .foregroundStyle(.secondary)
@@ -65,37 +65,37 @@ struct SettingsView: View {
             }
 
             // Server section
-            Section("Server") {
+            Section(NSLocalizedString("settings.server_section", comment: "")) {
                 HStack {
-                    Text("Connected to")
+                    Text(NSLocalizedString("settings.connected_to", comment: ""))
                     Spacer()
                     Text("myserver.local")
                         .foregroundStyle(.secondary)
                 }
 
-                Button("Disconnect", role: .destructive) {
+                Button(NSLocalizedString("common.disconnect", comment: ""), role: .destructive) {
                     // TODO: Handle disconnect
                 }
             }
 
             // Account section
-            Section("Account") {
-                Button("Sign Out", role: .destructive) {
+            Section(NSLocalizedString("settings.account_section", comment: "")) {
+                Button(NSLocalizedString("common.sign_out", comment: ""), role: .destructive) {
                     // TODO: Handle sign out
                 }
             }
 
             // About section
-            Section("About") {
+            Section(NSLocalizedString("settings.about_section", comment: "")) {
                 HStack {
-                    Text("Version")
+                    Text(NSLocalizedString("common.version", comment: ""))
                     Spacer()
                     Text("1.0.0")
                         .foregroundStyle(.secondary)
                 }
             }
         }
-        .navigationTitle("Settings")
+        .navigationTitle(NSLocalizedString("settings.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

@@ -30,25 +30,25 @@ struct InstanceContent: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("ListenUp Server")
+                Text(NSLocalizedString("instance.listenup_server", comment: ""))
                     .font(.title)
                     .fontWeight(.semibold)
 
                 Divider()
 
-                InfoRow(label: "Instance ID", value: instance.id as! String)
+                InfoRow(label: NSLocalizedString("instance.instance_id", comment: ""), value: instance.id as! String)
                 InfoRow(
-                    label: "Status",
-                    value: instance.isReady ? "Ready" : "Needs Setup"
+                    label: NSLocalizedString("instance.status", comment: ""),
+                    value: instance.isReady ? NSLocalizedString("instance.ready", comment: "") : NSLocalizedString("instance.needs_setup", comment: "")
                 )
                 InfoRow(
-                    label: "Has Root User",
-                    value: instance.hasRootUser ? "Yes" : "No"
+                    label: NSLocalizedString("instance.has_root_user", comment: ""),
+                    value: instance.hasRootUser ? NSLocalizedString("common.yes", comment: "") : NSLocalizedString("common.no", comment: "")
                 )
 
                 if instance.needsSetup {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("⚠️ Server needs initial setup")
+                        Text(NSLocalizedString("instance.server_needs_setup", comment: ""))
                             .font(.body)
                             .foregroundColor(.primary)
                     }
@@ -91,7 +91,7 @@ struct ErrorContent: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Text("Error")
+            Text(NSLocalizedString("common.error", comment: ""))
                 .font(.title2)
                 .fontWeight(.semibold)
 
@@ -101,7 +101,7 @@ struct ErrorContent: View {
                 .multilineTextAlignment(.center)
 
             Button(action: onRetry) {
-                Text("Retry")
+                Text(NSLocalizedString("common.retry", comment: ""))
                     .fontWeight(.medium)
                     .foregroundColor(.white)
                     .padding(.horizontal, 24)

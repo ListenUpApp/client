@@ -60,10 +60,10 @@ struct LoginView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Sign In")
+            Text(NSLocalizedString("auth.sign_in_title", comment: ""))
                 .font(.largeTitle.bold())
 
-            Text("Sign in to access your audiobook library")
+            Text(NSLocalizedString("auth.sign_in_subtitle", comment: ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -72,8 +72,8 @@ struct LoginView: View {
     private var fields: some View {
         VStack(spacing: 16) {
             GlassTextField(
-                label: "Email",
-                placeholder: "Enter your email",
+                label: NSLocalizedString("auth.email_label", comment: ""),
+                placeholder: NSLocalizedString("auth.email_placeholder", comment: ""),
                 text: $email,
                 error: viewModel.emailError,
                 keyboardType: .emailAddress,
@@ -81,8 +81,8 @@ struct LoginView: View {
             )
 
             GlassSecureField(
-                label: "Password",
-                placeholder: "Enter your password",
+                label: NSLocalizedString("auth.password_label", comment: ""),
+                placeholder: NSLocalizedString("auth.password_placeholder", comment: ""),
                 text: $password,
                 error: viewModel.passwordError
             )
@@ -98,7 +98,7 @@ struct LoginView: View {
 
     private var signInButton: some View {
         ListenUpButton(
-            title: "Sign In",
+            title: NSLocalizedString("auth.sign_in_title", comment: ""),
             isLoading: viewModel.isLoading
         ) {
             viewModel.login(email: email, password: password)
@@ -111,10 +111,10 @@ struct LoginView: View {
         VStack(spacing: 16) {
             if openRegistration {
                 HStack(spacing: 4) {
-                    Text("Don't have an account?")
+                    Text(NSLocalizedString("auth.dont_have_account", comment: ""))
                         .foregroundStyle(.secondary)
 
-                    Button("Sign Up") {
+                    Button(NSLocalizedString("auth.sign_up", comment: "")) {
                         navigateToRegister()
                     }
                     .fontWeight(.semibold)
@@ -124,7 +124,7 @@ struct LoginView: View {
                 .font(.subheadline)
             }
 
-            Button("Change Server") {
+            Button(NSLocalizedString("auth.change_server", comment: "")) {
                 Task {
                     try? await dependencies.serverConfig.disconnectFromServer()
                 }

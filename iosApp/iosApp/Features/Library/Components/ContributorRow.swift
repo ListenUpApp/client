@@ -9,8 +9,8 @@ enum ContributorRole {
 
     var label: String {
         switch self {
-        case .author: "Author"
-        case .narrator: "Narrator"
+        case .author: NSLocalizedString("contributor.author", comment: "")
+        case .narrator: NSLocalizedString("contributor.narrator", comment: "")
         }
     }
 }
