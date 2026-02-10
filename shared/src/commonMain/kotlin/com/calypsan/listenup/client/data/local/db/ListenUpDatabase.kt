@@ -11,37 +11,10 @@ import androidx.room.TypeConverters
  *
  * Stores user data, books, and sync metadata for offline-first functionality.
  *
- * Schema versioning:
- * - v1: Initial schema with UserEntity only
- * - v2: Added BookEntity and SyncMetadataEntity for sync support
- * - v3: Added ChapterEntity
- * - v8: Added subtitle column to books table
- * - v9: Added FTS5 tables for full-text search (books_fts, contributors_fts, series_fts)
- * - v10: Added book_series junction table for many-to-many book-series relationships
- * - v11: Added publisher, language, isbn, asin, abridged columns to books table
- * - v12: Added website, birthDate, deathDate, aliases columns to contributors; creditedAs to book_contributors
- * - v13: Added servers table for multi-server support with per-server auth tokens
- * - v17: Added collections table for admin collection management
- * - v18: Added shelves table for personal curation and social discovery
- * - v19: Added tags and book_tags tables for community tagging
- * - v20: Added lastPlayedAt column to playback_positions for accurate "last read" tracking
- * - v21: Added listening_events table for offline-first stats
- * - v22: Added avatarType, avatarValue, avatarColor columns to users table
- * - v23: Added tagline column to users table for profile bio
- * - v24: Added user_profiles table for caching other users' profile data
- * - v25: Added active_sessions table for "What Others Are Listening To" feature
- * - v26: Added activities table for offline activity feed
- * - v27: Added user_stats table for offline leaderboard caching
- * - v28: Added firstName, lastName columns to users table
- * - v29: Added genres and book_genres tables for offline genre support
- * - v30: Added isFinished column to playback_positions for authoritative finished status
- * - v31: Added finishedAt, startedAt columns to playback_positions for timeline tracking
- * - v32: Added source column to listening_events for tracking event origin (playback/import/manual)
- * - v33: Added reading_sessions table for offline-first "Readers" section on book detail
- * - v38: Added sortName, asin to contributors; asin, coverImagePath, coverBlurHash to series
+ * Schema reset to version 1 — no prior users exist, so all legacy migrations
+ * (v1-v38) were removed. The current schema is the v1 baseline.
  *
- * Migration strategy: Manual migrations provided for all version transitions
- * to preserve user data. Destructive migration disabled.
+ * Destructive migration enabled as a safety net during early development.
  */
 @Database(
     entities = [
@@ -71,7 +44,7 @@ import androidx.room.TypeConverters
         UserStatsEntity::class,
         ReadingSessionEntity::class,
     ],
-    version = 38,
+    version = 1,
     exportSchema = true,
 )
 @TypeConverters(
