@@ -38,6 +38,7 @@ import androidx.room.TypeConverters
  * - v31: Added finishedAt, startedAt columns to playback_positions for timeline tracking
  * - v32: Added source column to listening_events for tracking event origin (playback/import/manual)
  * - v33: Added reading_sessions table for offline-first "Readers" section on book detail
+ * - v38: Added sortName, asin to contributors; asin, coverImagePath, coverBlurHash to series
  *
  * Migration strategy: Manual migrations provided for all version transitions
  * to preserve user data. Destructive migration disabled.
@@ -70,7 +71,7 @@ import androidx.room.TypeConverters
         UserStatsEntity::class,
         ReadingSessionEntity::class,
     ],
-    version = 37,
+    version = 38,
     exportSchema = true,
 )
 @TypeConverters(

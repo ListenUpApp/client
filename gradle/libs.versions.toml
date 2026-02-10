@@ -11,7 +11,7 @@ androidx-palette = "1.0.0"
 androidx-material-icons = "1.7.8"
 composeMultiplatform = "1.10.0"
 compose-material3 = "1.11.0-alpha02"
-kotlin = "2.3.0"
+kotlin = "2.3.10"
 ksp = "2.3.4"
 mokkery = "3.1.1"
 ktor = "3.4.0"
@@ -35,7 +35,7 @@ blurhash = "0.3.0"
 kmpalette = "3.1.0"
 
 # Swift Interop
-skie = "0.10.9"
+skie = "0.10.10"
 
 # Desktop
 logback = "1.5.28"

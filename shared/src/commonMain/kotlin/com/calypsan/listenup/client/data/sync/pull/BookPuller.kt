@@ -126,8 +126,11 @@ class BookPuller(
         // Invalidate local covers for books whose cover has changed on server
         invalidateChangedCovers(booksToUpsert)
 
+        // Preserve local-only palette colors that the server doesn't send
+        val booksWithColors = preserveLocalColors(booksToUpsert)
+
         // Upsert books
-        bookDao.upsertAll(booksToUpsert)
+        bookDao.upsertAll(booksWithColors)
 
         // Sync chapters
         syncChapters(response, booksToUpsert)
@@ -139,6 +142,31 @@ class BookPuller(
 
         // Download cover images in background
         downloadCovers(booksToUpsert)
+    }
+
+    /**
+     * Preserve local-only palette colors (dominantColor, darkMutedColor, vibrantColor)
+     * that would be wiped by upsert since the server doesn't send them.
+     */
+    private suspend fun preserveLocalColors(books: List<BookEntity>): List<BookEntity> {
+        val existingColors = books.mapNotNull { book ->
+            bookDao.getById(book.id)?.let { existing ->
+                book.id to Triple(existing.dominantColor, existing.darkMutedColor, existing.vibrantColor)
+            }
+        }.toMap()
+
+        return books.map { book ->
+            val colors = existingColors[book.id]
+            if (colors != null && book.dominantColor == null && book.darkMutedColor == null && book.vibrantColor == null) {
+                book.copy(
+                    dominantColor = colors.first,
+                    darkMutedColor = colors.second,
+                    vibrantColor = colors.third,
+                )
+            } else {
+                book
+            }
+        }
     }
 
     /**

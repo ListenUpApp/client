@@ -174,6 +174,9 @@ data class SeriesEntity(
     @PrimaryKey val id: SeriesId,
     val name: String,
     val description: String?,
+    val asin: String? = null,
+    val coverImagePath: String? = null,
+    val coverBlurHash: String? = null,
     // Sync fields
     override val syncState: SyncState,
     override val lastModified: Timestamp,
@@ -204,6 +207,8 @@ data class SeriesEntity(
 data class ContributorEntity(
     @PrimaryKey val id: ContributorId,
     val name: String,
+    val sortName: String? = null,
+    val asin: String? = null,
     val description: String?,
     val imagePath: String?,
     val imageBlurHash: String? = null, // BlurHash placeholder for image

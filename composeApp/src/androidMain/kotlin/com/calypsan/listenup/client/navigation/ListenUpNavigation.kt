@@ -1016,6 +1016,7 @@ private fun AuthenticatedNavigation(
                         }
                         entry<Settings> {
                             SettingsScreen(
+                                showDynamicColors = true,
                                 onNavigateBack = {
                                     backStack.removeAt(backStack.lastIndex)
                                 },

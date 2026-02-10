@@ -131,6 +131,7 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToStorage: (() -> Unit)? = null,
     onNavigateToLicenses: (() -> Unit)? = null,
+    showDynamicColors: Boolean = false,
     showSleepTimer: Boolean = true,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
@@ -200,6 +201,14 @@ fun SettingsScreen(
                     },
                     onValueSelected = viewModel::setThemeMode,
                 )
+                if (showDynamicColors) {
+                    SettingsToggleItem(
+                        title = "Dynamic colors",
+                        description = "Use colors from your wallpaper (Material You)",
+                        checked = state.dynamicColorsEnabled,
+                        onCheckedChange = viewModel::setDynamicColorsEnabled,
+                    )
+                }
             }
 
             SettingsDivider()

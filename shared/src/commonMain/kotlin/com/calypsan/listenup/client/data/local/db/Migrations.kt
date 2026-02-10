@@ -1399,3 +1399,35 @@ val MIGRATION_36_37 =
             )
         }
     }
+
+
+/**
+ * Migration from version 37 to version 38.
+ *
+ * Changes:
+ * - Add sortName column to contributors table
+ * - Add asin column to contributors table
+ * - Add asin column to series table
+ * - Add coverImagePath column to series table
+ * - Add coverBlurHash column to series table
+ */
+val MIGRATION_37_38 =
+    object : Migration(37, 38) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "ALTER TABLE contributors ADD COLUMN sortName TEXT DEFAULT NULL",
+            )
+            connection.execSQL(
+                "ALTER TABLE contributors ADD COLUMN asin TEXT DEFAULT NULL",
+            )
+            connection.execSQL(
+                "ALTER TABLE series ADD COLUMN asin TEXT DEFAULT NULL",
+            )
+            connection.execSQL(
+                "ALTER TABLE series ADD COLUMN coverImagePath TEXT DEFAULT NULL",
+            )
+            connection.execSQL(
+                "ALTER TABLE series ADD COLUMN coverBlurHash TEXT DEFAULT NULL",
+            )
+        }
+    }

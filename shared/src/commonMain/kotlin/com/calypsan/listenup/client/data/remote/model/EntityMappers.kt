@@ -17,6 +17,9 @@ fun SeriesResponse.toEntity(): SeriesEntity {
         id = SeriesId(id),
         name = name,
         description = description,
+        asin = asin,
+        coverImagePath = coverImage?.path,
+        coverBlurHash = coverImage?.blurHash,
         syncState = SyncState.SYNCED,
         lastModified = now,
         serverVersion = serverUpdatedAt,
@@ -39,6 +42,8 @@ fun ContributorResponse.toEntity(): ContributorEntity {
     return ContributorEntity(
         id = ContributorId(id),
         name = name,
+        sortName = sortName,
+        asin = asin,
         description = biography,
         imagePath = null,
         imageBlurHash = imageBlurHash,

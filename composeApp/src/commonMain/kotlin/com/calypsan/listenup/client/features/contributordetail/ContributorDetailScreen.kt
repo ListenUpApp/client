@@ -568,7 +568,7 @@ private fun NarrowHeroHeader(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = 400.dp)
+                
                 .background(Brush.verticalGradient(gradientColors)),
     ) {
         Column(

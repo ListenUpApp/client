@@ -46,8 +46,11 @@ class GenrePuller(
             val genres = genreApi.listGenres()
             logger.info { "Fetched ${genres.size} global genres" }
 
+            // Build path-to-ID lookup for resolving parent genres
+            val pathToId = genres.associate { it.path to it.id }
+
             // Convert to entities and upsert
-            val genreEntities = genres.map { it.toEntity() }
+            val genreEntities = genres.map { it.toEntity(pathToId) }
             genreDao.upsertAll(genreEntities)
             logger.info { "Genre sync complete: ${genreEntities.size} genres synced" }
         } catch (e: Exception) {
@@ -60,8 +63,9 @@ class GenrePuller(
      * Convert domain Genre to GenreEntity.
      *
      * Computes parentId, depth, and sortOrder from the path.
+     * Uses pathToId lookup to resolve parent genre IDs.
      */
-    private fun Genre.toEntity(): GenreEntity {
+    private fun Genre.toEntity(pathToId: Map<String, String>): GenreEntity {
         val segments = path.trim('/').split('/')
         val parentPath =
             if (segments.size > 1) {
@@ -76,18 +80,9 @@ class GenrePuller(
             slug = slug,
             path = path,
             bookCount = bookCount,
-            parentId = parentPath?.let { findParentIdFromPath(it) },
+            parentId = parentPath?.let { pathToId[it] },
             depth = segments.size - 1,
             sortOrder = 0, // Server doesn't provide this, use default
         )
     }
-
-    /**
-     * Find parent ID from parent path by looking up existing genres.
-     *
-     * Since we're doing a full sync, parents may not exist yet during conversion.
-     * Returns null for now - a second pass could update parent IDs if needed.
-     */
-    @Suppress("UnusedParameter")
-    private fun findParentIdFromPath(parentPath: String): String? = null
 }

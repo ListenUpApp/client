@@ -252,6 +252,8 @@ data class SeriesResponse(
     val createdAt: String,
     @SerialName("updated_at")
     val updatedAt: String,
+    @SerialName("asin")
+    val asin: String? = null,
 )
 
 @Serializable
