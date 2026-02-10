@@ -36,6 +36,15 @@ sealed interface ShortcutAction {
     data class SleepTimer(
         val timerMinutes: Int? = null,
     ) : ShortcutAction
+
+    /**
+     * Navigate to a specific book's detail screen (from deep link).
+     *
+     * @property bookId The ID of the book to view
+     */
+    data class NavigateToBook(
+        val bookId: String,
+    ) : ShortcutAction
 }
 
 /**

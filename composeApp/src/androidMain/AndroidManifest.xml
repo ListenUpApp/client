@@ -58,6 +58,14 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="listenup" android:host="join" />
             </intent-filter>
+
+            <!-- Deep link: listenup://book/{bookId} -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="listenup" android:host="book" />
+            </intent-filter>
         </activity>
 
         <service

@@ -68,6 +68,7 @@ fun HeroSection(
     onDiscardProgressClick: () -> Unit,
     onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
+    onShareClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -124,6 +125,7 @@ fun HeroSection(
                 onDiscardProgressClick = onDiscardProgressClick,
                 onAddToShelfClick = onAddToShelfClick,
                 onAddToCollectionClick = onAddToCollectionClick,
+                onShareClick = onShareClick,
                 onDeleteClick = onDeleteClick,
             )
 
@@ -188,6 +190,7 @@ private fun HeroNavigationBar(
     onDiscardProgressClick: () -> Unit,
     onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
+    onShareClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -266,6 +269,10 @@ private fun HeroNavigationBar(
                 onAddToCollectionClick = {
                     showMenu = false
                     onAddToCollectionClick()
+                },
+                onShareClick = {
+                    showMenu = false
+                    onShareClick()
                 },
                 onDeleteClick = {
                     showMenu = false

@@ -219,6 +219,7 @@ val downloadModule =
         // Platform actions for BookDetailScreen (download + playback integration)
         single<BookDetailPlatformActions> {
             AndroidBookDetailPlatformActions(
+                context = androidContext(),
                 downloadManager = get(),
                 playerViewModel = get(),
                 localPreferences = get(),

@@ -39,6 +39,9 @@ interface BookDetailPlatformActions {
 
     /** Check if the server is reachable (quick health check) */
     suspend fun checkServerReachable(): Boolean
+
+    /** Share text via platform share sheet (Android) or clipboard (Desktop) */
+    fun shareText(text: String, url: String)
 }
 
 /**
@@ -64,4 +67,6 @@ class NoOpBookDetailPlatformActions : BookDetailPlatformActions {
     override fun observeIsOnUnmeteredNetwork(): Flow<Boolean> = flowOf(true)
 
     override suspend fun checkServerReachable(): Boolean = true
+
+    override fun shareText(text: String, url: String) {}
 }

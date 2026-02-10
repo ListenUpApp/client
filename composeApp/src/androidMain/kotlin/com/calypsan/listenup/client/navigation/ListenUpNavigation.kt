@@ -483,6 +483,16 @@ private fun AuthenticatedNavigation(
                 currentShellDestination = ShellDestination.Library
             }
 
+            is ShortcutAction.NavigateToBook -> {
+                logger.info { "Navigating to book: ${'$'}{action.bookId}" }
+                // Ensure we're on Shell first, then navigate to book detail
+                if (backStack.lastOrNull() != Shell) {
+                    backStack.clear()
+                    backStack.add(Shell)
+                }
+                backStack.add(BookDetail(action.bookId))
+            }
+
             is ShortcutAction.SleepTimer -> {
                 // If playing, show sleep timer; otherwise resume + set timer
                 val result = homeRepository.getContinueListening(1)
