@@ -15,7 +15,7 @@ private val logger = KotlinLogging.logger {}
  * ViewModel for the user detail screen.
  *
  * Manages viewing and editing a single user's details and permissions.
- * Allows toggling canDownload and canShare permissions for non-protected users.
+ * Allows toggling canShare permission for non-protected users.
  */
 class UserDetailViewModel(
     private val userId: String,
@@ -41,7 +41,6 @@ class UserDetailViewModel(
                     state.value.copy(
                         isLoading = false,
                         user = user,
-                        canDownload = user.permissions.canDownload,
                         canShare = user.permissions.canShare,
                         isProtected = user.isProtected,
                     )
@@ -51,48 +50,6 @@ class UserDetailViewModel(
                     state.value.copy(
                         isLoading = false,
                         error = e.message ?: "Failed to load user",
-                    )
-            }
-        }
-    }
-
-    /**
-     * Toggle the canDownload permission.
-     *
-     * Optimistically updates the UI state, then saves to server.
-     * Reverts on failure.
-     */
-    fun toggleCanDownload() {
-        if (state.value.isProtected) return
-
-        val previousValue = state.value.canDownload
-        val newValue = !previousValue
-
-        // Optimistic update
-        state.value = state.value.copy(canDownload = newValue, isSaving = true)
-
-        viewModelScope.launch {
-            try {
-                val updatedUser =
-                    adminRepository.updateUser(
-                        userId = userId,
-                        canDownload = newValue,
-                    )
-                logger.info { "Updated canDownload for user $userId to $newValue" }
-                state.value =
-                    state.value.copy(
-                        isSaving = false,
-                        user = updatedUser,
-                        canDownload = updatedUser.permissions.canDownload,
-                    )
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to update canDownload for user: $userId" }
-                // Revert to previous value
-                state.value =
-                    state.value.copy(
-                        isSaving = false,
-                        canDownload = previousValue,
-                        error = e.message ?: "Failed to update permission",
                     )
             }
         }
@@ -154,7 +111,6 @@ class UserDetailViewModel(
 data class UserDetailUiState(
     val isLoading: Boolean = true,
     val user: AdminUserInfo? = null,
-    val canDownload: Boolean = true,
     val canShare: Boolean = true,
     val isProtected: Boolean = false,
     val isSaving: Boolean = false,

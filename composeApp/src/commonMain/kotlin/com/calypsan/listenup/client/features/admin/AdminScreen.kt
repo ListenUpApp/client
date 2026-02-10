@@ -849,17 +849,6 @@ private fun UserTableRow(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Icon(
-                imageVector = Icons.Outlined.CloudDownload,
-                contentDescription = if (user.permissions.canDownload) "Can download" else "Cannot download",
-                tint =
-                    if (user.permissions.canDownload) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.outlineVariant
-                    },
-                modifier = Modifier.size(16.dp),
-            )
-            Icon(
                 imageVector = Icons.Outlined.Share,
                 contentDescription = if (user.permissions.canShare) "Can share" else "Cannot share",
                 tint =

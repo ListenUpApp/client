@@ -60,13 +60,11 @@ class AdminRepositoryImpl(
         firstName: String?,
         lastName: String?,
         role: String?,
-        canDownload: Boolean?,
         canShare: Boolean?,
     ): AdminUserInfo {
         val permissionsUpdate =
-            if (canDownload != null || canShare != null) {
+            if (canShare != null) {
                 UpdatePermissionsRequest(
-                    canDownload = canDownload,
                     canShare = canShare,
                 )
             } else {
@@ -222,7 +220,6 @@ private fun AdminUser.toDomain(): AdminUserInfo =
         status = status,
         permissions =
             UserPermissions(
-                canDownload = permissions.canDownload,
                 canShare = permissions.canShare,
             ),
         createdAt = createdAt,
