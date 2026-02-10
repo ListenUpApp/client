@@ -53,7 +53,7 @@ import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.connect_add_server_manually
 import listenup.composeapp.generated.resources.connect_enter_server_url_directly
 import listenup.composeapp.generated.resources.connect_make_sure_your_listenup_server
-import listenup.composeapp.generated.resources.connect_no_servers_found
+import listenup.composeapp.generated.resources.common_no_items_found
 import listenup.composeapp.generated.resources.common_refresh
 import listenup.composeapp.generated.resources.connect_select_server
 import listenup.composeapp.generated.resources.common_selected
@@ -388,7 +388,7 @@ private fun EmptyState(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = stringResource(Res.string.connect_no_servers_found),
+            text = stringResource(Res.string.common_no_items_found, "servers"),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

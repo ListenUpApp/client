@@ -50,14 +50,14 @@ import listenup.composeapp.generated.resources.admin_allow_downloading_content_f
 import listenup.composeapp.generated.resources.admin_allow_sharing_collections_with_other
 import listenup.composeapp.generated.resources.admin_can_download
 import listenup.composeapp.generated.resources.admin_can_share
-import listenup.composeapp.generated.resources.admin_display_name
-import listenup.composeapp.generated.resources.admin_email_address
+import listenup.composeapp.generated.resources.common_display_name
+import listenup.composeapp.generated.resources.common_email_address
 import listenup.composeapp.generated.resources.common_permissions
 import listenup.composeapp.generated.resources.admin_protected_user
 import listenup.composeapp.generated.resources.common_role
 import listenup.composeapp.generated.resources.admin_this_users_permissions_cannot_be
 import listenup.composeapp.generated.resources.common_entity_information
-import listenup.composeapp.generated.resources.admin_user_not_found
+import listenup.composeapp.generated.resources.common_not_found
 
 /**
  * Screen for viewing and editing a single user's details and permissions.
@@ -103,7 +103,7 @@ fun UserDetailScreen(
             FullScreenLoadingIndicator()
         } else if (state.user == null) {
             ErrorContent(
-                message = stringResource(Res.string.admin_user_not_found),
+                message = stringResource(Res.string.common_not_found, "User"),
                 modifier = Modifier.padding(innerPadding),
             )
         } else {
@@ -220,7 +220,7 @@ private fun UserInfoCard(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = stringResource(Res.string.admin_display_name),
+                        text = stringResource(Res.string.common_display_name),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -249,7 +249,7 @@ private fun UserInfoCard(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = stringResource(Res.string.admin_email_address),
+                        text = stringResource(Res.string.common_email_address),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

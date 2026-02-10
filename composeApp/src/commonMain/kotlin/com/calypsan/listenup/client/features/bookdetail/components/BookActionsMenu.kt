@@ -20,7 +20,7 @@ import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.book_detail_add_to_collection
 import listenup.composeapp.generated.resources.book_detail_add_to_shelf
-import listenup.composeapp.generated.resources.book_detail_delete_book
+import listenup.composeapp.generated.resources.common_delete_name
 import listenup.composeapp.generated.resources.book_detail_discard_progress
 import listenup.composeapp.generated.resources.book_detail_edit_book
 import listenup.composeapp.generated.resources.book_detail_find_metadata
@@ -155,7 +155,7 @@ fun BookActionsMenu(
             DropdownMenuItem(
                 text = {
                     Text(
-                        text = stringResource(Res.string.book_detail_delete_book),
+                        text = stringResource(Res.string.common_delete_name, "Book"),
                         color = MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
                     )
                 },

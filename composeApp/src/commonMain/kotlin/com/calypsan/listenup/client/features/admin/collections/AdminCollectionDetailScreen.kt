@@ -66,18 +66,18 @@ import listenup.composeapp.generated.resources.admin_add_member
 import listenup.composeapp.generated.resources.admin_add_members_to_share_this
 import listenup.composeapp.generated.resources.admin_administrator
 import listenup.composeapp.generated.resources.admin_all_users_are_already_members
-import listenup.composeapp.generated.resources.admin_are_you_sure_you_want_6
+import listenup.composeapp.generated.resources.admin_confirm_remove_member
 import listenup.composeapp.generated.resources.admin_books_can_be_added_from
 import listenup.composeapp.generated.resources.admin_books_in_collection
 import listenup.composeapp.generated.resources.admin_collection_details
 import listenup.composeapp.generated.resources.admin_collection_name
-import listenup.composeapp.generated.resources.admin_collection_not_found
+import listenup.composeapp.generated.resources.common_not_found
 import listenup.composeapp.generated.resources.admin_collection_updated
 import listenup.composeapp.generated.resources.admin_in_this_collection
 import listenup.composeapp.generated.resources.common_loading_item
 import listenup.composeapp.generated.resources.common_members
 import listenup.composeapp.generated.resources.admin_no_books_in_this_collection
-import listenup.composeapp.generated.resources.admin_no_members
+import listenup.composeapp.generated.resources.common_no_items
 import listenup.composeapp.generated.resources.admin_no_users_available
 import listenup.composeapp.generated.resources.common_remove
 import listenup.composeapp.generated.resources.admin_remove_book
@@ -143,7 +143,7 @@ fun AdminCollectionDetailScreen(
             FullScreenLoadingIndicator()
         } else if (state.collection == null) {
             ErrorContent(
-                message = stringResource(Res.string.admin_collection_not_found),
+                message = stringResource(Res.string.common_not_found, "Collection"),
                 modifier = Modifier.padding(innerPadding),
             )
         } else {
@@ -194,7 +194,7 @@ fun AdminCollectionDetailScreen(
             onDismissRequest = { shareToRemove = null },
             title = stringResource(Res.string.admin_remove_member),
             text =
-                stringResource(Res.string.admin_are_you_sure_you_want_6) +
+                stringResource(Res.string.admin_confirm_remove_member) +
                     stringResource(Res.string.admin_they_will_no_longer_have),
             confirmText = stringResource(Res.string.common_remove),
             onConfirm = {
@@ -498,7 +498,7 @@ private fun EmptyMembersMessage(modifier: Modifier = Modifier) {
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = stringResource(Res.string.admin_no_members),
+                text = stringResource(Res.string.common_no_items, "members"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

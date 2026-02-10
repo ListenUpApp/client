@@ -83,7 +83,7 @@ import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.common_delete
 import listenup.composeapp.generated.resources.common_about
 import listenup.composeapp.generated.resources.book_detail_more_options
-import listenup.composeapp.generated.resources.contributor_delete_contributor
+import listenup.composeapp.generated.resources.common_delete_name
 import listenup.composeapp.generated.resources.contributor_download_metadata
 import listenup.composeapp.generated.resources.common_edit
 import listenup.composeapp.generated.resources.contributor_from_your_library_this_action
@@ -194,7 +194,7 @@ fun ContributorDetailScreen(
         if (state.showDeleteConfirmation) {
             ListenUpDestructiveDialog(
                 onDismissRequest = viewModel::onDismissDelete,
-                title = stringResource(Res.string.contributor_delete_contributor),
+                title = stringResource(Res.string.common_delete_name, "Contributor"),
                 text =
                     "This will remove ${state.contributor?.name ?: "this contributor"} " +
                         stringResource(Res.string.contributor_from_your_library_this_action),

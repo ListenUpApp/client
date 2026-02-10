@@ -48,7 +48,7 @@ struct ContributorDetailView: View {
             }
         }
         .confirmationDialog(
-            NSLocalizedString("contributor.delete_contributor", comment: ""),
+            NSLocalizedString("common.delete_name", comment: ""),
             isPresented: Binding(
                 get: { observer?.showDeleteConfirmation ?? false },
                 set: { _ in observer?.onDismissDelete() }

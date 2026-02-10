@@ -57,13 +57,13 @@ import com.calypsan.listenup.client.presentation.admin.AdminInboxUiState
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_inbox
-import listenup.composeapp.generated.resources.admin_inbox_empty
+import listenup.composeapp.generated.resources.common_inbox
+import listenup.composeapp.generated.resources.common_inbox_empty
 import listenup.composeapp.generated.resources.admin_newly_scanned_books_will_appear
 import listenup.composeapp.generated.resources.admin_no_collections_will_be_public
-import listenup.composeapp.generated.resources.admin_release
-import listenup.composeapp.generated.resources.admin_release_anyway
-import listenup.composeapp.generated.resources.admin_release_without_collections
+import listenup.composeapp.generated.resources.common_release
+import listenup.composeapp.generated.resources.common_release_anyway
+import listenup.composeapp.generated.resources.common_release_without_collections
 import listenup.composeapp.generated.resources.admin_these_books_will_become_visible
 import listenup.composeapp.generated.resources.admin_will_be_released_without_any
 
@@ -117,7 +117,7 @@ fun AdminInboxScreen(
                     if (state.hasSelection) {
                         Text("${state.selectedCount} selected")
                     } else {
-                        Text(stringResource(Res.string.admin_inbox))
+                        Text(stringResource(Res.string.common_inbox))
                     }
                 },
                 navigationIcon = {
@@ -166,7 +166,7 @@ fun AdminInboxScreen(
                         }
                     },
                     icon = Icons.Outlined.Publish,
-                    text = stringResource(Res.string.admin_release),
+                    text = stringResource(Res.string.common_release),
                     isLoading = state.isReleasing,
                 )
             }
@@ -193,12 +193,12 @@ fun AdminInboxScreen(
 
         ListenUpDestructiveDialog(
             onDismissRequest = { showReleaseConfirmation = false },
-            title = stringResource(Res.string.admin_release_without_collections),
+            title = stringResource(Res.string.common_release_without_collections),
             text =
                 "$booksWithoutCollections book${if (booksWithoutCollections != 1) "s" else ""} " +
                     stringResource(Res.string.admin_will_be_released_without_any) +
                     stringResource(Res.string.admin_these_books_will_become_visible),
-            confirmText = stringResource(Res.string.admin_release_anyway),
+            confirmText = stringResource(Res.string.common_release_anyway),
             onConfirm = {
                 showReleaseConfirmation = false
                 viewModel.releaseBooks(state.selectedBookIds.toList())
@@ -370,7 +370,7 @@ private fun EmptyInboxMessage(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = stringResource(Res.string.admin_inbox_empty),
+            text = stringResource(Res.string.common_inbox_empty),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )

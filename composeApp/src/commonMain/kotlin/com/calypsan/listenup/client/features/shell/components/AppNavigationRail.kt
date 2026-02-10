@@ -18,7 +18,7 @@ import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_admin
+import listenup.composeapp.generated.resources.common_admin
 import listenup.composeapp.generated.resources.common_settings
 
 /**
@@ -96,10 +96,10 @@ fun AppNavigationRail(
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.AdminPanelSettings,
-                        contentDescription = stringResource(Res.string.admin_admin),
+                        contentDescription = stringResource(Res.string.common_admin),
                     )
                 },
-                label = { Text(stringResource(Res.string.admin_admin)) },
+                label = { Text(stringResource(Res.string.common_admin)) },
             )
         }
 

@@ -66,9 +66,9 @@ import listenup.composeapp.generated.resources.common_create
 import listenup.composeapp.generated.resources.admin_create_a_collection_to_organize
 import listenup.composeapp.generated.resources.admin_create_collection
 import listenup.composeapp.generated.resources.common_delete
-import listenup.composeapp.generated.resources.admin_delete_collection
+import listenup.composeapp.generated.resources.common_delete_name
 import listenup.composeapp.generated.resources.admin_enter_a_name_for_the
-import listenup.composeapp.generated.resources.admin_no_collections
+import listenup.composeapp.generated.resources.common_no_items
 import listenup.composeapp.generated.resources.common_cancel
 
 /**
@@ -165,7 +165,7 @@ fun AdminCollectionsScreen(
 
         ListenUpDestructiveDialog(
             onDismissRequest = { collectionToDelete = null },
-            title = stringResource(Res.string.admin_delete_collection),
+            title = stringResource(Res.string.common_delete_name, "Collection"),
             text = warningText,
             confirmText = stringResource(Res.string.common_delete),
             onConfirm = {
@@ -345,7 +345,7 @@ private fun EmptyCollectionsMessage(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = stringResource(Res.string.admin_no_collections),
+            text = stringResource(Res.string.common_no_items, "Collections"),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )

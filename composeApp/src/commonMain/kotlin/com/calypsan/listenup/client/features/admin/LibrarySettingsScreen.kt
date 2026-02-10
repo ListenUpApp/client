@@ -65,7 +65,7 @@ import listenup.composeapp.generated.resources.admin_add_this_folder
 import listenup.composeapp.generated.resources.admin_inbox_settings
 import listenup.composeapp.generated.resources.common_entity_information
 import listenup.composeapp.generated.resources.admin_library_name
-import listenup.composeapp.generated.resources.admin_library_not_found
+import listenup.composeapp.generated.resources.common_not_found
 import listenup.composeapp.generated.resources.admin_new_books_in_this_library
 import listenup.composeapp.generated.resources.common_open
 import listenup.composeapp.generated.resources.common_remove
@@ -73,7 +73,7 @@ import listenup.composeapp.generated.resources.admin_remove_path
 import listenup.composeapp.generated.resources.admin_remove_path_from_library_scan
 import listenup.composeapp.generated.resources.admin_remove_scan_path
 import listenup.composeapp.generated.resources.admin_rescan_library
-import listenup.composeapp.generated.resources.admin_restricted
+import listenup.composeapp.generated.resources.common_restricted
 import listenup.composeapp.generated.resources.admin_scan_all_paths_for_new
 import listenup.composeapp.generated.resources.admin_scan_paths
 import listenup.composeapp.generated.resources.admin_scanning
@@ -127,7 +127,7 @@ fun LibrarySettingsScreen(
             FullScreenLoadingIndicator()
         } else if (state.library == null) {
             ErrorContent(
-                message = stringResource(Res.string.admin_library_not_found),
+                message = stringResource(Res.string.common_not_found, "Library"),
                 modifier = Modifier.padding(innerPadding),
             )
         } else {
@@ -375,7 +375,7 @@ private fun AccessModeCard(
             // Restricted mode option
             AccessModeRow(
                 icon = Icons.Outlined.Lock,
-                title = stringResource(Res.string.admin_restricted),
+                title = stringResource(Res.string.common_restricted),
                 description = stringResource(Res.string.admin_users_only_see_books_in),
                 isSelected = currentMode == AccessMode.RESTRICTED,
                 isEnabled = !isSaving,

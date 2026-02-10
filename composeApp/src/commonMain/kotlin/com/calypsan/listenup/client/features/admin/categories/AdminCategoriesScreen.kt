@@ -73,13 +73,13 @@ import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_add_genre
 import listenup.composeapp.generated.resources.admin_add_subgenre
-import listenup.composeapp.generated.resources.admin_are_you_sure_you_want_4
+import listenup.composeapp.generated.resources.admin_confirm_delete_item
 import listenup.composeapp.generated.resources.common_back
-import listenup.composeapp.generated.resources.admin_categories
+import listenup.composeapp.generated.resources.common_categories
 import listenup.composeapp.generated.resources.common_delete
-import listenup.composeapp.generated.resources.admin_delete_genre
+import listenup.composeapp.generated.resources.common_delete_name
 import listenup.composeapp.generated.resources.admin_genre_name
-import listenup.composeapp.generated.resources.admin_no_categories
+import listenup.composeapp.generated.resources.common_no_items
 import listenup.composeapp.generated.resources.common_rename
 import listenup.composeapp.generated.resources.admin_rename_genre
 import listenup.composeapp.generated.resources.admin_tap_to_create_your_first
@@ -136,7 +136,7 @@ fun AdminCategoriesScreen(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text(stringResource(Res.string.admin_categories)) },
+                    title = { Text(stringResource(Res.string.common_categories)) },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.common_back))
@@ -260,8 +260,8 @@ fun AdminCategoriesScreen(
     if (showDeleteDialog) {
         ListenUpDestructiveDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = stringResource(Res.string.admin_delete_genre),
-            text = stringResource(Res.string.admin_are_you_sure_you_want_4, deleteGenreName),
+            title = stringResource(Res.string.common_delete_name, "Genre"),
+            text = stringResource(Res.string.admin_confirm_delete_item, deleteGenreName),
             confirmText = stringResource(Res.string.common_delete),
             onConfirm = {
                 viewModel.deleteGenre(deleteGenreId)
@@ -637,7 +637,7 @@ private fun EmptyCategoriesMessage(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = stringResource(Res.string.admin_no_categories),
+            text = stringResource(Res.string.common_no_items, "Categories"),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )

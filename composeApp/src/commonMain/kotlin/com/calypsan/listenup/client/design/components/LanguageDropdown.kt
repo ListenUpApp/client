@@ -21,7 +21,7 @@ import com.calypsan.listenup.client.domain.model.Language
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_clear_selection
-import listenup.composeapp.generated.resources.common_no_languages_found
+import listenup.composeapp.generated.resources.common_no_items_found
 import listenup.composeapp.generated.resources.common_search_languages
 
 /**
@@ -135,7 +135,7 @@ fun LanguageDropdown(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            text = stringResource(Res.string.common_no_languages_found),
+                            text = stringResource(Res.string.common_no_items_found, "languages"),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },

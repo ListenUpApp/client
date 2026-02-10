@@ -74,29 +74,29 @@ import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_admin
+import listenup.composeapp.generated.resources.common_admin
 import listenup.composeapp.generated.resources.admin_allow_anyone_to_request_an
 import listenup.composeapp.generated.resources.common_approve
-import listenup.composeapp.generated.resources.admin_are_you_sure_you_want_3
+import listenup.composeapp.generated.resources.admin_confirm_deny_registration
 import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.admin_backup_restore
-import listenup.composeapp.generated.resources.admin_categories
+import listenup.composeapp.generated.resources.common_categories
 import listenup.composeapp.generated.resources.common_collections
 import listenup.composeapp.generated.resources.admin_copy_link
 import listenup.composeapp.generated.resources.admin_create_backups_and_restore_server
 import listenup.composeapp.generated.resources.common_delete
-import listenup.composeapp.generated.resources.admin_delete_user
+import listenup.composeapp.generated.resources.common_delete_name
 import listenup.composeapp.generated.resources.common_deny
 import listenup.composeapp.generated.resources.admin_deny_registration
 import listenup.composeapp.generated.resources.common_email
-import listenup.composeapp.generated.resources.admin_inbox
-import listenup.composeapp.generated.resources.admin_inbox_workflow
+import listenup.composeapp.generated.resources.common_inbox
+import listenup.composeapp.generated.resources.common_inbox_workflow
 import listenup.composeapp.generated.resources.admin_invite_someone
 import listenup.composeapp.generated.resources.admin_link_copied
 import listenup.composeapp.generated.resources.connect_listenup_server
 import listenup.composeapp.generated.resources.common_name
 import listenup.composeapp.generated.resources.admin_no_pending_registrations
-import listenup.composeapp.generated.resources.admin_no_users_found
+import listenup.composeapp.generated.resources.common_no_items_found
 import listenup.composeapp.generated.resources.admin_open_registration
 import listenup.composeapp.generated.resources.admin_organize_books_into_collections_for
 import listenup.composeapp.generated.resources.admin_pending_invites
@@ -104,14 +104,14 @@ import listenup.composeapp.generated.resources.admin_pending_registrations
 import listenup.composeapp.generated.resources.common_permissions
 import listenup.composeapp.generated.resources.admin_remote_url
 import listenup.composeapp.generated.resources.admin_review_new_books_before_they
-import listenup.composeapp.generated.resources.admin_revoke
-import listenup.composeapp.generated.resources.admin_revoke_invite
+import listenup.composeapp.generated.resources.common_revoke
+import listenup.composeapp.generated.resources.common_revoke_invite
 import listenup.composeapp.generated.resources.common_role
 import listenup.composeapp.generated.resources.admin_save_settings
 import listenup.composeapp.generated.resources.admin_server_name
 import listenup.composeapp.generated.resources.admin_share_your_audiobook_library_with
 import listenup.composeapp.generated.resources.admin_they_wont_be_able_to
-import listenup.composeapp.generated.resources.admin_users
+import listenup.composeapp.generated.resources.common_users
 import listenup.composeapp.generated.resources.admin_view_the_genre_hierarchy_tree
 import listenup.composeapp.generated.resources.common_administration
 import listenup.composeapp.generated.resources.common_settings
@@ -228,7 +228,7 @@ fun AdminScreen(
     userToDelete?.let { user ->
         ListenUpDestructiveDialog(
             onDismissRequest = { userToDelete = null },
-            title = stringResource(Res.string.admin_delete_user),
+            title = stringResource(Res.string.common_delete_name, "User"),
             text = "Are you sure you want to delete ${user.displayName ?: user.email}? This action cannot be undone.",
             confirmText = stringResource(Res.string.common_delete),
             onConfirm = {
@@ -243,11 +243,11 @@ fun AdminScreen(
     inviteToRevoke?.let { invite ->
         ListenUpDestructiveDialog(
             onDismissRequest = { inviteToRevoke = null },
-            title = stringResource(Res.string.admin_revoke_invite),
+            title = stringResource(Res.string.common_revoke_invite),
             text =
                 "Are you sure you want to revoke the invite for ${invite.name}? " +
                     stringResource(Res.string.admin_they_wont_be_able_to),
-            confirmText = stringResource(Res.string.admin_revoke),
+            confirmText = stringResource(Res.string.common_revoke),
             onConfirm = {
                 viewModel.revokeInvite(invite.id)
                 inviteToRevoke = null
@@ -262,7 +262,7 @@ fun AdminScreen(
             onDismissRequest = { userToDeny = null },
             title = stringResource(Res.string.admin_deny_registration),
             text =
-                stringResource(Res.string.admin_are_you_sure_you_want_3) +
+                stringResource(Res.string.admin_confirm_deny_registration) +
                     "${user.displayName ?: user.email}? They will need to register again.",
             confirmText = stringResource(Res.string.common_deny),
             onConfirm = {
@@ -384,7 +384,7 @@ private fun AdminContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = stringResource(Res.string.admin_users),
+                text = stringResource(Res.string.common_users),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -418,7 +418,7 @@ private fun AdminContent(
                     // User rows
                     if (state.users.isEmpty()) {
                         Text(
-                            text = stringResource(Res.string.admin_no_users_found),
+                            text = stringResource(Res.string.common_no_items_found, "users"),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(16.dp),
@@ -658,7 +658,7 @@ private fun SettingsCard(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(Res.string.admin_inbox_workflow),
+                        text = stringResource(Res.string.common_inbox_workflow),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -818,7 +818,7 @@ private fun UserTableRow(
             if (user.isRoot || user.role == "admin") {
                 Icon(
                     imageVector = Icons.Outlined.Shield,
-                    contentDescription = stringResource(Res.string.admin_admin),
+                    contentDescription = stringResource(Res.string.common_admin),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp),
                 )
@@ -948,7 +948,7 @@ private fun InviteRow(
             IconButton(onClick = onRevokeClick) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
-                    contentDescription = stringResource(Res.string.admin_revoke),
+                    contentDescription = stringResource(Res.string.common_revoke),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }
@@ -1071,7 +1071,7 @@ private fun CategoriesCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(Res.string.admin_categories),
+                    text = stringResource(Res.string.common_categories),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1115,7 +1115,7 @@ private fun InboxCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(Res.string.admin_inbox),
+                    text = stringResource(Res.string.common_inbox),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                 )

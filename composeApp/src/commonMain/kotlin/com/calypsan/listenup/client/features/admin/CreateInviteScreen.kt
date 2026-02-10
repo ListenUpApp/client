@@ -57,9 +57,9 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_1_day
-import listenup.composeapp.generated.resources.admin_30_days
-import listenup.composeapp.generated.resources.admin_7_days
-import listenup.composeapp.generated.resources.admin_admin
+import listenup.composeapp.generated.resources.common_n_days
+
+import listenup.composeapp.generated.resources.common_admin
 import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.common_copy
 import listenup.composeapp.generated.resources.admin_create_an_invite_to_share
@@ -280,7 +280,7 @@ private fun CreateInviteForm(
                 FilterChip(
                     selected = role == "admin",
                     onClick = { role = "admin" },
-                    label = { Text(stringResource(Res.string.admin_admin)) },
+                    label = { Text(stringResource(Res.string.common_admin)) },
                     enabled = !isSubmitting,
                 )
             }
@@ -312,13 +312,13 @@ private fun CreateInviteForm(
                 FilterChip(
                     selected = expiresInDays == 7,
                     onClick = { expiresInDays = 7 },
-                    label = { Text(stringResource(Res.string.admin_7_days)) },
+                    label = { Text(stringResource(Res.string.common_n_days, "7")) },
                     enabled = !isSubmitting,
                 )
                 FilterChip(
                     selected = expiresInDays == 30,
                     onClick = { expiresInDays = 30 },
-                    label = { Text(stringResource(Res.string.admin_30_days)) },
+                    label = { Text(stringResource(Res.string.common_n_days, "30")) },
                     enabled = !isSubmitting,
                 )
             }
