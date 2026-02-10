@@ -48,7 +48,6 @@ import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_allow_downloading_content_for_offline
 import listenup.composeapp.generated.resources.admin_allow_sharing_collections_with_other
-import listenup.composeapp.generated.resources.admin_can_download
 import listenup.composeapp.generated.resources.admin_can_share
 import listenup.composeapp.generated.resources.common_display_name
 import listenup.composeapp.generated.resources.common_email_address
@@ -64,7 +63,6 @@ import listenup.composeapp.generated.resources.common_not_found
  *
  * Features:
  * - View user information (name, email, role)
- * - Toggle canDownload permission
  * - Toggle canShare permission
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,7 +107,6 @@ fun UserDetailScreen(
         } else {
             UserDetailContent(
                 state = state,
-                onToggleCanDownload = viewModel::toggleCanDownload,
                 onToggleCanShare = viewModel::toggleCanShare,
                 modifier = Modifier.padding(innerPadding),
             )
@@ -120,7 +117,6 @@ fun UserDetailScreen(
 @Composable
 private fun UserDetailContent(
     state: UserDetailUiState,
-    onToggleCanDownload: () -> Unit,
     onToggleCanShare: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -159,11 +155,9 @@ private fun UserDetailContent(
 
         item {
             PermissionsCard(
-                canDownload = state.canDownload,
                 canShare = state.canShare,
                 isProtected = state.isProtected,
                 isSaving = state.isSaving,
-                onToggleCanDownload = onToggleCanDownload,
                 onToggleCanShare = onToggleCanShare,
             )
         }
@@ -300,11 +294,9 @@ private fun UserInfoCard(
 
 @Composable
 private fun PermissionsCard(
-    canDownload: Boolean,
     canShare: Boolean,
     isProtected: Boolean,
     isSaving: Boolean,
-    onToggleCanDownload: () -> Unit,
     onToggleCanShare: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -317,47 +309,6 @@ private fun PermissionsCard(
             ),
     ) {
         Column {
-            // Can Download toggle
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.CloudDownload,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(Res.string.admin_can_download),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = stringResource(Res.string.admin_allow_downloading_content_for_offline),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (isSaving) {
-                    ListenUpLoadingIndicatorSmall()
-                } else {
-                    Switch(
-                        checked = canDownload,
-                        onCheckedChange = { onToggleCanDownload() },
-                        enabled = !isProtected,
-                    )
-                }
-            }
-
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-            )
-
             // Can Share toggle
             Row(
                 modifier =

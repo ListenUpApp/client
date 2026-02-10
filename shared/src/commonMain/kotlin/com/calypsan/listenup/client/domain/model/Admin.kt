@@ -3,11 +3,9 @@ package com.calypsan.listenup.client.domain.model
 /**
  * User permission flags for action-level access control.
  *
- * @property canDownload Whether user can download content for offline listening
  * @property canShare Whether user can share collections with other users
  */
 data class UserPermissions(
-    val canDownload: Boolean = true,
     val canShare: Boolean = true,
 )
 

@@ -254,7 +254,7 @@ data object AdminCategories : Route
 /**
  * Admin user detail screen - view and edit a user's details and permissions.
  *
- * Shows user information and allows toggling canDownload and canShare permissions.
+ * Shows user information and allows toggling canShare permission.
  *
  * @property userId The unique ID of the user to display.
  */

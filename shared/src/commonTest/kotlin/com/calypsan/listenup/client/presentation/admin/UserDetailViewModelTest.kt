@@ -31,7 +31,6 @@ class UserDetailViewModelTest {
     private fun createUser(
         id: String = "user-1",
         email: String = "test@example.com",
-        canDownload: Boolean = true,
         canShare: Boolean = true,
     ) = AdminUserInfo(
         id = id,
@@ -42,7 +41,7 @@ class UserDetailViewModelTest {
         isRoot = false,
         role = "member",
         status = "active",
-        permissions = UserPermissions(canDownload = canDownload, canShare = canShare),
+        permissions = UserPermissions(canShare = canShare),
         createdAt = "2024-01-01T00:00:00Z",
     )
 
@@ -75,7 +74,7 @@ class UserDetailViewModelTest {
     fun `loadUser fetches user details`() =
         runTest {
             val adminRepository: AdminRepository = mock()
-            val user = createUser(canDownload = true, canShare = false)
+            val user = createUser(canShare = false)
             everySuspend { adminRepository.getUser("user-1") } returns user
 
             val viewModel =
@@ -87,7 +86,6 @@ class UserDetailViewModelTest {
 
             assertFalse(viewModel.state.value.isLoading)
             assertEquals(user, viewModel.state.value.user)
-            assertTrue(viewModel.state.value.canDownload)
             assertFalse(viewModel.state.value.canShare)
         }
 
@@ -112,46 +110,13 @@ class UserDetailViewModelTest {
         }
 
     @Test
-    fun `toggleCanDownload updates state and saves`() =
-        runTest {
-            val adminRepository: AdminRepository = mock()
-            val user = createUser(canDownload = true, canShare = true)
-            val updatedUser =
-                user.copy(
-                    permissions = UserPermissions(canDownload = false, canShare = true),
-                )
-            everySuspend { adminRepository.getUser("user-1") } returns user
-            everySuspend {
-                adminRepository.updateUser(
-                    userId = "user-1",
-                    canDownload = false,
-                )
-            } returns updatedUser
-
-            val viewModel =
-                UserDetailViewModel(
-                    userId = "user-1",
-                    adminRepository = adminRepository,
-                )
-            advanceUntilIdle()
-
-            viewModel.toggleCanDownload()
-            advanceUntilIdle()
-
-            assertFalse(viewModel.state.value.canDownload)
-            verifySuspend(VerifyMode.atLeast(1)) {
-                adminRepository.updateUser(userId = "user-1", canDownload = false)
-            }
-        }
-
-    @Test
     fun `toggleCanShare updates state and saves`() =
         runTest {
             val adminRepository: AdminRepository = mock()
-            val user = createUser(canDownload = true, canShare = true)
+            val user = createUser(canShare = true)
             val updatedUser =
                 user.copy(
-                    permissions = UserPermissions(canDownload = true, canShare = false),
+                    permissions = UserPermissions(canShare = false),
                 )
             everySuspend { adminRepository.getUser("user-1") } returns user
             everySuspend {
@@ -175,37 +140,6 @@ class UserDetailViewModelTest {
             verifySuspend(VerifyMode.atLeast(1)) {
                 adminRepository.updateUser(userId = "user-1", canShare = false)
             }
-        }
-
-    @Test
-    fun `update failure shows error and reverts state`() =
-        runTest {
-            val adminRepository: AdminRepository = mock()
-            val user = createUser(canDownload = true, canShare = true)
-            everySuspend { adminRepository.getUser("user-1") } returns user
-            everySuspend {
-                adminRepository.updateUser(
-                    userId = "user-1",
-                    canDownload = false,
-                )
-            } throws RuntimeException("Server error")
-
-            val viewModel =
-                UserDetailViewModel(
-                    userId = "user-1",
-                    adminRepository = adminRepository,
-                )
-            advanceUntilIdle()
-
-            viewModel.toggleCanDownload()
-            advanceUntilIdle()
-
-            // Should revert to original state on error
-            assertTrue(viewModel.state.value.canDownload)
-            assertTrue(
-                viewModel.state.value.error
-                    ?.contains("Server error") == true,
-            )
         }
 
     @Test
@@ -241,7 +175,7 @@ class UserDetailViewModelTest {
                     isRoot = true,
                     role = "admin",
                     status = "active",
-                    permissions = UserPermissions(canDownload = true, canShare = true),
+                    permissions = UserPermissions(canShare = true),
                     createdAt = "2024-01-01T00:00:00Z",
                 )
             everySuspend { adminRepository.getUser("root-1") } returns rootUser

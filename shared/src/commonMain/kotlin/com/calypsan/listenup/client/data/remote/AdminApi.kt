@@ -538,7 +538,6 @@ data class AdminUser(
  */
 @Serializable
 data class UserPermissionsResponse(
-    @SerialName("can_download") val canDownload: Boolean = true,
     @SerialName("can_share") val canShare: Boolean = true,
 )
 
@@ -602,7 +601,6 @@ data class UpdateUserRequest(
  */
 @Serializable
 data class UpdatePermissionsRequest(
-    @SerialName("can_download") val canDownload: Boolean? = null,
     @SerialName("can_share") val canShare: Boolean? = null,
 )
 

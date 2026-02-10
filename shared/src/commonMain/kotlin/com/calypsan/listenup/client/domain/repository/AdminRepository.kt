@@ -74,7 +74,6 @@ interface AdminRepository {
      * @param firstName New first name (null to keep unchanged)
      * @param lastName New last name (null to keep unchanged)
      * @param role New role (null to keep unchanged)
-     * @param canDownload New download permission (null to keep unchanged)
      * @param canShare New share permission (null to keep unchanged)
      * @return The updated user info
      */
@@ -83,7 +82,6 @@ interface AdminRepository {
         firstName: String? = null,
         lastName: String? = null,
         role: String? = null,
-        canDownload: Boolean? = null,
         canShare: Boolean? = null,
     ): AdminUserInfo
 
