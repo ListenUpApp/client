@@ -83,6 +83,7 @@ fun TwoPaneBookDetail(
     onDiscardProgressClick: () -> Unit,
     onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
+    onShareClick: () -> Unit = {},
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     onDownloadClick: () -> Unit,
@@ -122,6 +123,7 @@ fun TwoPaneBookDetail(
             onDiscardProgressClick = onDiscardProgressClick,
             onAddToShelfClick = onAddToShelfClick,
             onAddToCollectionClick = onAddToCollectionClick,
+            onShareClick = onShareClick,
             onDeleteBookClick = onDeleteBookClick,
             onPlayClick = onPlayClick,
             onDownloadClick = onDownloadClick,
@@ -170,6 +172,7 @@ private fun TwoPaneLeftPane(
     onDiscardProgressClick: () -> Unit,
     onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
+    onShareClick: () -> Unit = {},
     onDeleteBookClick: () -> Unit,
     onPlayClick: () -> Unit,
     onDownloadClick: () -> Unit,
@@ -289,6 +292,10 @@ private fun TwoPaneLeftPane(
                         onAddToCollectionClick = {
                             showMenu = false
                             onAddToCollectionClick()
+                        },
+                        onShareClick = {
+                            showMenu = false
+                            onShareClick()
                         },
                         onDeleteClick = {
                             showMenu = false

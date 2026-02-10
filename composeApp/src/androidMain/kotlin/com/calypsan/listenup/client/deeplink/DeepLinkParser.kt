@@ -7,6 +7,13 @@ import android.net.Uri
 import com.calypsan.listenup.client.data.repository.InviteDeepLink
 
 /**
+ * Parsed book deep link: listenup://book/{bookId}
+ */
+data class BookDeepLink(
+    val bookId: String,
+)
+
+/**
  * Parses deep link intents into structured data.
  *
  * Handles two types of invite URLs:
@@ -24,6 +31,7 @@ import com.calypsan.listenup.client.data.repository.InviteDeepLink
 object DeepLinkParser {
     private const val CUSTOM_SCHEME = "listenup"
     private const val JOIN_HOST = "join"
+    private const val BOOK_HOST = "book"
     private const val JOIN_PATH_PREFIX = "/join/"
 
     /**
@@ -37,6 +45,19 @@ object DeepLinkParser {
 
         val uri = intent.data ?: return null
         return parseUri(uri)
+    }
+
+    /**
+     * Parses a book deep link from an intent.
+     * Handles: listenup://book/{bookId}
+     */
+    fun parseBookDeepLink(intent: Intent?): BookDeepLink? {
+        if (intent?.action != Intent.ACTION_VIEW) return null
+        val uri = intent.data ?: return null
+        if (uri.scheme?.lowercase() != CUSTOM_SCHEME) return null
+        if (uri.host?.lowercase() != BOOK_HOST) return null
+        val bookId = uri.pathSegments?.firstOrNull()?.takeIf { it.isNotBlank() } ?: return null
+        return BookDeepLink(bookId)
     }
 
     /**

@@ -5,6 +5,7 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Search
@@ -24,6 +25,7 @@ import listenup.composeapp.generated.resources.common_delete_name
 import listenup.composeapp.generated.resources.book_detail_discard_progress
 import listenup.composeapp.generated.resources.book_detail_edit_book
 import listenup.composeapp.generated.resources.book_detail_find_metadata
+import listenup.composeapp.generated.resources.common_share
 
 /**
  * Dropdown menu for book actions.
@@ -57,6 +59,7 @@ fun BookActionsMenu(
     onDiscardProgressClick: () -> Unit,
     onAddToShelfClick: () -> Unit,
     onAddToCollectionClick: () -> Unit,
+    onShareClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
     DropdownMenu(
@@ -147,6 +150,18 @@ fun BookActionsMenu(
                 onClick = onAddToCollectionClick,
             )
         }
+
+        // Share
+        DropdownMenuItem(
+            text = { Text(stringResource(Res.string.common_share)) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = null,
+                )
+            },
+            onClick = onShareClick,
+        )
 
         // Delete Book (admin only, stubbed for now)
         if (isAdmin) {

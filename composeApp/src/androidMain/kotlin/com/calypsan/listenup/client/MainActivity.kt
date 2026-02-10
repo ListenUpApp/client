@@ -36,6 +36,7 @@ import com.calypsan.listenup.client.data.repository.ShortcutAction
 import com.calypsan.listenup.client.data.repository.ShortcutActionManager
 import com.calypsan.listenup.client.data.sync.SSEManager
 import com.calypsan.listenup.client.deeplink.DeepLinkParser
+import com.calypsan.listenup.client.deeplink.BookDeepLink
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.theme.ListenUpTheme
 import com.calypsan.listenup.client.domain.model.Instance
@@ -113,6 +114,13 @@ class MainActivity : ComponentActivity() {
         DeepLinkParser.parse(intent)?.let { inviteLink ->
             println("MainActivity: Received invite deep link - server=${inviteLink.serverUrl}, code=${inviteLink.code}")
             deepLinkManager.setInviteLink(inviteLink.serverUrl, inviteLink.code)
+            return
+        }
+
+        // Check for book deep link: listenup://book/{bookId}
+        DeepLinkParser.parseBookDeepLink(intent)?.let { bookLink ->
+            println("MainActivity: Received book deep link - bookId=${'$'}{bookLink.bookId}")
+            shortcutActionManager.setPendingAction(ShortcutAction.NavigateToBook(bookLink.bookId))
             return
         }
 

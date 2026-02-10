@@ -7,6 +7,8 @@ import com.calypsan.listenup.client.domain.repository.NetworkMonitor
 import com.calypsan.listenup.client.download.DownloadManager
 import com.calypsan.listenup.client.download.DownloadResult
 import com.calypsan.listenup.client.playback.PlaybackManager
+import android.content.Context
+import android.content.Intent
 import com.calypsan.listenup.client.playback.PlayerViewModel
 import kotlinx.coroutines.flow.Flow
 
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
  * Delegates to DownloadManager (WorkManager) and PlayerViewModel (Media3).
  */
 class AndroidBookDetailPlatformActions(
+    private val context: Context,
     private val downloadManager: DownloadManager,
     private val playerViewModel: PlayerViewModel,
     private val localPreferences: LocalPreferences,
@@ -38,4 +41,21 @@ class AndroidBookDetailPlatformActions(
     override fun observeIsOnUnmeteredNetwork(): Flow<Boolean> = networkMonitor.isOnUnmeteredNetworkFlow
 
     override suspend fun checkServerReachable(): Boolean = playbackManager.isServerReachable()
+
+    override fun shareText(
+        text: String,
+        url: String,
+    ) {
+        val sendIntent =
+            Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_TEXT, text)
+                type = "text/plain"
+            }
+        val shareIntent =
+            Intent.createChooser(sendIntent, null).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        context.startActivity(shareIntent)
+    }
 }

@@ -87,6 +87,8 @@
     "server": "Server",
     "settings": "Settings",
     "share": "Share",
+    "share_book_text": "Check out %1$s on ListenUp!",
+    "share_copied_to_clipboard": "Share link copied to clipboard",
     "shelf_name_hint": "e.g., To Read, Favorites, Mystery...",
     "sign_out": "Sign Out",
     "sort_by": "Sort by %1$s",

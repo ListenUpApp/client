@@ -37,4 +37,15 @@ class DesktopBookDetailPlatformActions(
     override fun observeIsOnUnmeteredNetwork(): Flow<Boolean> = flowOf(true)
 
     override suspend fun checkServerReachable(): Boolean = true
+
+    override fun shareText(
+        text: String,
+        url: String,
+    ) {
+        val selection = java.awt.datatransfer.StringSelection(text)
+        java.awt.Toolkit
+            .getDefaultToolkit()
+            .systemClipboard
+            .setContents(selection, null)
+    }
 }
