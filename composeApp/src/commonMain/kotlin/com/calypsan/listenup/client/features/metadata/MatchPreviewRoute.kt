@@ -36,7 +36,7 @@ import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.metadata_audible_catalog_try_a_different
 import listenup.composeapp.generated.resources.metadata_book_not_found_on_audible
 import listenup.composeapp.generated.resources.metadata_failed_to_load_metadata_preview
-import listenup.composeapp.generated.resources.metadata_go_back
+import listenup.composeapp.generated.resources.common_back
 
 /**
  * Route composable for the match preview screen.
@@ -206,7 +206,7 @@ private fun NotFoundErrorScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = onBack) {
-                Text(stringResource(Res.string.metadata_go_back))
+                Text(stringResource(Res.string.common_back))
             }
         }
     }

@@ -61,7 +61,7 @@ import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.admin_collection_created
 import listenup.composeapp.generated.resources.admin_collection_name
-import listenup.composeapp.generated.resources.admin_collections
+import listenup.composeapp.generated.resources.common_collections
 import listenup.composeapp.generated.resources.common_create
 import listenup.composeapp.generated.resources.admin_create_a_collection_to_organize
 import listenup.composeapp.generated.resources.admin_create_collection
@@ -112,7 +112,7 @@ fun AdminCollectionsScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(Res.string.admin_collections)) },
+                title = { Text(stringResource(Res.string.common_collections)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.common_back))

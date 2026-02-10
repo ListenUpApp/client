@@ -70,8 +70,8 @@ import listenup.composeapp.generated.resources.admin_expires_in
 import listenup.composeapp.generated.resources.admin_invite_created
 import listenup.composeapp.generated.resources.admin_invite_created_link_copied_to
 import listenup.composeapp.generated.resources.admin_link_copied
-import listenup.composeapp.generated.resources.admin_member
-import listenup.composeapp.generated.resources.admin_role
+import listenup.composeapp.generated.resources.common_member
+import listenup.composeapp.generated.resources.common_role
 import listenup.composeapp.generated.resources.admin_share_this_link_with_invitename
 
 /**
@@ -263,7 +263,7 @@ private fun CreateInviteForm(
         // Role selection
         Column {
             Text(
-                text = stringResource(Res.string.admin_role),
+                text = stringResource(Res.string.common_role),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -274,7 +274,7 @@ private fun CreateInviteForm(
                 FilterChip(
                     selected = role == "member",
                     onClick = { role = "member" },
-                    label = { Text(stringResource(Res.string.admin_member)) },
+                    label = { Text(stringResource(Res.string.common_member)) },
                     enabled = !isSubmitting,
                 )
                 FilterChip(

@@ -55,7 +55,7 @@ import listenup.composeapp.generated.resources.common_cancel
 import listenup.composeapp.generated.resources.common_settings
 import listenup.composeapp.generated.resources.common_sign_out
 import listenup.composeapp.generated.resources.settings_51_surround_sound_for_immersive
-import listenup.composeapp.generated.resources.settings_account
+import listenup.composeapp.generated.resources.common_account
 import listenup.composeapp.generated.resources.settings_app_version
 import listenup.composeapp.generated.resources.settings_appearance
 import listenup.composeapp.generated.resources.settings_are_you_sure_you_want
@@ -72,9 +72,9 @@ import listenup.composeapp.generated.resources.settings_hide_singlebook_series
 import listenup.composeapp.generated.resources.settings_ignore_articles_when_sorting
 import listenup.composeapp.generated.resources.settings_manage_storage
 import listenup.composeapp.generated.resources.settings_open_source_licenses
-import listenup.composeapp.generated.resources.settings_playback
+import listenup.composeapp.generated.resources.common_playback
 import listenup.composeapp.generated.resources.settings_rewind_a_few_seconds_when
-import listenup.composeapp.generated.resources.settings_server
+import listenup.composeapp.generated.resources.common_server
 import listenup.composeapp.generated.resources.settings_server_version
 import listenup.composeapp.generated.resources.settings_skip_backward
 import listenup.composeapp.generated.resources.settings_skip_forward
@@ -82,8 +82,8 @@ import listenup.composeapp.generated.resources.settings_sleep_timer
 import listenup.composeapp.generated.resources.settings_sort_ignoring_leading_articles_a
 import listenup.composeapp.generated.resources.settings_spatial_audio
 import listenup.composeapp.generated.resources.settings_speed_used_for_new_books
-import listenup.composeapp.generated.resources.settings_storage
-import listenup.composeapp.generated.resources.settings_theme
+import listenup.composeapp.generated.resources.common_storage
+import listenup.composeapp.generated.resources.common_theme
 import listenup.composeapp.generated.resources.settings_view_and_manage_downloaded_audiobooks
 import listenup.composeapp.generated.resources.settings_view_thirdparty_licenses
 
@@ -228,7 +228,7 @@ fun SettingsScreen(
             // Appearance section
             SettingsSection(title = stringResource(Res.string.settings_appearance)) {
                 SettingsDropdownItem(
-                    title = stringResource(Res.string.settings_theme),
+                    title = stringResource(Res.string.common_theme),
                     description = stringResource(Res.string.settings_choose_light_dark_or_follow),
                     selectedValue = state.themeMode,
                     options = ThemeMode.entries.toList(),
@@ -254,7 +254,7 @@ fun SettingsScreen(
             SettingsDivider()
 
             // Playback section
-            SettingsSection(title = stringResource(Res.string.settings_playback)) {
+            SettingsSection(title = stringResource(Res.string.common_playback)) {
                 SettingsDropdownItem(
                     title = stringResource(Res.string.settings_default_speed),
                     description = stringResource(Res.string.settings_speed_used_for_new_books),
@@ -330,10 +330,10 @@ fun SettingsScreen(
             SettingsDivider()
 
             // Account section
-            SettingsSection(title = stringResource(Res.string.settings_account)) {
+            SettingsSection(title = stringResource(Res.string.common_account)) {
                 state.serverUrl?.let { url ->
                     SettingsInfoItem(
-                        title = stringResource(Res.string.settings_server),
+                        title = stringResource(Res.string.common_server),
                         value = url.removePrefix("https://").removePrefix("http://"),
                     )
                 }
@@ -348,7 +348,7 @@ fun SettingsScreen(
             if (onNavigateToStorage != null) {
                 SettingsDivider()
 
-                SettingsSection(title = stringResource(Res.string.settings_storage)) {
+                SettingsSection(title = stringResource(Res.string.common_storage)) {
                     SettingsNavigationItem(
                         title = stringResource(Res.string.settings_manage_storage),
                         description = stringResource(Res.string.settings_view_and_manage_downloaded_audiobooks),

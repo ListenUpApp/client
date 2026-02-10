@@ -60,7 +60,7 @@ import listenup.composeapp.generated.resources.settings_clear_all_downloads
 import listenup.composeapp.generated.resources.settings_downloaded_books
 import listenup.composeapp.generated.resources.settings_downloaded_books_will_appear_here
 import listenup.composeapp.generated.resources.settings_no_downloads
-import listenup.composeapp.generated.resources.settings_storage
+import listenup.composeapp.generated.resources.common_storage
 import listenup.composeapp.generated.resources.settings_you_can_redownload_books_anytime
 
 /**
@@ -119,7 +119,7 @@ fun StorageScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(Res.string.settings_storage)) },
+                title = { Text(stringResource(Res.string.common_storage)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(

@@ -75,14 +75,14 @@ import listenup.composeapp.generated.resources.admin_collection_not_found
 import listenup.composeapp.generated.resources.admin_collection_updated
 import listenup.composeapp.generated.resources.admin_in_this_collection
 import listenup.composeapp.generated.resources.admin_loading_users
-import listenup.composeapp.generated.resources.admin_members
+import listenup.composeapp.generated.resources.common_members
 import listenup.composeapp.generated.resources.admin_no_books_in_this_collection
 import listenup.composeapp.generated.resources.admin_no_members
 import listenup.composeapp.generated.resources.admin_no_users_available
 import listenup.composeapp.generated.resources.common_remove
 import listenup.composeapp.generated.resources.admin_remove_book
 import listenup.composeapp.generated.resources.admin_remove_member
-import listenup.composeapp.generated.resources.admin_save_changes
+import listenup.composeapp.generated.resources.common_save_changes
 import listenup.composeapp.generated.resources.admin_the_book_will_not_be
 import listenup.composeapp.generated.resources.admin_the_display_name_for_this
 import listenup.composeapp.generated.resources.admin_they_will_no_longer_have
@@ -272,7 +272,7 @@ private fun CollectionDetailContent(
                             if (state.isSaving) {
                                 ListenUpLoadingIndicatorSmall()
                             } else {
-                                Text(stringResource(Res.string.admin_save_changes))
+                                Text(stringResource(Res.string.common_save_changes))
                             }
                         }
                     }
@@ -362,7 +362,7 @@ private fun CollectionDetailContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = stringResource(Res.string.admin_members),
+                    text = stringResource(Res.string.common_members),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )

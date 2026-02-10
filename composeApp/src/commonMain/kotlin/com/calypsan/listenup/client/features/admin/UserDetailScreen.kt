@@ -52,9 +52,9 @@ import listenup.composeapp.generated.resources.admin_can_download
 import listenup.composeapp.generated.resources.admin_can_share
 import listenup.composeapp.generated.resources.admin_display_name
 import listenup.composeapp.generated.resources.admin_email_address
-import listenup.composeapp.generated.resources.admin_permissions
+import listenup.composeapp.generated.resources.common_permissions
 import listenup.composeapp.generated.resources.admin_protected_user
-import listenup.composeapp.generated.resources.admin_role
+import listenup.composeapp.generated.resources.common_role
 import listenup.composeapp.generated.resources.admin_this_users_permissions_cannot_be
 import listenup.composeapp.generated.resources.admin_user_information
 import listenup.composeapp.generated.resources.admin_user_not_found
@@ -150,7 +150,7 @@ private fun UserDetailContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = stringResource(Res.string.admin_permissions),
+                text = stringResource(Res.string.common_permissions),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -288,7 +288,7 @@ private fun UserInfoCard(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = stringResource(Res.string.admin_role),
+                        text = stringResource(Res.string.common_role),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

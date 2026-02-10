@@ -81,7 +81,7 @@ import listenup.composeapp.generated.resources.admin_are_you_sure_you_want_3
 import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.admin_backup_restore
 import listenup.composeapp.generated.resources.admin_categories
-import listenup.composeapp.generated.resources.admin_collections
+import listenup.composeapp.generated.resources.common_collections
 import listenup.composeapp.generated.resources.admin_copy_link
 import listenup.composeapp.generated.resources.admin_create_backups_and_restore_server
 import listenup.composeapp.generated.resources.common_delete
@@ -101,12 +101,12 @@ import listenup.composeapp.generated.resources.admin_open_registration
 import listenup.composeapp.generated.resources.admin_organize_books_into_collections_for
 import listenup.composeapp.generated.resources.admin_pending_invites
 import listenup.composeapp.generated.resources.admin_pending_registrations
-import listenup.composeapp.generated.resources.admin_permissions
+import listenup.composeapp.generated.resources.common_permissions
 import listenup.composeapp.generated.resources.admin_remote_url
 import listenup.composeapp.generated.resources.admin_review_new_books_before_they
 import listenup.composeapp.generated.resources.admin_revoke
 import listenup.composeapp.generated.resources.admin_revoke_invite
-import listenup.composeapp.generated.resources.admin_role
+import listenup.composeapp.generated.resources.common_role
 import listenup.composeapp.generated.resources.admin_save_settings
 import listenup.composeapp.generated.resources.admin_server_name
 import listenup.composeapp.generated.resources.admin_share_your_audiobook_library_with
@@ -770,13 +770,13 @@ private fun UserTableHeader(modifier: Modifier = Modifier) {
             modifier = Modifier.weight(1f),
         )
         Text(
-            text = stringResource(Res.string.admin_role),
+            text = stringResource(Res.string.common_role),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(0.4f),
         )
         Text(
-            text = stringResource(Res.string.admin_permissions),
+            text = stringResource(Res.string.common_permissions),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(0.4f),
@@ -1028,7 +1028,7 @@ private fun CollectionsCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(Res.string.admin_collections),
+                    text = stringResource(Res.string.common_collections),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
