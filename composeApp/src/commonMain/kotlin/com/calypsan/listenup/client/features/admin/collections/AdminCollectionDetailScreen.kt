@@ -74,7 +74,7 @@ import listenup.composeapp.generated.resources.admin_collection_name
 import listenup.composeapp.generated.resources.admin_collection_not_found
 import listenup.composeapp.generated.resources.admin_collection_updated
 import listenup.composeapp.generated.resources.admin_in_this_collection
-import listenup.composeapp.generated.resources.admin_loading_users
+import listenup.composeapp.generated.resources.common_loading_item
 import listenup.composeapp.generated.resources.common_members
 import listenup.composeapp.generated.resources.admin_no_books_in_this_collection
 import listenup.composeapp.generated.resources.admin_no_members
@@ -550,7 +550,7 @@ private fun AddMemberBottomSheet(
                     ListenUpLoadingIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = stringResource(Res.string.admin_loading_users),
+                        text = stringResource(Res.string.common_loading_item, "users"),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

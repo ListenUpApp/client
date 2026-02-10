@@ -58,7 +58,7 @@ import listenup.composeapp.generated.resources.auth_create_an_account_request_an
 import listenup.composeapp.generated.resources.auth_first_name
 import listenup.composeapp.generated.resources.auth_last_name
 import listenup.composeapp.generated.resources.auth_request_account
-import listenup.composeapp.generated.resources.auth_request_an_account
+import listenup.composeapp.generated.resources.auth_request_account
 
 /**
  * Register screen for new user account creation.
@@ -172,7 +172,7 @@ private fun RegisterForm(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            text = stringResource(Res.string.auth_request_an_account),
+            text = stringResource(Res.string.auth_request_account),
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )

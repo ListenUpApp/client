@@ -68,7 +68,7 @@ import listenup.composeapp.generated.resources.common_about
 import listenup.composeapp.generated.resources.shelf_add_books_from_the_library
 import listenup.composeapp.generated.resources.shelf_books_in_shelf
 import listenup.composeapp.generated.resources.shelf_edit_shelf
-import listenup.composeapp.generated.resources.shelf_no_books_yet
+import listenup.composeapp.generated.resources.common_no_items_yet
 
 /**
  * Screen displaying shelf details with its books.
@@ -264,7 +264,7 @@ private fun ShelfDetailContent(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = stringResource(Res.string.shelf_no_books_yet),
+                            text = stringResource(Res.string.common_no_items_yet, "books"),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

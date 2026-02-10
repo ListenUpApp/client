@@ -32,7 +32,7 @@ import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.book_detail_cancel_download
-import listenup.composeapp.generated.resources.book_detail_delete_download_2
+import listenup.composeapp.generated.resources.book_delete_download
 import listenup.composeapp.generated.resources.book_detail_download
 import listenup.composeapp.generated.resources.book_detail_download_book
 import listenup.composeapp.generated.resources.book_detail_downloaded
@@ -139,7 +139,7 @@ fun DownloadButton(
                     IconButton(onClick = onDeleteClick) {
                         Icon(
                             Icons.Outlined.Delete,
-                            contentDescription = stringResource(Res.string.book_detail_delete_download_2),
+                            contentDescription = stringResource(Res.string.book_delete_download),
                             tint = contentColor,
                         )
                     }

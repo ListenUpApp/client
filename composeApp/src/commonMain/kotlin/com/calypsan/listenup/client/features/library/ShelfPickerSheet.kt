@@ -50,7 +50,7 @@ import listenup.composeapp.generated.resources.book_detail_add_to_shelf
 import listenup.composeapp.generated.resources.common_cancel
 import listenup.composeapp.generated.resources.library_create_add
 import listenup.composeapp.generated.resources.library_create_new_shelf
-import listenup.composeapp.generated.resources.library_eg_to_read_favorites
+import listenup.composeapp.generated.resources.common_shelf_name_hint
 import listenup.composeapp.generated.resources.library_shelf_name
 import listenup.composeapp.generated.resources.library_you_dont_have_any_shelves
 
@@ -354,7 +354,7 @@ private fun CreateShelfDialog(
                 value = shelfName,
                 onValueChange = { shelfName = it },
                 label = stringResource(Res.string.library_shelf_name),
-                placeholder = stringResource(Res.string.library_eg_to_read_favorites),
+                placeholder = stringResource(Res.string.common_shelf_name_hint),
                 modifier = Modifier.focusRequester(focusRequester),
             )
         },

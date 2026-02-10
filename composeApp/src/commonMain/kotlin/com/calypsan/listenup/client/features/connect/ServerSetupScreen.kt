@@ -39,7 +39,7 @@ import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import org.koin.compose.koinInject
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.connect_back_to_server_selection
+import listenup.composeapp.generated.resources.connect_back_to_server_list
 import listenup.composeapp.generated.resources.connect_connect
 import listenup.composeapp.generated.resources.connect_connect_to_server
 import listenup.composeapp.generated.resources.connect_server_url_placeholder
@@ -139,7 +139,7 @@ private fun ServerSetupContent(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 TextButton(onClick = onBack) {
-                    Text(stringResource(Res.string.connect_back_to_server_selection))
+                    Text(stringResource(Res.string.connect_back_to_server_list))
                 }
             }
 

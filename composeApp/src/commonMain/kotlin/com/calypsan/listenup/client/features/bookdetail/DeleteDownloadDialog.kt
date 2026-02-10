@@ -7,7 +7,7 @@ import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_delete
-import listenup.composeapp.generated.resources.book_detail_delete_download
+import listenup.composeapp.generated.resources.book_delete_download
 import listenup.composeapp.generated.resources.book_detail_remove_the_downloaded_files_for
 import listenup.composeapp.generated.resources.book_detail_you_can_redownload_anytime_by
 
@@ -23,7 +23,7 @@ fun DeleteDownloadDialog(
 ) {
     ListenUpDestructiveDialog(
         onDismissRequest = onDismiss,
-        title = stringResource(Res.string.book_detail_delete_download),
+        title = stringResource(Res.string.book_delete_download),
         text =
             stringResource(Res.string.book_detail_remove_the_downloaded_files_for, bookTitle) +
                 "This will free up ${formatFileSize(downloadSize)}. " +

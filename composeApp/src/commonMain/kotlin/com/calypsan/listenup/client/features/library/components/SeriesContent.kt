@@ -38,8 +38,8 @@ import com.calypsan.listenup.client.presentation.library.SortState
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.library_no_series_yet
-import listenup.composeapp.generated.resources.library_no_series_description
+import listenup.composeapp.generated.resources.common_no_items_yet
+import listenup.composeapp.generated.resources.library_empty_tab_description
 
 /**
  * Content for the Series tab in the Library screen.
@@ -181,12 +181,12 @@ private fun SeriesEmptyState() {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
             Text(
-                text = stringResource(Res.string.library_no_series_yet),
+                text = stringResource(Res.string.common_no_items_yet, "series"),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = stringResource(Res.string.library_no_series_description),
+                text = stringResource(Res.string.library_empty_tab_description, "Series"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

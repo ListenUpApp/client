@@ -35,7 +35,7 @@ import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.book_detail_add_to_collection
 import listenup.composeapp.generated.resources.library_create_a_collection_in_the
-import listenup.composeapp.generated.resources.library_no_collections_yet
+import listenup.composeapp.generated.resources.common_no_items_yet
 
 /**
  * Bottom sheet for selecting a collection to add books to.
@@ -124,7 +124,7 @@ fun CollectionPickerSheet(
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = stringResource(Res.string.library_no_collections_yet),
+                            text = stringResource(Res.string.common_no_items_yet, "collections"),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

@@ -18,7 +18,7 @@ import com.calypsan.listenup.client.presentation.home.HomeStatsViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.home_loading_stats
+import listenup.composeapp.generated.resources.common_loading_item
 import listenup.composeapp.generated.resources.home_start_listening_to_see_your
 import listenup.composeapp.generated.resources.home_this_week
 
@@ -73,7 +73,7 @@ fun HomeStatsSection(
                 state.isLoading -> {
                     // Loading state
                     Text(
-                        text = stringResource(Res.string.home_loading_stats),
+                        text = stringResource(Res.string.common_loading_item, "stats"),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

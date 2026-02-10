@@ -56,7 +56,7 @@ import listenup.composeapp.generated.resources.common_permissions
 import listenup.composeapp.generated.resources.admin_protected_user
 import listenup.composeapp.generated.resources.common_role
 import listenup.composeapp.generated.resources.admin_this_users_permissions_cannot_be
-import listenup.composeapp.generated.resources.admin_user_information
+import listenup.composeapp.generated.resources.common_entity_information
 import listenup.composeapp.generated.resources.admin_user_not_found
 
 /**
@@ -135,7 +135,7 @@ private fun UserDetailContent(
         // User info section
         item {
             Text(
-                text = stringResource(Res.string.admin_user_information),
+                text = stringResource(Res.string.common_entity_information, "User"),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),

@@ -62,7 +62,7 @@ import listenup.composeapp.generated.resources.common_retry
 import listenup.composeapp.generated.resources.library_add_audiobooks_to_your_server
 import listenup.composeapp.generated.resources.library_failed_to_load_library
 import listenup.composeapp.generated.resources.library_loading_your_library
-import listenup.composeapp.generated.resources.library_no_audiobooks_yet
+import listenup.composeapp.generated.resources.common_no_items_yet
 import listenup.composeapp.generated.resources.library_summary
 import listenup.composeapp.generated.resources.library_title_sort
 import listenup.composeapp.generated.resources.library_your_audiobooks_will_appear_here
@@ -609,7 +609,7 @@ private fun BooksEmptyState() {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = stringResource(Res.string.library_no_audiobooks_yet),
+                text = stringResource(Res.string.common_no_items_yet, "audiobooks"),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -63,7 +63,7 @@ import listenup.composeapp.generated.resources.admin_access_mode
 import listenup.composeapp.generated.resources.admin_add_folder
 import listenup.composeapp.generated.resources.admin_add_this_folder
 import listenup.composeapp.generated.resources.admin_inbox_settings
-import listenup.composeapp.generated.resources.admin_library_information
+import listenup.composeapp.generated.resources.common_entity_information
 import listenup.composeapp.generated.resources.admin_library_name
 import listenup.composeapp.generated.resources.admin_library_not_found
 import listenup.composeapp.generated.resources.admin_new_books_in_this_library
@@ -176,7 +176,7 @@ private fun LibrarySettingsContent(
         // Library info section
         item {
             Text(
-                text = stringResource(Res.string.admin_library_information),
+                text = stringResource(Res.string.common_entity_information, "Library"),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),

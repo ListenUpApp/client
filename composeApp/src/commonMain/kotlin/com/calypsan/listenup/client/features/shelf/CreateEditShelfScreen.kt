@@ -48,9 +48,8 @@ import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.common_delete
 import listenup.composeapp.generated.resources.common_cancel
 import listenup.composeapp.generated.resources.shelf_delete_shelf
-import listenup.composeapp.generated.resources.shelf_delete_shelf_2
 import listenup.composeapp.generated.resources.shelf_description_optional
-import listenup.composeapp.generated.resources.shelf_eg_to_read_favorites_mystery
+import listenup.composeapp.generated.resources.common_shelf_name_hint
 import listenup.composeapp.generated.resources.shelf_this_will_permanently_delete_this
 import listenup.composeapp.generated.resources.shelf_whats_this_shelf_for
 
@@ -148,7 +147,7 @@ fun CreateEditShelfScreen(
                     value = state.name,
                     onValueChange = viewModel::updateName,
                     label = "Name",
-                    placeholder = stringResource(Res.string.shelf_eg_to_read_favorites_mystery),
+                    placeholder = stringResource(Res.string.common_shelf_name_hint),
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -187,7 +186,7 @@ fun CreateEditShelfScreen(
                     AlertDialog(
                         onDismissRequest = { showDeleteDialog = false },
                         shape = MaterialTheme.shapes.large,
-                        title = { Text(stringResource(Res.string.shelf_delete_shelf_2)) },
+                        title = { Text(stringResource(Res.string.shelf_delete_shelf)) },
                         text = {
                             Text(stringResource(Res.string.shelf_this_will_permanently_delete_this))
                         },

@@ -52,8 +52,7 @@ import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.common_delete
-import listenup.composeapp.generated.resources.book_detail_delete_download
-import listenup.composeapp.generated.resources.book_detail_delete_download_2
+import listenup.composeapp.generated.resources.book_delete_download
 import listenup.composeapp.generated.resources.book_detail_you_can_redownload_anytime_by
 import listenup.composeapp.generated.resources.settings_clear_all
 import listenup.composeapp.generated.resources.settings_clear_all_downloads
@@ -87,7 +86,7 @@ fun StorageScreen(
             is DeleteConfirmation.SingleBook -> {
                 ListenUpDestructiveDialog(
                     onDismissRequest = viewModel::cancelDelete,
-                    title = stringResource(Res.string.book_detail_delete_download),
+                    title = stringResource(Res.string.book_delete_download),
                     text =
                         "Remove the downloaded files for \"${confirmation.book.title}\"? " +
                             "This will free up ${formatFileSize(confirmation.book.sizeBytes)}. " +
@@ -356,7 +355,7 @@ private fun DownloadedBookItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = stringResource(Res.string.book_detail_delete_download_2),
+                    contentDescription = stringResource(Res.string.book_delete_download),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }
