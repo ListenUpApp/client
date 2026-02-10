@@ -149,15 +149,19 @@ class BookPuller(
      * that would be wiped by upsert since the server doesn't send them.
      */
     private suspend fun preserveLocalColors(books: List<BookEntity>): List<BookEntity> {
-        val existingColors = books.mapNotNull { book ->
-            bookDao.getById(book.id)?.let { existing ->
-                book.id to Triple(existing.dominantColor, existing.darkMutedColor, existing.vibrantColor)
-            }
-        }.toMap()
+        val existingColors =
+            books
+                .mapNotNull { book ->
+                    bookDao.getById(book.id)?.let { existing ->
+                        book.id to Triple(existing.dominantColor, existing.darkMutedColor, existing.vibrantColor)
+                    }
+                }.toMap()
 
         return books.map { book ->
             val colors = existingColors[book.id]
-            if (colors != null && book.dominantColor == null && book.darkMutedColor == null && book.vibrantColor == null) {
+            if (colors != null && book.dominantColor == null && book.darkMutedColor == null &&
+                book.vibrantColor == null
+            ) {
                 book.copy(
                     dominantColor = colors.first,
                     darkMutedColor = colors.second,

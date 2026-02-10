@@ -40,6 +40,9 @@ import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import com.calypsan.listenup.client.presentation.discover.RecentlyAddedUiBook
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.discover_recently_added
 
 /**
  * Horizontal section showing recently added books.
@@ -61,7 +64,7 @@ fun RecentlyAddedSection(
     Column(modifier = modifier) {
         // Section header
         Text(
-            text = "Recently Added",
+            text = stringResource(Res.string.discover_recently_added),
             style =
                 MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,

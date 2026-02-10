@@ -18,6 +18,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.domain.model.Language
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_clear_selection
+import listenup.composeapp.generated.resources.common_no_items_found
+import listenup.composeapp.generated.resources.common_search_languages
 
 /**
  * Searchable dropdown for selecting a language.
@@ -76,7 +81,7 @@ fun LanguageDropdown(
             label = { Text(label) },
             placeholder =
                 if (expanded) {
-                    { Text("Search languages...") }
+                    { Text(stringResource(Res.string.common_search_languages)) }
                 } else {
                     null
                 },
@@ -102,7 +107,7 @@ fun LanguageDropdown(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            text = "Clear selection",
+                            text = stringResource(Res.string.common_clear_selection),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },
@@ -130,7 +135,7 @@ fun LanguageDropdown(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            text = "No languages found",
+                            text = stringResource(Res.string.common_no_items_found, "languages"),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },

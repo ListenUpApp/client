@@ -175,10 +175,10 @@ struct BooksContent: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
 
-            Text("Your Library is Empty")
+            Text(NSLocalizedString("library.empty_title", comment: ""))
                 .font(.title2.bold())
 
-            Text("Books you add to your server will appear here")
+            Text(NSLocalizedString("library.empty_description", comment: ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -199,7 +199,7 @@ struct BooksContent: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.orange)
 
-            Text("Sync Failed")
+            Text(NSLocalizedString("library.sync_failed", comment: ""))
                 .font(.title2.bold())
 
             Text(message)
@@ -211,7 +211,7 @@ struct BooksContent: View {
             Button {
                 onRefresh()
             } label: {
-                Label("Try Again", systemImage: "arrow.clockwise")
+                Label(NSLocalizedString("library.try_again", comment: ""), systemImage: "arrow.clockwise")
                     .font(.headline)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 24)

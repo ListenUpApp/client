@@ -54,6 +54,25 @@ import com.calypsan.listenup.client.presentation.admin.CreateInviteField
 import com.calypsan.listenup.client.presentation.admin.CreateInviteStatus
 import com.calypsan.listenup.client.presentation.admin.CreateInviteViewModel
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_1_day
+import listenup.composeapp.generated.resources.common_n_days
+
+import listenup.composeapp.generated.resources.common_admin
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.common_copy
+import listenup.composeapp.generated.resources.admin_create_an_invite_to_share
+import listenup.composeapp.generated.resources.admin_create_another
+import listenup.composeapp.generated.resources.admin_create_invite
+import listenup.composeapp.generated.resources.common_done
+import listenup.composeapp.generated.resources.admin_expires_in
+import listenup.composeapp.generated.resources.admin_invite_created
+import listenup.composeapp.generated.resources.admin_invite_created_link_copied_to
+import listenup.composeapp.generated.resources.admin_link_copied
+import listenup.composeapp.generated.resources.common_member
+import listenup.composeapp.generated.resources.common_role
+import listenup.composeapp.generated.resources.admin_share_this_link_with_invitename
 
 /**
  * Create invite screen - form to create new invites.
@@ -102,10 +121,10 @@ fun CreateInviteScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Create Invite") },
+                title = { Text(stringResource(Res.string.admin_create_invite)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.common_back))
                     }
                 },
             )
@@ -167,7 +186,7 @@ private fun CreateInviteForm(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            text = "Create an invite to share with someone who wants to join your audiobook library.",
+            text = stringResource(Res.string.admin_create_an_invite_to_share),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -244,7 +263,7 @@ private fun CreateInviteForm(
         // Role selection
         Column {
             Text(
-                text = "Role",
+                text = stringResource(Res.string.common_role),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -255,13 +274,13 @@ private fun CreateInviteForm(
                 FilterChip(
                     selected = role == "member",
                     onClick = { role = "member" },
-                    label = { Text("Member") },
+                    label = { Text(stringResource(Res.string.common_member)) },
                     enabled = !isSubmitting,
                 )
                 FilterChip(
                     selected = role == "admin",
                     onClick = { role = "admin" },
-                    label = { Text("Admin") },
+                    label = { Text(stringResource(Res.string.common_admin)) },
                     enabled = !isSubmitting,
                 )
             }
@@ -276,7 +295,7 @@ private fun CreateInviteForm(
         // Expiration
         Column {
             Text(
-                text = "Expires in",
+                text = stringResource(Res.string.admin_expires_in),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -287,19 +306,19 @@ private fun CreateInviteForm(
                 FilterChip(
                     selected = expiresInDays == 1,
                     onClick = { expiresInDays = 1 },
-                    label = { Text("1 day") },
+                    label = { Text(stringResource(Res.string.admin_1_day)) },
                     enabled = !isSubmitting,
                 )
                 FilterChip(
                     selected = expiresInDays == 7,
                     onClick = { expiresInDays = 7 },
-                    label = { Text("7 days") },
+                    label = { Text(stringResource(Res.string.common_n_days, "7")) },
                     enabled = !isSubmitting,
                 )
                 FilterChip(
                     selected = expiresInDays == 30,
                     onClick = { expiresInDays = 30 },
-                    label = { Text("30 days") },
+                    label = { Text(stringResource(Res.string.common_n_days, "30")) },
                     enabled = !isSubmitting,
                 )
             }
@@ -309,7 +328,7 @@ private fun CreateInviteForm(
 
         ListenUpButton(
             onClick = { onSubmit(name, email, role, expiresInDays) },
-            text = "Create Invite",
+            text = stringResource(Res.string.admin_create_invite),
             enabled = !isSubmitting,
             isLoading = isSubmitting,
             modifier = Modifier.fillMaxWidth(),
@@ -347,13 +366,13 @@ private fun SuccessContent(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
-                    text = "Invite Created!",
+                    text = stringResource(Res.string.admin_invite_created),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
 
                 Text(
-                    text = "Share this link with $inviteName:",
+                    text = stringResource(Res.string.admin_share_this_link_with_invitename, inviteName),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -377,7 +396,7 @@ private fun SuccessContent(
                         IconButton(onClick = onCopyClick) {
                             Icon(
                                 imageVector = Icons.Outlined.ContentCopy,
-                                contentDescription = "Copy",
+                                contentDescription = stringResource(Res.string.common_copy),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         }
@@ -390,14 +409,14 @@ private fun SuccessContent(
 
         ListenUpButton(
             onClick = onDone,
-            text = "Done",
+            text = stringResource(Res.string.common_done),
             modifier = Modifier.fillMaxWidth(),
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         androidx.compose.material3.TextButton(onClick = onCreateAnother) {
-            Text("Create Another")
+            Text(stringResource(Res.string.admin_create_another))
         }
     }
 }

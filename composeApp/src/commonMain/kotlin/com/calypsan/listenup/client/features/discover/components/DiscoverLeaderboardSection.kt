@@ -20,6 +20,10 @@ import androidx.compose.runtime.collectAsState
 import com.calypsan.listenup.client.domain.repository.LeaderboardCategory
 import com.calypsan.listenup.client.presentation.discover.LeaderboardViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.discover_loading_leaderboard
+import listenup.composeapp.generated.resources.discover_start_listening_to_join_the
 
 /**
  * Discover screen leaderboard section.
@@ -70,7 +74,7 @@ fun DiscoverLeaderboardSection(
                 state.isLoading -> {
                     // Loading state
                     Text(
-                        text = "Loading leaderboard...",
+                        text = stringResource(Res.string.discover_loading_leaderboard),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -146,7 +150,7 @@ fun DiscoverLeaderboardSection(
                 else -> {
                     // Empty state
                     Text(
-                        text = "Start listening to join the community rankings",
+                        text = stringResource(Res.string.discover_start_listening_to_join_the),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

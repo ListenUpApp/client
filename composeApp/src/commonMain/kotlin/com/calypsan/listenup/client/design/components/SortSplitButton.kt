@@ -36,6 +36,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_select_category
+import listenup.composeapp.generated.resources.common_toggle_direction
 
 /**
  * Split button for sort control.
@@ -100,7 +104,7 @@ fun SortSplitButton(
                             Spacer(modifier = Modifier.width(3.dp))
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = "Select category",
+                                contentDescription = stringResource(Res.string.common_select_category),
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -129,7 +133,7 @@ fun SortSplitButton(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SwapVert,
-                                contentDescription = "Toggle direction",
+                                contentDescription = stringResource(Res.string.common_toggle_direction),
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.primary,
                             )

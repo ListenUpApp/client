@@ -66,6 +66,20 @@ import com.calypsan.listenup.client.presentation.seriesedit.SeriesEditViewModel
 import com.calypsan.listenup.client.util.rememberImagePicker
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.book_edit_change_cover
+import listenup.composeapp.generated.resources.common_description
+import listenup.composeapp.generated.resources.common_discard
+import listenup.composeapp.generated.resources.common_dismiss
+import listenup.composeapp.generated.resources.book_edit_keep_editing
+import listenup.composeapp.generated.resources.book_edit_unsaved_changes
+import listenup.composeapp.generated.resources.book_edit_you_have_unsaved_changes_are
+import listenup.composeapp.generated.resources.series_enter_a_description_for_this
+import listenup.composeapp.generated.resources.series_no_cover
+import listenup.composeapp.generated.resources.series_series_cover
+import listenup.composeapp.generated.resources.series_series_name
 
 /**
  * Series Edit Screen - simplified edit screen for series metadata and cover.
@@ -251,11 +265,11 @@ private fun UnsavedChangesDialog(
 ) {
     ListenUpDestructiveDialog(
         onDismissRequest = onKeepEditing,
-        title = "Unsaved Changes",
-        text = "You have unsaved changes. Are you sure you want to discard them?",
-        confirmText = "Discard",
+        title = stringResource(Res.string.book_edit_unsaved_changes),
+        text = stringResource(Res.string.book_edit_you_have_unsaved_changes_are),
+        confirmText = stringResource(Res.string.common_discard),
         onConfirm = onDiscard,
-        dismissText = "Keep Editing",
+        dismissText = stringResource(Res.string.book_edit_keep_editing),
         onDismiss = onKeepEditing,
     )
 }
@@ -275,7 +289,7 @@ private fun ErrorContent(
             color = MaterialTheme.colorScheme.error,
         )
         TextButton(onClick = onDismiss) {
-            Text("Dismiss")
+            Text(stringResource(Res.string.common_dismiss))
         }
     }
 }
@@ -329,12 +343,12 @@ private fun SeriesEditContent(
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             // Description card
-            SeriesStudioCard(title = "Description") {
+            SeriesStudioCard(title = stringResource(Res.string.common_description)) {
                 ListenUpTextArea(
                     value = state.description,
                     onValueChange = { onEvent(SeriesEditUiEvent.DescriptionChanged(it)) },
                     label = "Description",
-                    placeholder = "Enter a description for this series...",
+                    placeholder = stringResource(Res.string.series_enter_a_description_for_this),
                 )
             }
         }
@@ -381,7 +395,7 @@ private fun SeriesIdentityHeader(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(Res.string.common_back),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
@@ -412,7 +426,7 @@ private fun SeriesIdentityHeader(
                     if (coverPath != null) {
                         ListenUpAsyncImage(
                             path = coverPath,
-                            contentDescription = "Series cover",
+                            contentDescription = stringResource(Res.string.series_series_cover),
                             contentScale = ContentScale.Crop,
                             refreshKey = isUploadingCover,
                             modifier =
@@ -422,7 +436,7 @@ private fun SeriesIdentityHeader(
                         )
                     } else {
                         Text(
-                            text = "No Cover",
+                            text = stringResource(Res.string.series_no_cover),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -455,7 +469,7 @@ private fun SeriesIdentityHeader(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Change cover",
+                                contentDescription = stringResource(Res.string.book_edit_change_cover),
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
@@ -477,7 +491,7 @@ private fun SeriesIdentityHeader(
                     ),
                 placeholder = {
                     Text(
-                        "Series Name",
+                        stringResource(Res.string.series_series_name),
                         style =
                             MaterialTheme.typography.headlineSmall.copy(
                                 fontFamily = DisplayFontFamily,

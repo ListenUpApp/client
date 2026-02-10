@@ -20,6 +20,10 @@ import androidx.compose.runtime.collectAsState
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 import com.calypsan.listenup.client.presentation.bookdetail.BookReadersViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_readers
+import listenup.composeapp.generated.resources.common_see_all
 
 /**
  * Section displaying readers of a book on the Book Detail screen.
@@ -64,7 +68,7 @@ fun BookReadersSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Readers",
+                text = stringResource(Res.string.book_detail_readers),
                 style =
                     MaterialTheme.typography.titleMedium.copy(
                         fontFamily = DisplayFontFamily,
@@ -75,7 +79,7 @@ fun BookReadersSection(
 
             if (allReaders.size > 3) {
                 TextButton(onClick = { /* TODO: Navigate to full readers list */ }) {
-                    Text("See all")
+                    Text(stringResource(Res.string.common_see_all))
                 }
             }
         }

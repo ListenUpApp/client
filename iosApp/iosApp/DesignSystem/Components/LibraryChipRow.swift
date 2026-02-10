@@ -87,8 +87,8 @@ private struct LibraryChip: View {
         }
         .buttonStyle(ChipButtonStyle())
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-        .accessibilityLabel("\(tab.title) tab")
-        .accessibilityHint(isSelected ? "Currently selected" : "Double tap to select")
+        .accessibilityLabel(String(format: NSLocalizedString("common.tab_label", comment: ""), tab.title))
+        .accessibilityHint(isSelected ? NSLocalizedString("common.currently_selected", comment: "") : NSLocalizedString("common.double_tap_select", comment: ""))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

@@ -52,10 +52,10 @@ struct RegisterView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Create Account")
+            Text(NSLocalizedString("auth.create_account", comment: ""))
                 .font(.largeTitle.bold())
 
-            Text("Join ListenUp to start listening")
+            Text(NSLocalizedString("auth.join_listenup", comment: ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -65,16 +65,16 @@ struct RegisterView: View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 GlassTextField(
-                    label: "First Name",
-                    placeholder: "First",
+                    label: NSLocalizedString("auth.first_name", comment: ""),
+                    placeholder: NSLocalizedString("auth.first_name_placeholder", comment: ""),
                     text: $firstName,
                     textContentType: .givenName,
                     autocapitalization: .words
                 )
 
                 GlassTextField(
-                    label: "Last Name",
-                    placeholder: "Last",
+                    label: NSLocalizedString("auth.last_name", comment: ""),
+                    placeholder: NSLocalizedString("auth.last_name_placeholder", comment: ""),
                     text: $lastName,
                     textContentType: .familyName,
                     autocapitalization: .words
@@ -82,24 +82,24 @@ struct RegisterView: View {
             }
 
             GlassTextField(
-                label: "Email",
-                placeholder: "Enter your email",
+                label: NSLocalizedString("common.email", comment: ""),
+                placeholder: NSLocalizedString("auth.email_placeholder", comment: ""),
                 text: $email,
                 keyboardType: .emailAddress,
                 textContentType: .emailAddress
             )
 
             GlassSecureField(
-                label: "Password",
-                placeholder: "Create a password",
+                label: NSLocalizedString("auth.password_label", comment: ""),
+                placeholder: NSLocalizedString("auth.create_password_placeholder", comment: ""),
                 text: $password
             )
 
             GlassSecureField(
-                label: "Confirm Password",
-                placeholder: "Confirm your password",
+                label: NSLocalizedString("auth.confirm_password", comment: ""),
+                placeholder: NSLocalizedString("auth.confirm_password_placeholder", comment: ""),
                 text: $confirmPassword,
-                error: passwordMismatch ? "Passwords don't match" : nil
+                error: passwordMismatch ? NSLocalizedString("auth.passwords_dont_match", comment: "") : nil
             )
             .onChange(of: confirmPassword) { _, newValue in
                 passwordMismatch = !newValue.isEmpty && newValue != password
@@ -119,7 +119,7 @@ struct RegisterView: View {
 
     private var registerButton: some View {
         ListenUpButton(
-            title: "Create Account",
+            title: NSLocalizedString("auth.create_account", comment: ""),
             isLoading: viewModel.isLoading
         ) {
             if validateForm() {
@@ -136,10 +136,10 @@ struct RegisterView: View {
 
     private var loginLink: some View {
         HStack(spacing: 4) {
-            Text("Already have an account?")
+            Text(NSLocalizedString("auth.already_have_account", comment: ""))
                 .foregroundStyle(.secondary)
 
-            Button("Sign In") {
+            Button(NSLocalizedString("auth.sign_in", comment: "")) {
                 navigateBack()
             }
             .fontWeight(.semibold)

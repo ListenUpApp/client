@@ -15,6 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.home_continue_listening
 
 /**
  * Horizontal scrolling row of Continue Listening books.
@@ -35,7 +38,7 @@ fun ContinueListeningRow(
     Column(modifier = modifier) {
         // Section header
         Text(
-            text = "Continue Listening",
+            text = stringResource(Res.string.home_continue_listening),
             style =
                 MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,

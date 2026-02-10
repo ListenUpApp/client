@@ -55,6 +55,21 @@ import com.calypsan.listenup.client.presentation.bookedit.BookEditUiState
 import com.calypsan.listenup.client.presentation.bookedit.BookEditViewModel
 import com.calypsan.listenup.client.util.rememberImagePicker
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_edit_classification
+import listenup.composeapp.generated.resources.common_description
+import listenup.composeapp.generated.resources.common_discard
+import listenup.composeapp.generated.resources.common_dismiss
+import listenup.composeapp.generated.resources.book_edit_enter_a_description
+import listenup.composeapp.generated.resources.book_edit_identifiers
+import listenup.composeapp.generated.resources.book_edit_keep_editing
+import listenup.composeapp.generated.resources.common_library
+import listenup.composeapp.generated.resources.book_edit_publishing
+import listenup.composeapp.generated.resources.common_series
+import listenup.composeapp.generated.resources.book_edit_talent
+import listenup.composeapp.generated.resources.book_edit_unsaved_changes
+import listenup.composeapp.generated.resources.book_edit_you_have_unsaved_changes_are
 
 /**
  * Creative Studio book editing screen following Material 3 Expressive Design.
@@ -168,7 +183,7 @@ fun BookEditScreen(
                         TextButton(
                             onClick = { viewModel.onEvent(BookEditUiEvent.DismissError) },
                         ) {
-                            Text("Dismiss")
+                            Text(stringResource(Res.string.common_dismiss))
                         }
                     }
                 }
@@ -195,14 +210,14 @@ fun BookEditScreen(
     if (showUnsavedChangesDialog) {
         ListenUpDestructiveDialog(
             onDismissRequest = { showUnsavedChangesDialog = false },
-            title = "Unsaved Changes",
-            text = "You have unsaved changes. Are you sure you want to discard them?",
-            confirmText = "Discard",
+            title = stringResource(Res.string.book_edit_unsaved_changes),
+            text = stringResource(Res.string.book_edit_you_have_unsaved_changes_are),
+            confirmText = stringResource(Res.string.common_discard),
             onConfirm = {
                 showUnsavedChangesDialog = false
                 onBackClick()
             },
-            dismissText = "Keep Editing",
+            dismissText = stringResource(Res.string.book_edit_keep_editing),
             onDismiss = { showUnsavedChangesDialog = false },
         )
     }
@@ -288,17 +303,17 @@ private fun SingleColumnCardsLayout(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // Card 1: Description (The Hook)
-        StudioCard(title = "Description") {
+        StudioCard(title = stringResource(Res.string.common_description)) {
             ListenUpTextArea(
                 value = state.description,
                 onValueChange = { onEvent(BookEditUiEvent.DescriptionChanged(it)) },
                 label = "Description",
-                placeholder = "Enter a description...",
+                placeholder = stringResource(Res.string.book_edit_enter_a_description),
             )
         }
 
         // Card 2: Publishing
-        StudioCard(title = "Publishing") {
+        StudioCard(title = stringResource(Res.string.book_edit_publishing)) {
             PublishingSection(
                 publisher = state.publisher,
                 publishYear = state.publishYear,
@@ -310,7 +325,7 @@ private fun SingleColumnCardsLayout(
         }
 
         // Card 3: Identifiers & Format
-        StudioCard(title = "Identifiers") {
+        StudioCard(title = stringResource(Res.string.book_edit_identifiers)) {
             IdentifiersSection(
                 isbn = state.isbn,
                 asin = state.asin,
@@ -322,7 +337,7 @@ private fun SingleColumnCardsLayout(
         }
 
         // Card 4: Library
-        StudioCard(title = "Library") {
+        StudioCard(title = stringResource(Res.string.common_library)) {
             LibrarySection(
                 sortTitle = state.sortTitle,
                 addedAt = state.addedAt,
@@ -332,7 +347,7 @@ private fun SingleColumnCardsLayout(
         }
 
         // Card 5: Series
-        StudioCard(title = "Series") {
+        StudioCard(title = stringResource(Res.string.common_series)) {
             SeriesSection(
                 series = state.series,
                 searchQuery = state.seriesSearchQuery,
@@ -348,7 +363,7 @@ private fun SingleColumnCardsLayout(
         }
 
         // Card 5: Classification
-        StudioCard(title = "Classification") {
+        StudioCard(title = stringResource(Res.string.book_edit_classification)) {
             ClassificationSection(
                 genres = state.genres,
                 genreSearchQuery = state.genreSearchQuery,
@@ -369,7 +384,7 @@ private fun SingleColumnCardsLayout(
         }
 
         // Card 6: Talent
-        StudioCard(title = "Talent") {
+        StudioCard(title = stringResource(Res.string.book_edit_talent)) {
             TalentSection(
                 visibleRoles = state.visibleRoles,
                 availableRolesToAdd = state.availableRolesToAdd,
@@ -422,12 +437,12 @@ private fun TwoColumnCardsLayout(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // Full-width: Description (The Hook) - Primary content
-        StudioCard(title = "Description") {
+        StudioCard(title = stringResource(Res.string.common_description)) {
             ListenUpTextArea(
                 value = state.description,
                 onValueChange = { onEvent(BookEditUiEvent.DescriptionChanged(it)) },
                 label = "Description",
-                placeholder = "Enter a description...",
+                placeholder = stringResource(Res.string.book_edit_enter_a_description),
             )
         }
 
@@ -440,7 +455,7 @@ private fun TwoColumnCardsLayout(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                StudioCard(title = "Publishing") {
+                StudioCard(title = stringResource(Res.string.book_edit_publishing)) {
                     PublishingSection(
                         publisher = state.publisher,
                         publishYear = state.publishYear,
@@ -451,7 +466,7 @@ private fun TwoColumnCardsLayout(
                     )
                 }
 
-                StudioCard(title = "Identifiers") {
+                StudioCard(title = stringResource(Res.string.book_edit_identifiers)) {
                     IdentifiersSection(
                         isbn = state.isbn,
                         asin = state.asin,
@@ -462,7 +477,7 @@ private fun TwoColumnCardsLayout(
                     )
                 }
 
-                StudioCard(title = "Library") {
+                StudioCard(title = stringResource(Res.string.common_library)) {
                     LibrarySection(
                         sortTitle = state.sortTitle,
                         addedAt = state.addedAt,
@@ -471,7 +486,7 @@ private fun TwoColumnCardsLayout(
                     )
                 }
 
-                StudioCard(title = "Series") {
+                StudioCard(title = stringResource(Res.string.common_series)) {
                     SeriesSection(
                         series = state.series,
                         searchQuery = state.seriesSearchQuery,
@@ -497,7 +512,7 @@ private fun TwoColumnCardsLayout(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                StudioCard(title = "Classification") {
+                StudioCard(title = stringResource(Res.string.book_edit_classification)) {
                     ClassificationSection(
                         genres = state.genres,
                         genreSearchQuery = state.genreSearchQuery,
@@ -517,7 +532,7 @@ private fun TwoColumnCardsLayout(
                     )
                 }
 
-                StudioCard(title = "Talent") {
+                StudioCard(title = stringResource(Res.string.book_edit_talent)) {
                     TalentSection(
                         visibleRoles = state.visibleRoles,
                         availableRolesToAdd = state.availableRolesToAdd,

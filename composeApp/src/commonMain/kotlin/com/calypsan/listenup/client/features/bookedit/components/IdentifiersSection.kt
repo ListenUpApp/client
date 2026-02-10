@@ -14,6 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpTextField
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_edit_abridged
+import listenup.composeapp.generated.resources.book_edit_shortened_version_of_the_original
 
 /**
  * Identifiers section: ISBN, ASIN, and Abridged toggle.
@@ -59,11 +63,11 @@ fun IdentifiersSection(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Abridged",
+                    text = stringResource(Res.string.book_edit_abridged),
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Text(
-                    text = "Shortened version of the original",
+                    text = stringResource(Res.string.book_edit_shortened_version_of_the_original),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

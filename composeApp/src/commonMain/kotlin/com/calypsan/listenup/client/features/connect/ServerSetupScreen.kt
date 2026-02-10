@@ -37,6 +37,13 @@ import com.calypsan.listenup.client.presentation.connect.ServerConnectUiEvent
 import com.calypsan.listenup.client.presentation.connect.ServerConnectUiState
 import com.calypsan.listenup.client.presentation.connect.ServerConnectViewModel
 import org.koin.compose.koinInject
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.connect_back_to_server_list
+import listenup.composeapp.generated.resources.connect_connect
+import listenup.composeapp.generated.resources.connect_connect_to_server
+import listenup.composeapp.generated.resources.connect_server_url_placeholder
+import listenup.composeapp.generated.resources.connect_server_url
 
 /**
  * Server setup screen with clean, non-overlapping layout.
@@ -132,7 +139,7 @@ private fun ServerSetupContent(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 TextButton(onClick = onBack) {
-                    Text("Back to Server Selection")
+                    Text(stringResource(Res.string.connect_back_to_server_list))
                 }
             }
 
@@ -158,7 +165,7 @@ private fun FormContent(
     ) {
         // Title
         Text(
-            text = "Connect to Server",
+            text = stringResource(Res.string.connect_connect_to_server),
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -167,8 +174,8 @@ private fun FormContent(
         ListenUpTextField(
             value = state.serverUrl,
             onValueChange = { onEvent(ServerConnectUiEvent.UrlChanged(it)) },
-            label = "Server URL",
-            placeholder = "example.com or 192.168.1.100:8080",
+            label = stringResource(Res.string.connect_server_url),
+            placeholder = stringResource(Res.string.connect_server_url_placeholder),
             isError = state.error != null,
             supportingText = state.error?.message,
             keyboardOptions =
@@ -184,7 +191,7 @@ private fun FormContent(
 
         // Connect button
         ListenUpButton(
-            text = "Connect",
+            text = stringResource(Res.string.connect_connect),
             onClick = { onEvent(ServerConnectUiEvent.ConnectClicked) },
             isLoading = state.isLoading,
             enabled = state.isConnectEnabled,

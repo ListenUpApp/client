@@ -23,6 +23,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.settings_listenup_uses_the_following_open
+import listenup.composeapp.generated.resources.settings_open_source_licenses
 
 /**
  * Data class representing an open source library.
@@ -140,12 +145,12 @@ fun LicensesScreen(onNavigateBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Open Source Licenses") },
+                title = { Text(stringResource(Res.string.settings_open_source_licenses)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },
@@ -161,7 +166,7 @@ fun LicensesScreen(onNavigateBack: () -> Unit) {
         ) {
             item {
                 Text(
-                    text = "ListenUp uses the following open source libraries:",
+                    text = stringResource(Res.string.settings_listenup_uses_the_following_open),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 16.dp),

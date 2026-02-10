@@ -14,6 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.domain.repository.CommunityStats
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.discover_community_stats
+import listenup.composeapp.generated.resources.discover_total_time
 
 /**
  * Community aggregate stats row.
@@ -33,7 +37,7 @@ fun CommunityStatsRow(
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         Text(
-            text = "Community Stats",
+            text = stringResource(Res.string.discover_community_stats),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp),
@@ -44,7 +48,7 @@ fun CommunityStatsRow(
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
             StatItem(
-                label = "Total Time",
+                label = stringResource(Res.string.discover_total_time),
                 value = stats.totalTimeLabel,
             )
             StatItem(

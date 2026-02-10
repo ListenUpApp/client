@@ -69,6 +69,21 @@ import androidx.compose.material3.AlertDialog
 import com.calypsan.listenup.client.presentation.admin.AdminCategoriesUiState
 import com.calypsan.listenup.client.presentation.admin.AdminCategoriesViewModel
 import com.calypsan.listenup.client.presentation.admin.GenreTreeNode
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_add_genre
+import listenup.composeapp.generated.resources.admin_add_subgenre
+import listenup.composeapp.generated.resources.admin_confirm_delete_item
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.common_categories
+import listenup.composeapp.generated.resources.common_delete
+import listenup.composeapp.generated.resources.common_delete_name
+import listenup.composeapp.generated.resources.admin_genre_name
+import listenup.composeapp.generated.resources.common_no_items
+import listenup.composeapp.generated.resources.common_rename
+import listenup.composeapp.generated.resources.admin_rename_genre
+import listenup.composeapp.generated.resources.admin_tap_to_create_your_first
+import listenup.composeapp.generated.resources.common_cancel
 
 /**
  * Admin screen for managing the category (genre) tree.
@@ -121,10 +136,10 @@ fun AdminCategoriesScreen(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text("Categories") },
+                    title = { Text(stringResource(Res.string.common_categories)) },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.common_back))
                         }
                     },
                     actions = {
@@ -159,7 +174,7 @@ fun AdminCategoriesScreen(
                     showCreateDialog = true
                 },
                 icon = Icons.Outlined.Add,
-                contentDescription = "Add Genre",
+                contentDescription = stringResource(Res.string.admin_add_genre),
             )
         },
     ) { innerPadding ->
@@ -230,9 +245,9 @@ fun AdminCategoriesScreen(
     // Rename dialog
     if (showRenameDialog) {
         GenreNameDialog(
-            title = "Rename Genre",
+            title = stringResource(Res.string.admin_rename_genre),
             initialName = renameGenreName,
-            confirmLabel = "Rename",
+            confirmLabel = stringResource(Res.string.common_rename),
             onConfirm = { name ->
                 viewModel.renameGenre(renameGenreId, name)
                 showRenameDialog = false
@@ -245,9 +260,9 @@ fun AdminCategoriesScreen(
     if (showDeleteDialog) {
         ListenUpDestructiveDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = "Delete Genre",
-            text = "Are you sure you want to delete \"$deleteGenreName\"? This action cannot be undone.",
-            confirmText = "Delete",
+            title = stringResource(Res.string.common_delete_name, "Genre"),
+            text = stringResource(Res.string.admin_confirm_delete_item, deleteGenreName),
+            confirmText = stringResource(Res.string.common_delete),
             onConfirm = {
                 viewModel.deleteGenre(deleteGenreId)
                 showDeleteDialog = false
@@ -289,7 +304,7 @@ private fun GenreNameDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Genre name") },
+                    label = { Text(stringResource(Res.string.admin_genre_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -305,7 +320,7 @@ private fun GenreNameDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(Res.string.common_cancel))
             }
         },
     )
@@ -572,7 +587,7 @@ private fun CategoryRow(
             onDismissRequest = { showContextMenu = false },
         ) {
             DropdownMenuItem(
-                text = { Text("Add Sub-genre") },
+                text = { Text(stringResource(Res.string.admin_add_subgenre)) },
                 onClick = {
                     showContextMenu = false
                     onAddChild()
@@ -580,7 +595,7 @@ private fun CategoryRow(
                 leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null) },
             )
             DropdownMenuItem(
-                text = { Text("Rename") },
+                text = { Text(stringResource(Res.string.common_rename)) },
                 onClick = {
                     showContextMenu = false
                     onRename()
@@ -588,7 +603,7 @@ private fun CategoryRow(
                 leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
             )
             DropdownMenuItem(
-                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(Res.string.common_delete), color = MaterialTheme.colorScheme.error) },
                 onClick = {
                     showContextMenu = false
                     onDelete()
@@ -622,12 +637,12 @@ private fun EmptyCategoriesMessage(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "No Categories",
+            text = stringResource(Res.string.common_no_items, "Categories"),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            text = "Tap + to create your first genre",
+            text = stringResource(Res.string.admin_tap_to_create_your_first),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -16,6 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.presentation.home.HomeStatsViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_loading_item
+import listenup.composeapp.generated.resources.home_start_listening_to_see_your
+import listenup.composeapp.generated.resources.home_this_week
 
 /**
  * Home screen stats section.
@@ -59,7 +64,7 @@ fun HomeStatsSection(
         ) {
             // Section title
             Text(
-                text = "This Week",
+                text = stringResource(Res.string.home_this_week),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -68,7 +73,7 @@ fun HomeStatsSection(
                 state.isLoading -> {
                     // Loading state
                     Text(
-                        text = "Loading stats...",
+                        text = stringResource(Res.string.common_loading_item, "stats"),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -91,7 +96,7 @@ fun HomeStatsSection(
                 else -> {
                     // Empty state
                     Text(
-                        text = "Start listening to see your stats here",
+                        text = stringResource(Res.string.home_start_listening_to_see_your),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

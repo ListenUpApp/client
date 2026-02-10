@@ -40,6 +40,12 @@ import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.components.getInitials
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.common_name
+import listenup.composeapp.generated.resources.contributor_change_photo
+import listenup.composeapp.generated.resources.contributor_contributor_photo
 
 /**
  * Identity header with large avatar and name field side by side.
@@ -77,7 +83,7 @@ fun ContributorIdentityHeader(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(Res.string.common_back),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
@@ -108,7 +114,7 @@ fun ContributorIdentityHeader(
                     if (imagePath != null) {
                         ListenUpAsyncImage(
                             path = imagePath,
-                            contentDescription = "Contributor photo",
+                            contentDescription = stringResource(Res.string.contributor_contributor_photo),
                             contentScale = ContentScale.Crop,
                             modifier =
                                 Modifier
@@ -154,7 +160,7 @@ fun ContributorIdentityHeader(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Change photo",
+                                contentDescription = stringResource(Res.string.contributor_change_photo),
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
@@ -176,7 +182,7 @@ fun ContributorIdentityHeader(
                     ),
                 placeholder = {
                     Text(
-                        "Name",
+                        stringResource(Res.string.common_name),
                         style =
                             MaterialTheme.typography.headlineSmall.copy(
                                 fontFamily = DisplayFontFamily,

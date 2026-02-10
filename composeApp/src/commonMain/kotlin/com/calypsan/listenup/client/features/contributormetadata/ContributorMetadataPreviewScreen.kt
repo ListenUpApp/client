@@ -43,6 +43,20 @@ import coil3.compose.AsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataField
 import com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataUiState
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.contributor_apply_selectedcount_of_availablefieldcount
+import listenup.composeapp.generated.resources.contributor_audible
+import listenup.composeapp.generated.resources.contributor_change_match
+import listenup.composeapp.generated.resources.contributor_current
+import listenup.composeapp.generated.resources.contributor_current_image
+import listenup.composeapp.generated.resources.contributor_failed_to_load_profile
+import listenup.composeapp.generated.resources.common_image
+import listenup.composeapp.generated.resources.contributor_new_image
+import listenup.composeapp.generated.resources.contributor_no_change
+import listenup.composeapp.generated.resources.contributor_no_image_available_from_audible
+import listenup.composeapp.generated.resources.contributor_preview_changes
 
 /**
  * Full-screen preview of contributor metadata changes before applying.
@@ -77,12 +91,12 @@ fun ContributorMetadataPreviewScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Preview Changes") },
+                title = { Text(stringResource(Res.string.contributor_preview_changes)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },
@@ -115,7 +129,7 @@ fun ContributorMetadataPreviewScreen(
                             onClick = onChangeMatch,
                             modifier = Modifier.weight(1f),
                         ) {
-                            Text("Change Match")
+                            Text(stringResource(Res.string.contributor_change_match))
                         }
 
                         Button(
@@ -128,7 +142,13 @@ fun ContributorMetadataPreviewScreen(
                                     color = MaterialTheme.colorScheme.onPrimary,
                                 )
                             } else {
-                                Text("Apply $selectedCount of $availableFieldCount")
+                                Text(
+                                    stringResource(
+                                        Res.string.contributor_apply_selectedcount_of_availablefieldcount,
+                                        selectedCount,
+                                        availableFieldCount,
+                                    ),
+                                )
                             }
                         }
                     }
@@ -162,7 +182,7 @@ fun ContributorMetadataPreviewScreen(
                         modifier = Modifier.padding(32.dp),
                     ) {
                         Text(
-                            text = "Failed to load profile",
+                            text = stringResource(Res.string.contributor_failed_to_load_profile),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -256,7 +276,7 @@ private fun ImageComparisonRow(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Image",
+                    text = stringResource(Res.string.common_image),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -272,7 +292,7 @@ private fun ImageComparisonRow(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         AsyncImage(
                             model = currentImagePath,
-                            contentDescription = "Current image",
+                            contentDescription = stringResource(Res.string.contributor_current_image),
                             modifier =
                                 Modifier
                                     .size(80.dp)
@@ -281,7 +301,7 @@ private fun ImageComparisonRow(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Current",
+                            text = stringResource(Res.string.contributor_current),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -298,7 +318,7 @@ private fun ImageComparisonRow(
                         if (hasNewImage) {
                             AsyncImage(
                                 model = newImageUrl,
-                                contentDescription = "New image",
+                                contentDescription = stringResource(Res.string.contributor_new_image),
                                 modifier =
                                     Modifier
                                         .size(80.dp)
@@ -326,7 +346,7 @@ private fun ImageComparisonRow(
                         }
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Audible",
+                            text = stringResource(Res.string.contributor_audible),
                             style = MaterialTheme.typography.labelSmall,
                             color =
                                 if (hasNewImage) {
@@ -341,7 +361,7 @@ private fun ImageComparisonRow(
                 if (!hasNewImage) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "No image available from Audible",
+                        text = stringResource(Res.string.contributor_no_image_available_from_audible),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -399,7 +419,7 @@ private fun TextComparisonRow(
 
                     if (isUnchanged && hasNewValue) {
                         Text(
-                            text = "No change",
+                            text = stringResource(Res.string.contributor_no_change),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -410,7 +430,7 @@ private fun TextComparisonRow(
 
                 // Current value
                 Text(
-                    text = "Current",
+                    text = stringResource(Res.string.contributor_current),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -431,7 +451,7 @@ private fun TextComparisonRow(
 
                 // New value
                 Text(
-                    text = "Audible",
+                    text = stringResource(Res.string.contributor_audible),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )

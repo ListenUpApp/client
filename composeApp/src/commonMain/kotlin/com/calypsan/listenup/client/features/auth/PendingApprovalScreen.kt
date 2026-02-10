@@ -29,6 +29,14 @@ import com.calypsan.listenup.client.design.components.BrandLogo
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalStatus
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.auth_approved
+import listenup.composeapp.generated.resources.auth_cancel_registration
+import listenup.composeapp.generated.resources.auth_signing_you_in
+import listenup.composeapp.generated.resources.auth_waiting_for_approval
+import listenup.composeapp.generated.resources.auth_youll_be_automatically_signed_in
+import listenup.composeapp.generated.resources.auth_your_registration_request_has_been
 
 /**
  * Screen shown while waiting for admin approval after registration.
@@ -108,13 +116,13 @@ fun PendingApprovalScreen(
                             ListenUpLoadingIndicator()
 
                             Text(
-                                text = "Waiting for Approval",
+                                text = stringResource(Res.string.auth_waiting_for_approval),
                                 style = MaterialTheme.typography.headlineSmall,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
 
                             Text(
-                                text = "Your registration request has been submitted and is awaiting admin approval.",
+                                text = stringResource(Res.string.auth_your_registration_request_has_been),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
@@ -127,7 +135,7 @@ fun PendingApprovalScreen(
                             )
 
                             Text(
-                                text = "You'll be automatically signed in once approved.",
+                                text = stringResource(Res.string.auth_youll_be_automatically_signed_in),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
@@ -138,13 +146,13 @@ fun PendingApprovalScreen(
                             ListenUpLoadingIndicator()
 
                             Text(
-                                text = "Approved!",
+                                text = stringResource(Res.string.auth_approved),
                                 style = MaterialTheme.typography.headlineSmall,
                                 color = MaterialTheme.colorScheme.primary,
                             )
 
                             Text(
-                                text = "Signing you in...",
+                                text = stringResource(Res.string.auth_signing_you_in),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -172,7 +180,7 @@ fun PendingApprovalScreen(
                                 onNavigateToLogin()
                             },
                         ) {
-                            Text("Cancel Registration")
+                            Text(stringResource(Res.string.auth_cancel_registration))
                         }
                     }
                 }

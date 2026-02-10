@@ -72,6 +72,49 @@ import com.calypsan.listenup.client.domain.model.InviteInfo
 import com.calypsan.listenup.client.presentation.admin.AdminUiState
 import com.calypsan.listenup.client.presentation.admin.AdminViewModel
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_admin
+import listenup.composeapp.generated.resources.admin_allow_anyone_to_request_an
+import listenup.composeapp.generated.resources.common_approve
+import listenup.composeapp.generated.resources.admin_confirm_deny_registration
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.admin_backup_restore
+import listenup.composeapp.generated.resources.common_categories
+import listenup.composeapp.generated.resources.common_collections
+import listenup.composeapp.generated.resources.admin_copy_link
+import listenup.composeapp.generated.resources.admin_create_backups_and_restore_server
+import listenup.composeapp.generated.resources.common_delete
+import listenup.composeapp.generated.resources.common_delete_name
+import listenup.composeapp.generated.resources.common_deny
+import listenup.composeapp.generated.resources.admin_deny_registration
+import listenup.composeapp.generated.resources.common_email
+import listenup.composeapp.generated.resources.common_inbox
+import listenup.composeapp.generated.resources.common_inbox_workflow
+import listenup.composeapp.generated.resources.admin_invite_someone
+import listenup.composeapp.generated.resources.admin_link_copied
+import listenup.composeapp.generated.resources.connect_listenup_server
+import listenup.composeapp.generated.resources.common_name
+import listenup.composeapp.generated.resources.admin_no_pending_registrations
+import listenup.composeapp.generated.resources.common_no_items_found
+import listenup.composeapp.generated.resources.admin_open_registration
+import listenup.composeapp.generated.resources.admin_organize_books_into_collections_for
+import listenup.composeapp.generated.resources.admin_pending_invites
+import listenup.composeapp.generated.resources.admin_pending_registrations
+import listenup.composeapp.generated.resources.common_permissions
+import listenup.composeapp.generated.resources.admin_remote_url
+import listenup.composeapp.generated.resources.admin_review_new_books_before_they
+import listenup.composeapp.generated.resources.common_revoke
+import listenup.composeapp.generated.resources.common_revoke_invite
+import listenup.composeapp.generated.resources.common_role
+import listenup.composeapp.generated.resources.admin_save_settings
+import listenup.composeapp.generated.resources.admin_server_name
+import listenup.composeapp.generated.resources.admin_share_your_audiobook_library_with
+import listenup.composeapp.generated.resources.admin_they_wont_be_able_to
+import listenup.composeapp.generated.resources.common_users
+import listenup.composeapp.generated.resources.admin_view_the_genre_hierarchy_tree
+import listenup.composeapp.generated.resources.common_administration
+import listenup.composeapp.generated.resources.common_settings
 
 /**
  * Combined admin screen showing users, pending invites, and invite action.
@@ -128,10 +171,10 @@ fun AdminScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Administration") },
+                title = { Text(stringResource(Res.string.common_administration)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.common_back))
                     }
                 },
             )
@@ -141,7 +184,7 @@ fun AdminScreen(
             ListenUpFab(
                 onClick = onSave,
                 icon = Icons.Outlined.Save,
-                contentDescription = "Save settings",
+                contentDescription = stringResource(Res.string.admin_save_settings),
                 enabled = isDirty,
             )
         },
@@ -185,9 +228,9 @@ fun AdminScreen(
     userToDelete?.let { user ->
         ListenUpDestructiveDialog(
             onDismissRequest = { userToDelete = null },
-            title = "Delete User",
+            title = stringResource(Res.string.common_delete_name, "User"),
             text = "Are you sure you want to delete ${user.displayName ?: user.email}? This action cannot be undone.",
-            confirmText = "Delete",
+            confirmText = stringResource(Res.string.common_delete),
             onConfirm = {
                 viewModel.deleteUser(user.id)
                 userToDelete = null
@@ -200,11 +243,11 @@ fun AdminScreen(
     inviteToRevoke?.let { invite ->
         ListenUpDestructiveDialog(
             onDismissRequest = { inviteToRevoke = null },
-            title = "Revoke Invite",
+            title = stringResource(Res.string.common_revoke_invite),
             text =
                 "Are you sure you want to revoke the invite for ${invite.name}? " +
-                    "They won't be able to use this link anymore.",
-            confirmText = "Revoke",
+                    stringResource(Res.string.admin_they_wont_be_able_to),
+            confirmText = stringResource(Res.string.common_revoke),
             onConfirm = {
                 viewModel.revokeInvite(invite.id)
                 inviteToRevoke = null
@@ -217,11 +260,11 @@ fun AdminScreen(
     userToDeny?.let { user ->
         ListenUpDestructiveDialog(
             onDismissRequest = { userToDeny = null },
-            title = "Deny Registration",
+            title = stringResource(Res.string.admin_deny_registration),
             text =
-                "Are you sure you want to deny the registration request from " +
+                stringResource(Res.string.admin_confirm_deny_registration) +
                     "${user.displayName ?: user.email}? They will need to register again.",
-            confirmText = "Deny",
+            confirmText = stringResource(Res.string.common_deny),
             onConfirm = {
                 viewModel.denyUser(user.id)
                 userToDeny = null
@@ -265,7 +308,7 @@ private fun AdminContent(
         // Settings section
         item {
             Text(
-                text = "Settings",
+                text = stringResource(Res.string.common_settings),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
@@ -292,7 +335,7 @@ private fun AdminContent(
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    text = "Pending Registrations",
+                    text = stringResource(Res.string.admin_pending_registrations),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = 8.dp),
@@ -310,7 +353,7 @@ private fun AdminContent(
                 ) {
                     if (state.pendingUsers.isEmpty()) {
                         Text(
-                            text = "No pending registrations",
+                            text = stringResource(Res.string.admin_no_pending_registrations),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
                             modifier = Modifier.padding(16.dp),
@@ -341,7 +384,7 @@ private fun AdminContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Users",
+                text = stringResource(Res.string.common_users),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -375,7 +418,7 @@ private fun AdminContent(
                     // User rows
                     if (state.users.isEmpty()) {
                         Text(
-                            text = "No users found",
+                            text = stringResource(Res.string.common_no_items_found, "users"),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(16.dp),
@@ -404,7 +447,7 @@ private fun AdminContent(
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    text = "Pending Invites",
+                    text = stringResource(Res.string.admin_pending_invites),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(bottom = 8.dp),
@@ -520,8 +563,8 @@ private fun SettingsCard(
                 OutlinedTextField(
                     value = serverName,
                     onValueChange = onServerNameChange,
-                    label = { Text("Server Name") },
-                    placeholder = { Text("ListenUp Server") },
+                    label = { Text(stringResource(Res.string.admin_server_name)) },
+                    placeholder = { Text(stringResource(Res.string.connect_listenup_server)) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -548,7 +591,7 @@ private fun SettingsCard(
                 OutlinedTextField(
                     value = remoteUrl,
                     onValueChange = onRemoteUrlChange,
-                    label = { Text("Remote URL") },
+                    label = { Text(stringResource(Res.string.admin_remote_url)) },
                     placeholder = { Text("https://audiobooks.example.com") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
@@ -575,12 +618,12 @@ private fun SettingsCard(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Open Registration",
+                        text = stringResource(Res.string.admin_open_registration),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "Allow anyone to request an account",
+                        text = stringResource(Res.string.admin_allow_anyone_to_request_an),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -615,12 +658,12 @@ private fun SettingsCard(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Inbox Workflow",
+                        text = stringResource(Res.string.common_inbox_workflow),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "Review new books before they appear in library",
+                        text = stringResource(Res.string.admin_review_new_books_before_they),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -687,7 +730,7 @@ private fun PendingUserRow(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Deny")
+                Text(stringResource(Res.string.common_deny))
             }
             FilledTonalButton(
                 onClick = onApproveClick,
@@ -698,7 +741,7 @@ private fun PendingUserRow(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Approve")
+                Text(stringResource(Res.string.common_approve))
             }
         }
     }
@@ -715,25 +758,25 @@ private fun UserTableHeader(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Name",
+            text = stringResource(Res.string.common_name),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
         Text(
-            text = "Email",
+            text = stringResource(Res.string.common_email),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
         Text(
-            text = "Role",
+            text = stringResource(Res.string.common_role),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(0.4f),
         )
         Text(
-            text = "Permissions",
+            text = stringResource(Res.string.common_permissions),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(0.4f),
@@ -775,7 +818,7 @@ private fun UserTableRow(
             if (user.isRoot || user.role == "admin") {
                 Icon(
                     imageVector = Icons.Outlined.Shield,
-                    contentDescription = "Admin",
+                    contentDescription = stringResource(Res.string.common_admin),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp),
                 )
@@ -837,7 +880,7 @@ private fun UserTableRow(
                 IconButton(onClick = onDeleteClick) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = stringResource(Res.string.common_delete),
                         tint = MaterialTheme.colorScheme.error,
                     )
                 }
@@ -893,7 +936,7 @@ private fun InviteRow(
         IconButton(onClick = onCopyClick) {
             Icon(
                 imageVector = Icons.Outlined.ContentCopy,
-                contentDescription = "Copy Link",
+                contentDescription = stringResource(Res.string.admin_copy_link),
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
             )
         }
@@ -905,7 +948,7 @@ private fun InviteRow(
             IconButton(onClick = onRevokeClick) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
-                    contentDescription = "Revoke",
+                    contentDescription = stringResource(Res.string.common_revoke),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }
@@ -942,12 +985,12 @@ private fun InviteSomeoneCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Invite Someone",
+                    text = stringResource(Res.string.admin_invite_someone),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
-                    text = "Share your audiobook library with others",
+                    text = stringResource(Res.string.admin_share_your_audiobook_library_with),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                 )
@@ -985,12 +1028,12 @@ private fun CollectionsCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Collections",
+                    text = stringResource(Res.string.common_collections),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
                 Text(
-                    text = "Organize books into collections for access control",
+                    text = stringResource(Res.string.admin_organize_books_into_collections_for),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
                 )
@@ -1028,12 +1071,12 @@ private fun CategoriesCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Categories",
+                    text = stringResource(Res.string.common_categories),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "View the genre hierarchy tree",
+                    text = stringResource(Res.string.admin_view_the_genre_hierarchy_tree),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1072,7 +1115,7 @@ private fun InboxCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Inbox",
+                    text = stringResource(Res.string.common_inbox),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                 )
@@ -1120,12 +1163,12 @@ private fun BackupCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Backup & Restore",
+                    text = stringResource(Res.string.admin_backup_restore),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "Create backups and restore server data",
+                    text = stringResource(Res.string.admin_create_backups_and_restore_server),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

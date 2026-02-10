@@ -22,6 +22,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
 import com.calypsan.listenup.client.features.bookdetail.DownloadButton
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_play
 
 /**
  * Primary action buttons - Play dominates, Download alongside.
@@ -82,7 +85,7 @@ fun PrimaryActionsSection(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Play",
+                text = stringResource(Res.string.book_detail_play),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )

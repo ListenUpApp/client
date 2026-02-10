@@ -43,6 +43,14 @@ import com.calypsan.listenup.client.presentation.auth.SetupField
 import com.calypsan.listenup.client.presentation.auth.SetupStatus
 import com.calypsan.listenup.client.presentation.auth.SetupViewModel
 import org.koin.compose.koinInject
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.auth_confirm_password
+import listenup.composeapp.generated.resources.auth_create_account
+import listenup.composeapp.generated.resources.auth_create_admin_account
+import listenup.composeapp.generated.resources.auth_first_name
+import listenup.composeapp.generated.resources.auth_last_name
+import listenup.composeapp.generated.resources.auth_set_up_your_listenup_server
 
 /**
  * Initial server setup screen for creating the root/admin user.
@@ -181,13 +189,13 @@ private fun SetupForm(
     ) {
         // Title
         Text(
-            text = "Create Admin Account",
+            text = stringResource(Res.string.auth_create_admin_account),
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
 
         Text(
-            text = "Set up your ListenUp server by creating the first admin account.",
+            text = stringResource(Res.string.auth_set_up_your_listenup_server),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -196,7 +204,7 @@ private fun SetupForm(
         ListenUpTextField(
             value = firstName,
             onValueChange = { firstName = it },
-            label = "First Name",
+            label = stringResource(Res.string.auth_first_name),
             enabled = !isLoading,
             isError =
                 state.status is SetupStatus.Error &&
@@ -229,7 +237,7 @@ private fun SetupForm(
         ListenUpTextField(
             value = lastName,
             onValueChange = { lastName = it },
-            label = "Last Name",
+            label = stringResource(Res.string.auth_last_name),
             enabled = !isLoading,
             isError =
                 state.status is SetupStatus.Error &&
@@ -329,7 +337,7 @@ private fun SetupForm(
         ListenUpTextField(
             value = passwordConfirm,
             onValueChange = { passwordConfirm = it },
-            label = "Confirm Password",
+            label = stringResource(Res.string.auth_confirm_password),
             enabled = !isLoading,
             visualTransformation = PasswordVisualTransformation(),
             isError =
@@ -369,7 +377,7 @@ private fun SetupForm(
             onClick = {
                 onSubmit(firstName, lastName, email, password, passwordConfirm)
             },
-            text = "Create Account",
+            text = stringResource(Res.string.auth_create_account),
             enabled = !isLoading,
             isLoading = isLoading,
             modifier = Modifier.fillMaxWidth(),

@@ -38,6 +38,14 @@ import com.calypsan.listenup.client.domain.model.ContributorSearchResult
 import com.calypsan.listenup.client.presentation.bookedit.ContributorRole
 import com.calypsan.listenup.client.presentation.bookedit.EditableContributor
 import com.calypsan.listenup.client.presentation.bookedit.displayName
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_remove
+import listenup.composeapp.generated.resources.book_edit_add_role
+import listenup.composeapp.generated.resources.book_edit_add_trimmedquery
+import listenup.composeapp.generated.resources.book_edit_from_this_book
+import listenup.composeapp.generated.resources.book_edit_showing_offline_results
+import listenup.composeapp.generated.resources.book_edit_this_will_remove_contributorstoremovecount
 
 /**
  * Talent section for managing contributors by role.
@@ -103,10 +111,13 @@ fun TalentSection(
             onDismissRequest = { roleToRemove = null },
             title = "Remove ${role.displayName}s?",
             text =
-                "This will remove $contributorsToRemoveCount " +
+                stringResource(
+                    Res.string.book_edit_this_will_remove_contributorstoremovecount,
+                    contributorsToRemoveCount,
+                ) +
                     "${role.displayName.lowercase()}${if (contributorsToRemoveCount > 1) "s" else ""} " +
-                    "from this book.",
-            confirmText = "Remove",
+                    stringResource(Res.string.book_edit_from_this_book),
+            confirmText = stringResource(Res.string.common_remove),
             onConfirm = {
                 onRemoveRoleSection(role)
                 roleToRemove = null
@@ -175,7 +186,7 @@ private fun RoleContributorSection(
         // Offline indicator
         if (isOffline && searchResults.isNotEmpty()) {
             Text(
-                text = "Showing offline results",
+                text = stringResource(Res.string.book_edit_showing_offline_results),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -220,7 +231,7 @@ private fun RoleContributorSection(
         if (trimmedQuery.length >= 2 && !isSearching && !hasExactMatch) {
             AssistChip(
                 onClick = { onNameEntered(trimmedQuery) },
-                label = { Text("Add \"$trimmedQuery\"") },
+                label = { Text(stringResource(Res.string.book_edit_add_trimmedquery, trimmedQuery)) },
                 leadingIcon = {
                     Icon(Icons.Default.Add, null, Modifier.size(18.dp))
                 },
@@ -268,7 +279,7 @@ private fun AddRoleButton(
     Box {
         AssistChip(
             onClick = { expanded = true },
-            label = { Text("Add Role") },
+            label = { Text(stringResource(Res.string.book_edit_add_role)) },
             leadingIcon = {
                 Icon(Icons.Default.Add, null, Modifier.size(18.dp))
             },

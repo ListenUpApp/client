@@ -26,6 +26,10 @@ import com.calypsan.listenup.client.design.components.AutocompleteResultItem
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.domain.model.SeriesSearchResult
 import com.calypsan.listenup.client.presentation.bookedit.EditableSeries
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_edit_add_trimmedquery
+import listenup.composeapp.generated.resources.book_edit_showing_offline_results
 
 /**
  * Series editing section with search and sequence editing.
@@ -58,7 +62,7 @@ fun SeriesSection(
         // Offline indicator
         if (isOffline && searchResults.isNotEmpty()) {
             Text(
-                text = "Showing offline results",
+                text = stringResource(Res.string.book_edit_showing_offline_results),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -106,7 +110,7 @@ fun SeriesSection(
         if (trimmedQuery.length >= 2 && !isLoading && !hasExactMatch) {
             AssistChip(
                 onClick = { onSeriesEntered(trimmedQuery) },
-                label = { Text("Add \"$trimmedQuery\"") },
+                label = { Text(stringResource(Res.string.book_edit_add_trimmedquery, trimmedQuery)) },
                 leadingIcon = {
                     Icon(Icons.Default.Add, null, Modifier.size(18.dp))
                 },

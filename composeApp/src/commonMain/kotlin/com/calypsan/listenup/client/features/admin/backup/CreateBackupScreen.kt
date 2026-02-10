@@ -42,6 +42,19 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel
 import org.koin.compose.koinInject
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.admin_book_covers_and_user_avatars
+import listenup.composeapp.generated.resources.admin_cover_images
+import listenup.composeapp.generated.resources.admin_create_a_backup_of_your
+import listenup.composeapp.generated.resources.admin_create_backup
+import listenup.composeapp.generated.resources.admin_creating_backup
+import listenup.composeapp.generated.resources.admin_events_sessions_and_progress_data
+import listenup.composeapp.generated.resources.admin_listening_history
+import listenup.composeapp.generated.resources.admin_recommended_for_full_restore_capability
+import listenup.composeapp.generated.resources.admin_significantly_increases_backup_size
+import listenup.composeapp.generated.resources.admin_what_to_include
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,10 +78,13 @@ fun CreateBackupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Create Backup") },
+                title = { Text(stringResource(Res.string.admin_create_backup)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(Res.string.common_back),
+                        )
                     }
                 },
             )
@@ -117,7 +133,7 @@ private fun CreateBackupForm(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            text = "Create a backup of your ListenUp server data.",
+            text = stringResource(Res.string.admin_create_a_backup_of_your),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -131,7 +147,7 @@ private fun CreateBackupForm(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "What to include",
+                    text = stringResource(Res.string.admin_what_to_include),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(bottom = 12.dp),
                 )
@@ -157,12 +173,12 @@ private fun CreateBackupForm(
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                             Text(
-                                text = "Listening history",
+                                text = stringResource(Res.string.admin_listening_history),
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                         }
                         Text(
-                            text = "Events, sessions, and progress data",
+                            text = stringResource(Res.string.admin_events_sessions_and_progress_data),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -178,7 +194,7 @@ private fun CreateBackupForm(
                                 modifier = Modifier.height(16.dp),
                             )
                             Text(
-                                text = "Recommended for full restore capability",
+                                text = stringResource(Res.string.admin_recommended_for_full_restore_capability),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
                             )
@@ -209,12 +225,12 @@ private fun CreateBackupForm(
                                 tint = MaterialTheme.colorScheme.secondary,
                             )
                             Text(
-                                text = "Cover images",
+                                text = stringResource(Res.string.admin_cover_images),
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                         }
                         Text(
-                            text = "Book covers and user avatars",
+                            text = stringResource(Res.string.admin_book_covers_and_user_avatars),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -230,7 +246,7 @@ private fun CreateBackupForm(
                                 modifier = Modifier.height(16.dp),
                             )
                             Text(
-                                text = "Significantly increases backup size",
+                                text = stringResource(Res.string.admin_significantly_increases_backup_size),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.tertiary,
                             )
@@ -291,7 +307,7 @@ private fun CreateBackupForm(
 
         ListenUpButton(
             onClick = onCreateClick,
-            text = "Create Backup",
+            text = stringResource(Res.string.admin_create_backup),
             modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -300,5 +316,5 @@ private fun CreateBackupForm(
 @Suppress("UNUSED_PARAMETER")
 @Composable
 private fun CreatingBackupContent(modifier: Modifier = Modifier) {
-    FullScreenLoadingIndicator(message = "Creating Backup...")
+    FullScreenLoadingIndicator(message = stringResource(Res.string.admin_creating_backup))
 }

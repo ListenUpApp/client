@@ -45,6 +45,10 @@ import com.calypsan.listenup.client.design.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.library_empty_tab_description
+import listenup.composeapp.generated.resources.common_no_items_yet
 
 /**
  * Content for the Authors tab in the Library screen.
@@ -252,12 +256,12 @@ private fun AuthorsEmptyState() {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
             Text(
-                text = "No authors yet",
+                text = stringResource(Res.string.common_no_items_yet, "authors"),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "Authors will appear here when you have audiobooks",
+                text = stringResource(Res.string.library_empty_tab_description, "Authors"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

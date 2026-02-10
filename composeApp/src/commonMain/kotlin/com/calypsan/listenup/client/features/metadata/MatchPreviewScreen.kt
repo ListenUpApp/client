@@ -60,6 +60,23 @@ import com.calypsan.listenup.client.domain.repository.MetadataSeriesEntry
 import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
 import com.calypsan.listenup.client.presentation.metadata.MetadataField
 import com.calypsan.listenup.client.presentation.metadata.MetadataSelections
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.common_genres
+import listenup.composeapp.generated.resources.common_series
+import listenup.composeapp.generated.resources.common_selected
+import listenup.composeapp.generated.resources.contributor_audible_region
+import listenup.composeapp.generated.resources.common_loading
+import listenup.composeapp.generated.resources.metadata_apply_selected_metadata
+import listenup.composeapp.generated.resources.metadata_cover
+import listenup.composeapp.generated.resources.metadata_current_cover
+import listenup.composeapp.generated.resources.metadata_metadata_is_up_to_date
+import listenup.composeapp.generated.resources.metadata_no_metadata_available
+import listenup.composeapp.generated.resources.metadata_release_date
+import listenup.composeapp.generated.resources.metadata_select_metadata
+import listenup.composeapp.generated.resources.metadata_try_selecting_a_different_region
+import listenup.composeapp.generated.resources.metadata_your_book_already_has_all
 
 /**
  * Full-screen preview of metadata changes before applying.
@@ -110,12 +127,12 @@ fun MatchPreviewScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Select Metadata") },
+                title = { Text(stringResource(Res.string.metadata_select_metadata)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },
@@ -148,7 +165,7 @@ fun MatchPreviewScreen(
                         if (isApplying) {
                             ListenUpLoadingIndicatorSmall()
                         } else {
-                            Text("Apply Selected Metadata")
+                            Text(stringResource(Res.string.metadata_apply_selected_metadata))
                         }
                     }
                 }
@@ -313,7 +330,7 @@ fun MatchPreviewScreen(
                 newMetadata.releaseDate?.takeIf { it.isNotBlank() }?.let { releaseDate ->
                     item {
                         SimpleFieldItem(
-                            label = "Release Date",
+                            label = stringResource(Res.string.metadata_release_date),
                             value = releaseDate,
                             isSelected = selections.releaseDate,
                             onToggle = { onToggleField(MetadataField.RELEASE_DATE) },
@@ -348,7 +365,7 @@ private fun RegionSelector(
 ) {
     Column {
         Text(
-            text = "Audible Region",
+            text = stringResource(Res.string.contributor_audible_region),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -393,7 +410,7 @@ private fun CoverSelectionRow(
                 onCheckedChange = { onToggleCover() },
             )
             Text(
-                text = "Cover",
+                text = stringResource(Res.string.metadata_cover),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -419,7 +436,7 @@ private fun CoverSelectionRow(
                     ) {
                         ListenUpAsyncImage(
                             path = currentCoverPath,
-                            contentDescription = "Current cover",
+                            contentDescription = stringResource(Res.string.metadata_current_cover),
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -523,7 +540,7 @@ private fun CoverOptionCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Selected",
+                            contentDescription = stringResource(Res.string.common_selected),
                             tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(16.dp),
                         )
@@ -575,7 +592,7 @@ private fun CoverOptionPlaceholder() {
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Loading...",
+            text = stringResource(Res.string.common_loading),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -665,7 +682,7 @@ private fun SeriesListItem(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "Series",
+            text = stringResource(Res.string.common_series),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = 12.dp, bottom = 4.dp),
@@ -707,7 +724,7 @@ private fun GenreListItem(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "Genres",
+            text = stringResource(Res.string.common_genres),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = 12.dp, bottom = 4.dp),
@@ -754,7 +771,7 @@ private fun NoMetadataAvailableMessage(selectedRegion: AudibleRegion) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "No metadata available",
+            text = stringResource(Res.string.metadata_no_metadata_available),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -762,7 +779,7 @@ private fun NoMetadataAvailableMessage(selectedRegion: AudibleRegion) {
         Text(
             text =
                 "This book exists on Audible (${selectedRegion.displayName}) but has minimal metadata. " +
-                    "Try selecting a different region above.",
+                    stringResource(Res.string.metadata_try_selecting_a_different_region),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -790,13 +807,13 @@ private fun AlreadyUpToDateMessage() {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Metadata is up to date",
+            text = stringResource(Res.string.metadata_metadata_is_up_to_date),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Your book already has all the available metadata from Audible. No changes to apply.",
+            text = stringResource(Res.string.metadata_your_book_already_has_all),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

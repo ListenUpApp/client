@@ -148,10 +148,10 @@ struct SeriesContent: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
 
-            Text("No Series Yet")
+            Text(NSLocalizedString("common.no_items_yet", comment: ""))
                 .font(.title2.bold())
 
-            Text("Series will appear here when books are part of a series")
+            Text(NSLocalizedString("library.empty_tab_description", comment: ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

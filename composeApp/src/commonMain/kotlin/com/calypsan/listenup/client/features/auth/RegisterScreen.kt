@@ -49,6 +49,16 @@ import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.presentation.auth.RegisterStatus
 import com.calypsan.listenup.client.presentation.auth.RegisterViewModel
 import org.koin.compose.koinInject
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.auth_confirm_password
+import listenup.composeapp.generated.resources.auth_create_account
+import listenup.composeapp.generated.resources.auth_create_an_account_request_an
+import listenup.composeapp.generated.resources.auth_first_name
+import listenup.composeapp.generated.resources.auth_last_name
+import listenup.composeapp.generated.resources.auth_request_account
+import listenup.composeapp.generated.resources.auth_request_account
 
 /**
  * Register screen for new user account creation.
@@ -88,12 +98,12 @@ fun RegisterScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Create Account") },
+                title = { Text(stringResource(Res.string.auth_create_account)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },
@@ -162,13 +172,13 @@ private fun RegisterForm(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            text = "Request an Account",
+            text = stringResource(Res.string.auth_request_account),
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
 
         Text(
-            text = "Create an account request. An admin will review and approve your registration.",
+            text = stringResource(Res.string.auth_create_an_account_request_an),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -179,7 +189,7 @@ private fun RegisterForm(
         ListenUpTextField(
             value = firstName,
             onValueChange = { firstName = it },
-            label = "First Name",
+            label = stringResource(Res.string.auth_first_name),
             enabled = !isLoading,
             keyboardOptions =
                 KeyboardOptions(
@@ -197,7 +207,7 @@ private fun RegisterForm(
         ListenUpTextField(
             value = lastName,
             onValueChange = { lastName = it },
-            label = "Last Name",
+            label = stringResource(Res.string.auth_last_name),
             enabled = !isLoading,
             keyboardOptions =
                 KeyboardOptions(
@@ -252,7 +262,7 @@ private fun RegisterForm(
         ListenUpTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
-            label = "Confirm Password",
+            label = stringResource(Res.string.auth_confirm_password),
             enabled = !isLoading,
             visualTransformation = PasswordVisualTransformation(),
             isError = confirmPassword.isNotEmpty() && password != confirmPassword,
@@ -286,7 +296,7 @@ private fun RegisterForm(
             onClick = {
                 onSubmit(email, password, firstName, lastName)
             },
-            text = "Request Account",
+            text = stringResource(Res.string.auth_request_account),
             enabled = !isLoading && password == confirmPassword && password.isNotEmpty(),
             isLoading = isLoading,
             modifier = Modifier.fillMaxWidth(),

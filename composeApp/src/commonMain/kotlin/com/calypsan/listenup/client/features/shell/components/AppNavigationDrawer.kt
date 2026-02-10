@@ -19,6 +19,10 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.UserAvatar
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.features.shell.ShellDestination
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_administration
+import listenup.composeapp.generated.resources.common_settings
 
 /**
  * Permanent navigation drawer for expanded screens (landscape tablets, desktop).
@@ -89,10 +93,10 @@ fun AppNavigationDrawer(
                     icon = {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
-                            contentDescription = "Settings",
+                            contentDescription = stringResource(Res.string.common_settings),
                         )
                     },
-                    label = { Text("Settings") },
+                    label = { Text(stringResource(Res.string.common_settings)) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                 )
 
@@ -104,10 +108,10 @@ fun AppNavigationDrawer(
                         icon = {
                             Icon(
                                 imageVector = Icons.Outlined.AdminPanelSettings,
-                                contentDescription = "Administration",
+                                contentDescription = stringResource(Res.string.common_administration),
                             )
                         },
-                        label = { Text("Administration") },
+                        label = { Text(stringResource(Res.string.common_administration)) },
                         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                     )
                 }

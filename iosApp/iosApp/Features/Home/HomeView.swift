@@ -42,11 +42,11 @@ struct HomeView: View {
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Hello, \(user?.displayName ?? "Friend")!")
+            Text(String(format: NSLocalizedString("home.greeting", comment: ""), user?.displayName ?? "Friend"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Text("What you want to read?")
+            Text(NSLocalizedString("home.what_to_read", comment: ""))
                 .font(.title2.bold())
         }
     }
@@ -62,10 +62,10 @@ struct HomeView: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
 
-            Text("Home Screen")
+            Text(NSLocalizedString("home.home_screen", comment: ""))
                 .font(.title2.bold())
 
-            Text("Content sections coming soon")
+            Text(NSLocalizedString("home.content_coming_soon", comment: ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 

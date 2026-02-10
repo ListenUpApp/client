@@ -48,6 +48,15 @@ import com.calypsan.listenup.client.presentation.connect.ServerSelectUiEvent
 import com.calypsan.listenup.client.presentation.connect.ServerSelectUiState
 import com.calypsan.listenup.client.presentation.connect.ServerSelectViewModel
 import org.koin.compose.koinInject
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.connect_add_server_manually
+import listenup.composeapp.generated.resources.connect_enter_server_url_directly
+import listenup.composeapp.generated.resources.connect_make_sure_your_listenup_server
+import listenup.composeapp.generated.resources.common_no_items_found
+import listenup.composeapp.generated.resources.common_refresh
+import listenup.composeapp.generated.resources.connect_select_server
+import listenup.composeapp.generated.resources.common_selected
 
 /**
  * Server selection screen showing discovered and saved servers.
@@ -134,7 +143,7 @@ private fun ServerSelectContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Select Server",
+                    text = stringResource(Res.string.connect_select_server),
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -148,7 +157,7 @@ private fun ServerSelectContent(
                     } else {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
+                            contentDescription = stringResource(Res.string.common_refresh),
                         )
                     }
                 }
@@ -309,7 +318,7 @@ private fun ServerCard(
                 } else if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
+                        contentDescription = stringResource(Res.string.common_selected),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
@@ -352,12 +361,12 @@ private fun ManualEntryCard(
             )
             Column {
                 Text(
-                    text = "Add Server Manually",
+                    text = stringResource(Res.string.connect_add_server_manually),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "Enter server URL directly",
+                    text = stringResource(Res.string.connect_enter_server_url_directly),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -379,13 +388,13 @@ private fun EmptyState(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "No servers found",
+            text = stringResource(Res.string.common_no_items_found, "servers"),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Make sure your ListenUp server is running on the same network",
+            text = stringResource(Res.string.connect_make_sure_your_listenup_server),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
         )

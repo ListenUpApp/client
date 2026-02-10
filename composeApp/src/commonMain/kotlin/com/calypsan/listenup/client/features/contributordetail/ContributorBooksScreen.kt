@@ -51,6 +51,10 @@ import com.calypsan.listenup.client.presentation.contributordetail.ContributorBo
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorBooksViewModel
 import com.calypsan.listenup.client.presentation.contributordetail.SeriesGroup
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.contributor_other_books
 
 /**
  * Deep Dive screen - explore all books by a contributor in a specific role.
@@ -293,7 +297,7 @@ private fun CondensedHeader(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(Res.string.common_back),
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
@@ -401,7 +405,7 @@ private fun StandaloneBooksGrid(
             modifier = Modifier.padding(horizontal = 24.dp),
         ) {
             Text(
-                text = "Other Books",
+                text = stringResource(Res.string.contributor_other_books),
                 style =
                     MaterialTheme.typography.titleLarge.copy(
                         fontFamily = DisplayFontFamily,

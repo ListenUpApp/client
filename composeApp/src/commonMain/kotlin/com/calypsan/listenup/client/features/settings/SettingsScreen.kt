@@ -46,6 +46,46 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.domain.model.ThemeMode
 import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.common_about
+import listenup.composeapp.generated.resources.common_library
+import listenup.composeapp.generated.resources.common_cancel
+import listenup.composeapp.generated.resources.common_settings
+import listenup.composeapp.generated.resources.common_sign_out
+import listenup.composeapp.generated.resources.settings_51_surround_sound_for_immersive
+import listenup.composeapp.generated.resources.common_account
+import listenup.composeapp.generated.resources.settings_app_version
+import listenup.composeapp.generated.resources.settings_appearance
+import listenup.composeapp.generated.resources.settings_are_you_sure_you_want
+import listenup.composeapp.generated.resources.settings_autorewind_on_resume
+import listenup.composeapp.generated.resources.settings_autostart_sleep_timer_when_playing
+import listenup.composeapp.generated.resources.settings_choose_light_dark_or_follow
+import listenup.composeapp.generated.resources.settings_default_speed
+import listenup.composeapp.generated.resources.settings_default_timer
+import listenup.composeapp.generated.resources.settings_desktop
+import listenup.composeapp.generated.resources.settings_duration_when_pressing_skip_backward
+import listenup.composeapp.generated.resources.settings_duration_when_pressing_skip_forward
+import listenup.composeapp.generated.resources.settings_hide_series_with_only_one
+import listenup.composeapp.generated.resources.settings_hide_singlebook_series
+import listenup.composeapp.generated.resources.settings_ignore_articles_when_sorting
+import listenup.composeapp.generated.resources.settings_manage_storage
+import listenup.composeapp.generated.resources.settings_open_source_licenses
+import listenup.composeapp.generated.resources.common_playback
+import listenup.composeapp.generated.resources.settings_rewind_a_few_seconds_when
+import listenup.composeapp.generated.resources.common_server
+import listenup.composeapp.generated.resources.settings_server_version
+import listenup.composeapp.generated.resources.settings_skip_backward
+import listenup.composeapp.generated.resources.settings_skip_forward
+import listenup.composeapp.generated.resources.settings_sleep_timer
+import listenup.composeapp.generated.resources.settings_sort_ignoring_leading_articles_a
+import listenup.composeapp.generated.resources.settings_spatial_audio
+import listenup.composeapp.generated.resources.settings_speed_used_for_new_books
+import listenup.composeapp.generated.resources.common_storage
+import listenup.composeapp.generated.resources.common_theme
+import listenup.composeapp.generated.resources.settings_view_and_manage_downloaded_audiobooks
+import listenup.composeapp.generated.resources.settings_view_thirdparty_licenses
 
 /**
  * Preset playback speeds.
@@ -143,8 +183,8 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showSignOutDialog = false },
             shape = MaterialTheme.shapes.large,
-            title = { Text("Sign Out") },
-            text = { Text("Are you sure you want to sign out? You'll need to sign in again to access your library.") },
+            title = { Text(stringResource(Res.string.common_sign_out)) },
+            text = { Text(stringResource(Res.string.settings_are_you_sure_you_want)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -152,12 +192,12 @@ fun SettingsScreen(
                         showSignOutDialog = false
                     },
                 ) {
-                    Text("Sign Out")
+                    Text(stringResource(Res.string.common_sign_out))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showSignOutDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )
@@ -166,12 +206,12 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(Res.string.common_settings)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },
@@ -186,10 +226,10 @@ fun SettingsScreen(
                     .verticalScroll(rememberScrollState()),
         ) {
             // Appearance section
-            SettingsSection(title = "Appearance") {
+            SettingsSection(title = stringResource(Res.string.settings_appearance)) {
                 SettingsDropdownItem(
-                    title = "Theme",
-                    description = "Choose light, dark, or follow system",
+                    title = stringResource(Res.string.common_theme),
+                    description = stringResource(Res.string.settings_choose_light_dark_or_follow),
                     selectedValue = state.themeMode,
                     options = ThemeMode.entries.toList(),
                     formatValue = { mode ->
@@ -214,40 +254,40 @@ fun SettingsScreen(
             SettingsDivider()
 
             // Playback section
-            SettingsSection(title = "Playback") {
+            SettingsSection(title = stringResource(Res.string.common_playback)) {
                 SettingsDropdownItem(
-                    title = "Default speed",
-                    description = "Speed used for new books",
+                    title = stringResource(Res.string.settings_default_speed),
+                    description = stringResource(Res.string.settings_speed_used_for_new_books),
                     selectedValue = state.defaultPlaybackSpeed,
                     options = PlaybackSpeedPresets.presets,
                     formatValue = { PlaybackSpeedPresets.format(it) },
                     onValueSelected = viewModel::setDefaultPlaybackSpeed,
                 )
                 SettingsDropdownItem(
-                    title = "Skip forward",
-                    description = "Duration when pressing skip forward",
+                    title = stringResource(Res.string.settings_skip_forward),
+                    description = stringResource(Res.string.settings_duration_when_pressing_skip_forward),
                     selectedValue = state.defaultSkipForwardSec,
                     options = SkipForwardPresets.presets,
                     formatValue = { SkipForwardPresets.format(it) },
                     onValueSelected = viewModel::setDefaultSkipForwardSec,
                 )
                 SettingsDropdownItem(
-                    title = "Skip backward",
-                    description = "Duration when pressing skip backward",
+                    title = stringResource(Res.string.settings_skip_backward),
+                    description = stringResource(Res.string.settings_duration_when_pressing_skip_backward),
                     selectedValue = state.defaultSkipBackwardSec,
                     options = SkipBackwardPresets.presets,
                     formatValue = { SkipBackwardPresets.format(it) },
                     onValueSelected = viewModel::setDefaultSkipBackwardSec,
                 )
                 SettingsToggleItem(
-                    title = "Auto-rewind on resume",
-                    description = "Rewind a few seconds when resuming playback",
+                    title = stringResource(Res.string.settings_autorewind_on_resume),
+                    description = stringResource(Res.string.settings_rewind_a_few_seconds_when),
                     checked = state.autoRewindEnabled,
                     onCheckedChange = viewModel::setAutoRewindEnabled,
                 )
                 SettingsToggleItem(
-                    title = "Spatial audio",
-                    description = "5.1 surround sound for immersive listening",
+                    title = stringResource(Res.string.settings_spatial_audio),
+                    description = stringResource(Res.string.settings_51_surround_sound_for_immersive),
                     checked = state.spatialPlayback,
                     onCheckedChange = viewModel::setSpatialPlayback,
                 )
@@ -257,10 +297,10 @@ fun SettingsScreen(
                 SettingsDivider()
 
                 // Sleep timer section
-                SettingsSection(title = "Sleep Timer") {
+                SettingsSection(title = stringResource(Res.string.settings_sleep_timer)) {
                     SettingsDropdownItem(
-                        title = "Default timer",
-                        description = "Auto-start sleep timer when playing",
+                        title = stringResource(Res.string.settings_default_timer),
+                        description = stringResource(Res.string.settings_autostart_sleep_timer_when_playing),
                         selectedValue = state.defaultSleepTimerMin,
                         options = SleepTimerPresets.presets,
                         formatValue = { SleepTimerPresets.format(it) },
@@ -272,16 +312,16 @@ fun SettingsScreen(
             SettingsDivider()
 
             // Library section
-            SettingsSection(title = "Library") {
+            SettingsSection(title = stringResource(Res.string.common_library)) {
                 SettingsToggleItem(
-                    title = "Ignore articles when sorting",
-                    description = "Sort ignoring leading articles (A, An, The)",
+                    title = stringResource(Res.string.settings_ignore_articles_when_sorting),
+                    description = stringResource(Res.string.settings_sort_ignoring_leading_articles_a),
                     checked = state.ignoreTitleArticles,
                     onCheckedChange = viewModel::setIgnoreTitleArticles,
                 )
                 SettingsToggleItem(
-                    title = "Hide single-book series",
-                    description = "Hide series with only one book",
+                    title = stringResource(Res.string.settings_hide_singlebook_series),
+                    description = stringResource(Res.string.settings_hide_series_with_only_one),
                     checked = state.hideSingleBookSeries,
                     onCheckedChange = viewModel::setHideSingleBookSeries,
                 )
@@ -290,15 +330,15 @@ fun SettingsScreen(
             SettingsDivider()
 
             // Account section
-            SettingsSection(title = "Account") {
+            SettingsSection(title = stringResource(Res.string.common_account)) {
                 state.serverUrl?.let { url ->
                     SettingsInfoItem(
-                        title = "Server",
+                        title = stringResource(Res.string.common_server),
                         value = url.removePrefix("https://").removePrefix("http://"),
                     )
                 }
                 SettingsActionItem(
-                    title = "Sign out",
+                    title = stringResource(Res.string.common_sign_out),
                     icon = Icons.AutoMirrored.Filled.Logout,
                     onClick = { showSignOutDialog = true },
                     destructive = true,
@@ -308,10 +348,10 @@ fun SettingsScreen(
             if (onNavigateToStorage != null) {
                 SettingsDivider()
 
-                SettingsSection(title = "Storage") {
+                SettingsSection(title = stringResource(Res.string.common_storage)) {
                     SettingsNavigationItem(
-                        title = "Manage storage",
-                        description = "View and manage downloaded audiobooks",
+                        title = stringResource(Res.string.settings_manage_storage),
+                        description = stringResource(Res.string.settings_view_and_manage_downloaded_audiobooks),
                         onClick = onNavigateToStorage,
                     )
                 }
@@ -320,21 +360,21 @@ fun SettingsScreen(
             SettingsDivider()
 
             // About section
-            SettingsSection(title = "About") {
+            SettingsSection(title = stringResource(Res.string.common_about)) {
                 SettingsInfoItem(
-                    title = "App version",
-                    value = "Desktop",
+                    title = stringResource(Res.string.settings_app_version),
+                    value = stringResource(Res.string.settings_desktop),
                 )
                 state.serverVersion?.let { version ->
                     SettingsInfoItem(
-                        title = "Server version",
+                        title = stringResource(Res.string.settings_server_version),
                         value = version,
                     )
                 }
                 if (onNavigateToLicenses != null) {
                     SettingsNavigationItem(
-                        title = "Open source licenses",
-                        description = "View third-party licenses",
+                        title = stringResource(Res.string.settings_open_source_licenses),
+                        description = stringResource(Res.string.settings_view_thirdparty_licenses),
                         onClick = onNavigateToLicenses,
                     )
                 }

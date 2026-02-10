@@ -51,6 +51,10 @@ import com.calypsan.listenup.client.presentation.discover.DiscoverShelfUi
 import com.calypsan.listenup.client.presentation.discover.DiscoverUserShelves
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.discover_no_shelves_to_discover_yet
+import listenup.composeapp.generated.resources.discover_when_other_users_create_shelves
 
 /**
  * Discover screen - browse shelves from other users and view community leaderboard.
@@ -114,11 +118,11 @@ private fun EmptyShelvesState(modifier: Modifier = Modifier) {
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         )
         Text(
-            text = "No Shelves to Discover Yet",
+            text = stringResource(Res.string.discover_no_shelves_to_discover_yet),
             style = MaterialTheme.typography.titleMedium,
         )
         Text(
-            text = "When other users create shelves with books you can access, they'll appear here.",
+            text = stringResource(Res.string.discover_when_other_users_create_shelves),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

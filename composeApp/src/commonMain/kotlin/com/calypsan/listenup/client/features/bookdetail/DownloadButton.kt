@@ -29,6 +29,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.domain.model.BookDownloadState
 import com.calypsan.listenup.client.domain.model.BookDownloadStatus
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_cancel_download
+import listenup.composeapp.generated.resources.book_delete_download
+import listenup.composeapp.generated.resources.book_detail_download
+import listenup.composeapp.generated.resources.book_detail_download_book
+import listenup.composeapp.generated.resources.book_detail_downloaded
+import listenup.composeapp.generated.resources.book_detail_progresspercent
+import listenup.composeapp.generated.resources.book_detail_queued
+import listenup.composeapp.generated.resources.common_retry
+import listenup.composeapp.generated.resources.book_detail_retry_download
+import listenup.composeapp.generated.resources.book_detail_waiting_for_wifi
 
 /**
  * Download button with visual state for book detail screen.
@@ -81,7 +93,7 @@ fun DownloadButton(
                     IconButton(onClick = onDownloadClick) {
                         Icon(
                             Icons.Outlined.Download,
-                            contentDescription = "Download book",
+                            contentDescription = stringResource(Res.string.book_detail_download_book),
                             tint = contentColor,
                         )
                     }
@@ -93,7 +105,7 @@ fun DownloadButton(
                             // Waiting for WiFi - show WiFi-off icon
                             Icon(
                                 Icons.Default.WifiOff,
-                                contentDescription = "Waiting for WiFi",
+                                contentDescription = stringResource(Res.string.book_detail_waiting_for_wifi),
                                 tint = contentColor.copy(alpha = 0.7f),
                             )
                         } else {
@@ -115,7 +127,7 @@ fun DownloadButton(
                             )
                             Icon(
                                 Icons.Default.Close,
-                                contentDescription = "Cancel download",
+                                contentDescription = stringResource(Res.string.book_detail_cancel_download),
                                 modifier = Modifier.size(12.dp),
                                 tint = contentColor.copy(alpha = 0.6f),
                             )
@@ -127,7 +139,7 @@ fun DownloadButton(
                     IconButton(onClick = onDeleteClick) {
                         Icon(
                             Icons.Outlined.Delete,
-                            contentDescription = "Delete download",
+                            contentDescription = stringResource(Res.string.book_delete_download),
                             tint = contentColor,
                         )
                     }
@@ -139,7 +151,7 @@ fun DownloadButton(
                     IconButton(onClick = onDownloadClick) {
                         Icon(
                             Icons.Default.Refresh,
-                            contentDescription = "Retry download",
+                            contentDescription = stringResource(Res.string.book_detail_retry_download),
                             tint = MaterialTheme.colorScheme.error,
                         )
                     }
@@ -184,7 +196,7 @@ fun DownloadButtonExpanded(
             BookDownloadState.NOT_DOWNLOADED -> {
                 Icon(Icons.Outlined.Download, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Download")
+                Text(stringResource(Res.string.book_detail_download))
             }
 
             BookDownloadState.QUEUED -> {
@@ -196,12 +208,12 @@ fun DownloadButtonExpanded(
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Waiting for WiFi")
+                    Text(stringResource(Res.string.book_detail_waiting_for_wifi))
                 } else {
                     // Normal queued state
                     ListenUpLoadingIndicatorSmall()
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Queued...")
+                    Text(stringResource(Res.string.book_detail_queued))
                 }
             }
 
@@ -213,14 +225,14 @@ fun DownloadButtonExpanded(
                         strokeWidth = 2.dp,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("$progressPercent%")
+                    Text(stringResource(Res.string.book_detail_progresspercent, progressPercent))
                 }
             }
 
             BookDownloadState.COMPLETED -> {
                 Icon(Icons.Outlined.Delete, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Downloaded")
+                Text(stringResource(Res.string.book_detail_downloaded))
             }
 
             BookDownloadState.PARTIAL,
@@ -232,7 +244,7 @@ fun DownloadButtonExpanded(
                     tint = MaterialTheme.colorScheme.error,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Retry", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(Res.string.common_retry), color = MaterialTheme.colorScheme.error)
             }
         }
     }

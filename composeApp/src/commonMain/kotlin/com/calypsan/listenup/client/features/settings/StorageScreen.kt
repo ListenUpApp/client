@@ -48,6 +48,19 @@ import com.calypsan.listenup.client.presentation.storage.DownloadedBook
 import com.calypsan.listenup.client.presentation.storage.StorageUiState
 import com.calypsan.listenup.client.presentation.storage.StorageViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.common_delete
+import listenup.composeapp.generated.resources.book_delete_download
+import listenup.composeapp.generated.resources.book_detail_you_can_redownload_anytime_by
+import listenup.composeapp.generated.resources.settings_clear_all
+import listenup.composeapp.generated.resources.settings_clear_all_downloads
+import listenup.composeapp.generated.resources.settings_downloaded_books
+import listenup.composeapp.generated.resources.settings_downloaded_books_will_appear_here
+import listenup.composeapp.generated.resources.settings_no_downloads
+import listenup.composeapp.generated.resources.common_storage
+import listenup.composeapp.generated.resources.settings_you_can_redownload_books_anytime
 
 /**
  * Storage management screen showing downloaded books and storage usage.
@@ -73,12 +86,12 @@ fun StorageScreen(
             is DeleteConfirmation.SingleBook -> {
                 ListenUpDestructiveDialog(
                     onDismissRequest = viewModel::cancelDelete,
-                    title = "Delete Download?",
+                    title = stringResource(Res.string.book_delete_download),
                     text =
                         "Remove the downloaded files for \"${confirmation.book.title}\"? " +
                             "This will free up ${formatFileSize(confirmation.book.sizeBytes)}. " +
-                            "You can re-download anytime by playing the book.",
-                    confirmText = "Delete",
+                            stringResource(Res.string.book_detail_you_can_redownload_anytime_by),
+                    confirmText = stringResource(Res.string.common_delete),
                     onConfirm = viewModel::executeDelete,
                     onDismiss = viewModel::cancelDelete,
                     icon = Icons.Default.Delete,
@@ -88,12 +101,12 @@ fun StorageScreen(
             is DeleteConfirmation.AllDownloads -> {
                 ListenUpDestructiveDialog(
                     onDismissRequest = viewModel::cancelDelete,
-                    title = "Clear All Downloads?",
+                    title = stringResource(Res.string.settings_clear_all_downloads),
                     text =
                         "Remove all ${state.downloadedBooks.size} downloaded books? " +
                             "This will free up ${formatFileSize(state.totalStorageUsed)}. " +
-                            "You can re-download books anytime.",
-                    confirmText = "Clear All",
+                            stringResource(Res.string.settings_you_can_redownload_books_anytime),
+                    confirmText = stringResource(Res.string.settings_clear_all),
                     onConfirm = viewModel::executeDelete,
                     onDismiss = viewModel::cancelDelete,
                     icon = Icons.Default.DeleteSweep,
@@ -105,12 +118,12 @@ fun StorageScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Storage") },
+                title = { Text(stringResource(Res.string.common_storage)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },
@@ -121,7 +134,7 @@ fun StorageScreen(
                             enabled = !state.isDeleting,
                         ) {
                             Text(
-                                text = "Clear All",
+                                text = stringResource(Res.string.settings_clear_all),
                                 color = MaterialTheme.colorScheme.error,
                             )
                         }
@@ -175,7 +188,7 @@ private fun StorageContent(
         } else {
             item {
                 Text(
-                    text = "Downloaded Books",
+                    text = stringResource(Res.string.settings_downloaded_books),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(top = 8.dp),
                 )
@@ -268,11 +281,11 @@ private fun EmptyDownloadsMessage() {
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = "No Downloads",
+            text = stringResource(Res.string.settings_no_downloads),
             style = MaterialTheme.typography.titleLarge,
         )
         Text(
-            text = "Downloaded books will appear here",
+            text = stringResource(Res.string.settings_downloaded_books_will_appear_here),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -342,7 +355,7 @@ private fun DownloadedBookItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete download",
+                    contentDescription = stringResource(Res.string.book_delete_download),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }

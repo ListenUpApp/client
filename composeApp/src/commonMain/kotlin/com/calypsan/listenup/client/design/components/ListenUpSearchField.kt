@@ -18,6 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_clear_search
 
 /**
  * Search text field with leading search icon and trailing clear/loading indicator.
@@ -69,7 +72,7 @@ fun ListenUpSearchField(
                     IconButton(onClick = onClear) {
                         Icon(
                             imageVector = Icons.Default.Clear,
-                            contentDescription = "Clear search",
+                            contentDescription = stringResource(Res.string.common_clear_search),
                         )
                     }
                 }

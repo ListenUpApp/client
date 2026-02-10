@@ -16,6 +16,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 import com.calypsan.listenup.client.presentation.bookdetail.ChapterUiModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_chapters_chaptercount
 
 /**
  * Chapter list header showing chapter count.
@@ -26,7 +29,7 @@ fun ChaptersHeader(
     modifier: Modifier = Modifier,
 ) {
     Text(
-        text = "Chapters ($chapterCount)",
+        text = stringResource(Res.string.book_detail_chapters_chaptercount, chapterCount),
         style =
             MaterialTheme.typography.titleMedium.copy(
                 fontFamily = DisplayFontFamily,

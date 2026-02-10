@@ -51,6 +51,10 @@ import com.calypsan.listenup.client.domain.model.Book
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_selected
+import listenup.composeapp.generated.resources.common_completed
 
 /**
  * Floating book card with editorial design.
@@ -356,7 +360,7 @@ private fun SelectionIndicator(
         if (isSelected) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
-                contentDescription = "Selected",
+                contentDescription = stringResource(Res.string.common_selected),
                 tint = iconTint,
                 modifier = Modifier.size(20.dp),
             )
@@ -441,7 +445,7 @@ private fun CompletionBadge(modifier: Modifier = Modifier) {
     ) {
         Icon(
             imageVector = Icons.Default.Check,
-            contentDescription = "Completed",
+            contentDescription = stringResource(Res.string.common_completed),
             tint = MaterialTheme.colorScheme.onTertiary,
             modifier = Modifier.size(18.dp),
         )

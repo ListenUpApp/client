@@ -48,6 +48,14 @@ import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSm
 import com.calypsan.listenup.client.domain.model.ContributorMetadataCandidate
 import com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataUiState
 import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.contributor_audible_region
+import listenup.composeapp.generated.resources.contributor_author_or_narrator_name
+import listenup.composeapp.generated.resources.contributor_contributor_name
+import listenup.composeapp.generated.resources.contributor_find_on_audible
+import listenup.composeapp.generated.resources.common_search
 
 /**
  * Full-screen for searching contributors on Audible.
@@ -71,12 +79,12 @@ fun ContributorMetadataSearchScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Find on Audible") },
+                title = { Text(stringResource(Res.string.contributor_find_on_audible)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },
@@ -104,8 +112,8 @@ fun ContributorMetadataSearchScreen(
             OutlinedTextField(
                 value = state.searchQuery,
                 onValueChange = onQueryChange,
-                label = { Text("Contributor name") },
-                placeholder = { Text("Author or narrator name...") },
+                label = { Text(stringResource(Res.string.contributor_contributor_name)) },
+                placeholder = { Text(stringResource(Res.string.contributor_author_or_narrator_name)) },
                 trailingIcon = {
                     IconButton(
                         onClick = onSearch,
@@ -116,7 +124,7 @@ fun ContributorMetadataSearchScreen(
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Search,
-                                contentDescription = "Search",
+                                contentDescription = stringResource(Res.string.common_search),
                             )
                         }
                     }
@@ -196,7 +204,7 @@ private fun RegionSelector(
 ) {
     Column {
         Text(
-            text = "Audible Region",
+            text = stringResource(Res.string.contributor_audible_region),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp),

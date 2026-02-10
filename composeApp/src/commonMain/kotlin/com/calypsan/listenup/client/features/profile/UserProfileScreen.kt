@@ -71,6 +71,16 @@ import com.calypsan.listenup.client.presentation.profile.UserProfileUiState
 import com.calypsan.listenup.client.presentation.profile.UserProfileViewModel
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.common_displayname_avatar
+import listenup.composeapp.generated.resources.profile_create_shelf
+import listenup.composeapp.generated.resources.profile_edit_profile
+import listenup.composeapp.generated.resources.profile_no_shelves_yet_create_one
+import listenup.composeapp.generated.resources.common_profile
+import listenup.composeapp.generated.resources.profile_recently_finished
+import listenup.composeapp.generated.resources.profile_shelves
 
 /**
  * Screen displaying a user's full profile.
@@ -113,12 +123,12 @@ fun UserProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Profile") },
+                title = { Text(stringResource(Res.string.common_profile)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },
@@ -127,7 +137,7 @@ fun UserProfileScreen(
                         IconButton(onClick = onEditClick) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit profile",
+                                contentDescription = stringResource(Res.string.profile_edit_profile),
                             )
                         }
                     }
@@ -216,7 +226,7 @@ private fun ProfileContent(
         if (state.recentBooks.isNotEmpty()) {
             item {
                 Spacer(modifier = Modifier.height(32.dp))
-                SectionHeader(title = "Recently Finished")
+                SectionHeader(title = stringResource(Res.string.profile_recently_finished))
             }
             item {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -246,7 +256,7 @@ private fun ProfileContent(
             } else {
                 item {
                     Text(
-                        text = "No shelves yet. Create one to curate your favorite books!",
+                        text = stringResource(Res.string.profile_no_shelves_yet_create_one),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -305,7 +315,7 @@ private fun ProfileHeader(
                             .memoryCacheKey("$localAvatarPath-$avatarCacheBuster")
                             .diskCacheKey("$localAvatarPath-$avatarCacheBuster")
                             .build(),
-                    contentDescription = "$displayName avatar",
+                    contentDescription = stringResource(Res.string.common_displayname_avatar, displayName),
                     modifier =
                         Modifier
                             .size(120.dp)
@@ -325,7 +335,7 @@ private fun ProfileHeader(
                             .memoryCacheKey("$avatarValue-$avatarCacheBuster")
                             .diskCacheKey("$avatarValue-$avatarCacheBuster")
                             .build(),
-                    contentDescription = "$displayName avatar",
+                    contentDescription = stringResource(Res.string.common_displayname_avatar, displayName),
                     modifier =
                         Modifier
                             .size(120.dp)
@@ -488,7 +498,7 @@ private fun ShelvesSectionHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Shelves",
+            text = stringResource(Res.string.profile_shelves),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
         )
@@ -496,7 +506,7 @@ private fun ShelvesSectionHeader(
             IconButton(onClick = onAddClick) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Create shelf",
+                    contentDescription = stringResource(Res.string.profile_create_shelf),
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }

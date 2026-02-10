@@ -57,6 +57,31 @@ import com.calypsan.listenup.client.domain.model.AccessMode
 import com.calypsan.listenup.client.domain.model.Library
 import com.calypsan.listenup.client.presentation.admin.LibrarySettingsUiState
 import com.calypsan.listenup.client.presentation.admin.LibrarySettingsViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_access_mode
+import listenup.composeapp.generated.resources.admin_add_folder
+import listenup.composeapp.generated.resources.admin_add_this_folder
+import listenup.composeapp.generated.resources.admin_inbox_settings
+import listenup.composeapp.generated.resources.common_entity_information
+import listenup.composeapp.generated.resources.admin_library_name
+import listenup.composeapp.generated.resources.common_not_found
+import listenup.composeapp.generated.resources.admin_new_books_in_this_library
+import listenup.composeapp.generated.resources.common_open
+import listenup.composeapp.generated.resources.common_remove
+import listenup.composeapp.generated.resources.admin_remove_path
+import listenup.composeapp.generated.resources.admin_remove_path_from_library_scan
+import listenup.composeapp.generated.resources.admin_remove_scan_path
+import listenup.composeapp.generated.resources.admin_rescan_library
+import listenup.composeapp.generated.resources.common_restricted
+import listenup.composeapp.generated.resources.admin_scan_all_paths_for_new
+import listenup.composeapp.generated.resources.admin_scan_paths
+import listenup.composeapp.generated.resources.admin_scanning
+import listenup.composeapp.generated.resources.admin_select_folder
+import listenup.composeapp.generated.resources.admin_skip_inbox
+import listenup.composeapp.generated.resources.admin_uncollected_books_are_visible_to
+import listenup.composeapp.generated.resources.admin_users_only_see_books_in
+import listenup.composeapp.generated.resources.common_cancel
 
 /**
  * Screen for viewing and editing a library's settings.
@@ -102,7 +127,7 @@ fun LibrarySettingsScreen(
             FullScreenLoadingIndicator()
         } else if (state.library == null) {
             ErrorContent(
-                message = "Library not found",
+                message = stringResource(Res.string.common_not_found, "Library"),
                 modifier = Modifier.padding(innerPadding),
             )
         } else {
@@ -151,7 +176,7 @@ private fun LibrarySettingsContent(
         // Library info section
         item {
             Text(
-                text = "Library Information",
+                text = stringResource(Res.string.common_entity_information, "Library"),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
@@ -166,7 +191,7 @@ private fun LibrarySettingsContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Scan Paths",
+                text = stringResource(Res.string.admin_scan_paths),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -186,7 +211,7 @@ private fun LibrarySettingsContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Scanning",
+                text = stringResource(Res.string.admin_scanning),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -204,7 +229,7 @@ private fun LibrarySettingsContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Access Mode",
+                text = stringResource(Res.string.admin_access_mode),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -223,7 +248,7 @@ private fun LibrarySettingsContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Inbox Settings",
+                text = stringResource(Res.string.admin_inbox_settings),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -282,7 +307,7 @@ private fun LibraryInfoCard(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "Library name",
+                        text = stringResource(Res.string.admin_library_name),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -300,7 +325,7 @@ private fun LibraryInfoCard(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = "Scan Paths",
+                        text = stringResource(Res.string.admin_scan_paths),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -336,8 +361,8 @@ private fun AccessModeCard(
             // Open mode option
             AccessModeRow(
                 icon = Icons.Outlined.LockOpen,
-                title = "Open",
-                description = "Uncollected books are visible to all users. Collections restrict access.",
+                title = stringResource(Res.string.common_open),
+                description = stringResource(Res.string.admin_uncollected_books_are_visible_to),
                 isSelected = currentMode == AccessMode.OPEN,
                 isEnabled = !isSaving,
                 onClick = { onModeSelected(AccessMode.OPEN) },
@@ -350,8 +375,8 @@ private fun AccessModeCard(
             // Restricted mode option
             AccessModeRow(
                 icon = Icons.Outlined.Lock,
-                title = "Restricted",
-                description = "Users only see books in collections they have access to. Collections grant access.",
+                title = stringResource(Res.string.common_restricted),
+                description = stringResource(Res.string.admin_users_only_see_books_in),
                 isSelected = currentMode == AccessMode.RESTRICTED,
                 isEnabled = !isSaving,
                 onClick = { onModeSelected(AccessMode.RESTRICTED) },
@@ -459,12 +484,12 @@ private fun InboxSettingsCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Skip Inbox",
+                    text = stringResource(Res.string.admin_skip_inbox),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "New books in this library bypass inbox review and appear immediately",
+                    text = stringResource(Res.string.admin_new_books_in_this_library),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -495,19 +520,19 @@ private fun ScanPathsCard(
     pathToRemove?.let { path ->
         AlertDialog(
             onDismissRequest = { pathToRemove = null },
-            title = { Text("Remove Scan Path") },
-            text = { Text("Remove \"$path\" from library scan paths?") },
+            title = { Text(stringResource(Res.string.admin_remove_scan_path)) },
+            text = { Text(stringResource(Res.string.admin_remove_path_from_library_scan, path)) },
             confirmButton = {
                 TextButton(onClick = {
                     onRemovePath(path)
                     pathToRemove = null
                 }) {
-                    Text("Remove")
+                    Text(stringResource(Res.string.common_remove))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { pathToRemove = null }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )
@@ -546,7 +571,7 @@ private fun ScanPathsCard(
                         IconButton(onClick = { pathToRemove = path }) {
                             Icon(
                                 imageVector = Icons.Outlined.Close,
-                                contentDescription = "Remove path",
+                                contentDescription = stringResource(Res.string.admin_remove_path),
                                 tint = MaterialTheme.colorScheme.error,
                             )
                         }
@@ -579,7 +604,7 @@ private fun ScanPathsCard(
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "Add Folder",
+                    text = stringResource(Res.string.admin_add_folder),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -618,12 +643,12 @@ private fun RescanCard(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Rescan Library",
+                    text = stringResource(Res.string.admin_rescan_library),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "Scan all paths for new or updated audiobooks",
+                    text = stringResource(Res.string.admin_scan_all_paths_for_new),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -654,7 +679,7 @@ private fun FolderBrowserDialog(
             Column(modifier = Modifier.fillMaxSize()) {
                 // Header
                 TopAppBar(
-                    title = { Text("Select Folder") },
+                    title = { Text(stringResource(Res.string.admin_select_folder)) },
                     navigationIcon = {
                         if (!state.browserIsRoot) {
                             IconButton(onClick = onNavigateUp) {
@@ -683,7 +708,7 @@ private fun FolderBrowserDialog(
                     modifier = Modifier.padding(horizontal = 8.dp),
                 ) {
                     Icon(Icons.Outlined.Add, null, modifier = Modifier.padding(end = 4.dp))
-                    Text("Add This Folder")
+                    Text(stringResource(Res.string.admin_add_this_folder))
                 }
 
                 HorizontalDivider()

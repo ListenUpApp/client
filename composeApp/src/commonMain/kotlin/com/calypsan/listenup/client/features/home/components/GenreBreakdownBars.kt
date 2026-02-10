@@ -19,6 +19,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.domain.repository.GenreListening
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.home_top_genres
 
 /**
  * Genre breakdown showing top genres with progress bars.
@@ -41,7 +44,7 @@ fun GenreBreakdownBars(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = "Top Genres",
+            text = stringResource(Res.string.home_top_genres),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

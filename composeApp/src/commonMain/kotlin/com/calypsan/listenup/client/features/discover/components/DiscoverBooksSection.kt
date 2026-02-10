@@ -45,6 +45,11 @@ import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.presentation.discover.DiscoverUiBook
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_refresh
+import listenup.composeapp.generated.resources.discover_book_1_of_series
+import listenup.composeapp.generated.resources.discover_discover_something_new
 
 /**
  * Horizontal section showing random books for discovery.
@@ -75,7 +80,7 @@ fun DiscoverBooksSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Discover Something New",
+                text = stringResource(Res.string.discover_discover_something_new),
                 style =
                     MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
@@ -90,7 +95,7 @@ fun DiscoverBooksSection(
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
-                    contentDescription = "Refresh",
+                    contentDescription = stringResource(Res.string.common_refresh),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp),
                 )
@@ -189,7 +194,7 @@ private fun DiscoverBookCard(
             // Show series name if part of a series
             book.seriesName?.takeIf { it.isNotBlank() }?.let { series ->
                 Text(
-                    text = "Book 1 of $series",
+                    text = stringResource(Res.string.discover_book_1_of_series, series),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,

@@ -16,6 +16,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_add_to_collection
+import listenup.composeapp.generated.resources.book_detail_add_to_shelf
+import listenup.composeapp.generated.resources.common_delete_name
+import listenup.composeapp.generated.resources.book_detail_discard_progress
+import listenup.composeapp.generated.resources.book_detail_edit_book
+import listenup.composeapp.generated.resources.book_detail_find_metadata
 
 /**
  * Dropdown menu for book actions.
@@ -57,7 +65,7 @@ fun BookActionsMenu(
     ) {
         // Edit Book
         DropdownMenuItem(
-            text = { Text("Edit Book") },
+            text = { Text(stringResource(Res.string.book_detail_edit_book)) },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Edit,
@@ -69,7 +77,7 @@ fun BookActionsMenu(
 
         // Find Metadata
         DropdownMenuItem(
-            text = { Text("Find Metadata") },
+            text = { Text(stringResource(Res.string.book_detail_find_metadata)) },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
@@ -103,7 +111,7 @@ fun BookActionsMenu(
         // Discard Progress (only when there is progress to discard)
         if (hasProgress) {
             DropdownMenuItem(
-                text = { Text("Discard Progress") },
+                text = { Text(stringResource(Res.string.book_detail_discard_progress)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.RestartAlt,
@@ -116,7 +124,7 @@ fun BookActionsMenu(
 
         // Add to Shelf
         DropdownMenuItem(
-            text = { Text("Add to Shelf") },
+            text = { Text(stringResource(Res.string.book_detail_add_to_shelf)) },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
@@ -129,7 +137,7 @@ fun BookActionsMenu(
         // Add to Collection (admin only)
         if (isAdmin) {
             DropdownMenuItem(
-                text = { Text("Add to Collection") },
+                text = { Text(stringResource(Res.string.book_detail_add_to_collection)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
@@ -147,7 +155,7 @@ fun BookActionsMenu(
             DropdownMenuItem(
                 text = {
                     Text(
-                        text = "Delete Book",
+                        text = stringResource(Res.string.common_delete_name, "Book"),
                         color = MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
                     )
                 },

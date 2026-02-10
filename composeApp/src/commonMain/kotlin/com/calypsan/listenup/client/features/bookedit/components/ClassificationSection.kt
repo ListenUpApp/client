@@ -25,6 +25,11 @@ import com.calypsan.listenup.client.presentation.bookedit.EditableGenre
 import com.calypsan.listenup.client.presentation.bookedit.EditableTag
 import com.calypsan.listenup.client.presentation.bookedit.displayName
 import com.calypsan.listenup.client.presentation.bookedit.parentPath
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_tags
+import listenup.composeapp.generated.resources.book_edit_add_trimmedquery
+import listenup.composeapp.generated.resources.common_genres
 
 /**
  * Classification section with genres and tags.
@@ -87,7 +92,7 @@ private fun GenresSubsection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = "Genres",
+            text = stringResource(Res.string.common_genres),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Medium,
         )
@@ -145,7 +150,7 @@ private fun TagsSubsection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = "Tags",
+            text = stringResource(Res.string.book_detail_tags),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Medium,
         )
@@ -205,7 +210,7 @@ private fun TagsSubsection(
         if (trimmedQuery.length >= 2 && !isSearching && !isCreating && !hasMatch && !alreadyHasTag) {
             AssistChip(
                 onClick = { onTagEntered(trimmedQuery) },
-                label = { Text("Add \"$trimmedQuery\"") },
+                label = { Text(stringResource(Res.string.book_edit_add_trimmedquery, trimmedQuery)) },
                 leadingIcon = {
                     Icon(Icons.Default.Add, null, Modifier.size(18.dp))
                 },

@@ -16,3 +16,7 @@ captures
 !*.xcodeproj/project.xcworkspace/
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
+# Generated localization files
+composeApp/src/commonMain/composeResources/values/strings.xml
+composeApp/src/commonMain/composeResources/values-*/strings.xml
+iosApp/iosApp/Resources/*.lproj/Localizable.strings

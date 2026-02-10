@@ -55,6 +55,17 @@ import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.domain.model.InboxBook
 import com.calypsan.listenup.client.presentation.admin.AdminInboxUiState
 import com.calypsan.listenup.client.presentation.admin.AdminInboxViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_inbox
+import listenup.composeapp.generated.resources.common_inbox_empty
+import listenup.composeapp.generated.resources.admin_newly_scanned_books_will_appear
+import listenup.composeapp.generated.resources.admin_no_collections_will_be_public
+import listenup.composeapp.generated.resources.common_release
+import listenup.composeapp.generated.resources.common_release_anyway
+import listenup.composeapp.generated.resources.common_release_without_collections
+import listenup.composeapp.generated.resources.admin_these_books_will_become_visible
+import listenup.composeapp.generated.resources.admin_will_be_released_without_any
 
 /**
  * Admin screen for managing the inbox staging workflow.
@@ -106,7 +117,7 @@ fun AdminInboxScreen(
                     if (state.hasSelection) {
                         Text("${state.selectedCount} selected")
                     } else {
-                        Text("Inbox")
+                        Text(stringResource(Res.string.common_inbox))
                     }
                 },
                 navigationIcon = {
@@ -155,7 +166,7 @@ fun AdminInboxScreen(
                         }
                     },
                     icon = Icons.Outlined.Publish,
-                    text = "Release",
+                    text = stringResource(Res.string.common_release),
                     isLoading = state.isReleasing,
                 )
             }
@@ -182,12 +193,12 @@ fun AdminInboxScreen(
 
         ListenUpDestructiveDialog(
             onDismissRequest = { showReleaseConfirmation = false },
-            title = "Release Without Collections",
+            title = stringResource(Res.string.common_release_without_collections),
             text =
                 "$booksWithoutCollections book${if (booksWithoutCollections != 1) "s" else ""} " +
-                    "will be released without any collection assignments.\n\n" +
-                    "These books will become visible to ALL users.",
-            confirmText = "Release Anyway",
+                    stringResource(Res.string.admin_will_be_released_without_any) +
+                    stringResource(Res.string.admin_these_books_will_become_visible),
+            confirmText = stringResource(Res.string.common_release_anyway),
             onConfirm = {
                 showReleaseConfirmation = false
                 viewModel.releaseBooks(state.selectedBookIds.toList())
@@ -327,7 +338,7 @@ private fun InboxBookRow(
                 )
             } else {
                 Text(
-                    text = "No collections (will be public)",
+                    text = stringResource(Res.string.admin_no_collections_will_be_public),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                 )
@@ -359,12 +370,12 @@ private fun EmptyInboxMessage(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Inbox Empty",
+            text = stringResource(Res.string.common_inbox_empty),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            text = "Newly scanned books will appear here for review",
+            text = stringResource(Res.string.admin_newly_scanned_books_will_appear),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

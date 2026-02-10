@@ -31,6 +31,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.domain.model.Collection
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_add_to_collection
+import listenup.composeapp.generated.resources.library_create_a_collection_in_the
+import listenup.composeapp.generated.resources.common_no_items_yet
 
 /**
  * Bottom sheet for selecting a collection to add books to.
@@ -81,7 +86,7 @@ fun CollectionPickerSheet(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             ) {
                 Text(
-                    text = "Add to Collection",
+                    text = stringResource(Res.string.book_detail_add_to_collection),
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
@@ -119,12 +124,12 @@ fun CollectionPickerSheet(
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "No collections yet",
+                            text = stringResource(Res.string.common_no_items_yet, "collections"),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
-                            text = "Create a collection in the Admin section first",
+                            text = stringResource(Res.string.library_create_a_collection_in_the),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         )
