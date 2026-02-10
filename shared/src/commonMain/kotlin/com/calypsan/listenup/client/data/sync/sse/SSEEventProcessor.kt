@@ -12,6 +12,7 @@ import com.calypsan.listenup.client.data.local.db.ActivityDao
 import com.calypsan.listenup.client.data.local.db.ActivityEntity
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
+import com.calypsan.listenup.client.data.local.db.BookEntity
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
 import com.calypsan.listenup.client.data.local.db.CollectionDao
@@ -308,7 +309,8 @@ class SSEEventProcessor(
     private suspend fun handleBookCreated(event: SSEEventType.BookCreated) {
         logger.debug { "SSE: Book created - ${event.book.title}" }
         val entity = event.book.toEntity()
-        bookDao.upsert(entity)
+        val withLocalFields = preserveLocalBookFields(entity)
+        bookDao.upsert(withLocalFields)
 
         saveBookContributors(event.book)
         saveBookSeries(event.book)
@@ -321,7 +323,8 @@ class SSEEventProcessor(
     private suspend fun handleBookUpdated(event: SSEEventType.BookUpdated) {
         logger.debug { "SSE: Book updated - ${event.book.title}" }
         val entity = event.book.toEntity()
-        bookDao.upsert(entity)
+        val withLocalFields = preserveLocalBookFields(entity)
+        bookDao.upsert(withLocalFields)
 
         saveBookContributors(event.book)
         saveBookSeries(event.book)
@@ -410,6 +413,24 @@ class SSEEventProcessor(
                 libraryId = event.libraryId,
                 accessMode = event.accessMode,
             ),
+        )
+    }
+
+    /**
+     * Preserve local-only fields (palette colors) when upserting a book from SSE.
+     *
+     * The server doesn't know about locally-extracted cover colors, so SSE events
+     * arrive with null palette values. Without this, every book.updated SSE event
+     * would wipe the locally-extracted colors used for gradient rendering.
+     *
+     * Same pattern as BookPuller.preserveLocalColors() for delta sync.
+     */
+    private suspend fun preserveLocalBookFields(entity: BookEntity): BookEntity {
+        val existing = bookDao.getById(entity.id) ?: return entity
+        return entity.copy(
+            dominantColor = entity.dominantColor ?: existing.dominantColor,
+            darkMutedColor = entity.darkMutedColor ?: existing.darkMutedColor,
+            vibrantColor = entity.vibrantColor ?: existing.vibrantColor,
         )
     }
 

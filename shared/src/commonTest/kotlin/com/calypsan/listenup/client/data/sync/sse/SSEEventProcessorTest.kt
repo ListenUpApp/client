@@ -10,6 +10,8 @@ import com.calypsan.listenup.client.data.local.db.BookContributorCrossRef
 import com.calypsan.listenup.client.data.local.db.BookContributorDao
 import com.calypsan.listenup.client.data.local.db.BookDao
 import com.calypsan.listenup.client.data.local.db.BookEntity
+import com.calypsan.listenup.client.data.local.db.SyncState
+import com.calypsan.listenup.client.core.Timestamp
 import com.calypsan.listenup.client.data.local.db.BookSeriesCrossRef
 import com.calypsan.listenup.client.data.local.db.BookSeriesDao
 import com.calypsan.listenup.client.data.local.db.BookTagCrossRef
@@ -136,6 +138,7 @@ class SSEEventProcessorTest {
 
         init {
             // Default stubs
+            everySuspend { bookDao.getById(any()) } returns null
             everySuspend { bookDao.upsert(any<BookEntity>()) } returns Unit
             everySuspend { bookDao.deleteById(any()) } returns Unit
             everySuspend { bookDao.touchUpdatedAt(any(), any()) } returns Unit
@@ -514,6 +517,64 @@ class SSEEventProcessorTest {
         }
 
     // ========== Multiple Roles Tests ==========
+
+    // ========== Local Field Preservation Tests ==========
+
+    @Test
+    fun `BookUpdated queries existing book to preserve local fields`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+
+            // Existing book in database with palette colors
+            val existingBook = BookEntity(
+                id = BookId("book-1"),
+                title = "Old Title",
+                coverUrl = null,
+                totalDuration = 3_600_000L,
+                dominantColor = 0xFF112233.toInt(),
+                darkMutedColor = 0xFF445566.toInt(),
+                vibrantColor = 0xFF778899.toInt(),
+                syncState = SyncState.SYNCED,
+                lastModified = Timestamp(1000L),
+                serverVersion = Timestamp(1000L),
+                createdAt = Timestamp(1000L),
+                updatedAt = Timestamp(1000L),
+            )
+            everySuspend { fixture.bookDao.getById(BookId("book-1")) } returns existingBook
+
+            val bookResponse = createBookResponse(id = "book-1", title = "New Title")
+
+            // When
+            processor.process(SSEEventType.BookUpdated(bookResponse))
+            advanceUntilIdle()
+
+            // Then - getById is called to look up existing local fields before upsert
+            verifySuspend { fixture.bookDao.getById(BookId("book-1")) }
+            verifySuspend { fixture.bookDao.upsert(any<BookEntity>()) }
+        }
+
+    @Test
+    fun `BookCreated queries existing book for local fields`() =
+        runTest {
+            // Given
+            val fixture = TestFixture(this)
+            val processor = fixture.build()
+
+            // No existing book
+            everySuspend { fixture.bookDao.getById(BookId("book-new")) } returns null
+
+            val bookResponse = createBookResponse(id = "book-new", title = "Brand New")
+
+            // When
+            processor.process(SSEEventType.BookCreated(bookResponse))
+            advanceUntilIdle()
+
+            // Then - getById is called (returns null, so no preservation needed) and upsert proceeds
+            verifySuspend { fixture.bookDao.getById(BookId("book-new")) }
+            verifySuspend { fixture.bookDao.upsert(any<BookEntity>()) }
+        }
 
     @Test
     fun `contributor with multiple roles creates multiple cross refs`() =
