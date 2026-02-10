@@ -1,0 +1,16 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "loading": "Loading..."
+  },
+  "library": {
+    "title": "Library",
+    "empty_state": "Add audiobooks to your server to get started"
+  },
+  "player": {
+    "now_playing": "Now Playing"
+  }
+}
