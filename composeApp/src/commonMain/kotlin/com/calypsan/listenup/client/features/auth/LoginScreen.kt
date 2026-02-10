@@ -44,6 +44,12 @@ import com.calypsan.listenup.client.presentation.auth.LoginField
 import com.calypsan.listenup.client.presentation.auth.LoginStatus
 import com.calypsan.listenup.client.presentation.auth.LoginViewModel
 import org.koin.compose.koinInject
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.auth_change_server
+import listenup.composeapp.generated.resources.auth_create_account
+import listenup.composeapp.generated.resources.auth_sign_in
+import listenup.composeapp.generated.resources.auth_sign_in_to_access_your
 
 /**
  * Login screen for user authentication.
@@ -169,12 +175,12 @@ private fun LoginContent(
 
             if (openRegistration) {
                 TextButton(onClick = onRegister) {
-                    Text("Create Account")
+                    Text(stringResource(Res.string.auth_create_account))
                 }
             }
 
             TextButton(onClick = onChangeServer) {
-                Text("Change Server")
+                Text(stringResource(Res.string.auth_change_server))
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -203,13 +209,13 @@ private fun LoginForm(
     ) {
         // Title
         Text(
-            text = "Sign In",
+            text = stringResource(Res.string.auth_sign_in),
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
 
         Text(
-            text = "Sign in to access your audiobook library.",
+            text = stringResource(Res.string.auth_sign_in_to_access_your),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -293,7 +299,7 @@ private fun LoginForm(
             onClick = {
                 onSubmit(email, password)
             },
-            text = "Sign In",
+            text = stringResource(Res.string.auth_sign_in),
             enabled = !isLoading,
             isLoading = isLoading,
             modifier = Modifier.fillMaxWidth(),

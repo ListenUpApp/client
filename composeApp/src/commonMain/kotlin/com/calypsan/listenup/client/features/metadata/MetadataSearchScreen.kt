@@ -48,6 +48,13 @@ import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSm
 import com.calypsan.listenup.client.domain.repository.MetadataSearchResult
 import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
 import com.calypsan.listenup.client.presentation.metadata.MetadataUiState
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.contributor_audible_region
+import listenup.composeapp.generated.resources.contributor_find_on_audible
+import listenup.composeapp.generated.resources.contributor_search
+import listenup.composeapp.generated.resources.metadata_title_author_narrator_or_asin
 
 /**
  * Full-screen for searching books on Audible.
@@ -71,12 +78,12 @@ fun MetadataSearchScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Find on Audible") },
+                title = { Text(stringResource(Res.string.contributor_find_on_audible)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.admin_back),
                         )
                     }
                 },
@@ -104,8 +111,8 @@ fun MetadataSearchScreen(
             OutlinedTextField(
                 value = state.searchQuery,
                 onValueChange = onQueryChange,
-                label = { Text("Search") },
-                placeholder = { Text("Title, author, narrator, or ASIN...") },
+                label = { Text(stringResource(Res.string.contributor_search)) },
+                placeholder = { Text(stringResource(Res.string.metadata_title_author_narrator_or_asin)) },
                 trailingIcon = {
                     IconButton(
                         onClick = onSearch,
@@ -116,7 +123,7 @@ fun MetadataSearchScreen(
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Search,
-                                contentDescription = "Search",
+                                contentDescription = stringResource(Res.string.contributor_search),
                             )
                         }
                     }
@@ -196,7 +203,7 @@ private fun RegionSelector(
 ) {
     Column {
         Text(
-            text = "Audible Region",
+            text = stringResource(Res.string.contributor_audible_region),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp),

@@ -22,6 +22,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.library_collection
+import listenup.composeapp.generated.resources.library_exit_selection_mode
+import listenup.composeapp.generated.resources.library_shelf
 
 /**
  * Toolbar shown when in multi-select mode.
@@ -61,7 +66,7 @@ fun SelectionToolbar(
             IconButton(onClick = onClose) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Exit selection mode",
+                    contentDescription = stringResource(Res.string.library_exit_selection_mode),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
@@ -98,7 +103,7 @@ fun SelectionToolbar(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Shelf",
+                    text = stringResource(Res.string.library_shelf),
                     color =
                         if (selectedCount > 0) {
                             MaterialTheme.colorScheme.primary
@@ -127,7 +132,7 @@ fun SelectionToolbar(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Collection",
+                        text = stringResource(Res.string.library_collection),
                         color =
                             if (selectedCount > 0) {
                                 MaterialTheme.colorScheme.primary

@@ -49,6 +49,11 @@ import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.presentation.tagdetail.TagDetailUiState
 import com.calypsan.listenup.client.presentation.tagdetail.TagDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.library_bookcount
+import listenup.composeapp.generated.resources.library_books
 
 /**
  * Screen displaying tag details with its books.
@@ -92,7 +97,7 @@ fun TagDetailScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.admin_back),
                         )
                     }
                 },
@@ -157,7 +162,7 @@ private fun TagDetailContent(
         // Books section header
         item {
             Text(
-                text = "Books",
+                text = stringResource(Res.string.library_books),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier =
@@ -217,7 +222,7 @@ private fun TagStatsSection(
                 modifier = Modifier.size(18.dp),
             )
             Text(
-                text = "$bookCount",
+                text = stringResource(Res.string.library_bookcount, bookCount),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )

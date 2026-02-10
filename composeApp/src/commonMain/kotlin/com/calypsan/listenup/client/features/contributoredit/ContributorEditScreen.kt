@@ -52,6 +52,22 @@ import com.calypsan.listenup.client.presentation.contributoredit.ContributorEdit
 import com.calypsan.listenup.client.presentation.contributoredit.ContributorEditViewModel
 import com.calypsan.listenup.client.util.rememberImagePicker
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_edit_discard
+import listenup.composeapp.generated.resources.book_edit_dismiss
+import listenup.composeapp.generated.resources.book_edit_keep_editing
+import listenup.composeapp.generated.resources.book_edit_unsaved_changes
+import listenup.composeapp.generated.resources.book_edit_you_have_unsaved_changes_are
+import listenup.composeapp.generated.resources.contributor_also_known_as
+import listenup.composeapp.generated.resources.contributor_biography
+import listenup.composeapp.generated.resources.contributor_birth_date
+import listenup.composeapp.generated.resources.contributor_dates
+import listenup.composeapp.generated.resources.contributor_death_date
+import listenup.composeapp.generated.resources.contributor_enter_a_biography
+import listenup.composeapp.generated.resources.contributor_links
+import listenup.composeapp.generated.resources.contributor_select_birth_date
+import listenup.composeapp.generated.resources.contributor_select_death_date
 
 /**
  * Artist Studio - immersive contributor editing experience.
@@ -216,11 +232,11 @@ private fun UnsavedChangesDialog(
 ) {
     ListenUpDestructiveDialog(
         onDismissRequest = onKeepEditing,
-        title = "Unsaved Changes",
-        text = "You have unsaved changes. Are you sure you want to discard them?",
-        confirmText = "Discard",
+        title = stringResource(Res.string.book_edit_unsaved_changes),
+        text = stringResource(Res.string.book_edit_you_have_unsaved_changes_are),
+        confirmText = stringResource(Res.string.book_edit_discard),
         onConfirm = onDiscard,
-        dismissText = "Keep Editing",
+        dismissText = stringResource(Res.string.book_edit_keep_editing),
         onDismiss = onKeepEditing,
     )
 }
@@ -240,7 +256,7 @@ private fun ErrorContent(
             color = MaterialTheme.colorScheme.error,
         )
         TextButton(onClick = onDismiss) {
-            Text("Dismiss")
+            Text(stringResource(Res.string.book_edit_dismiss))
         }
     }
 }
@@ -317,19 +333,19 @@ private fun SingleColumnCardsLayout(
         modifier = Modifier.padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        ContributorStudioCard(title = "Biography") {
+        ContributorStudioCard(title = stringResource(Res.string.contributor_biography)) {
             BiographyCardContent(state = state, onEvent = onEvent)
         }
 
-        ContributorStudioCard(title = "Links") {
+        ContributorStudioCard(title = stringResource(Res.string.contributor_links)) {
             LinksCardContent(state = state, onEvent = onEvent)
         }
 
-        ContributorStudioCard(title = "Dates") {
+        ContributorStudioCard(title = stringResource(Res.string.contributor_dates)) {
             DatesCardContent(state = state, onEvent = onEvent)
         }
 
-        ContributorStudioCard(title = "Also Known As") {
+        ContributorStudioCard(title = stringResource(Res.string.contributor_also_known_as)) {
             AliasesSection(
                 aliases = state.aliases,
                 searchQuery = state.aliasSearchQuery,
@@ -358,7 +374,7 @@ private fun TwoColumnCardsLayout(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // Full-width: Biography (primary content)
-        ContributorStudioCard(title = "Biography") {
+        ContributorStudioCard(title = stringResource(Res.string.contributor_biography)) {
             BiographyCardContent(state = state, onEvent = onEvent)
         }
 
@@ -371,11 +387,11 @@ private fun TwoColumnCardsLayout(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                ContributorStudioCard(title = "Links") {
+                ContributorStudioCard(title = stringResource(Res.string.contributor_links)) {
                     LinksCardContent(state = state, onEvent = onEvent)
                 }
 
-                ContributorStudioCard(title = "Dates") {
+                ContributorStudioCard(title = stringResource(Res.string.contributor_dates)) {
                     DatesCardContent(state = state, onEvent = onEvent)
                 }
             }
@@ -385,7 +401,7 @@ private fun TwoColumnCardsLayout(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                ContributorStudioCard(title = "Also Known As") {
+                ContributorStudioCard(title = stringResource(Res.string.contributor_also_known_as)) {
                     AliasesSection(
                         aliases = state.aliases,
                         searchQuery = state.aliasSearchQuery,
@@ -415,7 +431,7 @@ private fun BiographyCardContent(
         value = state.description,
         onValueChange = { onEvent(ContributorEditUiEvent.DescriptionChanged(it)) },
         label = "Bio",
-        placeholder = "Enter a biography...",
+        placeholder = stringResource(Res.string.contributor_enter_a_biography),
     )
 }
 
@@ -442,15 +458,15 @@ private fun DatesCardContent(
         ListenUpDatePicker(
             value = state.birthDate,
             onValueChange = { onEvent(ContributorEditUiEvent.BirthDateChanged(it)) },
-            label = "Birth Date",
-            placeholder = "Select birth date",
+            label = stringResource(Res.string.contributor_birth_date),
+            placeholder = stringResource(Res.string.contributor_select_birth_date),
         )
 
         ListenUpDatePicker(
             value = state.deathDate,
             onValueChange = { onEvent(ContributorEditUiEvent.DeathDateChanged(it)) },
-            label = "Death Date",
-            placeholder = "Select death date",
+            label = stringResource(Res.string.contributor_death_date),
+            placeholder = stringResource(Res.string.contributor_select_death_date),
         )
     }
 }

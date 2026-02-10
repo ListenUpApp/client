@@ -59,6 +59,33 @@ import com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailUiSt
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionDetailViewModel
 import com.calypsan.listenup.client.presentation.admin.CollectionBookItem
 import com.calypsan.listenup.client.presentation.admin.CollectionShareItem
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_add
+import listenup.composeapp.generated.resources.admin_add_member
+import listenup.composeapp.generated.resources.admin_add_members_to_share_this
+import listenup.composeapp.generated.resources.admin_administrator
+import listenup.composeapp.generated.resources.admin_all_users_are_already_members
+import listenup.composeapp.generated.resources.admin_are_you_sure_you_want_6
+import listenup.composeapp.generated.resources.admin_books_can_be_added_from
+import listenup.composeapp.generated.resources.admin_books_in_collection
+import listenup.composeapp.generated.resources.admin_collection_details
+import listenup.composeapp.generated.resources.admin_collection_name
+import listenup.composeapp.generated.resources.admin_collection_not_found
+import listenup.composeapp.generated.resources.admin_collection_updated
+import listenup.composeapp.generated.resources.admin_in_this_collection
+import listenup.composeapp.generated.resources.admin_loading_users
+import listenup.composeapp.generated.resources.admin_members
+import listenup.composeapp.generated.resources.admin_no_books_in_this_collection
+import listenup.composeapp.generated.resources.admin_no_members
+import listenup.composeapp.generated.resources.admin_no_users_available
+import listenup.composeapp.generated.resources.admin_remove
+import listenup.composeapp.generated.resources.admin_remove_book
+import listenup.composeapp.generated.resources.admin_remove_member
+import listenup.composeapp.generated.resources.admin_save_changes
+import listenup.composeapp.generated.resources.admin_the_book_will_not_be
+import listenup.composeapp.generated.resources.admin_the_display_name_for_this
+import listenup.composeapp.generated.resources.admin_they_will_no_longer_have
 
 /**
  * Admin screen for viewing and editing a single collection.
@@ -116,7 +143,7 @@ fun AdminCollectionDetailScreen(
             FullScreenLoadingIndicator()
         } else if (state.collection == null) {
             ErrorContent(
-                message = "Collection not found",
+                message = stringResource(Res.string.admin_collection_not_found),
                 modifier = Modifier.padding(innerPadding),
             )
         } else {
@@ -148,11 +175,11 @@ fun AdminCollectionDetailScreen(
     bookToRemove?.let { book ->
         ListenUpDestructiveDialog(
             onDismissRequest = { bookToRemove = null },
-            title = "Remove Book",
+            title = stringResource(Res.string.admin_remove_book),
             text =
                 "Are you sure you want to remove \"${book.title}\" from this collection? " +
-                    "The book will not be deleted from your library.",
-            confirmText = "Remove",
+                    stringResource(Res.string.admin_the_book_will_not_be),
+            confirmText = stringResource(Res.string.admin_remove),
             onConfirm = {
                 viewModel.removeBook(book.id)
                 bookToRemove = null
@@ -165,11 +192,11 @@ fun AdminCollectionDetailScreen(
     shareToRemove?.let { share ->
         ListenUpDestructiveDialog(
             onDismissRequest = { shareToRemove = null },
-            title = "Remove Member",
+            title = stringResource(Res.string.admin_remove_member),
             text =
-                "Are you sure you want to remove this member from the collection? " +
-                    "They will no longer have access to the books in this collection.",
-            confirmText = "Remove",
+                stringResource(Res.string.admin_are_you_sure_you_want_6) +
+                    stringResource(Res.string.admin_they_will_no_longer_have),
+            confirmText = stringResource(Res.string.admin_remove),
             onConfirm = {
                 viewModel.removeShare(share.id)
                 shareToRemove = null
@@ -198,7 +225,7 @@ private fun CollectionDetailContent(
         // Collection info section
         item {
             Text(
-                text = "Collection Details",
+                text = stringResource(Res.string.admin_collection_details),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
@@ -225,9 +252,9 @@ private fun CollectionDetailContent(
                     ListenUpTextField(
                         value = state.editedName,
                         onValueChange = onNameChange,
-                        label = "Collection Name",
+                        label = stringResource(Res.string.admin_collection_name),
                         enabled = !state.isSaving,
-                        supportingText = "The display name for this collection",
+                        supportingText = stringResource(Res.string.admin_the_display_name_for_this),
                     )
 
                     // Save button
@@ -245,7 +272,7 @@ private fun CollectionDetailContent(
                             if (state.isSaving) {
                                 ListenUpLoadingIndicatorSmall()
                             } else {
-                                Text("Save Changes")
+                                Text(stringResource(Res.string.admin_save_changes))
                             }
                         }
                     }
@@ -273,7 +300,7 @@ private fun CollectionDetailContent(
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = "in this collection",
+                                text = stringResource(Res.string.admin_in_this_collection),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -287,7 +314,7 @@ private fun CollectionDetailContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Books in Collection",
+                text = stringResource(Res.string.admin_books_in_collection),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -335,7 +362,7 @@ private fun CollectionDetailContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Members",
+                    text = stringResource(Res.string.admin_members),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -346,7 +373,7 @@ private fun CollectionDetailContent(
                         modifier = Modifier.size(18.dp),
                     )
                     Text(
-                        text = "Add",
+                        text = stringResource(Res.string.admin_add),
                         modifier = Modifier.padding(start = 4.dp),
                     )
                 }
@@ -437,7 +464,7 @@ private fun MemberRow(
             IconButton(onClick = onRemoveClick) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
-                    contentDescription = "Remove",
+                    contentDescription = stringResource(Res.string.admin_remove),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }
@@ -471,12 +498,12 @@ private fun EmptyMembersMessage(modifier: Modifier = Modifier) {
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "No members",
+                text = stringResource(Res.string.admin_no_members),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "Add members to share this collection",
+                text = stringResource(Res.string.admin_add_members_to_share_this),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             )
@@ -507,7 +534,7 @@ private fun AddMemberBottomSheet(
                     .padding(bottom = 16.dp),
         ) {
             Text(
-                text = "Add Member",
+                text = stringResource(Res.string.admin_add_member),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
             )
@@ -523,7 +550,7 @@ private fun AddMemberBottomSheet(
                     ListenUpLoadingIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Loading users...",
+                        text = stringResource(Res.string.admin_loading_users),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -544,12 +571,12 @@ private fun AddMemberBottomSheet(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "No users available",
+                        text = stringResource(Res.string.admin_no_users_available),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "All users are already members of this collection",
+                        text = stringResource(Res.string.admin_all_users_are_already_members),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     )
@@ -562,7 +589,7 @@ private fun AddMemberBottomSheet(
                             if (user.displayName != null) {
                                 Text(user.email)
                             } else if (user.isRoot) {
-                                Text("Administrator")
+                                Text(stringResource(Res.string.admin_administrator))
                             }
                         },
                         leadingContent = {
@@ -637,7 +664,7 @@ private fun BookRow(
             IconButton(onClick = onRemoveClick) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
-                    contentDescription = "Remove",
+                    contentDescription = stringResource(Res.string.admin_remove),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }
@@ -671,12 +698,12 @@ private fun EmptyBooksMessage(modifier: Modifier = Modifier) {
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "No books in this collection",
+                text = stringResource(Res.string.admin_no_books_in_this_collection),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "Books can be added from the server",
+                text = stringResource(Res.string.admin_books_can_be_added_from),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             )

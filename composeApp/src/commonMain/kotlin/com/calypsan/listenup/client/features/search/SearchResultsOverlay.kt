@@ -46,6 +46,16 @@ import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.domain.model.SearchHit
 import com.calypsan.listenup.client.domain.model.SearchHitType
 import com.calypsan.listenup.client.presentation.search.SearchUiState
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_tags
+import listenup.composeapp.generated.resources.book_edit_series
+import listenup.composeapp.generated.resources.book_edit_showing_offline_results
+import listenup.composeapp.generated.resources.library_books
+import listenup.composeapp.generated.resources.search_count_books
+import listenup.composeapp.generated.resources.search_no_results_for_query
+import listenup.composeapp.generated.resources.search_people
+import listenup.composeapp.generated.resources.search_try_a_different_search_term
 
 /**
  * Full-screen overlay for search results.
@@ -137,7 +147,7 @@ private fun TypeFilterRow(
         FilterChip(
             selected = SearchHitType.BOOK in selectedTypes || selectedTypes.isEmpty(),
             onClick = { onToggle(SearchHitType.BOOK) },
-            label = { Text("Books") },
+            label = { Text(stringResource(Res.string.library_books)) },
             leadingIcon = {
                 Icon(
                     Icons.Default.Book,
@@ -150,7 +160,7 @@ private fun TypeFilterRow(
         FilterChip(
             selected = SearchHitType.CONTRIBUTOR in selectedTypes || selectedTypes.isEmpty(),
             onClick = { onToggle(SearchHitType.CONTRIBUTOR) },
-            label = { Text("People") },
+            label = { Text(stringResource(Res.string.search_people)) },
             leadingIcon = {
                 Icon(
                     Icons.Default.Person,
@@ -163,7 +173,7 @@ private fun TypeFilterRow(
         FilterChip(
             selected = SearchHitType.SERIES in selectedTypes || selectedTypes.isEmpty(),
             onClick = { onToggle(SearchHitType.SERIES) },
-            label = { Text("Series") },
+            label = { Text(stringResource(Res.string.book_edit_series)) },
             leadingIcon = {
                 Icon(
                     Icons.AutoMirrored.Filled.PlaylistPlay,
@@ -176,7 +186,7 @@ private fun TypeFilterRow(
         FilterChip(
             selected = SearchHitType.TAG in selectedTypes || selectedTypes.isEmpty(),
             onClick = { onToggle(SearchHitType.TAG) },
-            label = { Text("Tags") },
+            label = { Text(stringResource(Res.string.book_detail_tags)) },
             leadingIcon = {
                 Icon(
                     Icons.Default.Tag,
@@ -208,7 +218,7 @@ private fun OfflineIndicator(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = "Showing offline results",
+            text = stringResource(Res.string.book_edit_showing_offline_results),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSecondaryContainer,
         )
@@ -231,7 +241,7 @@ private fun SearchResultsList(
         // Books section
         if (books.isNotEmpty()) {
             item(key = "books_header") {
-                SectionHeader(title = "Books", count = books.size)
+                SectionHeader(title = stringResource(Res.string.library_books), count = books.size)
             }
             items(books, key = { "book_${it.id}" }) { hit ->
                 BookSearchResultCard(
@@ -245,7 +255,7 @@ private fun SearchResultsList(
         // Contributors section
         if (contributors.isNotEmpty()) {
             item(key = "contributors_header") {
-                SectionHeader(title = "People", count = contributors.size)
+                SectionHeader(title = stringResource(Res.string.search_people), count = contributors.size)
             }
             items(contributors, key = { "contributor_${it.id}" }) { hit ->
                 ContributorSearchResultCard(
@@ -259,7 +269,7 @@ private fun SearchResultsList(
         // Series section
         if (series.isNotEmpty()) {
             item(key = "series_header") {
-                SectionHeader(title = "Series", count = series.size)
+                SectionHeader(title = stringResource(Res.string.book_edit_series), count = series.size)
             }
             items(series, key = { "series_${it.id}" }) { hit ->
                 SeriesSearchResultCard(
@@ -273,7 +283,7 @@ private fun SearchResultsList(
         // Tags section
         if (tags.isNotEmpty()) {
             item(key = "tags_header") {
-                SectionHeader(title = "Tags", count = tags.size)
+                SectionHeader(title = stringResource(Res.string.book_detail_tags), count = tags.size)
             }
             items(tags, key = { "tag_${it.id}" }) { hit ->
                 TagSearchResultCard(
@@ -455,7 +465,7 @@ private fun ContributorSearchResultCard(
                 )
                 hit.bookCount?.let { count ->
                     Text(
-                        text = "$count books",
+                        text = stringResource(Res.string.search_count_books, count),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -514,7 +524,7 @@ private fun SeriesSearchResultCard(
                 )
                 hit.bookCount?.let { count ->
                     Text(
-                        text = "$count books",
+                        text = stringResource(Res.string.search_count_books, count),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -599,13 +609,13 @@ private fun EmptyState(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "No results for \"$query\"",
+                text = stringResource(Res.string.search_no_results_for_query, query),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Try a different search term",
+                text = stringResource(Res.string.search_try_a_different_search_term),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

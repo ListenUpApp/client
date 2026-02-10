@@ -32,6 +32,12 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_mark_as_read
+import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.design_ok
+import listenup.composeapp.generated.resources.design_select_date
 
 /**
  * Dialog for marking a book as read with start and end date pickers.
@@ -65,7 +71,7 @@ fun MarkCompleteDialog(
         onDismissRequest = onDismiss,
         shape = MaterialTheme.shapes.large,
         containerColor = MaterialTheme.colorScheme.surface,
-        title = { Text("Mark as Read") },
+        title = { Text(stringResource(Res.string.book_detail_mark_as_read)) },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -84,12 +90,12 @@ fun MarkCompleteDialog(
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(startDateMillis, finishDateMillis) }) {
-                Text("Mark as Read")
+                Text(stringResource(Res.string.book_detail_mark_as_read))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(Res.string.design_cancel))
             }
         },
     )
@@ -140,7 +146,7 @@ private fun DateField(
             trailingIcon = {
                 Icon(
                     imageVector = Icons.Default.CalendarMonth,
-                    contentDescription = "Select date",
+                    contentDescription = stringResource(Res.string.design_select_date),
                 )
             },
         )
@@ -186,12 +192,12 @@ private fun DatePickerDialogWrapper(
                     }
                 },
             ) {
-                Text("OK")
+                Text(stringResource(Res.string.design_ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(Res.string.design_cancel))
             }
         },
         shape = MaterialTheme.shapes.large,

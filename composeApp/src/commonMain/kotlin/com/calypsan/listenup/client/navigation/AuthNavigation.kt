@@ -26,6 +26,9 @@ import com.calypsan.listenup.client.features.connect.ServerSetupScreen
 import com.calypsan.listenup.client.presentation.auth.PendingApprovalViewModel
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.common_checking_server
 
 /**
  * Auth-only navigation for initial authentication flow.
@@ -74,7 +77,7 @@ fun AuthNavigation(
         }
 
         AuthState.CheckingServer -> {
-            FullScreenLoadingIndicator(message = "Checking server...")
+            FullScreenLoadingIndicator(message = stringResource(Res.string.common_checking_server))
         }
 
         AuthState.NeedsSetup -> {

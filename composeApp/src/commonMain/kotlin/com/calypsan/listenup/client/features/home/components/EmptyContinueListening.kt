@@ -18,6 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.home_browse_library
+import listenup.composeapp.generated.resources.home_continue_listening
+import listenup.composeapp.generated.resources.home_nothing_playing_yet
+import listenup.composeapp.generated.resources.home_start_listening_to_an_audiobook
 
 /**
  * Empty state for the Continue Listening section.
@@ -36,7 +42,7 @@ fun EmptyContinueListening(
     Column(modifier = modifier.fillMaxWidth()) {
         // Section header
         Text(
-            text = "Continue Listening",
+            text = stringResource(Res.string.home_continue_listening),
             style =
                 MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
@@ -65,7 +71,7 @@ fun EmptyContinueListening(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Nothing playing yet",
+                text = stringResource(Res.string.home_nothing_playing_yet),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -73,7 +79,7 @@ fun EmptyContinueListening(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Start listening to an audiobook and it will appear here",
+                text = stringResource(Res.string.home_start_listening_to_an_audiobook),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -84,7 +90,7 @@ fun EmptyContinueListening(
             FilledTonalButton(
                 onClick = onBrowseLibrary,
             ) {
-                Text("Browse Library")
+                Text(stringResource(Res.string.home_browse_library))
             }
         }
     }

@@ -37,6 +37,13 @@ import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import org.koin.compose.koinInject
 import java.io.File
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.design_administration
+import listenup.composeapp.generated.resources.design_loading
+import listenup.composeapp.generated.resources.design_my_profile
+import listenup.composeapp.generated.resources.design_settings
+import listenup.composeapp.generated.resources.design_sign_out
 
 /**
  * Circular avatar displaying user initials with a dropdown menu.
@@ -178,7 +185,7 @@ fun UserAvatar(
                 } else {
                     // Loading state - user data not yet available
                     Text(
-                        text = "Loading...",
+                        text = stringResource(Res.string.design_loading),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -189,7 +196,7 @@ fun UserAvatar(
 
             // My Profile menu item
             DropdownMenuItem(
-                text = { Text("My Profile") },
+                text = { Text(stringResource(Res.string.design_my_profile)) },
                 leadingIcon = { Icon(Icons.Outlined.AccountCircle, contentDescription = null) },
                 onClick = {
                     onExpandedChange(false)
@@ -200,7 +207,7 @@ fun UserAvatar(
             // Administration menu item - only shown for admin users
             if (user?.isAdmin == true && onAdminClick != null) {
                 DropdownMenuItem(
-                    text = { Text("Administration") },
+                    text = { Text(stringResource(Res.string.design_administration)) },
                     leadingIcon = { Icon(Icons.Outlined.AdminPanelSettings, contentDescription = null) },
                     onClick = {
                         onExpandedChange(false)
@@ -211,7 +218,7 @@ fun UserAvatar(
 
             if (onSettingsClick != null) {
                 DropdownMenuItem(
-                    text = { Text("Settings") },
+                    text = { Text(stringResource(Res.string.design_settings)) },
                     leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
                     onClick = {
                         onExpandedChange(false)
@@ -221,7 +228,7 @@ fun UserAvatar(
             }
 
             DropdownMenuItem(
-                text = { Text("Sign out") },
+                text = { Text(stringResource(Res.string.design_sign_out)) },
                 leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null) },
                 onClick = {
                     onExpandedChange(false)

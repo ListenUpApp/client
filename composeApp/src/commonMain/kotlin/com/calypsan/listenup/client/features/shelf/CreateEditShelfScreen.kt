@@ -42,6 +42,17 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.presentation.shelf.CreateEditShelfViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.admin_delete
+import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.shelf_delete_shelf
+import listenup.composeapp.generated.resources.shelf_delete_shelf_2
+import listenup.composeapp.generated.resources.shelf_description_optional
+import listenup.composeapp.generated.resources.shelf_eg_to_read_favorites_mystery
+import listenup.composeapp.generated.resources.shelf_this_will_permanently_delete_this
+import listenup.composeapp.generated.resources.shelf_whats_this_shelf_for
 
 /**
  * Screen for creating or editing a shelf.
@@ -91,7 +102,7 @@ fun CreateEditShelfScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.admin_back),
                         )
                     }
                 },
@@ -100,7 +111,7 @@ fun CreateEditShelfScreen(
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete shelf",
+                                contentDescription = stringResource(Res.string.shelf_delete_shelf),
                                 tint = MaterialTheme.colorScheme.error,
                             )
                         }
@@ -137,7 +148,7 @@ fun CreateEditShelfScreen(
                     value = state.name,
                     onValueChange = viewModel::updateName,
                     label = "Name",
-                    placeholder = "e.g., To Read, Favorites, Mystery...",
+                    placeholder = stringResource(Res.string.shelf_eg_to_read_favorites_mystery),
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -146,8 +157,8 @@ fun CreateEditShelfScreen(
                 OutlinedTextField(
                     value = state.description,
                     onValueChange = viewModel::updateDescription,
-                    label = { Text("Description (optional)") },
-                    placeholder = { Text("What's this shelf for?") },
+                    label = { Text(stringResource(Res.string.shelf_description_optional)) },
+                    placeholder = { Text(stringResource(Res.string.shelf_whats_this_shelf_for)) },
                     minLines = 3,
                     maxLines = 5,
                     modifier = Modifier.fillMaxWidth(),
@@ -176,9 +187,9 @@ fun CreateEditShelfScreen(
                     AlertDialog(
                         onDismissRequest = { showDeleteDialog = false },
                         shape = MaterialTheme.shapes.large,
-                        title = { Text("Delete Shelf?") },
+                        title = { Text(stringResource(Res.string.shelf_delete_shelf_2)) },
                         text = {
-                            Text("This will permanently delete this shelf. Books in the shelf will not be affected.")
+                            Text(stringResource(Res.string.shelf_this_will_permanently_delete_this))
                         },
                         confirmButton = {
                             TextButton(
@@ -191,12 +202,12 @@ fun CreateEditShelfScreen(
                                         contentColor = MaterialTheme.colorScheme.error,
                                     ),
                             ) {
-                                Text("Delete")
+                                Text(stringResource(Res.string.admin_delete))
                             }
                         },
                         dismissButton = {
                             TextButton(onClick = { showDeleteDialog = false }) {
-                                Text("Cancel")
+                                Text(stringResource(Res.string.design_cancel))
                             }
                         },
                     )

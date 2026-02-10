@@ -40,6 +40,10 @@ import com.calypsan.listenup.client.design.components.ElevatedCoverCard
 import com.calypsan.listenup.client.design.components.ProgressOverlay
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 import com.calypsan.listenup.client.design.theme.LocalDarkTheme
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.book_detail_more_options
 
 /**
  * Hero section with color-extracted gradient background.
@@ -209,7 +213,7 @@ private fun HeroNavigationBar(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(Res.string.admin_back),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
@@ -228,7 +232,7 @@ private fun HeroNavigationBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options",
+                    contentDescription = stringResource(Res.string.book_detail_more_options),
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             }

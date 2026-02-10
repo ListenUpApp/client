@@ -56,6 +56,20 @@ import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.domain.model.Collection
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionsUiState
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.admin_collection_created
+import listenup.composeapp.generated.resources.admin_collection_name
+import listenup.composeapp.generated.resources.admin_collections
+import listenup.composeapp.generated.resources.admin_create
+import listenup.composeapp.generated.resources.admin_create_a_collection_to_organize
+import listenup.composeapp.generated.resources.admin_create_collection
+import listenup.composeapp.generated.resources.admin_delete
+import listenup.composeapp.generated.resources.admin_delete_collection
+import listenup.composeapp.generated.resources.admin_enter_a_name_for_the
+import listenup.composeapp.generated.resources.admin_no_collections
+import listenup.composeapp.generated.resources.design_cancel
 
 /**
  * Admin screen for managing collections.
@@ -98,10 +112,10 @@ fun AdminCollectionsScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Collections") },
+                title = { Text(stringResource(Res.string.admin_collections)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.admin_back))
                     }
                 },
             )
@@ -111,7 +125,7 @@ fun AdminCollectionsScreen(
             ListenUpFab(
                 onClick = { showCreateDialog = true },
                 icon = Icons.Outlined.Add,
-                contentDescription = "Create Collection",
+                contentDescription = stringResource(Res.string.admin_create_collection),
             )
         },
     ) { innerPadding ->
@@ -151,9 +165,9 @@ fun AdminCollectionsScreen(
 
         ListenUpDestructiveDialog(
             onDismissRequest = { collectionToDelete = null },
-            title = "Delete Collection",
+            title = stringResource(Res.string.admin_delete_collection),
             text = warningText,
-            confirmText = "Delete",
+            confirmText = stringResource(Res.string.admin_delete),
             onConfirm = {
                 viewModel.deleteCollection(collection.id)
                 collectionToDelete = null
@@ -266,7 +280,7 @@ private fun CollectionRow(
                 if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = stringResource(Res.string.admin_delete),
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                     )
                 }
@@ -331,12 +345,12 @@ private fun EmptyCollectionsMessage(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "No Collections",
+            text = stringResource(Res.string.admin_no_collections),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            text = "Create a collection to organize your audiobooks",
+            text = stringResource(Res.string.admin_create_a_collection_to_organize),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -355,14 +369,14 @@ private fun CreateCollectionDialog(
         onDismissRequest = { if (!isCreating) onDismiss() },
         shape = MaterialTheme.shapes.large,
         containerColor = MaterialTheme.colorScheme.surface,
-        title = { Text("Create Collection") },
+        title = { Text(stringResource(Res.string.admin_create_collection)) },
         text = {
             ListenUpTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = "Collection Name",
+                label = stringResource(Res.string.admin_collection_name),
                 enabled = !isCreating,
-                supportingText = "Enter a name for the collection",
+                supportingText = stringResource(Res.string.admin_enter_a_name_for_the),
             )
         },
         confirmButton = {
@@ -373,7 +387,7 @@ private fun CreateCollectionDialog(
                 if (isCreating) {
                     ListenUpLoadingIndicatorSmall()
                 } else {
-                    Text("Create")
+                    Text(stringResource(Res.string.admin_create))
                 }
             }
         },
@@ -382,7 +396,7 @@ private fun CreateCollectionDialog(
                 onClick = onDismiss,
                 enabled = !isCreating,
             ) {
-                Text("Cancel")
+                Text(stringResource(Res.string.design_cancel))
             }
         },
     )

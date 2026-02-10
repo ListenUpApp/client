@@ -35,6 +35,10 @@ import com.calypsan.listenup.client.design.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.library_narrators_will_appear_here_when
+import listenup.composeapp.generated.resources.library_no_narrators_yet
 
 /**
  * Content for the Narrators tab in the Library screen.
@@ -173,12 +177,12 @@ private fun NarratorsEmptyState() {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
             Text(
-                text = "No narrators yet",
+                text = stringResource(Res.string.library_no_narrators_yet),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "Narrators will appear here when you have audiobooks",
+                text = stringResource(Res.string.library_narrators_will_appear_here_when),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

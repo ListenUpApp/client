@@ -44,6 +44,15 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.util.parseHexColor
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.domain.model.Shelf
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_add_to_shelf
+import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.library_create_add
+import listenup.composeapp.generated.resources.library_create_new_shelf
+import listenup.composeapp.generated.resources.library_eg_to_read_favorites
+import listenup.composeapp.generated.resources.library_shelf_name
+import listenup.composeapp.generated.resources.library_you_dont_have_any_shelves
 
 /**
  * Bottom sheet for selecting a shelf to add books to.
@@ -98,7 +107,7 @@ fun ShelfPickerSheet(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             ) {
                 Text(
-                    text = "Add to Shelf",
+                    text = stringResource(Res.string.book_detail_add_to_shelf),
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
@@ -140,7 +149,7 @@ fun ShelfPickerSheet(
                     if (shelves.isEmpty()) {
                         item(key = "empty_hint") {
                             Text(
-                                text = "You don't have any shelves yet",
+                                text = stringResource(Res.string.library_you_dont_have_any_shelves),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
@@ -231,7 +240,7 @@ private fun CreateNewShelfRow(
             Spacer(Modifier.width(16.dp))
 
             Text(
-                text = "Create New Shelf",
+                text = stringResource(Res.string.library_create_new_shelf),
                 style = MaterialTheme.typography.bodyLarge,
                 color =
                     if (enabled) {
@@ -339,13 +348,13 @@ private fun CreateShelfDialog(
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         shape = MaterialTheme.shapes.large,
-        title = { Text("Create New Shelf") },
+        title = { Text(stringResource(Res.string.library_create_new_shelf)) },
         text = {
             ListenUpTextField(
                 value = shelfName,
                 onValueChange = { shelfName = it },
-                label = "Shelf name",
-                placeholder = "e.g., To Read, Favorites",
+                label = stringResource(Res.string.library_shelf_name),
+                placeholder = stringResource(Res.string.library_eg_to_read_favorites),
                 modifier = Modifier.focusRequester(focusRequester),
             )
         },
@@ -354,12 +363,12 @@ private fun CreateShelfDialog(
                 onClick = { onCreate(shelfName.trim()) },
                 enabled = isValid,
             ) {
-                Text("Create & Add")
+                Text(stringResource(Res.string.library_create_add))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(Res.string.design_cancel))
             }
         },
     )

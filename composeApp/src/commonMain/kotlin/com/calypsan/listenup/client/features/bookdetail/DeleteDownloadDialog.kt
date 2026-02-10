@@ -4,6 +4,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.Composable
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_delete
+import listenup.composeapp.generated.resources.book_detail_delete_download
+import listenup.composeapp.generated.resources.book_detail_remove_the_downloaded_files_for
+import listenup.composeapp.generated.resources.book_detail_you_can_redownload_anytime_by
 
 /**
  * Confirmation dialog for deleting downloaded audiobook files.
@@ -17,12 +23,12 @@ fun DeleteDownloadDialog(
 ) {
     ListenUpDestructiveDialog(
         onDismissRequest = onDismiss,
-        title = "Delete Download?",
+        title = stringResource(Res.string.book_detail_delete_download),
         text =
-            "Remove the downloaded files for \"$bookTitle\"? " +
+            stringResource(Res.string.book_detail_remove_the_downloaded_files_for, bookTitle) +
                 "This will free up ${formatFileSize(downloadSize)}. " +
-                "You can re-download anytime by playing the book.",
-        confirmText = "Delete",
+                stringResource(Res.string.book_detail_you_can_redownload_anytime_by),
+        confirmText = stringResource(Res.string.admin_delete),
         onConfirm = onConfirm,
         onDismiss = onDismiss,
         icon = Icons.Default.Delete,

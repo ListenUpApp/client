@@ -20,6 +20,10 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.AutocompleteResultItem
 import com.calypsan.listenup.client.design.components.ListenUpAutocompleteField
 import com.calypsan.listenup.client.domain.model.ContributorSearchResult
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.contributor_no_pen_names_yet_add
+import listenup.composeapp.generated.resources.contributor_remove_aliasname
 
 /**
  * Aliases section with merge functionality.
@@ -45,7 +49,7 @@ fun AliasesSection(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (aliases.isEmpty()) {
             Text(
-                text = "No pen names yet. Add aliases to merge other contributors into this one.",
+                text = stringResource(Res.string.contributor_no_pen_names_yet_add),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -114,7 +118,7 @@ private fun AliasChip(
         trailingIcon = {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Remove $aliasName",
+                contentDescription = stringResource(Res.string.contributor_remove_aliasname, aliasName),
                 modifier =
                     Modifier
                         .size(InputChipDefaults.AvatarSize)

@@ -37,6 +37,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.domain.model.Shelf
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.home_cover_1
+import listenup.composeapp.generated.resources.home_cover_2
+import listenup.composeapp.generated.resources.home_cover_3
+import listenup.composeapp.generated.resources.home_cover_4
 
 private const val DEFAULT_HEX_COLOR = 0xFF6B7280L
 private const val ALPHA_MASK = 0xFF000000L
@@ -185,13 +191,13 @@ private fun ShelfCoverGrid(
                     CoverCell(
                         path = coverPaths.getOrNull(0),
                         color = color,
-                        contentDescription = "Cover 1",
+                        contentDescription = stringResource(Res.string.home_cover_1),
                         modifier = Modifier.weight(1f).fillMaxSize(),
                     )
                     CoverCell(
                         path = coverPaths.getOrNull(1),
                         color = color,
-                        contentDescription = "Cover 2",
+                        contentDescription = stringResource(Res.string.home_cover_2),
                         modifier = Modifier.weight(1f).fillMaxSize(),
                     )
                 }
@@ -202,13 +208,13 @@ private fun ShelfCoverGrid(
                     CoverCell(
                         path = coverPaths.getOrNull(2),
                         color = color,
-                        contentDescription = "Cover 3",
+                        contentDescription = stringResource(Res.string.home_cover_3),
                         modifier = Modifier.weight(1f).fillMaxSize(),
                     )
                     CoverCell(
                         path = coverPaths.getOrNull(3),
                         color = color,
-                        contentDescription = "Cover 4",
+                        contentDescription = stringResource(Res.string.home_cover_4),
                         modifier = Modifier.weight(1f).fillMaxSize(),
                     )
                 }

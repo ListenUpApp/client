@@ -57,6 +57,11 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.shell_library_changed
+import listenup.composeapp.generated.resources.shell_the_servers_library_has_changed
 
 private val logger = KotlinLogging.logger {}
 
@@ -192,10 +197,10 @@ fun AppShell(
     libraryMismatchToShow?.let { mismatch ->
         ListenUpDestructiveDialog(
             onDismissRequest = { libraryMismatchToShow = null },
-            title = "Library Changed",
+            title = stringResource(Res.string.shell_library_changed),
             text =
                 if (mismatch.hasPendingChanges) {
-                    "The server's library has changed. You have unsaved changes that will be lost. " +
+                    stringResource(Res.string.shell_the_servers_library_has_changed) +
                         "Would you like to resync with the new library?"
                 } else {
                     "The server's library has changed. Your local data will be refreshed to match."
@@ -207,7 +212,7 @@ fun AppShell(
                     syncRepository.resetForNewLibrary(mismatch.actualLibraryId)
                 }
             },
-            dismissText = "Cancel",
+            dismissText = stringResource(Res.string.design_cancel),
             onDismiss = { libraryMismatchToShow = null },
         )
     }

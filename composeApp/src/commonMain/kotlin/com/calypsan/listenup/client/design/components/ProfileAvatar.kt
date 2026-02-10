@@ -29,6 +29,9 @@ import com.calypsan.listenup.client.domain.repository.ImageStorage
 import com.calypsan.listenup.client.domain.repository.UserProfileRepository
 import org.koin.compose.koinInject
 import java.io.File
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.design_displayname_avatar
 
 /**
  * Simple avatar component for displaying other users' profiles.
@@ -133,7 +136,7 @@ fun ProfileAvatar(
                         .memoryCacheKey("$userId-avatar-$lastModified")
                         .diskCacheKey("$userId-avatar-$lastModified")
                         .build(),
-                contentDescription = "$displayName avatar",
+                contentDescription = stringResource(Res.string.design_displayname_avatar, displayName),
                 modifier =
                     Modifier
                         .size(size)

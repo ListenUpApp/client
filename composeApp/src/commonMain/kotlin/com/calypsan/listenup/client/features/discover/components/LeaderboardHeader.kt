@@ -11,6 +11,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.domain.repository.LeaderboardPeriod
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.discover_leaderboard
 
 /**
  * Leaderboard header with title and period selector.
@@ -31,7 +34,7 @@ fun LeaderboardHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Leaderboard",
+            text = stringResource(Res.string.discover_leaderboard),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )

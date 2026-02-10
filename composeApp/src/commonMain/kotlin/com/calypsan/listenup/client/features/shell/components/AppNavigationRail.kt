@@ -16,6 +16,10 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.UserAvatar
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.features.shell.ShellDestination
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_admin
+import listenup.composeapp.generated.resources.design_settings
 
 /**
  * Navigation rail for medium-sized screens (tablets in portrait).
@@ -78,10 +82,10 @@ fun AppNavigationRail(
             icon = {
                 Icon(
                     imageVector = Icons.Outlined.Settings,
-                    contentDescription = "Settings",
+                    contentDescription = stringResource(Res.string.design_settings),
                 )
             },
-            label = { Text("Settings") },
+            label = { Text(stringResource(Res.string.design_settings)) },
         )
 
         // Administration (admin users only)
@@ -92,10 +96,10 @@ fun AppNavigationRail(
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.AdminPanelSettings,
-                        contentDescription = "Admin",
+                        contentDescription = stringResource(Res.string.admin_admin),
                     )
                 },
-                label = { Text("Admin") },
+                label = { Text(stringResource(Res.string.admin_admin)) },
             )
         }
 

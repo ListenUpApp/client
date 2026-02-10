@@ -63,6 +63,14 @@ import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailUiState
 import com.calypsan.listenup.client.presentation.seriesdetail.SeriesDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.book_detail_about
+import listenup.composeapp.generated.resources.series_book_sequence
+import listenup.composeapp.generated.resources.series_books_in_series
+import listenup.composeapp.generated.resources.series_edit_series
+import listenup.composeapp.generated.resources.series_series_cover
 
 /**
  * Screen displaying series details with its books.
@@ -100,7 +108,7 @@ fun SeriesDetailScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.admin_back),
                         )
                     }
                 },
@@ -108,7 +116,7 @@ fun SeriesDetailScreen(
                     IconButton(onClick = { onEditClick(seriesId) }) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit series",
+                            contentDescription = stringResource(Res.string.series_edit_series),
                         )
                     }
                 },
@@ -198,7 +206,7 @@ private fun WideSeriesDetailContent(
         // Full-span section header
         item(span = { GridItemSpan(maxLineSpan) }) {
             Text(
-                text = "Books in Series",
+                text = stringResource(Res.string.series_books_in_series),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -248,7 +256,7 @@ private fun SeriesHeaderRow(
             if (coverPath != null) {
                 ListenUpAsyncImage(
                     path = coverPath,
-                    contentDescription = "Series cover",
+                    contentDescription = stringResource(Res.string.series_series_cover),
                     contentScale = ContentScale.Crop,
                     modifier =
                         Modifier
@@ -359,7 +367,7 @@ private fun SeriesBookCard(
                 // Series position
                 book.seriesSequence?.let { sequence ->
                     Text(
-                        text = "Book $sequence",
+                        text = stringResource(Res.string.series_book_sequence, sequence),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
@@ -427,7 +435,7 @@ private fun NarrowSeriesDetailContent(
                             .padding(top = 16.dp),
                 ) {
                     Text(
-                        text = "About",
+                        text = stringResource(Res.string.book_detail_about),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )
@@ -454,7 +462,7 @@ private fun NarrowSeriesDetailContent(
         // Books section header
         item {
             Text(
-                text = "Books in Series",
+                text = stringResource(Res.string.series_books_in_series),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier =
@@ -505,7 +513,7 @@ private fun SeriesHeroSection(
             if (coverPath != null) {
                 ListenUpAsyncImage(
                     path = coverPath,
-                    contentDescription = "Series cover",
+                    contentDescription = stringResource(Res.string.series_series_cover),
                     contentScale = ContentScale.Crop,
                     modifier =
                         Modifier
@@ -602,7 +610,7 @@ private fun SeriesBookItem(
                 // Series position
                 book.seriesSequence?.let { sequence ->
                     Text(
-                        text = "Book $sequence",
+                        text = stringResource(Res.string.series_book_sequence, sequence),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )

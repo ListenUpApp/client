@@ -44,6 +44,9 @@ import com.calypsan.listenup.client.design.components.ProfileAvatar
 import com.calypsan.listenup.client.presentation.discover.CurrentlyListeningUiSession
 import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.discover_what_others_are_listening_to
 
 /**
  * Horizontal section showing books that other users are currently listening to.
@@ -65,7 +68,7 @@ fun CurrentlyListeningSection(
     Column(modifier = modifier) {
         // Section header
         Text(
-            text = "What Others Are Listening To",
+            text = stringResource(Res.string.discover_what_others_are_listening_to),
             style =
                 MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,

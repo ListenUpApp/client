@@ -77,6 +77,18 @@ import com.calypsan.listenup.client.presentation.contributordetail.ContributorDe
 import com.calypsan.listenup.client.presentation.contributordetail.ContributorDetailViewModel
 import com.calypsan.listenup.client.presentation.contributordetail.RoleSection
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.admin_delete
+import listenup.composeapp.generated.resources.book_detail_about
+import listenup.composeapp.generated.resources.book_detail_more_options
+import listenup.composeapp.generated.resources.contributor_delete_contributor
+import listenup.composeapp.generated.resources.contributor_download_metadata
+import listenup.composeapp.generated.resources.contributor_edit
+import listenup.composeapp.generated.resources.contributor_from_your_library_this_action
+import listenup.composeapp.generated.resources.contributor_name_profile_image
+import listenup.composeapp.generated.resources.contributor_view_all
 
 /**
  * Artist Portfolio screen - an immersive contributor detail experience.
@@ -182,11 +194,11 @@ fun ContributorDetailScreen(
         if (state.showDeleteConfirmation) {
             ListenUpDestructiveDialog(
                 onDismissRequest = viewModel::onDismissDelete,
-                title = "Delete Contributor?",
+                title = stringResource(Res.string.contributor_delete_contributor),
                 text =
                     "This will remove ${state.contributor?.name ?: "this contributor"} " +
-                        "from your library. This action cannot be undone.",
-                confirmText = "Delete",
+                        stringResource(Res.string.contributor_from_your_library_this_action),
+                confirmText = stringResource(Res.string.admin_delete),
                 onConfirm = { viewModel.onConfirmDelete(onBackClick) },
             )
         }
@@ -451,7 +463,7 @@ private fun WorkSectionHeader(
                 onClick = onViewAllClick,
                 shape = RoundedCornerShape(24.dp),
             ) {
-                Text("View All")
+                Text(stringResource(Res.string.contributor_view_all))
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -703,7 +715,7 @@ private fun NavigationBar(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(Res.string.admin_back),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
@@ -721,7 +733,7 @@ private fun NavigationBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options",
+                    contentDescription = stringResource(Res.string.book_detail_more_options),
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
@@ -731,7 +743,7 @@ private fun NavigationBar(
                 onDismissRequest = { showMenu = false },
             ) {
                 DropdownMenuItem(
-                    text = { Text("Edit") },
+                    text = { Text(stringResource(Res.string.contributor_edit)) },
                     leadingIcon = { Icon(Icons.Default.Edit, null) },
                     onClick = {
                         showMenu = false
@@ -739,7 +751,7 @@ private fun NavigationBar(
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text("Download Metadata") },
+                    text = { Text(stringResource(Res.string.contributor_download_metadata)) },
                     leadingIcon = { Icon(Icons.Default.CloudDownload, null) },
                     onClick = {
                         showMenu = false
@@ -750,7 +762,7 @@ private fun NavigationBar(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            "Delete",
+                            stringResource(Res.string.admin_delete),
                             color = MaterialTheme.colorScheme.error,
                         )
                     },
@@ -800,7 +812,7 @@ private fun ElevatedAvatar(
             if (imagePath != null) {
                 com.calypsan.listenup.client.design.components.ListenUpAsyncImage(
                     path = imagePath,
-                    contentDescription = "$name profile image",
+                    contentDescription = stringResource(Res.string.contributor_name_profile_image, name),
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -865,7 +877,7 @@ private fun BiographySection(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = "About",
+            text = stringResource(Res.string.book_detail_about),
             style =
                 MaterialTheme.typography.titleMedium.copy(
                     fontFamily = DisplayFontFamily,

@@ -43,6 +43,10 @@ import com.calypsan.listenup.client.design.components.ProfileAvatar
 import com.calypsan.listenup.client.presentation.discover.ActivityFeedViewModel
 import com.calypsan.listenup.client.presentation.discover.ActivityUiModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.discover_activity_feed
+import listenup.composeapp.generated.resources.discover_no_activity_yet_start_listening
 
 /**
  * Activity Feed section for the Discover screen.
@@ -88,7 +92,7 @@ fun ActivityFeedSection(
         ) {
             // Header
             Text(
-                text = "Activity Feed",
+                text = stringResource(Res.string.discover_activity_feed),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -108,7 +112,7 @@ fun ActivityFeedSection(
 
                 state.isEmpty -> {
                     Text(
-                        text = "No activity yet. Start listening to see what your community is reading!",
+                        text = stringResource(Res.string.discover_no_activity_yet_start_listening),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

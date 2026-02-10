@@ -32,6 +32,12 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.design_clear_date
+import listenup.composeapp.generated.resources.design_ok
+import listenup.composeapp.generated.resources.design_select_date
 
 /**
  * Material 3 date picker field with calendar dialog.
@@ -81,13 +87,13 @@ fun ListenUpDatePicker(
                     IconButton(onClick = { onValueChange("") }) {
                         Icon(
                             imageVector = Icons.Default.Clear,
-                            contentDescription = "Clear date",
+                            contentDescription = stringResource(Res.string.design_clear_date),
                         )
                     }
                 } else {
                     Icon(
                         imageVector = Icons.Default.CalendarMonth,
-                        contentDescription = "Select date",
+                        contentDescription = stringResource(Res.string.design_select_date),
                     )
                 }
             },
@@ -122,12 +128,12 @@ fun ListenUpDatePicker(
                         showDialog = false
                     },
                 ) {
-                    Text("OK")
+                    Text(stringResource(Res.string.design_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.design_cancel))
                 }
             },
             shape = MaterialTheme.shapes.large,

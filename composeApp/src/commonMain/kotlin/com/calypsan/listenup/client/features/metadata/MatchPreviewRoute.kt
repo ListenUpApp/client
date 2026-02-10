@@ -31,6 +31,12 @@ import com.calypsan.listenup.client.presentation.metadata.AudibleRegion
 import com.calypsan.listenup.client.presentation.metadata.MetadataViewModel
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.metadata_audible_catalog_try_a_different
+import listenup.composeapp.generated.resources.metadata_book_not_found_on_audible
+import listenup.composeapp.generated.resources.metadata_failed_to_load_metadata_preview
+import listenup.composeapp.generated.resources.metadata_go_back
 
 /**
  * Route composable for the match preview screen.
@@ -107,7 +113,7 @@ fun MatchPreviewRoute(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "Failed to load metadata preview",
+                    text = stringResource(Res.string.metadata_failed_to_load_metadata_preview),
                     color = MaterialTheme.colorScheme.error,
                 )
             }
@@ -169,7 +175,7 @@ private fun NotFoundErrorScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Book not found on Audible",
+                text = stringResource(Res.string.metadata_book_not_found_on_audible),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -177,7 +183,7 @@ private fun NotFoundErrorScreen(
             Text(
                 text =
                     "This book couldn't be found in the ${selectedRegion.displayName} " +
-                        "Audible catalog. Try a different region:",
+                        stringResource(Res.string.metadata_audible_catalog_try_a_different),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -200,7 +206,7 @@ private fun NotFoundErrorScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = onBack) {
-                Text("Go Back")
+                Text(stringResource(Res.string.metadata_go_back))
             }
         }
     }

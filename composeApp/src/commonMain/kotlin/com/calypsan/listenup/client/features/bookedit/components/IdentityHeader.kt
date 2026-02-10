@@ -48,6 +48,14 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ElevatedCoverCard
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.book_edit_add_subtitle
+import listenup.composeapp.generated.resources.book_edit_book_cover
+import listenup.composeapp.generated.resources.book_edit_change_cover
+import listenup.composeapp.generated.resources.book_edit_subtitle
+import listenup.composeapp.generated.resources.book_edit_title
 
 /**
  * Identity header showing cover image with edit capability and title/subtitle fields.
@@ -88,7 +96,7 @@ fun IdentityHeader(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(Res.string.admin_back),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
@@ -103,7 +111,7 @@ fun IdentityHeader(
             // Cover art (120dp) - tappable for upload
             ElevatedCoverCard(
                 path = coverPath,
-                contentDescription = "Book cover",
+                contentDescription = stringResource(Res.string.book_edit_book_cover),
                 modifier =
                     Modifier
                         .width(120.dp)
@@ -140,7 +148,7 @@ fun IdentityHeader(
                     ) {
                         Icon(
                             imageVector = Icons.Default.CameraAlt,
-                            contentDescription = "Change cover",
+                            contentDescription = stringResource(Res.string.book_edit_change_cover),
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
@@ -166,7 +174,7 @@ fun IdentityHeader(
                         ),
                     placeholder = {
                         Text(
-                            "Title",
+                            stringResource(Res.string.book_edit_title),
                             style =
                                 MaterialTheme.typography.headlineSmall.copy(
                                     fontFamily = DisplayFontFamily,
@@ -204,7 +212,7 @@ fun IdentityHeader(
                             ),
                         placeholder = {
                             Text(
-                                "Subtitle",
+                                stringResource(Res.string.book_edit_subtitle),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             )
@@ -226,7 +234,7 @@ fun IdentityHeader(
 
                 if (!subtitleExpanded) {
                     Text(
-                        text = "+ Add subtitle",
+                        text = stringResource(Res.string.book_edit_add_subtitle),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier =

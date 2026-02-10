@@ -37,6 +37,19 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.presentation.sync.PendingOperationUi
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiState
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_retry
+import listenup.composeapp.generated.resources.book_edit_dismiss
+import listenup.composeapp.generated.resources.shell_all_synced
+import listenup.composeapp.generated.resources.shell_changes_waiting_to_sync
+import listenup.composeapp.generated.resources.shell_dismiss_all
+import listenup.composeapp.generated.resources.shell_no_pending_changes
+import listenup.composeapp.generated.resources.shell_pendingcount_pending
+import listenup.composeapp.generated.resources.shell_retry_all
+import listenup.composeapp.generated.resources.shell_sync_status
+import listenup.composeapp.generated.resources.shell_syncing
+import listenup.composeapp.generated.resources.shell_your_library_is_up_to
 
 /**
  * Bottom sheet showing sync status details.
@@ -70,7 +83,7 @@ fun SyncDetailsSheet(
         ) {
             // Header
             Text(
-                text = "Sync Status",
+                text = stringResource(Res.string.shell_sync_status),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(vertical = 16.dp),
             )
@@ -128,7 +141,7 @@ private fun SyncStatusSection(
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Syncing...",
+                        text = stringResource(Res.string.shell_syncing),
                         style = MaterialTheme.typography.titleMedium,
                     )
                     currentOperation?.let {
@@ -149,11 +162,11 @@ private fun SyncStatusSection(
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "$pendingCount pending",
+                        text = stringResource(Res.string.shell_pendingcount_pending, pendingCount),
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = "Changes waiting to sync",
+                        text = stringResource(Res.string.shell_changes_waiting_to_sync),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -167,7 +180,7 @@ private fun SyncStatusSection(
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text = "No pending changes",
+                    text = stringResource(Res.string.shell_no_pending_changes),
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
@@ -195,12 +208,12 @@ private fun SyncCompleteSection() {
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "All synced",
+                    text = stringResource(Res.string.shell_all_synced),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
-                    text = "Your library is up to date",
+                    text = stringResource(Res.string.shell_your_library_is_up_to),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                 )
@@ -240,10 +253,10 @@ private fun FailedOperationsSection(
 
         Row {
             TextButton(onClick = onRetryAll) {
-                Text("Retry all")
+                Text(stringResource(Res.string.shell_retry_all))
             }
             TextButton(onClick = onDismissAll) {
-                Text("Dismiss all")
+                Text(stringResource(Res.string.shell_dismiss_all))
             }
         }
     }
@@ -299,7 +312,7 @@ private fun FailedOperationItem(
             IconButton(onClick = onRetry) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
-                    contentDescription = "Retry",
+                    contentDescription = stringResource(Res.string.book_detail_retry),
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }
@@ -307,7 +320,7 @@ private fun FailedOperationItem(
             IconButton(onClick = onDismiss) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Dismiss",
+                    contentDescription = stringResource(Res.string.book_edit_dismiss),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

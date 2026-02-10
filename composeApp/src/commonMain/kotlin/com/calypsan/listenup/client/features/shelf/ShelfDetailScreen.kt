@@ -61,6 +61,14 @@ import com.calypsan.listenup.client.domain.model.ShelfBook
 import com.calypsan.listenup.client.presentation.shelf.ShelfDetailUiState
 import com.calypsan.listenup.client.presentation.shelf.ShelfDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.book_detail_about
+import listenup.composeapp.generated.resources.shelf_add_books_from_the_library
+import listenup.composeapp.generated.resources.shelf_books_in_shelf
+import listenup.composeapp.generated.resources.shelf_edit_shelf
+import listenup.composeapp.generated.resources.shelf_no_books_yet
 
 /**
  * Screen displaying shelf details with its books.
@@ -108,7 +116,7 @@ fun ShelfDetailScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(Res.string.admin_back),
                         )
                     }
                 },
@@ -117,7 +125,7 @@ fun ShelfDetailScreen(
                         IconButton(onClick = { onEditClick(shelfId) }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit shelf",
+                                contentDescription = stringResource(Res.string.shelf_edit_shelf),
                             )
                         }
                     }
@@ -198,7 +206,7 @@ private fun ShelfDetailContent(
                             .padding(top = 16.dp),
                 ) {
                     Text(
-                        text = "About",
+                        text = stringResource(Res.string.book_detail_about),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )
@@ -225,7 +233,7 @@ private fun ShelfDetailContent(
         // Books section header
         item {
             Text(
-                text = "Books in Shelf",
+                text = stringResource(Res.string.shelf_books_in_shelf),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier =
@@ -256,13 +264,13 @@ private fun ShelfDetailContent(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "No books yet",
+                            text = stringResource(Res.string.shelf_no_books_yet),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         if (state.isOwner) {
                             Text(
-                                text = "Add books from the library",
+                                text = stringResource(Res.string.shelf_add_books_from_the_library),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

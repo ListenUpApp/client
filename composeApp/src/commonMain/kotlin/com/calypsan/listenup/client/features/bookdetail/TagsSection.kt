@@ -19,6 +19,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 import com.calypsan.listenup.client.domain.model.Tag
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_tags
 
 /**
  * Section displaying tags for a book.
@@ -42,7 +45,7 @@ fun TagsSection(
     ) {
         // Header - matches "About" and "Chapters" heading style
         Text(
-            text = "Tags",
+            text = stringResource(Res.string.book_detail_tags),
             style =
                 MaterialTheme.typography.titleMedium.copy(
                     fontFamily = DisplayFontFamily,

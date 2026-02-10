@@ -38,6 +38,12 @@ import com.calypsan.listenup.client.design.components.UserAvatar
 import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.features.shell.ShellDestination
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.contributor_search
+import listenup.composeapp.generated.resources.shell_close_search
+import listenup.composeapp.generated.resources.shell_search_audiobooks
+import listenup.composeapp.generated.resources.shell_sync_error
 
 /**
  * Top app bar for the main shell with collapsible search.
@@ -94,7 +100,7 @@ fun AppTopBar(
                 IconButton(onClick = { onSearchExpandedChange(false) }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Close search",
+                        contentDescription = stringResource(Res.string.shell_close_search),
                     )
                 }
             }
@@ -122,7 +128,7 @@ fun AppTopBar(
                 IconButton(onClick = { onSearchExpandedChange(true) }) {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
+                        contentDescription = stringResource(Res.string.contributor_search),
                     )
                 }
             }
@@ -173,7 +179,7 @@ private fun SearchField(
     TextField(
         value = query,
         onValueChange = onQueryChange,
-        placeholder = { Text("Search audiobooks...") },
+        placeholder = { Text(stringResource(Res.string.shell_search_audiobooks)) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions =
@@ -225,7 +231,7 @@ private fun SyncIndicator(
         is SyncState.Error -> {
             Icon(
                 imageVector = Icons.Default.CloudOff,
-                contentDescription = "Sync error",
+                contentDescription = stringResource(Res.string.shell_sync_error),
                 tint = MaterialTheme.colorScheme.error,
                 modifier =
                     Modifier

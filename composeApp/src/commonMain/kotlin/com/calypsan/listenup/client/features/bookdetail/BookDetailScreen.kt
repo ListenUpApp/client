@@ -57,6 +57,9 @@ import com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_server_is_unreachable_connect_to
 
 /**
  * Immersive book detail screen following Material 3 Expressive Design.

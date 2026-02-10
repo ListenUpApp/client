@@ -56,6 +56,16 @@ import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
 import com.calypsan.listenup.client.util.sortLetter
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_detail_retry
+import listenup.composeapp.generated.resources.library_add_audiobooks_to_your_server
+import listenup.composeapp.generated.resources.library_failed_to_load_library
+import listenup.composeapp.generated.resources.library_loading_your_library
+import listenup.composeapp.generated.resources.library_no_audiobooks_yet
+import listenup.composeapp.generated.resources.library_summary
+import listenup.composeapp.generated.resources.library_title_sort
+import listenup.composeapp.generated.resources.library_your_audiobooks_will_appear_here
 
 private const val SCAN_PROGRESS_WIDTH_FRACTION = 0.6f
 
@@ -178,7 +188,7 @@ private fun ArticleToggleChip(
         onClick = onToggle,
         label = {
             Text(
-                text = "Title Sort",
+                text = stringResource(Res.string.library_title_sort),
                 style = MaterialTheme.typography.labelLarge,
             )
         },
@@ -479,7 +489,7 @@ private fun BooksLoadingState() {
         ) {
             ListenUpLoadingIndicator()
             Text(
-                text = "Loading your library...",
+                text = stringResource(Res.string.library_loading_your_library),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -512,7 +522,7 @@ private fun ScanProgressBanner(scanProgress: ScanProgressState) {
                 val summary = scanProgress.changesSummary
                 if (summary != null) {
                     Text(
-                        text = "• $summary",
+                        text = stringResource(Res.string.library_summary, summary),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
                     )
@@ -569,7 +579,7 @@ private fun BooksScanningState(scanProgress: ScanProgressState? = null) {
                 )
             }
             Text(
-                text = "Your audiobooks will appear here once the scan is complete",
+                text = stringResource(Res.string.library_your_audiobooks_will_appear_here),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -599,12 +609,12 @@ private fun BooksEmptyState() {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "No audiobooks yet",
+                text = stringResource(Res.string.library_no_audiobooks_yet),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "Add audiobooks to your server to get started",
+                text = stringResource(Res.string.library_add_audiobooks_to_your_server),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -637,7 +647,7 @@ private fun BooksErrorState(
                 tint = MaterialTheme.colorScheme.error,
             )
             Text(
-                text = "Failed to load library",
+                text = stringResource(Res.string.library_failed_to_load_library),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -648,7 +658,7 @@ private fun BooksErrorState(
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            ListenUpButton(text = "Retry", onClick = onRetry)
+            ListenUpButton(text = stringResource(Res.string.book_detail_retry), onClick = onRetry)
         }
     }
 }

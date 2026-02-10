@@ -44,6 +44,20 @@ import com.calypsan.listenup.client.design.components.FullScreenLoadingIndicator
 import com.calypsan.listenup.client.domain.model.AdminUserInfo
 import com.calypsan.listenup.client.presentation.admin.UserDetailUiState
 import com.calypsan.listenup.client.presentation.admin.UserDetailViewModel
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.admin_allow_downloading_content_for_offline
+import listenup.composeapp.generated.resources.admin_allow_sharing_collections_with_other
+import listenup.composeapp.generated.resources.admin_can_download
+import listenup.composeapp.generated.resources.admin_can_share
+import listenup.composeapp.generated.resources.admin_display_name
+import listenup.composeapp.generated.resources.admin_email_address
+import listenup.composeapp.generated.resources.admin_permissions
+import listenup.composeapp.generated.resources.admin_protected_user
+import listenup.composeapp.generated.resources.admin_role
+import listenup.composeapp.generated.resources.admin_this_users_permissions_cannot_be
+import listenup.composeapp.generated.resources.admin_user_information
+import listenup.composeapp.generated.resources.admin_user_not_found
 
 /**
  * Screen for viewing and editing a single user's details and permissions.
@@ -89,7 +103,7 @@ fun UserDetailScreen(
             FullScreenLoadingIndicator()
         } else if (state.user == null) {
             ErrorContent(
-                message = "User not found",
+                message = stringResource(Res.string.admin_user_not_found),
                 modifier = Modifier.padding(innerPadding),
             )
         } else {
@@ -121,7 +135,7 @@ private fun UserDetailContent(
         // User info section
         item {
             Text(
-                text = "User Information",
+                text = stringResource(Res.string.admin_user_information),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
@@ -136,7 +150,7 @@ private fun UserDetailContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Permissions",
+                text = stringResource(Res.string.admin_permissions),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -206,7 +220,7 @@ private fun UserInfoCard(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "Display name",
+                        text = stringResource(Res.string.admin_display_name),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -235,7 +249,7 @@ private fun UserInfoCard(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "Email address",
+                        text = stringResource(Res.string.admin_email_address),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -274,7 +288,7 @@ private fun UserInfoCard(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "Role",
+                        text = stringResource(Res.string.admin_role),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -319,12 +333,12 @@ private fun PermissionsCard(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Can Download",
+                        text = stringResource(Res.string.admin_can_download),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "Allow downloading content for offline listening",
+                        text = stringResource(Res.string.admin_allow_downloading_content_for_offline),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -360,12 +374,12 @@ private fun PermissionsCard(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Can Share",
+                        text = stringResource(Res.string.admin_can_share),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "Allow sharing collections with other users",
+                        text = stringResource(Res.string.admin_allow_sharing_collections_with_other),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -409,12 +423,12 @@ private fun ProtectedUserNotice(modifier: Modifier = Modifier) {
             )
             Column {
                 Text(
-                    text = "Protected User",
+                    text = stringResource(Res.string.admin_protected_user),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                 )
                 Text(
-                    text = "This user's permissions cannot be modified",
+                    text = stringResource(Res.string.admin_this_users_permissions_cannot_be),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
                 )

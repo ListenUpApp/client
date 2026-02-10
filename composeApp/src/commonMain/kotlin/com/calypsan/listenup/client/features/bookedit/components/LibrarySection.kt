@@ -26,6 +26,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.util.formatDateLong
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.book_edit_date_added
+import listenup.composeapp.generated.resources.book_edit_eg_lord_of_the_rings
+import listenup.composeapp.generated.resources.book_edit_not_set
+import listenup.composeapp.generated.resources.book_edit_pick_date
+import listenup.composeapp.generated.resources.book_edit_sort_title
+import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.design_ok
 
 /**
  * Library information section: Date Added.
@@ -48,13 +57,13 @@ fun LibrarySection(
         ListenUpTextField(
             value = sortTitle,
             onValueChange = onSortTitleChange,
-            label = "Sort Title",
-            placeholder = "e.g., \"Lord of the Rings, The\"",
+            label = stringResource(Res.string.book_edit_sort_title),
+            placeholder = stringResource(Res.string.book_edit_eg_lord_of_the_rings),
         )
 
         // Date Added picker
         DatePickerField(
-            label = "Date Added",
+            label = stringResource(Res.string.book_edit_date_added),
             value = addedAt,
             onClick = { showDatePicker = true },
         )
@@ -75,12 +84,12 @@ fun LibrarySection(
                         showDatePicker = false
                     },
                 ) {
-                    Text("OK")
+                    Text(stringResource(Res.string.design_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.design_cancel))
                 }
             },
             shape = MaterialTheme.shapes.large,
@@ -116,13 +125,13 @@ private fun DatePickerField(
         value = value?.let { formatDateLong(it) } ?: "",
         onValueChange = {},
         label = { Text(label) },
-        placeholder = { Text("Not set") },
+        placeholder = { Text(stringResource(Res.string.book_edit_not_set)) },
         readOnly = true,
         singleLine = true,
         trailingIcon = {
             Icon(
                 imageVector = Icons.Default.CalendarMonth,
-                contentDescription = "Pick date",
+                contentDescription = stringResource(Res.string.book_edit_pick_date),
             )
         },
         interactionSource = interactionSource,

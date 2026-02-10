@@ -36,6 +36,10 @@ import com.calypsan.listenup.client.design.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.library_no_series_yet
+import listenup.composeapp.generated.resources.library_series_will_appear_here_when
 
 /**
  * Content for the Series tab in the Library screen.
@@ -177,12 +181,12 @@ private fun SeriesEmptyState() {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
             Text(
-                text = "No series yet",
+                text = stringResource(Res.string.library_no_series_yet),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "Series will appear here when books are part of a series",
+                text = stringResource(Res.string.library_series_will_appear_here_when),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

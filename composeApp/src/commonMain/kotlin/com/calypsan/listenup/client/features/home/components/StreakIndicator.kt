@@ -11,6 +11,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.stringResource
+import listenup.composeapp.generated.resources.Res
+import listenup.composeapp.generated.resources.home_best_longeststreak
 
 /**
  * Streak indicator showing current and optionally longest streak.
@@ -58,7 +61,7 @@ fun StreakIndicator(
         if (longestStreak > currentStreak && currentStreak > 0) {
             Spacer(Modifier.width(4.dp))
             Text(
-                text = "(best: $longestStreak)",
+                text = stringResource(Res.string.home_best_longeststreak, longestStreak),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
