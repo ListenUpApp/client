@@ -274,6 +274,10 @@ data class ContributorResponse(
     val id: String,
     @SerialName("name")
     val name: String,
+    @SerialName("sort_name")
+    val sortName: String? = null,
+    @SerialName("asin")
+    val asin: String? = null,
     @SerialName("biography")
     val biography: String? = null,
     @SerialName("image_url")

@@ -1400,7 +1400,6 @@ val MIGRATION_36_37 =
         }
     }
 
-
 /**
  * Migration from version 37 to version 38.
  *

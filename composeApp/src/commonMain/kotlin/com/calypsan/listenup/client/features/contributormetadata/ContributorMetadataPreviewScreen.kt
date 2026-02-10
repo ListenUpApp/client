@@ -142,7 +142,13 @@ fun ContributorMetadataPreviewScreen(
                                     color = MaterialTheme.colorScheme.onPrimary,
                                 )
                             } else {
-                                Text(stringResource(Res.string.contributor_apply_selectedcount_of_availablefieldcount, selectedCount, availableFieldCount))
+                                Text(
+                                    stringResource(
+                                        Res.string.contributor_apply_selectedcount_of_availablefieldcount,
+                                        selectedCount,
+                                        availableFieldCount,
+                                    ),
+                                )
                             }
                         }
                     }

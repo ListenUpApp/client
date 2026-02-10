@@ -111,7 +111,10 @@ fun TalentSection(
             onDismissRequest = { roleToRemove = null },
             title = "Remove ${role.displayName}s?",
             text =
-                stringResource(Res.string.book_edit_this_will_remove_contributorstoremovecount, contributorsToRemoveCount) +
+                stringResource(
+                    Res.string.book_edit_this_will_remove_contributorstoremovecount,
+                    contributorsToRemoveCount,
+                ) +
                     "${role.displayName.lowercase()}${if (contributorsToRemoveCount > 1) "s" else ""} " +
                     stringResource(Res.string.book_edit_from_this_book),
             confirmText = stringResource(Res.string.common_remove),

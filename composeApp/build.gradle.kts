@@ -160,7 +160,6 @@ dependencies {
     "androidRuntimeClasspath"(libs.compose.ui.tooling)
 }
 
-
 // --- Localization: generate platform string files from shared JSON ---
 val generateStrings by tasks.registering {
     group = "localization"
@@ -184,12 +183,21 @@ val generateStrings by tasks.registering {
             val map = groovy.json.JsonSlurper().parseText(jsonFile.readText()) as Map<String, Any>
 
             val entries = mutableListOf<Pair<String, String>>()
-            fun flatten(prefix: String, obj: Any) {
+
+            fun flatten(
+                prefix: String,
+                obj: Any,
+            ) {
                 when (obj) {
-                    is Map<*, *> -> obj.forEach { (k, v) ->
-                        flatten(if (prefix.isEmpty()) k.toString() else prefix + "_" + k, v!!)
+                    is Map<*, *> -> {
+                        obj.forEach { (k, v) ->
+                            flatten(if (prefix.isEmpty()) k.toString() else prefix + "_" + k, v!!)
+                        }
                     }
-                    else -> entries.add(prefix to obj.toString())
+
+                    else -> {
+                        entries.add(prefix to obj.toString())
+                    }
                 }
             }
             flatten("", map)
@@ -208,12 +216,13 @@ val generateStrings by tasks.registering {
     }
 }
 
-tasks.matching {
-    it.name.startsWith("generateComposeResClass") ||
-    it.name.startsWith("convertXmlValueResources") ||
-    it.name.startsWith("copyNonXmlValueResources") ||
-    it.name.startsWith("prepareComposeResources") ||
-    it.name.startsWith("generateActualResourceCollectors")
-}.configureEach {
-    dependsOn(generateStrings)
-}
+tasks
+    .matching {
+        it.name.startsWith("generateComposeResClass") ||
+            it.name.startsWith("convertXmlValueResources") ||
+            it.name.startsWith("copyNonXmlValueResources") ||
+            it.name.startsWith("prepareComposeResources") ||
+            it.name.startsWith("generateActualResourceCollectors")
+    }.configureEach {
+        dependsOn(generateStrings)
+    }

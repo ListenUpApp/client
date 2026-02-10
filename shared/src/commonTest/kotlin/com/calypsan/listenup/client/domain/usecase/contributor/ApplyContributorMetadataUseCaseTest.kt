@@ -39,6 +39,7 @@ class ApplyContributorMetadataUseCaseTest {
         val fixture = TestFixture()
 
         // Default stubs
+        everySuspend { fixture.contributorRepository.getById(any()) } returns null
         everySuspend { fixture.contributorRepository.upsertContributor(any()) } returns Unit
 
         return fixture
