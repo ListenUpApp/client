@@ -27,7 +27,7 @@ actual val platformDatabaseModule: Module =
                 ).setDriver(BundledSQLiteDriver())
                 .setQueryCoroutineContext(Dispatchers.IO)
                 .addCallback(FtsTableCallback())
-                .fallbackToDestructiveMigration(true)
+                .fallbackToDestructiveMigration(false)
                 .build()
         }
     }
