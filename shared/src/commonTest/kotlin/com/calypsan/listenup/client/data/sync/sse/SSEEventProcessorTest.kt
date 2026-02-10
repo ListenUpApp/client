@@ -528,20 +528,21 @@ class SSEEventProcessorTest {
             val processor = fixture.build()
 
             // Existing book in database with palette colors
-            val existingBook = BookEntity(
-                id = BookId("book-1"),
-                title = "Old Title",
-                coverUrl = null,
-                totalDuration = 3_600_000L,
-                dominantColor = 0xFF112233.toInt(),
-                darkMutedColor = 0xFF445566.toInt(),
-                vibrantColor = 0xFF778899.toInt(),
-                syncState = SyncState.SYNCED,
-                lastModified = Timestamp(1000L),
-                serverVersion = Timestamp(1000L),
-                createdAt = Timestamp(1000L),
-                updatedAt = Timestamp(1000L),
-            )
+            val existingBook =
+                BookEntity(
+                    id = BookId("book-1"),
+                    title = "Old Title",
+                    coverUrl = null,
+                    totalDuration = 3_600_000L,
+                    dominantColor = 0xFF112233.toInt(),
+                    darkMutedColor = 0xFF445566.toInt(),
+                    vibrantColor = 0xFF778899.toInt(),
+                    syncState = SyncState.SYNCED,
+                    lastModified = Timestamp(1000L),
+                    serverVersion = Timestamp(1000L),
+                    createdAt = Timestamp(1000L),
+                    updatedAt = Timestamp(1000L),
+                )
             everySuspend { fixture.bookDao.getById(BookId("book-1")) } returns existingBook
 
             val bookResponse = createBookResponse(id = "book-1", title = "New Title")
