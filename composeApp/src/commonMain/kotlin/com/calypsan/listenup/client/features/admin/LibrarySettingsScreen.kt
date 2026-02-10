@@ -67,8 +67,8 @@ import listenup.composeapp.generated.resources.admin_library_information
 import listenup.composeapp.generated.resources.admin_library_name
 import listenup.composeapp.generated.resources.admin_library_not_found
 import listenup.composeapp.generated.resources.admin_new_books_in_this_library
-import listenup.composeapp.generated.resources.admin_open
-import listenup.composeapp.generated.resources.admin_remove
+import listenup.composeapp.generated.resources.common_open
+import listenup.composeapp.generated.resources.common_remove
 import listenup.composeapp.generated.resources.admin_remove_path
 import listenup.composeapp.generated.resources.admin_remove_path_from_library_scan
 import listenup.composeapp.generated.resources.admin_remove_scan_path
@@ -361,7 +361,7 @@ private fun AccessModeCard(
             // Open mode option
             AccessModeRow(
                 icon = Icons.Outlined.LockOpen,
-                title = stringResource(Res.string.admin_open),
+                title = stringResource(Res.string.common_open),
                 description = stringResource(Res.string.admin_uncollected_books_are_visible_to),
                 isSelected = currentMode == AccessMode.OPEN,
                 isEnabled = !isSaving,
@@ -527,7 +527,7 @@ private fun ScanPathsCard(
                     onRemovePath(path)
                     pathToRemove = null
                 }) {
-                    Text(stringResource(Res.string.admin_remove))
+                    Text(stringResource(Res.string.common_remove))
                 }
             },
             dismissButton = {

@@ -44,7 +44,7 @@ import com.calypsan.listenup.client.presentation.shelf.CreateEditShelfViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.common_delete
 import listenup.composeapp.generated.resources.common_cancel
 import listenup.composeapp.generated.resources.shelf_delete_shelf
@@ -102,7 +102,7 @@ fun CreateEditShelfScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.admin_back),
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },

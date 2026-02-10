@@ -54,9 +54,9 @@ import listenup.composeapp.generated.resources.connect_add_server_manually
 import listenup.composeapp.generated.resources.connect_enter_server_url_directly
 import listenup.composeapp.generated.resources.connect_make_sure_your_listenup_server
 import listenup.composeapp.generated.resources.connect_no_servers_found
-import listenup.composeapp.generated.resources.connect_refresh
+import listenup.composeapp.generated.resources.common_refresh
 import listenup.composeapp.generated.resources.connect_select_server
-import listenup.composeapp.generated.resources.connect_selected
+import listenup.composeapp.generated.resources.common_selected
 
 /**
  * Server selection screen showing discovered and saved servers.
@@ -157,7 +157,7 @@ private fun ServerSelectContent(
                     } else {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = stringResource(Res.string.connect_refresh),
+                            contentDescription = stringResource(Res.string.common_refresh),
                         )
                     }
                 }
@@ -318,7 +318,7 @@ private fun ServerCard(
                 } else if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = stringResource(Res.string.connect_selected),
+                        contentDescription = stringResource(Res.string.common_selected),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }

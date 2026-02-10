@@ -62,10 +62,10 @@ import com.calypsan.listenup.client.presentation.metadata.MetadataField
 import com.calypsan.listenup.client.presentation.metadata.MetadataSelections
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
-import listenup.composeapp.generated.resources.book_genres
-import listenup.composeapp.generated.resources.book_edit_series
-import listenup.composeapp.generated.resources.connect_selected
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.common_genres
+import listenup.composeapp.generated.resources.common_series
+import listenup.composeapp.generated.resources.common_selected
 import listenup.composeapp.generated.resources.contributor_audible_region
 import listenup.composeapp.generated.resources.common_loading
 import listenup.composeapp.generated.resources.metadata_apply_selected_metadata
@@ -132,7 +132,7 @@ fun MatchPreviewScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.admin_back),
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },
@@ -540,7 +540,7 @@ private fun CoverOptionCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = stringResource(Res.string.connect_selected),
+                            contentDescription = stringResource(Res.string.common_selected),
                             tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(16.dp),
                         )
@@ -682,7 +682,7 @@ private fun SeriesListItem(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = stringResource(Res.string.book_edit_series),
+            text = stringResource(Res.string.common_series),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = 12.dp, bottom = 4.dp),
@@ -724,7 +724,7 @@ private fun GenreListItem(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = stringResource(Res.string.book_genres),
+            text = stringResource(Res.string.common_genres),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = 12.dp, bottom = 4.dp),

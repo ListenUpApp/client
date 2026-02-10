@@ -63,7 +63,7 @@ import com.calypsan.listenup.client.presentation.shelf.ShelfDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.common_about
 import listenup.composeapp.generated.resources.shelf_add_books_from_the_library
 import listenup.composeapp.generated.resources.shelf_books_in_shelf
@@ -116,7 +116,7 @@ fun ShelfDetailScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.admin_back),
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },

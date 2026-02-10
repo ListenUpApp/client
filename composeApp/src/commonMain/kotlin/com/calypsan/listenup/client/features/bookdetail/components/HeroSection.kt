@@ -42,7 +42,7 @@ import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 import com.calypsan.listenup.client.design.theme.LocalDarkTheme
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.book_detail_more_options
 
 /**
@@ -213,7 +213,7 @@ private fun HeroNavigationBar(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(Res.string.admin_back),
+                contentDescription = stringResource(Res.string.common_back),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }

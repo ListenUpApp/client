@@ -48,7 +48,7 @@ import com.calypsan.listenup.client.presentation.settings.SettingsViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.common_about
 import listenup.composeapp.generated.resources.common_library
 import listenup.composeapp.generated.resources.common_cancel
@@ -211,7 +211,7 @@ fun SettingsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.admin_back),
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },

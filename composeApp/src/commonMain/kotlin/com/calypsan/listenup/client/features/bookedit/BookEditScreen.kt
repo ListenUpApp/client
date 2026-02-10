@@ -58,15 +58,15 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.book_edit_classification
-import listenup.composeapp.generated.resources.book_edit_description
-import listenup.composeapp.generated.resources.book_edit_discard
-import listenup.composeapp.generated.resources.book_edit_dismiss
+import listenup.composeapp.generated.resources.common_description
+import listenup.composeapp.generated.resources.common_discard
+import listenup.composeapp.generated.resources.common_dismiss
 import listenup.composeapp.generated.resources.book_edit_enter_a_description
 import listenup.composeapp.generated.resources.book_edit_identifiers
 import listenup.composeapp.generated.resources.book_edit_keep_editing
 import listenup.composeapp.generated.resources.common_library
 import listenup.composeapp.generated.resources.book_edit_publishing
-import listenup.composeapp.generated.resources.book_edit_series
+import listenup.composeapp.generated.resources.common_series
 import listenup.composeapp.generated.resources.book_edit_talent
 import listenup.composeapp.generated.resources.book_edit_unsaved_changes
 import listenup.composeapp.generated.resources.book_edit_you_have_unsaved_changes_are
@@ -183,7 +183,7 @@ fun BookEditScreen(
                         TextButton(
                             onClick = { viewModel.onEvent(BookEditUiEvent.DismissError) },
                         ) {
-                            Text(stringResource(Res.string.book_edit_dismiss))
+                            Text(stringResource(Res.string.common_dismiss))
                         }
                     }
                 }
@@ -212,7 +212,7 @@ fun BookEditScreen(
             onDismissRequest = { showUnsavedChangesDialog = false },
             title = stringResource(Res.string.book_edit_unsaved_changes),
             text = stringResource(Res.string.book_edit_you_have_unsaved_changes_are),
-            confirmText = stringResource(Res.string.book_edit_discard),
+            confirmText = stringResource(Res.string.common_discard),
             onConfirm = {
                 showUnsavedChangesDialog = false
                 onBackClick()
@@ -303,7 +303,7 @@ private fun SingleColumnCardsLayout(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // Card 1: Description (The Hook)
-        StudioCard(title = stringResource(Res.string.book_edit_description)) {
+        StudioCard(title = stringResource(Res.string.common_description)) {
             ListenUpTextArea(
                 value = state.description,
                 onValueChange = { onEvent(BookEditUiEvent.DescriptionChanged(it)) },
@@ -347,7 +347,7 @@ private fun SingleColumnCardsLayout(
         }
 
         // Card 5: Series
-        StudioCard(title = stringResource(Res.string.book_edit_series)) {
+        StudioCard(title = stringResource(Res.string.common_series)) {
             SeriesSection(
                 series = state.series,
                 searchQuery = state.seriesSearchQuery,
@@ -437,7 +437,7 @@ private fun TwoColumnCardsLayout(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // Full-width: Description (The Hook) - Primary content
-        StudioCard(title = stringResource(Res.string.book_edit_description)) {
+        StudioCard(title = stringResource(Res.string.common_description)) {
             ListenUpTextArea(
                 value = state.description,
                 onValueChange = { onEvent(BookEditUiEvent.DescriptionChanged(it)) },
@@ -486,7 +486,7 @@ private fun TwoColumnCardsLayout(
                     )
                 }
 
-                StudioCard(title = stringResource(Res.string.book_edit_series)) {
+                StudioCard(title = stringResource(Res.string.common_series)) {
                     SeriesSection(
                         series = state.series,
                         searchQuery = state.seriesSearchQuery,

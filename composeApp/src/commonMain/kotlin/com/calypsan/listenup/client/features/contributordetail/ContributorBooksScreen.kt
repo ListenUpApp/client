@@ -53,7 +53,7 @@ import com.calypsan.listenup.client.presentation.contributordetail.SeriesGroup
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.contributor_other_books
 
 /**
@@ -297,7 +297,7 @@ private fun CondensedHeader(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(Res.string.admin_back),
+                    contentDescription = stringResource(Res.string.common_back),
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             }

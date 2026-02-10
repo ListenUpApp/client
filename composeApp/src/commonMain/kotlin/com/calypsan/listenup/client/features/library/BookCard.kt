@@ -53,7 +53,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.connect_selected
+import listenup.composeapp.generated.resources.common_selected
 import listenup.composeapp.generated.resources.common_completed
 
 /**
@@ -360,7 +360,7 @@ private fun SelectionIndicator(
         if (isSelected) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
-                contentDescription = stringResource(Res.string.connect_selected),
+                contentDescription = stringResource(Res.string.common_selected),
                 tint = iconTint,
                 modifier = Modifier.size(20.dp),
             )

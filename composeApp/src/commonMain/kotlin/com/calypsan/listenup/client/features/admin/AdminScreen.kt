@@ -76,9 +76,9 @@ import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_admin
 import listenup.composeapp.generated.resources.admin_allow_anyone_to_request_an
-import listenup.composeapp.generated.resources.admin_approve
+import listenup.composeapp.generated.resources.common_approve
 import listenup.composeapp.generated.resources.admin_are_you_sure_you_want_3
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.admin_backup_restore
 import listenup.composeapp.generated.resources.admin_categories
 import listenup.composeapp.generated.resources.admin_collections
@@ -86,7 +86,7 @@ import listenup.composeapp.generated.resources.admin_copy_link
 import listenup.composeapp.generated.resources.admin_create_backups_and_restore_server
 import listenup.composeapp.generated.resources.common_delete
 import listenup.composeapp.generated.resources.admin_delete_user
-import listenup.composeapp.generated.resources.admin_deny
+import listenup.composeapp.generated.resources.common_deny
 import listenup.composeapp.generated.resources.admin_deny_registration
 import listenup.composeapp.generated.resources.common_email
 import listenup.composeapp.generated.resources.admin_inbox
@@ -94,7 +94,7 @@ import listenup.composeapp.generated.resources.admin_inbox_workflow
 import listenup.composeapp.generated.resources.admin_invite_someone
 import listenup.composeapp.generated.resources.admin_link_copied
 import listenup.composeapp.generated.resources.connect_listenup_server
-import listenup.composeapp.generated.resources.admin_name
+import listenup.composeapp.generated.resources.common_name
 import listenup.composeapp.generated.resources.admin_no_pending_registrations
 import listenup.composeapp.generated.resources.admin_no_users_found
 import listenup.composeapp.generated.resources.admin_open_registration
@@ -174,7 +174,7 @@ fun AdminScreen(
                 title = { Text(stringResource(Res.string.common_administration)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.admin_back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.common_back))
                     }
                 },
             )
@@ -264,7 +264,7 @@ fun AdminScreen(
             text =
                 stringResource(Res.string.admin_are_you_sure_you_want_3) +
                     "${user.displayName ?: user.email}? They will need to register again.",
-            confirmText = stringResource(Res.string.admin_deny),
+            confirmText = stringResource(Res.string.common_deny),
             onConfirm = {
                 viewModel.denyUser(user.id)
                 userToDeny = null
@@ -730,7 +730,7 @@ private fun PendingUserRow(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(stringResource(Res.string.admin_deny))
+                Text(stringResource(Res.string.common_deny))
             }
             FilledTonalButton(
                 onClick = onApproveClick,
@@ -741,7 +741,7 @@ private fun PendingUserRow(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(stringResource(Res.string.admin_approve))
+                Text(stringResource(Res.string.common_approve))
             }
         }
     }
@@ -758,7 +758,7 @@ private fun UserTableHeader(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = stringResource(Res.string.admin_name),
+            text = stringResource(Res.string.common_name),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),

@@ -44,7 +44,7 @@ import com.calypsan.listenup.client.presentation.admin.AdminBackupViewModel
 import org.koin.compose.koinInject
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.admin_book_covers_and_user_avatars
 import listenup.composeapp.generated.resources.admin_cover_images
 import listenup.composeapp.generated.resources.admin_create_a_backup_of_your
@@ -81,7 +81,7 @@ fun CreateBackupScreen(
                 title = { Text(stringResource(Res.string.admin_create_backup)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.admin_back))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.common_back))
                     }
                 },
             )

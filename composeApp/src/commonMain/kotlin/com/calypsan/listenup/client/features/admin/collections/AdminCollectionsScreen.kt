@@ -58,11 +58,11 @@ import com.calypsan.listenup.client.presentation.admin.AdminCollectionsUiState
 import com.calypsan.listenup.client.presentation.admin.AdminCollectionsViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.admin_collection_created
 import listenup.composeapp.generated.resources.admin_collection_name
 import listenup.composeapp.generated.resources.admin_collections
-import listenup.composeapp.generated.resources.admin_create
+import listenup.composeapp.generated.resources.common_create
 import listenup.composeapp.generated.resources.admin_create_a_collection_to_organize
 import listenup.composeapp.generated.resources.admin_create_collection
 import listenup.composeapp.generated.resources.common_delete
@@ -115,7 +115,7 @@ fun AdminCollectionsScreen(
                 title = { Text(stringResource(Res.string.admin_collections)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.admin_back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.common_back))
                     }
                 },
             )
@@ -387,7 +387,7 @@ private fun CreateCollectionDialog(
                 if (isCreating) {
                     ListenUpLoadingIndicatorSmall()
                 } else {
-                    Text(stringResource(Res.string.admin_create))
+                    Text(stringResource(Res.string.common_create))
                 }
             }
         },

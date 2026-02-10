@@ -51,7 +51,7 @@ import com.calypsan.listenup.client.presentation.auth.RegisterViewModel
 import org.koin.compose.koinInject
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.auth_confirm_password
 import listenup.composeapp.generated.resources.auth_create_account
 import listenup.composeapp.generated.resources.auth_create_an_account_request_an
@@ -103,7 +103,7 @@ fun RegisterScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.admin_back),
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },

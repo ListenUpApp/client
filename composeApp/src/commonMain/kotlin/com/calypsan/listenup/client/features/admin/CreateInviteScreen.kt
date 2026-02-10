@@ -60,12 +60,12 @@ import listenup.composeapp.generated.resources.admin_1_day
 import listenup.composeapp.generated.resources.admin_30_days
 import listenup.composeapp.generated.resources.admin_7_days
 import listenup.composeapp.generated.resources.admin_admin
-import listenup.composeapp.generated.resources.admin_back
-import listenup.composeapp.generated.resources.admin_copy
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.common_copy
 import listenup.composeapp.generated.resources.admin_create_an_invite_to_share
 import listenup.composeapp.generated.resources.admin_create_another
 import listenup.composeapp.generated.resources.admin_create_invite
-import listenup.composeapp.generated.resources.admin_done
+import listenup.composeapp.generated.resources.common_done
 import listenup.composeapp.generated.resources.admin_expires_in
 import listenup.composeapp.generated.resources.admin_invite_created
 import listenup.composeapp.generated.resources.admin_invite_created_link_copied_to
@@ -124,7 +124,7 @@ fun CreateInviteScreen(
                 title = { Text(stringResource(Res.string.admin_create_invite)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.admin_back))
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.common_back))
                     }
                 },
             )
@@ -396,7 +396,7 @@ private fun SuccessContent(
                         IconButton(onClick = onCopyClick) {
                             Icon(
                                 imageVector = Icons.Outlined.ContentCopy,
-                                contentDescription = stringResource(Res.string.admin_copy),
+                                contentDescription = stringResource(Res.string.common_copy),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         }
@@ -409,7 +409,7 @@ private fun SuccessContent(
 
         ListenUpButton(
             onClick = onDone,
-            text = stringResource(Res.string.admin_done),
+            text = stringResource(Res.string.common_done),
             modifier = Modifier.fillMaxWidth(),
         )
 

@@ -49,7 +49,7 @@ import com.calypsan.listenup.client.presentation.search.SearchUiState
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.book_detail_tags
-import listenup.composeapp.generated.resources.book_edit_series
+import listenup.composeapp.generated.resources.common_series
 import listenup.composeapp.generated.resources.book_edit_showing_offline_results
 import listenup.composeapp.generated.resources.library_books
 import listenup.composeapp.generated.resources.search_count_books
@@ -173,7 +173,7 @@ private fun TypeFilterRow(
         FilterChip(
             selected = SearchHitType.SERIES in selectedTypes || selectedTypes.isEmpty(),
             onClick = { onToggle(SearchHitType.SERIES) },
-            label = { Text(stringResource(Res.string.book_edit_series)) },
+            label = { Text(stringResource(Res.string.common_series)) },
             leadingIcon = {
                 Icon(
                     Icons.AutoMirrored.Filled.PlaylistPlay,
@@ -269,7 +269,7 @@ private fun SearchResultsList(
         // Series section
         if (series.isNotEmpty()) {
             item(key = "series_header") {
-                SectionHeader(title = stringResource(Res.string.book_edit_series), count = series.size)
+                SectionHeader(title = stringResource(Res.string.common_series), count = series.size)
             }
             items(series, key = { "series_${it.id}" }) { hit ->
                 SeriesSearchResultCard(

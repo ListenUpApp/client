@@ -68,11 +68,11 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.book_edit_change_cover
-import listenup.composeapp.generated.resources.book_edit_description
-import listenup.composeapp.generated.resources.book_edit_discard
-import listenup.composeapp.generated.resources.book_edit_dismiss
+import listenup.composeapp.generated.resources.common_description
+import listenup.composeapp.generated.resources.common_discard
+import listenup.composeapp.generated.resources.common_dismiss
 import listenup.composeapp.generated.resources.book_edit_keep_editing
 import listenup.composeapp.generated.resources.book_edit_unsaved_changes
 import listenup.composeapp.generated.resources.book_edit_you_have_unsaved_changes_are
@@ -267,7 +267,7 @@ private fun UnsavedChangesDialog(
         onDismissRequest = onKeepEditing,
         title = stringResource(Res.string.book_edit_unsaved_changes),
         text = stringResource(Res.string.book_edit_you_have_unsaved_changes_are),
-        confirmText = stringResource(Res.string.book_edit_discard),
+        confirmText = stringResource(Res.string.common_discard),
         onConfirm = onDiscard,
         dismissText = stringResource(Res.string.book_edit_keep_editing),
         onDismiss = onKeepEditing,
@@ -289,7 +289,7 @@ private fun ErrorContent(
             color = MaterialTheme.colorScheme.error,
         )
         TextButton(onClick = onDismiss) {
-            Text(stringResource(Res.string.book_edit_dismiss))
+            Text(stringResource(Res.string.common_dismiss))
         }
     }
 }
@@ -343,7 +343,7 @@ private fun SeriesEditContent(
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             // Description card
-            SeriesStudioCard(title = stringResource(Res.string.book_edit_description)) {
+            SeriesStudioCard(title = stringResource(Res.string.common_description)) {
                 ListenUpTextArea(
                     value = state.description,
                     onValueChange = { onEvent(SeriesEditUiEvent.DescriptionChanged(it)) },
@@ -395,7 +395,7 @@ private fun SeriesIdentityHeader(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(Res.string.admin_back),
+                contentDescription = stringResource(Res.string.common_back),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }

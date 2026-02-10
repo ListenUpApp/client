@@ -47,7 +47,7 @@ import com.calypsan.listenup.client.presentation.discover.DiscoverViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.connect_refresh
+import listenup.composeapp.generated.resources.common_refresh
 import listenup.composeapp.generated.resources.discover_book_1_of_series
 import listenup.composeapp.generated.resources.discover_discover_something_new
 
@@ -95,7 +95,7 @@ fun DiscoverBooksSection(
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(Res.string.connect_refresh),
+                    contentDescription = stringResource(Res.string.common_refresh),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp),
                 )

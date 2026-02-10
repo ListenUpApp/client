@@ -50,12 +50,12 @@ import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSm
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.book_edit_add_subtitle
 import listenup.composeapp.generated.resources.book_edit_book_cover
 import listenup.composeapp.generated.resources.book_edit_change_cover
 import listenup.composeapp.generated.resources.book_edit_subtitle
-import listenup.composeapp.generated.resources.book_edit_title
+import listenup.composeapp.generated.resources.common_title
 
 /**
  * Identity header showing cover image with edit capability and title/subtitle fields.
@@ -96,7 +96,7 @@ fun IdentityHeader(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(Res.string.admin_back),
+                contentDescription = stringResource(Res.string.common_back),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
@@ -174,7 +174,7 @@ fun IdentityHeader(
                         ),
                     placeholder = {
                         Text(
-                            stringResource(Res.string.book_edit_title),
+                            stringResource(Res.string.common_title),
                             style =
                                 MaterialTheme.typography.headlineSmall.copy(
                                     fontFamily = DisplayFontFamily,

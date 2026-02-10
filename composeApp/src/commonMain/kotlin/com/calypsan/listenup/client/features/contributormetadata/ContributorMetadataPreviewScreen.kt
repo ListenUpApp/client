@@ -45,14 +45,14 @@ import com.calypsan.listenup.client.presentation.contributormetadata.Contributor
 import com.calypsan.listenup.client.presentation.contributormetadata.ContributorMetadataUiState
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.contributor_apply_selectedcount_of_availablefieldcount
 import listenup.composeapp.generated.resources.contributor_audible
 import listenup.composeapp.generated.resources.contributor_change_match
 import listenup.composeapp.generated.resources.contributor_current
 import listenup.composeapp.generated.resources.contributor_current_image
 import listenup.composeapp.generated.resources.contributor_failed_to_load_profile
-import listenup.composeapp.generated.resources.contributor_image
+import listenup.composeapp.generated.resources.common_image
 import listenup.composeapp.generated.resources.contributor_new_image
 import listenup.composeapp.generated.resources.contributor_no_change
 import listenup.composeapp.generated.resources.contributor_no_image_available_from_audible
@@ -96,7 +96,7 @@ fun ContributorMetadataPreviewScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.admin_back),
+                            contentDescription = stringResource(Res.string.common_back),
                         )
                     }
                 },
@@ -270,7 +270,7 @@ private fun ImageComparisonRow(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(Res.string.contributor_image),
+                    text = stringResource(Res.string.common_image),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )

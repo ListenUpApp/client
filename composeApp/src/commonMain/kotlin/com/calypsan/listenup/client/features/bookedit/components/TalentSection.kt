@@ -40,7 +40,7 @@ import com.calypsan.listenup.client.presentation.bookedit.EditableContributor
 import com.calypsan.listenup.client.presentation.bookedit.displayName
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_remove
+import listenup.composeapp.generated.resources.common_remove
 import listenup.composeapp.generated.resources.book_edit_add_role
 import listenup.composeapp.generated.resources.book_edit_add_trimmedquery
 import listenup.composeapp.generated.resources.book_edit_from_this_book
@@ -114,7 +114,7 @@ fun TalentSection(
                 stringResource(Res.string.book_edit_this_will_remove_contributorstoremovecount, contributorsToRemoveCount) +
                     "${role.displayName.lowercase()}${if (contributorsToRemoveCount > 1) "s" else ""} " +
                     stringResource(Res.string.book_edit_from_this_book),
-            confirmText = stringResource(Res.string.admin_remove),
+            confirmText = stringResource(Res.string.common_remove),
             onConfirm = {
                 onRemoveRoleSection(role)
                 roleToRemove = null

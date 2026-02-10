@@ -42,8 +42,8 @@ import com.calypsan.listenup.client.design.components.getInitials
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_back
-import listenup.composeapp.generated.resources.admin_name
+import listenup.composeapp.generated.resources.common_back
+import listenup.composeapp.generated.resources.common_name
 import listenup.composeapp.generated.resources.contributor_change_photo
 import listenup.composeapp.generated.resources.contributor_contributor_photo
 
@@ -83,7 +83,7 @@ fun ContributorIdentityHeader(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(Res.string.admin_back),
+                contentDescription = stringResource(Res.string.common_back),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
@@ -182,7 +182,7 @@ fun ContributorIdentityHeader(
                     ),
                 placeholder = {
                     Text(
-                        stringResource(Res.string.admin_name),
+                        stringResource(Res.string.common_name),
                         style =
                             MaterialTheme.typography.headlineSmall.copy(
                                 fontFamily = DisplayFontFamily,

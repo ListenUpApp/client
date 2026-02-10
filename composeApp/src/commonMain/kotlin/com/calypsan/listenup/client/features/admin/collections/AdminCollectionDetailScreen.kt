@@ -61,7 +61,7 @@ import com.calypsan.listenup.client.presentation.admin.CollectionBookItem
 import com.calypsan.listenup.client.presentation.admin.CollectionShareItem
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_add
+import listenup.composeapp.generated.resources.common_add
 import listenup.composeapp.generated.resources.admin_add_member
 import listenup.composeapp.generated.resources.admin_add_members_to_share_this
 import listenup.composeapp.generated.resources.admin_administrator
@@ -79,7 +79,7 @@ import listenup.composeapp.generated.resources.admin_members
 import listenup.composeapp.generated.resources.admin_no_books_in_this_collection
 import listenup.composeapp.generated.resources.admin_no_members
 import listenup.composeapp.generated.resources.admin_no_users_available
-import listenup.composeapp.generated.resources.admin_remove
+import listenup.composeapp.generated.resources.common_remove
 import listenup.composeapp.generated.resources.admin_remove_book
 import listenup.composeapp.generated.resources.admin_remove_member
 import listenup.composeapp.generated.resources.admin_save_changes
@@ -179,7 +179,7 @@ fun AdminCollectionDetailScreen(
             text =
                 "Are you sure you want to remove \"${book.title}\" from this collection? " +
                     stringResource(Res.string.admin_the_book_will_not_be),
-            confirmText = stringResource(Res.string.admin_remove),
+            confirmText = stringResource(Res.string.common_remove),
             onConfirm = {
                 viewModel.removeBook(book.id)
                 bookToRemove = null
@@ -196,7 +196,7 @@ fun AdminCollectionDetailScreen(
             text =
                 stringResource(Res.string.admin_are_you_sure_you_want_6) +
                     stringResource(Res.string.admin_they_will_no_longer_have),
-            confirmText = stringResource(Res.string.admin_remove),
+            confirmText = stringResource(Res.string.common_remove),
             onConfirm = {
                 viewModel.removeShare(share.id)
                 shareToRemove = null
@@ -373,7 +373,7 @@ private fun CollectionDetailContent(
                         modifier = Modifier.size(18.dp),
                     )
                     Text(
-                        text = stringResource(Res.string.admin_add),
+                        text = stringResource(Res.string.common_add),
                         modifier = Modifier.padding(start = 4.dp),
                     )
                 }
@@ -464,7 +464,7 @@ private fun MemberRow(
             IconButton(onClick = onRemoveClick) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
-                    contentDescription = stringResource(Res.string.admin_remove),
+                    contentDescription = stringResource(Res.string.common_remove),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }
@@ -664,7 +664,7 @@ private fun BookRow(
             IconButton(onClick = onRemoveClick) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
-                    contentDescription = stringResource(Res.string.admin_remove),
+                    contentDescription = stringResource(Res.string.common_remove),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }

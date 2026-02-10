@@ -40,7 +40,7 @@ import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiState
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_retry
-import listenup.composeapp.generated.resources.book_edit_dismiss
+import listenup.composeapp.generated.resources.common_dismiss
 import listenup.composeapp.generated.resources.shell_all_synced
 import listenup.composeapp.generated.resources.shell_changes_waiting_to_sync
 import listenup.composeapp.generated.resources.shell_dismiss_all
@@ -320,7 +320,7 @@ private fun FailedOperationItem(
             IconButton(onClick = onDismiss) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
-                    contentDescription = stringResource(Res.string.book_edit_dismiss),
+                    contentDescription = stringResource(Res.string.common_dismiss),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

@@ -74,13 +74,13 @@ import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_add_genre
 import listenup.composeapp.generated.resources.admin_add_subgenre
 import listenup.composeapp.generated.resources.admin_are_you_sure_you_want_4
-import listenup.composeapp.generated.resources.admin_back
+import listenup.composeapp.generated.resources.common_back
 import listenup.composeapp.generated.resources.admin_categories
 import listenup.composeapp.generated.resources.common_delete
 import listenup.composeapp.generated.resources.admin_delete_genre
 import listenup.composeapp.generated.resources.admin_genre_name
 import listenup.composeapp.generated.resources.admin_no_categories
-import listenup.composeapp.generated.resources.admin_rename
+import listenup.composeapp.generated.resources.common_rename
 import listenup.composeapp.generated.resources.admin_rename_genre
 import listenup.composeapp.generated.resources.admin_tap_to_create_your_first
 import listenup.composeapp.generated.resources.common_cancel
@@ -139,7 +139,7 @@ fun AdminCategoriesScreen(
                     title = { Text(stringResource(Res.string.admin_categories)) },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.admin_back))
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.common_back))
                         }
                     },
                     actions = {
@@ -247,7 +247,7 @@ fun AdminCategoriesScreen(
         GenreNameDialog(
             title = stringResource(Res.string.admin_rename_genre),
             initialName = renameGenreName,
-            confirmLabel = stringResource(Res.string.admin_rename),
+            confirmLabel = stringResource(Res.string.common_rename),
             onConfirm = { name ->
                 viewModel.renameGenre(renameGenreId, name)
                 showRenameDialog = false
@@ -595,7 +595,7 @@ private fun CategoryRow(
                 leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null) },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(Res.string.admin_rename)) },
+                text = { Text(stringResource(Res.string.common_rename)) },
                 onClick = {
                     showContextMenu = false
                     onRename()
