@@ -19,7 +19,7 @@ data class BookSearchResult(
  * Provides offline search capability as fallback when server is unavailable.
  * Uses FTS5 MATCH queries with bm25() ranking by relevance.
  *
- * FTS5 tables are created manually in MIGRATION_8_9 (not Room entities)
+ * FTS5 tables are created via FtsTableCallback in platform DatabaseModules (not Room entities)
  * because Room KMP doesn't support @Fts5 annotation. We use @SkipQueryVerification
  * to bypass compile-time validation of FTS queries since Room can't see the
  * FTS virtual tables at compile time.
