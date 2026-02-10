@@ -9,7 +9,9 @@ import com.calypsan.listenup.client.data.repository.InviteDeepLink
 /**
  * Parsed book deep link: listenup://book/{bookId}
  */
-data class BookDeepLink(val bookId: String)
+data class BookDeepLink(
+    val bookId: String,
+)
 
 /**
  * Parses deep link intents into structured data.

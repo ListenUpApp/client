@@ -42,15 +42,20 @@ class AndroidBookDetailPlatformActions(
 
     override suspend fun checkServerReachable(): Boolean = playbackManager.isServerReachable()
 
-    override fun shareText(text: String, url: String) {
-        val sendIntent = Intent().apply {
-            action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, text)
-            type = "text/plain"
-        }
-        val shareIntent = Intent.createChooser(sendIntent, null).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
+    override fun shareText(
+        text: String,
+        url: String,
+    ) {
+        val sendIntent =
+            Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_TEXT, text)
+                type = "text/plain"
+            }
+        val shareIntent =
+            Intent.createChooser(sendIntent, null).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
         context.startActivity(shareIntent)
     }
 }

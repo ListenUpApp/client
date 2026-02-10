@@ -41,7 +41,10 @@ interface BookDetailPlatformActions {
     suspend fun checkServerReachable(): Boolean
 
     /** Share text via platform share sheet (Android) or clipboard (Desktop) */
-    fun shareText(text: String, url: String)
+    fun shareText(
+        text: String,
+        url: String,
+    )
 }
 
 /**
@@ -68,5 +71,8 @@ class NoOpBookDetailPlatformActions : BookDetailPlatformActions {
 
     override suspend fun checkServerReachable(): Boolean = true
 
-    override fun shareText(text: String, url: String) {}
+    override fun shareText(
+        text: String,
+        url: String,
+    ) {}
 }
