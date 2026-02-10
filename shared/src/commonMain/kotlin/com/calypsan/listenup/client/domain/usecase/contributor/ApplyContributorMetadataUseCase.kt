@@ -110,7 +110,8 @@ open class ApplyContributorMetadataUseCase(
                     message = "Metadata was applied but contributor data was not returned",
                 )
 
-        var contributor = contributorData.toDomain()
+        val existing = contributorRepository.getById(contributorId)
+        var contributor = contributorData.toDomain(existing)
 
         // Download and save image locally if server returned an image URL
         if (contributorData.imageUrl != null) {
@@ -157,19 +158,19 @@ open class ApplyContributorMetadataUseCase(
 /**
  * Extension to convert ContributorWithMetadata to Contributor.
  */
-private fun ContributorWithMetadata.toDomain(): Contributor =
+private fun ContributorWithMetadata.toDomain(existing: Contributor? = null): Contributor =
     Contributor(
         id =
             com.calypsan.listenup.client.core
                 .ContributorId(id),
         name = name,
         description = biography,
-        imagePath = null, // Image path is set after local download
+        imagePath = existing?.imagePath, // Preserve local image path; updated after download if needed
         imageBlurHash = imageBlurHash,
-        website = null,
-        birthDate = null,
-        deathDate = null,
-        aliases = emptyList(),
+        website = existing?.website,
+        birthDate = existing?.birthDate,
+        deathDate = existing?.deathDate,
+        aliases = existing?.aliases ?: emptyList(),
     )
 
 /**

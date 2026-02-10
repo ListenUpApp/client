@@ -85,7 +85,24 @@ class ContributorPuller(
                             }
 
                             if (serverContributors.isNotEmpty()) {
-                                contributorDao.upsertAll(serverContributors)
+                                // Preserve existing local imagePath — the server entity has
+                                // imagePath=null because image URLs need local download first.
+                                // Without this, sync overwrites downloaded images with null.
+                                val existingIds = serverContributors.map { it.id.value }
+                                val existingPaths = existingIds.mapNotNull { id ->
+                                    contributorDao.getById(id)?.let { it.id.value to it.imagePath }
+                                }.toMap()
+
+                                val merged = serverContributors.map { entity ->
+                                    val existingPath = existingPaths[entity.id.value]
+                                    if (entity.imagePath == null && existingPath != null) {
+                                        entity.copy(imagePath = existingPath)
+                                    } else {
+                                        entity
+                                    }
+                                }
+
+                                contributorDao.upsertAll(merged)
                             }
                         }
 
