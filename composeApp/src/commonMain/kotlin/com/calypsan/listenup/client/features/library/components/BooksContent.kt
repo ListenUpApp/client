@@ -58,7 +58,7 @@ import com.calypsan.listenup.client.util.sortLetter
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.book_detail_retry
+import listenup.composeapp.generated.resources.common_retry
 import listenup.composeapp.generated.resources.library_add_audiobooks_to_your_server
 import listenup.composeapp.generated.resources.library_failed_to_load_library
 import listenup.composeapp.generated.resources.library_loading_your_library
@@ -658,7 +658,7 @@ private fun BooksErrorState(
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            ListenUpButton(text = stringResource(Res.string.book_detail_retry), onClick = onRetry)
+            ListenUpButton(text = stringResource(Res.string.common_retry), onClick = onRetry)
         }
     }
 }

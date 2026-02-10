@@ -23,7 +23,7 @@ struct UserProfileView: View {
             .padding()
         }
         .background(Color(.systemBackground))
-        .navigationTitle(NSLocalizedString("profile.title", comment: ""))
+        .navigationTitle(NSLocalizedString("common.profile", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -83,7 +83,7 @@ struct UserProfileView: View {
     private var actionsSection: some View {
         VStack(spacing: 0) {
             NavigationLink(value: SettingsDestination()) {
-                actionRow(icon: "gearshape", title: NSLocalizedString("settings.title", comment: ""))
+                actionRow(icon: "gearshape", title: NSLocalizedString("common.settings", comment: ""))
             }
             .buttonStyle(.plain)
 

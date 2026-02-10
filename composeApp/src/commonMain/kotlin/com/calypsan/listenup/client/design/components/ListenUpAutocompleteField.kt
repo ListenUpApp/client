@@ -25,7 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.design_add_name
+import listenup.composeapp.generated.resources.common_add_name
 
 /**
  * Search field with autocomplete dropdown results.
@@ -140,7 +140,7 @@ fun AutocompleteResultItem(
         }
         Icon(
             imageVector = Icons.Default.Add,
-            contentDescription = stringResource(Res.string.design_add_name, name),
+            contentDescription = stringResource(Res.string.common_add_name, name),
             tint = MaterialTheme.colorScheme.primary,
         )
     }

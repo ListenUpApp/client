@@ -39,7 +39,7 @@ import com.calypsan.listenup.client.presentation.sync.PendingOperationUi
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiState
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.book_detail_retry
+import listenup.composeapp.generated.resources.common_retry
 import listenup.composeapp.generated.resources.book_edit_dismiss
 import listenup.composeapp.generated.resources.shell_all_synced
 import listenup.composeapp.generated.resources.shell_changes_waiting_to_sync
@@ -312,7 +312,7 @@ private fun FailedOperationItem(
             IconButton(onClick = onRetry) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(Res.string.book_detail_retry),
+                    contentDescription = stringResource(Res.string.common_retry),
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }

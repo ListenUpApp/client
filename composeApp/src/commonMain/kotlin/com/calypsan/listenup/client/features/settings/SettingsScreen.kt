@@ -49,11 +49,11 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_back
-import listenup.composeapp.generated.resources.book_detail_about
-import listenup.composeapp.generated.resources.book_edit_library
-import listenup.composeapp.generated.resources.design_cancel
-import listenup.composeapp.generated.resources.design_settings
-import listenup.composeapp.generated.resources.design_sign_out
+import listenup.composeapp.generated.resources.common_about
+import listenup.composeapp.generated.resources.common_library
+import listenup.composeapp.generated.resources.common_cancel
+import listenup.composeapp.generated.resources.common_settings
+import listenup.composeapp.generated.resources.common_sign_out
 import listenup.composeapp.generated.resources.settings_51_surround_sound_for_immersive
 import listenup.composeapp.generated.resources.settings_account
 import listenup.composeapp.generated.resources.settings_app_version
@@ -71,12 +71,11 @@ import listenup.composeapp.generated.resources.settings_hide_series_with_only_on
 import listenup.composeapp.generated.resources.settings_hide_singlebook_series
 import listenup.composeapp.generated.resources.settings_ignore_articles_when_sorting
 import listenup.composeapp.generated.resources.settings_manage_storage
-import listenup.composeapp.generated.resources.settings_open_source_licenses_2
+import listenup.composeapp.generated.resources.settings_open_source_licenses
 import listenup.composeapp.generated.resources.settings_playback
 import listenup.composeapp.generated.resources.settings_rewind_a_few_seconds_when
 import listenup.composeapp.generated.resources.settings_server
 import listenup.composeapp.generated.resources.settings_server_version
-import listenup.composeapp.generated.resources.settings_sign_out
 import listenup.composeapp.generated.resources.settings_skip_backward
 import listenup.composeapp.generated.resources.settings_skip_forward
 import listenup.composeapp.generated.resources.settings_sleep_timer
@@ -184,7 +183,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showSignOutDialog = false },
             shape = MaterialTheme.shapes.large,
-            title = { Text(stringResource(Res.string.settings_sign_out)) },
+            title = { Text(stringResource(Res.string.common_sign_out)) },
             text = { Text(stringResource(Res.string.settings_are_you_sure_you_want)) },
             confirmButton = {
                 TextButton(
@@ -193,12 +192,12 @@ fun SettingsScreen(
                         showSignOutDialog = false
                     },
                 ) {
-                    Text(stringResource(Res.string.settings_sign_out))
+                    Text(stringResource(Res.string.common_sign_out))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showSignOutDialog = false }) {
-                    Text(stringResource(Res.string.design_cancel))
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )
@@ -207,7 +206,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(Res.string.design_settings)) },
+                title = { Text(stringResource(Res.string.common_settings)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -313,7 +312,7 @@ fun SettingsScreen(
             SettingsDivider()
 
             // Library section
-            SettingsSection(title = stringResource(Res.string.book_edit_library)) {
+            SettingsSection(title = stringResource(Res.string.common_library)) {
                 SettingsToggleItem(
                     title = stringResource(Res.string.settings_ignore_articles_when_sorting),
                     description = stringResource(Res.string.settings_sort_ignoring_leading_articles_a),
@@ -339,7 +338,7 @@ fun SettingsScreen(
                     )
                 }
                 SettingsActionItem(
-                    title = stringResource(Res.string.design_sign_out),
+                    title = stringResource(Res.string.common_sign_out),
                     icon = Icons.AutoMirrored.Filled.Logout,
                     onClick = { showSignOutDialog = true },
                     destructive = true,
@@ -361,7 +360,7 @@ fun SettingsScreen(
             SettingsDivider()
 
             // About section
-            SettingsSection(title = stringResource(Res.string.book_detail_about)) {
+            SettingsSection(title = stringResource(Res.string.common_about)) {
                 SettingsInfoItem(
                     title = stringResource(Res.string.settings_app_version),
                     value = stringResource(Res.string.settings_desktop),
@@ -374,7 +373,7 @@ fun SettingsScreen(
                 }
                 if (onNavigateToLicenses != null) {
                     SettingsNavigationItem(
-                        title = stringResource(Res.string.settings_open_source_licenses_2),
+                        title = stringResource(Res.string.settings_open_source_licenses),
                         description = stringResource(Res.string.settings_view_thirdparty_licenses),
                         onClick = onNavigateToLicenses,
                     )

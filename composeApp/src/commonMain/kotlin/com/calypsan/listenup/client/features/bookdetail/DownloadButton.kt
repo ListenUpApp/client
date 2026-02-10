@@ -38,7 +38,7 @@ import listenup.composeapp.generated.resources.book_detail_download_book
 import listenup.composeapp.generated.resources.book_detail_downloaded
 import listenup.composeapp.generated.resources.book_detail_progresspercent
 import listenup.composeapp.generated.resources.book_detail_queued
-import listenup.composeapp.generated.resources.book_detail_retry
+import listenup.composeapp.generated.resources.common_retry
 import listenup.composeapp.generated.resources.book_detail_retry_download
 import listenup.composeapp.generated.resources.book_detail_waiting_for_wifi
 
@@ -244,7 +244,7 @@ fun DownloadButtonExpanded(
                     tint = MaterialTheme.colorScheme.error,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(Res.string.book_detail_retry), color = MaterialTheme.colorScheme.error)
+                Text(stringResource(Res.string.common_retry), color = MaterialTheme.colorScheme.error)
             }
         }
     }

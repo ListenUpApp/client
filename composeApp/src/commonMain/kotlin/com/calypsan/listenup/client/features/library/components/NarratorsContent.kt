@@ -37,7 +37,7 @@ import com.calypsan.listenup.client.presentation.library.SortState
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.library_narrators_will_appear_here_when
+import listenup.composeapp.generated.resources.library_no_narrators_description
 import listenup.composeapp.generated.resources.library_no_narrators_yet
 
 /**
@@ -182,7 +182,7 @@ private fun NarratorsEmptyState() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = stringResource(Res.string.library_narrators_will_appear_here_when),
+                text = stringResource(Res.string.library_no_narrators_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

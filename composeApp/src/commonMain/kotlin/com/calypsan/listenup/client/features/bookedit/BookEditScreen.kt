@@ -64,7 +64,7 @@ import listenup.composeapp.generated.resources.book_edit_dismiss
 import listenup.composeapp.generated.resources.book_edit_enter_a_description
 import listenup.composeapp.generated.resources.book_edit_identifiers
 import listenup.composeapp.generated.resources.book_edit_keep_editing
-import listenup.composeapp.generated.resources.book_edit_library
+import listenup.composeapp.generated.resources.common_library
 import listenup.composeapp.generated.resources.book_edit_publishing
 import listenup.composeapp.generated.resources.book_edit_series
 import listenup.composeapp.generated.resources.book_edit_talent
@@ -337,7 +337,7 @@ private fun SingleColumnCardsLayout(
         }
 
         // Card 4: Library
-        StudioCard(title = stringResource(Res.string.book_edit_library)) {
+        StudioCard(title = stringResource(Res.string.common_library)) {
             LibrarySection(
                 sortTitle = state.sortTitle,
                 addedAt = state.addedAt,
@@ -477,7 +477,7 @@ private fun TwoColumnCardsLayout(
                     )
                 }
 
-                StudioCard(title = stringResource(Res.string.book_edit_library)) {
+                StudioCard(title = stringResource(Res.string.common_library)) {
                     LibrarySection(
                         sortTitle = state.sortTitle,
                         addedAt = state.addedAt,

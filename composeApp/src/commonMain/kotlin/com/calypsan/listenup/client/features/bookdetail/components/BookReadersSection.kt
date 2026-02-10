@@ -23,7 +23,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.book_detail_readers
-import listenup.composeapp.generated.resources.book_detail_see_all
+import listenup.composeapp.generated.resources.common_see_all
 
 /**
  * Section displaying readers of a book on the Book Detail screen.
@@ -79,7 +79,7 @@ fun BookReadersSection(
 
             if (allReaders.size > 3) {
                 TextButton(onClick = { /* TODO: Navigate to full readers list */ }) {
-                    Text(stringResource(Res.string.book_detail_see_all))
+                    Text(stringResource(Res.string.common_see_all))
                 }
             }
         }

@@ -83,7 +83,7 @@ private struct PendingApprovalView: View {
                 .font(.system(size: 64))
                 .foregroundStyle(Color.listenUpOrange)
 
-            Text(NSLocalizedString("auth.awaiting_approval", comment: ""))
+            Text(NSLocalizedString("auth.waiting_for_approval", comment: ""))
                 .font(.title.bold())
 
             Text(NSLocalizedString("auth.pending_approval_message", comment: ""))

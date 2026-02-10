@@ -76,14 +76,14 @@ import listenup.composeapp.generated.resources.admin_add_subgenre
 import listenup.composeapp.generated.resources.admin_are_you_sure_you_want_4
 import listenup.composeapp.generated.resources.admin_back
 import listenup.composeapp.generated.resources.admin_categories
-import listenup.composeapp.generated.resources.admin_delete
+import listenup.composeapp.generated.resources.common_delete
 import listenup.composeapp.generated.resources.admin_delete_genre
 import listenup.composeapp.generated.resources.admin_genre_name
 import listenup.composeapp.generated.resources.admin_no_categories
 import listenup.composeapp.generated.resources.admin_rename
 import listenup.composeapp.generated.resources.admin_rename_genre
 import listenup.composeapp.generated.resources.admin_tap_to_create_your_first
-import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.common_cancel
 
 /**
  * Admin screen for managing the category (genre) tree.
@@ -262,7 +262,7 @@ fun AdminCategoriesScreen(
             onDismissRequest = { showDeleteDialog = false },
             title = stringResource(Res.string.admin_delete_genre),
             text = stringResource(Res.string.admin_are_you_sure_you_want_4, deleteGenreName),
-            confirmText = stringResource(Res.string.admin_delete),
+            confirmText = stringResource(Res.string.common_delete),
             onConfirm = {
                 viewModel.deleteGenre(deleteGenreId)
                 showDeleteDialog = false
@@ -320,7 +320,7 @@ private fun GenreNameDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.design_cancel))
+                Text(stringResource(Res.string.common_cancel))
             }
         },
     )
@@ -603,7 +603,7 @@ private fun CategoryRow(
                 leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(Res.string.admin_delete), color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(Res.string.common_delete), color = MaterialTheme.colorScheme.error) },
                 onClick = {
                     showContextMenu = false
                     onDelete()

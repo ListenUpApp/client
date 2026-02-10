@@ -59,7 +59,7 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.common_cancel
 import listenup.composeapp.generated.resources.shell_library_changed
 import listenup.composeapp.generated.resources.shell_the_servers_library_has_changed
 
@@ -212,7 +212,7 @@ fun AppShell(
                     syncRepository.resetForNewLibrary(mismatch.actualLibraryId)
                 }
             },
-            dismissText = stringResource(Res.string.design_cancel),
+            dismissText = stringResource(Res.string.common_cancel),
             onDismiss = { libraryMismatchToShow = null },
         )
     }

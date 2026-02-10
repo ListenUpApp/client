@@ -45,8 +45,8 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_back
-import listenup.composeapp.generated.resources.admin_delete
-import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.common_delete
+import listenup.composeapp.generated.resources.common_cancel
 import listenup.composeapp.generated.resources.shelf_delete_shelf
 import listenup.composeapp.generated.resources.shelf_delete_shelf_2
 import listenup.composeapp.generated.resources.shelf_description_optional
@@ -202,12 +202,12 @@ fun CreateEditShelfScreen(
                                         contentColor = MaterialTheme.colorScheme.error,
                                     ),
                             ) {
-                                Text(stringResource(Res.string.admin_delete))
+                                Text(stringResource(Res.string.common_delete))
                             }
                         },
                         dismissButton = {
                             TextButton(onClick = { showDeleteDialog = false }) {
-                                Text(stringResource(Res.string.design_cancel))
+                                Text(stringResource(Res.string.common_cancel))
                             }
                         },
                     )

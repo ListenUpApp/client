@@ -51,7 +51,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_back
-import listenup.composeapp.generated.resources.admin_delete
+import listenup.composeapp.generated.resources.common_delete
 import listenup.composeapp.generated.resources.book_detail_delete_download
 import listenup.composeapp.generated.resources.book_detail_delete_download_2
 import listenup.composeapp.generated.resources.book_detail_you_can_redownload_anytime_by
@@ -92,7 +92,7 @@ fun StorageScreen(
                         "Remove the downloaded files for \"${confirmation.book.title}\"? " +
                             "This will free up ${formatFileSize(confirmation.book.sizeBytes)}. " +
                             stringResource(Res.string.book_detail_you_can_redownload_anytime_by),
-                    confirmText = stringResource(Res.string.admin_delete),
+                    confirmText = stringResource(Res.string.common_delete),
                     onConfirm = viewModel::executeDelete,
                     onDismiss = viewModel::cancelDelete,
                     icon = Icons.Default.Delete,

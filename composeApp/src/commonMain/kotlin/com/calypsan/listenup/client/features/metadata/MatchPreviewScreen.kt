@@ -63,11 +63,11 @@ import com.calypsan.listenup.client.presentation.metadata.MetadataSelections
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_back
-import listenup.composeapp.generated.resources.book_edit_genres
+import listenup.composeapp.generated.resources.book_genres
 import listenup.composeapp.generated.resources.book_edit_series
 import listenup.composeapp.generated.resources.connect_selected
 import listenup.composeapp.generated.resources.contributor_audible_region
-import listenup.composeapp.generated.resources.design_loading
+import listenup.composeapp.generated.resources.common_loading
 import listenup.composeapp.generated.resources.metadata_apply_selected_metadata
 import listenup.composeapp.generated.resources.metadata_cover
 import listenup.composeapp.generated.resources.metadata_current_cover
@@ -592,7 +592,7 @@ private fun CoverOptionPlaceholder() {
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = stringResource(Res.string.design_loading),
+            text = stringResource(Res.string.common_loading),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -724,7 +724,7 @@ private fun GenreListItem(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = stringResource(Res.string.book_edit_genres),
+            text = stringResource(Res.string.book_genres),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = 12.dp, bottom = 4.dp),

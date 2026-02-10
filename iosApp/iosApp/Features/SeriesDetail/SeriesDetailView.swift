@@ -25,7 +25,7 @@ struct SeriesDetailView: View {
             }
         }
         .background(Color(.systemBackground))
-        .navigationTitle(NSLocalizedString("series_detail.title", comment: ""))
+        .navigationTitle(NSLocalizedString("common.series", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -115,7 +115,7 @@ struct SeriesDetailView: View {
 
     private func booksSection(observer: SeriesDetailObserver) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(NSLocalizedString("series_detail.books_in_series", comment: ""))
+            Text(NSLocalizedString("series.books_in_series", comment: ""))
                 .font(.headline)
 
             ForEach(Array(observer.books.enumerated()), id: \.element.idString) { index, book in

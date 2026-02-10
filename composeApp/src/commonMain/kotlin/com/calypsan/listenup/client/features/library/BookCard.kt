@@ -54,7 +54,7 @@ import kotlin.math.sin
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.connect_selected
-import listenup.composeapp.generated.resources.library_completed
+import listenup.composeapp.generated.resources.common_completed
 
 /**
  * Floating book card with editorial design.
@@ -445,7 +445,7 @@ private fun CompletionBadge(modifier: Modifier = Modifier) {
     ) {
         Icon(
             imageVector = Icons.Default.Check,
-            contentDescription = stringResource(Res.string.library_completed),
+            contentDescription = stringResource(Res.string.common_completed),
             tint = MaterialTheme.colorScheme.onTertiary,
             modifier = Modifier.size(18.dp),
         )

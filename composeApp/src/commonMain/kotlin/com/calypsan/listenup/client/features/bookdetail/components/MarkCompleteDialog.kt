@@ -35,9 +35,9 @@ import kotlin.time.Instant
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.book_detail_mark_as_read
-import listenup.composeapp.generated.resources.design_cancel
-import listenup.composeapp.generated.resources.design_ok
-import listenup.composeapp.generated.resources.design_select_date
+import listenup.composeapp.generated.resources.common_cancel
+import listenup.composeapp.generated.resources.common_ok
+import listenup.composeapp.generated.resources.common_select_date
 
 /**
  * Dialog for marking a book as read with start and end date pickers.
@@ -95,7 +95,7 @@ fun MarkCompleteDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.design_cancel))
+                Text(stringResource(Res.string.common_cancel))
             }
         },
     )
@@ -146,7 +146,7 @@ private fun DateField(
             trailingIcon = {
                 Icon(
                     imageVector = Icons.Default.CalendarMonth,
-                    contentDescription = stringResource(Res.string.design_select_date),
+                    contentDescription = stringResource(Res.string.common_select_date),
                 )
             },
         )
@@ -192,12 +192,12 @@ private fun DatePickerDialogWrapper(
                     }
                 },
             ) {
-                Text(stringResource(Res.string.design_ok))
+                Text(stringResource(Res.string.common_ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.design_cancel))
+                Text(stringResource(Res.string.common_cancel))
             }
         },
         shape = MaterialTheme.shapes.large,

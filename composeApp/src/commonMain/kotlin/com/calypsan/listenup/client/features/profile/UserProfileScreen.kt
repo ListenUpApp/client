@@ -74,11 +74,11 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_back
-import listenup.composeapp.generated.resources.design_displayname_avatar
+import listenup.composeapp.generated.resources.common_displayname_avatar
 import listenup.composeapp.generated.resources.profile_create_shelf
 import listenup.composeapp.generated.resources.profile_edit_profile
 import listenup.composeapp.generated.resources.profile_no_shelves_yet_create_one
-import listenup.composeapp.generated.resources.profile_profile
+import listenup.composeapp.generated.resources.common_profile
 import listenup.composeapp.generated.resources.profile_recently_finished
 import listenup.composeapp.generated.resources.profile_shelves
 
@@ -123,7 +123,7 @@ fun UserProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(Res.string.profile_profile)) },
+                title = { Text(stringResource(Res.string.common_profile)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -315,7 +315,7 @@ private fun ProfileHeader(
                             .memoryCacheKey("$localAvatarPath-$avatarCacheBuster")
                             .diskCacheKey("$localAvatarPath-$avatarCacheBuster")
                             .build(),
-                    contentDescription = stringResource(Res.string.design_displayname_avatar, displayName),
+                    contentDescription = stringResource(Res.string.common_displayname_avatar, displayName),
                     modifier =
                         Modifier
                             .size(120.dp)
@@ -335,7 +335,7 @@ private fun ProfileHeader(
                             .memoryCacheKey("$avatarValue-$avatarCacheBuster")
                             .diskCacheKey("$avatarValue-$avatarCacheBuster")
                             .build(),
-                    contentDescription = stringResource(Res.string.design_displayname_avatar, displayName),
+                    contentDescription = stringResource(Res.string.common_displayname_avatar, displayName),
                     modifier =
                         Modifier
                             .size(120.dp)

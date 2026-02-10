@@ -84,10 +84,10 @@ extension MainTabView {
 
         var title: String {
             switch self {
-            case .home: NSLocalizedString("shell.home", comment: "")
-            case .library: NSLocalizedString("library.title", comment: "")
-            case .search: NSLocalizedString("search.title", comment: "")
-            case .discover: NSLocalizedString("discover.title", comment: "")
+            case .home: NSLocalizedString("common.home", comment: "")
+            case .library: NSLocalizedString("common.library", comment: "")
+            case .search: NSLocalizedString("common.search", comment: "")
+            case .discover: NSLocalizedString("common.discover", comment: "")
             }
         }
     }

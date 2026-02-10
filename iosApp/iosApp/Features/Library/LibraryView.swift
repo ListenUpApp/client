@@ -27,7 +27,7 @@ struct LibraryView: View {
                 loadingState
             }
         }
-        .navigationTitle(NSLocalizedString("library.title", comment: ""))
+        .navigationTitle(NSLocalizedString("common.library", comment: ""))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

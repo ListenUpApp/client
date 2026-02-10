@@ -47,7 +47,7 @@ import com.calypsan.listenup.client.presentation.library.SortState
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.library_authors_will_appear_here_when
+import listenup.composeapp.generated.resources.library_no_authors_description
 import listenup.composeapp.generated.resources.library_no_authors_yet
 
 /**
@@ -261,7 +261,7 @@ private fun AuthorsEmptyState() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = stringResource(Res.string.library_authors_will_appear_here_when),
+                text = stringResource(Res.string.library_no_authors_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

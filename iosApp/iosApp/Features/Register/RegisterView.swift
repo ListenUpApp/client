@@ -52,7 +52,7 @@ struct RegisterView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(NSLocalizedString("auth.create_account_title", comment: ""))
+            Text(NSLocalizedString("auth.create_account", comment: ""))
                 .font(.largeTitle.bold())
 
             Text(NSLocalizedString("auth.join_listenup", comment: ""))
@@ -65,7 +65,7 @@ struct RegisterView: View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 GlassTextField(
-                    label: NSLocalizedString("auth.first_name_label", comment: ""),
+                    label: NSLocalizedString("auth.first_name", comment: ""),
                     placeholder: NSLocalizedString("auth.first_name_placeholder", comment: ""),
                     text: $firstName,
                     textContentType: .givenName,
@@ -73,7 +73,7 @@ struct RegisterView: View {
                 )
 
                 GlassTextField(
-                    label: NSLocalizedString("auth.last_name_label", comment: ""),
+                    label: NSLocalizedString("auth.last_name", comment: ""),
                     placeholder: NSLocalizedString("auth.last_name_placeholder", comment: ""),
                     text: $lastName,
                     textContentType: .familyName,
@@ -82,7 +82,7 @@ struct RegisterView: View {
             }
 
             GlassTextField(
-                label: NSLocalizedString("auth.email_label", comment: ""),
+                label: NSLocalizedString("common.email", comment: ""),
                 placeholder: NSLocalizedString("auth.email_placeholder", comment: ""),
                 text: $email,
                 keyboardType: .emailAddress,
@@ -96,7 +96,7 @@ struct RegisterView: View {
             )
 
             GlassSecureField(
-                label: NSLocalizedString("auth.confirm_password_label", comment: ""),
+                label: NSLocalizedString("auth.confirm_password", comment: ""),
                 placeholder: NSLocalizedString("auth.confirm_password_placeholder", comment: ""),
                 text: $confirmPassword,
                 error: passwordMismatch ? NSLocalizedString("auth.passwords_dont_match", comment: "") : nil
@@ -119,7 +119,7 @@ struct RegisterView: View {
 
     private var registerButton: some View {
         ListenUpButton(
-            title: NSLocalizedString("auth.create_account_title", comment: ""),
+            title: NSLocalizedString("auth.create_account", comment: ""),
             isLoading: viewModel.isLoading
         ) {
             if validateForm() {
@@ -139,7 +139,7 @@ struct RegisterView: View {
             Text(NSLocalizedString("auth.already_have_account", comment: ""))
                 .foregroundStyle(.secondary)
 
-            Button(NSLocalizedString("auth.sign_in_title", comment: "")) {
+            Button(NSLocalizedString("auth.sign_in", comment: "")) {
                 navigateBack()
             }
             .fontWeight(.semibold)

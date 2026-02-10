@@ -84,16 +84,16 @@ import listenup.composeapp.generated.resources.admin_categories
 import listenup.composeapp.generated.resources.admin_collections
 import listenup.composeapp.generated.resources.admin_copy_link
 import listenup.composeapp.generated.resources.admin_create_backups_and_restore_server
-import listenup.composeapp.generated.resources.admin_delete
+import listenup.composeapp.generated.resources.common_delete
 import listenup.composeapp.generated.resources.admin_delete_user
 import listenup.composeapp.generated.resources.admin_deny
 import listenup.composeapp.generated.resources.admin_deny_registration
-import listenup.composeapp.generated.resources.admin_email
+import listenup.composeapp.generated.resources.common_email
 import listenup.composeapp.generated.resources.admin_inbox
 import listenup.composeapp.generated.resources.admin_inbox_workflow
 import listenup.composeapp.generated.resources.admin_invite_someone
 import listenup.composeapp.generated.resources.admin_link_copied
-import listenup.composeapp.generated.resources.admin_listenup_server
+import listenup.composeapp.generated.resources.connect_listenup_server
 import listenup.composeapp.generated.resources.admin_name
 import listenup.composeapp.generated.resources.admin_no_pending_registrations
 import listenup.composeapp.generated.resources.admin_no_users_found
@@ -113,8 +113,8 @@ import listenup.composeapp.generated.resources.admin_share_your_audiobook_librar
 import listenup.composeapp.generated.resources.admin_they_wont_be_able_to
 import listenup.composeapp.generated.resources.admin_users
 import listenup.composeapp.generated.resources.admin_view_the_genre_hierarchy_tree
-import listenup.composeapp.generated.resources.design_administration
-import listenup.composeapp.generated.resources.design_settings
+import listenup.composeapp.generated.resources.common_administration
+import listenup.composeapp.generated.resources.common_settings
 
 /**
  * Combined admin screen showing users, pending invites, and invite action.
@@ -171,7 +171,7 @@ fun AdminScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(Res.string.design_administration)) },
+                title = { Text(stringResource(Res.string.common_administration)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.admin_back))
@@ -230,7 +230,7 @@ fun AdminScreen(
             onDismissRequest = { userToDelete = null },
             title = stringResource(Res.string.admin_delete_user),
             text = "Are you sure you want to delete ${user.displayName ?: user.email}? This action cannot be undone.",
-            confirmText = stringResource(Res.string.admin_delete),
+            confirmText = stringResource(Res.string.common_delete),
             onConfirm = {
                 viewModel.deleteUser(user.id)
                 userToDelete = null
@@ -308,7 +308,7 @@ private fun AdminContent(
         // Settings section
         item {
             Text(
-                text = stringResource(Res.string.design_settings),
+                text = stringResource(Res.string.common_settings),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
@@ -564,7 +564,7 @@ private fun SettingsCard(
                     value = serverName,
                     onValueChange = onServerNameChange,
                     label = { Text(stringResource(Res.string.admin_server_name)) },
-                    placeholder = { Text(stringResource(Res.string.admin_listenup_server)) },
+                    placeholder = { Text(stringResource(Res.string.connect_listenup_server)) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -764,7 +764,7 @@ private fun UserTableHeader(modifier: Modifier = Modifier) {
             modifier = Modifier.weight(1f),
         )
         Text(
-            text = stringResource(Res.string.admin_email),
+            text = stringResource(Res.string.common_email),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
@@ -880,7 +880,7 @@ private fun UserTableRow(
                 IconButton(onClick = onDeleteClick) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
-                        contentDescription = stringResource(Res.string.admin_delete),
+                        contentDescription = stringResource(Res.string.common_delete),
                         tint = MaterialTheme.colorScheme.error,
                     )
                 }

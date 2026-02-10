@@ -47,7 +47,7 @@ import com.calypsan.listenup.client.domain.model.Shelf
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.book_detail_add_to_shelf
-import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.common_cancel
 import listenup.composeapp.generated.resources.library_create_add
 import listenup.composeapp.generated.resources.library_create_new_shelf
 import listenup.composeapp.generated.resources.library_eg_to_read_favorites
@@ -368,7 +368,7 @@ private fun CreateShelfDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(Res.string.design_cancel))
+                Text(stringResource(Res.string.common_cancel))
             }
         },
     )

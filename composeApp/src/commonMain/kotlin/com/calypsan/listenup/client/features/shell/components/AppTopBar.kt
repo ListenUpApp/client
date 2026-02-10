@@ -40,7 +40,7 @@ import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.contributor_search
+import listenup.composeapp.generated.resources.common_search
 import listenup.composeapp.generated.resources.shell_close_search
 import listenup.composeapp.generated.resources.shell_search_audiobooks
 import listenup.composeapp.generated.resources.shell_sync_error
@@ -128,7 +128,7 @@ fun AppTopBar(
                 IconButton(onClick = { onSearchExpandedChange(true) }) {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = stringResource(Res.string.contributor_search),
+                        contentDescription = stringResource(Res.string.common_search),
                     )
                 }
             }

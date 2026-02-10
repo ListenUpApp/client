@@ -19,7 +19,7 @@ import com.calypsan.listenup.client.features.shell.ShellDestination
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_admin
-import listenup.composeapp.generated.resources.design_settings
+import listenup.composeapp.generated.resources.common_settings
 
 /**
  * Navigation rail for medium-sized screens (tablets in portrait).
@@ -82,10 +82,10 @@ fun AppNavigationRail(
             icon = {
                 Icon(
                     imageVector = Icons.Outlined.Settings,
-                    contentDescription = stringResource(Res.string.design_settings),
+                    contentDescription = stringResource(Res.string.common_settings),
                 )
             },
-            label = { Text(stringResource(Res.string.design_settings)) },
+            label = { Text(stringResource(Res.string.common_settings)) },
         )
 
         // Administration (admin users only)

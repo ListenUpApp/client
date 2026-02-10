@@ -81,7 +81,7 @@ import listenup.composeapp.generated.resources.admin_select_folder
 import listenup.composeapp.generated.resources.admin_skip_inbox
 import listenup.composeapp.generated.resources.admin_uncollected_books_are_visible_to
 import listenup.composeapp.generated.resources.admin_users_only_see_books_in
-import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.common_cancel
 
 /**
  * Screen for viewing and editing a library's settings.
@@ -532,7 +532,7 @@ private fun ScanPathsCard(
             },
             dismissButton = {
                 TextButton(onClick = { pathToRemove = null }) {
-                    Text(stringResource(Res.string.design_cancel))
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )

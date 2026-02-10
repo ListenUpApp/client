@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_delete
+import listenup.composeapp.generated.resources.common_delete
 import listenup.composeapp.generated.resources.book_detail_delete_download
 import listenup.composeapp.generated.resources.book_detail_remove_the_downloaded_files_for
 import listenup.composeapp.generated.resources.book_detail_you_can_redownload_anytime_by
@@ -28,7 +28,7 @@ fun DeleteDownloadDialog(
             stringResource(Res.string.book_detail_remove_the_downloaded_files_for, bookTitle) +
                 "This will free up ${formatFileSize(downloadSize)}. " +
                 stringResource(Res.string.book_detail_you_can_redownload_anytime_by),
-        confirmText = stringResource(Res.string.admin_delete),
+        confirmText = stringResource(Res.string.common_delete),
         onConfirm = onConfirm,
         onDismiss = onDismiss,
         icon = Icons.Default.Delete,

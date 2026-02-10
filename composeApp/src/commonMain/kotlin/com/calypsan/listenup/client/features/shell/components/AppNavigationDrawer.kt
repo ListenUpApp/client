@@ -21,8 +21,8 @@ import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.features.shell.ShellDestination
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.design_administration
-import listenup.composeapp.generated.resources.design_settings
+import listenup.composeapp.generated.resources.common_administration
+import listenup.composeapp.generated.resources.common_settings
 
 /**
  * Permanent navigation drawer for expanded screens (landscape tablets, desktop).
@@ -93,10 +93,10 @@ fun AppNavigationDrawer(
                     icon = {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
-                            contentDescription = stringResource(Res.string.design_settings),
+                            contentDescription = stringResource(Res.string.common_settings),
                         )
                     },
-                    label = { Text(stringResource(Res.string.design_settings)) },
+                    label = { Text(stringResource(Res.string.common_settings)) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                 )
 
@@ -108,10 +108,10 @@ fun AppNavigationDrawer(
                         icon = {
                             Icon(
                                 imageVector = Icons.Outlined.AdminPanelSettings,
-                                contentDescription = stringResource(Res.string.design_administration),
+                                contentDescription = stringResource(Res.string.common_administration),
                             )
                         },
-                        label = { Text(stringResource(Res.string.design_administration)) },
+                        label = { Text(stringResource(Res.string.common_administration)) },
                         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                     )
                 }

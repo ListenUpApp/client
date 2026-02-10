@@ -22,7 +22,7 @@ import com.calypsan.listenup.client.domain.model.Shelf
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.home_my_shelves
-import listenup.composeapp.generated.resources.home_see_all
+import listenup.composeapp.generated.resources.common_see_all
 
 /**
  * Horizontal scrolling row of My Shelves.
@@ -63,7 +63,7 @@ fun MyShelvesRow(
 
             TextButton(onClick = onSeeAllClick) {
                 Text(
-                    text = stringResource(Res.string.home_see_all),
+                    text = stringResource(Res.string.common_see_all),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )

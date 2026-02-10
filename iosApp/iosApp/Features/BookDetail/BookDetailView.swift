@@ -31,7 +31,7 @@ struct BookDetailView: View {
             }
         }
         .background(Color(.systemBackground))
-        .navigationTitle(NSLocalizedString("book.detail_about", comment: ""))
+        .navigationTitle(NSLocalizedString("common.about", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -173,7 +173,7 @@ struct BookDetailView: View {
     private var completedBadge: some View {
         HStack(spacing: 4) {
             Image(systemName: "checkmark.circle.fill")
-            Text(NSLocalizedString("book.detail_completed", comment: ""))
+            Text(NSLocalizedString("common.completed", comment: ""))
         }
         .font(.caption.weight(.medium))
         .foregroundStyle(.green)
@@ -267,7 +267,7 @@ struct BookDetailView: View {
 
     private func genresSection(observer: BookDetailObserver) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(NSLocalizedString("book.detail_genres", comment: ""))
+            Text(NSLocalizedString("book.genres", comment: ""))
                 .font(.headline)
 
             FlowLayout(spacing: 8) {

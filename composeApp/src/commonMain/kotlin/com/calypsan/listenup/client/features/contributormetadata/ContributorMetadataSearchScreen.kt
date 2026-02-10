@@ -55,7 +55,7 @@ import listenup.composeapp.generated.resources.contributor_audible_region
 import listenup.composeapp.generated.resources.contributor_author_or_narrator_name
 import listenup.composeapp.generated.resources.contributor_contributor_name
 import listenup.composeapp.generated.resources.contributor_find_on_audible
-import listenup.composeapp.generated.resources.contributor_search
+import listenup.composeapp.generated.resources.common_search
 
 /**
  * Full-screen for searching contributors on Audible.
@@ -124,7 +124,7 @@ fun ContributorMetadataSearchScreen(
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Search,
-                                contentDescription = stringResource(Res.string.contributor_search),
+                                contentDescription = stringResource(Res.string.common_search),
                             )
                         }
                     }

@@ -42,7 +42,7 @@ import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.connect_back_to_server_selection
 import listenup.composeapp.generated.resources.connect_connect
 import listenup.composeapp.generated.resources.connect_connect_to_server
-import listenup.composeapp.generated.resources.connect_examplecom_or_19216811008080
+import listenup.composeapp.generated.resources.connect_server_url_placeholder
 import listenup.composeapp.generated.resources.connect_server_url
 
 /**
@@ -175,7 +175,7 @@ private fun FormContent(
             value = state.serverUrl,
             onValueChange = { onEvent(ServerConnectUiEvent.UrlChanged(it)) },
             label = stringResource(Res.string.connect_server_url),
-            placeholder = stringResource(Res.string.connect_examplecom_or_19216811008080),
+            placeholder = stringResource(Res.string.connect_server_url_placeholder),
             isError = state.error != null,
             supportingText = state.error?.message,
             keyboardOptions =

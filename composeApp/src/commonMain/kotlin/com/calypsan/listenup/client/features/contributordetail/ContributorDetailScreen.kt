@@ -80,15 +80,15 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_back
-import listenup.composeapp.generated.resources.admin_delete
-import listenup.composeapp.generated.resources.book_detail_about
+import listenup.composeapp.generated.resources.common_delete
+import listenup.composeapp.generated.resources.common_about
 import listenup.composeapp.generated.resources.book_detail_more_options
 import listenup.composeapp.generated.resources.contributor_delete_contributor
 import listenup.composeapp.generated.resources.contributor_download_metadata
-import listenup.composeapp.generated.resources.contributor_edit
+import listenup.composeapp.generated.resources.common_edit
 import listenup.composeapp.generated.resources.contributor_from_your_library_this_action
 import listenup.composeapp.generated.resources.contributor_name_profile_image
-import listenup.composeapp.generated.resources.contributor_view_all
+import listenup.composeapp.generated.resources.common_view_all
 
 /**
  * Artist Portfolio screen - an immersive contributor detail experience.
@@ -198,7 +198,7 @@ fun ContributorDetailScreen(
                 text =
                     "This will remove ${state.contributor?.name ?: "this contributor"} " +
                         stringResource(Res.string.contributor_from_your_library_this_action),
-                confirmText = stringResource(Res.string.admin_delete),
+                confirmText = stringResource(Res.string.common_delete),
                 onConfirm = { viewModel.onConfirmDelete(onBackClick) },
             )
         }
@@ -463,7 +463,7 @@ private fun WorkSectionHeader(
                 onClick = onViewAllClick,
                 shape = RoundedCornerShape(24.dp),
             ) {
-                Text(stringResource(Res.string.contributor_view_all))
+                Text(stringResource(Res.string.common_view_all))
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -743,7 +743,7 @@ private fun NavigationBar(
                 onDismissRequest = { showMenu = false },
             ) {
                 DropdownMenuItem(
-                    text = { Text(stringResource(Res.string.contributor_edit)) },
+                    text = { Text(stringResource(Res.string.common_edit)) },
                     leadingIcon = { Icon(Icons.Default.Edit, null) },
                     onClick = {
                         showMenu = false
@@ -762,7 +762,7 @@ private fun NavigationBar(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            stringResource(Res.string.admin_delete),
+                            stringResource(Res.string.common_delete),
                             color = MaterialTheme.colorScheme.error,
                         )
                     },
@@ -877,7 +877,7 @@ private fun BiographySection(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = stringResource(Res.string.book_detail_about),
+            text = stringResource(Res.string.common_about),
             style =
                 MaterialTheme.typography.titleMedium.copy(
                     fontFamily = DisplayFontFamily,

@@ -48,7 +48,7 @@ struct ContributorDetailView: View {
             }
         }
         .confirmationDialog(
-            NSLocalizedString("contributor_detail.delete_contributor", comment: ""),
+            NSLocalizedString("contributor.delete_contributor", comment: ""),
             isPresented: Binding(
                 get: { observer?.showDeleteConfirmation ?? false },
                 set: { _ in observer?.onDismissDelete() }
@@ -62,7 +62,7 @@ struct ContributorDetailView: View {
             }
             Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
         } message: {
-            Text(NSLocalizedString("contributor_detail.remove_from_library", comment: ""))
+            Text(NSLocalizedString("contributor.remove_from_library", comment: ""))
         }
         .onAppear {
             if observer == nil {
@@ -116,14 +116,14 @@ struct ContributorDetailView: View {
 
                 // Aliases
                 if !observer.aliases.isEmpty {
-                    Text(String(format: NSLocalizedString("contributor_detail.aka", comment: ""), observer.aliases.joined(separator: ", ")))
+                    Text(String(format: NSLocalizedString("contributor.aka", comment: ""), observer.aliases.joined(separator: ", ")))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .italic()
                 }
 
                 // Book count
-                Text("\(observer.totalBookCount) \(observer.totalBookCount == 1 ? NSLocalizedString("contributor_detail.audiobook_count", comment: "singular") : NSLocalizedString("contributor_detail.audiobooks_count", comment: "plural"))")
+                Text("\(observer.totalBookCount) \(observer.totalBookCount == 1 ? NSLocalizedString("contributor.audiobook_count", comment: "singular") : NSLocalizedString("contributor.audiobooks_count", comment: "plural"))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
@@ -167,7 +167,7 @@ struct ContributorDetailView: View {
             let deathYear = String(death.prefix(4))
             return "\(birthYear) - \(deathYear)"
         } else {
-            return String(format: NSLocalizedString("contributor_detail.born_year", comment: ""), birthYear)
+            return String(format: NSLocalizedString("contributor.born_year", comment: ""), birthYear)
         }
     }
 

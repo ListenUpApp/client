@@ -22,7 +22,7 @@ struct DiscoverView: View {
             .padding()
         }
         .background(Color(.systemBackground))
-        .navigationTitle(NSLocalizedString("discover.title", comment: ""))
+        .navigationTitle(NSLocalizedString("common.discover", comment: ""))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

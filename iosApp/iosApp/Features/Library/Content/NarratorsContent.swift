@@ -134,7 +134,7 @@ struct NarratorsContent: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
 
-            Text(NSLocalizedString("library.no_narrators_title", comment: ""))
+            Text(NSLocalizedString("library.no_narrators_yet", comment: ""))
                 .font(.title2.bold())
 
             Text(NSLocalizedString("library.no_narrators_description", comment: ""))

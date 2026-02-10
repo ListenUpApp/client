@@ -134,7 +134,7 @@ struct AuthorsContent: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
 
-            Text(NSLocalizedString("library.no_authors_title", comment: ""))
+            Text(NSLocalizedString("library.no_authors_yet", comment: ""))
                 .font(.title2.bold())
 
             Text(NSLocalizedString("library.no_authors_description", comment: ""))

@@ -20,7 +20,7 @@ import com.calypsan.listenup.client.design.components.MarkdownText
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.book_detail_about
+import listenup.composeapp.generated.resources.common_about
 
 /**
  * Expandable description section with "Read more/less" toggle.
@@ -37,7 +37,7 @@ fun DescriptionSection(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = stringResource(Res.string.book_detail_about),
+            text = stringResource(Res.string.common_about),
             style =
                 MaterialTheme.typography.titleMedium.copy(
                     fontFamily = DisplayFontFamily,

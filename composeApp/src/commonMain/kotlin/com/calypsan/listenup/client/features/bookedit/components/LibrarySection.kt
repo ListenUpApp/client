@@ -33,8 +33,8 @@ import listenup.composeapp.generated.resources.book_edit_eg_lord_of_the_rings
 import listenup.composeapp.generated.resources.book_edit_not_set
 import listenup.composeapp.generated.resources.book_edit_pick_date
 import listenup.composeapp.generated.resources.book_edit_sort_title
-import listenup.composeapp.generated.resources.design_cancel
-import listenup.composeapp.generated.resources.design_ok
+import listenup.composeapp.generated.resources.common_cancel
+import listenup.composeapp.generated.resources.common_ok
 
 /**
  * Library information section: Date Added.
@@ -84,12 +84,12 @@ fun LibrarySection(
                         showDatePicker = false
                     },
                 ) {
-                    Text(stringResource(Res.string.design_ok))
+                    Text(stringResource(Res.string.common_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(Res.string.design_cancel))
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
             shape = MaterialTheme.shapes.large,

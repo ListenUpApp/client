@@ -60,10 +60,10 @@ struct LoginView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(NSLocalizedString("auth.sign_in_title", comment: ""))
+            Text(NSLocalizedString("auth.sign_in", comment: ""))
                 .font(.largeTitle.bold())
 
-            Text(NSLocalizedString("auth.sign_in_subtitle", comment: ""))
+            Text(NSLocalizedString("auth.sign_in_to_access_your", comment: ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -72,7 +72,7 @@ struct LoginView: View {
     private var fields: some View {
         VStack(spacing: 16) {
             GlassTextField(
-                label: NSLocalizedString("auth.email_label", comment: ""),
+                label: NSLocalizedString("common.email", comment: ""),
                 placeholder: NSLocalizedString("auth.email_placeholder", comment: ""),
                 text: $email,
                 error: viewModel.emailError,
@@ -98,7 +98,7 @@ struct LoginView: View {
 
     private var signInButton: some View {
         ListenUpButton(
-            title: NSLocalizedString("auth.sign_in_title", comment: ""),
+            title: NSLocalizedString("auth.sign_in", comment: ""),
             isLoading: viewModel.isLoading
         ) {
             viewModel.login(email: email, password: password)

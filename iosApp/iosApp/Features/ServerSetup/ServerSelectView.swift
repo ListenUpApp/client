@@ -50,10 +50,10 @@ struct ServerSelectView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(NSLocalizedString("server.select_server", comment: ""))
+                Text(NSLocalizedString("connect.select_server", comment: ""))
                     .font(.largeTitle.bold())
 
-                Text(NSLocalizedString("server.choose_server", comment: ""))
+                Text(NSLocalizedString("connect.choose_server", comment: ""))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -186,15 +186,15 @@ private struct EmptyDiscoveryState: View {
                 HStack(spacing: 8) {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text(NSLocalizedString("server.searching", comment: ""))
+                    Text(NSLocalizedString("connect.searching", comment: ""))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Text(NSLocalizedString("server.no_servers_found", comment: ""))
+                Text(NSLocalizedString("connect.no_servers_found", comment: ""))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(NSLocalizedString("server.server_same_network", comment: ""))
+                Text(NSLocalizedString("connect.make_sure_your_listenup_server", comment: ""))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -222,11 +222,11 @@ private struct ManualEntryCard: View {
                     .foregroundStyle(Color.listenUpOrange)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(NSLocalizedString("server.add_manually", comment: ""))
+                    Text(NSLocalizedString("connect.add_server_manually", comment: ""))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
 
-                    Text(NSLocalizedString("server.enter_url_directly", comment: ""))
+                    Text(NSLocalizedString("connect.enter_server_url_directly", comment: ""))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

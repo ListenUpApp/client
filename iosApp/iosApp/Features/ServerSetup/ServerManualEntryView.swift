@@ -46,10 +46,10 @@ struct ServerManualEntryView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(NSLocalizedString("server.add_server", comment: ""))
+            Text(NSLocalizedString("connect.add_server", comment: ""))
                 .font(.largeTitle.bold())
 
-            Text(NSLocalizedString("server.enter_server_url", comment: ""))
+            Text(NSLocalizedString("connect.enter_server_url", comment: ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -57,8 +57,8 @@ struct ServerManualEntryView: View {
 
     private var serverUrlField: some View {
         GlassTextField(
-            label: NSLocalizedString("server.server_url_label", comment: ""),
-            placeholder: NSLocalizedString("server.server_url_placeholder", comment: ""),
+            label: NSLocalizedString("connect.server_url", comment: ""),
+            placeholder: NSLocalizedString("connect.server_url_placeholder", comment: ""),
             text: Binding(
                 get: { viewModel.serverUrl },
                 set: { viewModel.onUrlChanged($0) }
@@ -76,7 +76,7 @@ struct ServerManualEntryView: View {
 
     private var connectButton: some View {
         ListenUpButton(
-            title: NSLocalizedString("server.connect", comment: ""),
+            title: NSLocalizedString("connect.connect", comment: ""),
             isLoading: viewModel.isLoading
         ) {
             viewModel.onConnectClicked()
@@ -91,7 +91,7 @@ struct ServerManualEntryView: View {
             HStack(spacing: 4) {
                 Image(systemName: "chevron.left")
                     .font(.subheadline)
-                Text(NSLocalizedString("server.back_to_server_list", comment: ""))
+                Text(NSLocalizedString("connect.back_to_server_list", comment: ""))
                     .font(.subheadline)
             }
             .foregroundStyle(Color.listenUpOrange)

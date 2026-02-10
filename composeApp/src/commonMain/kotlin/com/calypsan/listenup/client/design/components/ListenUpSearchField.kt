@@ -20,7 +20,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.design_clear_search
+import listenup.composeapp.generated.resources.common_clear_search
 
 /**
  * Search text field with leading search icon and trailing clear/loading indicator.
@@ -72,7 +72,7 @@ fun ListenUpSearchField(
                     IconButton(onClick = onClear) {
                         Icon(
                             imageVector = Icons.Default.Clear,
-                            contentDescription = stringResource(Res.string.design_clear_search),
+                            contentDescription = stringResource(Res.string.common_clear_search),
                         )
                     }
                 }

@@ -12,7 +12,7 @@ import listenup.composeapp.generated.resources.listenup_logo_black
 import listenup.composeapp.generated.resources.listenup_logo_white
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import listenup.composeapp.generated.resources.design_listenup_logo
+import listenup.composeapp.generated.resources.common_listenup_logo
 
 /**
  * ListenUp brand logo that adapts to light/dark theme.
@@ -37,7 +37,7 @@ fun BrandLogo(
 
     Image(
         painter = painterResource(logoRes),
-        contentDescription = stringResource(Res.string.design_listenup_logo),
+        contentDescription = stringResource(Res.string.common_listenup_logo),
         modifier = modifier.size(size),
     )
 }

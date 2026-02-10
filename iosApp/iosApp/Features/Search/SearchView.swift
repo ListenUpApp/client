@@ -26,7 +26,7 @@ struct SearchView: View {
             }
         }
         .background(Color(.systemBackground))
-        .navigationTitle(NSLocalizedString("search.title", comment: ""))
+        .navigationTitle(NSLocalizedString("common.search", comment: ""))
         .navigationBarTitleDisplayMode(.large)
     }
 

@@ -148,7 +148,7 @@ struct SeriesContent: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
 
-            Text(NSLocalizedString("library.no_series_title", comment: ""))
+            Text(NSLocalizedString("library.no_series_yet", comment: ""))
                 .font(.title2.bold())
 
             Text(NSLocalizedString("library.no_series_description", comment: ""))

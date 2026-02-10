@@ -30,25 +30,25 @@ struct InstanceContent: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text(NSLocalizedString("instance.listenup_server", comment: ""))
+                Text(NSLocalizedString("connect.listenup_server", comment: ""))
                     .font(.title)
                     .fontWeight(.semibold)
 
                 Divider()
 
-                InfoRow(label: NSLocalizedString("instance.instance_id", comment: ""), value: instance.id as! String)
+                InfoRow(label: NSLocalizedString("connect.instance_id", comment: ""), value: instance.id as! String)
                 InfoRow(
-                    label: NSLocalizedString("instance.status", comment: ""),
-                    value: instance.isReady ? NSLocalizedString("instance.ready", comment: "") : NSLocalizedString("instance.needs_setup", comment: "")
+                    label: NSLocalizedString("connect.instance_status", comment: ""),
+                    value: instance.isReady ? NSLocalizedString("connect.instance_ready", comment: "") : NSLocalizedString("connect.instance_needs_setup", comment: "")
                 )
                 InfoRow(
-                    label: NSLocalizedString("instance.has_root_user", comment: ""),
+                    label: NSLocalizedString("connect.has_root_user", comment: ""),
                     value: instance.hasRootUser ? NSLocalizedString("common.yes", comment: "") : NSLocalizedString("common.no", comment: "")
                 )
 
                 if instance.needsSetup {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(NSLocalizedString("instance.server_needs_setup", comment: ""))
+                        Text(NSLocalizedString("connect.server_needs_setup", comment: ""))
                             .font(.body)
                             .foregroundColor(.primary)
                     }

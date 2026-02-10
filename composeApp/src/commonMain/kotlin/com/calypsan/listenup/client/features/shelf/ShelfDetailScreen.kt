@@ -64,7 +64,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.admin_back
-import listenup.composeapp.generated.resources.book_detail_about
+import listenup.composeapp.generated.resources.common_about
 import listenup.composeapp.generated.resources.shelf_add_books_from_the_library
 import listenup.composeapp.generated.resources.shelf_books_in_shelf
 import listenup.composeapp.generated.resources.shelf_edit_shelf
@@ -206,7 +206,7 @@ private fun ShelfDetailContent(
                             .padding(top = 16.dp),
                 ) {
                     Text(
-                        text = stringResource(Res.string.book_detail_about),
+                        text = stringResource(Res.string.common_about),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )

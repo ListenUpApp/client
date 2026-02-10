@@ -20,9 +20,9 @@ struct SettingsView: View {
                 Toggle(NSLocalizedString("settings.lock_orientation", comment: ""), isOn: $lockOrientation)
 
                 HStack {
-                    Text(NSLocalizedString("settings.theme_label", comment: ""))
+                    Text(NSLocalizedString("settings.theme", comment: ""))
                     Spacer()
-                    Picker(NSLocalizedString("settings.theme_label", comment: ""), selection: $darkMode) {
+                    Picker(NSLocalizedString("settings.theme", comment: ""), selection: $darkMode) {
                         Image(systemName: "sun.max.fill").tag(false)
                         Image(systemName: "moon.fill").tag(true)
                     }
@@ -65,7 +65,7 @@ struct SettingsView: View {
             }
 
             // Server section
-            Section(NSLocalizedString("settings.server_section", comment: "")) {
+            Section(NSLocalizedString("settings.server", comment: "")) {
                 HStack {
                     Text(NSLocalizedString("settings.connected_to", comment: ""))
                     Spacer()
@@ -79,14 +79,14 @@ struct SettingsView: View {
             }
 
             // Account section
-            Section(NSLocalizedString("settings.account_section", comment: "")) {
+            Section(NSLocalizedString("settings.account", comment: "")) {
                 Button(NSLocalizedString("common.sign_out", comment: ""), role: .destructive) {
                     // TODO: Handle sign out
                 }
             }
 
             // About section
-            Section(NSLocalizedString("settings.about_section", comment: "")) {
+            Section(NSLocalizedString("common.about", comment: "")) {
                 HStack {
                     Text(NSLocalizedString("common.version", comment: ""))
                     Spacer()
@@ -95,7 +95,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .navigationTitle(NSLocalizedString("settings.title", comment: ""))
+        .navigationTitle(NSLocalizedString("common.settings", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

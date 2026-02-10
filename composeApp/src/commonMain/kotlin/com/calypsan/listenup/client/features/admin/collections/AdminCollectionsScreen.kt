@@ -65,11 +65,11 @@ import listenup.composeapp.generated.resources.admin_collections
 import listenup.composeapp.generated.resources.admin_create
 import listenup.composeapp.generated.resources.admin_create_a_collection_to_organize
 import listenup.composeapp.generated.resources.admin_create_collection
-import listenup.composeapp.generated.resources.admin_delete
+import listenup.composeapp.generated.resources.common_delete
 import listenup.composeapp.generated.resources.admin_delete_collection
 import listenup.composeapp.generated.resources.admin_enter_a_name_for_the
 import listenup.composeapp.generated.resources.admin_no_collections
-import listenup.composeapp.generated.resources.design_cancel
+import listenup.composeapp.generated.resources.common_cancel
 
 /**
  * Admin screen for managing collections.
@@ -167,7 +167,7 @@ fun AdminCollectionsScreen(
             onDismissRequest = { collectionToDelete = null },
             title = stringResource(Res.string.admin_delete_collection),
             text = warningText,
-            confirmText = stringResource(Res.string.admin_delete),
+            confirmText = stringResource(Res.string.common_delete),
             onConfirm = {
                 viewModel.deleteCollection(collection.id)
                 collectionToDelete = null
@@ -280,7 +280,7 @@ private fun CollectionRow(
                 if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
-                        contentDescription = stringResource(Res.string.admin_delete),
+                        contentDescription = stringResource(Res.string.common_delete),
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                     )
                 }
@@ -396,7 +396,7 @@ private fun CreateCollectionDialog(
                 onClick = onDismiss,
                 enabled = !isCreating,
             ) {
-                Text(stringResource(Res.string.design_cancel))
+                Text(stringResource(Res.string.common_cancel))
             }
         },
     )

@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.library_no_series_yet
-import listenup.composeapp.generated.resources.library_series_will_appear_here_when
+import listenup.composeapp.generated.resources.library_no_series_description
 
 /**
  * Content for the Series tab in the Library screen.
@@ -186,7 +186,7 @@ private fun SeriesEmptyState() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = stringResource(Res.string.library_series_will_appear_here_when),
+                text = stringResource(Res.string.library_no_series_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
