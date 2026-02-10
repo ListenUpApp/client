@@ -132,22 +132,30 @@ class JvmCoverColorExtractorTest {
     @Test
     fun `vibrant color has high saturation`() =
         runTest {
-            // Given - image with saturated colors
+            // Given - image dominated by saturated color (75% red, 25% gray)
+            // Asymmetric split ensures k-means reliably produces a saturated cluster
+            val image = java.awt.image.BufferedImage(200, 200, java.awt.image.BufferedImage.TYPE_INT_RGB)
+            val graphics = image.createGraphics()
+            graphics.color = Color(255, 0, 0)
+            graphics.fillRect(0, 0, 150, 200)
+            graphics.color = Color(128, 128, 128)
+            graphics.fillRect(150, 0, 50, 200)
+            graphics.dispose()
             val imageBytes =
-                createTwoToneImage(
-                    Color(255, 0, 0), // Pure red (saturated)
-                    Color(100, 100, 100), // Gray (unsaturated)
-                )
+                java.io.ByteArrayOutputStream().use { baos ->
+                    javax.imageio.ImageIO.write(image, "PNG", baos)
+                    baos.toByteArray()
+                }
 
             // When
             val colors = extractor.extractColors(imageBytes)
 
-            // Then
+            // Then - vibrant should pick the saturated red cluster
             assertNotNull(colors)
             val vibrant = Color(colors.vibrant)
             val hsb = Color.RGBtoHSB(vibrant.red, vibrant.green, vibrant.blue, null)
             val saturation = hsb[1]
-            assertTrue(saturation > 0.1f, "Vibrant color should have decent saturation: $saturation")
+            assertTrue(saturation > 0.1f, "Vibrant color should have decent saturation: $saturation (rgb: $vibrant)")
         }
 
     @Test
