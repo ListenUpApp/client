@@ -409,8 +409,13 @@ private fun BookGrid(
                     is BookGridItem.BookItem -> {
                         val bookId = gridItem.book.id.value
                         BookCard(
-                            book = gridItem.book,
+                            bookId = bookId,
+                            title = gridItem.book.title,
+                            coverPath = gridItem.book.coverPath,
+                            blurHash = gridItem.book.coverBlurHash,
                             onClick = { onBookClick(bookId) },
+                            authorName = gridItem.book.authorNames,
+                            duration = gridItem.book.formatDuration(),
                             progress = bookProgress[bookId],
                             isFinished = bookIsFinished[bookId] ?: false,
                             isInSelectionMode = isInSelectionMode,

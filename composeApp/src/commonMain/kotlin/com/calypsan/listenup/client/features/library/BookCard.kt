@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -13,10 +14,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
@@ -34,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
@@ -43,12 +48,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calypsan.listenup.client.design.components.BookCoverImage
+import com.calypsan.listenup.client.design.components.ProfileAvatar
 import com.calypsan.listenup.client.design.components.ProgressOverlay
-import com.calypsan.listenup.client.domain.model.Book
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -58,40 +64,67 @@ import listenup.composeapp.generated.resources.common_selected
 import listenup.composeapp.generated.resources.common_completed
 
 /**
- * Floating book card with editorial design.
+ * Data for an avatar overlay on a book cover.
+ */
+data class AvatarOverlayData(
+    val userId: String,
+    val displayName: String,
+    val avatarType: String,
+    val avatarValue: String?,
+    val avatarColor: String,
+)
+
+/**
+ * Unified floating book card with editorial design.
  *
- * Design philosophy: Cover art is the hero. No container boxing.
+ * Cover art is the hero. No container boxing.
  * A soft glow radiates from behind, creating depth without harsh shadows.
  * Press interaction uses scale animation for tactile feedback.
  *
- * Visual states:
- * - In Progress: Shows progress overlay at bottom (when progress > 0 and not finished)
- * - Completed: Shows squiggly completion badge in top-right, no progress overlay
- * - Selection mode: Shows selection indicator instead of completion badge
+ * Supports all book card variants:
+ * - Library grid: progress, completion badge, selection, focus border
+ * - Continue Listening: progress overlay with time remaining
+ * - Currently Listening: avatar overlay showing who's listening
+ * - Discover: basic cover with optional subtitle (e.g. series name)
+ * - Recently Added: basic cover with title/author
  *
- * @param book The book to display
+ * @param bookId Unique book identifier
+ * @param title Book title
+ * @param coverPath Local file path to cover image
+ * @param blurHash BlurHash string for placeholder
  * @param onClick Callback when card is clicked
+ * @param authorName Author name(s) to display below title
+ * @param duration Formatted duration string (e.g. "12h 30m")
+ * @param subtitle Additional text line (e.g. series name, "Book 1 of X")
  * @param progress Optional progress (0.0-1.0). Shows progress overlay when not finished.
  * @param timeRemaining Optional formatted time remaining (e.g., "2h 15m left")
- * @param isFinished Authoritative completion status from server. When true, shows completion
- *   badge regardless of progress value (supports ABS imports where books may be marked
- *   complete at <99% progress due to bonus content, credits, etc.)
+ * @param isFinished Authoritative completion status. Shows completion badge when true.
+ * @param avatarOverlay Optional avatar overlay data for "currently listening" display
  * @param isInSelectionMode Whether multi-select mode is active
  * @param isSelected Whether this book is currently selected
  * @param onLongPress Callback when card is long-pressed (for entering selection mode)
+ * @param cardWidth Fixed width for horizontal rows, or null to fill parent (library grid)
  * @param modifier Optional modifier for the card
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BookCard(
-    book: Book,
+    bookId: String,
+    title: String,
+    coverPath: String?,
+    blurHash: String?,
     onClick: () -> Unit,
+    authorName: String? = null,
+    duration: String? = null,
+    subtitle: String? = null,
     progress: Float? = null,
     timeRemaining: String? = null,
     isFinished: Boolean = false,
+    avatarOverlay: AvatarOverlayData? = null,
     isInSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onLongPress: (() -> Unit)? = null,
+    cardWidth: Dp? = null,
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -99,7 +132,7 @@ fun BookCard(
     val isFocused by interactionSource.collectIsFocusedAsState()
     val hapticFeedback = LocalHapticFeedback.current
 
-    // Animate scale for press and selection
+    // Animate scale for press, focus, and selection
     val scale by animateFloatAsState(
         targetValue =
             when {
@@ -133,46 +166,58 @@ fun BookCard(
         label = "focus_border_color",
     )
 
+    val widthModifier = if (cardWidth != null) Modifier.width(cardWidth) else Modifier
+
     Column(
         modifier =
             modifier
+                .then(widthModifier)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                }.combinedClickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick,
-                    onLongClick = {
-                        if (onLongPress != null) {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onLongPress()
-                        }
+                }.then(
+                    if (onLongPress != null) {
+                        Modifier.combinedClickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = onClick,
+                            onLongClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onLongPress()
+                            },
+                        )
+                    } else {
+                        Modifier.clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = onClick,
+                        )
                     },
                 ),
     ) {
-        // Cover with glow, optional progress overlay, and selection/completion indicators
+        // Cover with optional overlays and indicators
         Box {
-            // Use authoritative isFinished flag (not derived from progress)
             val isCompleted = isFinished
 
-            CoverWithGlow(
-                bookId = book.id.value,
-                coverPath = book.coverPath,
-                blurHash = book.coverBlurHash,
-                contentDescription = book.title,
-                // Don't show progress overlay for completed books
+            BookCardCover(
+                bookId = bookId,
+                coverPath = coverPath,
+                blurHash = blurHash,
+                contentDescription = title,
                 progress = if (isCompleted) null else progress,
                 timeRemaining = if (isCompleted) null else timeRemaining,
+                avatarOverlay = avatarOverlay,
                 isSelected = isSelected || isFocused,
                 borderColor = if (isSelected) borderColor else focusBorderColor,
                 modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f),
+                    if (cardWidth != null) {
+                        Modifier.aspectRatio(1f)
+                    } else {
+                        Modifier.fillMaxWidth().aspectRatio(1f)
+                    },
             )
 
-            // Selection checkbox indicator takes precedence over completion badge
+            // Selection checkbox takes precedence over completion badge
             if (isInSelectionMode) {
                 SelectionIndicator(
                     isSelected = isSelected || isFocused,
@@ -182,7 +227,6 @@ fun BookCard(
                             .padding(8.dp),
                 )
             } else if (isCompleted) {
-                // Show completion badge for finished books
                 CompletionBadge(
                     modifier =
                         Modifier
@@ -192,129 +236,174 @@ fun BookCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(if (cardWidth != null) 8.dp else 6.dp))
 
         // Metadata
-        Column(modifier = Modifier.padding(horizontal = 4.dp)) {
+        Column(modifier = Modifier.padding(horizontal = if (cardWidth != null) 2.dp else 4.dp)) {
             Text(
-                text = book.title,
+                text = title,
                 style =
-                    MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.2).sp,
-                    ),
+                    if (cardWidth != null) {
+                        MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.2).sp,
+                        )
+                    } else {
+                        MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.2).sp,
+                        )
+                    },
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
 
-            Text(
-                text = book.authorNames,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            authorName?.let { author ->
+                Text(
+                    text = author,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
 
-            Text(
-                text = book.formatDuration(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            )
+            duration?.let { dur ->
+                Text(
+                    text = dur,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                )
+            }
+
+            subtitle?.let { sub ->
+                Text(
+                    text = sub,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
 
 /**
- * Cover art with shadow for depth and optional progress overlay.
+ * Unified cover composable handling all overlay variants.
  *
- * Uses standard elevation shadow to lift the cover off the surface.
- *
- * @param coverPath Local file path to cover image
- * @param blurHash BlurHash string for placeholder
- * @param contentDescription Accessibility description
- * @param progress Optional progress (0.0-1.0) to show overlay
- * @param timeRemaining Optional formatted time remaining
- * @param isSelected Whether this item is selected in multi-select mode
- * @param borderColor Color for the selection border
- * @param modifier Optional modifier
+ * Supports:
+ * - BookCoverImage with blurHash placeholder
+ * - Gradient placeholder fallback (no cover/blurHash)
+ * - Progress overlay (when progress != null and > 0)
+ * - Avatar overlay (when avatarOverlay != null)
+ * - Selection/focus border
  */
 @Composable
-private fun CoverWithGlow(
+private fun BookCardCover(
     bookId: String,
     coverPath: String?,
     blurHash: String?,
     contentDescription: String?,
     progress: Float? = null,
     timeRemaining: String? = null,
+    avatarOverlay: AvatarOverlayData? = null,
     isSelected: Boolean = false,
-    borderColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Transparent,
+    borderColor: Color = Color.Transparent,
     modifier: Modifier = Modifier,
 ) {
     val shape = MaterialTheme.shapes.medium
 
-    Box(
-        modifier =
-            modifier
-                .shadow(
-                    elevation = 6.dp,
-                    shape = shape,
-                ).clip(shape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                .then(
-                    if (isSelected) {
-                        Modifier.border(
-                            width = 3.dp,
-                            color = borderColor,
-                            shape = shape,
-                        )
-                    } else {
+    // Outer Box allows avatar to overflow the clipped cover area
+    Box(modifier = modifier) {
+        // Cover container with shadow and clip
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .shadow(elevation = 6.dp, shape = shape)
+                    .clip(shape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .then(
+                        if (isSelected) {
+                            Modifier.border(
+                                width = 3.dp,
+                                color = borderColor,
+                                shape = shape,
+                            )
+                        } else {
+                            Modifier
+                        },
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (coverPath != null || blurHash != null) {
+                BookCoverImage(
+                    bookId = bookId,
+                    coverPath = coverPath,
+                    blurHash = blurHash,
+                    contentDescription = contentDescription,
+                    modifier = Modifier.matchParentSize(),
+                )
+            } else {
+                // Gradient placeholder
+                Box(
+                    modifier =
                         Modifier
-                    },
-                ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (coverPath != null || blurHash != null) {
-            BookCoverImage(
-                bookId = bookId,
-                coverPath = coverPath,
-                blurHash = blurHash,
-                contentDescription = contentDescription,
-                modifier = Modifier.matchParentSize(),
-            )
-        } else {
-            // Gradient placeholder
-            Box(
-                modifier =
-                    Modifier
-                        .matchParentSize()
-                        .background(
-                            Brush.linearGradient(
-                                colors =
-                                    listOf(
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.surfaceContainer,
-                                    ),
+                            .matchParentSize()
+                            .background(
+                                Brush.linearGradient(
+                                    colors =
+                                        listOf(
+                                            MaterialTheme.colorScheme.primaryContainer,
+                                            MaterialTheme.colorScheme.surfaceContainer,
+                                        ),
+                                ),
                             ),
-                        ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Book,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(32.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Book,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(24.dp),
+                    )
+                }
+            }
+
+            // Progress overlay
+            if (progress != null && progress > 0f) {
+                ProgressOverlay(
+                    progress = progress,
+                    timeRemaining = timeRemaining,
+                    modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
         }
 
-        // Progress overlay (only shown when progress is provided and > 0)
-        if (progress != null && progress > 0f) {
-            ProgressOverlay(
-                progress = progress,
-                timeRemaining = timeRemaining,
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
+        // Avatar overlay in bottom-right corner
+        if (avatarOverlay != null) {
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = (-4).dp, y = (-4).dp)
+                        .size(36.dp)
+                        .shadow(elevation = 4.dp, shape = CircleShape)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(2.dp),
+            ) {
+                ProfileAvatar(
+                    userId = avatarOverlay.userId,
+                    displayName = avatarOverlay.displayName,
+                    avatarColor = avatarOverlay.avatarColor,
+                    avatarType = avatarOverlay.avatarType,
+                    avatarValue = avatarOverlay.avatarValue,
+                    size = 32.dp,
+                )
+            }
         }
     }
 }
@@ -384,12 +473,6 @@ private fun SelectionIndicator(
 
 /**
  * Organic blob shape inspired by Material 3 Expressive design.
- *
- * Creates a wobbly, hand-drawn feeling circle using sine wave perturbations.
- * The shape feels playful and organic, avoiding the rigidity of perfect geometry.
- *
- * @param wobbleAmount How much the edge deviates from a circle (0.0-0.3 recommended)
- * @param waves Number of wobbles around the perimeter
  */
 private class SquigglyShape(
     private val wobbleAmount: Float = 0.12f,
@@ -405,11 +488,9 @@ private class SquigglyShape(
         val centerY = size.height / 2
         val baseRadius = minOf(size.width, size.height) / 2
 
-        // Create an organic blob using sine wave perturbations
-        val points = 72 // Smoothness of curve
+        val points = 72
         for (i in 0..points) {
             val angle = i.toFloat() / points * 2 * PI
-            // Add multiple sine waves for organic feel
             val wobble =
                 1f + wobbleAmount * sin(waves * angle).toFloat() +
                     wobbleAmount / 2 * cos((waves * 2 + 1) * angle).toFloat()
@@ -432,13 +513,6 @@ private class SquigglyShape(
 
 /**
  * Completion badge shown when a book is marked as finished.
- *
- * Uses a squiggly organic shape to feel playful and celebratory.
- * Positioned in top-right corner of book cover.
- *
- * Note: Completion is determined by the authoritative [isFinished] flag from the server,
- * not derived from progress percentage. This correctly handles ABS imports where books
- * may be marked complete at <99% progress (bonus content, credits, etc.).
  */
 @Composable
 private fun CompletionBadge(modifier: Modifier = Modifier) {
