@@ -46,7 +46,7 @@ import com.calypsan.listenup.client.features.shell.components.AppNavigationBar
 import com.calypsan.listenup.client.features.shell.components.AppNavigationDrawer
 import com.calypsan.listenup.client.features.shell.components.AppNavigationRail
 import com.calypsan.listenup.client.features.shell.components.AppTopBar
-import com.calypsan.listenup.client.features.shell.components.SyncDetailsSheet
+
 import com.calypsan.listenup.client.presentation.search.SearchNavAction
 import com.calypsan.listenup.client.presentation.search.SearchUiEvent
 import com.calypsan.listenup.client.features.search.SearchResultsOverlay
@@ -270,15 +270,8 @@ fun AppShell(
             onSignOutClick = onSignOut,
             onMyProfileClick = { user?.id?.value?.let(onUserProfileClick) },
             onSyncIndicatorClick = { syncIndicatorViewModel.toggleExpanded() },
-            scrollBehavior = scrollBehavior,
-            showAvatar = showAvatarInTopBar,
-        )
-    }
-
-    // Sync details sheet
-    if (isSyncDetailsExpanded) {
-        SyncDetailsSheet(
-            state = syncIndicatorState,
+            isSyncDetailsExpanded = isSyncDetailsExpanded,
+            syncIndicatorUiState = syncIndicatorState,
             onRetryOperation = { id ->
                 syncIndicatorViewModel.onEvent(SyncIndicatorUiEvent.RetryOperation(id))
             },
@@ -291,7 +284,9 @@ fun AppShell(
             onDismissAll = {
                 syncIndicatorViewModel.onEvent(SyncIndicatorUiEvent.DismissAll)
             },
-            onDismiss = { syncIndicatorViewModel.toggleExpanded() },
+            onSyncDetailsDismiss = { syncIndicatorViewModel.toggleExpanded() },
+            scrollBehavior = scrollBehavior,
+            showAvatar = showAvatarInTopBar,
         )
     }
 

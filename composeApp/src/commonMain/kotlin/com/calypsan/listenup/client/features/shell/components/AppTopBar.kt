@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
@@ -38,12 +39,13 @@ import com.calypsan.listenup.client.design.components.UserAvatar
 import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.domain.model.User
 import com.calypsan.listenup.client.features.shell.ShellDestination
-import org.jetbrains.compose.resources.stringResource
+import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiState
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.common_search
 import listenup.composeapp.generated.resources.shell_close_search
 import listenup.composeapp.generated.resources.shell_search_audiobooks
 import listenup.composeapp.generated.resources.shell_sync_error
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Top app bar for the main shell with collapsible search.
@@ -63,6 +65,12 @@ import listenup.composeapp.generated.resources.shell_sync_error
  * @param onAdminClick Callback when administration is clicked (only shown for admin users)
  * @param onSettingsClick Callback when settings is clicked
  * @param onSignOutClick Callback when sign out is clicked
+ * @param isSyncDetailsExpanded Whether the sync details dropdown is expanded
+ * @param syncIndicatorUiState UI state for the sync details dropdown content
+ * @param onRetryOperation Callback when a failed operation retry is clicked
+ * @param onDismissOperation Callback when a failed operation dismiss is clicked
+ * @param onRetryAll Callback when retry all is clicked
+ * @param onDismissAll Callback when dismiss all is clicked
  * @param scrollBehavior Scroll behavior for collapsing on scroll
  */
 @Suppress("LongParameterList")
@@ -83,6 +91,13 @@ fun AppTopBar(
     onSignOutClick: () -> Unit,
     onMyProfileClick: () -> Unit,
     onSyncIndicatorClick: () -> Unit = {},
+    isSyncDetailsExpanded: Boolean = false,
+    syncIndicatorUiState: SyncIndicatorUiState? = null,
+    onRetryOperation: (String) -> Unit = {},
+    onDismissOperation: (String) -> Unit = {},
+    onRetryAll: () -> Unit = {},
+    onDismissAll: () -> Unit = {},
+    onSyncDetailsDismiss: () -> Unit = {},
     scrollBehavior: TopAppBarScrollBehavior? = null,
     showAvatar: Boolean = true,
 ) {
@@ -133,11 +148,18 @@ fun AppTopBar(
                 }
             }
 
-            // Sync indicator (hidden when search expanded)
+            // Sync indicator with dropdown (hidden when search expanded)
             if (!isSearchExpanded) {
                 SyncIndicator(
                     syncState = syncState,
                     onClick = onSyncIndicatorClick,
+                    isSyncDetailsExpanded = isSyncDetailsExpanded,
+                    syncIndicatorUiState = syncIndicatorUiState,
+                    onRetryOperation = onRetryOperation,
+                    onDismissOperation = onDismissOperation,
+                    onRetryAll = onRetryAll,
+                    onDismissAll = onDismissAll,
+                    onSyncDetailsDismiss = onSyncDetailsDismiss,
                 )
             }
 
@@ -201,47 +223,70 @@ private fun SearchField(
 }
 
 /**
- * Sync status indicator.
+ * Sync status indicator with anchored dropdown.
  *
  * Shows:
  * - Spinner during Syncing/Progress/Retrying
  * - Error icon on Error
  * - Nothing for Idle/Success
  *
- * Tappable to show sync details.
+ * Tappable to show sync details dropdown.
  */
+@Suppress("LongParameterList")
 @Composable
 private fun SyncIndicator(
     syncState: SyncState,
     onClick: () -> Unit,
+    isSyncDetailsExpanded: Boolean = false,
+    syncIndicatorUiState: SyncIndicatorUiState? = null,
+    onRetryOperation: (String) -> Unit = {},
+    onDismissOperation: (String) -> Unit = {},
+    onRetryAll: () -> Unit = {},
+    onDismissAll: () -> Unit = {},
+    onSyncDetailsDismiss: () -> Unit = {},
 ) {
-    when (syncState) {
-        is SyncState.Syncing,
-        is SyncState.Progress,
-        is SyncState.Retrying,
-        -> {
-            ListenUpLoadingIndicatorSmall(
-                modifier =
-                    Modifier
-                        .clickable(onClick = onClick)
-                        .padding(end = 4.dp),
-            )
+    Box {
+        when (syncState) {
+            is SyncState.Syncing,
+            is SyncState.Progress,
+            is SyncState.Retrying,
+            -> {
+                ListenUpLoadingIndicatorSmall(
+                    modifier =
+                        Modifier
+                            .clickable(onClick = onClick)
+                            .padding(end = 4.dp),
+                )
+            }
+
+            is SyncState.Error -> {
+                Icon(
+                    imageVector = Icons.Default.CloudOff,
+                    contentDescription = stringResource(Res.string.shell_sync_error),
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier =
+                        Modifier
+                            .clickable(onClick = onClick)
+                            .padding(end = 4.dp),
+                )
+            }
+
+            else -> {
+                // Idle, Success - show nothing
+            }
         }
 
-        is SyncState.Error -> {
-            Icon(
-                imageVector = Icons.Default.CloudOff,
-                contentDescription = stringResource(Res.string.shell_sync_error),
-                tint = MaterialTheme.colorScheme.error,
-                modifier =
-                    Modifier
-                        .clickable(onClick = onClick)
-                        .padding(end = 4.dp),
+        // Sync details dropdown anchored to this indicator
+        if (syncIndicatorUiState != null) {
+            SyncDetailsDropdown(
+                expanded = isSyncDetailsExpanded,
+                state = syncIndicatorUiState,
+                onRetryOperation = onRetryOperation,
+                onDismissOperation = onDismissOperation,
+                onRetryAll = onRetryAll,
+                onDismissAll = onDismissAll,
+                onDismiss = onSyncDetailsDismiss,
             )
-        }
-
-        else -> {
-            // Idle, Success - show nothing
         }
     }
 }
