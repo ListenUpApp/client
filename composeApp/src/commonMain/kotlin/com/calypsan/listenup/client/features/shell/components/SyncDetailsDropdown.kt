@@ -6,13 +6,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
@@ -20,16 +19,14 @@ import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Pending
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,10 +34,9 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicatorSmall
 import com.calypsan.listenup.client.presentation.sync.PendingOperationUi
 import com.calypsan.listenup.client.presentation.sync.SyncIndicatorUiState
-import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.common_retry
 import listenup.composeapp.generated.resources.common_dismiss
+import listenup.composeapp.generated.resources.common_retry
 import listenup.composeapp.generated.resources.shell_all_synced
 import listenup.composeapp.generated.resources.shell_changes_waiting_to_sync
 import listenup.composeapp.generated.resources.shell_dismiss_all
@@ -50,18 +46,20 @@ import listenup.composeapp.generated.resources.shell_retry_all
 import listenup.composeapp.generated.resources.shell_sync_status
 import listenup.composeapp.generated.resources.shell_syncing
 import listenup.composeapp.generated.resources.shell_your_library_is_up_to
+import org.jetbrains.compose.resources.stringResource
 
 /**
- * Bottom sheet showing sync status details.
+ * Dropdown menu showing sync status details, anchored to the sync indicator.
  *
  * Displays:
  * - Current sync status (syncing/idle)
  * - Pending operations count
  * - Failed operations with retry/dismiss actions
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@Suppress("LongMethod")
 @Composable
-fun SyncDetailsSheet(
+fun SyncDetailsDropdown(
+    expanded: Boolean,
     state: SyncIndicatorUiState,
     onRetryOperation: (String) -> Unit,
     onDismissOperation: (String) -> Unit,
@@ -69,23 +67,19 @@ fun SyncDetailsSheet(
     onDismissAll: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
+    DropdownMenu(
+        expanded = expanded,
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        modifier = Modifier.width(320.dp).heightIn(max = 400.dp),
     ) {
         Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             // Header
             Text(
                 text = stringResource(Res.string.shell_sync_status),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(vertical = 16.dp),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 12.dp),
             )
 
             // Current status
@@ -97,9 +91,9 @@ fun SyncDetailsSheet(
 
             // Failed operations section
             if (state.failedOperations.isNotEmpty()) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
                 HorizontalDivider()
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
 
                 FailedOperationsSection(
                     failedOperations = state.failedOperations,
@@ -115,8 +109,6 @@ fun SyncDetailsSheet(
                 Spacer(Modifier.height(8.dp))
                 SyncCompleteSection()
             }
-
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -133,7 +125,7 @@ private fun SyncStatusSection(
         color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (isSyncing) {
@@ -142,7 +134,7 @@ private fun SyncStatusSection(
                 Column {
                     Text(
                         text = stringResource(Res.string.shell_syncing),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                     )
                     currentOperation?.let {
                         Text(
@@ -163,7 +155,7 @@ private fun SyncStatusSection(
                 Column {
                     Text(
                         text = stringResource(Res.string.shell_pendingcount_pending, pendingCount),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                     )
                     Text(
                         text = stringResource(Res.string.shell_changes_waiting_to_sync),
@@ -181,7 +173,7 @@ private fun SyncStatusSection(
                 Spacer(Modifier.width(12.dp))
                 Text(
                     text = stringResource(Res.string.shell_no_pending_changes),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                 )
             }
         }
@@ -196,7 +188,7 @@ private fun SyncCompleteSection() {
         color = MaterialTheme.colorScheme.primaryContainer,
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -209,7 +201,7 @@ private fun SyncCompleteSection() {
             Column {
                 Text(
                     text = stringResource(Res.string.shell_all_synced),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
@@ -246,7 +238,7 @@ private fun FailedOperationsSection(
             Spacer(Modifier.width(8.dp))
             Text(
                 text = "${failedOperations.size} failed",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.error,
             )
         }
@@ -264,9 +256,9 @@ private fun FailedOperationsSection(
     Spacer(Modifier.height(8.dp))
 
     // List of failed operations
-    @Suppress("MagicNumber") // Max 4 items visible, 72dp per item
+    @Suppress("MagicNumber") // Max 4 items visible, 64dp per item
     LazyColumn(
-        modifier = Modifier.height((failedOperations.size.coerceAtMost(4) * 72).dp),
+        modifier = Modifier.height((failedOperations.size.coerceAtMost(4) * 64).dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(failedOperations, key = { it.id }) { operation ->
@@ -291,18 +283,18 @@ private fun FailedOperationItem(
         color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = operation.description,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                 )
                 operation.error?.let { error ->
                     Text(
                         text = error,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
                         maxLines = 1,
                     )
