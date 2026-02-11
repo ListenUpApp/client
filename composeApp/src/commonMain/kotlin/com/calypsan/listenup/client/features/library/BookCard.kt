@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -95,6 +96,7 @@ fun BookCard(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val isFocused by interactionSource.collectIsFocusedAsState()
     val hapticFeedback = LocalHapticFeedback.current
 
     // Animate scale for press and selection
@@ -102,6 +104,7 @@ fun BookCard(
         targetValue =
             when {
                 isPressed -> 0.96f
+                isFocused -> 1.05f
                 isSelected -> 0.98f
                 else -> 1f
             },
@@ -117,6 +120,17 @@ fun BookCard(
                 MaterialTheme.colorScheme.surface.copy(alpha = 0f)
             },
         label = "border_color",
+    )
+
+    // Animate border for focus (TV/keyboard navigation)
+    val focusBorderColor by animateColorAsState(
+        targetValue =
+            if (isFocused) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0f)
+            },
+        label = "focus_border_color",
     )
 
     Column(
@@ -150,8 +164,8 @@ fun BookCard(
                 // Don't show progress overlay for completed books
                 progress = if (isCompleted) null else progress,
                 timeRemaining = if (isCompleted) null else timeRemaining,
-                isSelected = isSelected,
-                borderColor = borderColor,
+                isSelected = isSelected || isFocused,
+                borderColor = if (isSelected) borderColor else focusBorderColor,
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -161,7 +175,7 @@ fun BookCard(
             // Selection checkbox indicator takes precedence over completion badge
             if (isInSelectionMode) {
                 SelectionIndicator(
-                    isSelected = isSelected,
+                    isSelected = isSelected || isFocused,
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
