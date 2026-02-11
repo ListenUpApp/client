@@ -5,6 +5,12 @@ package com.calypsan.listenup.client.features.nowplaying
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -66,6 +72,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -122,6 +129,7 @@ fun NowPlayingScreen(
     onShowAuthorPicker: () -> Unit,
     onShowNarratorPicker: () -> Unit,
     onCloseBook: () -> Unit,
+    isTv: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // Handle back gesture/button - collapse instead of backgrounding the app
@@ -131,6 +139,47 @@ fun NowPlayingScreen(
 
     // Extract dominant color from cover
     var dominantColor by remember { mutableStateOf(Color.Transparent) }
+
+    // Breathing animation for cover art
+    val breathTransition = rememberInfiniteTransition(label = "breath")
+    val breathScale by breathTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.02f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 7000, easing = EaseInOut),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "breathScale",
+    )
+
+    // TV ambient mode: fade out controls after inactivity
+    var isAmbientMode by remember { mutableStateOf(false) }
+    var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    fun resetAmbient() {
+        lastInteractionTime = System.currentTimeMillis()
+        isAmbientMode = false
+    }
+
+    // Track chapter changes to exit ambient mode
+    val currentChapterTitle = state.chapterTitle
+    LaunchedEffect(currentChapterTitle) {
+        resetAmbient()
+    }
+
+    // Inactivity timer for TV
+    if (isTv) {
+        LaunchedEffect(lastInteractionTime) {
+            kotlinx.coroutines.delay(15_000L)
+            isAmbientMode = true
+        }
+    }
+
+    val ambientAlpha by animateFloatAsState(
+        targetValue = if (isTv && isAmbientMode) 0f else 1f,
+        animationSpec = tween(durationMillis = 1000),
+        label = "ambientAlpha",
+    )
 
     // Drag-to-dismiss state
     val scope = rememberCoroutineScope()
@@ -186,6 +235,10 @@ fun NowPlayingScreen(
         modifier =
             modifier
                 .fillMaxSize()
+                .onKeyEvent {
+                    if (isTv) resetAmbient()
+                    false // don't consume
+                }
                 .graphicsLayer {
                     translationY = dragOffset.value
                 }.pointerInput(Unit) {
@@ -269,32 +322,36 @@ fun NowPlayingScreen(
                         state = state,
                         sleepTimerState = sleepTimerState,
                         dominantColor = dominantColor,
+                        breathScale = breathScale,
+                        ambientAlpha = ambientAlpha,
                         onColorExtracted = { dominantColor = it },
-                        onCollapse = onCollapse,
-                        onPlayPause = onPlayPause,
-                        onSeek = onSeek,
-                        onSkipBack = onSkipBack,
-                        onSkipForward = onSkipForward,
-                        onPreviousChapter = onPreviousChapter,
-                        onNextChapter = onNextChapter,
-                        onSpeedClick = onSpeedClick,
-                        onChaptersClick = onChaptersClick,
-                        onSleepTimerClick = onSleepTimerClick,
-                        onGoToBook = onGoToBook,
-                        onGoToSeries = onGoToSeries,
-                        onGoToContributor = onGoToContributor,
-                        onShowAuthorPicker = onShowAuthorPicker,
-                        onShowNarratorPicker = onShowNarratorPicker,
-                        onCloseBook = onCloseBook,
+                        onCollapse = { resetAmbient(); onCollapse() },
+                        onPlayPause = { resetAmbient(); onPlayPause() },
+                        onSeek = { resetAmbient(); onSeek(it) },
+                        onSkipBack = { resetAmbient(); onSkipBack() },
+                        onSkipForward = { resetAmbient(); onSkipForward() },
+                        onPreviousChapter = { resetAmbient(); onPreviousChapter() },
+                        onNextChapter = { resetAmbient(); onNextChapter() },
+                        onSpeedClick = { resetAmbient(); onSpeedClick() },
+                        onChaptersClick = { resetAmbient(); onChaptersClick() },
+                        onSleepTimerClick = { resetAmbient(); onSleepTimerClick() },
+                        onGoToBook = { resetAmbient(); onGoToBook() },
+                        onGoToSeries = { resetAmbient(); onGoToSeries(it) },
+                        onGoToContributor = { resetAmbient(); onGoToContributor(it) },
+                        onShowAuthorPicker = { resetAmbient(); onShowAuthorPicker() },
+                        onShowNarratorPicker = { resetAmbient(); onShowNarratorPicker() },
+                        onCloseBook = { resetAmbient(); onCloseBook() },
                     )
                 } else {
                     // Tall layout: original vertical layout
                     TallNowPlayingLayout(
                         state = state,
                         sleepTimerState = sleepTimerState,
+                        breathScale = breathScale,
+                        ambientAlpha = ambientAlpha,
                         onColorExtracted = { dominantColor = it },
-                        onCollapse = onCollapse,
-                        onPlayPause = onPlayPause,
+                        onCollapse = { resetAmbient(); onCollapse() },
+                        onPlayPause = { resetAmbient(); onPlayPause() },
                         onSeek = onSeek,
                         onSkipBack = onSkipBack,
                         onSkipForward = onSkipForward,
@@ -308,7 +365,7 @@ fun NowPlayingScreen(
                         onGoToContributor = onGoToContributor,
                         onShowAuthorPicker = onShowAuthorPicker,
                         onShowNarratorPicker = onShowNarratorPicker,
-                        onCloseBook = onCloseBook,
+                        onCloseBook = { resetAmbient(); onCloseBook() },
                     )
                 }
             }
@@ -324,6 +381,8 @@ fun NowPlayingScreen(
 private fun TallNowPlayingLayout(
     state: NowPlayingState,
     sleepTimerState: SleepTimerState,
+    breathScale: Float,
+    ambientAlpha: Float,
     onColorExtracted: (Color) -> Unit,
     onCollapse: () -> Unit,
     onPlayPause: () -> Unit,
@@ -351,6 +410,7 @@ private fun TallNowPlayingLayout(
                 .padding(horizontal = 24.dp),
     ) {
         // Top bar with collapse handle and menu
+        Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
         NowPlayingTopBar(
             state = state,
             onCollapse = onCollapse,
@@ -361,6 +421,7 @@ private fun TallNowPlayingLayout(
             onShowNarratorPicker = onShowNarratorPicker,
             onCloseBook = onCloseBook,
         )
+        }
 
         Spacer(Modifier.height(16.dp))
 
@@ -374,6 +435,7 @@ private fun TallNowPlayingLayout(
         ) {
             CoverArt(
                 coverUrl = state.coverUrl,
+                breathScale = breathScale,
                 onColorExtracted = onColorExtracted,
             )
         }
@@ -381,16 +443,19 @@ private fun TallNowPlayingLayout(
         Spacer(Modifier.height(24.dp))
 
         // Title and chapter info
+        Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
         TitleSection(
             title = state.title,
             author = state.author,
             chapterTitle = state.chapterTitle,
             chapterLabel = state.chapterLabel,
         )
+        }
 
         Spacer(Modifier.height(24.dp))
 
         // Chapter seek bar
+        Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
         ChapterSeekBar(
             progress = state.chapterProgress,
             currentTime = state.chapterPosition,
@@ -398,10 +463,12 @@ private fun TallNowPlayingLayout(
             isPlaying = state.isPlaying,
             onSeek = onSeek,
         )
+        }
 
         Spacer(Modifier.height(32.dp))
 
         // Main controls
+        Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
         MainControls(
             isPlaying = state.isPlaying,
             onPlayPause = onPlayPause,
@@ -410,10 +477,12 @@ private fun TallNowPlayingLayout(
             onPreviousChapter = onPreviousChapter,
             onNextChapter = onNextChapter,
         )
+        }
 
         Spacer(Modifier.height(24.dp))
 
         // Secondary controls
+        Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
         SecondaryControls(
             playbackSpeed = state.playbackSpeed,
             sleepTimerState = sleepTimerState,
@@ -421,6 +490,7 @@ private fun TallNowPlayingLayout(
             onChaptersClick = onChaptersClick,
             onSleepTimerClick = onSleepTimerClick,
         )
+        }
 
         Spacer(Modifier.height(16.dp))
     }
@@ -435,6 +505,8 @@ private fun WideNowPlayingLayout(
     state: NowPlayingState,
     sleepTimerState: SleepTimerState,
     dominantColor: Color,
+    breathScale: Float,
+    ambientAlpha: Float,
     onColorExtracted: (Color) -> Unit,
     onCollapse: () -> Unit,
     onPlayPause: () -> Unit,
@@ -472,6 +544,7 @@ private fun WideNowPlayingLayout(
         ) {
             CoverArt(
                 coverUrl = state.coverUrl,
+                breathScale = breathScale,
                 onColorExtracted = onColorExtracted,
             )
         }
@@ -485,6 +558,7 @@ private fun WideNowPlayingLayout(
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             // Top bar with collapse and menu
+            Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
             NowPlayingTopBar(
                 state = state,
                 onCollapse = onCollapse,
@@ -495,8 +569,10 @@ private fun WideNowPlayingLayout(
                 onShowNarratorPicker = onShowNarratorPicker,
                 onCloseBook = onCloseBook,
             )
+            }
 
             // Title and chapter info (left-aligned for wide layout)
+            Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -536,8 +612,10 @@ private fun WideNowPlayingLayout(
                     )
                 }
             }
+            }
 
             // Chapter seek bar
+            Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
             ChapterSeekBar(
                 progress = state.chapterProgress,
                 currentTime = state.chapterPosition,
@@ -545,8 +623,10 @@ private fun WideNowPlayingLayout(
                 isPlaying = state.isPlaying,
                 onSeek = onSeek,
             )
+            }
 
             // Main controls
+            Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
             MainControls(
                 isPlaying = state.isPlaying,
                 onPlayPause = onPlayPause,
@@ -555,8 +635,10 @@ private fun WideNowPlayingLayout(
                 onPreviousChapter = onPreviousChapter,
                 onNextChapter = onNextChapter,
             )
+            }
 
             // Secondary controls
+            Box(modifier = Modifier.graphicsLayer { alpha = ambientAlpha }) {
             SecondaryControls(
                 playbackSpeed = state.playbackSpeed,
                 sleepTimerState = sleepTimerState,
@@ -564,6 +646,7 @@ private fun WideNowPlayingLayout(
                 onChaptersClick = onChaptersClick,
                 onSleepTimerClick = onSleepTimerClick,
             )
+            }
         }
     }
 }
@@ -710,6 +793,7 @@ private fun NowPlayingTopBar(
 @Composable
 private fun CoverArt(
     coverUrl: String?,
+    breathScale: Float = 1f,
     onColorExtracted: (Color) -> Unit,
 ) {
     val context = LocalContext.current
@@ -717,12 +801,16 @@ private fun CoverArt(
     // Track if color has been extracted for this URL to prevent repeated extraction
     var colorExtracted by remember(coverUrl) { mutableStateOf(false) }
 
-    // Cover art with shadow
+    // Cover art with shadow and breathing animation
     Surface(
         modifier =
             Modifier
                 .fillMaxHeight()
-                .aspectRatio(1f),
+                .aspectRatio(1f)
+                .graphicsLayer {
+                    scaleX = breathScale
+                    scaleY = breathScale
+                },
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 24.dp,
         tonalElevation = 0.dp,

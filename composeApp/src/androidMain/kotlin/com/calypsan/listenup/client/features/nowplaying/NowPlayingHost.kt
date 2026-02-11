@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.features.shell.components.NavigationBarHeight
 import com.calypsan.listenup.client.playback.ContributorPickerType
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
+import android.app.UiModeManager
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalContext
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Height of a standard snackbar for padding calculations */
@@ -51,6 +55,13 @@ fun NowPlayingHost(
     val state by viewModel.state.collectAsState()
     val sleepTimerState by viewModel.sleepTimerState.collectAsState()
     val isSnackbarVisible = snackbarHostState?.currentSnackbarData != null
+
+    // Detect TV mode
+    val context = LocalContext.current
+    val isTv = remember {
+        val uiModeManager = context.getSystemService(android.content.Context.UI_MODE_SERVICE) as? UiModeManager
+        uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         // Full screen (slides up when expanded)
@@ -103,6 +114,7 @@ fun NowPlayingHost(
                 onShowAuthorPicker = { viewModel.showContributorPicker(ContributorPickerType.AUTHORS) },
                 onShowNarratorPicker = { viewModel.showContributorPicker(ContributorPickerType.NARRATORS) },
                 onCloseBook = viewModel::closeBook,
+                isTv = isTv,
             )
         }
 
