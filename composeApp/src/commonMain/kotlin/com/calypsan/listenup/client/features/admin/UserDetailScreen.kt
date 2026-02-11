@@ -46,7 +46,6 @@ import com.calypsan.listenup.client.presentation.admin.UserDetailUiState
 import com.calypsan.listenup.client.presentation.admin.UserDetailViewModel
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
-import listenup.composeapp.generated.resources.admin_allow_downloading_content_for_offline
 import listenup.composeapp.generated.resources.admin_allow_sharing_collections_with_other
 import listenup.composeapp.generated.resources.admin_can_share
 import listenup.composeapp.generated.resources.common_display_name

@@ -90,7 +90,7 @@ import listenup.composeapp.generated.resources.common_deny
 import listenup.composeapp.generated.resources.admin_deny_registration
 import listenup.composeapp.generated.resources.common_email
 import listenup.composeapp.generated.resources.common_inbox
-import listenup.composeapp.generated.resources.common_inbox_workflow
+import listenup.composeapp.generated.resources.admin_inbox_workflow
 import listenup.composeapp.generated.resources.admin_invite_someone
 import listenup.composeapp.generated.resources.admin_link_copied
 import listenup.composeapp.generated.resources.connect_listenup_server
@@ -105,7 +105,7 @@ import listenup.composeapp.generated.resources.common_permissions
 import listenup.composeapp.generated.resources.admin_remote_url
 import listenup.composeapp.generated.resources.admin_review_new_books_before_they
 import listenup.composeapp.generated.resources.common_revoke
-import listenup.composeapp.generated.resources.common_revoke_invite
+import listenup.composeapp.generated.resources.admin_revoke_invite
 import listenup.composeapp.generated.resources.common_role
 import listenup.composeapp.generated.resources.admin_save_settings
 import listenup.composeapp.generated.resources.admin_server_name
@@ -243,7 +243,7 @@ fun AdminScreen(
     inviteToRevoke?.let { invite ->
         ListenUpDestructiveDialog(
             onDismissRequest = { inviteToRevoke = null },
-            title = stringResource(Res.string.common_revoke_invite),
+            title = stringResource(Res.string.admin_revoke_invite),
             text =
                 "Are you sure you want to revoke the invite for ${invite.name}? " +
                     stringResource(Res.string.admin_they_wont_be_able_to),
@@ -658,7 +658,7 @@ private fun SettingsCard(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(Res.string.common_inbox_workflow),
+                        text = stringResource(Res.string.admin_inbox_workflow),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
