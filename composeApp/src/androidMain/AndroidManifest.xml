@@ -35,23 +35,9 @@
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
 
-            <!-- App Links: https://*.../join/{code} (requires assetlinks.json verification) -->
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:pathPrefix="/join" />
-            </intent-filter>
 
-            <!-- HTTP fallback for local development -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" android:pathPrefix="/join" />
-            </intent-filter>
 
-            <!-- Custom scheme fallback: listenup://join?server=...&code=... -->
+            <!-- Deep link: listenup://join?server=...&code=... -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
