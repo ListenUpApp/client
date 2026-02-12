@@ -3,8 +3,11 @@
 package com.calypsan.listenup.client.features.connect
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.window.core.layout.WindowSizeClass
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -46,12 +51,12 @@ import listenup.composeapp.generated.resources.connect_server_url_placeholder
 import listenup.composeapp.generated.resources.connect_server_url
 
 /**
- * Server setup screen with clean, non-overlapping layout.
+ * Server setup screen with adaptive layout.
  *
  * Features:
+ * - Side-by-side layout on wide screens (landscape/tablet/TV)
+ * - Vertical card layout on narrow screens (portrait phone)
  * - Scaffold for proper Material 3 structure
- * - Single scrollable Column - no overlapping elements
- * - ElevatedCard for form container with expressive corners
  * - Respects system theme and dynamic colors
  * - Edge-to-edge with proper insets
  *
@@ -83,7 +88,6 @@ fun ServerSetupScreen(
 
 /**
  * Stateless content for ServerSetupScreen.
- * Separated for preview support.
  */
 @Composable
 private fun ServerSetupContent(
@@ -92,59 +96,113 @@ private fun ServerSetupContent(
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val useWideLayout =
+        windowSizeClass.isWidthAtLeastBreakpoint(
+            WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+        )
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surface,
     ) { innerPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .imePadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            // Top spacing
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Logo
-            BrandLogo()
-
-            // Gap between logo and card
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Form card - constrained width for tablets
-            ElevatedCard(
+        if (useWideLayout) {
+            Row(
                 modifier =
                     Modifier
-                        .widthIn(max = 480.dp)
-                        .fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                colors =
-                    CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
+                        .fillMaxSize()
+                        .padding(innerPadding),
             ) {
-                FormContent(
-                    state = state,
-                    onEvent = onEvent,
-                    modifier = Modifier.padding(24.dp),
-                )
-            }
+                // Left pane: logo
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(0.4f)
+                            .fillMaxHeight(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BrandLogo()
+                }
 
-            // Back button (only shown when there's somewhere to go back to)
-            if (onBack != null) {
-                Spacer(modifier = Modifier.height(16.dp))
+                // Right pane: form
+                Column(
+                    modifier =
+                        Modifier
+                            .weight(0.6f)
+                            .fillMaxHeight()
+                            .imePadding()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 32.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    FormContent(
+                        state = state,
+                        onEvent = onEvent,
+                        modifier = Modifier.widthIn(max = 480.dp),
+                    )
 
-                TextButton(onClick = onBack) {
-                    Text(stringResource(Res.string.connect_back_to_server_list))
+                    if (onBack != null) {
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        TextButton(onClick = onBack) {
+                            Text(stringResource(Res.string.connect_back_to_server_list))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
                 }
             }
+        } else {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .imePadding()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // Top spacing
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // Bottom spacing
-            Spacer(modifier = Modifier.height(32.dp))
+                // Logo
+                BrandLogo()
+
+                // Gap between logo and card
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Form card - constrained width for tablets
+                ElevatedCard(
+                    modifier =
+                        Modifier
+                            .widthIn(max = 480.dp)
+                            .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors =
+                        CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                ) {
+                    FormContent(
+                        state = state,
+                        onEvent = onEvent,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                }
+
+                // Back button (only shown when there's somewhere to go back to)
+                if (onBack != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    TextButton(onClick = onBack) {
+                        Text(stringResource(Res.string.connect_back_to_server_list))
+                    }
+                }
+
+                // Bottom spacing
+                Spacer(modifier = Modifier.height(32.dp))
+            }
         }
     }
 }

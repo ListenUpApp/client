@@ -3,8 +3,11 @@
 package com.calypsan.listenup.client.features.auth
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,6 +32,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.window.core.layout.WindowSizeClass
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,6 +49,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.design.components.BrandLogo
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import com.calypsan.listenup.client.design.components.ListenUpTextField
 import com.calypsan.listenup.client.presentation.auth.RegisterStatus
@@ -57,7 +63,6 @@ import listenup.composeapp.generated.resources.auth_create_account
 import listenup.composeapp.generated.resources.auth_create_an_account_request_an
 import listenup.composeapp.generated.resources.auth_first_name
 import listenup.composeapp.generated.resources.auth_last_name
-import listenup.composeapp.generated.resources.auth_request_account
 import listenup.composeapp.generated.resources.auth_request_account
 
 /**
@@ -79,6 +84,12 @@ fun RegisterScreen(
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val useWideLayout =
+        windowSizeClass.isWidthAtLeastBreakpoint(
+            WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+        )
+
     // Handle status changes
     LaunchedEffect(state.status) {
         when (val status = state.status) {
@@ -97,54 +108,96 @@ fun RegisterScreen(
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(Res.string.auth_create_account)) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.common_back),
-                        )
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
-            )
-        },
-    ) { innerPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .imePadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(modifier = Modifier.height(24.dp))
-
-            ElevatedCard(
-                modifier =
-                    Modifier
-                        .widthIn(max = 480.dp)
-                        .fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                colors =
-                    CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
-            ) {
-                RegisterForm(
-                    state = state,
-                    onSubmit = viewModel::onRegisterSubmit,
-                    modifier = Modifier.padding(24.dp),
+            if (!useWideLayout) {
+                TopAppBar(
+                    title = { Text(stringResource(Res.string.auth_create_account)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(Res.string.common_back),
+                            )
+                        }
+                    },
+                    colors =
+                        TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                        ),
                 )
             }
+        },
+    ) { innerPadding ->
+        if (useWideLayout) {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+            ) {
+                // Left pane: logo
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(0.4f)
+                            .fillMaxHeight(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BrandLogo()
+                }
 
-            Spacer(modifier = Modifier.height(32.dp))
+                // Right pane: form
+                Column(
+                    modifier =
+                        Modifier
+                            .weight(0.6f)
+                            .fillMaxHeight()
+                            .imePadding()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 32.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    RegisterForm(
+                        state = state,
+                        onSubmit = viewModel::onRegisterSubmit,
+                        modifier = Modifier.widthIn(max = 480.dp),
+                    )
+
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
+            }
+        } else {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .imePadding()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
+
+                ElevatedCard(
+                    modifier =
+                        Modifier
+                            .widthIn(max = 480.dp)
+                            .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors =
+                        CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                ) {
+                    RegisterForm(
+                        state = state,
+                        onSubmit = viewModel::onRegisterSubmit,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+            }
         }
     }
 }

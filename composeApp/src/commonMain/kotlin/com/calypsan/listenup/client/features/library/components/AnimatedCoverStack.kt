@@ -135,8 +135,9 @@ private fun FullWidthCover(
 }
 
 /**
- * Two covers displayed side by side with a small gap.
- * Covers are square and centered in the available space.
+ * Two covers displayed side by side.
+ * Front cover is larger (60% width), back cover is smaller (40% width).
+ * Both maintain square aspect ratio but scale to fill available space.
  */
 @Composable
 private fun TwoUpCoverLayout(
@@ -145,17 +146,22 @@ private fun TwoUpCoverLayout(
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        coverPaths.take(2).forEach { coverPath ->
-            StackedCover(
-                coverPath = coverPath,
-                modifier =
-                    Modifier
-                        .fillMaxHeight()
-                        .aspectRatio(1f), // Square covers
-            )
-        }
+        // Primary cover — takes more space
+        StackedCover(
+            coverPath = coverPaths.getOrNull(0),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        )
+        // Secondary cover — equal size
+        StackedCover(
+            coverPath = coverPaths.getOrNull(1),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        )
     }
 }
 

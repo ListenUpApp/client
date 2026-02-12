@@ -1,8 +1,11 @@
 package com.calypsan.listenup.client.features.auth
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +24,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.window.core.layout.WindowSizeClass
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,7 +60,7 @@ import listenup.composeapp.generated.resources.auth_sign_in_to_access_your
  * Login screen for user authentication.
  *
  * Features:
- * - Clean Material 3 layout matching Setup/ServerSetup style
+ * - Adaptive layout: side-by-side on wide screens, vertical on narrow
  * - Email and password fields
  * - Client-side validation with field-specific errors
  * - Snackbar for network/server/credential errors
@@ -132,58 +137,114 @@ private fun LoginContent(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val useWideLayout =
+        windowSizeClass.isWidthAtLeastBreakpoint(
+            WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+        )
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .imePadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(modifier = Modifier.height(48.dp))
-
-            BrandLogo()
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            ElevatedCard(
+        if (useWideLayout) {
+            Row(
                 modifier =
                     Modifier
-                        .widthIn(max = 480.dp)
-                        .fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                colors =
-                    CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
+                        .fillMaxSize()
+                        .padding(innerPadding),
             ) {
-                LoginForm(
-                    state = state,
-                    onSubmit = onSubmit,
-                    modifier = Modifier.padding(24.dp),
-                )
-            }
+                // Left pane: logo
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(0.4f)
+                            .fillMaxHeight(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BrandLogo()
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                // Right pane: form
+                Column(
+                    modifier =
+                        Modifier
+                            .weight(0.6f)
+                            .fillMaxHeight()
+                            .imePadding()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 32.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    LoginForm(
+                        state = state,
+                        onSubmit = onSubmit,
+                        modifier = Modifier.widthIn(max = 480.dp),
+                    )
 
-            if (openRegistration) {
-                TextButton(onClick = onRegister) {
-                    Text(stringResource(Res.string.auth_create_account))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (openRegistration) {
+                        TextButton(onClick = onRegister) {
+                            Text(stringResource(Res.string.auth_create_account))
+                        }
+                    }
+
+                    TextButton(onClick = onChangeServer) {
+                        Text(stringResource(Res.string.auth_change_server))
+                    }
                 }
             }
+        } else {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .imePadding()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
 
-            TextButton(onClick = onChangeServer) {
-                Text(stringResource(Res.string.auth_change_server))
+                BrandLogo()
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                ElevatedCard(
+                    modifier =
+                        Modifier
+                            .widthIn(max = 480.dp)
+                            .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors =
+                        CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                ) {
+                    LoginForm(
+                        state = state,
+                        onSubmit = onSubmit,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (openRegistration) {
+                    TextButton(onClick = onRegister) {
+                        Text(stringResource(Res.string.auth_create_account))
+                    }
+                }
+
+                TextButton(onClick = onChangeServer) {
+                    Text(stringResource(Res.string.auth_change_server))
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

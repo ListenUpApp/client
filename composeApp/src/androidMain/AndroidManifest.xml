@@ -34,7 +34,8 @@
             android:exported="true"
             android:name="com.calypsan.listenup.client.MainActivity"
             android:colorMode="wideColorGamut"
-            android:launchMode="singleTask">
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
