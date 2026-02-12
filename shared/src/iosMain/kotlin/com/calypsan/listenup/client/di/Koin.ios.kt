@@ -153,3 +153,4 @@ actual val platformDeviceModule: Module =
                 .DeviceContextProvider()
         }
         single { get<com.calypsan.listenup.client.device.DeviceContextProvider>().detect() }
+    }

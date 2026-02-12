@@ -145,7 +145,7 @@ final class NowPlayingObserver {
 
     /// Jump to a specific chapter by index
     func selectChapter(index: Int) {
-        let chapters = playbackManager.chapters.value as? [Chapter] ?? []
+        let chapters = Array(playbackManager.chapters.value)
         guard index >= 0, index < chapters.count else { return }
         let chapter = chapters[index]
         audioPlayer.seekTo(positionMs: chapter.startTime)
@@ -165,7 +165,7 @@ final class NowPlayingObserver {
             guard let self else { return }
             for await bookId in self.playbackManager.currentBookId {
                 guard !Task.isCancelled else { break }
-                let idValue = bookId?.value
+                let idValue = bookId as? String
                 self.isVisible = idValue != nil
                 if idValue != self.currentBookIdValue {
                     self.currentBookIdValue = idValue
