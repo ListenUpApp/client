@@ -112,7 +112,7 @@ fun DockedNowPlayingBar(
                     )
                 }
 
-                // Main content row
+                // Main content row — three sections with controls centered
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -121,41 +121,46 @@ fun DockedNowPlayingBar(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // Left: Cover + title/author
-                    BookCoverImage(
-                        bookId = state.bookId,
-                        coverPath = state.coverUrl,
-                        blurHash = state.coverBlurHash,
-                        contentDescription = "Book cover",
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                    )
-
-                    Spacer(Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = state.title.ifEmpty { "Preparing..." },
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        BookCoverImage(
+                            bookId = state.bookId,
+                            coverPath = state.coverUrl,
+                            blurHash = state.coverBlurHash,
+                            contentDescription = "Book cover",
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(RoundedCornerShape(8.dp)),
                         )
-                        if (state.isPreparing) {
+
+                        Spacer(Modifier.width(16.dp))
+
+                        Column {
                             Text(
-                                text = state.prepareMessage ?: "Preparing audio...",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                text = state.title.ifEmpty { "Preparing..." },
+                                style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                        } else {
-                            Text(
-                                text = state.author,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            if (state.isPreparing) {
+                                Text(
+                                    text = state.prepareMessage ?: "Preparing audio...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            } else {
+                                Text(
+                                    text = state.author,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
 
@@ -201,33 +206,37 @@ fun DockedNowPlayingBar(
                                 )
                             }
                         }
-
-                        Spacer(Modifier.width(16.dp))
                     }
 
                     // Right: Chapter + time remaining
                     if (!state.isPreparing) {
-                        Column(
-                            horizontalAlignment = Alignment.End,
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            state.chapterTitle?.let { chapter ->
-                                Text(
-                                    text = chapter,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.End,
-                                )
-                            }
-                            val remainingMs = state.bookDurationMs - state.bookPositionMs
-                            if (remainingMs > 0) {
-                                Text(
-                                    text = formatTimeRemaining(remainingMs),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                    textAlign = TextAlign.End,
-                                )
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                            ) {
+                                state.chapterTitle?.let { chapter ->
+                                    Text(
+                                        text = chapter,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.End,
+                                    )
+                                }
+                                val remainingMs = state.bookDurationMs - state.bookPositionMs
+                                if (remainingMs > 0) {
+                                    Text(
+                                        text = formatTimeRemaining(remainingMs),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        textAlign = TextAlign.End,
+                                    )
+                                }
                             }
                         }
                     }
