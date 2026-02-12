@@ -111,3 +111,13 @@ object KoinHelper : KoinComponent {
         return viewModel
     }
 }
+
+/**
+ * iOS-specific device detection module.
+ * Uses UIDevice.userInterfaceIdiom to detect device type.
+ */
+actual val platformDeviceModule: Module =
+    module {
+        single { com.calypsan.listenup.client.device.DeviceContextProvider() }
+        single { get<com.calypsan.listenup.client.device.DeviceContextProvider>().detect() }
+    }
