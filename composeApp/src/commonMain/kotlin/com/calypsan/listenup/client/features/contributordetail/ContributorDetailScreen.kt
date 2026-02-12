@@ -70,6 +70,7 @@ import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.getInitials
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
+import com.calypsan.listenup.client.design.LocalDeviceContext
 import com.calypsan.listenup.client.features.contributoredit.components.ContributorColorScheme
 import com.calypsan.listenup.client.features.contributoredit.components.rememberContributorColorScheme
 import com.calypsan.listenup.client.features.library.BookCard
@@ -373,6 +374,7 @@ private fun WideHeroHeader(
                                 fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.Bold,
                             ),
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -455,6 +457,7 @@ private fun WorkSectionHeader(
                         fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Bold,
                     ),
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = "${section.bookCount} ${if (section.bookCount == 1) "book" else "books"}",
@@ -729,6 +732,7 @@ private fun NavigationBar(
             )
         }
 
+        if (!LocalDeviceContext.current.isLeanback) {
         Box {
             IconButton(
                 onClick = { showMenu = true },
@@ -788,6 +792,7 @@ private fun NavigationBar(
                     },
                 )
             }
+        }
         }
     }
 }
