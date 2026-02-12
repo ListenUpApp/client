@@ -55,7 +55,9 @@ fun ListenUpWindow(
         visible = isVisible,
         title = "ListenUp",
         state = state,
-        icon = androidx.compose.ui.res.painterResource("icon.png"),
+        icon =
+            androidx.compose.ui.res
+                .painterResource("icon.png"),
     ) {
         val localPreferences: LocalPreferences = koinInject()
         val themeMode by localPreferences.themeMode.collectAsState()
