@@ -26,7 +26,7 @@ struct SearchView: View {
             }
         }
         .background(Color(.systemBackground))
-        .navigationTitle(NSLocalizedString("common.search", comment: ""))
+        .navigationTitle(String(localized: "common.search"))
         .navigationBarTitleDisplayMode(.large)
     }
 
@@ -37,7 +37,7 @@ struct SearchView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
-            TextField(NSLocalizedString("search.search_placeholder", comment: ""), text: $searchText)
+            TextField(String(localized: "search.search_placeholder"), text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($isSearchFocused)
                 .submitLabel(.search)
@@ -66,10 +66,10 @@ struct SearchView: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
 
-            Text(NSLocalizedString("search.search_your_library", comment: ""))
+            Text(String(localized: "search.search_your_library"))
                 .font(.title2.bold())
 
-            Text(NSLocalizedString("search.find_description", comment: ""))
+            Text(String(localized: "search.find_description"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -85,13 +85,13 @@ struct SearchView: View {
     private var searchResults: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                Text(String(format: NSLocalizedString("search.results_for", comment: ""), searchText))
+                Text(String(format: String(localized: "search.results_for"), searchText))
                     .font(.headline)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)
 
                 // TODO: Implement actual search with SearchViewModel
-                Text(NSLocalizedString("search.coming_soon", comment: ""))
+                Text(String(localized: "search.coming_soon"))
                     .foregroundStyle(.secondary)
                     .padding()
             }

@@ -43,7 +43,7 @@ struct FloatingSortButton: View {
                 onDirectionToggle()
             } label: {
                 HStack {
-                    Text(NSLocalizedString("common.direction", comment: ""))
+                    Text(String(localized: "common.direction"))
                     Spacer()
                     Text(sortState.directionLabel)
                         .foregroundStyle(.secondary)

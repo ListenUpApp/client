@@ -31,16 +31,16 @@ struct BookDetailView: View {
             }
         }
         .background(Color(.systemBackground))
-        .navigationTitle(NSLocalizedString("common.about", comment: ""))
+        .navigationTitle(String(localized: "common.about"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button(action: {}) {
-                        Label(NSLocalizedString("common.edit", comment: ""), systemImage: "pencil")
+                        Label(String(localized: "common.edit"), systemImage: "pencil")
                     }
                     Button(action: {}) {
-                        Label(NSLocalizedString("common.share", comment: ""), systemImage: "square.and.arrow.up")
+                        Label(String(localized: "common.share"), systemImage: "square.and.arrow.up")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -173,7 +173,7 @@ struct BookDetailView: View {
     private var completedBadge: some View {
         HStack(spacing: 4) {
             Image(systemName: "checkmark.circle.fill")
-            Text(NSLocalizedString("common.completed", comment: ""))
+            Text(String(localized: "common.completed"))
         }
         .font(.caption.weight(.medium))
         .foregroundStyle(.green)
@@ -184,7 +184,7 @@ struct BookDetailView: View {
     private var actionButtons: some View {
         HStack(spacing: 16) {
             Button(action: { observer?.play() }) {
-                Label(NSLocalizedString("book.detail_stream_now", comment: ""), systemImage: "play.fill")
+                Label(String(localized: "book.detail_stream_now"), systemImage: "play.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -206,7 +206,7 @@ struct BookDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             if !observer.authors.isEmpty {
                 contributorRow(
-                    label: NSLocalizedString("book.detail_written_by", comment: ""),
+                    label: String(localized: "book.detail_written_by"),
                     value: observer.authors,
                     contributors: observer.book?.authors ?? []
                 )
@@ -214,7 +214,7 @@ struct BookDetailView: View {
 
             if !observer.narrators.isEmpty {
                 contributorRow(
-                    label: NSLocalizedString("book.detail_narrated_by", comment: ""),
+                    label: String(localized: "book.detail_narrated_by"),
                     value: observer.narrators,
                     contributors: observer.book?.narrators ?? []
                 )
@@ -266,7 +266,7 @@ struct BookDetailView: View {
 
     private func genresSection(observer: BookDetailObserver) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(NSLocalizedString("book.genres", comment: ""))
+            Text(String(localized: "book.genres"))
                 .font(.headline)
 
             FlowLayout(spacing: 8) {
@@ -286,7 +286,7 @@ struct BookDetailView: View {
     // MARK: - Description Section
 
     private func descriptionSection(observer: BookDetailObserver) -> some View {
-        ExpandableText(title: NSLocalizedString("book.detail_synopsis", comment: ""), text: observer.bookDescription, lineLimit: 4)
+        ExpandableText(title: String(localized: "book.detail_synopsis"), text: observer.bookDescription, lineLimit: 4)
     }
 
     // MARK: - Chapters Section
@@ -294,7 +294,7 @@ struct BookDetailView: View {
     private func chaptersSection(observer: BookDetailObserver) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(NSLocalizedString("book.detail_chapters", comment: ""))
+                Text(String(localized: "book.detail_chapters"))
                     .font(.headline)
 
                 Text("\(observer.chapters.count)")
@@ -312,7 +312,7 @@ struct BookDetailView: View {
             }
 
             if observer.chapters.count > maxChaptersPreview {
-                Button(showAllChapters ? NSLocalizedString("book.detail_show_less", comment: "") : String(format: NSLocalizedString("book.detail_see_all_chapters", comment: ""), observer.chapters.count)) {
+                Button(showAllChapters ? String(localized: "book.detail_show_less") : String(format: String(localized: "book.detail_see_all_chapters"), observer.chapters.count)) {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showAllChapters.toggle()
                     }
@@ -359,7 +359,7 @@ struct BookDetailView: View {
     private var loadingView: some View {
         VStack(spacing: 16) {
             ProgressView()
-            Text(NSLocalizedString("common.loading", comment: ""))
+            Text(String(localized: "common.loading"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }

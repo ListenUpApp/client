@@ -50,10 +50,10 @@ struct ServerSelectView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(NSLocalizedString("connect.select_server", comment: ""))
+                Text(String(localized: "connect.select_server"))
                     .font(.largeTitle.bold())
 
-                Text(NSLocalizedString("connect.choose_server", comment: ""))
+                Text(String(localized: "connect.choose_server"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -126,7 +126,7 @@ private struct ServerCard: View {
                         .foregroundStyle(.primary)
 
                     HStack(spacing: 8) {
-                        Text(server.isOnline ? NSLocalizedString("common.online", comment: "") : NSLocalizedString("common.offline", comment: ""))
+                        Text(server.isOnline ? String(localized: "common.online") : String(localized: "common.offline"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -186,15 +186,15 @@ private struct EmptyDiscoveryState: View {
                 HStack(spacing: 8) {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text(NSLocalizedString("connect.searching", comment: ""))
+                    Text(String(localized: "connect.searching"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Text(String(format: NSLocalizedString("common.no_items_found", comment: ""), NSLocalizedString("connect.listenup_server", comment: "")))
+                Text(String(format: String(localized: "common.no_items_found"), String(localized: "connect.listenup_server")))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(NSLocalizedString("connect.make_sure_your_listenup_server", comment: ""))
+                Text(String(localized: "connect.make_sure_your_listenup_server"))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -222,11 +222,11 @@ private struct ManualEntryCard: View {
                     .foregroundStyle(Color.listenUpOrange)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(NSLocalizedString("connect.add_server_manually", comment: ""))
+                    Text(String(localized: "connect.add_server_manually"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
 
-                    Text(NSLocalizedString("connect.enter_server_url_directly", comment: ""))
+                    Text(String(localized: "connect.enter_server_url_directly"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

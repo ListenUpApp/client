@@ -25,13 +25,13 @@ struct SeriesDetailView: View {
             }
         }
         .background(Color(.systemBackground))
-        .navigationTitle(NSLocalizedString("common.series", comment: ""))
+        .navigationTitle(String(localized: "common.series"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button(action: {}) {
-                        Label(NSLocalizedString("common.edit", comment: ""), systemImage: "pencil")
+                        Label(String(localized: "common.edit"), systemImage: "pencil")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -108,14 +108,14 @@ struct SeriesDetailView: View {
     // MARK: - Description Section
 
     private func descriptionSection(description: String) -> some View {
-        ExpandableText(title: NSLocalizedString("common.about", comment: ""), text: description, lineLimit: 3)
+        ExpandableText(title: String(localized: "common.about"), text: description, lineLimit: 3)
     }
 
     // MARK: - Books Section
 
     private func booksSection(observer: SeriesDetailObserver) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(NSLocalizedString("series.books_in_series", comment: ""))
+            Text(String(localized: "series.books_in_series"))
                 .font(.headline)
 
             ForEach(Array(observer.books.enumerated()), id: \.element.idString) { index, book in
@@ -196,7 +196,7 @@ struct SeriesDetailView: View {
     private var loadingView: some View {
         VStack(spacing: 16) {
             ProgressView()
-            Text(NSLocalizedString("common.loading", comment: ""))
+            Text(String(localized: "common.loading"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }

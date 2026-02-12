@@ -360,7 +360,7 @@ struct FullScreenPlayerView: View {
                     .frame(width: 44, height: 44)
             }
             .accessibilityLabel(String(
-                format: NSLocalizedString("player.skip_backward", comment: ""),
+                format: String(localized: "player.skip_backward"),
                 "10"
             ))
 
@@ -392,12 +392,12 @@ struct FullScreenPlayerView: View {
                     .frame(width: 44, height: 44)
             }
             .accessibilityLabel(String(
-                format: NSLocalizedString("player.skip_forward", comment: ""),
+                format: String(localized: "player.skip_forward"),
                 "10"
             ))
         }
     }
-            .accessibilityLabel(NSLocalizedString("player.bookmark", comment: ""))
+            .accessibilityLabel(String(localized: "player.bookmark"))
 
             // Sleep timer
             Button(action: { showSleepTimer = true }) {
@@ -406,7 +406,7 @@ struct FullScreenPlayerView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 44, height: 44)
             }
-            .accessibilityLabel(NSLocalizedString("player.sleep_timer", comment: ""))
+            .accessibilityLabel(String(localized: "player.sleep_timer"))
 
             // Speed
             Button(action: { showSpeedPicker = true }) {
@@ -416,7 +416,7 @@ struct FullScreenPlayerView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 44, height: 44)
             }
-            .accessibilityLabel(NSLocalizedString("player.speed", comment: ""))
+            .accessibilityLabel(String(localized: "player.speed"))
 
             // Chapters
             Button(action: { showChapterList = true }) {
@@ -425,7 +425,7 @@ struct FullScreenPlayerView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 44, height: 44)
             }
-            .accessibilityLabel(NSLocalizedString("player.chapters", comment: ""))
+            .accessibilityLabel(String(localized: "player.chapters"))
         }
     }
 

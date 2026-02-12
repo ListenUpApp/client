@@ -15,10 +15,10 @@ enum LibraryTab: String, CaseIterable, Identifiable {
     /// Display title for the tab
     var title: String {
         switch self {
-        case .books: NSLocalizedString("library.books", comment: "")
-        case .series: NSLocalizedString("common.series", comment: "")
-        case .authors: NSLocalizedString("library.authors", comment: "")
-        case .narrators: NSLocalizedString("library.narrators", comment: "")
+        case .books: String(localized: "library.books")
+        case .series: String(localized: "common.series")
+        case .authors: String(localized: "library.authors")
+        case .narrators: String(localized: "library.narrators")
         }
     }
 

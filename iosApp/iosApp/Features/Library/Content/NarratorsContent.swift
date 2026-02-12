@@ -134,10 +134,10 @@ struct NarratorsContent: View {
                 .font(.system(size: 64))
                 .foregroundStyle(.secondary)
 
-            Text(String(format: NSLocalizedString("common.no_items_yet", comment: ""), "narrators"))
+            Text(String(format: String(localized: "common.no_items_yet"), "narrators"))
                 .font(.title2.bold())
 
-            Text(String(format: NSLocalizedString("library.empty_tab_description", comment: ""), "Narrators"))
+            Text(String(format: String(localized: "library.empty_tab_description"), "Narrators"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

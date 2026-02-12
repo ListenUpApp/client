@@ -34,12 +34,12 @@ struct ContributorDetailView: View {
                 if let observer {
                     Menu {
                         Button(action: {}) {
-                            Label(NSLocalizedString("common.edit", comment: ""), systemImage: "pencil")
+                            Label(String(localized: "common.edit"), systemImage: "pencil")
                         }
                         Button(role: .destructive, action: {
                             observer.onDeleteContributor()
                         }) {
-                            Label(NSLocalizedString("common.delete", comment: ""), systemImage: "trash")
+                            Label(String(localized: "common.delete"), systemImage: "trash")
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -48,21 +48,21 @@ struct ContributorDetailView: View {
             }
         }
         .confirmationDialog(
-            String(format: NSLocalizedString("common.delete_name", comment: ""), observer?.name ?? ""),
+            String(format: String(localized: "common.delete_name"), observer?.name ?? ""),
             isPresented: Binding(
                 get: { observer?.showDeleteConfirmation ?? false },
                 set: { _ in observer?.onDismissDelete() }
             ),
             titleVisibility: .visible
         ) {
-            Button(NSLocalizedString("common.delete", comment: ""), role: .destructive) {
+            Button(String(localized: "common.delete"), role: .destructive) {
                 observer?.onConfirmDelete {
                     dismiss()
                 }
             }
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {}
+            Button(String(localized: "common.cancel"), role: .cancel) {}
         } message: {
-            Text(NSLocalizedString("contributor.remove_from_library", comment: ""))
+            Text(String(localized: "contributor.remove_from_library"))
         }
         .onAppear {
             if observer == nil {
@@ -116,14 +116,14 @@ struct ContributorDetailView: View {
 
                 // Aliases
                 if !observer.aliases.isEmpty {
-                    Text(String(format: NSLocalizedString("contributor.aka", comment: ""), observer.aliases.joined(separator: ", ")))
+                    Text(String(format: String(localized: "contributor.aka"), observer.aliases.joined(separator: ", ")))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .italic()
                 }
 
                 // Book count
-                Text("\(observer.totalBookCount) \(observer.totalBookCount == 1 ? NSLocalizedString("contributor.audiobook_count", comment: "singular") : NSLocalizedString("contributor.audiobooks_count", comment: "plural"))")
+                Text("\(observer.totalBookCount) \(observer.totalBookCount == 1 ? String(localized: "contributor.audiobook_count") : String(localized: "contributor.audiobooks_count"))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
@@ -167,14 +167,14 @@ struct ContributorDetailView: View {
             let deathYear = String(death.prefix(4))
             return "\(birthYear) - \(deathYear)"
         } else {
-            return String(format: NSLocalizedString("contributor.born_year", comment: ""), birthYear)
+            return String(format: String(localized: "contributor.born_year"), birthYear)
         }
     }
 
     // MARK: - Biography Section
 
     private func bioSection(bio: String) -> some View {
-        ExpandableText(title: NSLocalizedString("common.about", comment: ""), text: bio, lineLimit: 4, minimumLengthForToggle: 200)
+        ExpandableText(title: String(localized: "common.about"), text: bio, lineLimit: 4, minimumLengthForToggle: 200)
     }
 
     // MARK: - Role Section
@@ -196,7 +196,7 @@ struct ContributorDetailView: View {
                 Spacer()
 
                 if section.showViewAll {
-                    Button(NSLocalizedString("common.view_all", comment: "")) {
+                    Button(String(localized: "common.view_all")) {
                         // TODO: Navigate to full list
                     }
                     .font(.subheadline.weight(.medium))
@@ -250,7 +250,7 @@ struct ContributorDetailView: View {
     private var loadingView: some View {
         VStack(spacing: 16) {
             ProgressView()
-            Text(NSLocalizedString("common.loading", comment: ""))
+            Text(String(localized: "common.loading"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
