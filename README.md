@@ -9,7 +9,7 @@
 <h1 align="center">ListenUp</h1>
 
 <p align="center">
-  <strong>A modern audiobook player for Android &amp; Desktop</strong>
+  <strong>A modern audiobook player for Android, Android TV &amp; Desktop</strong>
 </p>
 
 <p align="center">
@@ -44,13 +44,15 @@
 - 🔍 **Discover** — browse and search your server's catalog
 - 🛠️ **Admin tools** — manage collections, categories, inbox, and backups from the app
 - 🎨 **Material 3 Expressive** — dynamic color, adaptive layouts, modern design
-- 🖥️ **Cross-platform** — single codebase for Android and Desktop (JVM)
+- 📺 **Android TV** — lean-back experience with d-pad navigation, stream-only playback
+- 🖥️ **Cross-platform** — single codebase for Android, Android TV, and Desktop (JVM)
 
 ## Platforms
 
 | Platform | Status | Audio Engine |
 |----------|--------|-------------|
 | Android  | ✅ Primary | Media3 / ExoPlayer |
+| Android TV | ✅ Supported | Media3 / ExoPlayer |
 | Desktop (JVM) | 🚧 In progress | FFmpeg via JavaCV |
 
 ## Tech Stack
