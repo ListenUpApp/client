@@ -4,5 +4,11 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>ListenUp needs local network access to discover your audiobook server.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_listenup._tcp</string>
+	</array>
 </dict>
 </plist>
