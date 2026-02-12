@@ -78,7 +78,7 @@ compose.desktop {
             vendor = "Calypsan"
 
             linux {
-                iconFile.set(project.file("src/main/resources/icon.png"))
+                iconFile.set(project.file("src/jvmMain/resources/icon.png"))
                 packageName = "listenup"
                 debMaintainer = "support@calypsan.com"
                 menuGroup = "AudioVideo"
@@ -87,7 +87,7 @@ compose.desktop {
             }
 
             windows {
-                iconFile.set(project.file("src/main/resources/icon.ico"))
+                iconFile.set(project.file("src/jvmMain/resources/icon.ico"))
                 menuGroup = "ListenUp"
                 dirChooser = true
                 perUserInstall = true
