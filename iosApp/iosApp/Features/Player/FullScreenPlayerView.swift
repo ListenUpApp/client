@@ -270,170 +270,11 @@ struct FullScreenPlayerView: View {
             .presentationBackground(.regularMaterial)
         }
     }
-    }
 
-            Spacer()
+    // MARK: - Helpers
 
-            Button(action: { /* TODO: options menu */ }) {
-                Image(systemName: "ellipsis")
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-            }
-        }
-        .padding(.horizontal, 8)
-    }
-
-            if let chapterTitle = observer.chapterTitle {
-                Text(chapterTitle)
-                    .font(.title3.bold())
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-            } else {
-                Text(observer.bookTitle)
-                    .font(.title3.bold())
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-            }
-
-            Text(observer.authorName)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .padding(.horizontal, 24)
-    }
-        .padding(.horizontal, 24)
-        .padding(.top, 20)
-        .padding(.bottom, 40)
-        .background {
-            UnevenRoundedRectangle(
-                topLeadingRadius: 30,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: 30
-            )
-            .fill(.thickMaterial)
-            .overlay {
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 30,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: 30
-                )
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [.white.opacity(0.3), .white.opacity(0.1)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.5
-                )
-            }
-        }
-    }
-                }
-            )
-
-            HStack {
-                Text(formatTime(Int64(isDraggingSlider ? sliderPosition : Double(observer.bookPositionMs))))
-                    .font(.caption)
-                    .fontDesign(.rounded)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-
-                Spacer()
-
-                Text(formatTimeRemaining(observer.bookDurationMs - Int64(isDraggingSlider ? sliderPosition : Double(observer.bookPositionMs))))
-                    .font(.caption)
-                    .fontDesign(.rounded)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-        }
-    }) {
-                Image(systemName: "gobackward.10")
-                    .font(.title)
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityLabel(String(
-                format: String(localized: "player.skip_backward"),
-                "10"
-            ))
-
-            // Play/Pause
-            Button(action: {
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.impactOccurred()
-                observer.togglePlayback()
-            }) {
-                ZStack {
-                    Circle()
-                        .fill(Color.listenUpOrange)
-                        .frame(width: 64, height: 64)
-
-                    Image(systemName: observer.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.title.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .contentTransition(.symbolEffect(.replace.downUp))
-                }
-            }
-
-            // Skip forward
-            Button(action: {
-                observer.skipForward(seconds: 10)
-            }) {
-                Image(systemName: "goforward.10")
-                    .font(.title)
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityLabel(String(
-                format: String(localized: "player.skip_forward"),
-                "10"
-            ))
-        }
-    }
-            .accessibilityLabel(String(localized: "player.bookmark"))
-
-            // Sleep timer
-            Button(action: { showSleepTimer = true }) {
-                Image(systemName: "moon.zzz")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityLabel(String(localized: "player.sleep_timer"))
-
-            // Speed
-            Button(action: { showSpeedPicker = true }) {
-                Text(formatSpeed(observer.playbackSpeed))
-                    .font(.callout.weight(.medium))
-                    .fontDesign(.rounded)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityLabel(String(localized: "player.speed"))
-
-            // Chapters
-            Button(action: { showChapterList = true }) {
-                Image(systemName: "list.bullet")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityLabel(String(localized: "player.chapters"))
-        }
-    }
-
-    // MARK: - Formatting Helpers
-
-    /// Format milliseconds as "H:MM:SS" or "M:SS"
-    fileprivate func formatTime(_ ms: Int64) -> String {
-        let totalSeconds = max(0, ms / 1000)
+    private func formatTime(_ ms: Int64) -> String {
+        let totalSeconds = ms / 1000
         let hours = totalSeconds / 3600
         let minutes = (totalSeconds % 3600) / 60
         let seconds = totalSeconds % 60
@@ -445,9 +286,8 @@ struct FullScreenPlayerView: View {
         }
     }
 
-    /// Format milliseconds as "-H:MM:SS" or "-M:SS"
     private func formatTimeRemaining(_ ms: Int64) -> String {
-        let totalSeconds = max(0, ms / 1000)
+        let totalSeconds = ms / 1000
         let hours = totalSeconds / 3600
         let minutes = (totalSeconds % 3600) / 60
         let seconds = totalSeconds % 60
@@ -459,12 +299,11 @@ struct FullScreenPlayerView: View {
         }
     }
 
-    /// Format speed as "1x" or "1.5x"
     private func formatSpeed(_ speed: Float) -> String {
         if speed == Float(Int(speed)) {
             return "\(Int(speed))x"
         } else {
-            return String(format: "%.1fx", speed)
+            return String(format: "%.2gx", speed)
         }
     }
 }
