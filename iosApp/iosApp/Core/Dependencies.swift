@@ -25,146 +25,47 @@ final class Dependencies {
         // Koin is initialized in iOSApp.swift via Koin_iosKt.initializeKoin
     }
 
+    // MARK: - Cached Resolution
+
+    /// Cache storage for singleton dependencies
+    private var cache: [String: Any] = [:]
+
+    /// Resolve a dependency from Koin, caching for subsequent access
+    private func resolve<T>(_ factory: () -> T) -> T {
+        let key = String(describing: T.self)
+        if let cached = cache[key] as? T { return cached }
+        let instance = factory()
+        cache[key] = instance
+        return instance
+    }
+
     // MARK: - Use Cases
 
-    private var _getInstanceUseCase: GetInstanceUseCase?
-    var getInstanceUseCase: GetInstanceUseCase {
-        if let cached = _getInstanceUseCase {
-            return cached
-        }
-        let instance = KoinHelper.shared.getInstanceUseCase()
-        _getInstanceUseCase = instance
-        return instance
-    }
+    var getInstanceUseCase: GetInstanceUseCase { resolve { KoinHelper.shared.getInstanceUseCase() } }
 
-    // MARK: - ViewModels
+    // MARK: - ViewModels (singletons)
 
-    private var _serverConnectViewModel: ServerConnectViewModel?
-    var serverConnectViewModel: ServerConnectViewModel {
-        if let cached = _serverConnectViewModel {
-            return cached
-        }
-        let instance = KoinHelper.shared.getServerConnectViewModel()
-        _serverConnectViewModel = instance
-        return instance
-    }
+    var serverConnectViewModel: ServerConnectViewModel { resolve { KoinHelper.shared.getServerConnectViewModel() } }
+    var loginViewModel: LoginViewModel { resolve { KoinHelper.shared.getLoginViewModel() } }
+    var registerViewModel: RegisterViewModel { resolve { KoinHelper.shared.getRegisterViewModel() } }
+    var serverSelectViewModel: ServerSelectViewModel { resolve { KoinHelper.shared.getServerSelectViewModel() } }
 
-    private var _loginViewModel: LoginViewModel?
-    var loginViewModel: LoginViewModel {
-        if let cached = _loginViewModel {
-            return cached
-        }
-        let instance = KoinHelper.shared.getLoginViewModel()
-        _loginViewModel = instance
-        return instance
-    }
+    // MARK: - Settings
 
-    private var _registerViewModel: RegisterViewModel?
-    var registerViewModel: RegisterViewModel {
-        if let cached = _registerViewModel {
-            return cached
-        }
-        let instance = KoinHelper.shared.getRegisterViewModel()
-        _registerViewModel = instance
-        return instance
-    }
-
-    private var _serverSelectViewModel: ServerSelectViewModel?
-    var serverSelectViewModel: ServerSelectViewModel {
-        if let cached = _serverSelectViewModel {
-            return cached
-        }
-        let instance = KoinHelper.shared.getServerSelectViewModel()
-        _serverSelectViewModel = instance
-        return instance
-    }
-
-    // MARK: - Settings (Segregated Interfaces)
-
-    private var _authSession: AuthSession?
-    var authSession: AuthSession {
-        if let cached = _authSession {
-            return cached
-        }
-        let instance = KoinHelper.shared.getAuthSession()
-        _authSession = instance
-        return instance
-    }
-
-    private var _serverConfig: ServerConfig?
-    var serverConfig: ServerConfig {
-        if let cached = _serverConfig {
-            return cached
-        }
-        let instance = KoinHelper.shared.getServerConfig()
-        _serverConfig = instance
-        return instance
-    }
+    var authSession: AuthSession { resolve { KoinHelper.shared.getAuthSession() } }
+    var serverConfig: ServerConfig { resolve { KoinHelper.shared.getServerConfig() } }
 
     // MARK: - Library
 
-    private var _libraryViewModel: LibraryViewModel?
-    var libraryViewModel: LibraryViewModel {
-        if let cached = _libraryViewModel {
-            return cached
-        }
-        let instance = KoinHelper.shared.getLibraryViewModel()
-        _libraryViewModel = instance
-        return instance
-    }
-
+    var libraryViewModel: LibraryViewModel { resolve { KoinHelper.shared.getLibraryViewModel() } }
 
     // MARK: - Playback
 
-    private var _playbackManager: PlaybackManager?
-    var playbackManager: PlaybackManager {
-        if let cached = _playbackManager {
-            return cached
-        }
-        let instance = KoinHelper.shared.getPlaybackManager()
-        _playbackManager = instance
-        return instance
-    }
-
-    private var _audioPlayer: AudioPlayer?
-    var audioPlayer: AudioPlayer {
-        if let cached = _audioPlayer {
-            return cached
-        }
-        let instance = KoinHelper.shared.getAudioPlayer()
-        _audioPlayer = instance
-        return instance
-    }
-
-    private var _bookRepository: BookRepository?
-    var bookRepository: BookRepository {
-        if let cached = _bookRepository {
-            return cached
-        }
-        let instance = KoinHelper.shared.getBookRepository()
-        _bookRepository = instance
-        return instance
-    }
-
-    private var _imageStorage: ImageStorage?
-    var imageStorage: ImageStorage {
-        if let cached = _imageStorage {
-            return cached
-        }
-        let instance = KoinHelper.shared.getImageStorage()
-        _imageStorage = instance
-        return instance
-    }
-
-    private var _sleepTimerManager: SleepTimerManager?
-    var sleepTimerManager: SleepTimerManager {
-        if let cached = _sleepTimerManager {
-            return cached
-        }
-        let instance = KoinHelper.shared.getSleepTimerManager()
-        _sleepTimerManager = instance
-        return instance
-    }
+    var playbackManager: PlaybackManager { resolve { KoinHelper.shared.getPlaybackManager() } }
+    var audioPlayer: AudioPlayer { resolve { KoinHelper.shared.getAudioPlayer() } }
+    var bookRepository: BookRepository { resolve { KoinHelper.shared.getBookRepository() } }
+    var imageStorage: ImageStorage { resolve { KoinHelper.shared.getImageStorage() } }
+    var sleepTimerManager: SleepTimerManager { resolve { KoinHelper.shared.getSleepTimerManager() } }
     // MARK: - Detail ViewModels (factory - new instance each time)
 
     /// Creates a new BookDetailViewModel instance (not cached - each screen gets its own)
@@ -218,33 +119,14 @@ extension Dependencies {
         libraryVM: LibraryViewModel? = nil
     ) -> Dependencies {
         let mock = Dependencies()
-
-        // Override with mocks if provided
-        if let uc = getInstanceUC {
-            mock._getInstanceUseCase = uc
-        }
-        if let vm = serverConnectVM {
-            mock._serverConnectViewModel = vm
-        }
-        if let vm = loginVM {
-            mock._loginViewModel = vm
-        }
-        if let vm = registerVM {
-            mock._registerViewModel = vm
-        }
-        if let vm = serverSelectVM {
-            mock._serverSelectViewModel = vm
-        }
-        if let auth = authSession {
-            mock._authSession = auth
-        }
-        if let config = serverConfig {
-            mock._serverConfig = config
-        }
-        if let vm = libraryVM {
-            mock._libraryViewModel = vm
-        }
-
+        if let v = getInstanceUC { mock.cache[String(describing: GetInstanceUseCase.self)] = v }
+        if let v = serverConnectVM { mock.cache[String(describing: ServerConnectViewModel.self)] = v }
+        if let v = loginVM { mock.cache[String(describing: LoginViewModel.self)] = v }
+        if let v = registerVM { mock.cache[String(describing: RegisterViewModel.self)] = v }
+        if let v = serverSelectVM { mock.cache[String(describing: ServerSelectViewModel.self)] = v }
+        if let v = authSession { mock.cache[String(describing: AuthSession.self)] = v }
+        if let v = serverConfig { mock.cache[String(describing: ServerConfig.self)] = v }
+        if let v = libraryVM { mock.cache[String(describing: LibraryViewModel.self)] = v }
         return mock
     }
 }
