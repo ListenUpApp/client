@@ -33,7 +33,7 @@ private val logger = KotlinLogging.logger {}
  * The monitor runs on the main queue and updates state flows when
  * network conditions change.
  */
-class IosNetworkMonitor : NetworkMonitor {
+class AppleNetworkMonitor : NetworkMonitor {
     private val pathMonitor: nw_path_monitor_t = nw_path_monitor_create()
 
     private val _isOnlineFlow = MutableStateFlow(false)

@@ -53,7 +53,7 @@ import platform.Security.kSecValueData
 private val logger = KotlinLogging.logger {}
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
-internal class IosSecureStorage : SecureStorage {
+internal class AppleSecureStorage : SecureStorage {
     private val serviceName = "com.calypsan.listenup"
 
     override suspend fun save(

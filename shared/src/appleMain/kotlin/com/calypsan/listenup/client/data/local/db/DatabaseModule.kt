@@ -8,8 +8,8 @@ import org.koin.dsl.module
 import platform.Foundation.NSHomeDirectory
 
 /**
- * iOS-specific database module.
- * Provides Room database configured for iOS with proper file location in app container.
+ * Apple (iOS/macOS) database module.
+ * Provides Room database configured for Apple platforms with proper file location in app container.
  *
  * Note: Uses Dispatchers.Default instead of Dispatchers.IO since IO is internal on Native platforms.
  */

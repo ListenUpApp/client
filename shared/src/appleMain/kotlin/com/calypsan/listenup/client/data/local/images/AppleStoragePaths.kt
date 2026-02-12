@@ -8,7 +8,7 @@ import platform.Foundation.NSUserDomainMask
 /**
  * iOS implementation of [StoragePaths] using app's Document directory.
  */
-class IosStoragePaths : StoragePaths {
+class AppleStoragePaths : StoragePaths {
     override val filesDir: Path by lazy {
         val fileManager = NSFileManager.defaultManager
         val urls = fileManager.URLsForDirectory(NSDocumentDirectory, NSUserDomainMask)

@@ -8,6 +8,6 @@ package com.calypsan.listenup.client.data.local.images
  *
  * The UI gracefully handles null colors by falling back to runtime extraction.
  */
-class IosCoverColorExtractor : CoverColorExtractor {
+class AppleCoverColorExtractor : CoverColorExtractor {
     override suspend fun extractColors(imageBytes: ByteArray): ExtractedColors? = null
 }

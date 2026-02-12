@@ -45,7 +45,7 @@ private val logger = KotlinLogging.logger {}
  * for downloads that continue when app is backgrounded.
  */
 @OptIn(ExperimentalTime::class)
-class IosDownloadService(
+class AppleDownloadService(
     private val downloadDao: DownloadDao,
     private val bookDao: BookDao,
     private val serverConfig: ServerConfig,

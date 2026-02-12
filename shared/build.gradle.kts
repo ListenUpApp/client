@@ -67,6 +67,7 @@ kotlin {
         }
     }
 
+    // iOS targets
     listOf(
         iosArm64(),
         iosSimulatorArm64(),
@@ -80,11 +81,22 @@ kotlin {
         }
     }
 
+    // macOS targets
+    macosArm64()
+    macosX64()
+
+    applyDefaultHierarchyTemplate()
+
     // TODO: Enable Native Swift Export when Gradle API is available
     // Swift Export is experimental in Kotlin 2.3.0-Beta2 but not yet exposed in Gradle plugin
     // For now, we'll use traditional framework export which still works great
 
     sourceSets {
+        // Default hierarchy template provides: commonMain -> nativeMain -> appleMain -> {iosMain, macosMain}
+        // We just get references to configure dependencies
+        val appleMain by getting
+        val macosMain by getting
+
         commonMain.dependencies {
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
@@ -98,8 +110,6 @@ kotlin {
             implementation(libs.kotlinx.collections.immutable)
             implementation(libs.kotlinx.io.core)
 
-            implementation(libs.blurhash)
-
             api(libs.koin.core)
             implementation(libs.kotlin.logging)
 
@@ -112,9 +122,11 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.androidx.palette.ktx)
             implementation(libs.androidx.work.runtime.ktx)
+            implementation(libs.blurhash)
         }
 
-        iosMain.dependencies {
+        // Apple (iOS + macOS) shared dependencies
+        appleMain.dependencies {
             implementation(libs.ktor.client.darwin)
         }
 
@@ -156,13 +168,17 @@ dependencies {
     add("kspIosArm64", libs.androidx.room.compiler)
     add("kspIosSimulatorArm64", libs.androidx.room.compiler)
 
+    // macOS targets
+    add("kspMacosArm64", libs.androidx.room.compiler)
+    add("kspMacosX64", libs.androidx.room.compiler)
+
     // JVM target (desktop)
     add("kspJvm", libs.androidx.room.compiler)
 }
 
 // SKIE configuration for enhanced Swift interop
 skie {
-    isEnabled = false
+    isEnabled = true
     // Enable Flow support - converts Kotlin Flow to Swift AsyncSequence
     features {
         // Enables StateFlow/SharedFlow → Swift async/await
