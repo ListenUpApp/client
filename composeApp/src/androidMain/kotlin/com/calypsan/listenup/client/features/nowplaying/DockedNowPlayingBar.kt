@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -99,7 +100,7 @@ fun DockedNowPlayingBar(
                     LinearProgressIndicator(
                         progress = { state.prepareProgress / 100f },
                         modifier = Modifier.fillMaxWidth().height(4.dp),
-                        trackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+                        trackColor = Color.Transparent,
                         color = MaterialTheme.colorScheme.tertiary,
                         drawStopIndicator = {},
                     )
@@ -107,7 +108,7 @@ fun DockedNowPlayingBar(
                     LinearProgressIndicator(
                         progress = { state.bookProgress },
                         modifier = Modifier.fillMaxWidth().height(4.dp),
-                        trackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+                        trackColor = Color.Transparent,
                         drawStopIndicator = {},
                     )
                 }
