@@ -25,6 +25,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.animateDpAsState
+import com.calypsan.listenup.client.design.MiniPlayerReservedHeight
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.core.BookId
@@ -516,8 +518,17 @@ private fun AuthenticatedNavigation(
             LocalSnackbarHostState provides snackbarHostState,
             LocalDeviceContext provides koinInject<DeviceContext>(),
         ) {
+        // Structural bottom padding when mini player is visible
+            val nowPlayingState by nowPlayingViewModel.state.collectAsState()
+            val miniPlayerVisible = (nowPlayingState.isVisible || nowPlayingState.isPreparing) && !nowPlayingState.isExpanded
+            val miniPlayerPadding by animateDpAsState(
+                targetValue = if (miniPlayerVisible) MiniPlayerReservedHeight else 0.dp,
+                label = "mini_player_padding",
+            )
+
         Box(modifier = Modifier.fillMaxSize()) {
             NavDisplay(
+                modifier = Modifier.padding(bottom = miniPlayerPadding),
                 backStack = backStack,
                 // Only handle back if we're not at root - let system handle back-to-home
                 onBack = {

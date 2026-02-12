@@ -28,20 +28,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.playback.NowPlayingState
-
-/**
- * Height reserved for the mini player in shell content.
- * Includes the bar height (80dp) + bottom padding (8dp) + breathing room (8dp).
- * Content on shell screens should add this as bottom padding to avoid overlap.
- */
-val MiniPlayerReservedHeight = 96.dp
 
 /**
  * Floating mini player that appears above bottom navigation.
@@ -68,13 +68,34 @@ fun NowPlayingBar(
         exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
         modifier = modifier,
     ) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isFocused by interactionSource.collectIsFocusedAsState()
+        val focusScale by animateFloatAsState(
+            targetValue = if (isFocused) 1.05f else 1f,
+            label = "mini_player_focus_scale",
+        )
+        val focusBorderColor = MaterialTheme.colorScheme.primary
+        val focusBorderShape = MaterialTheme.shapes.large
+
         Surface(
             onClick = onTap,
+            interactionSource = interactionSource,
             modifier =
                 Modifier
                     .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
                     .fillMaxWidth()
-                    .height(80.dp),
+                    .height(80.dp)
+                    .graphicsLayer {
+                        scaleX = focusScale
+                        scaleY = focusScale
+                    }
+                    .then(
+                        if (isFocused) Modifier.border(
+                            width = 2.dp,
+                            color = focusBorderColor,
+                            shape = focusBorderShape,
+                        ) else Modifier
+                    ),
             shape = MaterialTheme.shapes.large,
             tonalElevation = 6.dp,
             shadowElevation = 4.dp,
@@ -114,7 +135,7 @@ fun NowPlayingBar(
                             Text(
                                 text = state.prepareMessage ?: "Preparing audio...",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = focusBorderColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -130,7 +151,7 @@ fun NowPlayingBar(
                                 Text(
                                     text = chapter,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = focusBorderColor,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )

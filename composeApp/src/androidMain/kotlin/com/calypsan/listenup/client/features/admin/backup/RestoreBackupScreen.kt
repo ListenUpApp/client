@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.design.components.ListenUpButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
-import com.calypsan.listenup.client.features.nowplaying.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.presentation.admin.MergeStrategy
 import com.calypsan.listenup.client.presentation.admin.RestoreBackupState
 import com.calypsan.listenup.client.presentation.admin.RestoreBackupViewModel
@@ -252,7 +251,6 @@ private fun ModeSelectionContent(
         )
 
         // Reserve space for mini player
-        Spacer(modifier = Modifier.height(MiniPlayerReservedHeight))
     }
 }
 
@@ -366,7 +364,6 @@ private fun MergeStrategyContent(
         )
 
         // Reserve space for mini player
-        Spacer(modifier = Modifier.height(MiniPlayerReservedHeight))
     }
 }
 
@@ -569,7 +566,6 @@ private fun ValidationContent(
         }
 
         // Reserve space for mini player
-        Spacer(modifier = Modifier.height(MiniPlayerReservedHeight))
     }
 }
 
@@ -677,7 +673,6 @@ private fun ConfirmationContent(
         }
 
         // Reserve space for mini player
-        Spacer(modifier = Modifier.height(MiniPlayerReservedHeight))
     }
 }
 
@@ -856,7 +851,6 @@ private fun ResultsContent(
         )
 
         // Reserve space for mini player
-        Spacer(modifier = Modifier.height(MiniPlayerReservedHeight))
     }
 }
 
