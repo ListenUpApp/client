@@ -251,6 +251,7 @@ fun WideBookDetail(
                                     isWaitingForWifi = isWaitingForWifi,
                                     playEnabled = playEnabled,
                                     onPlayDisabledClick = onPlayDisabledClick,
+                                    requestFocus = LocalDeviceContext.current.hasDpad,
                                 )
                             }
                         }
