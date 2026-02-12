@@ -1,5 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+import co.touchlab.skie.configuration.SuppressSkieWarning
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidKmpLibrary)
@@ -75,6 +77,7 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
+            binaryOption("bundleId", "com.calypsan.listenup.shared")
 
             // Export Koin so it's accessible from Swift
             export(libs.koin.core)
@@ -178,6 +181,7 @@ dependencies {
 // SKIE configuration for enhanced Swift interop
 skie {
     isEnabled = true
+
     // Enable Flow support - converts Kotlin Flow to Swift AsyncSequence
     features {
         // Enables StateFlow/SharedFlow → Swift async/await
@@ -187,6 +191,12 @@ skie {
         // Generates Swift-friendly sealed class handling
         group {
             enableSwiftUIObservingPreview.set(true)
+        }
+        // Suppress description property name collision warnings globally.
+        // Kotlin "description" properties collide with ObjC KotlinBase.description().
+        // SKIE renames them to description_ in Swift which is acceptable.
+        group {
+            SuppressSkieWarning.NameCollision(true)
         }
     }
 }

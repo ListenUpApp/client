@@ -104,8 +104,6 @@ final class LoginViewModelWrapper {
                 emailError = NSLocalizedString("auth.invalid_email", comment: "")
             case .password:
                 passwordError = NSLocalizedString("auth.enter_password", comment: "")
-            default:
-                generalError = NSLocalizedString("auth.check_input", comment: "")
             }
         }
     }

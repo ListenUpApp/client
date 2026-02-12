@@ -88,8 +88,6 @@ struct FloatingSortButton: View {
             "arrow.up"
         case .descending:
             "arrow.down"
-        default:
-            "arrow.up.arrow.down"
         }
     }
 }
