@@ -526,7 +526,7 @@ private fun AuthenticatedNavigation(
                 label = "mini_player_padding",
             )
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
             NavDisplay(
                 modifier = Modifier.padding(bottom = miniPlayerPadding),
                 backStack = backStack,
