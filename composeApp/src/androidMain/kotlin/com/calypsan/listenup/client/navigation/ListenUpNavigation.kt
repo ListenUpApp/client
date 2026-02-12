@@ -573,9 +573,9 @@ private fun AuthenticatedNavigation(
                                 onTagClick = { tagId ->
                                     backStack.add(TagDetail(tagId))
                                 },
-                                onAdminClick = {
-                                    backStack.add(Admin)
-                                },
+                                onAdminClick = if (!LocalDeviceContext.current.isLeanback) {
+                                    { backStack.add(Admin) }
+                                } else null,
                                 onSettingsClick = {
                                     backStack.add(Settings)
                                 },
