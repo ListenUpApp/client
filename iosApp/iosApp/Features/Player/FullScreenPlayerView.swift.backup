@@ -270,7 +270,36 @@ struct FullScreenPlayerView: View {
             .presentationBackground(.regularMaterial)
         }
     }
+
+    // MARK: - Background
+
+    private var backgroundLayer: some View {
+        ZStack {
+            // Cover art as blurred background
+            BookCoverImage(
+                coverPath: observer.coverPath,
+                blurHash: observer.coverBlurHash
+            )
+            .ignoresSafeArea()
+            .blur(radius: 50)
+            .scaleEffect(1.2) // Prevent blur edges from showing
+
+            // Dark overlay
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+        }
     }
+
+    // MARK: - Top Bar
+
+    private var topBar: some View {
+        HStack {
+            Button(action: { isPresented = false }) {
+                Image(systemName: "chevron.down")
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .frame(width: 44, height: 44)
+            }
 
             Spacer()
 
@@ -283,6 +312,34 @@ struct FullScreenPlayerView: View {
         }
         .padding(.horizontal, 8)
     }
+
+    // MARK: - Cover Art
+
+    private func coverArt(screenWidth: CGFloat) -> some View {
+        let coverWidth = screenWidth * 0.65
+
+        return BookCoverImage(
+            coverPath: observer.coverPath,
+            blurHash: observer.coverBlurHash
+        )
+        .frame(width: coverWidth, height: coverWidth)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+    }
+
+    // MARK: - Chapter Info
+
+    private var chapterInfo: some View {
+        VStack(spacing: 6) {
+            if observer.totalChapters > 0 {
+                Text(String(
+                    format: NSLocalizedString("player.chapter_of", comment: ""),
+                    "\(observer.chapterIndex + 1)",
+                    "\(observer.totalChapters)"
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
 
             if let chapterTitle = observer.chapterTitle {
                 Text(chapterTitle)
@@ -305,6 +362,20 @@ struct FullScreenPlayerView: View {
         }
         .padding(.horizontal, 24)
     }
+
+    // MARK: - Controls Card
+
+    private var controlsCard: some View {
+        VStack(spacing: 20) {
+            // Progress slider
+            progressSection
+
+            // Transport controls
+            transportControls
+
+            // Bottom action row
+            bottomActions
+        }
         .padding(.horizontal, 24)
         .padding(.top, 20)
         .padding(.bottom, 40)
@@ -334,6 +405,19 @@ struct FullScreenPlayerView: View {
             }
         }
     }
+
+    // MARK: - Progress Section
+
+    private var progressSection: some View {
+        VStack(spacing: 8) {
+            Slider(
+                value: $sliderPosition,
+                in: 0...max(Double(observer.bookDurationMs), 1),
+                onEditingChanged: { editing in
+                    isDraggingSlider = editing
+                    if !editing {
+                        observer.seekTo(positionMs: Int64(sliderPosition))
+                    }
                 }
             )
 
@@ -353,7 +437,16 @@ struct FullScreenPlayerView: View {
                     .monospacedDigit()
             }
         }
-    }) {
+    }
+
+    // MARK: - Transport Controls
+
+    private var transportControls: some View {
+        HStack(spacing: 40) {
+            // Skip backward
+            Button(action: {
+                observer.skipBackward(seconds: 10)
+            }) {
                 Image(systemName: "gobackward.10")
                     .font(.title)
                     .foregroundStyle(.primary)
@@ -397,6 +490,18 @@ struct FullScreenPlayerView: View {
             ))
         }
     }
+
+    // MARK: - Bottom Actions
+
+    private var bottomActions: some View {
+        HStack(spacing: 32) {
+            // Bookmark
+            Button(action: { /* TODO: bookmark */ }) {
+                Image(systemName: "bookmark")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+            }
             .accessibilityLabel(NSLocalizedString("player.bookmark", comment: ""))
 
             // Sleep timer
