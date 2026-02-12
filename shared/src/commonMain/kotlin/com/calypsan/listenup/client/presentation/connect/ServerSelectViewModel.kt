@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.domain.model.DiscoveredServer
 import com.calypsan.listenup.client.domain.model.ServerWithStatus
+import com.calypsan.listenup.client.domain.repository.InstanceRepository
 import com.calypsan.listenup.client.domain.repository.ServerConfig
 import com.calypsan.listenup.client.domain.repository.ServerRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -66,6 +67,7 @@ sealed interface ServerSelectUiEvent {
 class ServerSelectViewModel(
     private val serverRepository: ServerRepository,
     private val serverConfig: ServerConfig,
+    private val instanceRepository: InstanceRepository,
 ) : ViewModel() {
     val state: StateFlow<ServerSelectUiState>
         field = MutableStateFlow(ServerSelectUiState())
@@ -172,9 +174,6 @@ class ServerSelectViewModel(
     private fun handleDiscoveredServerSelected(discovered: DiscoveredServer) {
         logger.info { "Discovered server selected: ${discovered.name} (${discovered.id})" }
 
-        // Get the URL from the discovered server
-        val serverUrl = discovered.localUrl
-
         state.update {
             it.copy(
                 selectedServerId = discovered.id,
@@ -185,12 +184,33 @@ class ServerSelectViewModel(
 
         viewModelScope.launch {
             try {
-                serverRepository.setActiveServer(discovered)
-                // Also update ServerConfig to trigger AuthState change
-                serverConfig.setServerUrl(ServerUrl(serverUrl))
-                logger.info { "Server activated from discovery: ${discovered.id} at $serverUrl" }
-                state.update { it.copy(isConnecting = false) }
-                navigationEvents.value = NavigationEvent.ServerActivated
+                // Build list of URLs to try:
+                // 1. Discovered LAN IP (from mDNS)
+                // 2. Remote URL if advertised in TXT record
+                val urlsToTry = buildList {
+                    add(discovered.localUrl)
+                    discovered.remoteUrl?.let { add(it) }
+                }
+
+                // Quick-check which URL is actually reachable (3s timeout each)
+                val reachableUrl = instanceRepository.findReachableUrl(urlsToTry)
+
+                if (reachableUrl != null) {
+                    serverRepository.setActiveServer(discovered)
+                    serverConfig.setServerUrl(ServerUrl(reachableUrl))
+                    logger.info { "Server activated: ${discovered.id} at $reachableUrl" }
+                    state.update { it.copy(isConnecting = false) }
+                    navigationEvents.value = NavigationEvent.ServerActivated
+                } else {
+                    logger.warn { "Server discovered but not reachable at any URL: $urlsToTry" }
+                    state.update {
+                        it.copy(
+                            isConnecting = false,
+                            error = "Server found on network but not reachable. " +
+                                "Try adding it manually with the server's IP address.",
+                        )
+                    }
+                }
             } catch (e: Exception) {
                 logger.error(e) { "Failed to activate discovered server" }
                 state.update {

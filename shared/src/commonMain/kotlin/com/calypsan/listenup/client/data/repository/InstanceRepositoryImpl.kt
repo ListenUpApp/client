@@ -14,6 +14,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.timeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
@@ -23,6 +24,7 @@ import kotlinx.serialization.json.Json
 private val logger = KotlinLogging.logger {}
 
 private const val REQUEST_TIMEOUT_MS = 30_000L
+private const val QUICK_CHECK_TIMEOUT_MS = 3_000L
 private const val CONNECT_TIMEOUT_MS = 10_000L
 private const val SOCKET_TIMEOUT_MS = 30_000L
 
@@ -170,8 +172,56 @@ class InstanceRepositoryImpl(
         if (url.startsWith("https://") || url.startsWith("http://")) {
             listOf(url)
         } else {
-            listOf("https://$url", "http://$url")
+            // IP addresses (e.g. 192.168.1.1:8080) are almost certainly HTTP.
+            // Try HTTP first to avoid TLS handshake timeout on plain HTTP servers.
+            val isIpAddress = url.substringBefore(':').all { it.isDigit() || it == '.' }
+            if (isIpAddress) {
+                listOf("http://$url", "https://$url")
+            } else {
+                listOf("https://$url", "http://$url")
+            }
         }
+
+    /**
+     * Try multiple URLs to find one that's reachable, with a quick timeout.
+     *
+     * Used when connecting to discovered servers where the primary URL
+     * (LAN IP from mDNS) may be unreachable. Falls back to alternate URLs
+     * which may include Tailscale/VPN addresses resolved via DNS.
+     *
+     * @param urls List of URLs to try, in priority order
+     * @return The first reachable URL, or null if none work
+     */
+    override suspend fun findReachableUrl(urls: List<String>): String? {
+        val quickClient = HttpClient {
+            install(ContentNegotiation) {
+                json(this@InstanceRepositoryImpl.json)
+            }
+            install(HttpTimeout) {
+                requestTimeoutMillis = QUICK_CHECK_TIMEOUT_MS
+                connectTimeoutMillis = QUICK_CHECK_TIMEOUT_MS
+                socketTimeoutMillis = QUICK_CHECK_TIMEOUT_MS
+            }
+        }
+
+        return try {
+            for (url in urls) {
+                try {
+                    val instanceUrl = url.trimEnd('/') + "/api/v1/instance"
+                    logger.debug { "Quick-checking reachability: $instanceUrl" }
+                    quickClient.get(instanceUrl)
+                    logger.info { "Server reachable at $url" }
+                    return url
+                } catch (e: Exception) {
+                    logger.debug { "Not reachable at $url: ${e.message}" }
+                    continue
+                }
+            }
+            null
+        } finally {
+            quickClient.close()
+        }
+    }
 
     /**
      * Creates an unauthenticated HTTP client for server verification.

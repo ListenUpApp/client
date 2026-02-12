@@ -27,6 +27,12 @@ interface InstanceRepository {
      * @param forceRefresh If true, bypasses any cached data and fetches fresh data from the server
      * @return Result containing the Instance on success, or an error on failure
      */
+    /**
+     * Try multiple URLs to find one that's reachable.
+     * Returns the first URL that responds, or null if none work.
+     */
+    suspend fun findReachableUrl(urls: List<String>): String?
+
     suspend fun getInstance(forceRefresh: Boolean = false): Result<Instance>
 
     /**

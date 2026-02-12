@@ -19,6 +19,9 @@ import platform.AVFoundation.AVPlayerItemStatusReadyToPlay
 import platform.AVFoundation.AVPlayerTimeControlStatusPaused
 import platform.AVFoundation.AVPlayerTimeControlStatusPlaying
 import platform.AVFoundation.AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate
+import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVAudioSessionCategoryPlayback
+import platform.AVFAudio.setActive
 import platform.AVFoundation.AVQueuePlayer
 import platform.AVFoundation.AVURLAsset
 import platform.AVFoundation.addPeriodicTimeObserverForInterval
@@ -85,6 +88,16 @@ class AvFoundationAudioPlayer(
         }
 
         release()
+
+        // Configure audio session for playback (required on iOS)
+        try {
+            val session = AVAudioSession.sharedInstance()
+            session.setCategory(AVAudioSessionCategoryPlayback, error = null)
+            session.setActive(true, error = null)
+            logger.info { "Audio session configured for playback" }
+        } catch (e: Exception) {
+            logger.error { "Failed to configure audio session: ${e.message}" }
+        }
 
         this.segments = segments
         currentSegmentIndex = 0

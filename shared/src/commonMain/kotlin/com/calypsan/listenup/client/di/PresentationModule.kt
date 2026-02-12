@@ -22,7 +22,7 @@ import org.koin.dsl.module
  */
 val authPresentationModule =
     module {
-        factory { ServerSelectViewModel(serverRepository = get(), serverConfig = get()) }
+        factory { ServerSelectViewModel(serverRepository = get(), serverConfig = get(), instanceRepository = get()) }
         factory { ServerConnectViewModel(serverConfig = get(), instanceRepository = get()) }
         factory {
             com.calypsan.listenup.client.presentation.auth.SetupViewModel(

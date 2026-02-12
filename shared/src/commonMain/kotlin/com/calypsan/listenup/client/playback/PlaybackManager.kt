@@ -70,6 +70,10 @@ class PlaybackManager(
     private val _currentBookId = MutableStateFlow<BookId?>(null)
     override val currentBookId: StateFlow<BookId?> = _currentBookId
 
+    /** String version of currentBookId for Swift/SKIE (value classes dont bridge to flows) */
+    private val _currentBookIdString = MutableStateFlow<String?>(null)
+    val currentBookIdString: StateFlow<String?> = _currentBookIdString
+
     private val _currentTimeline = MutableStateFlow<PlaybackTimeline?>(null)
     val currentTimeline: StateFlow<PlaybackTimeline?> = _currentTimeline
 
@@ -109,6 +113,7 @@ class PlaybackManager(
     /** Set the current book ID — call this only when playback is confirmed to proceed. */
     fun activateBook(bookId: BookId) {
         _currentBookId.value = bookId
+        _currentBookIdString.value = bookId.value
     }
 
     /**
@@ -495,6 +500,7 @@ class PlaybackManager(
      */
     override fun clearPlayback() {
         _currentBookId.value = null
+        _currentBookIdString.value = null
         _currentTimeline.value = null
         _chapters.value = emptyList()
         _currentChapter.value = null
