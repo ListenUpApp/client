@@ -57,11 +57,7 @@ fun SeriesCard(
     val isPressed by interactionSource.collectIsPressedAsState()
     val isFocused by interactionSource.collectIsFocusedAsState()
     val scale by animateFloatAsState(
-        targetValue = when {
-            isPressed -> 0.96f
-            isFocused -> 1.05f
-            else -> 1f
-        },
+        targetValue = if (isPressed) 0.96f else 1f,
         label = "card_scale",
     )
 
@@ -86,11 +82,14 @@ fun SeriesCard(
                     scaleY = scale
                 }
                 .then(
-                    if (isFocused) Modifier.border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(12.dp),
-                    ) else Modifier
+                    if (isFocused) Modifier
+                        .border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        .padding(8.dp)
+                    else Modifier
                 )
                 .focusable(interactionSource = interactionSource)
                 .clickable(
