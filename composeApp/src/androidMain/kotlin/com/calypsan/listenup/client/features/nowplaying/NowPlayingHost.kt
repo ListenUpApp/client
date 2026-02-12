@@ -21,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.calypsan.listenup.client.design.LocalDeviceContext
+import com.calypsan.listenup.client.device.DeviceType
 import com.calypsan.listenup.client.features.shell.components.NavigationBarHeight
 import com.calypsan.listenup.client.playback.ContributorPickerType
 import com.calypsan.listenup.client.playback.NowPlayingViewModel
@@ -51,6 +53,10 @@ fun NowPlayingHost(
     val state by viewModel.state.collectAsState()
     val sleepTimerState by viewModel.sleepTimerState.collectAsState()
     val isSnackbarVisible = snackbarHostState?.currentSnackbarData != null
+
+    val deviceContext = LocalDeviceContext.current
+    val useDockedBar = deviceContext.type in setOf(DeviceType.Tv, DeviceType.Desktop, DeviceType.Tablet)
+    val isTv = deviceContext.isLeanback
 
     Box(modifier = modifier.fillMaxSize()) {
         // Full screen (slides up when expanded)
@@ -103,43 +109,53 @@ fun NowPlayingHost(
                 onShowAuthorPicker = { viewModel.showContributorPicker(ContributorPickerType.AUTHORS) },
                 onShowNarratorPicker = { viewModel.showContributorPicker(ContributorPickerType.NARRATORS) },
                 onCloseBook = viewModel::closeBook,
+                isTv = isTv,
             )
         }
 
-        // Mini player (visible when collapsed, positioned above bottom nav when present)
-        // Animates smoothly when navigating between shell and detail screens
-        // Also animates up when snackbar is visible
-        val navBarInsets = WindowInsets.navigationBars
-        val density = LocalDensity.current
-        val systemNavBarHeight = with(density) { navBarInsets.getBottom(density).toDp() }
-        val snackbarPadding = if (isSnackbarVisible) SnackbarHeight + 8.dp else 0.dp
-        val targetBottomPadding =
-            if (hasBottomNav) {
-                NavigationBarHeight + systemNavBarHeight + snackbarPadding
-            } else {
-                systemNavBarHeight + 8.dp + snackbarPadding // Small margin from edge when no nav bar
-            }
-        val bottomPadding by animateDpAsState(
-            targetValue = targetBottomPadding,
-            animationSpec =
-                spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
-            label = "miniPlayerPosition",
-        )
+        // Mini player — docked bar for TV/Desktop/Tablet, floating pill for phone
+        if (useDockedBar) {
+            DockedNowPlayingBar(
+                state = state,
+                onTap = viewModel::expand,
+                onPlayPause = viewModel::playPause,
+                onSkipBack = { viewModel.skipBack() },
+                onSkipForward = { viewModel.skipForward() },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        } else {
+            val navBarInsets = WindowInsets.navigationBars
+            val density = LocalDensity.current
+            val systemNavBarHeight = with(density) { navBarInsets.getBottom(density).toDp() }
+            val snackbarPadding = if (isSnackbarVisible) SnackbarHeight + 8.dp else 0.dp
+            val targetBottomPadding =
+                if (hasBottomNav) {
+                    NavigationBarHeight + systemNavBarHeight + snackbarPadding
+                } else {
+                    systemNavBarHeight + 8.dp + snackbarPadding
+                }
+            val bottomPadding by animateDpAsState(
+                targetValue = targetBottomPadding,
+                animationSpec =
+                    spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                label = "miniPlayerPosition",
+            )
 
-        NowPlayingBar(
-            state = state,
-            onTap = viewModel::expand,
-            onPlayPause = viewModel::playPause,
-            onSkipBack = { viewModel.skipBack() },
-            onSkipForward = { viewModel.skipForward() },
-            modifier =
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = bottomPadding),
-        )
+            NowPlayingBar(
+                state = state,
+                onTap = viewModel::expand,
+                onPlayPause = viewModel::playPause,
+                onSkipBack = { viewModel.skipBack() },
+                onSkipForward = { viewModel.skipForward() },
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = bottomPadding),
+            )
+        }
 
         // Chapter picker sheet
         if (state.showChapterPicker) {

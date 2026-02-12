@@ -139,6 +139,7 @@ val playbackModule =
                 imageStorage = get(),
                 progressTracker = get(),
                 tokenProvider = get(),
+                deviceContext = get(),
                 downloadService = get(),
                 playbackApi = get(),
                 capabilityDetector = get(),

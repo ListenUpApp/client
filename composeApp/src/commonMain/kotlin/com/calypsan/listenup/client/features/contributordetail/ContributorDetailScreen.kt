@@ -70,6 +70,7 @@ import com.calypsan.listenup.client.design.components.ListenUpDestructiveDialog
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.getInitials
 import com.calypsan.listenup.client.design.theme.DisplayFontFamily
+import com.calypsan.listenup.client.design.LocalDeviceContext
 import com.calypsan.listenup.client.features.contributoredit.components.ContributorColorScheme
 import com.calypsan.listenup.client.features.contributoredit.components.rememberContributorColorScheme
 import com.calypsan.listenup.client.features.library.BookCard
@@ -284,8 +285,13 @@ private fun WideContributorPortfolio(
                 key = { "${section.role}_${it.id.value}" },
             ) { book ->
                 BookCard(
-                    book = book,
+                    bookId = book.id.value,
+                    title = book.title,
+                    coverPath = book.coverPath,
+                    blurHash = book.coverBlurHash,
                     onClick = { onBookClick(book.id.value) },
+                    authorName = book.authorNames,
+                    duration = book.formatDuration(),
                     progress = state.bookProgress[book.id.value],
                 )
             }
@@ -368,6 +374,7 @@ private fun WideHeroHeader(
                                 fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.Bold,
                             ),
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -450,6 +457,7 @@ private fun WorkSectionHeader(
                         fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Bold,
                     ),
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = "${section.bookCount} ${if (section.bookCount == 1) "book" else "books"}",
@@ -668,10 +676,15 @@ private fun NarrowWorkSection(
                 key = { it.id.value },
             ) { book ->
                 BookCard(
-                    book = book,
+                    bookId = book.id.value,
+                    title = book.title,
+                    coverPath = book.coverPath,
+                    blurHash = book.coverBlurHash,
                     onClick = { onBookClick(book.id.value) },
+                    authorName = book.authorNames,
+                    duration = book.formatDuration(),
                     progress = bookProgress[book.id.value],
-                    modifier = Modifier.width(150.dp),
+                    cardWidth = 150.dp,
                 )
             }
         }
@@ -719,64 +732,66 @@ private fun NavigationBar(
             )
         }
 
-        Box {
-            IconButton(
-                onClick = { showMenu = true },
-                modifier =
-                    Modifier
-                        .size(48.dp)
-                        .background(
-                            color = surfaceColor.copy(alpha = 0.5f),
-                            shape = CircleShape,
-                        ),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(Res.string.book_detail_more_options),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                )
-            }
+        if (!LocalDeviceContext.current.isLeanback) {
+            Box {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier =
+                        Modifier
+                            .size(48.dp)
+                            .background(
+                                color = surfaceColor.copy(alpha = 0.5f),
+                                shape = CircleShape,
+                            ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(Res.string.book_detail_more_options),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
 
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(Res.string.common_edit)) },
-                    leadingIcon = { Icon(Icons.Default.Edit, null) },
-                    onClick = {
-                        showMenu = false
-                        onEditClick()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(Res.string.contributor_download_metadata)) },
-                    leadingIcon = { Icon(Icons.Default.CloudDownload, null) },
-                    onClick = {
-                        showMenu = false
-                        onDownloadMetadata()
-                    },
-                )
-                HorizontalDivider()
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(Res.string.common_delete),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Delete,
-                            null,
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                    },
-                    onClick = {
-                        showMenu = false
-                        onDeleteClick()
-                    },
-                )
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.common_edit)) },
+                        leadingIcon = { Icon(Icons.Default.Edit, null) },
+                        onClick = {
+                            showMenu = false
+                            onEditClick()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.contributor_download_metadata)) },
+                        leadingIcon = { Icon(Icons.Default.CloudDownload, null) },
+                        onClick = {
+                            showMenu = false
+                            onDownloadMetadata()
+                        },
+                    )
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(Res.string.common_delete),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                null,
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            onDeleteClick()
+                        },
+                    )
+                }
             }
         }
     }

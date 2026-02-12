@@ -51,7 +51,6 @@ import com.calypsan.listenup.client.design.components.SortSplitButton
 import com.calypsan.listenup.client.domain.model.Book
 import com.calypsan.listenup.client.domain.model.SyncState
 import com.calypsan.listenup.client.features.library.BookCard
-import com.calypsan.listenup.client.design.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
 import com.calypsan.listenup.client.util.sortLetter
@@ -380,7 +379,7 @@ private fun BookGrid(
                     start = 16.dp,
                     end = 16.dp,
                     top = 48.dp,
-                    bottom = 16.dp + MiniPlayerReservedHeight,
+                    bottom = 16.dp,
                 ),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -409,8 +408,13 @@ private fun BookGrid(
                     is BookGridItem.BookItem -> {
                         val bookId = gridItem.book.id.value
                         BookCard(
-                            book = gridItem.book,
+                            bookId = bookId,
+                            title = gridItem.book.title,
+                            coverPath = gridItem.book.coverPath,
+                            blurHash = gridItem.book.coverBlurHash,
                             onClick = { onBookClick(bookId) },
+                            authorName = gridItem.book.authorNames,
+                            duration = gridItem.book.formatDuration(),
                             progress = bookProgress[bookId],
                             isFinished = bookIsFinished[bookId] ?: false,
                             isInSelectionMode = isInSelectionMode,
@@ -468,7 +472,7 @@ private fun BookGrid(
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight),
+                        .padding(top = 56.dp, end = 4.dp, bottom = 0.dp),
             )
         }
     }

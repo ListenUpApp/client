@@ -40,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowWidthSizeClass
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
 import com.calypsan.listenup.client.design.components.ProfileAvatar
 import com.calypsan.listenup.client.features.discover.components.ActivityFeedSection
@@ -147,6 +149,8 @@ private fun DiscoverContent(
     onBookClick: (String) -> Unit,
     onUserProfileClick: (String) -> Unit,
 ) {
+    val isWide = currentWindowAdaptiveInfo().windowSizeClass.windowWidthSizeClass != WindowWidthSizeClass.COMPACT
+
     LazyColumn(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -173,19 +177,36 @@ private fun DiscoverContent(
             )
         }
 
-        // Community leaderboard
-        item {
-            DiscoverLeaderboardSection(
-                onUserClick = onUserProfileClick,
-            )
-        }
-
-        // Activity feed section
-        item {
-            ActivityFeedSection(
-                onBookClick = onBookClick,
-                onShelfClick = onShelfClick,
-            )
+        // Community leaderboard + Activity feed
+        if (isWide) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    DiscoverLeaderboardSection(
+                        onUserClick = onUserProfileClick,
+                        modifier = Modifier.weight(1f),
+                    )
+                    ActivityFeedSection(
+                        onBookClick = onBookClick,
+                        onShelfClick = onShelfClick,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        } else {
+            item {
+                DiscoverLeaderboardSection(
+                    onUserClick = onUserProfileClick,
+                )
+            }
+            item {
+                ActivityFeedSection(
+                    onBookClick = onBookClick,
+                    onShelfClick = onShelfClick,
+                )
+            }
         }
 
         // Content below activity feed depends on state

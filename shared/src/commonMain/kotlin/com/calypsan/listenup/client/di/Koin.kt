@@ -2,6 +2,8 @@
 
 package com.calypsan.listenup.client.di
 
+import com.calypsan.listenup.client.device.DeviceContext
+import com.calypsan.listenup.client.device.DeviceContextProvider
 import com.calypsan.listenup.client.core.ServerUrl
 import com.calypsan.listenup.client.data.local.db.ListenUpDatabase
 import com.calypsan.listenup.client.data.local.db.platformDatabaseModule
@@ -224,6 +226,12 @@ expect val platformStorageModule: Module
  * Each platform provides mDNS/Bonjour discovery implementation.
  */
 expect val platformDiscoveryModule: Module
+
+/**
+ * Platform-specific device detection module.
+ * Each platform provides DeviceContextProvider implementation.
+ */
+expect val platformDeviceModule: Module
 
 /**
  * Data layer dependencies.
@@ -1449,6 +1457,7 @@ val sharedModules =
         platformStorageModule,
         platformDatabaseModule,
         platformDiscoveryModule,
+        platformDeviceModule,
         dataModule,
         networkModule,
         repositoryModule,

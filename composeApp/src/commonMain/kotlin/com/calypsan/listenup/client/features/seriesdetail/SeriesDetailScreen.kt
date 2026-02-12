@@ -56,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
+import com.calypsan.listenup.client.design.LocalDeviceContext
 import com.calypsan.listenup.client.design.components.BookCoverImage
 import com.calypsan.listenup.client.design.components.ListenUpAsyncImage
 import com.calypsan.listenup.client.design.components.ListenUpLoadingIndicator
@@ -113,11 +114,13 @@ fun SeriesDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { onEditClick(seriesId) }) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = stringResource(Res.string.series_edit_series),
-                        )
+                    if (!LocalDeviceContext.current.isLeanback) {
+                        IconButton(onClick = { onEditClick(seriesId) }) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(Res.string.series_edit_series),
+                            )
+                        }
                     }
                 },
                 colors =

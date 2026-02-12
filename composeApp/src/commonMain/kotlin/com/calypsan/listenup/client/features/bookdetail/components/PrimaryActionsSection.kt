@@ -16,6 +16,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.calypsan.listenup.client.design.LocalDeviceContext
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -42,8 +46,17 @@ fun PrimaryActionsSection(
     modifier: Modifier = Modifier,
     isWaitingForWifi: Boolean = false,
     playEnabled: Boolean = true,
+    requestFocus: Boolean = false,
     onPlayDisabledClick: () -> Unit = {},
 ) {
+    val focusRequester = FocusRequester()
+
+    if (requestFocus) {
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+        }
+    }
+
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -55,7 +68,8 @@ fun PrimaryActionsSection(
             modifier =
                 Modifier
                     .weight(1f)
-                    .height(64.dp),
+                    .height(64.dp)
+                    .then(if (requestFocus) Modifier.focusRequester(focusRequester) else Modifier),
             shape = RoundedCornerShape(32.dp),
             colors =
                 ButtonDefaults.buttonColors(
@@ -91,16 +105,18 @@ fun PrimaryActionsSection(
             )
         }
 
-        // Download Button - icon-only square
-        // When server is unavailable and book isn't downloaded, disable download too
-        DownloadButton(
-            status = downloadStatus,
-            onDownloadClick = if (playEnabled) onDownloadClick else onPlayDisabledClick,
-            onCancelClick = onCancelClick,
-            onDeleteClick = onDeleteClick,
-            modifier = Modifier.size(64.dp),
-            isWaitingForWifi = isWaitingForWifi,
-            enabled = playEnabled || downloadStatus.isFullyDownloaded,
-        )
+        // Download Button - icon-only square (hidden on TV/Auto — stream only)
+        if (LocalDeviceContext.current.supportsDownloads) {
+            // When server is unavailable and book isn't downloaded, disable download too
+            DownloadButton(
+                status = downloadStatus,
+                onDownloadClick = if (playEnabled) onDownloadClick else onPlayDisabledClick,
+                onCancelClick = onCancelClick,
+                onDeleteClick = onDeleteClick,
+                modifier = Modifier.size(64.dp),
+                isWaitingForWifi = isWaitingForWifi,
+                enabled = playEnabled || downloadStatus.isFullyDownloaded,
+            )
+        }
     }
 }

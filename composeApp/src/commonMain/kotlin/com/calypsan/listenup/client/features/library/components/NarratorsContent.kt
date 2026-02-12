@@ -31,7 +31,6 @@ import com.calypsan.listenup.client.design.components.AlphabetIndex
 import com.calypsan.listenup.client.design.components.AlphabetScrollbar
 import com.calypsan.listenup.client.design.components.SortSplitButton
 import com.calypsan.listenup.client.domain.model.ContributorWithBookCount
-import com.calypsan.listenup.client.design.MiniPlayerReservedHeight
 import com.calypsan.listenup.client.presentation.library.SortCategory
 import com.calypsan.listenup.client.presentation.library.SortState
 import kotlinx.coroutines.launch
@@ -104,7 +103,7 @@ fun NarratorsContent(
                         start = 16.dp,
                         end = 16.dp,
                         top = 48.dp,
-                        bottom = 16.dp + MiniPlayerReservedHeight,
+                        bottom = 16.dp,
                     ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize(),
@@ -146,7 +145,7 @@ fun NarratorsContent(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 56.dp, end = 4.dp, bottom = MiniPlayerReservedHeight),
+                            .padding(top = 56.dp, end = 4.dp, bottom = 0.dp),
                 )
             }
         }

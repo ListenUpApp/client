@@ -1,8 +1,11 @@
 package com.calypsan.listenup.client.features.auth
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +23,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.window.core.layout.WindowSizeClass
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -56,7 +61,7 @@ import listenup.composeapp.generated.resources.auth_set_up_your_listenup_server
  * Initial server setup screen for creating the root/admin user.
  *
  * Features:
- * - Clean Material 3 layout matching ServerSetupScreen style
+ * - Adaptive layout: side-by-side on wide screens, vertical on narrow
  * - Form for first name, last name, email, password, confirm password
  * - Client-side validation with field-specific errors
  * - Snackbar for network/server errors
@@ -120,46 +125,99 @@ private fun SetupContent(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
+    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    val useWideLayout =
+        windowSizeClass.isWidthAtLeastBreakpoint(
+            WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+        )
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .imePadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(modifier = Modifier.height(48.dp))
-
-            BrandLogo()
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            ElevatedCard(
+        if (useWideLayout) {
+            Row(
                 modifier =
                     Modifier
-                        .widthIn(max = 480.dp)
-                        .fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                colors =
-                    CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
+                        .fillMaxSize()
+                        .padding(innerPadding),
             ) {
-                SetupForm(
-                    state = state,
-                    onSubmit = onSubmit,
-                    modifier = Modifier.padding(24.dp),
-                )
-            }
+                // Left pane: logo
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(0.4f)
+                            .fillMaxHeight(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BrandLogo()
+                }
 
-            Spacer(modifier = Modifier.height(48.dp))
+                // Right pane: form
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(0.6f)
+                            .fillMaxHeight()
+                            .imePadding(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 32.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        SetupForm(
+                            state = state,
+                            onSubmit = onSubmit,
+                            modifier = Modifier.widthIn(max = 480.dp),
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .imePadding()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
+
+                BrandLogo()
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                ElevatedCard(
+                    modifier =
+                        Modifier
+                            .widthIn(max = 480.dp)
+                            .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors =
+                        CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                ) {
+                    SetupForm(
+                        state = state,
+                        onSubmit = onSubmit,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
     }
 }

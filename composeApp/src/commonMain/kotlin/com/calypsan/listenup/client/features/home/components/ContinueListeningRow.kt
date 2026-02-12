@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.calypsan.listenup.client.domain.model.ContinueListeningBook
+import com.calypsan.listenup.client.features.library.BookCard
 import org.jetbrains.compose.resources.stringResource
 import listenup.composeapp.generated.resources.Res
 import listenup.composeapp.generated.resources.home_continue_listening
@@ -23,7 +24,7 @@ import listenup.composeapp.generated.resources.home_continue_listening
  * Horizontal scrolling row of Continue Listening books.
  *
  * Displays a section header followed by a horizontally scrollable
- * list of ContinueListeningCard components.
+ * list of BookCard components.
  *
  * @param books List of books the user is currently listening to
  * @param onBookClick Callback when a book card is clicked
@@ -58,9 +59,16 @@ fun ContinueListeningRow(
                 items = books,
                 key = { it.bookId },
             ) { book ->
-                ContinueListeningCard(
-                    book = book,
+                BookCard(
+                    bookId = book.bookId,
+                    title = book.title,
+                    coverPath = book.coverPath,
+                    blurHash = book.coverBlurHash,
                     onClick = { onBookClick(book.bookId) },
+                    authorName = book.authorNames,
+                    progress = book.progress,
+                    timeRemaining = book.timeRemainingFormatted,
+                    cardWidth = 140.dp,
                 )
             }
         }

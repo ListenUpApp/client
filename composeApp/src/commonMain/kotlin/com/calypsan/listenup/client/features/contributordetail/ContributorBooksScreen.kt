@@ -238,10 +238,14 @@ private fun GridOnlyLayout(
             key = { it.id.value },
         ) { book ->
             BookCard(
-                book = book,
+                bookId = book.id.value,
+                title = book.title,
+                coverPath = book.coverPath,
+                blurHash = book.coverBlurHash,
                 onClick = { onBookClick(book.id.value) },
+                authorName = book.authorNames,
+                duration = book.formatDuration(),
                 progress = state.bookProgress[book.id.value],
-                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -377,10 +381,15 @@ private fun SeriesCarouselSection(
                 key = { it.id.value },
             ) { book ->
                 BookCard(
-                    book = book,
+                    bookId = book.id.value,
+                    title = book.title,
+                    coverPath = book.coverPath,
+                    blurHash = book.coverBlurHash,
                     onClick = { onBookClick(book.id.value) },
+                    authorName = book.authorNames,
+                    duration = book.formatDuration(),
                     progress = bookProgress[book.id.value],
-                    modifier = Modifier.width(150.dp),
+                    cardWidth = 150.dp,
                 )
             }
         }
@@ -436,8 +445,13 @@ private fun StandaloneBooksGrid(
                 ) {
                     rowBooks.forEach { book ->
                         BookCard(
-                            book = book,
+                            bookId = book.id.value,
+                            title = book.title,
+                            coverPath = book.coverPath,
+                            blurHash = book.coverBlurHash,
                             onClick = { onBookClick(book.id.value) },
+                            authorName = book.authorNames,
+                            duration = book.formatDuration(),
                             progress = bookProgress[book.id.value],
                             modifier = Modifier.weight(1f),
                         )

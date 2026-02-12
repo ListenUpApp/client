@@ -126,7 +126,7 @@ private fun ServerSelectContent(
                     .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Logo
             BrandLogo(size = 120.dp)

@@ -32,3 +32,16 @@ actual val platformDiscoveryModule: Module =
     module {
         single { NsdDiscoveryService(context = get()) } bind ServerDiscoveryService::class
     }
+
+/**
+ * Android-specific device detection module.
+ * Uses UiModeManager and screen metrics to detect device type.
+ */
+actual val platformDeviceModule: Module =
+    module {
+        single {
+            com.calypsan.listenup.client.device
+                .DeviceContextProvider(context = get())
+        }
+        single { get<com.calypsan.listenup.client.device.DeviceContextProvider>().detect() }
+    }

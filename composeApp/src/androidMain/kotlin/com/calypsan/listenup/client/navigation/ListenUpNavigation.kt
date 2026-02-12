@@ -25,6 +25,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.animateDpAsState
+import com.calypsan.listenup.client.design.MiniPlayerReservedHeight
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.calypsan.listenup.client.core.BookId
@@ -72,6 +74,8 @@ import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewMo
 import com.calypsan.listenup.client.presentation.invite.InviteSubmissionStatus
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import com.calypsan.listenup.client.design.LocalDeviceContext
+import com.calypsan.listenup.client.device.DeviceContext
 
 private val logger = KotlinLogging.logger {}
 
@@ -510,9 +514,22 @@ private fun AuthenticatedNavigation(
     }
 
     // Wrap navigation with NowPlayingHost for persistent mini player
-    CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
-        Box(modifier = Modifier.fillMaxSize()) {
+    CompositionLocalProvider(
+        LocalSnackbarHostState provides snackbarHostState,
+        LocalDeviceContext provides koinInject<DeviceContext>(),
+    ) {
+        // Structural bottom padding when mini player is visible
+        val nowPlayingState by nowPlayingViewModel.state.collectAsState()
+        val miniPlayerVisible =
+            (nowPlayingState.isVisible || nowPlayingState.isPreparing) && !nowPlayingState.isExpanded
+        val miniPlayerPadding by animateDpAsState(
+            targetValue = if (miniPlayerVisible) MiniPlayerReservedHeight else 0.dp,
+            label = "mini_player_padding",
+        )
+
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
             NavDisplay(
+                modifier = Modifier.padding(bottom = miniPlayerPadding),
                 backStack = backStack,
                 // Only handle back if we're not at root - let system handle back-to-home
                 onBack = {
@@ -557,9 +574,12 @@ private fun AuthenticatedNavigation(
                                 onTagClick = { tagId ->
                                     backStack.add(TagDetail(tagId))
                                 },
-                                onAdminClick = {
-                                    backStack.add(Admin)
-                                },
+                                onAdminClick =
+                                    if (!LocalDeviceContext.current.isLeanback) {
+                                        { backStack.add(Admin) }
+                                    } else {
+                                        null
+                                    },
                                 onSettingsClick = {
                                     backStack.add(Settings)
                                 },

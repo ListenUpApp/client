@@ -90,7 +90,7 @@ fun PendingApprovalScreen(
         ) {
             BrandLogo(size = 120.dp)
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             ElevatedCard(
                 modifier =

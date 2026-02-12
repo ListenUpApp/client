@@ -3,7 +3,10 @@ package com.calypsan.listenup.client.features.library.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +22,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.sp
 import com.calypsan.listenup.client.domain.model.SeriesWithBooks
 import com.calypsan.listenup.client.domain.repository.ImageStorage
@@ -51,6 +55,7 @@ fun SeriesCard(
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val isFocused by interactionSource.collectIsFocusedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
         label = "card_scale",
@@ -75,7 +80,19 @@ fun SeriesCard(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                }.clickable(
+                }.then(
+                    if (isFocused) {
+                        Modifier
+                            .border(
+                                width = 2.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(12.dp),
+                            ).padding(8.dp)
+                    } else {
+                        Modifier
+                    },
+                ).focusable(interactionSource = interactionSource)
+                .clickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick,

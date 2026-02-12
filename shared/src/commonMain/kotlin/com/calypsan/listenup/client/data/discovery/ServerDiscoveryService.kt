@@ -26,7 +26,7 @@ data class DiscoveredServer(
     /**
      * Local network URL for connecting to this server.
      */
-    val localUrl: String get() = "http://$host:$port"
+    val localUrl: String get() = if (":" in host) "http://[$host]:$port" else "http://$host:$port"
 }
 
 /**
