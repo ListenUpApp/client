@@ -72,6 +72,8 @@ import com.calypsan.listenup.client.presentation.invite.InviteRegistrationViewMo
 import com.calypsan.listenup.client.presentation.invite.InviteSubmissionStatus
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import com.calypsan.listenup.client.design.LocalDeviceContext
+import com.calypsan.listenup.client.device.DeviceContext
 
 private val logger = KotlinLogging.logger {}
 
@@ -510,7 +512,10 @@ private fun AuthenticatedNavigation(
     }
 
     // Wrap navigation with NowPlayingHost for persistent mini player
-    CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
+    CompositionLocalProvider(
+            LocalSnackbarHostState provides snackbarHostState,
+            LocalDeviceContext provides koinInject<DeviceContext>(),
+        ) {
         Box(modifier = Modifier.fillMaxSize()) {
             NavDisplay(
                 backStack = backStack,

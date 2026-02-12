@@ -51,7 +51,7 @@ import com.calypsan.listenup.client.features.bookdetail.components.HeroSection
 import com.calypsan.listenup.client.features.bookdetail.components.MarkCompleteDialog
 import com.calypsan.listenup.client.features.bookdetail.components.PrimaryActionsSection
 import com.calypsan.listenup.client.features.bookdetail.components.TalentSectionWithRoles
-import com.calypsan.listenup.client.features.bookdetail.components.TwoPaneBookDetail
+import com.calypsan.listenup.client.features.bookdetail.components.WideBookDetail
 import com.calypsan.listenup.client.presentation.bookdetail.BookDetailUiState
 import com.calypsan.listenup.client.presentation.bookdetail.BookDetailViewModel
 import kotlinx.coroutines.launch
@@ -299,7 +299,7 @@ fun BookDetailScreen(
 
 /**
  * Main content container that handles responsive layout.
- * Uses TwoPaneLayout for tablets, ImmersiveBookDetail for phones.
+ * Uses WideBookDetail for tablets, ImmersiveBookDetail for phones.
  */
 @Suppress("LongParameterList")
 @Composable
@@ -341,7 +341,7 @@ fun BookDetailContent(
         )
 
     if (useTwoPane) {
-        TwoPaneBookDetail(
+        WideBookDetail(
             bookId = bookId,
             state = state,
             downloadStatus = downloadStatus,
