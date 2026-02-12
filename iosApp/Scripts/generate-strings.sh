@@ -1,11 +1,10 @@
 #!/bin/bash
 # generate-strings.sh — Generate Localizable.strings from shared JSON
 #
-# To wire as an Xcode Build Phase:
-#   1. Select the iosApp target in Xcode
-#   2. Build Phases → + → New Run Script Phase
-#   3. Set the shell script to: "${SRCROOT}/Scripts/generate-strings.sh"
-#   4. Drag it above "Compile Sources"
+# Converts Android-style format specifiers to iOS:
+#   %1$s → %1$@   (positional string)
+#   %s   → %@     (unpositioned string)
+#   %1$d, %1$f    (integers/floats stay the same)
 
 set -euo pipefail
 
@@ -19,8 +18,8 @@ for json_file in "$STRINGS_DIR"/*.json; do
     out_dir="$RESOURCES_DIR/${locale}.lproj"
     mkdir -p "$out_dir"
 
-    python3 -c "
-import json, sys
+    python3 - "$json_file" "$out_dir/Localizable.strings" << 'PYSCRIPT'
+import json, sys, re
 
 def flatten(obj, prefix=''):
     items = []
@@ -32,13 +31,22 @@ def flatten(obj, prefix=''):
             items.append((key, str(v)))
     return items
 
+def android_to_ios_format(s):
+    # %1$s -> %1$@ (positional string)
+    s = re.sub(r'%(\d+)\$s', r'%\1$@', s)
+    # %s -> %@ (unpositioned string)
+    s = s.replace('%s', '%@')
+    return s
+
 with open(sys.argv[1]) as f:
     data = json.load(f)
 
-for key, value in sorted(flatten(data)):
-    escaped = value.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"')
-    print(f'\"{key}\" = \"{escaped}\";')
-" "$json_file" > "$out_dir/Localizable.strings"
+with open(sys.argv[2], 'w') as out:
+    for key, value in sorted(flatten(data)):
+        converted = android_to_ios_format(value)
+        escaped = converted.replace('\\', '\\\\').replace('"', '\\"')
+        out.write(f'"{key}" = "{escaped}";\n')
+PYSCRIPT
 
     echo "Generated ${locale}.lproj/Localizable.strings"
 done
