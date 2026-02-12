@@ -90,6 +90,7 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.calypsan.listenup.client.playback.NowPlayingState
+import com.calypsan.listenup.client.design.components.AuroraBackground
 import com.calypsan.listenup.client.playback.SleepTimerMode
 import com.calypsan.listenup.client.playback.SleepTimerState
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -190,46 +191,7 @@ fun NowPlayingScreen(
 
     val dragOffset = remember { Animatable(0f) }
 
-    // Vertical glow for tall/portrait layout (centered on cover)
-    val tallGlowBrush =
-        remember(dominantColor) {
-            if (dominantColor != Color.Transparent) {
-                Brush.verticalGradient(
-                    colorStops =
-                        arrayOf(
-                            0.0f to Color.Transparent,
-                            0.15f to dominantColor.copy(alpha = 0.3f),
-                            0.35f to dominantColor.copy(alpha = 0.6f),
-                            0.5f to dominantColor.copy(alpha = 0.6f),
-                            0.65f to dominantColor.copy(alpha = 0.3f),
-                            0.85f to dominantColor.copy(alpha = 0.1f),
-                            1.0f to Color.Transparent,
-                        ),
-                )
-            } else {
-                null
-            }
-        }
 
-    // Horizontal glow for wide/landscape layout (fades from left to right)
-    val wideGlowBrush =
-        remember(dominantColor) {
-            if (dominantColor != Color.Transparent) {
-                Brush.horizontalGradient(
-                    colorStops =
-                        arrayOf(
-                            0.0f to dominantColor.copy(alpha = 0.5f),
-                            0.3f to dominantColor.copy(alpha = 0.4f),
-                            0.6f to dominantColor.copy(alpha = 0.2f),
-                            0.85f to dominantColor.copy(alpha = 0.05f),
-                            1.0f to Color.Transparent,
-                        ),
-                )
-            } else {
-                null
-            }
-        }
-    val glowAlpha = 1f
 
     Surface(
         modifier =
@@ -284,37 +246,10 @@ fun NowPlayingScreen(
             val isWideLayout = constraintsWidth > constraintsHeight
 
             Box(modifier = Modifier.fillMaxSize()) {
-                // Large colored glow behind cover
-                if (glowAlpha > 0f) {
-                    if (isWideLayout) {
-                        // Wide: horizontal glow on left side behind cover
-                        wideGlowBrush?.let { brush ->
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxHeight()
-                                        .width(constraintsWidth * 0.5f)
-                                        .align(Alignment.CenterStart)
-                                        .graphicsLayer { alpha = glowAlpha }
-                                        .background(brush = brush),
-                            )
-                        }
-                    } else {
-                        // Tall: vertical glow centered on cover art
-                        tallGlowBrush?.let { brush ->
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .height(550.dp)
-                                        .offset(y = 80.dp)
-                                        .align(Alignment.TopCenter)
-                                        .graphicsLayer { alpha = glowAlpha }
-                                        .background(brush = brush),
-                            )
-                        }
-                    }
-                }
+                // Aurora mesh gradient background
+                AuroraBackground(
+                    dominantColor = dominantColor,
+                )
 
                 if (isWideLayout) {
                     // Wide layout: cover on left, controls on right
